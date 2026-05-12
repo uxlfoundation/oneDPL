@@ -730,14 +730,22 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
         else if (__supports_USM_device)
         {
-            auto __q_proxy = std::get_deleter<__internal::__sycl_usm_free>(__scratch_buf);
-            assert(__q_proxy != nullptr && __q_proxy->__q.has_value());
-            // Avoid default constructor for _T. Since _T is device copyable, copy construction
-            // is equivalent to a bitwise copy and we may treat __space.__v as constructed after the memcpy.
-            // There is no need to destroy it afterwards, as the destructor must have no effect.
-            oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
-            __q_proxy->__q->memcpy(&__space.__v, __scratch_buf.get() + __scratch_n + _Idx, sizeof(_T)).wait();
-            return __space.__v;
+            if (__scratch_buf)
+            {
+                auto __q_proxy = std::get_deleter<__internal::__sycl_usm_free>(__scratch_buf);
+                assert(__q_proxy != nullptr && __q_proxy->__q.has_value());
+                // Avoid default constructor for _T. Since _T is device copyable, copy construction
+                // is equivalent to a bitwise copy and we may treat __space.__v as constructed after the memcpy.
+                // There is no need to destroy it afterwards, as the destructor must have no effect.
+                oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
+                __q_proxy->__q->memcpy(&__space.__v, __scratch_buf.get() + __scratch_n + _Idx, sizeof(_T)).wait();
+                return __space.__v;
+            }
+            else
+            {
+                assert(__result_buf);
+                return __result_buf.get()[_Idx];
+            }
         }
         else
         {
@@ -848,10 +856,12 @@ __get_accessor(_ModeTagT, __device_storage<_T>& __st, sycl::handler& __cgh, cons
     return __st.template __get_accessor<__access_mode_resolver_v<_ModeTagT>>(__cgh, __prop_list);
 }
 
-template <typename _T>
+template <typename _T, bool _CanUseUSMHostMemory = true>
 struct __result_storage : public __device_storage<_T>
 {
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __result_storage.");
+
+    using _ValueType = _T;
 
     std::size_t __result_sz = 0;
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
@@ -859,17 +869,20 @@ struct __result_storage : public __device_storage<_T>
     __result_storage(const sycl::queue& __q, std::size_t __n) : __result_sz(__n)
     {
         assert(__result_sz > 0);
-        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
-        if (__ptr)
+
+        if constexpr (_CanUseUSMHostMemory)
         {
-            this->__usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-            __kind = sycl::usm::alloc::host;
+            _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
+            if (__ptr)
+            {
+                this->__usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+                __kind = sycl::usm::alloc::host;
+                return;
+            }
         }
-        else
-        {
-            this->__initialize(__q, __n);
-            __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
-        }
+
+        this->__initialize(__q, __n);
+        __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
     }
 
     // Note: this function assumes a kernel has completed and the result can be transferred to host
@@ -879,11 +892,19 @@ struct __result_storage : public __device_storage<_T>
         this->__copy_n(__dst, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr,
                        __result_sz < __n ? __result_sz : __n, /*offset*/ 0);
     }
+
+    __copyable_storage_state<_T>
+    __move_state_from() &&
+    {
+        return {std::move(this->__usm_buf), {}, std::move(this->__sycl_buf), 0, __kind};
+    }
 };
 
-template <typename _T>
+template <typename _T, bool _CanUseUSMHostMemory = true>
 struct __combined_storage : public __device_storage<_T>
 {
+    using _ValueType = _T;
+
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __combined_storage.");
 
     std::unique_ptr<_T, __internal::__sycl_usm_free> __result_buf = nullptr;
@@ -894,19 +915,25 @@ struct __combined_storage : public __device_storage<_T>
     __combined_storage(const sycl::queue& __q, std::size_t __scratch_n, std::size_t __result_n)
         : __sz(__scratch_n), __result_sz(__result_n)
     {
-        assert(__sz > 0 && __result_sz > 0);
-        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
-        if (__ptr)
+        assert(__result_sz > 0);    //assert(__sz > 0 && __result_sz > 0);
+
+        if constexpr (_CanUseUSMHostMemory)
         {
-            __result_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-            this->__initialize(__q, __sz); // a separate scratch buffer
-            __kind = sycl::usm::alloc::host;
+            _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
+            if (__ptr)
+            {
+                __result_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+
+                if (__sz > 0)
+                    this->__initialize(__q, __sz); // a separate scratch buffer
+
+                __kind = sycl::usm::alloc::host;
+                return;
+            }
         }
-        else
-        {
-            this->__initialize(__q, __sz + __result_sz); // a combined buffer, starting with scratch
-            __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
-        }
+
+        this->__initialize(__q, __sz + __result_sz); // a combined buffer, starting with scratch
+        __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
     }
 
     // Note: this function assumes a kernel has completed and the result can be transferred to host
@@ -934,15 +961,20 @@ struct __combined_storage : public __device_storage<_T>
         }
     }
 
-    template <typename _Forwarding>
-    friend
-    std::enable_if_t<std::is_same_v<std::decay_t<_Forwarding>, __combined_storage<_T>>, __copyable_storage_state<_T>>
-    __move_state_from(_Forwarding&& __src)
+    __copyable_storage_state<_T>
+    __move_state_from() &&
     {
-        return {std::move(__src.__result_buf), std::move(__src.__usm_buf), std::move(__src.__sycl_buf),
-                __src.__sz, __src.__kind};
+        return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf), __sz, __kind};
     }
 };
+
+// Storage for values that require GPU atomic operations inside a kernel,
+// with host-side read after kernel completion via __copy_result.
+// This type never allocates host USM:
+//  - host USM is banned for atomic access on most GPU hardware
+//  - must be used when sycl::atomic_ref<..., global_space> is required.
+template <typename _T>
+using __atomic_result_storage = __result_storage<_T, /*_CanUseUSMHostMemory*/ false>;
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
@@ -1060,6 +1092,38 @@ class __future : private std::tuple<_Args...>
         return __future<_Event, _T, _Args...>(__my_event, new_tuple);
     }
 };
+
+template <typename _Event, typename _Payload>
+auto
+__create_future(_Event&& __event, _Payload&& __payload)
+{
+    using _ValueType = typename std::decay_t<_Payload>::_ValueType;
+
+    return __future(std::forward<_Event>(__event),
+                    __result_and_scratch_storage<_ValueType>(std::forward<_Payload>(__payload).__move_state_from()));
+}
+
+template <typename _Event, typename _Payload, typename... _Args>
+auto
+__create_future(_Event&& __event, _Payload&& __payload, _Args&&... __args)
+{
+    return __create_future(std::forward<_Event>(__event), std::forward<_Payload>(__payload))
+        .__make_future(std::forward<_Args>(__args)...);
+}
+
+template <typename _Event, typename _Payload>
+auto
+__wait_and_get_result(_Event&& __event, _Payload&& __payload)
+{
+    return __create_future(std::forward<_Event>(__event), std::forward<_Payload>(__payload)).get();
+}
+
+template <typename _Event, typename _ValueType>
+auto
+__create_future(_Event&& __event, __result_and_scratch_storage<_ValueType>&& __payload)
+{
+    return __future(std::forward<_Event>(__event), std::forward<decltype(__payload)>(__payload));
+}
 
 struct __scalar_load_op
 {

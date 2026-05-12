@@ -195,10 +195,15 @@ __pattern_transform_scan_base_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__result, __result + __n);
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ false>(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __unary_op,
         __init, __binary_op, _Inclusive{});
-    return __res.__make_future(__result + __n);
+
+    static_assert(std::tuple_size_v<std::decay_t<decltype(__res)>> == 2,
+                  "__parallel_transform_scan<_Bounded=false> must return a 2-element tuple."
+                  "A 3-element tuple would cause the stop_pos storage to be destroyed before the kernel completes.");
+
+    return __create_future(std::move(std::get<0>(__res)), std::move(std::get<1>(__res)), __result + __n);
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,

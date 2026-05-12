@@ -886,8 +886,7 @@ struct __internal::__set_difference_fn
                  std::mergeable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>,
                                 std::ranges::iterator_t<_OutRange>, _Comp, _Proj1, _Proj2>
 
-    std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
-                                       std::ranges::borrowed_iterator_t<_OutRange>>
+    oneapi::dpl::__internal::__ranges::__set_difference_return_t<_R1, _R2, _OutRange>
     operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp = {},
                _Proj1 __proj1 = {}, _Proj2 __proj2 = {}) const
     {
@@ -2010,10 +2009,10 @@ merge(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3&& _
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng1, __rng2, __rng3);
 
     auto __view_res = views::all_write(::std::forward<_Range3>(__rng3));
-    oneapi::dpl::__internal::__ranges::__pattern_merge(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-                                                       views::all_read(std::forward<_Range1>(__rng1)),
-                                                       views::all_read(std::forward<_Range2>(__rng2)), __view_res,
-                                                       __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    oneapi::dpl::__internal::__ranges::__pattern_merge</*_Bounded*/ false>(  // _Bounded is false because we not going to support bounded output for any algorithms from onedpl::experimental::ranges
+        __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), views::all_read(std::forward<_Range1>(__rng1)),
+        views::all_read(std::forward<_Range2>(__rng2)), __view_res, __comp, oneapi::dpl::identity{},
+        oneapi::dpl::identity{});
 
     return __view_res.size();
 }
@@ -2101,7 +2100,8 @@ reduce_by_segment(_ExecutionPolicy&& __exec, _Range1&& __keys, _Range2&& __value
     const auto __dispatch_tag =
         oneapi::dpl::__ranges::__select_backend(__exec, __keys, __values, __out_keys, __out_values);
 
-    return oneapi::dpl::__internal::__ranges::__pattern_reduce_by_segment(
+    // Bounded output not supported for oneapi::dpl::experimental::ranges::reduce_by_segment
+    return oneapi::dpl::__internal::__ranges::__pattern_reduce_by_segment</*_Bounded*/ false>(  // _Bounded is false because we not going to support bounded output for any algorithms from onedpl::experimental::ranges
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range1>(__keys)),
         views::all_read(::std::forward<_Range2>(__values)), views::all_write(::std::forward<_Range3>(__out_keys)),
         views::all_write(::std::forward<_Range4>(__out_values)), __binary_pred, __binary_op);

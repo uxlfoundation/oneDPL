@@ -143,10 +143,19 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
                                                                /*_IsNoInitRequested=*/true>();
         auto __buf2 = __keep2(__result, __result + __n);
 
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
+        auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ false>(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n,
-            __unary_op, __init, __binary_op, _Inclusive{})
-            .__checked_deferrable_wait();
+            __unary_op, __init, __binary_op, _Inclusive{});
+
+#if ONEDPL_ALLOW_DEFERRED_WAITING
+        static_assert(
+            std::tuple_size_v<std::decay_t<decltype(__res)>> == 2,
+            "__parallel_transform_scan<_Bounded=false> must return a 2-element tuple."
+            "A 3-element tuple would cause the stop_pos storage to be destroyed before the kernel completes.");
+#endif
+
+        auto __f = __create_future(std::move(std::get<0>(__res)), std::move(std::get<1>(__res)));
+        __f.__checked_deferrable_wait();
     }
     else
     {
@@ -168,10 +177,10 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         auto __buf2 = __keep2(__first_tmp, __last_tmp);
 
         // Run main algorithm and save data into temporary buffer
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(_BackendTag{}, __policy, __buf1.all_view(),
-                                                                     __buf2.all_view(), __n, __unary_op, __init,
-                                                                     __binary_op, _Inclusive{})
-            .wait();
+        auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ false>(
+            _BackendTag{}, __policy, __buf1.all_view(), __buf2.all_view(), __n, __unary_op, __init, __binary_op,
+            _Inclusive{});
+        std::get<0>(__res).wait_and_throw();
 
         // Move data from temporary buffer into results
         oneapi::dpl::__internal::__pattern_walk2_brick(
@@ -335,7 +344,7 @@ __pattern_scan_by_segment_impl(__hetero_tag<_BackendTag>, _Policy&& __policy, _I
     auto __keep_value_outputs = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write>();
     auto __value_output_buf = __keep_value_outputs(__result, __result + __n);
 
-    __bknd::__parallel_scan_by_segment<_Inclusive::value>(
+    __bknd::__parallel_scan_by_segment</*_Bounded*/ false, _Inclusive::value>(
         _BackendTag{}, std::forward<_Policy>(__policy), __key_buf.all_view(), __value_buf.all_view(),
         __value_output_buf.all_view(), __binary_pred, __binary_op, __init);
     return __result + __n;

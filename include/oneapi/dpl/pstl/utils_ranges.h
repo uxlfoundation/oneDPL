@@ -103,6 +103,26 @@ __size(_Range&& __rng)
 }
 #endif
 
+// Returns begin and end of the range
+template <typename _Range>
+auto /*std::tuple*/
+__bounds(_Range&& __rng)
+{
+    const auto __n = __size(__rng);
+    auto __first = __begin(__rng);
+    return std::make_tuple(__first, __first + __n);
+}
+
+// Returns begin, end and size of the range
+template <typename _Range>
+auto /*std::tuple*/
+__bounds_and_size(_Range&& __rng)
+{
+    const auto __n = __size(__rng);
+    auto __first = __begin(__rng);
+    return std::make_tuple(__first, __first + __n, __n);
+}
+
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _Range>
 bool

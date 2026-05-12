@@ -205,11 +205,11 @@ __serial_merge(const _Rng1& __rng1, const _Rng2& __rng2, _Rng3& __rng3, const _I
 }
 
 // Please see the comment for __parallel_for_small_submitter for optional kernel name explanation
-template <typename _OutSizeLimit, typename _IdType, typename _Name>
+template <bool _Bounded, typename _IdType, typename _Name>
 struct __parallel_merge_submitter;
 
-template <typename _OutSizeLimit, typename _IdType, typename... _Name>
-struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional_kernel_name<_Name...>>
+template <bool _Bounded, typename _IdType, typename... _Name>
+struct __parallel_merge_submitter<_Bounded, _IdType, __internal::__optional_kernel_name<_Name...>>
 {
     template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
     __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
@@ -230,12 +230,12 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
         const _IdType __steps = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk);
 
         using __val_t = _split_point_t<_IdType>;
-        using _NResults = std::conditional_t<_OutSizeLimit{}, std::integral_constant<std::size_t, 1>,
+        using _NResults = std::conditional_t<_Bounded, std::integral_constant<std::size_t, 1>,
                                              std::integral_constant<std::size_t, 0>>;
         using __result_and_scratch_storage_t = __result_and_scratch_storage<__val_t, _NResults::value>;
         __result_and_scratch_storage_t* __p_res_storage = nullptr;
 
-        if constexpr (_OutSizeLimit{})
+        if constexpr (_Bounded)
             __p_res_storage = new __result_and_scratch_storage_t(__q, 0);
         else
             assert(oneapi::dpl::__ranges::__size(__rng3) >= __n1 + __n2);
@@ -261,7 +261,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
                     __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem, __n_merge, __n1,
                                    __n2, __comp, __proj1, __proj2, __n);
 
-                if constexpr (_OutSizeLimit{})
+                if constexpr (_Bounded)
                     if (__id == __steps - 1) //the last WI does additional work
                     {
                         auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__result_acc);
@@ -281,20 +281,20 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
     static constexpr auto
     __get_acc(_Storage* __p_res_storage, sycl::handler& __cgh)
     {
-        if constexpr (_OutSizeLimit{})
+        if constexpr (_Bounded)
             return __p_res_storage->template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
         else
             return int{0};
     }
 };
 
-template <typename _OutSizeLimit, typename _IdType, typename _CustomName, typename _DiagonalsKernelName,
+template <bool _Bounded, typename _IdType, typename _CustomName, typename _DiagonalsKernelName,
           typename _MergeKernelName>
 struct __parallel_merge_submitter_large;
 
-template <typename _OutSizeLimit, typename _IdType, typename _CustomName, typename... _DiagonalsKernelName,
+template <bool _Bounded, typename _IdType, typename _CustomName, typename... _DiagonalsKernelName,
           typename... _MergeKernelName>
-struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
+struct __parallel_merge_submitter_large<_Bounded, _IdType, _CustomName,
                                         __internal::__optional_kernel_name<_DiagonalsKernelName...>,
                                         __internal::__optional_kernel_name<_MergeKernelName...>>
 {
@@ -414,7 +414,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
                         __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem,
                                        __nd_range_params.chunk, __n1, __n2, __comp, __proj1, __proj2, __n);
 
-                    if constexpr (_OutSizeLimit{})
+                    if constexpr (_Bounded)
                         if (__global_idx == __nd_range_params.steps - 1)
                         {
                             auto __res_ptr = _Storage::__get_usm_or_buffer_accessor_ptr(__result_acc);
@@ -428,7 +428,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     static constexpr auto
     __get_acc(const _Storage& __base_diagonals_sp_global_storage, sycl::handler& __cgh)
     {
-        if constexpr (_OutSizeLimit{})
+        if constexpr (_Bounded)
             return __base_diagonals_sp_global_storage.template __get_result_acc<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
         else
@@ -454,7 +454,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 
         // Create storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
         using __val_t = _split_point_t<_IdType>;
-        using _NResults = std::conditional_t<_OutSizeLimit{}, std::integral_constant<std::size_t, 1>,
+        using _NResults = std::conditional_t<_Bounded, std::integral_constant<std::size_t, 1>,
                                              std::integral_constant<std::size_t, 0>>;
         using __result_and_scratch_storage_t = __result_and_scratch_storage<__val_t, _NResults::value>;
         auto __p_base_diagonals_sp_global_storage =
@@ -500,8 +500,8 @@ __get_starting_size_limit_for_large_submitter<int>()
     return 16 * 1'048'576; // 16 MB
 }
 
-template <typename _CustomName, typename _OutSizeLimit = std::false_type, typename _Range1, typename _Range2,
-          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
+template <bool _Bounded, typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Compare,
+          typename _Proj1, typename _Proj2>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp,
                       _Proj1 __proj1, _Proj2 __proj2)
@@ -516,8 +516,8 @@ __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
         static_assert(__get_starting_size_limit_for_large_submitter<__value_type>() <=
                       std::numeric_limits<_WiIndex>::max());
         using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __merge_kernel_name<_CustomName, _WiIndex>>;
-        return __parallel_merge_submitter<_OutSizeLimit, _WiIndex, _MergeKernelName>()(
+            __merge_kernel_name<std::integral_constant<bool, _Bounded>, _CustomName, _WiIndex>>;
+        return __parallel_merge_submitter<_Bounded, _WiIndex, _MergeKernelName>()(
             __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__rng3), __comp,
             __proj1, __proj2);
     }
@@ -527,10 +527,10 @@ __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
         {
             using _WiIndex = std::uint32_t;
             using _DiagonalsKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-                __diagonals_kernel_name<_CustomName, _WiIndex>>;
+                __diagonals_kernel_name<std::integral_constant<bool, _Bounded>, _CustomName, _WiIndex>>;
             using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-                __merge_kernel_name_large<_CustomName, _WiIndex>>;
-            return __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
+                __merge_kernel_name_large<std::integral_constant<bool, _Bounded>, _CustomName, _WiIndex>>;
+            return __parallel_merge_submitter_large<_Bounded, _WiIndex, _CustomName, _DiagonalsKernelName,
                                                     _MergeKernelName>()(
                 __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__rng3),
                 __comp, __proj1, __proj2);
@@ -539,10 +539,10 @@ __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
         {
             using _WiIndex = std::uint64_t;
             using _DiagonalsKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-                __diagonals_kernel_name<_CustomName, _WiIndex>>;
+                __diagonals_kernel_name<std::integral_constant<bool, _Bounded>, _CustomName, _WiIndex>>;
             using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-                __merge_kernel_name_large<_CustomName, _WiIndex>>;
-            return __parallel_merge_submitter_large<_OutSizeLimit, _WiIndex, _CustomName, _DiagonalsKernelName,
+                __merge_kernel_name_large<std::integral_constant<bool, _Bounded>, _CustomName, _WiIndex>>;
+            return __parallel_merge_submitter_large<_Bounded, _WiIndex, _CustomName, _DiagonalsKernelName,
                                                     _MergeKernelName>()(
                 __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__rng3),
                 __comp, __proj1, __proj2);
@@ -550,8 +550,8 @@ __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
     }
 }
 
-template <typename _OutSizeLimit = std::false_type, typename _ExecutionPolicy, typename _Range1, typename _Range2,
-          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
+template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
+          typename _Compare, typename _Proj1, typename _Proj2>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng1,
                  _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -559,9 +559,9 @@ __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
-    return __parallel_merge_impl<_CustomName, _OutSizeLimit>(__q_local, std::forward<_Range1>(__rng1),
-                                                             std::forward<_Range2>(__rng2),
-                                                             std::forward<_Range3>(__rng3), __comp, __proj1, __proj2);
+    return __parallel_merge_impl<_Bounded, _CustomName>(__q_local, std::forward<_Range1>(__rng1),
+                                                        std::forward<_Range2>(__rng2), std::forward<_Range3>(__rng3),
+                                                        __comp, __proj1, __proj2);
 }
 
 } // namespace __par_backend_hetero

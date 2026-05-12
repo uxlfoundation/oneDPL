@@ -893,8 +893,9 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
-    std::size_t __num_copied = __par_backend_hetero::__parallel_copy_if(_BackendTag{},
-        std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __n, __pred)[0];
+    std::size_t __num_copied = __par_backend_hetero::__parallel_copy_if(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __n,
+        __pred)[0];
 
     return __result_first + __num_copied;
 }
@@ -927,10 +928,10 @@ __pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__zipped_res, __zipped_res + __n);
 
-    auto __result = oneapi::dpl::__par_backend_hetero::__parallel_partition_copy(
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_partition_copy(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __pred);
 
-    _It1DifferenceType __num_true = __result.get(); // blocking call
+    _It1DifferenceType __num_true = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
 
     return std::make_pair(__result1 + __num_true, __result2 + (__last - __first - __num_true));
 }
@@ -966,8 +967,9 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
-    std::size_t __num_copied = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(_BackendTag{},
-        std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __n, __pred)[0];
+    std::size_t __num_copied = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __n,
+        __pred)[0];
 
     return __result_first + __num_copied;
 }
@@ -1193,9 +1195,9 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
                                                                /*_IsNoInitRequested=*/true>();
         auto __buf3 = __keep3(__d_first, __d_first + __n);
 
-        __par_backend_hetero::__parallel_merge(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-                                               __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __comp,
-                                               oneapi::dpl::identity{}, oneapi::dpl::identity{})
+        __par_backend_hetero::__parallel_merge</*_Bounded*/ false>(
+            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
+            __buf3.all_view(), __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
             .__checked_deferrable_wait();
     }
     return __d_first + __n;
@@ -1734,7 +1736,7 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf3 = __keep3(__result, __result + __output_size);
 
-    _SizeType __result_size = __par_backend_hetero::__parallel_set_op<_SetTag>(
+    _SizeType __result_size = __par_backend_hetero::__parallel_set_op</*_Bounded*/ false, _SetTag>(
         _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
         __buf3.all_view(), __comp, __proj1, __proj2);
 

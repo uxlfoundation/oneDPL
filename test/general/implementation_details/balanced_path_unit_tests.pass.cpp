@@ -46,7 +46,7 @@ std_set(oneapi::dpl::unseq_backend::_UnionTag, _Args&&... args)
     return std::set_union(std::forward<_Args>(args)...);
 }
 
-template <typename SetTag>
+template <bool _Bounded, typename SetTag>
 bool
 test_serial_set_op_count(SetTag set_tag)
 {
@@ -57,8 +57,10 @@ test_serial_set_op_count(SetTag set_tag)
     std::vector<int> v3(v1.size() + v2.size());
 
     oneapi::dpl::__par_backend_hetero::__noop_temp_data __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    oneapi::dpl::__par_backend_hetero::__get_set_operation<_Bounded, SetTag> __set_op;
+    oneapi::dpl::__par_backend_hetero::__noop_processed_info __processed_info{};
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, __processed_info, std::less<int>(),
+                                   oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -70,7 +72,17 @@ test_serial_set_op_count(SetTag set_tag)
     return true;
 }
 
-template <typename SetTag>
+template <bool _Bounded, typename temp_data_array_t>
+auto
+create_temp_data_array()
+{
+    if constexpr (_Bounded)
+        return temp_data_array_t(nullptr);
+    else
+        return temp_data_array_t();
+}
+
+template <bool _Bounded, typename SetTag>
 bool
 test_serial_set_op_count_and_write(SetTag set_tag)
 {
@@ -80,9 +92,14 @@ test_serial_set_op_count_and_write(SetTag set_tag)
     std::vector<int> v2 = {3, 4, 5, 6, 7};
     std::vector<int> v3(v1.size() + v2.size());
 
-    oneapi::dpl::__par_backend_hetero::__temp_data_array<10, int> __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    using __stop_pos_t = oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<decltype(v1), decltype(v2)>;
+    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 10, int, __stop_pos_t>;
+    auto __temp_data = create_temp_data_array<_Bounded, temp_data_array_t>();
+    oneapi::dpl::__par_backend_hetero::__noop_processed_info __processed_info{};
+
+    oneapi::dpl::__par_backend_hetero::__get_set_operation<_Bounded, SetTag> __set_op;
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, __processed_info, std::less<int>(),
+                                   oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -102,7 +119,7 @@ test_serial_set_op_count_and_write(SetTag set_tag)
     }
     return true;
 }
-template <typename SetTag>
+template <bool _Bounded, typename SetTag>
 bool
 test_serial_set_op_count_and_write2(SetTag set_tag)
 {
@@ -112,9 +129,14 @@ test_serial_set_op_count_and_write2(SetTag set_tag)
     std::vector<int> v2 = {1, 1};
     std::vector<int> v3(v1.size() + v2.size());
 
-    oneapi::dpl::__par_backend_hetero::__temp_data_array<10, int> __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    using __stop_pos_t = oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<decltype(v1), decltype(v2)>;
+    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 10, int, __stop_pos_t>;
+    auto __temp_data = create_temp_data_array<_Bounded, temp_data_array_t>();
+    oneapi::dpl::__par_backend_hetero::__noop_processed_info __processed_info{};
+
+    oneapi::dpl::__par_backend_hetero::__get_set_operation<_Bounded, SetTag> __set_op;
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, __processed_info, std::less<int>(),
+                                   oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -135,7 +157,7 @@ test_serial_set_op_count_and_write2(SetTag set_tag)
     return true;
 }
 
-template <typename SetTag>
+template <bool _Bounded, typename SetTag>
 bool
 test_serial_set_op_count_and_write_limited(SetTag set_tag)
 {
@@ -144,9 +166,14 @@ test_serial_set_op_count_and_write_limited(SetTag set_tag)
     std::vector<int> v2 = {3, 4, 4, 4, 5, 6, 7, 11, 12, 13, 14, 15};
     std::vector<int> v3(v1.size() + v2.size());
 
-    oneapi::dpl::__par_backend_hetero::__temp_data_array<11, int> __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 4, 2, 10, __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    using __stop_pos_t = oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<decltype(v1), decltype(v2)>;
+    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 11, int, __stop_pos_t>;
+    auto __temp_data = create_temp_data_array<_Bounded, temp_data_array_t>();
+    oneapi::dpl::__par_backend_hetero::__noop_processed_info __processed_info{};
+
+    oneapi::dpl::__par_backend_hetero::__get_set_operation<_Bounded, SetTag> __set_op;
+    std::uint16_t count = __set_op(v1, v2, 4, 2, 10, __temp_data, __processed_info, std::less<int>(),
+                                   oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     auto res = std_set(set_tag, v1.begin() + 4, v1.begin() + 4 + 5, v2.begin() + 2, v2.begin() + 2 + 5, v3.begin(),
                        std::less<int>());
@@ -168,7 +195,7 @@ test_serial_set_op_count_and_write_limited(SetTag set_tag)
     return true;
 }
 
-template <typename SetTag>
+template <bool _Bounded, typename SetTag>
 bool
 test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
 {
@@ -178,9 +205,14 @@ test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
     std::vector<int> v2 = {1};
     std::vector<int> v3(v1.size() + v2.size());
 
-    oneapi::dpl::__par_backend_hetero::__temp_data_array<15, int> __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    using __stop_pos_t = oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<decltype(v1), decltype(v2)>;
+    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 15, int, __stop_pos_t>;
+    auto __temp_data = create_temp_data_array<_Bounded, temp_data_array_t>();
+    oneapi::dpl::__par_backend_hetero::__noop_processed_info __processed_info{};
+
+    oneapi::dpl::__par_backend_hetero::__get_set_operation<_Bounded, SetTag> __set_op;
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, __processed_info, std::less<int>(),
+                                   oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -201,7 +233,7 @@ test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
     return true;
 }
 
-template <typename SetTag>
+template <bool _Bounded, typename SetTag>
 bool
 test_serial_set_op_count_and_write2_large_setB(SetTag set_tag)
 {
@@ -211,9 +243,14 @@ test_serial_set_op_count_and_write2_large_setB(SetTag set_tag)
     std::vector<int> v2 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2};
     std::vector<int> v3(v1.size() + v2.size());
 
-    oneapi::dpl::__par_backend_hetero::__temp_data_array<15, int> __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    using __stop_pos_t = oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<decltype(v1), decltype(v2)>;
+    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 15, int, __stop_pos_t>;
+    auto __temp_data = create_temp_data_array<_Bounded, temp_data_array_t>();
+    oneapi::dpl::__par_backend_hetero::__noop_processed_info __processed_info{};
+
+    oneapi::dpl::__par_backend_hetero::__get_set_operation<_Bounded, SetTag> __set_op;
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, __processed_info, std::less<int>(),
+                                   oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -353,11 +390,11 @@ find_balanced_path_intersection(_Rng1 __rng1, _Rng2 __rng2, std::size_t __diag_i
     return std::make_tuple(idx1, idx2, star);
 }
 
-template <typename _Rng1, typename _Rng2, typename _Comp>
+template <bool _Bounded, typename _Rng1, typename _Rng2, typename _Comp>
 bool
 test_find_balanced_path_impl(_Rng1 __rng1, _Rng2 __rng2, _Comp __comp)
 {
-    using _SetOperation = oneapi::dpl::__par_backend_hetero::__get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>;
+    using _SetOperation = oneapi::dpl::__par_backend_hetero::__get_set_operation<_Bounded, oneapi::dpl::unseq_backend::_IntersectionTag>;
     using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_simple;
 
     using _GenReduceInput =
@@ -400,6 +437,7 @@ test_find_balanced_path_impl(_Rng1 __rng1, _Rng2 __rng2, _Comp __comp)
     return true;
 }
 
+template <bool _Bounded>
 bool
 test_find_balanced_path()
 {
@@ -412,54 +450,64 @@ test_find_balanced_path()
     std::vector<int> v3 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 4};
     //                     0  1  2  3  4  5  6  7  8
     std::vector<int> v4 = {5, 7, 7, 8, 9, 9, 9, 9, 9};
-    bool ret = test_find_balanced_path_impl(v1, v2, std::less<int>());
-    ret &= test_find_balanced_path_impl(v2, v1, std::less<int>());
-    ret &= test_find_balanced_path_impl(v3, v4, std::less<int>());
-    ret &= test_find_balanced_path_impl(v4, v3, std::less<int>());
-    ret &= test_find_balanced_path_impl(v1, v4, std::less<int>());
-    ret &= test_find_balanced_path_impl(v4, v1, std::less<int>());
-    ret &= test_find_balanced_path_impl(v1, v3, std::less<int>());
-    ret &= test_find_balanced_path_impl(v3, v1, std::less<int>());
-    ret &= test_find_balanced_path_impl(v2, v4, std::less<int>());
-    ret &= test_find_balanced_path_impl(v4, v2, std::less<int>());
-    ret &= test_find_balanced_path_impl(v2, v3, std::less<int>());
-    ret &= test_find_balanced_path_impl(v3, v2, std::less<int>());
+    bool ret = test_find_balanced_path_impl<_Bounded>(v1, v2, std::less<int>());
+    ret &= test_find_balanced_path_impl<_Bounded>(v2, v1, std::less<int>());
+    ret &= test_find_balanced_path_impl<_Bounded>(v3, v4, std::less<int>());
+    ret &= test_find_balanced_path_impl<_Bounded>(v4, v3, std::less<int>());
+    ret &= test_find_balanced_path_impl<_Bounded>(v1, v4, std::less<int>());
+    ret &= test_find_balanced_path_impl<_Bounded>(v4, v1, std::less<int>());
+    ret &= test_find_balanced_path_impl<_Bounded>(v1, v3, std::less<int>());
+    ret &= test_find_balanced_path_impl<_Bounded>(v3, v1, std::less<int>());
+    ret &= test_find_balanced_path_impl<_Bounded>(v2, v4, std::less<int>());
+    ret &= test_find_balanced_path_impl<_Bounded>(v4, v2, std::less<int>());
+    ret &= test_find_balanced_path_impl<_Bounded>(v2, v3, std::less<int>());
+    ret &= test_find_balanced_path_impl<_Bounded>(v3, v2, std::less<int>());
 
     return ret;
 }
 
-template <typename SetTag>
+template <bool _Bounded, typename SetTag>
 void
 test_variety_of_combinations_of_setops(SetTag set_tag)
 {
-    EXPECT_TRUE(test_serial_set_op_count(set_tag), "test for serial set_intersection operation returning count only");
-    EXPECT_TRUE(test_serial_set_op_count_and_write(set_tag), "test for serial set_intersection operation");
-    EXPECT_TRUE(test_serial_set_op_count_and_write2(set_tag), "test for serial set_intersection operation2");
+    EXPECT_TRUE(test_serial_set_op_count<_Bounded>(set_tag), "test for serial set_intersection operation returning count only");
+    EXPECT_TRUE(test_serial_set_op_count_and_write<_Bounded>(set_tag), "test for serial set_intersection operation");
+    EXPECT_TRUE(test_serial_set_op_count_and_write2<_Bounded>(set_tag), "test for serial set_intersection operation2");
 
 // Test for MS STL, serial set algorithms are returning wrong count for certain inputs
-    EXPECT_TRUE(test_serial_set_op_count_and_write2_large_setA(set_tag),
+    EXPECT_TRUE(test_serial_set_op_count_and_write2_large_setA<_Bounded>(set_tag),
                 "test for serial set_intersection operation2 large SetA");
-    EXPECT_TRUE(test_serial_set_op_count_and_write2_large_setB(set_tag),
+    EXPECT_TRUE(test_serial_set_op_count_and_write2_large_setB<_Bounded>(set_tag),
                 "test for serial set_intersection operation2 large SetB");
-    EXPECT_TRUE(test_serial_set_op_count_and_write_limited(set_tag),
+    EXPECT_TRUE(test_serial_set_op_count_and_write_limited<_Bounded>(set_tag),
                 "test for serial set_intersection operation limited");
 }
+
+template <bool _Bounded>
+void
+test()
+{
+    std::cout << "Test intersection" << std::endl;
+    test_variety_of_combinations_of_setops<_Bounded>(oneapi::dpl::unseq_backend::_IntersectionTag{});
+    std::cout << "Test difference" << std::endl;
+    test_variety_of_combinations_of_setops<_Bounded>(oneapi::dpl::unseq_backend::_DifferenceTag{});
+    std::cout << "Test union" << std::endl;
+    test_variety_of_combinations_of_setops<_Bounded>(oneapi::dpl::unseq_backend::_UnionTag{});
+    std::cout << "Test symmetric diff" << std::endl;
+    test_variety_of_combinations_of_setops<_Bounded>(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag{});
+    EXPECT_TRUE(test_right_biased_lower_bound(), "test for right biased lower bound");
+    EXPECT_TRUE(test_find_balanced_path<_Bounded>(), "test for find balanced path");
+}
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    std::cout << "Test intersection" << std::endl;
-    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_IntersectionTag{});
-    std::cout << "Test difference" << std::endl;
-    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_DifferenceTag{});
-    std::cout << "Test union" << std::endl;
-    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_UnionTag{});
-    std::cout << "Test symmetric diff" << std::endl;
-    test_variety_of_combinations_of_setops(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag{});
-    EXPECT_TRUE(test_right_biased_lower_bound(), "test for right biased lower bound");
-    EXPECT_TRUE(test_find_balanced_path(), "test for find balanced path");
+    test</*_Bounded*/ true>();
+    test</*_Bounded*/ false>();
 #endif // TEST_DPCPP_BACKEND_PRESENT
+
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }
