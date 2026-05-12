@@ -106,6 +106,15 @@ struct __get_zeroth_element
 
 // *** Write Operations ***
 
+template <typename _OutSize, typename _OutIndex, typename _Assigner, typename _OOBReachedPred>
+bool
+__write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __assign, _OOBReachedPred __oob_pred)
+{
+    const bool __is_in_bounds = __out_idx < __out_size;
+    __is_in_bounds ? __assign() : (__out_idx == __out_size ? __oob_pred() : void());
+    return __is_in_bounds;
+}
+
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
 // Used in __parallel_transform_scan.
 struct __simple_write_to_id
