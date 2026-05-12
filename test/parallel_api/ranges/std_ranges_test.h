@@ -109,14 +109,6 @@ struct P2
 
     int proj() const { return x; }
     friend bool operator==(const P2& a, const P2& b) { return a.x == b.x && a.y == b.y; }
-
-    template <typename OStream>
-    friend OStream&
-    operator<<(OStream& os, const P2& item)
-    {
-        os << "{" << item.x << ", " << item.y << "}";
-        return os;
-    }
 };
 
 struct P3 : public P2
