@@ -365,17 +365,40 @@ struct __gen_mask
     _RangeTransform __rng_transform;
 };
 
+template <bool _Bounded, typename _GenMask, typename... _Args>
+struct __gen_count_mask;
+
 // Wrapper for a mask generator, converting the mask generator to a counting operation.
 template <typename _GenMask>
-struct __gen_count_mask
+struct __gen_count_mask</*_Bounded*/ false, _GenMask>
 {
     using TempData = __noop_temp_data;
     template <typename _InRng, typename _SizeType>
     _SizeType
-    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
+    operator()(_InRng&& __in_rng, _SizeType __id, TempData) const
     {
         return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
     }
+    _GenMask __gen_mask;
+};
+
+// Wrapper for a mask generator, converting the mask generator to a counting operation.
+template <typename _GenMask, typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes, typename _ProcessedInfo>
+struct __gen_count_mask</*_Bounded*/ true, _GenMask, _TempDataNoCaptureIndexes, _TempDataCaptureIndexes, _ProcessedInfo>
+{
+    using TempDataNoCaptureIndexes = _TempDataNoCaptureIndexes;
+    using TempDataCaptureIndexes = _TempDataCaptureIndexes;    
+    using ProcessedInfo = _ProcessedInfo;
+
+    template <typename _InRng, typename _SizeType, typename _TempData>
+    auto
+    operator()(_InRng&& __in_rng, _SizeType __id, _TempData&, ProcessedInfo&) const
+    {
+        static_assert(__is_any_of_v<_TempData, TempDataNoCaptureIndexes, TempDataCaptureIndexes>);
+
+        return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
+    }
+
     _GenMask __gen_mask;
 };
 
