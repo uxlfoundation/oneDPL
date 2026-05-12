@@ -426,8 +426,16 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::experimental
 namespace oneapi::dpl::__par_backend_hetero
 {
 
-template <typename _UnaryOp, typename _InitType>
+template <bool _Bounded, typename... _Args>
 struct __gen_transform_input;
+
+template <typename _UnaryOp, typename _InitType>
+struct __gen_transform_input</*_Bounded*/ false, _UnaryOp, _InitType>;
+
+template <typename _UnaryOp, typename _InitType, typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes,
+          typename _ProcessedInfo>
+struct __gen_transform_input</*_Bounded*/ true, _UnaryOp, _InitType, _TempDataNoCaptureIndexes, _TempDataCaptureIndexes,
+                             _ProcessedInfo>;
 
 template <typename _BinaryPred>
 struct __gen_red_by_seg_reduce_input;
@@ -447,11 +455,27 @@ struct __gen_mask;
 template <typename _BinaryPredicate>
 struct __gen_unique_mask;
 
-template <typename _GenMask>
+template <bool _Bounded, typename... _Args>
 struct __gen_count_mask;
 
-template <typename _GenMask, typename _RangeTransform>
+template <typename _GenMask>
+struct __gen_count_mask</*_Bounded*/ false, _GenMask>;
+
+template <typename _GenMask, typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes,
+          typename _ProcessedInfo>
+struct __gen_count_mask</*_Bounded*/ true, _GenMask, _TempDataNoCaptureIndexes, _TempDataCaptureIndexes,
+                        _ProcessedInfo>;
+
+template <bool _Bounded, typename... _Args>
 struct __gen_expand_count_mask;
+
+template <typename _GenMask, typename _RangeTransform>
+struct __gen_expand_count_mask</*_Bounded*/ false, _GenMask, _RangeTransform>;
+
+template <typename _GenMask, typename _RangeTransform, typename _TempDataNoCaptureIndexes,
+          typename _TempDataCaptureIndexes, typename _ProcessedInfo>
+struct __gen_expand_count_mask</*_Bounded*/ true, _GenMask, _RangeTransform, _TempDataNoCaptureIndexes,
+                               _TempDataCaptureIndexes, _ProcessedInfo>;
 
 template <int32_t __offset, typename _Assign>
 struct __write_to_id_if;
@@ -462,7 +486,7 @@ struct __write_to_id_if_else;
 template <typename _BinaryPred>
 struct __write_red_by_seg;
 
-template <bool __is_inclusive, typename _InitWrapper, typename _BinaryOp>
+template <bool __is_inclusive, typename _InitType, typename _BinaryOp>
 struct __write_scan_by_seg;
 
 template <typename _Assign>
@@ -486,13 +510,13 @@ struct __gen_set_balanced_path;
 template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_op_from_known_balanced_path;
 
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
-          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename _KernelName>
+template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+          typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp,
+          typename _InitType, typename _KernelNameInit, typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
 template <typename _GenInput, typename _KernelName>
@@ -502,7 +526,16 @@ struct __partition_set_balanced_path_submitter;
 
 template <typename _UnaryOp, typename _InitType>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_transform_input,
-                                                       _UnaryOp, _InitType)>
+                                                       /*_Bounded*/ false, _UnaryOp, _InitType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_UnaryOp>
+{
+};
+
+template <typename _UnaryOp, typename _InitType, typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes,
+          typename _ProcessedInfo>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
+    oneapi::dpl::__par_backend_hetero::__gen_transform_input, /*_Bounded*/ true, _UnaryOp, _InitType,
+    _TempDataNoCaptureIndexes, _TempDataCaptureIndexes, _ProcessedInfo)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_UnaryOp>
 {
 };
@@ -548,15 +581,35 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPredicate>
 {
 };
+
 template <typename _GenMask>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_count_mask, _GenMask)>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_count_mask,
+                                                       /*_Bounded*/ false, _GenMask)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
+{
+};
+
+template <typename _GenMask, typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes,
+          typename _ProcessedInfo>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_count_mask,
+                                                       /*_Bounded*/ true, _GenMask, _TempDataNoCaptureIndexes,
+                                                       _TempDataCaptureIndexes, _ProcessedInfo)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
 {
 };
 
 template <typename _GenMask, typename _RangeTransform>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask,
-                                                       _GenMask, _RangeTransform)>
+                                                       /*_Bounded*/ false, _GenMask, _RangeTransform)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
+{
+};
+
+template <typename _GenMask, typename _RangeTransform, typename _TempDataNoCaptureIndexes,
+          typename _TempDataCaptureIndexes, typename _ProcessedInfo>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
+    oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask,
+    /*_Bounded*/ true, _GenMask, _RangeTransform, _TempDataNoCaptureIndexes, _TempDataCaptureIndexes, _ProcessedInfo)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
 {
 };
@@ -582,10 +635,10 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <bool __is_inclusive, typename _InitWrapper, typename _BinaryOp>
+template <bool __is_inclusive, typename _InitType, typename _BinaryOp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_scan_by_seg,
-                                                       __is_inclusive, _InitWrapper, _BinaryOp)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_InitWrapper, _BinaryOp>
+                                                       __is_inclusive, _InitType, _BinaryOp)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_InitType, _BinaryOp>
 {
 };
 
@@ -638,25 +691,27 @@ struct sycl::is_device_copyable<
 
 // Submitters that capture member variables via *this into the kernel lambda must have device copyable specializations
 // if their members may not be trivially copyable.
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename... _KernelName>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
-    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_reduce_submitter, __max_inputs_per_item,
+    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_reduce_submitter, _Bounded, __max_inputs_per_item,
     __is_inclusive, __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType, _KernelName...)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenReduceInput, _ReduceOp, _InitType>
 {
 };
 
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
-          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename... _KernelName>
+template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+          typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp,
+          typename _InitType, typename _KernelNameInit, typename... _KernelName>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
-    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_scan_submitter, __max_inputs_per_item,
+    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_scan_submitter, _Bounded, __max_inputs_per_item,
     __is_inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
-    _KernelName...)> : oneapi::dpl::__internal::__are_all_device_copyable<_ReduceOp, _GenScanInput, _ScanInputTransform,
-                                                                          _WriteOp, _InitType>
+    _KernelNameInit, _KernelName...)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp,
+                                                         _InitType>
 {
 };
+
 template <typename _GenInput, typename KernelName>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
     oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter, _GenInput, KernelName)>
