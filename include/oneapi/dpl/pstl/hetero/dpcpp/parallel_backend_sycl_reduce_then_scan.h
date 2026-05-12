@@ -1371,9 +1371,9 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
 }
 
-template <bool __use_subgroup_ops, bool __is_inclusive, bool __init_present, bool __capture_output,
-          typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
-          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng, typename _ScanValueType>
+template <bool __use_subgroup_ops, bool __is_inclusive, bool __init_present, bool __capture_output, typename _GenInput,
+          typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp, typename _LazyValueType, typename _InRng,
+          typename _OutRng, typename _ScanValueType>
 void
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
@@ -1501,15 +1501,14 @@ class __reduce_then_scan_reduce_kernel;
 template <typename... _Name>
 class __reduce_then_scan_scan_kernel;
 
-template <bool __is_inclusive, bool __is_unique_pattern_v,
-          typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename _KernelName>
+template <bool __is_inclusive, bool __is_unique_pattern_v, typename _GenReduceInput, typename _ReduceOp,
+          typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
-template <bool __is_inclusive, bool __is_unique_pattern_v,
-          typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename... _KernelName>
-struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_pattern_v,
-                                                    _GenReduceInput, _ReduceOp, _InitType,
-                                                    __internal::__optional_kernel_name<_KernelName...>>
+template <bool __is_inclusive, bool __is_unique_pattern_v, typename _GenReduceInput, typename _ReduceOp,
+          typename _InitType, typename... _KernelName>
+struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_pattern_v, _GenReduceInput, _ReduceOp,
+                                                    _InitType, __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
 
@@ -1662,16 +1661,14 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
     _InitType __init;
 };
 
-template <bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
-          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename _KernelName>
+template <bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp, typename _GenScanInput,
+          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
-template <bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
-          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename... _KernelName>
-struct __parallel_reduce_then_scan_scan_submitter<__is_inclusive, __is_unique_pattern_v,
-                                                  _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
+template <bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp, typename _GenScanInput,
+          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename... _KernelName>
+struct __parallel_reduce_then_scan_scan_submitter<__is_inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput,
+                                                  _ScanInputTransform, _WriteOp, _InitType,
                                                   __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
@@ -2106,12 +2103,11 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 
     // Reduce and scan step implementations
     using _ReduceSubmitter =
-        __parallel_reduce_then_scan_reduce_submitter<__inclusive, __is_unique_pattern_v,
-                                                     _GenReduceInput, _ReduceOp, _InitType, _ReduceKernel>;
+        __parallel_reduce_then_scan_reduce_submitter<__inclusive, __is_unique_pattern_v, _GenReduceInput, _ReduceOp,
+                                                     _InitType, _ReduceKernel>;
     using _ScanSubmitter =
-        __parallel_reduce_then_scan_scan_submitter<__inclusive, __is_unique_pattern_v, _ReduceOp,
-                                                   _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
-                                                   _ScanKernel>;
+        __parallel_reduce_then_scan_scan_submitter<__inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput,
+                                                   _ScanInputTransform, _WriteOp, _InitType, _ScanKernel>;
     _ReduceSubmitter __reduce_submitter{__num_work_groups,
                                         __work_group_size,
                                         __max_inputs_per_block,
