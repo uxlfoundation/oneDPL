@@ -316,14 +316,13 @@ private:
 
     using rvalue_container_t = std::array<typename Container::value_type, 0>;
 
-    static constexpr int kParts = 2;
-
-    static constexpr int kPaddingSize = 20;
+    static constexpr int __parts = 2;
+    static constexpr int __padding_size = 20;
 
     // Get real range size considering padding for out ranges
     int get_padded_size(int n)
     {
-        return n + kPaddingSize * kParts;
+        return n + __padding_size * __parts;
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn>
@@ -395,8 +394,8 @@ private:
     {
         if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
         {
-            return view | std::views::drop(kPaddingSize) |
-                   std::views::take(std::ranges::size(view) - kPaddingSize * kParts);
+            return view | std::views::drop(__padding_size) |
+                   std::views::take(std::ranges::size(view) - __padding_size * __parts);
         }
         else
         {
@@ -409,15 +408,15 @@ private:
     {
         if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
         {
-            for (int idx = 0; idx < kPaddingSize; ++idx)
+            for (int idx = 0; idx < __padding_size; ++idx)
             {
                 if (*(view.begin() + idx) != data_gen_unprocessed(idx))
                     return false;
             }
         
-            for (int idx = 0; idx < kPaddingSize; ++idx)
+            for (int idx = 0; idx < __padding_size; ++idx)
             {
-                if (*(view.begin() + view.size() - kPaddingSize + idx) != data_gen_unprocessed(idx))
+                if (*(view.begin() + view.size() - __padding_size + idx) != data_gen_unprocessed(idx))
                     return false;
             }
         }
@@ -544,11 +543,11 @@ public:
         process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test case size of input range is less than size of output and vice-versa
-        process_data_in_out(max_n, r_size / kParts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_out(max_n, r_size,          r_size / kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size / __parts, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size / __parts, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, 0,      0, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_out(max_n, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_out(max_n, 0, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
@@ -566,8 +565,8 @@ public:
         process_data_in_in(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test case the sizes of input ranges are different
-        process_data_in_in(max_n, r_size / kParts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
-        process_data_in_in(max_n, r_size,          r_size / kParts, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size / __parts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size,          r_size / __parts, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test cases with empty sequence(s)
         process_data_in_in(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
@@ -744,12 +743,12 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size * kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size * __parts, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_in_out(max_n, 0,      0,                                          0, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, 0,      r_size, out_size_with_empty_in1<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, 0,      out_size_with_empty_in2<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0,      0,                                     0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, r_size, out_size_with_empty_in1<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, 0, out_size_with_empty_in2<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -757,17 +756,17 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size,          r_size,          r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size,          r_size,          r_size * kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size / kParts, r_size,          r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size,          r_size / kParts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size,          r_size,          r_size / kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size,           CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size * __parts, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size / __parts, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size / __parts, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size / __parts, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s) and/or zero output capacity
-        process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, 0, r_size / 2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size / 2, 0, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0,           0,     0,     CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size,     0,     CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, r_size / 2, r_size,     CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size / 2, 0, r_size,     CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, 0, r_size / 2, r_size / 4, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, r_size / 2, 0, r_size / 4, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
