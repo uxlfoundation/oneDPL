@@ -29,6 +29,8 @@
 #include <limits>
 #include <cstdint>
 #include <array>
+#include <tuple>
+#include <variant> // for std::monostate
 
 #include "../../iterator_impl.h"
 #include "../../execution_impl.h"
@@ -387,15 +389,37 @@ __scan_work_group(const _Group& __group, _InPtr __begin, _InPtr __end, _OutPtr _
         __dpl_sycl::__joint_exclusive_scan(__group, __begin, __end, __out_it, __init.__value, __bin_op);
 }
 
-template <bool _Inclusive, typename _KernelName>
+template <bool _Bounded, bool _Inclusive, typename _KernelName>
 struct __parallel_transform_scan_dynamic_single_group_submitter;
 
-template <bool _Inclusive, typename... _ScanKernelName>
-struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
+template <bool _Bounded, bool _Inclusive, typename... _ScanKernelName>
+struct __parallel_transform_scan_dynamic_single_group_submitter<_Bounded, _Inclusive,
                                                                 __internal::__optional_kernel_name<_ScanKernelName...>>
 {
+    template <typename _ValueType>
+    auto
+    __create_result_payload(sycl::queue& __q) const
+    {
+        if constexpr (_Bounded)
+            return __combined_storage<_ValueType>{__q, /*No temporary data, just for return type compatibility*/ 0, 1};
+        else
+            return std::monostate{};
+    }
+
+    template <typename _ResultPayload>
+    auto
+    __get_result_accessor(sycl::handler& __hdl, _ResultPayload& __result_payload) const
+    {
+        if constexpr (_Bounded)
+            return __get_result_accessor(sycl::write_only, __result_payload, __hdl, __dpl_sycl::__no_init{});            
+        else
+            return std::monostate{};
+    }
+
     template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp>
-    sycl::event
+    std::conditional_t<_Bounded,
+                       std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>,
+                       std::tuple<sycl::event>>
     operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op, ::std::uint16_t __wg_size)
     {
@@ -404,10 +428,15 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
         const ::std::uint16_t __elems_per_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size);
         const ::std::uint16_t __elems_per_wg = __elems_per_item * __wg_size;
 
-        return __q.submit([&](sycl::handler& __hdl) {
-            oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
+        auto __result_payload = __create_result_payload<_ValueType>(__q);
 
+        if constexpr (_Bounded)
+            __n = std::min<decltype(__n)>(__n, oneapi::dpl::__ranges::__size(__out_rng));
+
+         sycl::event __event = __q.submit([&](sycl::handler& __hdl) {
+            oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg}, __hdl);
+            auto __res_acc = __get_result_accessor(__hdl, __result_payload);
             __hdl.parallel_for<_ScanKernelName...>(
                 sycl::nd_range<1>(__wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
                     const auto& __group = __self_item.get_group();
@@ -426,8 +455,23 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
                     {
                         __out_rng[__idx] = __lacc[__idx];
                     }
+
+                    // Save position after the last processed element in output
+                    if constexpr (_Bounded)
+                    {
+                        const auto __global_id = __self_item.get_global_linear_id();
+                        if (__global_id == 0)
+                        {
+                            __res_acc.__data()[0] = __n;
+                        }
+                    }
                 });
         });
+
+        if constexpr (_Bounded)
+            return {std::move(__event), std::move(__result_payload)};
+        else
+            return {std::move(__event)};
     }
 };
 
