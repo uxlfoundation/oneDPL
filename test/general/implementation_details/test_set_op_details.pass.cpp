@@ -28,6 +28,34 @@
 #include <iterator>
 #include <algorithm> // for std::count_if
 
+// The idea of this struct is to have a data item that can be used in set tests.
+// Each item has a value, an index in container and a container number.
+// This will allow us to test if the set-algorithms work correctly with sets of data.
+template <typename T>
+struct SetDataItem
+{
+    T value{};              // Value of the item
+    std::size_t index = 0;  // Index of the item in the container
+    std::size_t series = 0; // Container number
+
+    friend bool
+    operator==(const SetDataItem& item1, const SetDataItem& item2)
+    {
+        return item1.value == item2.value && item1.index == item2.index && item1.series == item2.series;
+    }
+};
+
+// Projection to extract 'value' field from SetDataItem
+struct SetDataItemProj
+{
+    template <typename T>
+    const T&
+    operator()(const SetDataItem<T>& item) const
+    {
+        return item.value;
+    }
+};
+
 template <typename Container1, typename Container2>
 std::size_t
 evalContainerSize(const Container1& cont1, const Container2& cont2)
@@ -106,7 +134,7 @@ using BrickCopy = oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>
 void
 test_set_union_construct()
 {
-    using DataType = TestUtils::SetDataItem<int>;
+    using DataType = SetDataItem<int>;
     using Container = std::vector<DataType>;
     
     // the first case - output range has enough capacity
@@ -124,7 +152,7 @@ test_set_union_construct()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -148,7 +176,7 @@ test_set_union_construct()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -161,7 +189,7 @@ test_set_union_construct()
 void
 test_set_union_construct_edge_cases()
 {
-    using DataType = TestUtils::SetDataItem<int>;
+    using DataType = SetDataItem<int>;
     using Container = std::vector<DataType>;
 
     // The case: both containers are empty
@@ -179,7 +207,7 @@ test_set_union_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -203,7 +231,7 @@ test_set_union_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -227,7 +255,7 @@ test_set_union_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -251,7 +279,7 @@ test_set_union_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -275,7 +303,7 @@ test_set_union_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -299,7 +327,7 @@ test_set_union_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -323,7 +351,7 @@ test_set_union_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -347,7 +375,7 @@ test_set_union_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -371,7 +399,7 @@ test_set_union_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -385,7 +413,7 @@ test_set_union_construct_edge_cases()
 void
 test_set_intersection_construct()
 {
-    using DataType = TestUtils::SetDataItem<int>;
+    using DataType = SetDataItem<int>;
     using Container = std::vector<DataType>;
 
     // the first case - output range has enough capacity
@@ -404,7 +432,7 @@ test_set_intersection_construct()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_construct");
@@ -433,7 +461,7 @@ test_set_intersection_construct()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -446,7 +474,7 @@ test_set_intersection_construct()
 void
 test_set_intersection_construct_edge_cases()
 {
-    using DataType = TestUtils::SetDataItem<int>;
+    using DataType = SetDataItem<int>;
     using Container = std::vector<DataType>;
 
     // The case: both containers are empty
@@ -465,7 +493,7 @@ test_set_intersection_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -490,7 +518,7 @@ test_set_intersection_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -515,7 +543,7 @@ test_set_intersection_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -540,7 +568,7 @@ test_set_intersection_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -553,7 +581,7 @@ test_set_intersection_construct_edge_cases()
 void
 test_set_difference_construct()
 {
-    using DataType = TestUtils::SetDataItem<int>;
+    using DataType = SetDataItem<int>;
     using Container = std::vector<DataType>;
 
     // the first case - output range has enough capacity
@@ -571,7 +599,7 @@ test_set_difference_construct()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -595,7 +623,7 @@ test_set_difference_construct()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -608,7 +636,7 @@ test_set_difference_construct()
 void
 test_set_difference_construct_edge_cases()
 {
-    using DataType = TestUtils::SetDataItem<int>;
+    using DataType = SetDataItem<int>;
     using Container = std::vector<DataType>;
 
     // The case: both containers are empty
@@ -626,7 +654,7 @@ test_set_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -650,7 +678,7 @@ test_set_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -674,7 +702,7 @@ test_set_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -698,7 +726,7 @@ test_set_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -722,7 +750,7 @@ test_set_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -746,7 +774,7 @@ test_set_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -770,7 +798,7 @@ test_set_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -794,7 +822,7 @@ test_set_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -818,7 +846,7 @@ test_set_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -831,7 +859,7 @@ test_set_difference_construct_edge_cases()
 void
 test_set_symmetric_difference_construct()
 {
-    using DataType = TestUtils::SetDataItem<int>;
+    using DataType = SetDataItem<int>;
     using Container = std::vector<DataType>;
 
     // the first case - output range has enough capacity
@@ -849,7 +877,7 @@ test_set_symmetric_difference_construct()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -873,7 +901,7 @@ test_set_symmetric_difference_construct()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -886,7 +914,7 @@ test_set_symmetric_difference_construct()
 void
 test_set_symmetric_difference_construct_edge_cases()
 {
-    using DataType = TestUtils::SetDataItem<int>;
+    using DataType = SetDataItem<int>;
     using Container = std::vector<DataType>;
 
     // The case: the first container is empty
@@ -904,7 +932,7 @@ test_set_symmetric_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -928,7 +956,7 @@ test_set_symmetric_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -952,7 +980,7 @@ test_set_symmetric_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -976,7 +1004,7 @@ test_set_symmetric_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -1000,7 +1028,7 @@ test_set_symmetric_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -1024,7 +1052,7 @@ test_set_symmetric_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -1048,7 +1076,7 @@ test_set_symmetric_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -1072,7 +1100,7 @@ test_set_symmetric_difference_construct_edge_cases()
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            std::less{}, SetDataItemProj{}, SetDataItemProj{},
             mask_b);
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
