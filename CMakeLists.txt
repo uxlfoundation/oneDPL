@@ -151,9 +151,6 @@ endif()
 add_library(oneDPL INTERFACE)
 target_compile_features(oneDPL INTERFACE cxx_std_17)
 target_compile_definitions(oneDPL INTERFACE $<$<CONFIG:Debug>:PSTL_USE_DEBUG=1>)
-target_compile_definitions(oneDPL INTERFACE
-    $<$<BOOL:${ONEDPL_RANGES_SET_DIFFERENCE_CPP26_RESULT}>:ONEDPL_RANGES_SET_DIFFERENCE_CPP26_RESULT=1>
-)
 
 if (CMAKE_BUILD_TYPE)
     message(STATUS "Build type is ${CMAKE_BUILD_TYPE}")
