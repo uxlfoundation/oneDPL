@@ -1093,6 +1093,38 @@ class __future : private std::tuple<_Args...>
     }
 };
 
+template <typename _Event, typename _Payload>
+auto
+__create_future(_Event&& __event, _Payload&& __payload)
+{
+    using _ValueType = typename std::decay_t<_Payload>::_ValueType;
+
+    return __future(std::forward<_Event>(__event),
+                    __result_and_scratch_storage<_ValueType>(std::forward<_Payload>(__payload).__move_state_from()));
+}
+
+template <typename _Event, typename _Payload, typename... _Args>
+auto
+__create_future(_Event&& __event, _Payload&& __payload, _Args&&... __args)
+{
+    return __create_future(std::forward<_Event>(__event), std::forward<_Payload>(__payload))
+        .__make_future(std::forward<_Args>(__args)...);
+}
+
+template <typename _Event, typename _Payload>
+auto
+__wait_and_get_result(_Event&& __event, _Payload&& __payload)
+{
+    return __create_future(std::forward<_Event>(__event), std::forward<_Payload>(__payload)).get();
+}
+
+template <typename _Event, typename _ValueType>
+auto
+__create_future(_Event&& __event, __result_and_scratch_storage<_ValueType>&& __payload)
+{
+    return __future(std::forward<_Event>(__event), std::forward<decltype(__payload)>(__payload));
+}
+
 struct __scalar_load_op
 {
     oneapi::dpl::__internal::__pstl_assign __assigner;
