@@ -402,16 +402,45 @@ struct __gen_count_mask</*_Bounded*/ true, _GenMask, _TempDataNoCaptureIndexes, 
     _GenMask __gen_mask;
 };
 
-// A generator which expands the mask generator to return a tuple containing the count, mask, and the element at the
-// specified index.
-template <typename _GenMask, typename _RangeTransform = oneapi::dpl::identity>
-struct __gen_expand_count_mask
+template <bool _Bounded, typename _GenMask, typename... _Args>
+struct __gen_expand_count_mask;
+
+template <typename _GenMask, typename _RangeTransform>
+struct __gen_expand_count_mask</*_Bounded*/ false, _GenMask, _RangeTransform>
 {
     using TempData = __noop_temp_data;
     template <typename _InRng, typename _SizeType>
     auto
     operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
     {
+        auto __transformed_input = __rng_transform(__in_rng);
+        // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
+        //  zip_iterator which will return a tuple of references when dereferenced. With this explicit type, we copy
+        //  the values of zipped input types rather than their references.
+        using _ElementType = oneapi::dpl::__internal::__value_t<decltype(__transformed_input)>;
+        _ElementType ele = __transformed_input[__id];
+        bool mask = __gen_mask(std::forward<_InRng>(__in_rng), __id);
+        return std::tuple(mask ? _SizeType{1} : _SizeType{0}, mask, ele);
+    }
+    _GenMask __gen_mask;
+    _RangeTransform __rng_transform;
+};
+
+// A generator which expands the mask generator to return a tuple containing the count, mask, and the element at the
+// specified index.
+template <typename _GenMask, typename _RangeTransform, typename _RangeTransform, typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes, typename _ProcessedInfo>
+struct __gen_expand_count_mask</*_Bounded*/ true, _GenMask, _RangeTransform, _TempDataNoCaptureIndexes, _TempDataCaptureIndexes, _ProcessedInfo>
+{
+    using TempDataNoCaptureIndexes = _TempDataNoCaptureIndexes;
+    using TempDataCaptureIndexes = _TempDataCaptureIndexes;
+    using ProcessedInfo = _ProcessedInfo;
+
+    template <typename _InRng, typename _SizeType, typename _TempData>
+    auto
+    operator()(_InRng&& __in_rng, _SizeType __id, _TempData&, ProcessedInfo&) const
+    {
+        static_assert(__is_any_of_v<_TempData, TempDataNoCaptureIndexes, TempDataCaptureIndexes>);
+
         auto __transformed_input = __rng_transform(__in_rng);
         // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
         //  zip_iterator which will return a tuple of references when dereferenced. With this explicit type, we copy
