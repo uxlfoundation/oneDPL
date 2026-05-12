@@ -1436,14 +1436,6 @@ struct SetDataItem
     {
         return item1.value == item2.value && item1.index == item2.index && item1.series == item2.series;
     }
-
-    template <typename OStream>
-    friend OStream&
-    operator<<(OStream& os, const SetDataItem& item)
-    {
-        os << "{ value = " << item.value << ", index = " << item.index << ", series = " << item.series << "}";
-        return os;
-    }
 };
 
 // Projection to extract 'value' field from SetDataItem
