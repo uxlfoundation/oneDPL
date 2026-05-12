@@ -47,6 +47,28 @@ namespace __par_backend_hetero
 // *** Reduce then scan functional building blocks ***
 // *** Utilities ***
 
+template <typename __stop_pos_t>
+struct __src_indexes_storage
+{
+    explicit __src_indexes_storage(__stop_pos_t* __ptr) : __src_indexes_local_accessor_for_one_wi_raw(__ptr) {}
+
+    void
+    set(std::uint16_t __idx, const __stop_pos_t& __indexes)
+    {
+        if (__src_indexes_local_accessor_for_one_wi_raw != nullptr)
+            __src_indexes_local_accessor_for_one_wi_raw[__idx] = __indexes;
+    }
+
+    const __stop_pos_t&
+    get(std::uint16_t __idx) const
+    {
+        return __src_indexes_local_accessor_for_one_wi_raw[__idx];
+    }
+
+    // Pointer to the SLM-based array with source indexes corresponding to the stored values
+    __stop_pos_t* __src_indexes_local_accessor_for_one_wi_raw = nullptr;
+};
+
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
 template <std::uint16_t elements, typename _ValueT>
 struct __temp_data_array
