@@ -260,6 +260,10 @@ struct __write_to_id_if
                 },
                 [&]() {
                     __process_info.set_oob_reached();
+
+                    typename _ProcessInfo::_TupleOfSizes __src_index_tuple = {};
+                    std::get<0>(__src_index_tuple) = __id;
+                    __process_info.set_oob_source_pos(__src_index_tuple);
                 });
         }
 
