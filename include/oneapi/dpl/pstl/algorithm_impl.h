@@ -3648,7 +3648,7 @@ struct _SetOpReachedPosEvaluator
                 __set_union_op(
                     __first1 + __offset1, __first1 + __offset1 + __size1, // First input range bounds
                     __first2 + __offset2, __first2 + __offset2 + __size2, // Second input range bounds
-                    oneapi::dpl::__utils::_SetOpDiscardIterator{}, // No real output buffer, so using discard iterator
+                    oneapi::dpl::discard_iterator{}, // No real output buffer, so using discard iterator
                     __comp, __proj1, __proj2, __mask_bufs.data());
             assert(__mask_buffer_reached - __mask_bufs.data() <= static_cast<std::ptrdiff_t>(__mask_bufs.size()));
 
@@ -4292,7 +4292,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                    return oneapi::dpl::__utils::__set_union_construct<__BrickCopyConstruct<_IsVector>>(
                        std::forward<decltype(__args)>(__args)...);
                })
-        .__get_reached_out();
+        .__it_out;
 }
 
 //------------------------------------------------------------------------
@@ -4377,7 +4377,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
                                std::forward<decltype(__args)>(__args)...);
                        })
-                .__get_reached_out();
+                .__it_out;
         });
     }
 
@@ -4396,7 +4396,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
                                std::forward<decltype(__args)>(__args)...);
                        })
-                .__get_reached_out();
+                .__it_out;
         });
     }
 
@@ -4488,7 +4488,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                        return oneapi::dpl::__utils::__set_difference_construct<__BrickCopyConstruct<_IsVector>>(
                            std::forward<decltype(__args)>(__args)...);
                    })
-            .__get_reached_out();
+            .__it_out;
     }
 
     // use serial algorithm
@@ -4558,7 +4558,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                        return oneapi::dpl::__utils::__set_symmetric_difference_construct<
                            __BrickCopyConstruct<_IsVector>>(std::forward<decltype(__args)>(__args)...);
                    })
-            .__get_reached_out();
+            .__it_out;
     });
 }
 

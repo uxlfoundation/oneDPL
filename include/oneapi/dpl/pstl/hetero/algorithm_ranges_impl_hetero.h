@@ -1206,7 +1206,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 
     // {} \ {2}: the difference is empty
     if (oneapi::dpl::__ranges::__empty(__r1))
-        return oneapi::dpl::__internal::__ranges::__create_set_difference_result<_R1, _R2, _OutRange>(
+        return oneapi::dpl::__internal::__ranges::__create_set_difference_result(
             __first1, __first2, __result);
 
     // {1} \ {}: the difference is {1}
@@ -1220,7 +1220,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             oneapi::dpl::__ranges::__get_subscription_view(__r1),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
-        return oneapi::dpl::__internal::__ranges::__create_set_difference_result<_R1, _R2, _OutRange>(
+        return oneapi::dpl::__internal::__ranges::__create_set_difference_result(
             __first1 + __idx, __first2, __result + __idx);
     }
 
@@ -1231,7 +1231,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             oneapi::dpl::__ranges::__get_subscription_view(__r2),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
-    return oneapi::dpl::__internal::__ranges::__create_set_difference_result<_R1, _R2, _OutRange>(
+    return oneapi::dpl::__internal::__ranges::__create_set_difference_result(
         __first1 + __offset1, __first2 + __offset2, __result + __offset_out);
 }
 

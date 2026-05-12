@@ -188,7 +188,7 @@ macro(onedpl_add_test test_source_file switch_off_checked_iterators)
         "transform_reduce.pass" "transform_reduce.pass.coal" "transform_scan.pass" "algorithm.pass"
         "execution.pass" "functional.pass" "algorithms_redirection.pass" "usm_memory_replacement.pass")
 
-    # Tests that are built in two variants: with and without ONEDPL_RANGES_SET_DIFFERENCE_CPP26_RESULT
+    # Tests that are built in two variants: with and without ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
     set(set_difference_cpp26_variant_tests "std_ranges_set_difference.pass")
 
     set(extra_test_label "")
