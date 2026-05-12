@@ -1421,39 +1421,6 @@ struct DefaultInitializedToOne
     }
 };
 
-// The idea of this struct is to have a data item that can be used in set tests.
-// Each item has a value, an index in container and a container number.
-// This will allow us to test if the set-algorithms work correctly with sets of data.
-template <typename T>
-struct SetDataItem
-{
-    T value{};                      // Value of the item
-    std::size_t index = 0;          // Index of the item in the container
-    std::size_t series = 0;         // Container number
-
-    friend bool
-    operator==(const SetDataItem& item1, const SetDataItem& item2)
-    {
-        return item1.value == item2.value && item1.index == item2.index && item1.series == item2.series;
-    }
-};
-
-// Projection to extract 'value' field from SetDataItem
-struct SetDataItemProj
-{
-    template <typename T>
-    decltype (auto)
-    operator()(const SetDataItem<T>& item) const
-    {
-        // Parentheses are required for correct decltype(auto) deduction:
-        // - without them: decltype(item.value) => T (copy, declared member type)
-        // - with them:    decltype((item.value)) => const T& (lvalue expression)
-        // This ensures the projection returns a reference, not a copy,
-        // to test that algorithms work correctly with reference-returning projections.
-        return (item.value);
-    }
-};
-
 } /* namespace TestUtils */
 
 #if _ENABLE_STD_RANGES_TESTING
