@@ -667,9 +667,12 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
     }
 };
 
-template <typename _CustomName, typename _InRng, typename _OutRng, typename _UnaryOperation, typename _InitType,
-          typename _BinaryOperation, typename _Inclusive>
-sycl::event
+template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _UnaryOperation,
+          typename _InitType, typename _BinaryOperation, typename _Inclusive>
+std::conditional_t<
+    _Bounded,
+    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>,
+    std::tuple<sycl::event>>
 __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n,
                                        _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op,
                                        _Inclusive)
@@ -688,13 +691,12 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
                 oneapi::dpl::__internal::__dpl_ceiling_div(__size, __wg_size);
 
             return __parallel_transform_scan_static_single_group_submitter<
-                _Inclusive::value, __num_elems_per_item, __wg_size,
-                oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-                    __scan_single_wg_kernel<std::integral_constant<std::uint16_t, __wg_size>,
-                                            std::integral_constant<std::uint16_t, __num_elems_per_item>,
-                                            _BinaryOperation, _Inclusive, _CustomName>>>()(
-                __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
-                __unary_op);
+                _Bounded, _Inclusive::value, __num_elems_per_item, __wg_size,
+                oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__scan_single_wg_kernel<
+                    std::integral_constant<bool, _Bounded>, std::integral_constant<std::uint16_t, __wg_size>,
+                    std::integral_constant<std::uint16_t, __num_elems_per_item>, _BinaryOperation, _Inclusive,
+                    _CustomName>>>()(__q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init,
+                                     __binary_op, __unary_op);
         };
         if (__n <= 16)
             return __single_group_scan_f(std::integral_constant<::std::uint16_t, 16>{});
@@ -722,9 +724,11 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
     else
     {
         using _DynamicGroupScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __par_backend_hetero::__scan_single_wg_dynamic_kernel<_BinaryOperation, _CustomName>>;
+            __par_backend_hetero::__scan_single_wg_dynamic_kernel<std::integral_constant<bool, _Bounded>,
+                                                                  _BinaryOperation, _CustomName>>;
 
-        return __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive::value, _DynamicGroupScanKernel>()(
+        return __parallel_transform_scan_dynamic_single_group_submitter<_Bounded, _Inclusive::value,
+                                                                        _DynamicGroupScanKernel>()(
             __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op,
             __max_wg_size);
     }
@@ -788,15 +792,23 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
             std::size_t __single_group_upper_limit = __use_reduce_then_scan ? 2048 : 16384;
             if (__group_scan_fits_in_slm<_Type>(__q_local, __n, __n_uniform, __single_group_upper_limit))
             {
-                auto __event = __parallel_transform_scan_single_group<_CustomName>(
+                auto __res = __parallel_transform_scan_single_group<_Bounded, _CustomName>(
                     __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __n, __unary_op,
                     __init, __binary_op, _Inclusive{});
 
-                // Although we do not actually need result storage in this case, we need to construct
-                // a placeholder here to match the return type of the non-single-work-group implementation
-                __result_and_scratch_storage<_Type> __dummy_result_and_scratch{__q_local, 0};
-
-                return __future{std::move(__event), std::move(__dummy_result_and_scratch)};
+                if constexpr (_Bounded)
+                {
+                    return {
+                        std::get<0>(std::move(__res)), std::get<1>(std::move(__res)),
+                        __create_scan_stop_pos_storage_container<__stop_pos_t>(
+                            __stop_pos_payloads_tools<_Bounded>::template __create_storage<__stop_pos_t>(__q_local))};
+                }
+                else
+                {
+                    return {std::get<0>(std::move(__res)),
+                            __combined_storage<_Type>{__q_local,
+                                                      /*No temporary data, just for return type compatibility*/ 0, 1}};
+                }
             }
         }
         if (__use_reduce_then_scan)
