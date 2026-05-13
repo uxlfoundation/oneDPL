@@ -1103,6 +1103,8 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
     auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__out_r);
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+
     // 1. Main set_difference operation
     while (__it1 != __end1 && __it2 != __end2)
     {
@@ -1133,7 +1135,33 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
     const _DifferenceType __copy_n = __end1 - __it1;
     auto __copy = std::ranges::copy_n(__it1, std::min(__copy_n, __remaining_capacity), __out_it);
 
-    return oneapi::dpl::__ranges::__create_set_difference_result(__copy.in, __it2, __copy.out);
+    return __create_set_difference_result(__copy.in, __it2, __copy.out);
+
+#else
+
+    while (__it1 != __end1 && __it2 != __end2)
+    {
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
+        {
+            *__out_it = *__it1;
+            ++__it1;
+            ++__out_it;
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+        {
+            ++__it2;
+        }
+        else
+        {
+            ++__it1;
+            ++__it2;
+        }
+    }
+
+    auto __copy = std::ranges::copy(std::move(__it1), std::move(__end1), std::move(__out_it));
+    return __create_set_difference_result(__copy.in, __it2, __copy.out);
+
+#endif
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
