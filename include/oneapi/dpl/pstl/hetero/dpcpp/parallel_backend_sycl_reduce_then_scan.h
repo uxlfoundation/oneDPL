@@ -1427,6 +1427,8 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
 }
 
+namespace __details
+{
 template <typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults,
           typename = void>
 struct _GenInputTraits
@@ -1465,6 +1467,42 @@ struct _GenInputTraits<_GenInput, _InRng, _Id, _TempData, _WriteResults,
     static constexpr bool _uses_write_results = true;
 };
 
+template <typename _WriteOp, typename _OutRng, typename _Id, typename _GenInputType, typename _TempData,
+          typename _WriteResults, typename = void>
+struct _WriteOpTraits
+{
+};
+
+template <typename _WriteOp, typename _OutRng, typename _Id, typename _GenInputType, typename _TempData,
+          typename _WriteResults>
+struct _WriteOpTraits<_WriteOp, _OutRng, _Id, _GenInputType, _TempData, _WriteResults,
+                      std::enable_if_t<std::is_invocable_v<_WriteOp, _OutRng, _Id, _GenInputType> &&
+                                       !std::is_invocable_v<_WriteOp, _OutRng, _Id, _GenInputType, _TempData&>>>
+{
+    static constexpr bool _uses_temp_data = false;
+    static constexpr bool _uses_write_results = false;
+};
+
+template <typename _WriteOp, typename _OutRng, typename _Id, typename _GenInputType, typename _TempData,
+          typename _WriteResults>
+struct _WriteOpTraits<
+    _WriteOp, _OutRng, _Id, _GenInputType, _TempData, _WriteResults,
+    std::enable_if_t<std::is_invocable_v<_WriteOp, _OutRng, _Id, _GenInputType, _TempData&> &&
+                     !std::is_invocable_v<_WriteOp, _OutRng, _Id, _GenInputType, _TempData&, _WriteResults&>>>
+{
+    static constexpr bool _uses_temp_data = true;
+    static constexpr bool _uses_write_results = false;
+};
+
+template <typename _WriteOp, typename _InRng, typename _Id, typename _GenInputType, typename _TempData, typename _WriteResults>
+struct _WriteOpTraits<_WriteOp, _InRng, _Id, _GenInputType, _TempData, _WriteResults,
+                       std::enable_if_t<std::is_invocable_v<_WriteOp, _InRng, _Id, _GenInputType, _TempData&, _WriteResults&>>>
+{
+    static constexpr bool _uses_temp_data = true;
+    static constexpr bool _uses_write_results = true;
+};
+} // namespace __details
+
 template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present,
           bool __capture_output, std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform,
           typename _BinaryOp, typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng,
@@ -1478,27 +1516,24 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                const std::uint32_t __sub_group_id, const std::uint32_t __active_subgroups,
                                _TempData& __temp_out, _WriteResults& __write_results)
 {
-    using _GenInputTypeResolverT = _GenInputTraits<_GenInput, _InRng, std::size_t, _TempData, _WriteResults>;
-
-    using _GenInputType = typename _GenInputTypeResolverT::type;
-    constexpr bool __uses_temp_data = _GenInputTypeResolverT::_uses_temp_data;
-    constexpr bool __uses_write_results = _GenInputTypeResolverT::_uses_write_results;
-
+    using _GenInputTraitsT = __details::_GenInputTraits<_GenInput, _InRng, std::size_t, _TempData, _WriteResults>;
+    using _GenInputType = typename _GenInputTraitsT::type;
     auto __call_gen_input = [&](std::size_t __id) -> _GenInputType {
-        if constexpr (_Bounded && __uses_write_results)
+        if constexpr (_Bounded && _GenInputTraitsT::_uses_write_results)
             return __gen_input(__in_rng, __id, __temp_out, __write_results);
-        else if constexpr (__uses_temp_data)
+        else if constexpr (_GenInputTraitsT::_uses_temp_data)
             return __gen_input(__in_rng, __id, __temp_out);
         else
             return __gen_input(__in_rng, __id);
     };
 
+    using _WriteOpTraitsT = __details::_WriteOpTraits<_WriteOp, _OutRng, std::size_t, _GenInputType, _TempData, _WriteResults>;
     auto __call_write_op = [&](std::size_t __id, const _GenInputType& __v) -> bool {
         if constexpr (__capture_output)
         {
-            if constexpr (_Bounded && __uses_write_results)
+            if constexpr (_Bounded && _WriteOpTraitsT::_uses_write_results)
                 return __write_op.template operator()</*_Bounded*/ true>(__out_rng, __id, __v, __temp_out, __write_results);
-            else if constexpr (__uses_temp_data)
+            else if constexpr (_WriteOpTraitsT::_uses_temp_data)
                 __write_op.template operator()(__out_rng, __id, __v, __temp_out);
             else
                 __write_op.template operator()(__out_rng, __id, __v);
