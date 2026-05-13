@@ -1345,8 +1345,6 @@ __sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __ma
     }
 }
 
-// Entry points for per-scan dispatch: pick a sub-group-ops or SLM specialization at runtime, keeping
-// all code above a single instantiation. The branch executes once per scan (not per element).
 template <bool __is_inclusive, bool __init_present, typename _BinaryOp, typename _ValueType, typename _LazyValueType>
 void
 __sub_group_scan(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value, _BinaryOp __binary_op,
@@ -1356,11 +1354,13 @@ __sub_group_scan(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value
     std::uint8_t __init_broadcast_id = __sub_group.get_max_local_range()[0] - 1;
     if (__use_subgroup_ops)
     {
+        // use native subgroup operations for scan (best for GPU & trivially copyable types)
         __sub_group_masked_scan</*__use_subgroup_ops=*/true, __is_inclusive, __init_present>(
             __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
     }
     else
     {
+        // use SLM for sub-group communication (required for non-trivially-copyable types, best for CPU)
         __sub_group_masked_scan</*__use_subgroup_ops=*/false, __is_inclusive, __init_present>(
             __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
     }
@@ -1379,11 +1379,13 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
     std::uint8_t __init_broadcast_id = __elements_to_process - 1;
     if (__use_subgroup_ops)
     {
+        // use native subgroup operations for scan (best for GPU & trivially copyable types)
         __sub_group_masked_scan</*__use_subgroup_ops=*/true, __is_inclusive, __init_present>(
             __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
     }
     else
     {
+        // use SLM for sub-group communication (required for non-trivially-copyable types, best for CPU)
         __sub_group_masked_scan</*__use_subgroup_ops=*/false, __is_inclusive, __init_present>(
             __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
     }
