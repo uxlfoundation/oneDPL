@@ -1321,6 +1321,8 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
     auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__out_r);
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+
     // 1. Main set_symmetric_difference operation
     while (__it1 != __end1 && __it2 != __end2)
     {
@@ -1362,6 +1364,29 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
     __copy_n = __end2 - __it2;
     auto __copy2 = std::ranges::copy_n(__it2, std::min(__copy_n, __remaining_capacity), __copy1.out);
     return {__copy1.in, __copy2.in, __copy2.out};
+
+#else
+
+    while (__it1 != __end1)
+    {
+        if (__it2 == __end2)
+            return std::copy(__it1, __end1, __out_it);
+
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
+            *__out_it++ = *__it1++;
+        else
+        {
+            if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+                *__out_it++ = *__it2;
+            else
+                ++__it1;
+            ++__it2;
+        }
+    }
+
+    return std::copy(__it2, __end2, __out_it);
+
+#endif
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
