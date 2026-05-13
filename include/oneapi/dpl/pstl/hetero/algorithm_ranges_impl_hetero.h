@@ -21,7 +21,7 @@
 #include "../utils_ranges.h"
 #include "utils_hetero.h"
 #include "../functional_impl.h" // for oneapi::dpl::identity
-#include "../algorithm_ranges_impl.h"
+#include "../utils_ranges.h"    // for __create_set_difference_result()
 
 #if _ONEDPL_BACKEND_SYCL
 #    include "dpcpp/utils_ranges_sycl.h"
@@ -1187,7 +1187,7 @@ struct __set_difference_copy_case_1;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
-oneapi::dpl::__internal::__ranges::__set_difference_return_t<_R1, _R2, _OutRange>
+oneapi::dpl::__ranges::__set_difference_return_t<_R1, _R2, _OutRange>
 __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                          _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -1200,7 +1200,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 
     // {} \ {2}: the difference is empty
     if (__n1 == 0)
-        return oneapi::dpl::__internal::__ranges::__create_set_difference_result(__first1, __first2, __result);
+        return oneapi::dpl::__ranges::__create_set_difference_result(__first1, __first2, __result);
 
     // {1} \ {}: the difference is {1}
     if (oneapi::dpl::__ranges::__empty(__r2))
@@ -1213,8 +1213,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             oneapi::dpl::__ranges::__get_subscription_view(__r1),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
-        return oneapi::dpl::__internal::__ranges::__create_set_difference_result(__first1 + __n1, __first2,
-                                                                                 __result + __idx);
+        return oneapi::dpl::__ranges::__create_set_difference_result(__first1 + __n1, __first2, __result + __idx);
     }
 
     const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_DifferenceTag>(
@@ -1222,8 +1221,8 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
-    return oneapi::dpl::__internal::__ranges::__create_set_difference_result(__first1 + __n1, __first2 + __n2,
-                                                                             __result + __result_size);
+    return oneapi::dpl::__ranges::__create_set_difference_result(__first1 + __n1, __first2 + __n2,
+                                                                 __result + __result_size);
 }
 
 //Dummy names to avoid kernel problems
