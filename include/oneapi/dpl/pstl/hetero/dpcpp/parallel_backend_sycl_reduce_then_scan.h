@@ -102,7 +102,7 @@ template <typename _T>
 using __temp_data_selector_t = typename __temp_data_selector<_T>::TempData;
 
 template <typename __stop_pos_t>
-struct __processed_info
+struct __write_results
 {
     using _TupleOfSizes = __stop_pos_t;
 
@@ -141,7 +141,7 @@ struct __processed_info
     bool __oob_reached = false;
 };
 
-struct __noop_processed_info
+struct __noop_write_results
 {
     void
     set_oob_reached()
@@ -155,21 +155,21 @@ struct __noop_processed_info
     }
 };
 
-// ProcessInfo selector
+// WriteResults selector
 template <typename _T, typename = void>
-struct __process_info_selector
+struct __write_results_selector
 {
-    using ProcessInfo = __noop_processed_info;
+    using WriteResults = __noop_write_results;
 };
 
 template <typename _T>
-struct __process_info_selector<_T, std::void_t<typename _T::ProcessInfo>>
+struct __write_results_selector<_T, std::void_t<typename _T::WriteResults>>
 {
-    using ProcessInfo = typename _T::ProcessInfo;
+    using WriteResults = typename _T::WriteResults;
 };
 
 template <typename _T>
-using __process_info_selector_t = typename __process_info_selector<_T>::ProcessInfo;
+using __write_results_selector_t = typename __write_results_selector<_T>::WriteResults;
 
 // Extracts a range from a zip iterator based on the element ID
 template <std::size_t _EleId>
@@ -209,7 +209,7 @@ __write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __ass
 // Used in __parallel_transform_scan.
 struct __simple_write_to_id
 {
-    template <bool _Bounded, typename _OutRng, typename _ValueType, typename _TempData>
+    template <typename _OutRng, typename _ValueType, typename _TempData>
     void
     operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&) const
     {
@@ -226,12 +226,12 @@ struct __simple_write_to_id
 // Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1 + __offset`, but only if the
 // condition `get<0>(__v)` is `true`. Used in __parallel_copy_if, __parallel_unique_copy, and
 // __parallel_set_reduce_then_scan_set_a_write
-template <std::int32_t __offset, typename _Assign, typename _ProcessedInfo>
+template <std::int32_t __offset, typename _Assign, typename _WriteResults>
 struct __write_to_id_if
 {
-    using ProcessInfo = _ProcessedInfo;
+    using WriteResults = _WriteResults;
 
-    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&) const
     {
@@ -247,7 +247,7 @@ struct __write_to_id_if
 
     template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&, ProcessInfo& __process_info) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&, WriteResults& __write_results) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -264,8 +264,8 @@ struct __write_to_id_if
                 oneapi::dpl::__ranges::__size(__out_rng), __out_rng_idx,
                 [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]); },
                 [&]() {
-                    __process_info.set_oob_reached();
-                    __process_info.set_oob_source_pos(std::make_tuple(__id));
+                    __write_results.set_oob_reached();
+                    __write_results.set_oob_source_pos(std::make_tuple(__id));
                 });
         }
 
@@ -281,7 +281,7 @@ struct __write_to_id_if
 template <typename _Assign>
 struct __write_to_id_if_else
 {
-    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&) const
     {
@@ -305,7 +305,7 @@ struct __write_to_id_if_else
 template <typename _BinaryPred>
 struct __write_red_by_seg
 {
-    template <bool _Bounded, typename _OutRng, typename _Tup, typename _TempData>
+    template <typename _OutRng, typename _Tup, typename _TempData>
     void
     operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, _TempData&) const
     {
@@ -348,7 +348,7 @@ struct __write_scan_by_seg
     _InitType __init_value;
     _BinaryOp __binary_op;
 
-    template <bool _Bounded, typename _OutRng, typename _ValueType, typename _TempData>
+    template <typename _OutRng, typename _ValueType, typename _TempData>
     void
     operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&) const
     {
@@ -385,7 +385,7 @@ struct __write_scan_by_seg
 template <typename _Assign>
 struct __write_multiple_to_id
 {
-    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
     operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data) const
     {
@@ -1433,7 +1433,7 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
 }
 
-template <bool _Bounded, typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _ProcessedInfo,
+template <bool _Bounded, typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults,
           typename = void>
 struct _GenInputTypeResolver
 {
@@ -1441,13 +1441,13 @@ struct _GenInputTypeResolver
     static constexpr bool _UseProcessInfo = false;
 };
 
-template <bool _Bounded, typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _ProcessedInfo>
-struct _GenInputTypeResolver<_Bounded, _GenInput, _InRng, _Id, _TempData, _ProcessedInfo,
-                             std::void_t<std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&, _ProcessedInfo&>>>
+template <bool _Bounded, typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults>
+struct _GenInputTypeResolver<_Bounded, _GenInput, _InRng, _Id, _TempData, _WriteResults,
+                             std::void_t<std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&, _WriteResults&>>>
 {
     using _ResultT = std::conditional_t<
         _Bounded,
-        std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&, _ProcessedInfo&>,
+        std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&, _WriteResults&>,
         std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&>>;
 
     static constexpr bool _UseProcessInfo = _Bounded;
@@ -1456,7 +1456,7 @@ struct _GenInputTypeResolver<_Bounded, _GenInput, _InRng, _Id, _TempData, _Proce
 template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present,
           bool __capture_output, std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform,
           typename _BinaryOp, typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng,
-          typename _TempData, typename _ProcessedInfo>
+          typename _TempData, typename _WriteResults>
 void
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
@@ -1464,15 +1464,16 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                const std::size_t __start_id, const std::size_t __n,
                                const std::uint32_t __iters_per_item, const std::size_t __subgroup_start_id,
                                const std::uint32_t __sub_group_id, const std::uint32_t __active_subgroups,
-                               _TempData& __temp_out, _ProcessedInfo& __processed_info)
+                               _TempData& __temp_out, _WriteResults& __write_results)
 {
-    using _GenInputTypeResolverT = _GenInputTypeResolver<_Bounded, _GenInput, _InRng, std::size_t, _TempData, _ProcessedInfo>;
+    using _GenInputTypeResolverT = _GenInputTypeResolver<_Bounded, _GenInput, _InRng, std::size_t, _TempData, _WriteResults>;
+
     using _GenInputType = typename _GenInputTypeResolverT::_ResultT;
     constexpr bool __use_process_info = _GenInputTypeResolverT::_UseProcessInfo;
 
-    auto __call_gen_input = [&](std::size_t __id) {
+    auto __call_gen_input = [&](std::size_t __id) -> _GenInputType {
         if constexpr (__use_process_info)
-            return __gen_input(__in_rng, __id, __temp_out, __processed_info);
+            return __gen_input(__in_rng, __id, __temp_out, __write_results);
         else
             return __gen_input(__in_rng, __id, __temp_out);
     };
@@ -1481,9 +1482,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         if constexpr (__capture_output)
         {
             if constexpr (__use_process_info)
-                return __write_op.template operator()<_Bounded>(__out_rng, __id, __v, __temp_out, __processed_info);
+                return __write_op.template operator()<_Bounded>(__out_rng, __id, __v, __temp_out, __write_results);
             else
-                __write_op.template operator()<_Bounded>(__out_rng, __id, __v, __temp_out);
+                __write_op.template operator()(__out_rng, __id, __v, __temp_out);
         }
         return true;
     };
@@ -1714,10 +1715,10 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                 if (__sub_group_id < __active_subgroups)
                 {
                     using _TempData = __temp_data_selector_t<_GenReduceInput>;
-                    using _ProcessedInfo = __process_info_selector_t<_GenReduceInput>;
+                    using _WriteResults = __write_results_selector_t<_GenReduceInput>;
 
                     _TempData __temp_out{};
-                    _ProcessedInfo __processed_info{};
+                    _WriteResults __write_results{};
 
                     // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
@@ -1727,7 +1728,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                         __sub_group, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, nullptr,
                         __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __n,
                         __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
-                        __temp_out, __processed_info);
+                        __temp_out, __write_results);
 
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__v;
@@ -2076,7 +2077,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         using __stop_pos_t = __scan_stop_pos_t<_InRng>;
 
         using _TempData = __temp_data_selector_t<_GenScanInput>;
-        using _ProcessedInfo = __process_info_selector_t<_WriteOp>;
+        using _WriteResults = __write_results_selector_t<_WriteOp>;
         using _OutSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
 
         std::size_t __num_remaining = __n - __block_num * __max_block_size;
@@ -2332,7 +2333,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                 auto __call_scan_through_elements_helper =
                     [&](const auto& __sub_group, auto&& __out_rng_arg, bool __sub_group_carry_initialized_arg,
-                        auto& __sub_group_carry_arg, auto&& __temp_out_arg, auto& __processed_info_arg) {
+                        auto& __sub_group_carry_arg, auto&& __temp_out_arg, auto& __write_results_arg) {
                         if (__sub_group_carry_initialized_arg)
                         {
                             __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
@@ -2341,7 +2342,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                                 __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                                 __sub_group_carry_arg, __in_rng, std::forward<decltype(__out_rng_arg)>(__out_rng_arg),
                                 __start_id, __n, __sub_group_params.__inputs_per_item, __subgroup_start_id,
-                                __sub_group_id, __active_subgroups, __temp_out_arg, __processed_info_arg);
+                                __sub_group_id, __active_subgroups, __temp_out_arg, __write_results_arg);
                         }
                         else // first group first block, no subgroup carry
                         {
@@ -2351,26 +2352,26 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                                 __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                                 __sub_group_carry_arg, __in_rng, std::forward<decltype(__out_rng_arg)>(__out_rng_arg),
                                 __start_id, __n, __sub_group_params.__inputs_per_item, __subgroup_start_id,
-                                __sub_group_id, __active_subgroups, __temp_out_arg, __processed_info_arg);
+                                __sub_group_id, __active_subgroups, __temp_out_arg, __write_results_arg);
                         }
                     };
 
                 {
                     _TempData __temp_out{};
-                    _ProcessedInfo __processed_info{};
+                    _WriteResults __write_results{};
 
                     // _TempData is __noop_temp_data
                     //_TempData::dummy;
 
                     // The first normal call of __scan_through_elements_helper
                     __call_scan_through_elements_helper(__sub_group, __out_rng, __sub_group_carry_initialized,
-                                                        __sub_group_carry, __temp_out, __processed_info);
-                    if constexpr (_Bounded && !std::is_same_v<_ProcessedInfo, __noop_processed_info>)
+                                                        __sub_group_carry, __temp_out, __write_results);
+                    if constexpr (_Bounded && !std::is_same_v<_WriteResults, __noop_write_results>)
                     {
-                        if ( __processed_info.get_oob_reached())
+                        if ( __write_results.get_oob_reached())
                         {
-                            typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
-                            if (__processed_info.get_oob_source_pos(__oob_source_pos))
+                            typename _WriteResults::_TupleOfSizes __oob_source_pos{};
+                            if (__write_results.get_oob_source_pos(__oob_source_pos))
                             {
                                 using __result_pos_t = __scan_stop_pos_t<_InRng>;
 

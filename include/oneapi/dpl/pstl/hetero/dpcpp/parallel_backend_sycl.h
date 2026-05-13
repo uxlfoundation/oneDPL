@@ -953,7 +953,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<
             1, _Assign,
-            oneapi::dpl::__par_backend_hetero::__processed_info<
+            oneapi::dpl::__par_backend_hetero::__write_results<
                 oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<_Range1>>>;
 
         auto __res = __parallel_reduce_then_scan_copy</*_Bounded*/ true, _CustomName>(
@@ -1079,7 +1079,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<
             0, _Assign,
-            oneapi::dpl::__par_backend_hetero::__processed_info<
+            oneapi::dpl::__par_backend_hetero::__write_results<
                 oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<_InRng>>>;
 
         auto __res = __parallel_reduce_then_scan_copy</*_Bounded*/ true, _CustomName>(
@@ -1124,7 +1124,7 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
     using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicate, _MaskRangeTransform>;
     using _WriteOp =
         oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign,
-                                                            oneapi::dpl::__par_backend_hetero::__noop_processed_info>;
+                                                            oneapi::dpl::__par_backend_hetero::__noop_write_results>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
     using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
 
