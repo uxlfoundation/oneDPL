@@ -845,6 +845,8 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _P
     auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__r_out);
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+
     // 1. Main set_union operation
     while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
     {
@@ -876,6 +878,33 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _P
     __copy_n = __end2 - __it2;
     auto __copy2 = std::ranges::copy_n(__it2, std::min(__copy_n, __remaining_capacity), __copy1.out);
     return {__copy1.in, __copy2.in, __copy2.out};
+
+#else
+
+    for (; !(__it1 == __end1 or __it2 == __end2); ++__out_it)
+    {
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
+        {
+            *__out_it = *__it1;
+            ++__it1;
+        }
+        else if (std::invoke(comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+        {
+            *__out_it = *__it2;
+            ++__it2;
+        }
+        else
+        {
+            *__out_it = *__it1;
+            ++__it1;
+            ++__it2;
+        }
+    }
+    auto __copy1 = std::ranges::copy(__it1, __end1, __out_it);
+    auto __copy2 = std::ranges::copy(__it2, __end2, __copy1.out);
+    return {__copy1.in, __copy2.in, __copy2.out};
+
+#endif
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
