@@ -228,7 +228,7 @@ test_device_copyable()
 
     //__write_to_id_if
     static_assert(
-        sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, assign_device_copyable>>,
+        sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, assign_device_copyable, oneapi::dpl::__par_backend_hetero::__noop_write_results>>,
         "__write_to_id_if is not device copyable with device copyable types");
 
     //__write_to_id_if_else
@@ -566,7 +566,7 @@ test_non_device_copyable()
 
     //__write_to_id_if
     static_assert(
-        !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, assign_non_device_copyable>>,
+        !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, assign_non_device_copyable, oneapi::dpl::__par_backend_hetero::__noop_write_results>>,
         "__write_to_id_if is device copyable with non device copyable types");
 
     //__write_to_id_if_else
