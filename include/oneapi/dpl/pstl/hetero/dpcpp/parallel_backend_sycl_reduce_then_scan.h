@@ -2356,9 +2356,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     _TempData __temp_out{};
                     _WriteResults __write_results{};
 
-                    // _TempData is __noop_temp_data
-                    //_TempData::dummy;
-
                     // The first normal call of __scan_through_elements_helper
                     __call_scan_through_elements_helper(__sub_group, __out_rng, __sub_group_carry_initialized,
                                                         __sub_group_carry, __temp_out, __write_results);
