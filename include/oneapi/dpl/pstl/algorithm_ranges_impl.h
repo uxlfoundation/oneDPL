@@ -951,6 +951,8 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
     auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__out_r);
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+
     while (__it1 != __end1 && __it2 != __end2)
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
@@ -975,6 +977,28 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
     }
 
     return {__it1, __it2, __out_it};
+
+#else
+
+    while (!(__it1 == __end1 || __it2 == __end2))
+    {
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
+            ++__it1;
+        else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+            ++__it2;
+        else if (__out_it != __out_end)
+        {
+            *__out_it = *__it1;
+            ++__out_it;
+            ++__it1;
+            ++__it2;
+        }
+    }
+
+    //return {std::ranges::next(__it1, __end1), std::ranges::next(__it2, __end2), __out_it};
+    return {__end1, __end2, __out_it};
+
+#endif
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
