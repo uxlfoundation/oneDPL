@@ -50,11 +50,9 @@ namespace __par_backend_hetero
 // *** Utilities ***
 
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
-template <std::uint16_t _elements, typename _ValueT>
+template <std::uint16_t elements, typename _ValueT>
 struct __temp_data_array
 {
-    using _ValueType = _ValueT;
-
     template <typename _ValueT2>
     void
     set(std::uint16_t __idx, const _ValueT2& __ele)
@@ -71,16 +69,16 @@ struct __temp_data_array
         return __data[__idx].__v;
     }
 
-    oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[_elements];
+    oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
 };
 
 // This is a stand-in for a temporary data structure which is used to turn set() into a no-op. This is used in the case
 // where no temporary register data is needed within reduce then scan kern
 struct __noop_temp_data
 {
-    template <typename _ValueArg>
+    template <typename _ValueT>
     void
-    set(std::uint16_t, _ValueArg&&)
+    set(std::uint16_t, const _ValueT&) const
     {
     }
 };
@@ -218,7 +216,7 @@ struct __simple_write_to_id
         // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__v)>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
         __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
     }
 };
@@ -290,13 +288,13 @@ struct __write_to_id_if_else
         // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
         if (std::get<1>(__v))
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[std::get<0>(__v) - 1]));
         else
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<1>(__out_rng[__id - std::get<0>(__v)]));
+            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
+                     std::get<1>(__out_rng[__id - std::get<0>(__v)]));
     }
-
     _Assign __assign;
 };
 
@@ -337,7 +335,6 @@ struct __write_red_by_seg
                 __out_keys[__out_idx + 1] = __next_key;
         }
     }
-
     _BinaryPred __binary_pred;
     std::size_t __n;
 };
@@ -393,7 +390,7 @@ struct __write_multiple_to_id
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
         using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<typename _TempData::_ValueType>,
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
         const std::size_t __n = std::get<1>(__v);
         for (std::size_t __i = 0; __i < __n; ++__i)
@@ -402,7 +399,6 @@ struct __write_multiple_to_id
                      __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
         }
     }
-
     _Assign __assign;
 };
 
@@ -448,7 +444,6 @@ struct __gen_mask
 template <typename _GenMask>
 struct __gen_count_mask
 {
-
     template <typename _InRng, typename _SizeType, typename _TempData>
     _SizeType
     operator()(_InRng&& __in_rng, _SizeType __id, _TempData&) const
@@ -460,7 +455,7 @@ struct __gen_count_mask
 
 // A generator which expands the mask generator to return a tuple containing the count, mask, and the element at the
 // specified index.
-template <typename _GenMask, typename _RangeTransform>
+template <typename _GenMask, typename _RangeTransform = oneapi::dpl::identity>
 struct __gen_expand_count_mask
 {
     template <typename _InRng, typename _SizeType, typename _TempData>
@@ -1012,7 +1007,6 @@ template <typename _SetOpCount, typename _TempData, typename _Compare, typename 
 struct __gen_set_op_from_known_balanced_path
 {
     using TempData = _TempData;
-
     template <typename _InRng, typename _IndexT>
     std::tuple<std::uint32_t, std::uint16_t>
     operator()(const _InRng& __in_rng, _IndexT __id, TempData& __output_data) const
@@ -1491,8 +1485,8 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
 
     bool __all_writes_succeeded = true;
 
-    const bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
-    const bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
+    bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
+    bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
 
     if (__is_full_thread)
     {
@@ -1660,7 +1654,6 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                                                     __internal::__optional_kernel_name<_KernelName...>>
 {
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
-
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
     template <typename _InRng, typename _TmpStorageAcc>
@@ -1673,11 +1666,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
         return __q.submit([&, this](sycl::handler& __cgh) {
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
             __cgh.depends_on(__prior_event);
-
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
-
             auto __temp_acc = __get_accessor(sycl::read_write, __scratch_container, __cgh, __dpl_sycl::__no_init{});
-
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]]
             {
@@ -2101,9 +2091,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
             //   1 element for the accumulated block-local carry-in from previous groups in the block
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
-
             __cgh.depends_on(__prior_event);
-
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
 
             auto __temp_acc = __get_accessor(sycl::read_write, __scratch_container, __cgh);
@@ -2113,7 +2101,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
-
                 // Compute work distribution fields dependent on sub-group size within the kernel. This is because we
                 // can only rely on the value of __sub_group_size provided in the device compilation phase within the
                 // kernel itself.
@@ -2124,27 +2111,27 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     __inputs_in_block,
                     __sub_group_params.__inputs_per_sub_group * __sub_group_params.__num_sub_groups_local);
 
-                _InitValueType* const __tmp_ptr = __temp_acc.__data();
-                _InitValueType* const __res_ptr = __res_acc.__data();
-
-                const std::uint32_t __group_id = __ndi.get_group(0);
+                _InitValueType* __tmp_ptr = __temp_acc.__data();
+                _InitValueType* __res_ptr = __res_acc.__data();
+                std::uint32_t __group_id = __ndi.get_group(0);
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
-                const std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
-                const std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
+                std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
+                std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
 
                 std::size_t __group_start_id =
                     (__block_num * __max_block_size) + (__group_id * __sub_group_params.__inputs_per_sub_group *
                                                         __sub_group_params.__num_sub_groups_local);
-
                 if constexpr (__is_unique_pattern_v)
                 {
                     // for unique patterns, the first element is always copied to the output, so we need to skip it
                     __group_start_id += 1;
                 }
 
-                const std::size_t __max_inputs_in_group = __sub_group_params.__inputs_per_sub_group * __sub_group_params.__num_sub_groups_local;
-                const std::uint32_t __inputs_in_group = std::min(__n - __group_start_id, __max_inputs_in_group);
-                const std::uint32_t __active_subgroups = oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_in_group, __sub_group_params.__inputs_per_sub_group);
+                std::size_t __max_inputs_in_group =
+                    __sub_group_params.__inputs_per_sub_group * __sub_group_params.__num_sub_groups_local;
+                std::uint32_t __inputs_in_group = std::min(__n - __group_start_id, __max_inputs_in_group);
+                std::uint32_t __active_subgroups = oneapi::dpl::__internal::__dpl_ceiling_div(
+                    __inputs_in_group, __sub_group_params.__inputs_per_sub_group);
                 oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __carry_last;
 
                 // propagate carry in from previous block
@@ -2166,8 +2153,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     //         on WG T-local carries
                     //            0: T0 carry, 1: T0 + T1 carry, 2: T0 + T1 + T2 carry, ...
                     //           S: sum(T0 carry...TS carry)
-                    const std::uint8_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__active_subgroups, __sub_group_size);
-                    const std::size_t __subgroups_before_my_group = __group_id * __sub_group_params.__num_sub_groups_local;
+                    std::uint8_t __iters =
+                        oneapi::dpl::__internal::__dpl_ceiling_div(__active_subgroups, __sub_group_size);
+                    std::size_t __subgroups_before_my_group = __group_id * __sub_group_params.__num_sub_groups_local;
                     std::uint32_t __load_reduction_id = __sub_group_local_id;
                     std::uint8_t __i = 0;
                     for (; __i < __iters - 1; __i++)
@@ -2185,7 +2173,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     // step 2) load 32, 64, 96, etc. work-group carry outs on every work-group; then
                     //         compute the prefix in a sub-group to get global work-group carries
                     //         memory accesses: gather(63, 127, 191, 255, ...)
-                    const std::uint32_t __offset = __sub_group_params.__num_sub_groups_local - 1;
+                    std::uint32_t __offset = __sub_group_params.__num_sub_groups_local - 1;
                     // only need 32 carries for WGs0..WG32, 64 for WGs32..WGs64, etc.
                     if (__group_id > 0)
                     {
@@ -2197,11 +2185,12 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         if (__pre_carry_iters == 1)
                         {
                             // single partial scan
-                            const std::size_t __proposed_id = __sub_group_params.__num_sub_groups_local * __sub_group_local_id + __offset;
-                            const std::size_t __remaining_elements = __elements_to_process;
-                            const std::size_t __reduction_id = (__proposed_id < __subgroups_before_my_group)
-                                                                     ? __proposed_id
-                                                                     : __subgroups_before_my_group - 1;
+                            std::size_t __proposed_id =
+                                __sub_group_params.__num_sub_groups_local * __sub_group_local_id + __offset;
+                            std::size_t __remaining_elements = __elements_to_process;
+                            std::size_t __reduction_id = (__proposed_id < __subgroups_before_my_group)
+                                                             ? __proposed_id
+                                                             : __subgroups_before_my_group - 1;
                             _InitValueType __value = __tmp_ptr[__reduction_id];
                             __sub_group_scan_partial<__sub_group_size, /*__is_inclusive=*/true,
                                                      /*__init_present=*/false>(__sub_group, __value, __reduce_op,
@@ -2211,8 +2200,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         {
                             // multiple iterations
                             // first 1 full
-                            std::uint32_t __reduction_id = __sub_group_params.__num_sub_groups_local * __sub_group_local_id + __offset;
-                            const std::uint32_t __reduction_id_increment = __sub_group_params.__num_sub_groups_local * __sub_group_size;
+                            std::uint32_t __reduction_id =
+                                __sub_group_params.__num_sub_groups_local * __sub_group_local_id + __offset;
+                            std::uint32_t __reduction_id_increment =
+                                __sub_group_params.__num_sub_groups_local * __sub_group_size;
                             _InitValueType __value = __tmp_ptr[__reduction_id];
                             __sub_group_scan<__sub_group_size, /*__is_inclusive=*/true, /*__init_present=*/false>(
                                 __sub_group, __value, __reduce_op, __carry_last);
@@ -2227,9 +2218,12 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                             }
 
                             // final partial iteration
-                            const std::size_t __remaining_elements = __elements_to_process - ((__pre_carry_iters - 1) * __sub_group_size);
+
+                            std::size_t __remaining_elements =
+                                __elements_to_process - ((__pre_carry_iters - 1) * __sub_group_size);
                             // fill with unused dummy values to avoid overrunning input
-                            const std::size_t __final_reduction_id = std::min(std::size_t{__reduction_id}, __subgroups_before_my_group - 1);
+                            std::size_t __final_reduction_id =
+                                std::min(std::size_t{__reduction_id}, __subgroups_before_my_group - 1);
                             __value = __tmp_ptr[__final_reduction_id];
                             __sub_group_scan_partial<__sub_group_size, /*__is_inclusive=*/true,
                                                      /*__init_present=*/true>(__sub_group, __value, __reduce_op,
@@ -2240,7 +2234,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         //            and apply to local sub-group prefix carries
                         std::size_t __carry_offset = __sub_group_local_id;
 
-                        const std::uint8_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__active_subgroups, __sub_group_size);
+                        std::uint8_t __iters =
+                            oneapi::dpl::__internal::__dpl_ceiling_div(__active_subgroups, __sub_group_size);
 
                         std::uint8_t __i = 0;
                         for (; __i < __iters - 1; ++__i)
@@ -2328,8 +2323,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 }
 
                 // step 5) apply global carries
-                const std::size_t __subgroup_start_id = __group_start_id + (__sub_group_id * __sub_group_params.__inputs_per_sub_group);
-                const std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
+                std::size_t __subgroup_start_id =
+                    __group_start_id + (__sub_group_id * __sub_group_params.__inputs_per_sub_group);
+                std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
                 auto __call_scan_through_elements_helper =
                     [&](const auto& __sub_group, auto&& __out_rng_arg, bool __sub_group_carry_initialized_arg,
@@ -2453,23 +2449,6 @@ __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
             oneapi::dpl::__internal::__supports_sub_group_size(__q, __get_reduce_then_scan_reqd_sg_sz_host()));
 }
 
-// Calculate optimal number of inputs per work-item for load balancing.
-// For full blocks, returns the maximum to maintain optimal throughput.
-// For partial blocks, distributes remaining inputs evenly across available work-items,
-// rounding up to the nearest power-of-2 for alignment.
-constexpr inline std::uint32_t
-__calculate_inputs_per_item(const std::size_t __inputs_remaining, const std::uint32_t __max_inputs_per_block,
-                            const std::uint16_t __max_inputs_per_item, const std::uint32_t __num_work_groups,
-                            const std::uint32_t __work_group_size)
-{
-    using namespace oneapi::dpl::__internal;
-
-    return __inputs_remaining >= __max_inputs_per_block
-               ? __max_inputs_per_item
-               : __dpl_ceiling_div(__dpl_bit_ceil(__inputs_remaining),
-                                   __num_work_groups * __work_group_size);
-}
-
 // General scan-like algorithm helpers
 // _GenReduceInput - a function which accepts the input range and index to generate the data needed by the main output
 //                   used in the reduction operation (to calculate the global carries)
@@ -2529,9 +2508,11 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // reduce_then_scan kernel is not built to handle "empty" scans which includes `__n == 1` for unique patterns.
     // These trivial end cases should be handled at a higher level.
     assert(__inputs_remaining > 0);
-    std::uint32_t __inputs_per_item = __calculate_inputs_per_item(__inputs_remaining, __max_inputs_per_block,
-                                                                   __max_inputs_per_item, __num_work_groups,
-                                                                   __work_group_size);
+    std::uint32_t __inputs_per_item =
+        __inputs_remaining >= __max_inputs_per_block
+            ? __max_inputs_per_item
+            : oneapi::dpl::__internal::__dpl_ceiling_div(oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
+                                                         __num_work_groups * __work_group_size);
     const std::size_t __block_size = std::min(__inputs_remaining, std::size_t{__max_inputs_per_block});
     const std::size_t __num_blocks = __inputs_remaining / __block_size + (__inputs_remaining % __block_size != 0);
 
@@ -2577,14 +2558,13 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
     {
-        const std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(std::min(__inputs_remaining, std::size_t{__max_inputs_per_block}), __inputs_per_item);
-
-        const std::uint32_t __workitems_in_block_round_up_workgroup = oneapi::dpl::__internal::__dpl_ceiling_div(__workitems_in_block, __work_group_size) * __work_group_size;
-
-        const sycl::range<1> __global_range(__workitems_in_block_round_up_workgroup);
-        const sycl::range<1> __local_range(__work_group_size);
-        const sycl::nd_range<1> __kernel_nd_range(__global_range, __local_range);
-
+        std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(
+            std::min(__inputs_remaining, std::size_t{__max_inputs_per_block}), __inputs_per_item);
+        std::uint32_t __workitems_in_block_round_up_workgroup =
+            oneapi::dpl::__internal::__dpl_ceiling_div(__workitems_in_block, __work_group_size) * __work_group_size;
+        auto __global_range = sycl::range<1>(__workitems_in_block_round_up_workgroup);
+        auto __local_range = sycl::range<1>(__work_group_size);
+        auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event, __inputs_remaining, __b);
 
@@ -2605,9 +2585,11 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
         {
-            __inputs_per_item = __calculate_inputs_per_item(__inputs_remaining, __max_inputs_per_block,
-                                                             __max_inputs_per_item, __num_work_groups,
-                                                             __work_group_size);
+            __inputs_per_item = __inputs_remaining >= __max_inputs_per_block
+                                    ? __max_inputs_per_item
+                                    : oneapi::dpl::__internal::__dpl_ceiling_div(
+                                          oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
+                                          __num_work_groups * __work_group_size);
         }
     }
 

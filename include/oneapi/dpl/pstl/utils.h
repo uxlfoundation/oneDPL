@@ -1046,11 +1046,11 @@ union __lazy_ctor_storage
 template <typename _DataType>
 struct __scoped_destroyer
 {
-    oneapi::dpl::__internal::__lazy_ctor_storage<_DataType>& __lazy_ctor_storage_ref;
-
+    oneapi::dpl::__internal::__lazy_ctor_storage<_DataType>& ___lazy_ctor_storage_ref;
     ~__scoped_destroyer()
     {
-        __lazy_ctor_storage_ref.__destroy();
+        // Explicitly call destructor of __lazy_ctor_storage
+        ___lazy_ctor_storage_ref.__destroy();
     }
 };
 

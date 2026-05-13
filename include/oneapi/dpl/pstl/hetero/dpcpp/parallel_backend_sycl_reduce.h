@@ -143,7 +143,6 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
 
             std::size_t __local_mem_size = __reduce_pattern.local_mem_req(__work_group_size);
             __dpl_sycl::__local_accessor<_Tp> __temp_local(sycl::range<1>(__local_mem_size), __cgh);
-
             __cgh.parallel_for<_Name...>(
                 sycl::nd_range<1>(sycl::range<1>(__work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item<1> __item) {
@@ -276,7 +275,6 @@ __parallel_transform_reduce_mid_impl(sycl::queue& __q, const _Size __n, const _S
     // number of buffer elements processed within workgroup
     const _Size __size_per_work_group = __iters_per_work_item_device_kernel * __work_group_size;
     const _Size __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
-
     __combined_storage<_Tp> __result{__q, __n_groups, 1};
 
     sycl::event __reduce_event =
@@ -357,7 +355,6 @@ struct __parallel_transform_reduce_impl
                     [=](sycl::nd_item<1> __item) {
                         auto __temp_ptr = __temp_acc.__data();
                         auto __res_ptr = __res_acc.__data();
-
                         auto __local_idx = __item.get_local_id(0);
                         auto __group_idx = __item.get_group(0);
                         // 1. Initialization (transform part). Fill local memory

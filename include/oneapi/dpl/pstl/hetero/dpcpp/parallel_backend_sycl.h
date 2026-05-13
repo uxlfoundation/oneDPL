@@ -871,8 +871,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
 {
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask>;
     using _ReduceOp = std::plus<_Size>;
-    using _GenScanInput =
-        oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask, /*_RangeTransform*/ oneapi::dpl::identity>;
+    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
@@ -1005,7 +1004,7 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
     // Writes current segment's output reduction and the next segment's output key
     using _WriteOp = __write_red_by_seg<_BinaryPredicate>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
-    const std::size_t __n = oneapi::dpl::__ranges::__size(__keys);
+    std::size_t __n = oneapi::dpl::__ranges::__size(__keys);
     // __gen_red_by_seg_scan_input requires that __n > 1
     assert(__n > 1);
 
@@ -1468,9 +1467,6 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag, _UseReduceThen
 
 template <typename _CustomName>
 struct reduce_then_scan_wrapper;
-
-template <typename _CustomName>
-struct reduce_then_scan_wrapper_bounded;
 
 template <typename _CustomName>
 struct scan_then_propagate_wrapper;
@@ -2651,7 +2647,6 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
     if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {
         sycl::queue __q_local = __exec.queue();
-
         if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
         {
             auto __res = __parallel_scan_by_segment_reduce_then_scan</*_Bounded*/ false, _CustomName, __is_inclusive>(
@@ -2661,7 +2656,6 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
             return;
         }
     }
-
     // Implicit synchronization in this call. We need to wrap the policy as the implementation may still call
     // reduce-then-scan and needs to avoid duplicate kernel names.
     __parallel_scan_by_segment_fallback<_CustomName, __is_inclusive>(
