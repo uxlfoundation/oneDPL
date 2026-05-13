@@ -3460,7 +3460,7 @@ using __parallel_set_op_return_t =
     oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _SetUnionOp,
+          class _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename __SetOp,
           class _SizeFunction, class _MaskSizeFunction, typename _SetRange, bool __Bounded>
 struct _SetOpReachedPosEvaluator
 {
@@ -3476,11 +3476,11 @@ struct _SetOpReachedPosEvaluator
                               _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
                               _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                               _OutputIterator __result1, _OutputIterator __result2, _Compare __comp, _Proj1 __proj1,
-                              _Proj2 __proj2, _SetUnionOp __set_union_op, _SizeFunction __size_func,
+                              _Proj2 __proj2, __SetOp __set_op, _SizeFunction __size_func,
                               _MaskSizeFunction __mask_size_func)
         : __tag(__tag), __exec(__exec), __first1(__first1), __last1(__last1), __first2(__first2), __last2(__last2),
           __result1(__result1), __result2(__result2), __comp(__comp), __proj1(__proj1), __proj2(__proj2),
-          __set_union_op(__set_union_op), __size_func(__size_func), __mask_size_func(__mask_size_func),
+          __set_op(__set_op), __size_func(__size_func), __mask_size_func(__mask_size_func),
           __n_out(__result2 - __result1)
     {
     }
@@ -3645,7 +3645,7 @@ struct _SetOpReachedPosEvaluator
                 __mask_buf_size, oneapi::dpl::__utils::__parallel_set_op_mask::eNone);
 
             auto [__first1_tmp_reached, __first2_tmp_reached, __output_discard_it_reached, __mask_buffer_reached] =
-                __set_union_op(
+                __set_op(
                     __first1 + __offset1, __first1 + __offset1 + __size1, // First input range bounds
                     __first2 + __offset2, __first2 + __offset2 + __size2, // Second input range bounds
                     oneapi::dpl::discard_iterator{}, // No real output buffer, so using discard iterator
@@ -3709,7 +3709,7 @@ struct _SetOpReachedPosEvaluator
     _Compare __comp;
     _Proj1 __proj1;
     _Proj2 __proj2;
-    _SetUnionOp __set_union_op;
+    __SetOp __set_op;
     _SizeFunction __size_func;
     _MaskSizeFunction __mask_size_func;
 
@@ -3840,7 +3840,7 @@ struct _ParallelSetOpScanPred
 
 template <bool __Bounded, typename _Tag, typename _ExecutionPolicy, typename _SetRange, typename _RandomAccessIterator1,
           typename _RandomAccessIterator2, typename _OutputIterator, typename _SizeFunction, typename _MaskSizeFunction,
-          typename _SetUnionOp, typename _Compare, typename _Proj1, typename _Proj2, typename _T>
+          typename __SetOp, typename _Compare, typename _Proj1, typename _Proj2, typename _T>
 struct _ParallelSetOpStrictReducePred
 {
     _Tag __tag;
@@ -3850,7 +3850,7 @@ struct _ParallelSetOpStrictReducePred
     _RandomAccessIterator2 __first2, __last2;
     _SizeFunction __size_func;
     _MaskSizeFunction __mask_size_func;
-    _SetUnionOp __set_union_op;
+    __SetOp __set_op;
 
     _Compare __comp;
     _Proj1 __proj1;
@@ -3926,7 +3926,7 @@ struct _ParallelSetOpStrictReducePred
         _T* __buffer_b = __buf_raw_data_begin + __buf_pos;
 
         auto [__it1_reached, __it2_reached, __output_reached, __mask_reached] =
-            __set_union_op(__b, __e, __bb, __ee, __buffer_b, __comp, __proj1, __proj2, nullptr);
+            __set_op(__b, __e, __bb, __ee, __buffer_b, __comp, __proj1, __proj2, nullptr);
 
         // Prepare processed data info
         const _DataPart<_DifferenceType> __new_processing_data{0, __output_reached - __buffer_b, __buf_pos};
@@ -3972,12 +3972,12 @@ struct _ParallelSetOpApexPred
 
 template <bool __Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
           class _RandomAccessIterator2, class _OutputIterator, class _Compare, class _Proj1, class _Proj2,
-          class _SizeFunction, class _MaskSizeFunction, class _SetUnionOp>
+          class _SizeFunction, class _MaskSizeFunction, class __SetOp>
 __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                   _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                   _OutputIterator __result1, _OutputIterator __result2, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
-                  _SizeFunction __size_func, _MaskSizeFunction __mask_size_func, _SetUnionOp __set_union_op)
+                  _SizeFunction __size_func, _MaskSizeFunction __mask_size_func, __SetOp __set_op)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -4001,16 +4001,16 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
     return __internal::__except_handler([__tag, &__exec, __n1, __first1, __last1, __first2, __last2, __result1,
                                          __result2, __comp, __proj1, __proj2, __size_func, __mask_size_func,
-                                         __set_union_op, &__buf, __buf_size]() {
+                                         __set_op, &__buf, __buf_size]() {
         // Buffer raw data begin/end pointers
         _T* __buf_raw_data_begin = __buf.get();
         _T* __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
         _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
-                                  _OutputIterator, _Compare, _Proj1, _Proj2, _SetUnionOp, _SizeFunction,
+                                  _OutputIterator, _Compare, _Proj1, _Proj2, __SetOp, _SizeFunction,
                                   _MaskSizeFunction, _SetRange, __Bounded>
             __source_final_pos_evaluator(__tag, __exec, __first1, __last1, __first2, __last2, __result1, __result2,
-                                         __comp, __proj1, __proj2, __set_union_op, __size_func, __mask_size_func);
+                                         __comp, __proj1, __proj2, __set_op, __size_func, __mask_size_func);
 
         // Scan predicate
         _ParallelSetOpScanPred<__Bounded, _IsVector, _ExecutionPolicy, _T*, _SetRange, _OutputIterator,
@@ -4020,7 +4020,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
         _ParallelSetOpStrictReducePred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
                                        _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator, _SizeFunction,
-                                       _MaskSizeFunction, _SetUnionOp, _Compare, _Proj1, _Proj2, _T>
+                                       _MaskSizeFunction, __SetOp, _Compare, _Proj1, _Proj2, _T>
             __reduce_pred{__tag,
                           __exec,
                           __first1,
@@ -4029,7 +4029,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                           __last2,
                           __size_func,
                           __mask_size_func,
-                          __set_union_op,
+                          __set_op,
                           __comp,
                           __proj1,
                           __proj2,
@@ -4056,12 +4056,12 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
 template <bool __Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
           class _RandomAccessIterator2, class _OutputIterator, class _Compare, class _Proj1, class _Proj2,
-          class _SetUnionOp>
+          class __SetOp>
 oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                         _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                         _OutputIterator __result1, _OutputIterator __result2, _Compare __comp, _Proj1 __proj1,
-                        _Proj2 __proj2, _SetUnionOp __set_union_op)
+                        _Proj2 __proj2, __SetOp __set_op)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -4177,7 +4177,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             [=, &__exec, &__finish] {
                 __finish = __internal::__parallel_set_op<__Bounded>(
                     __tag, __exec, __left_bound_seq_1, __last1, __first2, __last2, __result1 + __to_copy, __result2,
-                    __comp, __proj1, __proj2, __size_fnc, __mask_size_fnc, __set_union_op);
+                    __comp, __proj1, __proj2, __size_fnc, __mask_size_fnc, __set_op);
             });
 
         if constexpr (__Bounded)
@@ -4206,7 +4206,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             [=, &__exec, &__finish] {
                 __finish = __internal::__parallel_set_op<__Bounded>(
                     __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result1 + __to_copy, __result2,
-                    __comp, __proj1, __proj2, __size_fnc, __mask_size_fnc, __set_union_op);
+                    __comp, __proj1, __proj2, __size_fnc, __mask_size_fnc, __set_op);
             });
 
         if constexpr (__Bounded)
@@ -4218,7 +4218,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     return __internal::__parallel_set_op<__Bounded>(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                     __first2, __last2, __result1, __result2, __comp, __proj1, __proj2,
-                                                    __size_fnc, __mask_size_fnc, __set_union_op);
+                                                    __size_fnc, __mask_size_fnc, __set_op);
 }
 
 //------------------------------------------------------------------------
