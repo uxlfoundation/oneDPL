@@ -1429,42 +1429,28 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
 
 namespace __details
 {
-template <typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults,
-          typename = void>
+template <typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename = void>
 struct _GenInputTraits
 {
 };
 
 // Callable with (_InRng, _Id) only
-template <typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults>
-struct _GenInputTraits<_GenInput, _InRng, _Id, _TempData, _WriteResults,
+template <typename _GenInput, typename _InRng, typename _Id, typename _TempData>
+struct _GenInputTraits<_GenInput, _InRng, _Id, _TempData,
                        std::enable_if_t<std::is_invocable_v<_GenInput, _InRng, _Id> &&
                                         !std::is_invocable_v<_GenInput, _InRng, _Id, _TempData&>>>
 {
     using type = std::invoke_result_t<_GenInput, _InRng, _Id>;
     static constexpr bool _uses_temp_data = false;
-    static constexpr bool _uses_write_results = false;
 };
 
 // Callable with (_InRng, _Id, _TempData&), but not the full bounded signature
-template <typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults>
-struct _GenInputTraits<_GenInput, _InRng, _Id, _TempData, _WriteResults,
-                       std::enable_if_t<std::is_invocable_v<_GenInput, _InRng, _Id, _TempData&> &&
-                                        !std::is_invocable_v<_GenInput, _InRng, _Id, _TempData&, _WriteResults&>>>
+template <typename _GenInput, typename _InRng, typename _Id, typename _TempData>
+struct _GenInputTraits<_GenInput, _InRng, _Id, _TempData,
+                       std::enable_if_t<std::is_invocable_v<_GenInput, _InRng, _Id, _TempData&>>>
 {
     using type = std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&>;
     static constexpr bool _uses_temp_data = true;
-    static constexpr bool _uses_write_results = false;
-};
-
-// Callable with full bounded signature (_InRng, _Id, _TempData&, _WriteResults&)
-template <typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults>
-struct _GenInputTraits<_GenInput, _InRng, _Id, _TempData, _WriteResults,
-                       std::enable_if_t<std::is_invocable_v<_GenInput, _InRng, _Id, _TempData&, _WriteResults&>>>
-{
-    using type = std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&, _WriteResults&>;
-    static constexpr bool _uses_temp_data = true;
-    static constexpr bool _uses_write_results = true;
 };
 
 template <typename _WriteOp, typename _OutRng, typename _Id, typename _GenInputType, typename _TempData,
@@ -1516,12 +1502,11 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                const std::uint32_t __sub_group_id, const std::uint32_t __active_subgroups,
                                _TempData& __temp_out, _WriteResults& __write_results)
 {
-    using _GenInputTraitsT = __details::_GenInputTraits<_GenInput, _InRng, std::size_t, _TempData, _WriteResults>;
+
+    using _GenInputTraitsT = __details::_GenInputTraits<_GenInput, _InRng, std::size_t, _TempData>;
     using _GenInputType = typename _GenInputTraitsT::type;
     auto __call_gen_input = [&](std::size_t __id) -> _GenInputType {
-        if constexpr (_Bounded && _GenInputTraitsT::_uses_write_results)
-            return __gen_input(__in_rng, __id, __temp_out, __write_results);
-        else if constexpr (_GenInputTraitsT::_uses_temp_data)
+        if constexpr (_GenInputTraitsT::_uses_temp_data)
             return __gen_input(__in_rng, __id, __temp_out);
         else
             return __gen_input(__in_rng, __id);
