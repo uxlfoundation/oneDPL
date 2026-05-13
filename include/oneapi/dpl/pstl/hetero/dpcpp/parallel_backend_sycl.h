@@ -816,13 +816,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
         if (__use_reduce_then_scan)
         {
             using _GenInput =
-                std::conditional_t<!_Bounded,
-                                   oneapi::dpl::__par_backend_hetero::__gen_transform_input<
-                                       /*_Bounded*/ false, _UnaryOperation, typename _InitType::__value_type>,
-                                   oneapi::dpl::__par_backend_hetero::__gen_transform_input<
-                                       /*_Bounded*/ true, _UnaryOperation, typename _InitType::__value_type,
-                                       __noop_temp_data, __processed_info<__stop_pos_t>>>;
-
+                oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation,
+                                                                         typename _InitType::__value_type>;
             using _ScanInputTransform = oneapi::dpl::identity;
             using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
 
@@ -876,17 +871,10 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
 {
     using __stop_pos_t = __scan_stop_pos_t<_InRng>;
     using _ProcessedInfo = __processed_info<__stop_pos_t>;
-    using _GenReduceInput =
-        std::conditional_t<!_Bounded, oneapi::dpl::__par_backend_hetero::__gen_count_mask</*_Bounded*/ false, _GenMask>,
-                           oneapi::dpl::__par_backend_hetero::__gen_count_mask</*_Bounded*/ true, _GenMask,
-                                                                               __noop_temp_data, _ProcessedInfo>>;
-
+    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask>;
     using _ReduceOp = std::plus<_Size>;
-    using _GenScanInput = std::conditional_t<
-        !_Bounded,
-        oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask</*_Bounded*/ false, _GenMask, /*_RangeTransform*/ oneapi::dpl::identity>,
-        oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<
-            /*_Bounded*/ true, _GenMask, /*_RangeTransform*/ oneapi::dpl::identity, __noop_temp_data, _ProcessedInfo>>;
+    using _GenScanInput =
+        oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask, /*_RangeTransform*/ oneapi::dpl::identity>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
@@ -965,7 +953,10 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
-        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
+        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<
+            1, _Assign,
+            oneapi::dpl::__par_backend_hetero::__processed_info<
+                oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<_Range1>>>;
 
         auto __res = __parallel_reduce_then_scan_copy</*_Bounded*/ true, _CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
@@ -1088,7 +1079,10 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
-        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
+        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<
+            0, _Assign,
+            oneapi::dpl::__par_backend_hetero::__processed_info<
+                oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<_InRng>>>;
 
         auto __res = __parallel_reduce_then_scan_copy</*_Bounded*/ true, _CustomName>(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
@@ -1130,13 +1124,15 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
     using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
     using _MaskPredicate = oneapi::dpl::identity;
     using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicate, _MaskRangeTransform>;
-    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>;
+    using _WriteOp =
+        oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign,
+                                                            oneapi::dpl::__par_backend_hetero::__noop_processed_info>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
     using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
 
-    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask</*_Bounded*/ false, _GenMaskReduce>;
+    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMaskReduce>;
     using _ReduceOp = std::plus<_Size>;
-    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask</*_Bounded*/ false, _GenMaskScan, _ScanRangeTransform>;
+    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _ScanRangeTransform>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     const std::size_t __n = oneapi::dpl::__ranges::__size(__rng1);
