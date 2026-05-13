@@ -189,7 +189,8 @@ macro(onedpl_add_test test_source_file switch_off_checked_iterators)
         "execution.pass" "functional.pass" "algorithms_redirection.pass" "usm_memory_replacement.pass")
 
     # Tests that are built in two variants: with and without ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
-    set(set_difference_cpp26_variant_tests "std_ranges_set_difference.pass")
+    set(std_ranges_set_op_cpp26_variant_tests "std_ranges_set_union.pass" "std_ranges_set_difference.pass"
+        "std_ranges_set_symmetric_difference.pass" "std_ranges_set_intersection.pass")
 
     set(extra_test_label "")
     if (_test_name IN_LIST pstloffload_smoke_tests)
@@ -206,7 +207,7 @@ macro(onedpl_add_test test_source_file switch_off_checked_iterators)
     elseif(_test_name STREQUAL "free_after_unload.pass")
         onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "" "${extra_test_label}")
         onedpl_construct_exec(${test_source_file} ${_test_name}.after_pstl_offload ${switch_off_checked_iterators} "" "${extra_test_label}")
-    elseif (_test_name IN_LIST set_difference_cpp26_variant_tests)
+    elseif (_test_name IN_LIST std_ranges_set_op_cpp26_variant_tests)
         onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-DONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED=0" "${extra_test_label}")
         string(REPLACE "\.pass" "_cpp26\.pass" _test_name ${_test_name})
         onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-DONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED=1" "${extra_test_label}")
