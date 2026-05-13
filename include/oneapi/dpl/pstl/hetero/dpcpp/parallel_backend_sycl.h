@@ -869,8 +869,6 @@ __scan_block_return_t<_Bounded, _Size, _InRng>
 __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size,
                                  _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
-    using __stop_pos_t = __scan_stop_pos_t<_InRng>;
-    using _ProcessedInfo = __processed_info<__stop_pos_t>;
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask>;
     using _ReduceOp = std::plus<_Size>;
     using _GenScanInput =
