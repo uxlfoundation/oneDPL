@@ -22,7 +22,6 @@ namespace test_std_ranges
 template <>
 struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
 {
-    static constexpr bool RunTestForHeteroPolicy = true;
     static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
 };
 
