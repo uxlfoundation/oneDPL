@@ -268,7 +268,10 @@ struct __write_to_id_if
                 [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]); },
                 [&]() {
                     __write_results.set_oob_reached();
-                    __write_results.set_oob_source_pos(std::make_tuple(__id));
+
+                    typename WriteResults::_TupleOfSizes __source_oob_pos = {};
+                    std::get<0>(__source_oob_pos) = __id;
+                    __write_results.set_oob_source_pos(__source_oob_pos);
                 });
         }
 
