@@ -22,8 +22,7 @@
 #define _ONEDPL_UTILS_HETERO_H
 
 #include "../utils.h"
-
-#include <type_traits> // for std::decay_t
+#include <tuple>
 
 namespace oneapi
 {
