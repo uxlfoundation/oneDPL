@@ -287,7 +287,7 @@ struct CheckResultResolver
 {
     template <typename Policy, std::size_t Index>
     static constexpr bool
-    NeedCheckReturnValues()
+    ShouldCheckReturnValueField()
     {
         return true;
     }
@@ -418,7 +418,7 @@ private:
 
         if constexpr (check_in_out_result<decltype(expected_res)>)
         {
-            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 0>())
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 0>())
             {
                 EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
                           (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
@@ -426,13 +426,13 @@ private:
         }
         else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
-            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 1>())
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 1>())
             {
                 EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                           (std::string("wrong input stop position with ") + names + sizes).c_str());
             }
 
-            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 2>())
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 2>())
             {
                 EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
                           (std::string("wrong input stop position with ") + names + sizes).c_str());
@@ -440,13 +440,13 @@ private:
         }
         else if constexpr (check_in_in_result<decltype(expected_res)>)
         {
-            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 1>())
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 1>())
             {
                 EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                           (std::string("wrong input stop position with ") + names + sizes).c_str());
             }
 
-            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 2>())
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 2>())
             {
                 EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
                           (std::string("wrong input stop position with ") + names + sizes).c_str());
@@ -454,7 +454,7 @@ private:
         }
         else
         {
-            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 1>())
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 1>())
             {
                 EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
                           (std::string("wrong input stop position with ") + names + sizes).c_str());
@@ -575,14 +575,14 @@ private:
 
         if constexpr (check_in_in_result<decltype(expected_res)>)
         {
-            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 1>())
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 1>())
             {
                 EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                           (std::string("wrong stop position with ") + typeid(Algo).name() +
                            typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
             }
 
-            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 2>())
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 2>())
             {
                 EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
                           (std::string("wrong stop position with ") + typeid(Algo).name() +
@@ -666,13 +666,13 @@ private:
         }
         else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
-            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 1>())
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 1>())
             {
                 EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                           (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
             }
 
-            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 2>())
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 2>())
             {
                 EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
                           (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());

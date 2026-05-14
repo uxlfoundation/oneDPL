@@ -30,7 +30,7 @@ template <>
 struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_symmetric_difference)>>
 {
     template <typename Policy, std::size_t Index>
-    static constexpr bool NeedCheckReturnValues()
+    static constexpr bool ShouldCheckReturnValueField()
     {
         if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>)
         {
