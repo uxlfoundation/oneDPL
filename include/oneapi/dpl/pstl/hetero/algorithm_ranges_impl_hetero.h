@@ -21,7 +21,6 @@
 #include "../utils_ranges.h"
 #include "utils_hetero.h"
 #include "../functional_impl.h" // for oneapi::dpl::identity
-#include "../utils_ranges.h"    // for __create_set_difference_result()
 
 #if _ONEDPL_BACKEND_SYCL
 #    include "dpcpp/utils_ranges_sycl.h"
