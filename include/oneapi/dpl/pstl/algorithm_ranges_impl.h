@@ -888,7 +888,7 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _P
             *__out_it = *__it1;
             ++__it1;
         }
-        else if (std::invoke(comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+        else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
         {
             *__out_it = *__it2;
             ++__it2;
