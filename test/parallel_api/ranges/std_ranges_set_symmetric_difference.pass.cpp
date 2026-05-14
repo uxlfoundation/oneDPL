@@ -162,6 +162,111 @@ struct
         return {in1 + idx1, in2 + idx2, out + idxOut};
     }
 } set_symmetric_difference_checker;
+
+// Check the correctness of the set_symmetric_difference_checker against the logic of std::ranges::set_symmetric_difference
+void
+test_set_symmetric_difference_checker()
+{
+    // oneapi::dpl::ranges::set_symmetric_difference logic
+    {
+        // set1:                   1, 2, 3
+        // set2:                   4, 5, 6
+        //                         --------^
+        // res:                    1, 2, 3, 4, 5, 6
+        // final position in set1: --------+
+        // final position in set2:---------+
+
+        std::vector<int> set1{1, 2, 3};
+        std::vector<int> set2{4, 5, 6};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{1, 2, 3, 4, 5, 6};
+
+        auto res = set_symmetric_difference_checker(set1, set2, set3);
+
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, set2.end(), "Wrong 'in2' state of result");
+        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
+
+        set3.erase(res.out, set3.end());
+        EXPECT_EQ_RANGES(set3, resExpected, "Wrong output data state");
+    }
+
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+    // oneapi::dpl::ranges::set_symmetric_difference logic
+    {
+        // set1:                   1, 2, 3
+        // set2:                   4, 5, 6
+        //                         --------^
+        // res:                    1, 2, 3 |
+        // final position in set1: --------+
+        // final position in set2: ^
+
+        std::vector<int> set1{1, 2, 3};
+        std::vector<int> set2{4, 5, 6};
+        std::vector<int> set3(3);
+        const std::vector<int> resExpected{1, 2, 3};
+
+        auto res = set_symmetric_difference_checker(set1, set2, set3);
+
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 4), "Wrong 'in2' state of result");
+        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
+
+        set3.erase(res.out, set3.end());
+        EXPECT_EQ_RANGES(set3, resExpected, "Wrong output data state");
+    }
+#endif
+
+    // oneapi::dpl::ranges::set_symmetric_difference logic
+    {
+        // set1:                   1, 3, 5, 6
+        // set2:                   1, 2, 8, 9
+        //                         --------- ^
+        // res:                    2, 3, 5, 6, 8, 9
+        // final position in set1: ----------+
+        // final position in set2: ----------+
+
+        std::vector<int> set1{1, 3, 5, 6};
+        std::vector<int> set2{1, 2, 8, 9};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{2, 3, 5, 6, 8, 9};
+
+        auto res = set_symmetric_difference_checker(set1, set2, set3);
+
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, set2.end(), "Wrong 'in2' state of result");
+        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
+
+        set3.erase(res.out, set3.end());
+        EXPECT_EQ_RANGES(set3, resExpected, "Wrong output data state");
+    }
+
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+    // oneapi::dpl::ranges::set_symmetric_difference logic
+    {
+        // set1:                   1, 3, 5, 6
+        // set2:                   1, 2,   ^  8, 9
+        //                         --------+ ^
+        // res:                    2, 3, 5 | |
+        // final position in set1: --------+ |
+        // final position in set2: ----------+
+
+        std::vector<int> set1{1, 3, 5, 6};
+        std::vector<int> set2{1, 2, 8, 9};
+        std::vector<int> set3(3);
+        const std::vector<int> resExpected{2, 3, 5};
+
+        auto res = set_symmetric_difference_checker(set1, set2, set3);
+
+        EXPECT_EQ(res.in1, std::find(set1.begin(), set1.end(), 6), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 8), "Wrong 'in2' state of result");
+        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
+
+        set3.erase(res.out, set3.end());
+        EXPECT_EQ_RANGES(set3, resExpected, "Wrong output data state");
+    }
+#endif
+}
 #endif // _ENABLE_STD_RANGES_TESTING
 
 int
@@ -170,6 +275,10 @@ main()
     bool bProcessed = false;
 
 #if _ENABLE_STD_RANGES_TESTING
+
+    // Check the correctness of the set_symmetric_difference_checker against the logic of std::ranges::set_symmetric_difference
+    test_set_symmetric_difference_checker();
+
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
