@@ -158,22 +158,6 @@ struct __pattern_lexicographical_compare_reduce_fn
     }
 };
 
-struct __pos_operations_sycl : __pos_operations
-{
-    // We should call this operation without any runtime condition checks to avoid deadlocks
-    template <typename _NDGroup, typename _TupleOfSizes>
-    static _TupleOfSizes
-    reduce_max_pos_over_group_elementwise(const _NDGroup& __group, _TupleOfSizes __pos)
-    {
-        __for_each_field(__pos, [__group](auto& __field) {
-            using _Value = std::decay_t<decltype(__field)>;
-            __field = __dpl_sycl::__reduce_over_group(__group, __field, __dpl_sycl::__maximum<_Value>());
-        });
-        
-        return __pos;
-    }
-};
-
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
