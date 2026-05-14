@@ -251,7 +251,6 @@ test_set_union_checker()
         set3.erase(res.out, set3.end());
         EXPECT_EQ_RANGES(set3, resExpected, "Wrong output data state");
     }
-
 #endif
 
     // oneapi::dpl::ranges::set_union logic
