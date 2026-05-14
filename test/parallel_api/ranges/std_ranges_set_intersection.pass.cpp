@@ -122,6 +122,7 @@ struct
         std::size_t idx2 = 0;
         std::size_t idxOut = 0;
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         while (idx1 < n1 && idx2 < n2)
         {
             if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
@@ -144,6 +145,22 @@ struct
         }
 
         return {in1 + idx1, in2 + idx2, out + idxOut};
+#else
+        while (idx1 < n1 && idx2 < n2)
+        {
+            if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
+                ++idx1;
+            else if (std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
+                ++idx2;
+            else
+            {
+                out[idxOut++] = in1[idx1++];
+                ++idx2;
+            }
+        }
+        return {in1 + idx1, in2 + idx2, out + idxOut};
+
+#endif
     }
 } set_intersection_checker;
 
@@ -165,9 +182,9 @@ test_set_intersection_checker()
         const std::vector<int> resExpected{1, 2, 3, 4, 5};
 
         auto res = set_intersection_checker(set1, set2, set3);
+
         EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
         EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 20), "Wrong 'in2' state of result");
-
         EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
 
         EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
@@ -193,8 +210,12 @@ test_set_intersection_checker()
 
         auto res = set_intersection_checker(set1, set2, set3);
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         EXPECT_EQ(res.in1, std::find(set1.begin(), set1.end(), 4), "Wrong 'in1' state of result");
         EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 4), "Wrong 'in2' state of result");
+#else
+        EXPECT_EQ(res.in2, set2.end(), "Wrong 'in2' state of result");
+#endif
         EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
 
         set3.erase(res.out, set3.end());
@@ -214,7 +235,9 @@ test_set_intersection_checker()
         std::vector<int> set1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 18, 19, 20};
         std::vector<int> set2{4, 5, 6, 7, 11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
         std::vector<int> set3(set1.size() + set2.size());
+
         auto res = set_intersection_checker(set1, set2, set3);
+
         EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
         EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 21), "Wrong 'in2' state of result");
 
@@ -243,8 +266,13 @@ test_set_intersection_checker()
 
         auto res = set_intersection_checker(set1, set2, set3);
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         EXPECT_EQ(res.in1, std::find(set1.begin(), set1.end(), 16), "Wrong 'in1' state of result");
         EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 16), "Wrong 'in2' state of result");
+#else
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, set2.end(), "Wrong 'in2' state of result");
+#endif
         EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
 
         set3.erase(res.out, set3.end());
