@@ -869,17 +869,17 @@ struct __result_storage : public __device_storage<_T>
     __result_storage(const sycl::queue& __q, std::size_t __n) : __result_sz(__n)
     {
         assert(__result_sz > 0);
-
         _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
         if (__ptr)
         {
             this->__usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
             __kind = sycl::usm::alloc::host;
-            return;
         }
-
-        this->__initialize(__q, __n);
-        __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
+        else
+        {
+            this->__initialize(__q, __n);
+            __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
+        }
     }
 
     // Note: this function assumes a kernel has completed and the result can be transferred to host
@@ -923,11 +923,12 @@ struct __combined_storage : public __device_storage<_T>
                 this->__initialize(__q, __sz); // a separate scratch buffer
 
             __kind = sycl::usm::alloc::host;
-            return;
         }
-
-        this->__initialize(__q, __sz + __result_sz); // a combined buffer, starting with scratch
-        __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
+        else
+        {
+            this->__initialize(__q, __sz + __result_sz); // a combined buffer, starting with scratch
+            __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
+        }
     }
 
     // Note: this function assumes a kernel has completed and the result can be transferred to host
