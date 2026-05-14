@@ -285,6 +285,11 @@ void call_with_host_policies(auto algo, auto... args)
 template <typename Algo>
 struct CheckResultResolver
 {
+    // Attention: Index is 1-based field number in result types,
+    // e.g. for in_in_out_result:
+    //      1 - first input range iterator,
+    //      2 - second input range iterator,
+    //      3 - output range iterator
     template <typename Policy, std::size_t Index>
     static constexpr bool
     ShouldCheckReturnValueField()

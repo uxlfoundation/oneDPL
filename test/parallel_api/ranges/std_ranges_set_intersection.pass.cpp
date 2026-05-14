@@ -31,12 +31,11 @@ struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set
 {
     template <typename Policy, std::size_t Index>
     static constexpr bool
-    ShouldCheckReturnValueField() // Hetero policy: skip first and second field check in C++26 compatibility mode
+    ShouldCheckReturnValueField() // Hetero policy: skip <in1> and <in2> fields check in C++26 compatibility mode
     {
         if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>)
         {
-            // Stop position in the first and in the second input range
-            if constexpr (Index == 0 || Index == 1)
+            if constexpr (Index == 1 || Index == 2)
             {
 #if STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
                 return false;
