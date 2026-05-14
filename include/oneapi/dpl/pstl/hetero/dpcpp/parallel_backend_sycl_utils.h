@@ -856,7 +856,7 @@ __get_accessor(_ModeTagT, __device_storage<_T>& __st, sycl::handler& __cgh, cons
     return __st.template __get_accessor<__access_mode_resolver_v<_ModeTagT>>(__cgh, __prop_list);
 }
 
-template <typename _T, bool _CanUseUSMHostMemory = true>
+template <typename _T>
 struct __result_storage : public __device_storage<_T>
 {
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __result_storage.");
@@ -870,15 +870,12 @@ struct __result_storage : public __device_storage<_T>
     {
         assert(__result_sz > 0);
 
-        if constexpr (_CanUseUSMHostMemory)
+        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
+        if (__ptr)
         {
-            _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
-            if (__ptr)
-            {
-                this->__usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-                __kind = sycl::usm::alloc::host;
-                return;
-            }
+            this->__usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+            __kind = sycl::usm::alloc::host;
+            return;
         }
 
         this->__initialize(__q, __n);
@@ -900,7 +897,7 @@ struct __result_storage : public __device_storage<_T>
     }
 };
 
-template <typename _T, bool _CanUseUSMHostMemory = true>
+template <typename _T>
 struct __combined_storage : public __device_storage<_T>
 {
     using _ValueType = _T;
@@ -917,19 +914,16 @@ struct __combined_storage : public __device_storage<_T>
     {
         assert(__result_sz > 0);    //assert(__sz > 0 && __result_sz > 0);
 
-        if constexpr (_CanUseUSMHostMemory)
+        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
+        if (__ptr)
         {
-            _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
-            if (__ptr)
-            {
-                __result_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+            __result_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
 
-                if (__sz > 0)
-                    this->__initialize(__q, __sz); // a separate scratch buffer
+            if (__sz > 0)
+                this->__initialize(__q, __sz); // a separate scratch buffer
 
-                __kind = sycl::usm::alloc::host;
-                return;
-            }
+            __kind = sycl::usm::alloc::host;
+            return;
         }
 
         this->__initialize(__q, __sz + __result_sz); // a combined buffer, starting with scratch
@@ -967,14 +961,6 @@ struct __combined_storage : public __device_storage<_T>
         return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf), __sz, __kind};
     }
 };
-
-// Storage for values that require GPU atomic operations inside a kernel,
-// with host-side read after kernel completion via __copy_result.
-// This type never allocates host USM:
-//  - host USM is banned for atomic access on most GPU hardware
-//  - must be used when sycl::atomic_ref<..., global_space> is required.
-template <typename _T>
-using __atomic_result_storage = __result_storage<_T, /*_CanUseUSMHostMemory*/ false>;
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
