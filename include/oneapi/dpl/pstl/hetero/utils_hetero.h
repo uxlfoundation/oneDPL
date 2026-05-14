@@ -172,35 +172,6 @@ struct __pos_operations_sycl : __pos_operations
         
         return __pos;
     }
-
-    // Precondition: __global_max_pos must refer to device global memory (e.g., a USM global allocation
-    // or a SYCL buffer accessor with global_space). Passing a stack variable is undefined behavior
-    // because sycl::atomic_ref requires global address space.
-    template <typename _Tuple>
-    static void
-    fetch_max_pos_global_elementwise(_Tuple& __global_max_pos, const _Tuple& __pos)
-    {
-        // memory_order::relaxed is sufficient here because:
-        //   - the atomic fetch_max itself is the only operation that must be race-free;
-        //   - no other memory (output data, SLM, etc.) is being published through this atomic,
-        //     so no acquire/release ordering is needed between work-groups;
-        //   - the host reads the result only after the kernel completes, and kernel completion
-        //     provides a full device-to-host memory barrier unconditionally.
-        //
-        // memory_scope::device is required because work item 0 of each work-group writes to the
-        // same global location concurrently with work item 0 of every other work-group,
-        // so the atomic must be visible across the entire device, not just within one work-group.
-
-        __for_each_pair_of_fields(
-            __global_max_pos, __pos, [](auto& __global_max_pos_field, const auto& __pos_field) {
-                using _Value = std::decay_t<decltype(__global_max_pos_field)>;
-                using _AtomicValueT = sycl::atomic_ref<_Value, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                                                       sycl::access::address_space::global_space>;
-
-                _AtomicValueT __atomic(__global_max_pos_field);
-                __atomic.fetch_max(__pos_field);
-            });
-    }
 };
 
 } // namespace __internal
