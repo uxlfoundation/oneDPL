@@ -157,6 +157,85 @@ struct
     }
 } set_union_checker;
 
+// Check the correctness of the set_union_checker against the logic of std::ranges::set_union
+void
+test_set_union_checker()
+{
+    // oneapi::dpl::ranges::set_union logic
+    {
+        // set1:                   1, 2, 3
+        // set2:                          ^ 4, 5, 6
+        //                         -------+-------- ^
+        // res:                    1, 2, 3, 4, 5, 6 |
+        // final position in set1: -------+         |
+        // final position in set2:------------------+
+
+        std::vector<int> set1{1, 2, 3};
+        std::vector<int> set2{        4, 5, 6};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{1, 2, 3, 4, 5, 6};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, set2.end(), "Wrong 'in2' state of result");
+        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
+
+        set3.erase(res.out, set3.end());
+        EXPECT_EQ_RANGES(set3, resExpected, "Wrong output data state");
+    }
+
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+    // oneapi::dpl::ranges::set_union logic
+    {
+        // set1:                   1, 2, 3
+        // set2:                          ^ 4, 5, 6
+        //                         -------+---^
+        // res:                    1, 2, 3, 4 |
+        // final position in set1: -------+   |
+        // final position in set2:------------+
+
+        std::vector<int> set1{1, 2, 3};
+        std::vector<int> set2{4, 5, 6};
+        std::vector<int> set3(4);
+        const std::vector<int> resExpected{1, 2, 3, 4};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 5), "Wrong 'in2' state of result");
+        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
+
+        set3.erase(res.out, set3.end());
+        EXPECT_EQ_RANGES(set3, resExpected, "Wrong output data state");
+    }
+
+#endif
+
+    // oneapi::dpl::ranges::set_union logic
+    {
+        // set1:                   1, 2, 3
+        // set2:                   1, 2, 3
+        //                         ------- ^
+        // res:                    1, 2, 3 |
+        // final position in set1: --------+
+        // final position in set2: --------+
+
+        std::vector<int> set1{1, 2, 3};
+        std::vector<int> set2{1, 2, 3};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{1, 2, 3};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, set2.end(), "Wrong 'in2' state of result");
+        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
+
+        set3.erase(res.out, set3.end());
+        EXPECT_EQ_RANGES(set3, resExpected, "Wrong output data state");
+    }
+}
 #endif // _ENABLE_STD_RANGES_TESTING
 
 int
@@ -165,6 +244,10 @@ main()
     bool bProcessed = false;
 
 #if _ENABLE_STD_RANGES_TESTING
+
+    // Check the correctness of the set_union_checker against the logic of std::ranges::set_union
+    test_set_union_checker();
+
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
