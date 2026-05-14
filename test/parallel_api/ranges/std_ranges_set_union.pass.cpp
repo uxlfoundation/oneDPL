@@ -118,10 +118,6 @@ struct
                                   std::ranges::borrowed_iterator_t<_ROut>>
     operator()(_R1&& r_1, _R2&& r_2, _ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
     {
-        // r_1 : 0, 1, 2, 3, ..., 131081
-        // r_2 : 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, ..., 21845, 21845, 21845, 21846, 21846, 21846
-        // r_out : size = 131082
-        //     : 0, 0, 0, 1, 1, 1, 2, 2, 2, ...., 87385, 87386, 87387
         auto in1 = std::ranges::begin(r_1);
         auto in2 = std::ranges::begin(r_2);
         auto out = std::ranges::begin(r_out);
@@ -133,6 +129,8 @@ struct
         std::size_t idx1 = 0;
         std::size_t idx2 = 0;
         std::size_t idxOut = 0;
+
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
 
         while (idx1 < n1 && idx2 < n2 && idxOut < nOut)
         {
@@ -174,6 +172,30 @@ struct
         }
 
         return {in1 + idx1, in2 + idx2, out + idxOut};
+#else
+        while (idx1 < n1 && idx2 < n2)
+        {
+            if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
+            {
+                out[idxOut++] = in1[idx1++];
+            }
+            else if (std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
+            {
+                out[idxOut++] = in2[idx2++];
+            }
+            else
+            {
+                out[idxOut++] = in1[idx1++];
+                ++idx2;
+            }
+        }
+
+        auto res1 = std::ranges::copy(in1 + idx1, in1 + n1, out + idxOut);
+        auto res2 = std::ranges::copy(in2 + idx2, in2 + n2, res1.out);
+
+        return {res1.in, res2.in, res2.out};
+#endif
+
     }
 } set_union_checker;
 
