@@ -207,9 +207,9 @@ __write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __ass
 // Used in __parallel_transform_scan.
 struct __simple_write_to_id
 {
-    template <typename _OutRng, typename _ValueType>
+    template <typename _OutRng, typename _ValueType, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -229,9 +229,9 @@ struct __write_to_id_if
 {
     using WriteResults = _WriteResults;
 
-    template <typename _OutRng, typename _SizeType, typename _ValueType>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -279,9 +279,9 @@ struct __write_to_id_if
 template <typename _Assign>
 struct __write_to_id_if_else
 {
-    template <typename _OutRng, typename _SizeType, typename _ValueType>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -303,9 +303,9 @@ struct __write_to_id_if_else
 template <typename _BinaryPred>
 struct __write_red_by_seg
 {
-    template <typename _OutRng, typename _Tup>
+    template <typename _OutRng, typename _Tup, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, _TempData&) const
     {
         using std::get;
 
@@ -345,9 +345,9 @@ struct __write_scan_by_seg
     _InitType __init_value;
     _BinaryOp __binary_op;
 
-    template <typename _OutRng, typename _ValueType>
+    template <typename _OutRng, typename _ValueType, typename _TempData>
     void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&) const
     {
         using std::get;
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -411,9 +411,9 @@ struct __write_multiple_to_id
 template <typename _UnaryOp, typename _InitType>
 struct __gen_transform_input
 {
-    template <typename _InRng>
+    template <typename _InRng, typename _TempData>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, std::size_t __id, _TempData&) const
     {
         // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
         // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
@@ -444,9 +444,9 @@ struct __gen_mask
 template <typename _GenMask>
 struct __gen_count_mask
 {
-    template <typename _InRng, typename _SizeType>
+    template <typename _InRng, typename _SizeType, typename _TempData>
     _SizeType
-    operator()(_InRng&& __in_rng, _SizeType __id) const
+    operator()(_InRng&& __in_rng, _SizeType __id, _TempData&) const
     {
         return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
     }
@@ -458,9 +458,9 @@ struct __gen_count_mask
 template <typename _GenMask, typename _RangeTransform = oneapi::dpl::identity>
 struct __gen_expand_count_mask
 {
-    template <typename _InRng, typename _SizeType>
+    template <typename _InRng, typename _SizeType, typename _TempData>
     auto
-    operator()(_InRng&& __in_rng, _SizeType __id) const
+    operator()(_InRng&& __in_rng, _SizeType __id, _TempData&) const
     {
         auto __transformed_input = __rng_transform(__in_rng);
         // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
@@ -1087,9 +1087,9 @@ struct __gen_red_by_seg_reduce_input
     // (new_seg_mask, value)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
     // ValueType value     : Current element's value for reduction
-    template <typename _InRng>
+    template <typename _InRng, typename _TempData>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, std::size_t __id, _TempData&) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1114,9 +1114,9 @@ struct __gen_scan_by_seg_reduce_input
     // (new_seg_mask, value)
     // bool new_seg_mask : true for a start of a new segment, false otherwise
     // ValueType value   : Current element's value for reduction
-    template <typename _InRng>
+    template <typename _InRng, typename _TempData>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, std::size_t __id, _TempData&) const
     {
         // Get source base
         auto&& __tuple = __in_rng.base();
@@ -1142,9 +1142,9 @@ struct __gen_red_by_seg_scan_input
     // bool output_value   : Whether this work-item should write an output (end of segment)
     // KeyType next_key    : The key of the next segment to write if output_value is true
     // KeyType current_key : The current element's key. This is only ever used by work-item 0 to write the first key
-    template <typename _InRng>
+    template <typename _InRng, typename _TempData>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, std::size_t __id, _TempData&) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1194,9 +1194,9 @@ struct __gen_scan_by_seg_scan_input
     // ((new_seg_mask, value), new_seg_mask)
     // bool new_seg_mask : true for a start of a new segment, false otherwise
     // ValueType value   : Current element's value for reduction
-    template <typename _InRng>
+    template <typename _InRng, typename _TempData>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id ) const
+    operator()(const _InRng& __in_rng, std::size_t __id, _TempData&) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1427,42 +1427,24 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
 }
 
-template <typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults,
+template <bool _Bounded, typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults,
           typename = void>
-struct _GenInputTraits
+struct _GenInputTypeResolver
 {
+    using _ResultT = std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&>;
+    static constexpr bool _UseProcessInfo = false;
 };
 
-// Callable with (_InRng, _Id) only
-template <typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults>
-struct _GenInputTraits<_GenInput, _InRng, _Id, _TempData, _WriteResults,
-                       std::enable_if_t<std::is_invocable_v<_GenInput, _InRng, _Id> &&
-                                        !std::is_invocable_v<_GenInput, _InRng, _Id, _TempData&>>>
+template <bool _Bounded, typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults>
+struct _GenInputTypeResolver<_Bounded, _GenInput, _InRng, _Id, _TempData, _WriteResults,
+                             std::void_t<std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&, _WriteResults&>>>
 {
-    using type = std::invoke_result_t<_GenInput, _InRng, _Id>;
-    static constexpr bool _uses_temp_data = false;
-    static constexpr bool _uses_write_results = false;
-};
+    using _ResultT = std::conditional_t<
+        _Bounded,
+        std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&, _WriteResults&>,
+        std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&>>;
 
-// Callable with (_InRng, _Id, _TempData&), but not the full bounded signature
-template <typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults>
-struct _GenInputTraits<_GenInput, _InRng, _Id, _TempData, _WriteResults,
-                       std::enable_if_t<std::is_invocable_v<_GenInput, _InRng, _Id, _TempData&> &&
-                                        !std::is_invocable_v<_GenInput, _InRng, _Id, _TempData&, _WriteResults&>>>
-{
-    using type = std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&>;
-    static constexpr bool _uses_temp_data = true;
-    static constexpr bool _uses_write_results = false;
-};
-
-// Callable with full bounded signature (_InRng, _Id, _TempData&, _WriteResults&)
-template <typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults>
-struct _GenInputTraits<_GenInput, _InRng, _Id, _TempData, _WriteResults,
-                       std::enable_if_t<std::is_invocable_v<_GenInput, _InRng, _Id, _TempData&, _WriteResults&>>>
-{
-    using type = std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&, _WriteResults&>;
-    static constexpr bool _uses_temp_data = true;
-    static constexpr bool _uses_write_results = true;
+    static constexpr bool _UseProcessInfo = _Bounded;
 };
 
 template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present,
@@ -1478,30 +1460,25 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                const std::uint32_t __sub_group_id, const std::uint32_t __active_subgroups,
                                _TempData& __temp_out, _WriteResults& __write_results)
 {
-    using _GenInputTypeResolverT = _GenInputTraits<_GenInput, _InRng, std::size_t, _TempData, _WriteResults>;
+    using _GenInputTypeResolverT = _GenInputTypeResolver<_Bounded, _GenInput, _InRng, std::size_t, _TempData, _WriteResults>;
 
-    using _GenInputType = typename _GenInputTypeResolverT::type;
-    constexpr bool __uses_temp_data = _GenInputTypeResolverT::_uses_temp_data;
-    constexpr bool __uses_write_results = _GenInputTypeResolverT::_uses_write_results;
+    using _GenInputType = typename _GenInputTypeResolverT::_ResultT;
+    constexpr bool __use_process_info = _GenInputTypeResolverT::_UseProcessInfo;
 
     auto __call_gen_input = [&](std::size_t __id) -> _GenInputType {
-        if constexpr (_Bounded && __uses_write_results)
+        if constexpr (__use_process_info)
             return __gen_input(__in_rng, __id, __temp_out, __write_results);
-        else if constexpr (__uses_temp_data)
-            return __gen_input(__in_rng, __id, __temp_out);
         else
-            return __gen_input(__in_rng, __id);
+            return __gen_input(__in_rng, __id, __temp_out);
     };
 
     auto __call_write_op = [&](std::size_t __id, const _GenInputType& __v) -> bool {
         if constexpr (__capture_output)
         {
-            if constexpr (_Bounded && __uses_write_results)
-                return __write_op.template operator()</*_Bounded*/ true>(__out_rng, __id, __v, __temp_out, __write_results);
-            else if constexpr (__uses_temp_data)
-                __write_op.template operator()(__out_rng, __id, __v, __temp_out);
+            if constexpr (__use_process_info)
+                return __write_op.template operator()<_Bounded>(__out_rng, __id, __v, __temp_out, __write_results);
             else
-                __write_op.template operator()(__out_rng, __id, __v);
+                __write_op.template operator()(__out_rng, __id, __v, __temp_out);
         }
         return true;
     };
