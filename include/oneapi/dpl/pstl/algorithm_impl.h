@@ -3994,7 +3994,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     using _SetRange =
         _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __mask_difference_type_t>;
 
-    return __internal::__except_handler([__tag, &__exec, __n1, __first1, __last1, __first2, __last2, __result1,
+    return __internal::__except_handler([__tag, &__exec, __n1, __n2, __first1, __last1, __first2, __last2, __result1,
                                          __result2, __comp, __proj1, __proj2, __size_func, __mask_size_func, __set_op,
                                          &__buf, __buf_size]() {
         // Buffer raw data begin/end pointers
@@ -4051,6 +4051,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                         _OutputIterator __result1, _OutputIterator __result2, _Compare __comp, _Proj1 __proj1,
                         _Proj2 __proj2, __SetOp __set_op)
 {
+    using __result_t = oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
+
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
@@ -4073,9 +4075,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1_tmp, __result1, __copy_range);
 
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
-        return {__last1_tmp, __first2, __result_finish};
+        return __result_t{__last1_tmp, __first2, __result_finish};
 #else
-        return {__n1, __n2, __result_finish};
+        return __result_t{__first1 + __n1, __first2 + __n2, __result_finish};
 #endif
     }
 
@@ -4088,9 +4090,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2_tmp, __result1, __copy_range);
 
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
-        return {__first1, __last2_tmp, __result_finish};
+        return __result_t{__first1, __last2_tmp, __result_finish};
 #else
-        return {__n1, __n2, __result_finish};
+        return __result_t{__first1 + __n1, __first2 + __n2, __result_finish};
 #endif
     }
 
@@ -4121,9 +4123,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             });
 
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
-        return {__last1_tmp, __last2_tmp, __result1 + __n1_tmp + __n2_tmp};
+        return __result_t{__last1_tmp, __last2_tmp, __result1 + __n1_tmp + __n2_tmp};
 #else
-        return {__n1, __n2, __result1 + __n1_tmp + __n2_tmp};
+        return __result_t{__first1 + __n1, __first2 + __n2, __result1 + __n1_tmp + __n2_tmp};
 #endif
     }
 
@@ -4154,9 +4156,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             });
 
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
-        return {__last1_tmp, __last2_tmp, __result1 + __n1_tmp + __n2_tmp};
+        return __result_t{__last1_tmp, __last2_tmp, __result1 + __n1_tmp + __n2_tmp};
 #else                                                                      
-        return {__n1, __n2, __result1 + __n1_tmp + __n2_tmp};
+        return __result_t{__first1 + __n1, __first2 + __n2, __result1 + __n1_tmp + __n2_tmp};
 #endif
     }
 
@@ -4166,8 +4168,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     const _DifferenceType1 __m1 = __left_bound_seq_1 - __first1;
     if (__m1 > __set_algo_cut_off)
     {
-        oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
-            __finish;
+        __result_t __finish;
 
         const _DifferenceType __to_copy = __Bounded ? std::min<_DifferenceType>(__m1, __n_out) : __m1;
 
@@ -4191,7 +4192,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         return __finish;
 #else
-        return {__n1, __n2, __finish.__out};
+        return __result_t{__finish.__in1 + __n1, __finish.__in2 + __n2, __finish.__it_out};
 #endif
     }
 
@@ -4199,8 +4200,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     assert(__m1 == 0 || __m2 == 0);
     if (__m2 > __set_algo_cut_off)
     {
-        oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
-            __finish;
+        __result_t __finish;
 
         const _DifferenceType __to_copy = __Bounded ? std::min<_DifferenceType>(__m2, __n_out) : __m2;
 
@@ -4224,7 +4224,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         return __finish;
 #else
-        return {__n1, __n2, __finish.__out};
+        return __result_t{__finish.__in1 + __n1, __finish.__in2 + __n2, __finish.__it_out};
 #endif
     }
 
