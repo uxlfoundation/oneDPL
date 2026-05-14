@@ -158,16 +158,21 @@ template <typename _T, typename = void>
 struct __write_results_selector
 {
     using WriteResults = __noop_write_results;
+    static constexpr bool has_write_results = false;
 };
 
 template <typename _T>
 struct __write_results_selector<_T, std::void_t<typename _T::WriteResults>>
 {
     using WriteResults = typename _T::WriteResults;
+    static constexpr bool has_write_results = !std::is_same_v<WriteResults, __noop_write_results>;
 };
 
 template <typename _T>
 using __write_results_selector_t = typename __write_results_selector<_T>::WriteResults;
+
+template <typename _T>
+static constexpr bool __has_write_results_v = __write_results_selector<_T>::has_write_results;
 
 // Extracts a range from a zip iterator based on the element ID
 template <std::size_t _EleId>
@@ -243,8 +248,8 @@ struct __write_to_id_if
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
     }
 
-    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
-    std::enable_if_t<_Bounded, bool>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    bool
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&, WriteResults& __write_results) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -1427,26 +1432,6 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
 }
 
-template <bool _Bounded, typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults,
-          typename = void>
-struct _GenInputTypeResolver
-{
-    using _ResultT = std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&>;
-    static constexpr bool _UseProcessInfo = false;
-};
-
-template <bool _Bounded, typename _GenInput, typename _InRng, typename _Id, typename _TempData, typename _WriteResults>
-struct _GenInputTypeResolver<_Bounded, _GenInput, _InRng, _Id, _TempData, _WriteResults,
-                             std::void_t<std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&, _WriteResults&>>>
-{
-    using _ResultT = std::conditional_t<
-        _Bounded,
-        std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&, _WriteResults&>,
-        std::invoke_result_t<_GenInput, _InRng, _Id, _TempData&>>;
-
-    static constexpr bool _UseProcessInfo = _Bounded;
-};
-
 template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present,
           bool __capture_output, std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform,
           typename _BinaryOp, typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng,
@@ -1460,23 +1445,15 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                const std::uint32_t __sub_group_id, const std::uint32_t __active_subgroups,
                                _TempData& __temp_out, _WriteResults& __write_results)
 {
-    using _GenInputTypeResolverT = _GenInputTypeResolver<_Bounded, _GenInput, _InRng, std::size_t, _TempData, _WriteResults>;
+    using AcceptableWriteResultsT = __write_results_selector_t<_WriteOp>;
+    static constexpr bool __use_write_results =
+        _Bounded && __has_write_results_v<_WriteOp> && std::is_same_v<AcceptableWriteResultsT, _WriteResults>;
 
-    using _GenInputType = typename _GenInputTypeResolverT::_ResultT;
-    constexpr bool __use_process_info = _GenInputTypeResolverT::_UseProcessInfo;
-
-    auto __call_gen_input = [&](std::size_t __id) -> _GenInputType {
-        if constexpr (__use_process_info)
-            return __gen_input(__in_rng, __id, __temp_out, __write_results);
-        else
-            return __gen_input(__in_rng, __id, __temp_out);
-    };
-
-    auto __call_write_op = [&](std::size_t __id, const _GenInputType& __v) -> bool {
+    auto __call_write_op = [&](std::size_t __id, const auto& __v) -> bool {
         if constexpr (__capture_output)
         {
-            if constexpr (__use_process_info)
-                return __write_op.template operator()<_Bounded>(__out_rng, __id, __v, __temp_out, __write_results);
+            if constexpr (__use_write_results)
+                return __write_op.template operator()(__out_rng, __id, __v, __temp_out, __write_results);
             else
                 __write_op.template operator()(__out_rng, __id, __v, __temp_out);
         }
@@ -1490,7 +1467,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
 
     if (__is_full_thread)
     {
-        _GenInputType __v = __call_gen_input(__start_id);
+        auto __v = __gen_input(__in_rng, __start_id, __temp_out);
         __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
                                                                             __binary_op, __sub_group_carry);
         __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
@@ -1501,7 +1478,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __j = 1; __j < __max_inputs_per_item; __j++)
             {
-                __v = __call_gen_input(__start_id + __j * __sub_group_size);
+                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
@@ -1513,7 +1490,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             // can proceed without special casing for partial subgroups.
             for (std::uint32_t __j = 1; __j < __iters_per_item; __j++)
             {
-                __v = __call_gen_input(__start_id + __j * __sub_group_size);
+                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
@@ -1531,7 +1508,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             if (__iters == 1)
             {
                 std::size_t __local_id = (__start_id < __n) ? __start_id : __n - 1;
-                _GenInputType __v = __call_gen_input(__local_id);
+                auto __v = __gen_input(__in_rng, __local_id, __temp_out);
                 __sub_group_scan_partial<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                     __n - __subgroup_start_id);
@@ -1543,7 +1520,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             }
             else
             {
-                _GenInputType __v = __call_gen_input(__start_id);
+                auto __v = __gen_input(__in_rng, __start_id, __temp_out);
                 __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
@@ -1551,7 +1528,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
                 {
                     std::size_t __local_id = __start_id + __j * __sub_group_size;
-                    __v = __call_gen_input(__local_id);
+                    __v = __gen_input(__in_rng, __local_id, __temp_out);
                     __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                     __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__local_id, __v);
@@ -1559,7 +1536,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
 
                 std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
                 std::size_t __local_id = (__offset < __n) ? __offset : __n - 1;
-                __v = __call_gen_input(__local_id);
+                __v = __gen_input(__in_rng, __local_id, __temp_out);
                 __sub_group_scan_partial<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                     __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size));
@@ -1705,7 +1682,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                 if (__sub_group_id < __active_subgroups)
                 {
                     using _TempData = __temp_data_selector_t<_GenReduceInput>;
-                    using _WriteResults = __write_results_selector_t<_GenReduceInput>;
+                    using _WriteResults = __write_results_selector_t<std::nullptr_t>;
 
                     _TempData __temp_out{};
                     _WriteResults __write_results{};
