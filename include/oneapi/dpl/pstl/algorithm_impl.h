@@ -3732,12 +3732,11 @@ struct _SetOpReachedPosEvaluator
     std::optional<_SetOpReachedPosEvaluatorData> __res_data_opt;
 };
 
-template <bool __Bounded, class _IsVector, typename _ExecutionPolicy, typename ProcessingDataPointer,
-          typename _SetRange, typename _OutputIterator, typename _SetOpReachedPosEvaluator>
+template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typename _SetRange, typename _OutputIterator,
+          typename _SetOpReachedPosEvaluator>
 struct _ParallelSetOpScanPred
 {
     __parallel_tag<_IsVector> __tag;
-    _ExecutionPolicy& __exec;
     ProcessingDataPointer __buf_pos_begin, __buf_pos_end;         // Temporary data buffer (windowed)
     _OutputIterator __result_buf_pos_begin, __result_buf_pos_end; // Result data buffer
     _SetOpReachedPosEvaluator& __source_final_pos_evaluator; // Evaluator of the final position in the source ranges
@@ -3838,14 +3837,11 @@ struct _ParallelSetOpScanPred
     }
 };
 
-template <bool __Bounded, typename _Tag, typename _ExecutionPolicy, typename _SetRange, typename _RandomAccessIterator1,
-          typename _RandomAccessIterator2, typename _OutputIterator, typename _SizeFunction, typename _MaskSizeFunction,
-          typename __SetOp, typename _Compare, typename _Proj1, typename _Proj2, typename _T>
+template <bool __Bounded, typename _SetRange, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
+          typename _OutputIterator, typename _SizeFunction, typename _MaskSizeFunction, typename __SetOp,
+          typename _Compare, typename _Proj1, typename _Proj2, typename _T>
 struct _ParallelSetOpStrictReducePred
 {
-    _Tag __tag;
-    _ExecutionPolicy& __exec;
-
     _RandomAccessIterator1 __first1, __last1;
     _RandomAccessIterator2 __first2, __last2;
     _SizeFunction __size_func;
@@ -3953,11 +3949,11 @@ struct _ParallelSetOpStrictReducePred
     }
 };
 
-template <bool __Bounded, class _IsVector, typename _ExecutionPolicy, typename ProcessingDataPointer,
-          typename _SetRange, typename _OutputIterator, typename _DifferenceType, typename _SetOpReachedPosEvaluator>
+template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typename _SetRange, typename _OutputIterator,
+          typename _DifferenceType, typename _SetOpReachedPosEvaluator>
 struct _ParallelSetOpApexPred
 {
-    _ParallelSetOpScanPred<__Bounded, _IsVector, _ExecutionPolicy, ProcessingDataPointer, _SetRange, _OutputIterator,
+    _ParallelSetOpScanPred<__Bounded, _IsVector, ProcessingDataPointer, _SetRange, _OutputIterator,
                            _SetOpReachedPosEvaluator>& __scan_pred;
 
     void
@@ -4013,32 +4009,21 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                                          __comp, __proj1, __proj2, __set_op, __size_func, __mask_size_func);
 
         // Scan predicate
-        _ParallelSetOpScanPred<__Bounded, _IsVector, _ExecutionPolicy, _T*, _SetRange, _OutputIterator,
+        _ParallelSetOpScanPred<__Bounded, _IsVector, _T*, _SetRange, _OutputIterator,
                                decltype(__source_final_pos_evaluator)>
-            __scan_pred{__tag,     __exec,    __buf_raw_data_begin,        __buf_raw_data_end,
-                        __result1, __result2, __source_final_pos_evaluator};
+            __scan_pred{__tag,     __buf_raw_data_begin,        __buf_raw_data_end, __result1,
+                        __result2, __source_final_pos_evaluator};
 
-        _ParallelSetOpStrictReducePred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
-                                       _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator, _SizeFunction,
-                                       _MaskSizeFunction, __SetOp, _Compare, _Proj1, _Proj2, _T>
-            __reduce_pred{__tag,
-                          __exec,
-                          __first1,
-                          __last1,
-                          __first2,
-                          __last2,
-                          __size_func,
-                          __mask_size_func,
-                          __set_op,
-                          __comp,
-                          __proj1,
-                          __proj2,
-                          __buf_raw_data_begin};
+        _ParallelSetOpStrictReducePred<__Bounded, _SetRange, _RandomAccessIterator1, _RandomAccessIterator2,
+                                       _OutputIterator, _SizeFunction, _MaskSizeFunction, __SetOp, _Compare, _Proj1,
+                                       _Proj2, _T>
+            __reduce_pred{__first1, __last1, __first2, __last2, __size_func,         __mask_size_func,
+                          __set_op, __comp,  __proj1,  __proj2, __buf_raw_data_begin};
 
         _ParallelSetOpCombinePred __combine_pred;
 
-        _ParallelSetOpApexPred<__Bounded, _IsVector, _ExecutionPolicy, _T*, _SetRange, _OutputIterator,
-                               _DifferenceType1, decltype(__source_final_pos_evaluator)>
+        _ParallelSetOpApexPred<__Bounded, _IsVector, _T*, _SetRange, _OutputIterator, _DifferenceType1,
+                               decltype(__source_final_pos_evaluator)>
             __apex_pred{__scan_pred};
 
         __par_backend::__parallel_strict_scan(__backend_tag{}, __exec, __n1, _SetRange(), __reduce_pred, __combine_pred,
