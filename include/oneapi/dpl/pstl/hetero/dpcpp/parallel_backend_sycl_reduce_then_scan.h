@@ -212,9 +212,10 @@ __write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __ass
 // Used in __parallel_transform_scan.
 struct __simple_write_to_id
 {
-    template <typename _OutRng, typename _ValueType, typename _TempData>
+    using _TempData = __noop_temp_data;
+    template <typename _OutRng, typename _ValueType>
     void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -232,11 +233,12 @@ struct __simple_write_to_id
 template <std::int32_t __offset, typename _Assign, typename _WriteResults>
 struct __write_to_id_if
 {
+    using _TempData = __noop_temp_data;
     using WriteResults = _WriteResults;
 
-    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -248,9 +250,9 @@ struct __write_to_id_if
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
     }
 
-    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    template <typename _OutRng, typename _SizeType, typename _ValueType>
     bool
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&, WriteResults& __write_results) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, WriteResults& __write_results) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -287,9 +289,10 @@ struct __write_to_id_if
 template <typename _Assign>
 struct __write_to_id_if_else
 {
-    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    using _TempData = __noop_temp_data;
+    template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -311,9 +314,10 @@ struct __write_to_id_if_else
 template <typename _BinaryPred>
 struct __write_red_by_seg
 {
-    template <typename _OutRng, typename _Tup, typename _TempData>
+    using _TempData = __noop_temp_data;
+    template <typename _OutRng, typename _Tup>
     void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, _TempData&) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
     {
         using std::get;
 
@@ -350,12 +354,13 @@ struct __write_red_by_seg
 template <bool __is_inclusive, typename _InitType, typename _BinaryOp>
 struct __write_scan_by_seg
 {
+    using _TempData = __noop_temp_data;
     _InitType __init_value;
     _BinaryOp __binary_op;
 
-    template <typename _OutRng, typename _ValueType, typename _TempData>
+    template <typename _OutRng, typename _ValueType>
     void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
     {
         using std::get;
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -419,9 +424,10 @@ struct __write_multiple_to_id
 template <typename _UnaryOp, typename _InitType>
 struct __gen_transform_input
 {
-    template <typename _InRng, typename _TempData>
+    using TempData = __noop_temp_data;
+    template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, _TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
         // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
@@ -452,9 +458,10 @@ struct __gen_mask
 template <typename _GenMask>
 struct __gen_count_mask
 {
-    template <typename _InRng, typename _SizeType, typename _TempData>
+    using TempData = __noop_temp_data;
+    template <typename _InRng, typename _SizeType>
     _SizeType
-    operator()(_InRng&& __in_rng, _SizeType __id, _TempData&) const
+    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
     {
         return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
     }
@@ -466,9 +473,10 @@ struct __gen_count_mask
 template <typename _GenMask, typename _RangeTransform = oneapi::dpl::identity>
 struct __gen_expand_count_mask
 {
-    template <typename _InRng, typename _SizeType, typename _TempData>
+    using TempData = __noop_temp_data;
+    template <typename _InRng, typename _SizeType>
     auto
-    operator()(_InRng&& __in_rng, _SizeType __id, _TempData&) const
+    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
     {
         auto __transformed_input = __rng_transform(__in_rng);
         // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
@@ -1017,7 +1025,7 @@ struct __gen_set_op_from_known_balanced_path
     using TempData = _TempData;
     template <typename _InRng, typename _IndexT>
     std::tuple<std::uint32_t, std::uint16_t>
-    operator()(const _InRng& __in_rng, _IndexT __id, TempData& __output_data) const
+    operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1091,13 +1099,14 @@ struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional
 template <typename _BinaryPred>
 struct __gen_red_by_seg_reduce_input
 {
+    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // (new_seg_mask, value)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
     // ValueType value     : Current element's value for reduction
-    template <typename _InRng, typename _TempData>
+    template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, _TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1118,13 +1127,14 @@ struct __gen_red_by_seg_reduce_input
 template <typename _BinaryPred>
 struct __gen_scan_by_seg_reduce_input
 {
+    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // (new_seg_mask, value)
     // bool new_seg_mask : true for a start of a new segment, false otherwise
     // ValueType value   : Current element's value for reduction
-    template <typename _InRng, typename _TempData>
+    template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, _TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // Get source base
         auto&& __tuple = __in_rng.base();
@@ -1143,6 +1153,7 @@ struct __gen_scan_by_seg_reduce_input
 template <typename _BinaryPred>
 struct __gen_red_by_seg_scan_input
 {
+    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // ((new_seg_mask, value), output_value, next_key, current_key)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
@@ -1150,9 +1161,9 @@ struct __gen_red_by_seg_scan_input
     // bool output_value   : Whether this work-item should write an output (end of segment)
     // KeyType next_key    : The key of the next segment to write if output_value is true
     // KeyType current_key : The current element's key. This is only ever used by work-item 0 to write the first key
-    template <typename _InRng, typename _TempData>
+    template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, _TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1198,13 +1209,14 @@ struct __gen_red_by_seg_scan_input
 template <typename _BinaryPred>
 struct __gen_scan_by_seg_scan_input
 {
+    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // ((new_seg_mask, value), new_seg_mask)
     // bool new_seg_mask : true for a start of a new segment, false otherwise
     // ValueType value   : Current element's value for reduction
-    template <typename _InRng, typename _TempData>
+    template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, _TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1446,7 +1458,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                const std::size_t __start_id, const std::size_t __n,
                                const std::uint32_t __iters_per_item, const std::size_t __subgroup_start_id,
                                const std::uint32_t __sub_group_id, const std::uint32_t __active_subgroups,
-                               _TempData& __temp_out, _WriteResults& __write_results)
+                               _TempData& __temp_data, _WriteResults& __write_results)
 {
     using AcceptableWriteResultsT = __write_results_selector_t<_WriteOp>;
     static constexpr bool __use_write_results =
@@ -1456,9 +1468,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         if constexpr (__capture_output)
         {
             if constexpr (__use_write_results)
-                return __write_op.template operator()(__out_rng, __id, __v, __temp_out, __write_results);
+                return __write_op.template operator()(__out_rng, __id, __v, __temp_data, __write_results);
             else
-                __write_op.template operator()(__out_rng, __id, __v, __temp_out);
+                __write_op.template operator()(__out_rng, __id, __v, __temp_data);
         }
         return true;
     };
@@ -1470,7 +1482,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
 
     if (__is_full_thread)
     {
-        auto __v = __gen_input(__in_rng, __start_id, __temp_out);
+        auto __v = __gen_input(__in_rng, __start_id, __temp_data);
         __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
                                                                             __binary_op, __sub_group_carry);
         __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
@@ -1481,7 +1493,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __j = 1; __j < __max_inputs_per_item; __j++)
             {
-                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out);
+                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
@@ -1493,7 +1505,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             // can proceed without special casing for partial subgroups.
             for (std::uint32_t __j = 1; __j < __iters_per_item; __j++)
             {
-                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out);
+                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
@@ -1511,7 +1523,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             if (__iters == 1)
             {
                 std::size_t __local_id = (__start_id < __n) ? __start_id : __n - 1;
-                auto __v = __gen_input(__in_rng, __local_id, __temp_out);
+                auto __v = __gen_input(__in_rng, __local_id, __temp_data);
                 __sub_group_scan_partial<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                     __n - __subgroup_start_id);
@@ -1523,7 +1535,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             }
             else
             {
-                auto __v = __gen_input(__in_rng, __start_id, __temp_out);
+                auto __v = __gen_input(__in_rng, __start_id, __temp_data);
                 __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
@@ -1531,7 +1543,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
                 {
                     std::size_t __local_id = __start_id + __j * __sub_group_size;
-                    __v = __gen_input(__in_rng, __local_id, __temp_out);
+                    __v = __gen_input(__in_rng, __local_id, __temp_data);
                     __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                     __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__local_id, __v);
@@ -1539,7 +1551,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
 
                 std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
                 std::size_t __local_id = (__offset < __n) ? __offset : __n - 1;
-                __v = __gen_input(__in_rng, __local_id, __temp_out);
+                __v = __gen_input(__in_rng, __local_id, __temp_data);
                 __sub_group_scan_partial<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                     __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size));
@@ -2051,7 +2063,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             __num_remaining -= 1;
         }
 
-        const std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
+        std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
 
         auto __stop_pos_payload = __stop_pos_payloads_tools<_Bounded>::template __create_storage_opt<__stop_pos_t>(__q);
         __prior_event = __submit_stop_pos_init<__stop_pos_t>(__q, __stop_pos_payload, __prior_event);
@@ -2536,8 +2548,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         auto __local_range = sycl::range<1>(__work_group_size);
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
-        __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event, __inputs_remaining, __b);
-
+        __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
+                                           __inputs_remaining, __b);
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
         auto&& __scan_res = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
                                              __prior_event, __inputs_remaining, __b);
