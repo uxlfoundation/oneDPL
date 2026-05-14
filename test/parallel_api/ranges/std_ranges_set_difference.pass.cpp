@@ -173,7 +173,9 @@ test_set_difference_checker()
         std::vector<int> set1{1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15};
         std::vector<int> set2{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 21, 22, 23, 24, 25};
         std::vector<int> set3(set1.size() + set2.size());
+
         auto res = set_difference_checker(set1, set2, set3);
+
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
         EXPECT_EQ(res.in2, set2.begin() + 15, "Wrong 'in2' state of result");
@@ -181,8 +183,34 @@ test_set_difference_checker()
 #else
         EXPECT_EQ(res.in, set1.end(), "Wrong 'in' state of result");
         EXPECT_EQ(res.out, set3.begin(), "Wrong 'out' state of result");
-#    endif
+#endif
     }
+
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+    // oneapi::dpl::ranges::set_difference logic
+    {
+        // set1:                   1, 2, 3, 4, 5,             10, 11, 12, 13, 14, 15, 16, 17
+        // set2:                                  6, 7, 8, 9,     11, 12, ^   14
+        //                         -----------------------------          |  ^
+        // res:                    1, 2, 3, 4, 5,             10          |  |
+        // final position in set1: ---------------------------------------+  |
+        // final position in set2:-------------------------------------------+ 
+
+        std::vector<int> set1{1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16, 17};
+        std::vector<int> set2{6, 7, 8, 9, 11, 12, 14};
+        std::vector<int> set3(6);
+        const std::vector<int> resExpected{1, 2, 3, 4, 5, 10};
+
+        auto res = set_difference_checker(set1, set2, set3);
+
+        EXPECT_EQ(res.in1, std::find(set1.begin(), set1.end(), 13), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 14), "Wrong 'in2' state of result");
+        EXPECT_EQ(res.out, set3.end(), "Wrong 'out' state of result");
+
+        set3.erase(res.out, set3.end());
+        EXPECT_EQ_RANGES(set3, resExpected, "Wrong output data state");
+    }
+#endif
 
     // oneapi::dpl::ranges::set_difference logic
     {
