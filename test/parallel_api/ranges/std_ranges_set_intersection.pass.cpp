@@ -24,6 +24,28 @@ struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
 {
     static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
 };
+
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <>
+struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_intersection)>>
+{
+    template <typename Policy, std::size_t Index>
+    static constexpr bool NeedCheckReturnValues()
+    {
+        if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>)
+        {
+            // Stop position in the first and in the second input range
+            if constexpr (Index == 0 || Index == 1)
+            {
+#if STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
+                return false;
+#endif
+            }
+        }
+
+        return true;
+    }
+};
 } // namespace test_std_ranges
 
 void test_mixed_types_host()
