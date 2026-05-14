@@ -1887,15 +1887,8 @@ enum class _StopPosPayloadIndexes
     eLast
 };
 
-// __atomic_result_storage is used instead of __result_storage because the scan kernel performs
-// GPU atomic operations (sycl::atomic_ref with global_space) on this buffer in
-// __eval_oob_pos (direct write for eOOBPos).
-// __result_storage preferentially allocates host USM memory, which is banned for atomic
-// access on most GPU hardware (AtomicAccessViolation, banned: 1).
-// __atomic_result_storage always uses device USM or sycl::buffer, both of which
-// reside in GPU global address space and support atomic operations.
 template <typename _TupleOfSizes>
-using __scan_stop_pos_storage_t = __atomic_result_storage<_TupleOfSizes>;
+using __scan_stop_pos_storage_t = __result_storage<_TupleOfSizes>;
 
 template <typename _TupleOfSizes>
 using __scan_stop_pos_storages_container_t = std::vector<__scan_stop_pos_storage_t<_TupleOfSizes>>;
