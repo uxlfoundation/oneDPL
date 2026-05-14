@@ -25,6 +25,7 @@ struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
     static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
 };
 
+#if TEST_DPCPP_BACKEND_PRESENT
 // TODO remove after implementation range-based set operations for bounded output range with hetero policies
 template <>
 struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_union)>>
@@ -43,6 +44,7 @@ struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set
         return true;
     }
 };
+#endif
 
 template<>
 inline int out_size_with_empty_in2<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_union)>>(int in1_size)
