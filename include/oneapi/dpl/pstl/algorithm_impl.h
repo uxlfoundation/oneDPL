@@ -3645,11 +3645,10 @@ struct _SetOpReachedPosEvaluator
                 __mask_buf_size, oneapi::dpl::__utils::__parallel_set_op_mask::eNone);
 
             auto [__first1_tmp_reached, __first2_tmp_reached, __output_discard_it_reached, __mask_buffer_reached] =
-                __set_op(
-                    __first1 + __offset1, __first1 + __offset1 + __size1, // First input range bounds
-                    __first2 + __offset2, __first2 + __offset2 + __size2, // Second input range bounds
-                    oneapi::dpl::discard_iterator{}, // No real output buffer, so using discard iterator
-                    __comp, __proj1, __proj2, __mask_bufs.data());
+                __set_op(__first1 + __offset1, __first1 + __offset1 + __size1, // First input range bounds
+                         __first2 + __offset2, __first2 + __offset2 + __size2, // Second input range bounds
+                         oneapi::dpl::discard_iterator{}, // No real output buffer, so using discard iterator
+                         __comp, __proj1, __proj2, __mask_bufs.data());
             assert(__mask_buffer_reached - __mask_bufs.data() <= static_cast<std::ptrdiff_t>(__mask_bufs.size()));
 
             ////////////////////////////////////////////////////////////
@@ -3996,15 +3995,15 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __mask_difference_type_t>;
 
     return __internal::__except_handler([__tag, &__exec, __n1, __first1, __last1, __first2, __last2, __result1,
-                                         __result2, __comp, __proj1, __proj2, __size_func, __mask_size_func,
-                                         __set_op, &__buf, __buf_size]() {
+                                         __result2, __comp, __proj1, __proj2, __size_func, __mask_size_func, __set_op,
+                                         &__buf, __buf_size]() {
         // Buffer raw data begin/end pointers
         _T* __buf_raw_data_begin = __buf.get();
         _T* __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
         _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
-                                  _OutputIterator, _Compare, _Proj1, _Proj2, __SetOp, _SizeFunction,
-                                  _MaskSizeFunction, _SetRange, __Bounded>
+                                  _OutputIterator, _Compare, _Proj1, _Proj2, __SetOp, _SizeFunction, _MaskSizeFunction,
+                                  _SetRange, __Bounded>
             __source_final_pos_evaluator(__tag, __exec, __first1, __last1, __first2, __last2, __result1, __result2,
                                          __comp, __proj1, __proj2, __set_op, __size_func, __mask_size_func);
 
