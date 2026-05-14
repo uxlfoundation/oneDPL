@@ -1748,9 +1748,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                 if (__sub_group_id < __active_subgroups)
                 {
                     using _TempData = __temp_data_selector_t<_GenReduceInput>;
-                    // we using here __noop_write_results instead of __write_results_selector_t<_GenReduceInput>
-                    // because there is no real writers at all
-                    using _WriteResults = __noop_write_results;
+                    using _WriteResults = __write_results_selector_t<_GenReduceInput>;
 
                     _TempData __temp_out{};
                     _WriteResults __write_results{};
