@@ -4127,7 +4127,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                        : __first1 + std::min<_DifferenceType>(__n1, __n_out > __n2_tmp ? __n_out - __n2_tmp : 0);
         const _DifferenceType1 __n1_tmp = __last1_tmp - __first1;
 
-        //{2} < {1}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
+        //{2} < {1}: seq1 is wholly greater than seq2, so, do parallel copying seq2 and seq1
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
             [=, &__exec] {
