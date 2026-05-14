@@ -815,6 +815,7 @@ __get_subscription_view(_Range&& __rng)
     return std::forward<_Range>(__rng);
 }
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
 template <typename _R1, typename _R2, typename _OutRange>
 using __set_difference_return_t =
@@ -842,6 +843,7 @@ __create_set_difference_result(_It1 __it1, _It2 __it2, _ItOut __it_out)
     return {__it1, __it_out};
 #endif
 }
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <std::ranges::view _View>
