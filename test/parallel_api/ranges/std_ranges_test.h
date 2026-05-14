@@ -281,6 +281,18 @@ void call_with_host_policies(auto algo, auto... args)
     algo(oneapi::dpl::execution::par_unseq, args...);
 }
 
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <typename Algo>
+struct CheckResultResolver
+{
+    template <typename Policy, std::size_t Index>
+    static constexpr bool
+    NeedCheckReturnValues()
+    {
+        return true;
+    }
+};
+
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
 struct test
@@ -406,29 +418,47 @@ private:
 
         if constexpr (check_in_out_result<decltype(expected_res)>)
         {
-            EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 0>())
+            {
+                EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                          (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            }
         }
         else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
-            EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 1>())
+            {
+                EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                          (std::string("wrong input stop position with ") + names + sizes).c_str());
+            }
 
-            EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 2>())
+            {
+                EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
+                          (std::string("wrong input stop position with ") + names + sizes).c_str());
+            }
         }
         else if constexpr (check_in_in_result<decltype(expected_res)>)
         {
-            EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 1>())
+            {
+                EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                          (std::string("wrong input stop position with ") + names + sizes).c_str());
+            }
 
-            EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 2>())
+            {
+                EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
+                          (std::string("wrong input stop position with ") + names + sizes).c_str());
+            }
         }
         else
         {
-            EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 1>())
+            {
+                EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                          (std::string("wrong input stop position with ") + names + sizes).c_str());
+            }
         }
 
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
@@ -545,13 +575,19 @@ private:
 
         if constexpr (check_in_in_result<decltype(expected_res)>)
         {
-            EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 1>())
+            {
+                EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                          (std::string("wrong stop position with ") + typeid(Algo).name() +
+                           typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+            }
 
-            EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 2>())
+            {
+                EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
+                          (std::string("wrong stop position with ") + typeid(Algo).name() +
+                           typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+            }
         }
         else if constexpr (!std::is_same_v<decltype(res), bool>)
         {
@@ -630,11 +666,17 @@ private:
         }
         else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
-            EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 1>())
+            {
+                EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                          (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            }
 
-            EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
-                      (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template NeedCheckReturnValues<Policy, 2>())
+            {
+                EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
+                          (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            }
         }
         else
         {
@@ -953,7 +995,6 @@ struct span_view_fo
 template <TestDataMode mode>
 struct ResolveTestDataModeForHeteroPolicy
 {
-    static constexpr bool RunTestForHeteroPolicy = true;
     static constexpr TestDataMode res_mode = mode;
 };
 
@@ -1032,18 +1073,15 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
-                if constexpr (ResolveTestDataModeForHeteroPolicy<mode>::RunTestForHeteroPolicy)
-                {
-                    // TODO remove after implementation range-based set operations for bounded output range with hetero policies
-                    constexpr TestDataMode resHeteroMode = ResolveTestDataModeForHeteroPolicy<mode>::res_mode;
+                // TODO remove after implementation range-based set operations for bounded output range with hetero policies
+                constexpr TestDataMode resHeteroMode = ResolveTestDataModeForHeteroPolicy<mode>::res_mode;
 
-                    test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
-                    test<T, usm_subrange<T>, resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
+                test<T, usm_subrange<T>, resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-                    test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
-                    test<T, usm_span<T>,     resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
+                test<T, usm_span<T>,     resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
-                }
             }
         }
     }
