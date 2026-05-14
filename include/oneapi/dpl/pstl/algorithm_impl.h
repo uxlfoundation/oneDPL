@@ -3392,7 +3392,7 @@ struct _SetRangeImpl
         std::tuple<_DataPart<_DifferenceType>, _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>,
                    _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>>>;
 
-    _DataStorage __data;
+    _DataStorage __data{};
 
     const _DataPart<_DifferenceType>&
     get_data_part() const
