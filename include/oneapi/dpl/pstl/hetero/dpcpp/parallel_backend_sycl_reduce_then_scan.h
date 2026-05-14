@@ -243,10 +243,9 @@ struct __write_to_id_if
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
     }
 
-    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
-    bool
-    operator()(/*_Bounded*/ std::true_type, _OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&,
-               WriteResults& __write_results) const
+    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    std::enable_if_t<_Bounded, bool>
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&, WriteResults& __write_results) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -1435,7 +1434,7 @@ struct _GenInputTraits
 {
 };
 
-// Detect _GenInput::operator()(_InRng, _Id)
+// Callable with (_InRng, _Id) only
 template <typename _GenInput, typename _InRng, typename _Id, typename _TempData>
 struct _GenInputTraits<_GenInput, _InRng, _Id, _TempData,
                        std::enable_if_t<std::is_invocable_v<_GenInput, _InRng, _Id> &&
@@ -1445,7 +1444,7 @@ struct _GenInputTraits<_GenInput, _InRng, _Id, _TempData,
     static constexpr bool _uses_temp_data = false;
 };
 
-// Detect _GenInput::operator()(_InRng, _Id, _TempData&)
+// Callable with (_InRng, _Id, _TempData&), but not the full bounded signature
 template <typename _GenInput, typename _InRng, typename _Id, typename _TempData>
 struct _GenInputTraits<_GenInput, _InRng, _Id, _TempData,
                        std::enable_if_t<std::is_invocable_v<_GenInput, _InRng, _Id, _TempData&>>>
@@ -1460,37 +1459,30 @@ struct _WriteOpTraits
 {
 };
 
-// Detect _WriteOp::operator()(_OutRng, _Id, _GenInputType)
 template <typename _WriteOp, typename _OutRng, typename _Id, typename _GenInputType, typename _TempData,
           typename _WriteResults>
 struct _WriteOpTraits<_WriteOp, _OutRng, _Id, _GenInputType, _TempData, _WriteResults,
                       std::enable_if_t<std::is_invocable_v<_WriteOp, _OutRng, _Id, _GenInputType> &&
-                                       !std::is_invocable_v<_WriteOp, _OutRng, _Id, _GenInputType, _TempData&> &&
-                                       !std::is_invocable_v<_WriteOp, /*_Bounded*/ std::true_type, _OutRng, _Id,
-                                                            _GenInputType, _TempData&, _WriteResults&>>>
+                                       !std::is_invocable_v<_WriteOp, _OutRng, _Id, _GenInputType, _TempData&>>>
 {
     static constexpr bool _uses_temp_data = false;
     static constexpr bool _uses_write_results = false;
 };
 
-// Detect _WriteOp::operator()(_OutRng, _Id, _GenInputType, _TempData&)
 template <typename _WriteOp, typename _OutRng, typename _Id, typename _GenInputType, typename _TempData,
           typename _WriteResults>
-struct _WriteOpTraits<_WriteOp, _OutRng, _Id, _GenInputType, _TempData, _WriteResults,
-                      std::enable_if_t<std::is_invocable_v<_WriteOp, _OutRng, _Id, _GenInputType, _TempData&> &&
-                                       !std::is_invocable_v<_WriteOp, /*_Bounded*/ std::true_type, _OutRng, _Id,
-                                                            _GenInputType, _TempData&, _WriteResults&>>>
+struct _WriteOpTraits<
+    _WriteOp, _OutRng, _Id, _GenInputType, _TempData, _WriteResults,
+    std::enable_if_t<std::is_invocable_v<_WriteOp, _OutRng, _Id, _GenInputType, _TempData&> &&
+                     !std::is_invocable_v<_WriteOp, _OutRng, _Id, _GenInputType, _TempData&, _WriteResults&>>>
 {
     static constexpr bool _uses_temp_data = true;
     static constexpr bool _uses_write_results = false;
 };
 
-// Detect _WriteOp::operator()(/*_Bounded*/ std::true_type, _OutRng, _Id, _GenInputType, _TempData&,  _WriteResults&)
-template <typename _WriteOp, typename _InRng, typename _Id, typename _GenInputType, typename _TempData,
-          typename _WriteResults>
+template <typename _WriteOp, typename _InRng, typename _Id, typename _GenInputType, typename _TempData, typename _WriteResults>
 struct _WriteOpTraits<_WriteOp, _InRng, _Id, _GenInputType, _TempData, _WriteResults,
-                      std::enable_if_t<std::is_invocable_v<_WriteOp, /*_Bounded*/ std::true_type, _InRng, _Id,
-                                                           _GenInputType, _TempData&, _WriteResults&>>>
+                       std::enable_if_t<std::is_invocable_v<_WriteOp, _InRng, _Id, _GenInputType, _TempData&, _WriteResults&>>>
 {
     static constexpr bool _uses_temp_data = true;
     static constexpr bool _uses_write_results = true;
@@ -1525,8 +1517,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         if constexpr (__capture_output)
         {
             if constexpr (_Bounded && _WriteOpTraitsT::_uses_write_results)
-                return __write_op.template operator()(/*_Bounded*/ std::true_type{}, __out_rng, __id, __v, __temp_out,
-                                                      __write_results);
+                return __write_op.template operator()</*_Bounded*/ true>(__out_rng, __id, __v, __temp_out, __write_results);
             else if constexpr (_WriteOpTraitsT::_uses_temp_data)
                 __write_op.template operator()(__out_rng, __id, __v, __temp_out);
             else
