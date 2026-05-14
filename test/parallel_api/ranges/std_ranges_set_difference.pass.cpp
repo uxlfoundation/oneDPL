@@ -27,10 +27,11 @@ struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
 
 // TODO remove after implementation range-based set operations for bounded output range with hetero policies
 template <>
-struct CheckResultResolver<decltype(oneapi::dpl::ranges::set_difference)>
+struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_difference)>>
 {
     template <typename Policy, std::size_t Index>
-    static constexpr bool ShouldCheckReturnValueField()
+    static constexpr bool
+    ShouldCheckReturnValueField()  // Hetero policy: skip second field check in C++26 compatibility mode
     {
         if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>)
         {
