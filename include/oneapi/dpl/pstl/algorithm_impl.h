@@ -4031,8 +4031,13 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         const auto [__res_reachedPos1, __res_reachedPos2, __res_reachedPosOut] =
             __source_final_pos_evaluator.__get_reached_positions();
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
             __first1 + __res_reachedPos1, __first2 + __res_reachedPos2, __result1 + __res_reachedPosOut};
+#else
+        return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
+            __first1 + __n1, __first2 + __n2, __result1 + __res_reachedPosOut};
+#endif
     });
 }
 
@@ -4067,7 +4072,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         _OutputIterator __result_finish = __internal::__pattern_walk2_brick(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1_tmp, __result1, __copy_range);
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         return {__last1_tmp, __first2, __result_finish};
+#else
+        return {__n1, __n2, __result_finish};
+#endif
     }
 
     // {} {2}: parallel copying just second sequence
@@ -4078,7 +4087,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         _OutputIterator __result_finish = __internal::__pattern_walk2_brick(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2_tmp, __result1, __copy_range);
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         return {__first1, __last2_tmp, __result_finish};
+#else
+        return {__n1, __n2, __result_finish};
+#endif
     }
 
     // testing  whether the sequences are intersected
@@ -4107,7 +4120,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                                                   __copy_range);
             });
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         return {__last1_tmp, __last2_tmp, __result1 + __n1_tmp + __n2_tmp};
+#else
+        return {__n1, __n2, __result1 + __n1_tmp + __n2_tmp};
+#endif
     }
 
     // testing  whether the sequences are intersected
@@ -4136,7 +4153,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                                                   __copy_range);
             });
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         return {__last1_tmp, __last2_tmp, __result1 + __n1_tmp + __n2_tmp};
+#else                                                                      
+        return {__n1, __n2, __result1 + __n1_tmp + __n2_tmp};
+#endif
     }
 
     auto __size_fnc = [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; };
@@ -4167,7 +4188,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             if (__to_copy < __m1)
                 __finish.__in1 = __first1 + __to_copy;
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         return __finish;
+#else
+        return {__n1, __n2, __finish.__out};
+#endif
     }
 
     const _DifferenceType2 __m2 = __left_bound_seq_2 - __first2;
@@ -4196,7 +4221,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             if (__to_copy < __m2)
                 __finish.__in2 = __first2 + __to_copy;
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         return __finish;
+#else
+        return {__n1, __n2, __finish.__out};
+#endif
     }
 
     return __internal::__parallel_set_op<__Bounded>(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
