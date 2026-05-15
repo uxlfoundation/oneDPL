@@ -881,12 +881,6 @@ struct __result_storage : public __device_storage<_T>
         this->__copy_n(__dst, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr,
                        __result_sz < __n ? __result_sz : __n, /*offset*/ 0);
     }
-
-    __copyable_storage_state<_T>
-    __move_state_from() &&
-    {
-        return {std::move(this->__usm_buf), {}, std::move(this->__sycl_buf), 0, __kind};
-    }
 };
 
 template <typename _T>
