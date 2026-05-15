@@ -2233,7 +2233,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
                 {
-                    using ScanStopPosT = __scan_stop_pos_selector_t<_WriteOp>;
                     constexpr bool _DetectOOBPos = _Bounded && __detect_oob_pos_v<_WriteOp>;
 
                     auto __on_oob_reached = [&]([[maybe_unused]] auto __oob_source_pos) {
