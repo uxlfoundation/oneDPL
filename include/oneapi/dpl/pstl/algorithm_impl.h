@@ -3542,8 +3542,8 @@ struct _SetOpReachedPosEvaluator
                        oneapi::dpl::__utils::__parallel_set_op_mask __dest_data_mask_state, _DifferenceTypeOut __pos_no,
                        _DifferenceTypeArg __reached_pos) const
     {
-        assert(__dest_data_mask_state == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
-               __dest_data_mask_state == oneapi::dpl::__utils::__parallel_set_op_mask::eData2);
+        assert(__dest_data_mask_state == oneapi::dpl::__utils::__parallel_set_op_mask::data1 ||
+               __dest_data_mask_state == oneapi::dpl::__utils::__parallel_set_op_mask::data2);
 
         auto __mask_buffer_it = __mask_buffer_begin;
 
@@ -3551,7 +3551,7 @@ struct _SetOpReachedPosEvaluator
         {
             auto __state = *__mask_buffer_it;
 
-            __pos_no += __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, __state) ? 1 : 0;
+            __pos_no += __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::data_out, __state) ? 1 : 0;
             __reached_pos += __test_mask(__dest_data_mask_state, __state) ? 1 : 0;
         }
 
@@ -3561,7 +3561,7 @@ struct _SetOpReachedPosEvaluator
             auto __state = *__mask_buffer_it;
 
             // Breaks if we detected mask which describes output data generation from specified data set
-            if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, __state))
+            if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::data_out, __state))
                 break;
 
             __reached_pos += __test_mask(__dest_data_mask_state, __state) ? 1 : 0;
@@ -3642,7 +3642,7 @@ struct _SetOpReachedPosEvaluator
 
             // We need to have initialized memory under mask buffer
             std::vector<oneapi::dpl::__utils::__parallel_set_op_mask> __mask_bufs(
-                __mask_buf_size, oneapi::dpl::__utils::__parallel_set_op_mask::eNone);
+                __mask_buf_size, oneapi::dpl::__utils::__parallel_set_op_mask::none);
 
             auto [__first1_tmp_reached, __first2_tmp_reached, __output_discard_it_reached, __mask_buffer_reached] =
                 __set_op(__first1 + __offset1, __first1 + __offset1 + __size1, // First input range bounds
@@ -3666,12 +3666,12 @@ struct _SetOpReachedPosEvaluator
                 __backend_tag{}, __exec,
                 [&]() {
                     __res_reachedPos1 = __eval_reached_pos(
-                        __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData1,
+                        __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::data1,
                         __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in1.__offset);
                 },
                 [&]() {
                     __res_reachedPos2 = __eval_reached_pos(
-                        __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData2,
+                        __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::data2,
                         __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in2.__offset);
                 });
 
@@ -3692,7 +3692,7 @@ struct _SetOpReachedPosEvaluator
 
         // Check correct memory state
         [[maybe_unused]] constexpr _UT __valid_bits =
-            static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut);
+            static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::both_out);
         assert((__state_value & (~__valid_bits)) == 0);
 
         return (__state_value & static_cast<_UT>(__checking_mask_state)) == static_cast<_UT>(__checking_mask_state);
