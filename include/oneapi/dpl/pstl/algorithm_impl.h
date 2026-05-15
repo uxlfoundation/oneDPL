@@ -3414,8 +3414,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    _DifferenceType1 __n1 = __last1 - __first1;
-    _DifferenceType2 __n2 = __last2 - __first2;
+    const _DifferenceType1 __n1 = __last1 - __first1;
+    const _DifferenceType2 __n2 = __last2 - __first2;
 
     __brick_copy<__parallel_tag<_IsVector>> __copy_range{};
 
@@ -3479,13 +3479,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     if (__prefer_range1_copy)
     {
         __begin1 = __left_bound_seq_1;
-        __n1 = __last1 - __begin1;
         __offset = __copy_from_range1;
     }
     else
     {
         __begin2 = __left_bound_seq_2;
-        __n2 = __last2 - __begin2;
         __offset = __copy_from_range2;
     }
 
@@ -3566,11 +3564,8 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
 
-    _DifferenceType1 __n1 = __last1 - __first1;
-    _DifferenceType2 __n2 = __last2 - __first2;
-
     // use serial algorithm
-    if (__n1 + __n2 <= __set_algo_cut_off)
+    if ((__last1 - __first1) + (__last2 - __first2) <= __set_algo_cut_off)
         return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
     using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
@@ -3837,11 +3832,8 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
 
-    _DifferenceType1 __n1 = __last1 - __first1;
-    _DifferenceType2 __n2 = __last2 - __first2;
-
     // use serial algorithm
-    if (__n1 + __n2 <= __set_algo_cut_off)
+    if ((__last1 - __first1) + (__last2 - __first2) <= __set_algo_cut_off)
         return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
     using _T = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
