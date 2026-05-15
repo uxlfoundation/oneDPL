@@ -401,7 +401,7 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Bounded, _Inclu
     __create_result_payload_opt(sycl::queue& __q) const
     {
         if constexpr (_Bounded)
-            return __combined_storage<_ValueType>{__q, /*No temporary data, just for return type compatibility*/ 0, 1};
+            return __combined_storage<_ValueType>{__q, /*No temporary data, just for return type compatibility*/ 1, 1};
         else
             return std::monostate{};
     }
@@ -488,7 +488,7 @@ struct __parallel_transform_scan_static_single_group_submitter<_Bounded, _Inclus
     __create_result_payload_opt(sycl::queue& __q) const
     {
         if constexpr (_Bounded)
-            return __combined_storage<_ValueType>{__q, /*No temporary data, just for return type compatibility*/ 0, 1};
+            return __combined_storage<_ValueType>{__q, /*No temporary data, just for return type compatibility*/ 1, 1};
         else
             return std::monostate{};
     }
