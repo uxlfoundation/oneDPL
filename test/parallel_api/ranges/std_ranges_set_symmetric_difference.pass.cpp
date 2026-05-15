@@ -175,7 +175,11 @@ struct
         idx2 += to_copy;
         idxOut += to_copy;
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         return {in1 + idx1, in2 + idx2, out + idxOut};
+#else
+        return {in1 + n1, in2 + n2, out + idxOut};
+#endif
     }
 } set_symmetric_difference_checker;
 
@@ -225,7 +229,11 @@ test_set_symmetric_difference_checker()
         auto res = set_symmetric_difference_checker(set1, set2, set3);
 
         EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 4), "Wrong 'in2' state of result");
+#else
+        EXPECT_EQ(res.in2, set2.end(), "Wrong 'in2' state of result");
+#endif
         EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
 
         set3.erase(res.out, set3.end());
@@ -274,8 +282,13 @@ test_set_symmetric_difference_checker()
 
         auto res = set_symmetric_difference_checker(set1, set2, set3);
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         EXPECT_EQ(res.in1, std::find(set1.begin(), set1.end(), 6), "Wrong 'in1' state of result");
         EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 8), "Wrong 'in2' state of result");
+#else
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, set2.end(), "Wrong 'in2' state of result");
+#endif
         EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
 
         set3.erase(res.out, set3.end());
