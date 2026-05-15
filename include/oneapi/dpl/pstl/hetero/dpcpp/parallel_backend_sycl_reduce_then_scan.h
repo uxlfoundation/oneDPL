@@ -2312,34 +2312,31 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     __group_start_id + (__sub_group_id * __sub_group_params.__inputs_per_sub_group);
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                auto __call_scan_through_elements_helper =
-                    [&](const auto& __sub_group, auto&& __out_rng_arg, bool __sub_group_carry_initialized_arg,
-                        auto& __sub_group_carry_arg, auto&& __temp_out_arg, auto& __write_results_arg) {
-                        if (__sub_group_carry_initialized_arg)
-                        {
-                            __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
-                                                           /*__init_present=*/true,
-                                                           /*__capture_output=*/true, __max_inputs_per_item>(
-                                __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                                __sub_group_carry_arg, __in_rng, std::forward<decltype(__out_rng_arg)>(__out_rng_arg),
-                                __start_id, __n, __sub_group_params.__inputs_per_item, __subgroup_start_id,
-                                __sub_group_id, __active_subgroups, __temp_out_arg, __write_results_arg);
-                        }
-                        else // first group first block, no subgroup carry
-                        {
-                            __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
-                                                           /*__init_present=*/false,
-                                                           /*__capture_output=*/true, __max_inputs_per_item>(
-                                __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                                __sub_group_carry_arg, __in_rng, std::forward<decltype(__out_rng_arg)>(__out_rng_arg),
-                                __start_id, __n, __sub_group_params.__inputs_per_item, __subgroup_start_id,
-                                __sub_group_id, __active_subgroups, __temp_out_arg, __write_results_arg);
-                        }
-                    };
-
                 {
                     _TempData __temp_out{};
                     _WriteResults __write_results{};
+
+                    if (__sub_group_carry_initialized)
+                    {
+                        __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                                                       /*__init_present=*/true,
+                                                       /*__capture_output=*/true, __max_inputs_per_item>(
+                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                            __sub_group_carry, __in_rng, __out_rng,
+                            __start_id, __n, __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
+                            __active_subgroups, __temp_out, __write_results);
+                    }
+                    else // first group first block, no subgroup carry
+                    {
+                        __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                                                       /*__init_present=*/false,
+                                                       /*__capture_output=*/true, __max_inputs_per_item>(
+                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                            __sub_group_carry, __in_rng, __out_rng,
+                            __start_id, __n, __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
+                            __active_subgroups, __temp_out, __write_results);
+                    }
+
 
                     // The first normal call of __scan_through_elements_helper
                     __call_scan_through_elements_helper(__sub_group, __out_rng, __sub_group_carry_initialized,
