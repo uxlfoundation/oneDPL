@@ -688,7 +688,8 @@ struct __get_tuple_type<oneapi::dpl::__internal::tuple<_Ts...>, _Other>
 };
 
 template <typename _Dst, typename _Src, std::size_t... _I>
-void __convert_tuple_to_impl(_Dst& __dst, const _Src& __src, std::index_sequence<_I...>)
+void
+__convert_tuple_to_impl(_Dst& __dst, const _Src& __src, std::index_sequence<_I...>)
 {
     ((std::get<_I>(__dst) = std::get<_I>(__src)), ...);
 }
@@ -704,7 +705,7 @@ __convert_tuple_to(const _Src& __src)
     __convert_tuple_to_impl(__result, __src, std::make_index_sequence<_N>());
 
     return __result;
-} 
+}
 
 template <typename Size>
 struct AddIndexes

@@ -30,7 +30,7 @@
 #include <cmath>
 #include <cstdint>
 #include <exception>
-#include <limits>   // for std::numeric_limits
+#include <limits> // for std::numeric_limits
 
 #if _ONEDPL_BACKEND_SYCL
 #    include "hetero/dpcpp/sycl_defs.h"

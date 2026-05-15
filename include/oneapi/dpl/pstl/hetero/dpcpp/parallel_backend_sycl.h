@@ -411,14 +411,13 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Bounded, _Inclu
     __get_result_accessor_opt(sycl::handler& __hdl, _ResultPayload& __result_payload) const
     {
         if constexpr (_Bounded)
-            return __get_result_accessor(sycl::write_only, __result_payload, __hdl, __dpl_sycl::__no_init{});            
+            return __get_result_accessor(sycl::write_only, __result_payload, __hdl, __dpl_sycl::__no_init{});
         else
             return std::monostate{};
     }
 
     template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp>
-    std::conditional_t<_Bounded,
-                       std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>,
+    std::conditional_t<_Bounded, std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>,
                        std::tuple<sycl::event>>
     operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op, ::std::uint16_t __wg_size)
@@ -433,7 +432,7 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Bounded, _Inclu
         if constexpr (_Bounded)
             __n = std::min<decltype(__n)>(__n, oneapi::dpl::__ranges::__size(__out_rng));
 
-         sycl::event __event = __q.submit([&](sycl::handler& __hdl) {
+        sycl::event __event = __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg}, __hdl);
             auto __res_acc = __get_result_accessor_opt(__hdl, __result_payload);
@@ -504,10 +503,8 @@ struct __parallel_transform_scan_static_single_group_submitter<_Bounded, _Inclus
     }
 
     template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp>
-    std::conditional_t<
-        _Bounded,
-        std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>,
-        std::tuple<sycl::event>>
+    std::conditional_t<_Bounded, std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>,
+                       std::tuple<sycl::event>>
     operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op)
     {
@@ -669,10 +666,8 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
 
 template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _UnaryOperation,
           typename _InitType, typename _BinaryOperation, typename _Inclusive>
-std::conditional_t<
-    _Bounded,
-    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>,
-    std::tuple<sycl::event>>
+std::conditional_t<_Bounded, std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>,
+                   std::tuple<sycl::event>>
 __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n,
                                        _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op,
                                        _Inclusive)
@@ -799,9 +794,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
                 if constexpr (_Bounded)
                 {
-                    return {
-                        std::get<0>(std::move(__res)), std::get<1>(std::move(__res)),
-                        __create_scan_stop_pos_storage_container<__stop_pos_t>(
+                    return {std::get<0>(std::move(__res)), std::get<1>(std::move(__res)),
+                            __create_scan_stop_pos_storage_container<__stop_pos_t>(
                                 __stop_pos_payloads_tools<_Bounded>::template __create_storage_opt<__stop_pos_t>(
                                     __q_local))};
                 }
@@ -2463,7 +2457,8 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
         if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
         {
             auto __res =
-                oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan</*_Bounded*/ false, _CustomName>(
+                oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan</*_Bounded*/ false,
+                                                                                                 _CustomName>(
                     __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
                     std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
 
