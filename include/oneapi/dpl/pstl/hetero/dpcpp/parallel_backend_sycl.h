@@ -803,7 +803,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                 {
                     return {std::get<0>(std::move(__res)),
                             __combined_storage<_Type>{__q_local,
-                                                      /*No temporary data, just for return type compatibility*/ 0, 1}};
+                                                      /*No temporary data, just for return type compatibility*/ 1, 1}};
                 }
             }
         }
