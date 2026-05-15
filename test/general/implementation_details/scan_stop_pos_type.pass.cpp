@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- tuple_unit.pass.cpp -----------------------------------------------===//
+//===-- scan_stop_pos_type.pass.cpp ---------------------------------------===//
 //
 // Copyright (C) Intel Corporation
 //
