@@ -30,7 +30,7 @@ main()
     using R2 = oneapi::dpl::__ranges::guard_view<float*>;
     using R3 = oneapi::dpl::__ranges::guard_view<double*>;
 
-    // Derive zip_view type from make_zip_view � avoids hardcoding internal type names
+    // Derive zip_view type from make_zip_view - avoids hardcoding internal type names
     // and automatically matches the specialization in __scan_stop_pos_t
     using Zip2 = std::decay_t<decltype(oneapi::dpl::__ranges::make_zip_view(std::declval<R1>(), std::declval<R2>()))>;
     using Zip3 = std::decay_t<decltype(oneapi::dpl::__ranges::make_zip_view(std::declval<R1>(), std::declval<R2>(),
