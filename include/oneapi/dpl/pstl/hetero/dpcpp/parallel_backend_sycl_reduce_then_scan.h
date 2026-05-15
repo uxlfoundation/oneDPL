@@ -83,96 +83,26 @@ struct __noop_temp_data
     }
 };
 
-// TempData selector
+// ScanStopPosT selector
 template <typename _T, typename = void>
-struct __temp_data_selector
+struct __scan_stop_pos_selector
 {
-    using TempData = __noop_temp_data;
+    using ScanStopPosT = std::void_t<>;
+    static constexpr bool DetectOOBPos = false;
 };
 
 template <typename _T>
-struct __temp_data_selector<_T, std::void_t<typename _T::TempData>>
+struct __scan_stop_pos_selector<_T, std::void_t<typename _T::ScanStopPosT>>
 {
-    using TempData = typename _T::TempData;
+    using ScanStopPosT = typename _T::ScanStopPosT;
+    static constexpr bool DetectOOBPos = !std::is_same_v<ScanStopPosT, std::void_t<>>;
 };
 
 template <typename _T>
-using __temp_data_selector_t = typename __temp_data_selector<_T>::TempData;
-
-template <typename __stop_pos_t>
-struct __write_results
-{
-    using _TupleOfSizes = __stop_pos_t;
-
-    void
-    set_oob_reached()
-    {
-        __oob_reached = true;
-    }
-
-    bool
-    get_oob_reached() const
-    {
-        return __oob_reached;
-    }
-
-    template <typename _TupleOfSizesArg>
-    std::enable_if_t<std::is_same_v<std::decay_t<_TupleOfSizesArg>, _TupleOfSizes>, void>
-    set_oob_source_pos(_TupleOfSizesArg&& __source_oob_pos)
-    {
-        __oob_source_pos = std::forward<_TupleOfSizesArg>(__source_oob_pos);
-    }
-
-    bool
-    get_oob_source_pos(_TupleOfSizes& __source_oob_pos) const
-    {
-        __source_oob_pos = __oob_source_pos;
-        return __oob_source_pos != oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_TupleOfSizes>();
-    }
-
-  protected:
-
-    // First OOB source position state
-    _TupleOfSizes __oob_source_pos = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_TupleOfSizes>();
-
-    // Whether an OOB position was reached + the index of the first OOB position in the output range.
-    bool __oob_reached = false;
-};
-
-struct __noop_write_results
-{
-    void
-    set_oob_reached()
-    {
-    }
-
-    template <typename _TupleOfSizes>
-    void
-    set_oob_source_pos(const _TupleOfSizes&)
-    {
-    }
-};
-
-// WriteResults selector
-template <typename _T, typename = void>
-struct __write_results_selector
-{
-    using WriteResults = __noop_write_results;
-    static constexpr bool has_write_results = false;
-};
+using __scan_stop_pos_selector_t = typename __scan_stop_pos_selector<_T>::ScanStopPosT;
 
 template <typename _T>
-struct __write_results_selector<_T, std::void_t<typename _T::WriteResults>>
-{
-    using WriteResults = typename _T::WriteResults;
-    static constexpr bool has_write_results = !std::is_same_v<WriteResults, __noop_write_results>;
-};
-
-template <typename _T>
-using __write_results_selector_t = typename __write_results_selector<_T>::WriteResults;
-
-template <typename _T>
-static constexpr bool __has_write_results_v = __write_results_selector<_T>::has_write_results;
+static constexpr bool __detect_oob_pos_v = __scan_stop_pos_selector<_T>::DetectOOBPos;
 
 // Extracts a range from a zip iterator based on the element ID
 template <std::size_t _EleId>
@@ -230,11 +160,11 @@ struct __simple_write_to_id
 // Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1 + __offset`, but only if the
 // condition `get<0>(__v)` is `true`. Used in __parallel_copy_if, __parallel_unique_copy, and
 // __parallel_set_reduce_then_scan_set_a_write
-template <std::int32_t __offset, typename _Assign, typename _WriteResults>
+template <std::int32_t __offset, typename _Assign, typename _ScanStopPosT = std::void_t<>>
 struct __write_to_id_if
 {
     using _TempData = __noop_temp_data;
-    using WriteResults = _WriteResults;
+    using ScanStopPosT = _ScanStopPosT;
 
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
@@ -250,9 +180,9 @@ struct __write_to_id_if
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
     }
 
-    template <typename _OutRng, typename _SizeType, typename _ValueType>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
     bool
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, WriteResults& __write_results) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, _OnOOBReached __on_oob_reached) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -268,12 +198,10 @@ struct __write_to_id_if
             return __write_if_in_bounds(
                 oneapi::dpl::__ranges::__size(__out_rng), __out_rng_idx,
                 [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]); },
-                [&]() {
-                    __write_results.set_oob_reached();
-
-                    typename WriteResults::_TupleOfSizes __source_oob_pos = {};
-                    std::get<0>(__source_oob_pos) = __id;
-                    __write_results.set_oob_source_pos(__source_oob_pos);
+                [&]() { 
+                    ScanStopPosT __oob_pos{};
+                    std::get<0>(__oob_pos) = __id;
+                    __on_oob_reached(__oob_pos);
                 });
         }
 
@@ -1449,19 +1377,16 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
 
 template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
           std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
-          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng, typename _WriteResults>
+          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng,
+          typename _OnOOBReached = std::nullptr_t>
 void
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
                                _LazyValueType& __sub_group_carry, const _InRng& __in_rng, _OutRng& __out_rng,
                                std::size_t __start_id, std::size_t __n, std::uint32_t __iters_per_item,
                                std::size_t __subgroup_start_id, std::uint32_t __sub_group_id,
-                               std::uint32_t __active_subgroups, _WriteResults& __write_results)
+                               std::uint32_t __active_subgroups, _OnOOBReached __on_oob_reached = {})
 {
-    using AcceptableWriteResultsT = __write_results_selector_t<_WriteOp>;
-    static constexpr bool __use_write_results =
-        _Bounded && __has_write_results_v<_WriteOp> && std::is_same_v<AcceptableWriteResultsT, _WriteResults>;
-
     bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
     bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
     using _TempData = typename _GenInput::TempData;
@@ -1470,8 +1395,8 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     auto __call_write_op = [&](std::size_t __id, const auto& __v) -> bool {
         if constexpr (__capture_output)
         {
-            if constexpr (__use_write_results)
-                return __write_op.template operator()(__out_rng, __id, __v, __temp_data, __write_results);
+            if constexpr (_Bounded)
+                return __write_op.template operator()(__out_rng, __id, __v, __temp_data, __on_oob_reached);
             else
                 __write_op.template operator()(__out_rng, __id, __v, __temp_data);
         }
@@ -1698,9 +1623,6 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
 
                 if (__sub_group_id < __active_subgroups)
                 {
-                    using _WriteResults = __write_results_selector_t<std::nullptr_t>;
-                    _WriteResults __write_results{};
-
                     // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
                     __scan_through_elements_helper</*_Bounded*/ false, __sub_group_size, __is_inclusive,
@@ -1708,8 +1630,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                                                    /*__capture_output=*/false, __max_inputs_per_item>(
                         __sub_group, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, nullptr,
                         __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __n,
-                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
-                        __write_results);
+                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups);
 
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__v;
@@ -2050,7 +1971,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     {
         using __stop_pos_t = __scan_stop_pos_t<_InRng>;
 
-        using _WriteResults = __write_results_selector_t<_WriteOp>;
         using _OutSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
 
         std::size_t __num_remaining = __n - __block_num * __max_block_size;
@@ -2311,47 +2231,43 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
                 {
-                    _WriteResults __write_results{};
+                    using ScanStopPosT = __scan_stop_pos_selector_t<_WriteOp>;
+                    constexpr bool _DetectOOBPos = _Bounded && __detect_oob_pos_v<_WriteOp>;
+
+                    auto __on_oob_reached = [&]([[maybe_unused]] auto __oob_source_pos) {
+                        if constexpr (_DetectOOBPos)
+                        {
+                            using __result_pos_t = __scan_stop_pos_t<_InRng>;
+
+                            // OOB can be reached by at most one work-item per kernel invocation:
+                            // output indices are monotonically increasing across all work-items,
+                            // so only the single work-item that first crosses the output boundary
+                            // can have get_oob_source_pos() return true.
+                            // Therefore, no atomic fetch_min is needed here - at most one writer.
+                            __stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
+                                oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__oob_source_pos);
+                        }
+                    };
 
                     if (__sub_group_carry_initialized)
                     {
-                        __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                        __scan_through_elements_helper<_DetectOOBPos, __sub_group_size, __is_inclusive,
                                                        /*__init_present=*/true,
                                                        /*__capture_output=*/true, __max_inputs_per_item>(
                             __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                             __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
                             __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
-                            __active_subgroups, __write_results);
+                            __active_subgroups, __on_oob_reached);
                     }
                     else // first group first block, no subgroup carry
                     {
-                        __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                        __scan_through_elements_helper<_DetectOOBPos, __sub_group_size, __is_inclusive,
                                                        /*__init_present=*/false,
                                                        /*__capture_output=*/true, __max_inputs_per_item>(
                             __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                             __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
                             __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
-                            __active_subgroups, __write_results);
-                    }
-
-                    if constexpr (_Bounded && !std::is_same_v<_WriteResults, __noop_write_results>)
-                    {
-                        if ( __write_results.get_oob_reached())
-                        {
-                            typename _WriteResults::_TupleOfSizes __oob_source_pos{};
-                            if (__write_results.get_oob_source_pos(__oob_source_pos))
-                            {
-                                using __result_pos_t = __scan_stop_pos_t<_InRng>;
-
-                                // OOB can be reached by at most one work-item per kernel invocation:
-                                // output indices are monotonically increasing across all work-items,
-                                // so only the single work-item that first crosses the output boundary
-                                // can have get_oob_source_pos() return true.
-                                // Therefore, no atomic fetch_min is needed here - at most one writer.
-                                __stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
-                                    oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__oob_source_pos);
-                            }
-                        }
+                            __active_subgroups, __on_oob_reached);
                     }
                 }
 

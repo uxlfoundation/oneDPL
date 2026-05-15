@@ -453,7 +453,7 @@ struct __gen_count_mask;
 template <typename _GenMask, typename _RangeTransform>
 struct __gen_expand_count_mask;
 
-template <int32_t __offset, typename _Assign, typename _WriteResults>
+template <int32_t __offset, typename _Assign, typename _ScanStopPosT>
 struct __write_to_id_if;
 
 template <typename _Assign>
@@ -548,7 +548,6 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPredicate>
 {
 };
-
 template <typename _GenMask>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_count_mask, _GenMask)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
@@ -562,9 +561,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <int32_t __offset, typename _Assign, typename _WriteResults>
+template <int32_t __offset, typename _Assign, typename _ScanStopPosT>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_to_id_if, __offset,
-                                                       _Assign, _WriteResults)>
+                                                       _Assign, _ScanStopPosT)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Assign>
 {
 };
@@ -659,7 +658,6 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
                                                          _InitType>
 {
 };
-
 template <typename _GenInput, typename KernelName>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
     oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter, _GenInput, KernelName)>
