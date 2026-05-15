@@ -1743,12 +1743,6 @@ struct __scan_stop_pos_type<_OnTopLevel, _Range, _Ranges...>
 template <typename... _InRng>
 using __scan_stop_pos_t = typename __scan_stop_pos_type</*_OnTopLevel=*/true, std::decay_t<_InRng>...>::_Type;
 
-enum class _StopPosPayloadIndexes
-{
-    eOOBPos = 0, // Source first OOB position
-    eLast
-};
-
 template <typename _TupleOfSizes>
 using __scan_stop_pos_storage_t = __result_storage<_TupleOfSizes>;
 
@@ -1791,7 +1785,7 @@ struct __stop_pos_payloads_tools
     __create_storage_opt(sycl::queue& __q)
     {
         if constexpr (_Bounded)
-            return __scan_stop_pos_storage_t<_TupleOfSizes>(__q, (std::size_t)_StopPosPayloadIndexes::eLast);
+            return __scan_stop_pos_storage_t<_TupleOfSizes>(__q, 1);
         else
             return std::monostate{};
     }
@@ -1823,11 +1817,10 @@ struct __stop_pos_payloads_tools
 
         for (auto& __payload : __stop_pos_payloads_container)
         {
-            _StopPos __pos_local[(std::size_t)_StopPosPayloadIndexes::eLast];
-            __payload.__copy_result(__pos_local, (std::size_t)_StopPosPayloadIndexes::eLast);
+            _StopPos __pos_local;
+            __payload.__copy_result(&__pos_local, 1);
 
-            __pos_operations::fetch_extremum_pos_local_elementwise(
-                __oob_pos, __pos_local[(std::size_t)_StopPosPayloadIndexes::eOOBPos], std::less<>{});
+            __pos_operations::fetch_extremum_pos_local_elementwise(__oob_pos, __pos_local, std::less<>{});
         }
 
         _StopPos __result = __final_pos;
@@ -1934,8 +1927,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                     auto __stop_pos_ptr = __stop_pos_acc.__data();
 
                     // Initialize OOB pos to max sentinel - means "not yet found"
-                    __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
-                        oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_TupleOfSizes>();
+                    *__stop_pos_ptr = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_TupleOfSizes>();
                 });
             });
         else
@@ -2244,7 +2236,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                             // so only the single work-item that first crosses the output boundary
                             // can have get_oob_source_pos() return true.
                             // Therefore, no atomic fetch_min is needed here - at most one writer.
-                            __stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
+                            __stop_pos_acc.__data()[0] =
                                 oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__oob_source_pos);
                         }
                     };
