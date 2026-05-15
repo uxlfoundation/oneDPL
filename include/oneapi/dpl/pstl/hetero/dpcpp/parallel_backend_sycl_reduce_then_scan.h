@@ -1406,6 +1406,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         return true;
     };
 
+    // Short-circuit flag: once an out-of-bounds write is detected, all subsequent
+    // __call_write_op() calls are skipped via &&-evaluation, avoiding unnecessary
+    // writes beyond the output boundary. The final value is intentionally unused.
     bool __all_writes_in_bounds = true;
 
     if (__is_full_thread)
