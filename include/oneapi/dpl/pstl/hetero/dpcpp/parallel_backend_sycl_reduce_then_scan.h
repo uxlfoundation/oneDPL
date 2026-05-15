@@ -1478,14 +1478,14 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         return true;
     };
 
-    bool __all_writes_succeeded = true;
+    bool __all_writes_in_bounds = true;
 
     if (__is_full_thread)
     {
         auto __v = __gen_input(__in_rng, __start_id, __temp_data);
         __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
                                                                            __binary_op, __sub_group_carry);
-        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
+        __all_writes_in_bounds = __all_writes_in_bounds && __call_write_op(__start_id, __v);
 
         if (__is_full_block)
         {
@@ -1496,8 +1496,8 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                __all_writes_succeeded =
-                    __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
+                __all_writes_in_bounds =
+                    __all_writes_in_bounds && __call_write_op(__start_id + __j * __sub_group_size, __v);
             }
         }
         else
@@ -1509,8 +1509,8 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                __all_writes_succeeded =
-                    __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
+                __all_writes_in_bounds =
+                    __all_writes_in_bounds && __call_write_op(__start_id + __j * __sub_group_size, __v);
             }
         }
     }
@@ -1532,7 +1532,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__start_id < __n)
-                        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
+                        __all_writes_in_bounds = __all_writes_in_bounds && __call_write_op(__start_id, __v);
                 }
             }
             else
@@ -1540,7 +1540,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 auto __v = __gen_input(__in_rng, __start_id, __temp_data);
                 __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
+                __all_writes_in_bounds = __all_writes_in_bounds && __call_write_op(__start_id, __v);
 
                 for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
                 {
@@ -1548,7 +1548,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                     __v = __gen_input(__in_rng, __local_id, __temp_data);
                     __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                    __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__local_id, __v);
+                    __all_writes_in_bounds = __all_writes_in_bounds && __call_write_op(__local_id, __v);
                 }
 
                 std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
@@ -1560,7 +1560,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__offset < __n)
-                        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__offset, __v);
+                        __all_writes_in_bounds = __all_writes_in_bounds && __call_write_op(__offset, __v);
                 }
             }
         }
