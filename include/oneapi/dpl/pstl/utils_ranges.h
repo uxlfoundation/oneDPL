@@ -835,7 +835,7 @@ std::ranges::in_in_out_result<_It1, _It2, _ItOut>
 #else
 std::ranges::in_out_result<_It1, _ItOut>
 #endif
-__create_set_difference_result(_It1 __it1, _It2 __it2, _ItOut __it_out)
+__create_set_difference_result(_It1 __it1, [[maybe_unused]] _It2 __it2, _ItOut __it_out)
 {
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
     return {__it1, __it2, __it_out};
