@@ -143,12 +143,10 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
                                                                /*_IsNoInitRequested=*/true>();
         auto __buf2 = __keep2(__result, __result + __n);
 
-        auto [__event, __payload] = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ false>(
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n,
-            __unary_op, __init, __binary_op, _Inclusive{});
-
-        auto __f = __create_future(std::move(__event), std::move(__payload));
-        __f.__checked_deferrable_wait();
+            __unary_op, __init, __binary_op, _Inclusive{})
+            .__checked_deferrable_wait();
     }
     else
     {
@@ -170,10 +168,10 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         auto __buf2 = __keep2(__first_tmp, __last_tmp);
 
         // Run main algorithm and save data into temporary buffer
-        auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ false>(
-            _BackendTag{}, __policy, __buf1.all_view(), __buf2.all_view(), __n, __unary_op, __init, __binary_op,
-            _Inclusive{});
-        std::get<0>(__res).wait_and_throw();
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(_BackendTag{}, __policy, __buf1.all_view(),
+                                                                     __buf2.all_view(), __n, __unary_op, __init,
+                                                                     __binary_op, _Inclusive{})
+            .wait();
 
         // Move data from temporary buffer into results
         oneapi::dpl::__internal::__pattern_walk2_brick(

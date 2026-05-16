@@ -297,7 +297,6 @@ test_device_copyable()
             oneapi::dpl::__par_backend_hetero::__write_scan_by_seg<
                 true, oneapi::dpl::unseq_backend::__init_value<int_device_copyable>, binary_op_device_copyable>,
             oneapi::dpl::unseq_backend::__no_init_value<int_device_copyable>,
-            oneapi::dpl::execution::DefaultKernelName,
             oneapi::dpl::execution::DefaultKernelName>>,
         "__parallel_reduce_then_scan_scan_submitter is not device copyable with device copyable types");
 #endif
@@ -628,7 +627,6 @@ test_non_device_copyable()
             oneapi::dpl::__par_backend_hetero::__write_scan_by_seg<
                 true, oneapi::dpl::unseq_backend::__init_value<int_non_device_copyable>, binary_op_non_device_copyable>,
             oneapi::dpl::unseq_backend::__no_init_value<int_non_device_copyable>,
-            oneapi::dpl::execution::DefaultKernelName,
             oneapi::dpl::execution::DefaultKernelName>>,
         "__parallel_reduce_then_scan_scan_submitter is device copyable with non device copyable types");
 #endif

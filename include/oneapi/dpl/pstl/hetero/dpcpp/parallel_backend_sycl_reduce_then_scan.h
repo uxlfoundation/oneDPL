@@ -1563,9 +1563,6 @@ template <typename... _Name>
 class __reduce_then_scan_reduce_kernel;
 
 template <typename... _Name>
-class __reduce_then_scan_scan_kernel_init;
-
-template <typename... _Name>
 class __reduce_then_scan_scan_kernel;
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
@@ -1846,16 +1843,15 @@ using __tuple_of_sizes_selector_t = typename __tuple_of_sizes_selector<_T>::type
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp,
-          typename _InitType, typename _KernelNameInit, typename _KernelName>
+          typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp,
-          typename _InitType, typename... _KernelNameInit, typename... _KernelName>
+          typename _InitType, typename... _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter<
     _Bounded, __max_inputs_per_item, __is_inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput,
-    _ScanInputTransform, _WriteOp, _InitType, __internal::__optional_kernel_name<_KernelNameInit...>,
-    __internal::__optional_kernel_name<_KernelName...>>
+    _ScanInputTransform, _WriteOp, _InitType, __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
@@ -2259,8 +2255,6 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 {
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_reduce_kernel<_CustomName>>;
-    using _ScanKernelInit = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __reduce_then_scan_scan_kernel_init<_CustomName>>;
     using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_scan_kernel<_CustomName>>;
     using _ValueType = typename _InitType::__value_type;
@@ -2315,7 +2309,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     using _ScanSubmitter =
         __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_item, __inclusive, __is_unique_pattern_v,
                                                    _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
-                                                   _ScanKernelInit, _ScanKernel>;
+                                                   _ScanKernel>;
     _ReduceSubmitter __reduce_submitter{__num_work_groups,
                                         __work_group_size,
                                         __max_inputs_per_block,
