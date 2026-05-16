@@ -1804,8 +1804,9 @@ struct __stop_pos_payloads_tools
         _StopPos __oob_pos = __sentinel;
         __stop_pos_payload.__copy_result(&__oob_pos, 1);
 
-        constexpr std::size_t __items_to_process = std::min(___TupleOfSizesItems, __StopPosItems);
-        __update_each_field<__items_to_process - 1>(__result, __oob_pos);
+        constexpr std::size_t __Index = std::min(___TupleOfSizesItems, __StopPosItems);
+        if constexpr (__Index > 0)
+            __update_each_field<__Index - 1>(__result, __oob_pos);
 
         return __result;
     }
