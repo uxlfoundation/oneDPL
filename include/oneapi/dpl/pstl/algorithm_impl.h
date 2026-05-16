@@ -3283,12 +3283,6 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 
 inline constexpr auto __set_algo_cut_off = 1000;
 
-// _ReachedOffset - describes reached offset in input range
-//  - the first field contains the amount of processed items
-//  - the second field contains the amount of processed (i.e. skipped) items in the end
-template <typename _DifferenceType>
-using _ReachedOffset = std::pair<_DifferenceType, _DifferenceType>;
-
 template <typename _DifferenceType>
 struct _DataPart
 {
