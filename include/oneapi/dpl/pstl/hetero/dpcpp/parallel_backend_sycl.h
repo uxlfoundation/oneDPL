@@ -795,9 +795,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                 if constexpr (_Bounded)
                 {
                     return {std::get<0>(std::move(__res)), std::get<1>(std::move(__res)),
-                            __create_scan_stop_pos_storage_container<__stop_pos_t>(
-                                __stop_pos_payloads_tools<_Bounded>::template __create_storage_opt<__stop_pos_t>(
-                                    __q_local))};
+                            __stop_pos_payloads_tools::template __create_storage_opt</*_Bounded*/ true, __stop_pos_t>(
+                                __q_local)};
                 }
                 else
                 {
@@ -851,8 +850,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
     if constexpr (_Bounded)
         return {std::move(__event), std::forward<decltype(__payload)>(__payload),
-                __create_scan_stop_pos_storage_container<__stop_pos_t>(
-                    __stop_pos_payloads_tools<_Bounded>::template __create_storage_opt<__stop_pos_t>(__q_local))};
+                __stop_pos_payloads_tools::template __create_storage_opt<_Bounded, __stop_pos_t>(__q_local)};
     else
         return {std::move(__event), std::forward<decltype(__payload)>(__payload)};
 }
@@ -953,7 +951,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
 
         _Size __stop_out = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
 
-        auto __finish_pos = __stop_pos_payloads_tools</*_Bounded*/ true>::template __get_finish_pos<__stop_pos_t>(
+        auto __finish_pos = __stop_pos_payloads_tools::template __get_finish_pos<__stop_pos_t>(
             std::get<2>(__res), std::tuple<_Size>(__n));
 
         __ret = {__stop_out, static_cast<_Size>(std::get<0>(__finish_pos))};
@@ -1077,7 +1075,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
         _Size __stop_out = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
 
-        auto __finish_pos = __stop_pos_payloads_tools</*_Bounded*/ true>::template __get_finish_pos<__stop_pos_t>(
+        auto __finish_pos = __stop_pos_payloads_tools::template __get_finish_pos<__stop_pos_t>(
             std::get<2>(__res), std::tuple<_Size>(__n));
 
         return {__stop_out, static_cast<_Size>(std::get<0>(__finish_pos))};

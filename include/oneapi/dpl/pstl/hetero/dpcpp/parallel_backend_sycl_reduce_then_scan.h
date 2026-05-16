@@ -1572,6 +1572,21 @@ template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusiv
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
+template <bool _Bounded, typename _StopPosPayload>
+auto
+__get_stop_pos_accessor_opt(sycl::handler& __cgh, _StopPosPayload& __stop_pos_payload)
+{
+    if constexpr (_Bounded)
+    {
+        // By using this sycl::read_write option we implements source data initialization under this accessor
+        return __get_accessor(sycl::read_write, __stop_pos_payload, __cgh, __dpl_sycl::__no_init{});
+    }
+    else
+    {
+        return std::monostate{};
+    }
+}
+
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename... _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __is_inclusive,
@@ -1581,11 +1596,12 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
-    template <typename _InRng, typename _TmpStorageAcc>
+    template <typename _InRng, typename _TmpStorageAcc, typename _StopPosPayload, typename _TupleOfSizes>
     sycl::event
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
-               const std::size_t __inputs_remaining, const std::size_t __block_num) const
+               const std::size_t __inputs_remaining, const std::size_t __block_num, _StopPosPayload& __stop_pos_payload,
+               bool __need_init_stop_pos_payload, const _TupleOfSizes&) const
     {
         using _InitValueType = typename _InitType::__value_type;
         return __q.submit([&, this](sycl::handler& __cgh) {
@@ -1593,6 +1609,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __get_accessor(sycl::read_write, __scratch_container, __cgh, __dpl_sycl::__no_init{});
+            auto __stop_pos_acc = __get_stop_pos_accessor_opt<_Bounded>(__cgh, __stop_pos_payload);
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                 // Compute work distribution fields dependent on sub-group size within the kernel. This is because we
@@ -1696,6 +1713,16 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
 
                     __sub_group_carry.__destroy();
                 }
+
+                if constexpr (!std::is_same_v<std::remove_cv_t<_StopPosPayload>, std::monostate>)
+                {
+                    if (__need_init_stop_pos_payload && __ndi.get_global_linear_id() == 0)
+                    {
+                        // Initialize OOB pos to max sentinel - means "not yet found"
+                        __stop_pos_acc.__data()[0] =
+                            oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_TupleOfSizes>();
+                    }
+                }
             });
         });
     }
@@ -1746,41 +1773,15 @@ using __scan_stop_pos_t = typename __scan_stop_pos_type</*_OnTopLevel=*/true, st
 template <typename _TupleOfSizes>
 using __scan_stop_pos_storage_t = __result_storage<_TupleOfSizes>;
 
-template <typename _TupleOfSizes>
-using __scan_stop_pos_storages_container_t = std::vector<__scan_stop_pos_storage_t<_TupleOfSizes>>;
-
-template <typename _TupleOfSizes>
-__scan_stop_pos_storages_container_t<_TupleOfSizes>
-__create_scan_stop_pos_storage_container(std::size_t __reserve = 0)
-{
-    __scan_stop_pos_storages_container_t<_TupleOfSizes> __container;
-    if (__reserve > 0)
-        __container.reserve(__reserve);
-
-    return __container;
-}
-
-template <typename _TupleOfSizes>
-__scan_stop_pos_storages_container_t<_TupleOfSizes>
-__create_scan_stop_pos_storage_container(__scan_stop_pos_storage_t<_TupleOfSizes>&& __item)
-{
-    auto __container = __create_scan_stop_pos_storage_container<_TupleOfSizes>();
-    __container.emplace_back(std::move(__item));
-
-    return __container;
-}
-
 template <bool _Bounded, typename _ValueType, typename... _Ranges>
-using __scan_block_return_t =
-    std::conditional_t<_Bounded,
-                       std::tuple<sycl::event, __combined_storage<_ValueType>,
-                                  __scan_stop_pos_storages_container_t<__scan_stop_pos_t<_Ranges...>>>,
-                       std::tuple<sycl::event, __combined_storage<_ValueType>>>;
+using __scan_block_return_t = std::conditional_t<
+    _Bounded,
+    std::tuple<sycl::event, __combined_storage<_ValueType>, __scan_stop_pos_storage_t<__scan_stop_pos_t<_Ranges...>>>,
+    std::tuple<sycl::event, __combined_storage<_ValueType>>>;
 
-template <bool _Bounded>
 struct __stop_pos_payloads_tools
 {
-    template <typename _TupleOfSizes>
+    template <bool _Bounded, typename _TupleOfSizes>
     static std::conditional_t<_Bounded, __scan_stop_pos_storage_t<_TupleOfSizes>, std::monostate>
     __create_storage_opt(sycl::queue& __q)
     {
@@ -1790,40 +1791,18 @@ struct __stop_pos_payloads_tools
             return std::monostate{};
     }
 
-    template <typename _TupleOfSizes>
-    static std::conditional_t<_Bounded, __scan_stop_pos_storages_container_t<_TupleOfSizes>, std::monostate>
-    __create_container_opt(std::size_t __capacity)
-    {
-        if constexpr (_Bounded)
-            return __create_scan_stop_pos_storage_container<_TupleOfSizes>(__capacity);
-        else
-            return std::monostate{};
-    }
-
-    template <typename _TupleOfSizes, typename _TupleOfSrcSizes>
+    template <typename _TupleOfSizes, typename _TupleOfSrcSizes, typename _StopPosPayload>
     static _TupleOfSizes
-    __get_finish_pos(__scan_stop_pos_storages_container_t<_TupleOfSizes>& __stop_pos_payloads_container,
-                     _TupleOfSrcSizes __src_sizes)
+    __get_finish_pos(_StopPosPayload& __stop_pos_payload, _TupleOfSrcSizes __src_sizes)
     {
         using oneapi::dpl::__internal::__pos_operations;
 
-        assert(!__stop_pos_payloads_container.empty());
-
-        using _StopPosPayload = std::decay_t<decltype(__stop_pos_payloads_container.front())>;
         using _StopPos = typename _StopPosPayload::_ValueType;
 
-        _StopPos __final_pos = {};
-        _StopPos __oob_pos = oneapi::dpl::__internal::__convert_tuple_to<_StopPos>(__src_sizes);
+        _StopPos __oob_pos = {};
+        __stop_pos_payload.__copy_result(&__oob_pos, 1);
 
-        for (auto& __payload : __stop_pos_payloads_container)
-        {
-            _StopPos __pos_local;
-            __payload.__copy_result(&__pos_local, 1);
-
-            __pos_operations::fetch_extremum_pos_local_elementwise(__oob_pos, __pos_local, std::less<>{});
-        }
-
-        _StopPos __result = __final_pos;
+        _StopPos __result = {};
         __pos_operations::fetch_extremum_pos_local_elementwise(__result, __oob_pos, std::less<>{});
 
         // We may need to handle cases where eFinalPos was never updated by the algorithm.
@@ -1896,75 +1875,15 @@ struct __parallel_reduce_then_scan_scan_submitter<
         __tmp_ptr[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
     }
 
-    template <typename _StopPosPayload>
-    auto
-    __get_stop_pos_accessor_opt(sycl::handler& __cgh, _StopPosPayload& __stop_pos_payload) const
-    {
-        if constexpr (_Bounded)
-        {
-            // By using this sycl::read_write option we implements source data initialization under this accessor
-            return __get_accessor(sycl::read_write, __stop_pos_payload, __cgh, __dpl_sycl::__no_init{});
-        }
-        else
-        {
-            return std::monostate{};
-        }
-    }
-
-    template <typename _TupleOfSizes, typename _StopPosStorage>
+    template <typename _InRng, typename _OutRng, typename _TmpStorageAcc, typename _StopPosPayload>
     sycl::event
-    __submit_stop_pos_init([[maybe_unused]] sycl::queue& __q, [[maybe_unused]] _StopPosStorage& __stop_pos_payload,
-                           const sycl::event& __prior_event) const
-    {
-        if constexpr (_Bounded)
-            return __q.submit([&](sycl::handler& __cgh) {
-                __cgh.depends_on(__prior_event);
-
-                auto __stop_pos_acc =
-                    __get_accessor(sycl::write_only, __stop_pos_payload, __cgh, __dpl_sycl::__no_init{});
-
-                __cgh.parallel_for<_KernelNameInit...>(sycl::range<1>(1), [=](sycl::id<1>) {
-                    auto __stop_pos_ptr = __stop_pos_acc.__data();
-
-                    // Initialize OOB pos to max sentinel - means "not yet found"
-                    *__stop_pos_ptr = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_TupleOfSizes>();
-                });
-            });
-        else
-            return __prior_event;
-    }
-
-    template <bool _Create, typename _InitValueType>
-    std::conditional_t<_Create, std::tuple<bool, oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType>>,
-                       std::monostate>
-    __save_carry_for_oob_replay_opt(
-        bool __sub_group_carry_initialized,
-        oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType>& __sub_group_carry) const
-    {
-        if constexpr (_Create)
-        {
-            oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __sub_group_carry_saved;
-            if (__sub_group_carry_initialized)
-                __sub_group_carry_saved.__setup(__sub_group_carry.__v);
-
-            return std::make_tuple(__sub_group_carry_initialized, __sub_group_carry_saved);
-        }
-        else
-        {
-            return std::monostate{};
-        }
-    }
-
-    template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
-    std::conditional_t<_Bounded, std::tuple<sycl::event, __scan_stop_pos_storage_t<__scan_stop_pos_t<_InRng>>>,
-                       std::tuple<sycl::event>>
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
-               _TmpStorageAcc& __scratch_container, sycl::event __prior_event, const std::size_t __inputs_remaining,
-               const std::size_t __block_num) const
+               _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
+               const std::size_t __inputs_remaining, const std::size_t __block_num,
+               _StopPosPayload& __stop_pos_payload) const
     {
-        using __stop_pos_t = __scan_stop_pos_t<_InRng>;
-
         using _OutSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
+        const _OutSize __n_out = oneapi::dpl::__ranges::__size(__out_rng);
 
         std::size_t __num_remaining = __n - __block_num * __max_block_size;
         // for unique patterns, the first element is always copied to the output, so we need to skip it
@@ -1973,15 +1892,8 @@ struct __parallel_reduce_then_scan_scan_submitter<
             assert(__num_remaining > 0);
             __num_remaining -= 1;
         }
-
         std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
-
-        auto __stop_pos_payload = __stop_pos_payloads_tools<_Bounded>::template __create_storage_opt<__stop_pos_t>(__q);
-        __prior_event = __submit_stop_pos_init<__stop_pos_t>(__q, __stop_pos_payload, __prior_event);
-
-        const _OutSize __n_out = oneapi::dpl::__ranges::__size(__out_rng);
-
-        sycl::event __event = __q.submit([&, this](sycl::handler& __cgh) {
+        return __q.submit([&, this](sycl::handler& __cgh) {
             // We need __num_sub_groups_local + 1 temporary SLM locations to store intermediate results:
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
             //   1 element for the accumulated block-local carry-in from previous groups in the block
@@ -1993,7 +1905,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
             auto __res_acc =
                 __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
 
-            auto __stop_pos_acc = __get_stop_pos_accessor_opt(__cgh, __stop_pos_payload);
+            auto __stop_pos_acc = __get_stop_pos_accessor_opt<_Bounded>(__cgh, __stop_pos_payload);
 
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
@@ -2297,11 +2209,6 @@ struct __parallel_reduce_then_scan_scan_submitter<
                 __sub_group_carry.__destroy();
             });
         });
-
-        if constexpr (_Bounded)
-            return {std::move(__event), std::move(__stop_pos_payload)};
-        else
-            return {std::move(__event)};
     }
 
     const std::uint32_t __max_num_work_groups;
@@ -2401,10 +2308,6 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // between reading and writing the block carry-out within a single kernel.
     __combined_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2, 1};
 
-    using __stop_pos_t = __scan_stop_pos_t<_InRng>;
-    auto __stop_pos_payloads_container =
-        __stop_pos_payloads_tools<_Bounded>::template __create_container_opt<__stop_pos_t>(__num_blocks);
-
     // Reduce and scan step implementations
     using _ReduceSubmitter = __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive,
                                                                           __is_unique_pattern_v, _GenReduceInput,
@@ -2434,6 +2337,10 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                     __write_op,
                                     __init};
 
+    // Allocate storage for stop position payload if needed
+    using __stop_pos_t = __scan_stop_pos_t<_InRng>;
+    auto __stop_pos_payload = __stop_pos_payloads_tools::template __create_storage_opt<_Bounded, __stop_pos_t>(__q);
+
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
     // with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
@@ -2447,21 +2354,11 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
-                                           __inputs_remaining, __b);
+                                           __inputs_remaining, __b, __stop_pos_payload,
+                                           /*__need_init_stop_pos_payload*/ __b == 0, __stop_pos_t{});
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
-        auto&& __scan_res = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
-                                             __prior_event, __inputs_remaining, __b);
-        if constexpr (_Bounded)
-        {
-            auto [__event, __stop_pos_payload] = std::forward<decltype(__scan_res)>(__scan_res);
-            __prior_event = __event;
-            __stop_pos_payloads_container.push_back(std::move(__stop_pos_payload));
-        }
-        else
-        {
-            std::tie(__prior_event) = std::forward<decltype(__scan_res)>(__scan_res);
-        }
-
+        __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
+                                             __prior_event, __inputs_remaining, __b, __stop_pos_payload);
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
         {
@@ -2474,7 +2371,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     }
 
     if constexpr (_Bounded)
-        return {std::move(__prior_event), std::move(__result_and_scratch), std::move(__stop_pos_payloads_container)};
+        return {std::move(__prior_event), std::move(__result_and_scratch), std::move(__stop_pos_payload)};
     else
         return {std::move(__prior_event), std::move(__result_and_scratch)};
 }
