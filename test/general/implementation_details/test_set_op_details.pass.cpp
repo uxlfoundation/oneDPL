@@ -807,7 +807,7 @@ test_set_difference_construct_edge_cases()
         contOut.destroy_range(out);
     }
 
-    // The case: all items in the first container less then in the second one
+    // The case: all items in the first container less than in the second one
     {
         const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
         const Container cont2       = {                                 {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
