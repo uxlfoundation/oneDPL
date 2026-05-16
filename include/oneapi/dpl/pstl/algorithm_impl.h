@@ -4133,10 +4133,22 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     const _DifferenceType1 __m1 = __left_bound_seq_1 - __first1;
     if (__m1 > __set_algo_cut_off)
     {
+        const _DifferenceType __to_copy = _Bounded ? std::min<_DifferenceType>(__m1, __n_out) : __m1;
+
+        if constexpr (_Bounded)
+        {
+            if (__to_copy < __m1)
+            {
+                // Output exhausted within prefix: copy prefix only, tail set_op would have empty output
+                // and could incorrectly advance __in2 (e.g. for set_symmetric_difference equal pairs).
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __first1 + __to_copy, __result1,
+                                                  __copy_range);
+                return {__first1 + __to_copy, __first2, __result1 + __to_copy};
+            }
+        }
+
         oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             __finish;
-
-        const _DifferenceType __to_copy = _Bounded ? std::min<_DifferenceType>(__m1, __n_out) : __m1;
 
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
@@ -4151,10 +4163,6 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __comp, __proj1, __proj2, __size_func, __mask_size_func, __set_op);
             });
 
-        if constexpr (_Bounded)
-            if (__to_copy < __m1)
-                __finish.__in1 = __first1 + __to_copy;
-
         return __finish;
     }
 
@@ -4162,10 +4170,22 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     assert(__m1 == 0 || __m2 == 0);
     if (__m2 > __set_algo_cut_off)
     {
+        const _DifferenceType __to_copy = _Bounded ? std::min<_DifferenceType>(__m2, __n_out) : __m2;
+
+        if constexpr (_Bounded)
+        {
+            if (__to_copy < __m2)
+            {
+                // Output exhausted within prefix: copy prefix only, tail set_op would have empty output
+                // and could incorrectly advance __in1 (e.g. for set_symmetric_difference equal pairs).
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __first2 + __to_copy, __result1,
+                                                  __copy_range);
+                return {__first1, __first2 + __to_copy, __result1 + __to_copy};
+            }
+        }
+
         oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             __finish;
-
-        const _DifferenceType __to_copy = _Bounded ? std::min<_DifferenceType>(__m2, __n_out) : __m2;
 
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
@@ -4179,10 +4199,6 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result1 + __to_copy, __result2,
                     __comp, __proj1, __proj2, __size_func, __mask_size_func, __set_op);
             });
-
-        if constexpr (_Bounded)
-            if (__to_copy < __m2)
-                __finish.__in2 = __first2 + __to_copy;
 
         return __finish;
     }
