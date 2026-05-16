@@ -3809,15 +3809,15 @@ struct _ParallelSetOpScanPred
     __copy_data_to_result_buf_bounded(const _DataPart<_DifferenceType>& __data_part,
                                       _DifferenceType __result_remaining) const
     {
-        // Evaluate output range boundaries for current data chunk
-        const auto __result_from = __advance_clamped(__result_buf_pos_begin, __data_part.__pos, __result_buf_pos_end);
-
+        assert(__result_remaining > 0);
         assert(__result_remaining <= __data_part.__len);
 
+        // Evaluate output range boundaries for current data chunk
+        const auto __result_from = __result_buf_pos_begin + __data_part.__pos;
+
         // Evaluate pointers to current data chunk in temporary buffer
-        const auto __buf_pos_from = __advance_clamped(__buf_pos_begin, __data_part.__buf_pos, __buf_pos_end);
-        const auto __buf_pos_to =
-            __advance_clamped(__buf_pos_begin, __data_part.__buf_pos + __result_remaining, __buf_pos_end);
+        const auto __buf_pos_from = __buf_pos_begin + __data_part.__buf_pos;
+        const auto __buf_pos_to = __buf_pos_from + __result_remaining;
 
         // Copy results data into results range to have final output
         __brick_move_destroy<decltype(__tag)>{}(__buf_pos_from, __buf_pos_to, __result_from, _IsVector{});
