@@ -855,8 +855,8 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
 
         _Size __stop_out = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
 
-        auto __finish_pos = __stop_pos_payloads_tools::template __get_finish_pos<__stop_pos_t>(
-            std::get<2>(__res), std::tuple<_Size>(__n));
+        auto __finish_pos = __stop_pos_payloads_tools::template __get_finish_pos<__stop_pos_t>(std::get<2>(__res),
+                                                                                               std::tuple<_Size>(__n));
 
         __ret = {__stop_out, static_cast<_Size>(std::get<0>(__finish_pos))};
     }
@@ -981,8 +981,8 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
         _Size __stop_out = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
 
-        auto __finish_pos = __stop_pos_payloads_tools::template __get_finish_pos<__stop_pos_t>(
-            std::get<2>(__res), std::tuple<_Size>(__n));
+        auto __finish_pos = __stop_pos_payloads_tools::template __get_finish_pos<__stop_pos_t>(std::get<2>(__res),
+                                                                                               std::tuple<_Size>(__n));
 
         return {__stop_out, static_cast<_Size>(std::get<0>(__finish_pos))};
     }

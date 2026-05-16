@@ -2352,7 +2352,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                            /*__need_init_stop_pos_payload*/ __b == 0, __stop_pos_t{});
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
         __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
-                                             __prior_event, __inputs_remaining, __b, __stop_pos_payload);
+                                         __prior_event, __inputs_remaining, __b, __stop_pos_payload);
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
         {
