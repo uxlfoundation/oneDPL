@@ -3829,11 +3829,11 @@ struct _ParallelSetOpScanPred
     template <typename _RandomAccessIterator,
               typename Size = typename std::iterator_traits<_RandomAccessIterator>::difference_type>
     _RandomAccessIterator
-    __advance_clamped(_RandomAccessIterator it1, Size n, _RandomAccessIterator it2) const
+    __advance_clamped(_RandomAccessIterator __begin, Size n, _RandomAccessIterator __end) const
     {
-        assert(it1 <= it2);
-        using _CommonSize = std::common_type_t<decltype(it2 - it1), Size>;
-        return it1 + std::min<_CommonSize>(it2 - it1, n);
+        assert(__begin <= __end);
+        using _CommonSize = std::common_type_t<decltype(__end - __begin), Size>;
+        return __begin + std::min<_CommonSize>(__end - __begin, n);
     }
 };
 
