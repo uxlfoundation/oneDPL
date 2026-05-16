@@ -4340,7 +4340,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return __internal::__except_handler([&]() {
             return __internal::__parallel_set_op</*_Bounded*/ false>(
                        __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2,
-                       __result, __result + __n1 + __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
+                       __result, __result + std::min(__n1, __n2), __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
                        [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
                        [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
                        [](auto&&... __args) {
@@ -4359,7 +4359,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return __internal::__except_handler([&]() {
             return __internal::__parallel_set_op</*_Bounded*/ false>(
                        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2,
-                       __result, __result + __n1 + __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
+                       __result, __result + std::min(__n1, __n2), __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
                        [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
                        [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
                        [](auto&&... __args) {
