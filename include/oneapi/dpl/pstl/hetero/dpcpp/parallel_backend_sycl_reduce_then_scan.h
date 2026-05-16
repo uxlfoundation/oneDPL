@@ -1799,25 +1799,15 @@ struct __stop_pos_payloads_tools
         _StopPos __oob_pos = {};
         __stop_pos_payload.__copy_result(&__oob_pos, 1);
 
-        _StopPos __result = {};
-        __pos_operations::fetch_extremum_pos_local_elementwise(__result, __oob_pos, std::less<>{});
-
-        // We may need to handle cases where eFinalPos was never updated by the algorithm.
-        // If eOOBPos is not the sentinel value, it represents a valid stop position
-        // and is used as the final result.
-
-        // The example of this case - if we processing results of oneapi::dpl::ranges::copy_if algorithm,
-        // implemented through reduce-then-scan pattern. If all elements in the input range were filtered out,
-        // then no work-item will update eFinalPos (it will remain at the initialized value which is typically
-        // 0 or a tuple of 0s). However, the first OOB position (which is the size of the input range)
-        // will be written to eOOBPos by the work-item that processes this position.
-        // In this case, we want to return the size of the input range as the final stop position, not 0.
-        if (__result == _StopPos{} &&
-            __oob_pos != oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_StopPos>())
+        _StopPos __result{__src_sizes};
+        const auto __sentinel = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_StopPos>();
+        if (__oob_pos != __sentinel)
         {
-            __result = __oob_pos;
+            __pos_operations::fetch_extremum_pos_local_elementwise(__result, __oob_pos, std::less<>{});
         }
 
+        // If no out-of-bounds position was recorded, fall back to the full source size.
+        // Otherwise, clamp the finish position to the first recorded OOB position.
         return __result;
     }
 };
