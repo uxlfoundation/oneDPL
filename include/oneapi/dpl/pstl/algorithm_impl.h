@@ -3832,7 +3832,8 @@ struct _ParallelSetOpScanPred
     __advance_clamped(_RandomAccessIterator it1, Size n, _RandomAccessIterator it2) const
     {
         assert(it1 <= it2);
-        return it1 + std::min(it2 - it1, n);
+        using _CommonSize = std::common_type_t<decltype(it2 - it1), Size>;
+        return it1 + std::min<_CommonSize>(it2 - it1, n);
     }
 };
 
