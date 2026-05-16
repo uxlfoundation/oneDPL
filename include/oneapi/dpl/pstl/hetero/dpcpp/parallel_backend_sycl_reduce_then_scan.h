@@ -1575,7 +1575,7 @@ __get_stop_pos_accessor_opt(sycl::handler& __cgh, _StopPosPayload& __stop_pos_pa
 {
     if constexpr (_Bounded)
     {
-        // By using this sycl::read_write option we implements source data initialization under this accessor
+        // By using this sycl::read_write option we implement source data initialization under this accessor
         return __get_accessor(sycl::read_write, __stop_pos_payload, __cgh, __dpl_sycl::__no_init{});
     }
     else
