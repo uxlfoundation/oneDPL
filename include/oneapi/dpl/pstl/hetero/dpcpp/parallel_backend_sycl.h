@@ -826,7 +826,6 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     assert(__n_out > 0 && __n > 0);
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _Assign = oneapi::dpl::__internal::__pstl_assign;
-    using __stop_pos_t = __scan_stop_pos_t<_Range1>;
 
     std::array<_Size, 2> __ret;
     sycl::queue __q_local = __exec.queue();
@@ -854,9 +853,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
             _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
 
         _Size __stop_out = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
-
-        auto __finish_pos = __stop_pos_payloads_tools::template __get_finish_pos<__stop_pos_t>(std::get<2>(__res),
-                                                                                               std::tuple<_Size>(__n));
+        auto __finish_pos = __stop_pos_payloads_tools::__get_finish_pos(std::get<2>(__res), std::tuple<_Size>(__n));
 
         __ret = {__stop_out, static_cast<_Size>(std::get<0>(__finish_pos))};
     }
@@ -950,7 +947,6 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
                    _OutRng&& __out_rng, _Size __n, _Size __n_out, _Pred __pred, _Assign __assign = _Assign{})
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-    using __stop_pos_t = __scan_stop_pos_t<_InRng>;
 
     std::array<_Size, 2> __ret = {__n_out, __n};
     sycl::queue __q_local = __exec.queue();
@@ -980,9 +976,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{});
 
         _Size __stop_out = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
-
-        auto __finish_pos = __stop_pos_payloads_tools::template __get_finish_pos<__stop_pos_t>(std::get<2>(__res),
-                                                                                               std::tuple<_Size>(__n));
+        auto __finish_pos = __stop_pos_payloads_tools::__get_finish_pos(std::get<2>(__res), std::tuple<_Size>(__n));
 
         return {__stop_out, static_cast<_Size>(std::get<0>(__finish_pos))};
     }

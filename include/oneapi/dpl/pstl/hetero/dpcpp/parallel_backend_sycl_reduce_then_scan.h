@@ -1788,27 +1788,39 @@ struct __stop_pos_payloads_tools
             return std::monostate{};
     }
 
-    template <typename _TupleOfSizes, typename _TupleOfSrcSizes, typename _StopPosPayload>
+    template <typename _TupleOfSizes, typename _StopPosPayload>
     static _TupleOfSizes
-    __get_finish_pos(_StopPosPayload& __stop_pos_payload, _TupleOfSrcSizes __src_sizes)
+    __get_finish_pos(_StopPosPayload& __stop_pos_payload, _TupleOfSizes __src_sizes)
     {
-        using oneapi::dpl::__internal::__pos_operations;
+        _TupleOfSizes __result{__src_sizes};
 
         using _StopPos = typename _StopPosPayload::_ValueType;
+        const _StopPos __sentinel = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_StopPos>();
 
-        _StopPos __oob_pos = {};
+        constexpr std::size_t ___TupleOfSizesItems = std::tuple_size_v<_TupleOfSizes>;
+        constexpr std::size_t __StopPosItems = std::tuple_size_v<_StopPos>;
+        static_assert(___TupleOfSizesItems <= __StopPosItems);
+
+        _StopPos __oob_pos = __sentinel;
         __stop_pos_payload.__copy_result(&__oob_pos, 1);
 
-        _StopPos __result{__src_sizes};
-        const auto __sentinel = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_StopPos>();
-        if (__oob_pos != __sentinel)
-        {
-            __pos_operations::fetch_extremum_pos_local_elementwise(__result, __oob_pos, std::less<>{});
-        }
+        constexpr std::size_t __items_to_process = std::min(___TupleOfSizesItems, __StopPosItems);
+        __update_each_field<__items_to_process - 1>(__result, __oob_pos);
 
-        // If no out-of-bounds position was recorded, fall back to the full source size.
-        // Otherwise, clamp the finish position to the first recorded OOB position.
         return __result;
+    }
+
+  protected:
+
+    template <std::size_t __Index, typename _TupleOfSizes, typename _StopPos>
+    static void
+    __update_each_field(_TupleOfSizes& __result, const _StopPos& __oob_pos)
+    {
+        using _FieldType = std::tuple_element_t<__Index, _TupleOfSizes>;
+        std::get<__Index>(__result) = std::min<_FieldType>(std::get<__Index>(__result), std::get<__Index>(__oob_pos));
+
+        if constexpr (__Index > 0)
+            __update_each_field<__Index - 1>(__result, __oob_pos);
     }
 };
 

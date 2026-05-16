@@ -1266,37 +1266,6 @@ struct __tuple_upper_bound_sentinel
     }
 };
 
-struct __pos_operations
-{
-    template <typename _Tuple, typename _Compare>
-    static void
-    fetch_extremum_pos_local_elementwise(_Tuple& __extremum_pos, const _Tuple& __pos, _Compare __comp)
-    {
-        __for_each_pair_of_fields(__extremum_pos, __pos, [&](auto& __extremum_pos_field, const auto& __pos_field) {
-            __extremum_pos_field = __comp(__extremum_pos_field, __pos_field) ? __extremum_pos_field : __pos_field;
-        });
-    }
-
-  protected:
-    template <typename _Tuple, typename _F>
-    static void
-    __for_each_field(_Tuple& __tuple, _F&& __f)
-    {
-        std::apply([&](auto&... __fields) { (..., __f(__fields)); }, __tuple);
-    }
-
-    template <typename _Tuple1, typename _Tuple2, typename _F>
-    static void
-    __for_each_pair_of_fields(_Tuple1& __tuple1, const _Tuple2& __tuple2, _F&& __f)
-    {
-        std::apply(
-            [&](auto&... __fields1) {
-                std::apply([&](const auto&... __fields2) { (..., __f(__fields1, __fields2)); }, __tuple2);
-            },
-            __tuple1);
-    }
-};
-
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
