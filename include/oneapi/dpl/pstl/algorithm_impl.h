@@ -3511,8 +3511,9 @@ struct _SetOpReachedPosEvaluator
             const std::pair<_DifferenceType1, _DifferenceType2> __input_reached_positions =
                 __eval_reached_input_positions();
 
-            __res_data_opt.emplace(__input_reached_positions.first, __input_reached_positions.second,
-                                   std::min(__apex_total_data_part.__pos + __apex_total_data_part.__len, __n_out));
+            __res_data_opt.emplace(
+                __input_reached_positions.first, __input_reached_positions.second,
+                std::min<_DifferenceTypeOut>(__apex_total_data_part.__pos + __apex_total_data_part.__len, __n_out));
         }
 
         return __res_data_opt.value();
