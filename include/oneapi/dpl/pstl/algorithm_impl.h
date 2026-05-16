@@ -3721,7 +3721,7 @@ template <bool _Bounded, class _IsVector, typename _ProcessingDataPointer, typen
 struct _ParallelSetOpScanPred
 {
     __parallel_tag<_IsVector> __tag;
-    _ProcessingDataPointer __buf_pos_begin, __buf_pos_end;         // Temporary data buffer (windowed)
+    _ProcessingDataPointer __buf_pos_begin, __buf_pos_end;        // Temporary data buffer (windowed)
     _OutputIterator __result_buf_pos_begin, __result_buf_pos_end; // Result data buffer
     _SetOpReachedPosEvaluator& __source_final_pos_evaluator; // Evaluator of the final position in the source ranges
 
@@ -3739,14 +3739,17 @@ struct _ParallelSetOpScanPred
         else
         {
             // Copy source data (bounded)
-            _ProcessingDataPointer __buf_pos_start_of_not_copied = __buf_pos_begin;
+            const auto __chunk_buf_pos_begin = __buf_pos_begin + __data_part.__buf_pos;
+            const auto __chunk_buf_pos_end = __buf_pos_begin + __data_part.__buf_pos + __data_part.__len;
+
+            _ProcessingDataPointer __buf_pos_start_of_not_copied = __chunk_buf_pos_begin;
             const auto __remaining_data_size = __eval_remaining_data_size(__data_part);
             if (__remaining_data_size > 0)
                 __buf_pos_start_of_not_copied = __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
 
             // Destroy not copied data
             if (__remaining_data_size < __data_part.__len)
-                __brick_destroy(__buf_pos_start_of_not_copied, __buf_pos_end, _IsVector{});
+                __brick_destroy(__buf_pos_start_of_not_copied, __chunk_buf_pos_end, _IsVector{});
 
             const _DifferenceType __n_out = __result_buf_pos_end - __result_buf_pos_begin;
 
