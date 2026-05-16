@@ -423,7 +423,7 @@ private:
 
         if constexpr (check_in_out_result<decltype(expected_res)>)
         {
-            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 0>())
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 1>())
             {
                 EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
                           (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
