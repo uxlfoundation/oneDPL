@@ -22,7 +22,6 @@
 #if _ONEDPL_BACKEND_SYCL
 #    include "dpcpp/utils_ranges_sycl.h"
 #    include "dpcpp/unseq_backend_sycl.h"
-#    include "dpcpp/parallel_backend_sycl_utils.h"
 #endif
 
 #include "../utils_ranges.h"
