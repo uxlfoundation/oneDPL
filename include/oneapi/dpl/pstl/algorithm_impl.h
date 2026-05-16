@@ -3439,10 +3439,10 @@ struct _ParallelSetOpCombinePred
     template <bool _Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
               typename _DifferenceTypeOut>
     _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, _DifferenceTypeMask>
-    operator()(const _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
-                                   _DifferenceTypeMask>& __a,
-               const _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
-                                   _DifferenceTypeMask>& __b) const
+    operator()(
+        const _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, _DifferenceTypeMask>& __a,
+        const _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, _DifferenceTypeMask>& __b)
+        const
     {
         return _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
                              _DifferenceTypeMask>::combine_with(__a, __b);
@@ -3485,7 +3485,8 @@ struct _SetOpReachedPosEvaluator
     {
         assert(__offset_from_n_out < 2);
 
-        __output_size_reached_info_opt[__offset_from_n_out] = _OutputSizeReachedInfo{__data_part, __source_data_offsets};
+        __output_size_reached_info_opt[__offset_from_n_out] =
+            _OutputSizeReachedInfo{__data_part, __source_data_offsets};
 
         // Reset reached positions in the output and input ranges due to they will be evaluated based on the information about output size reached point
         __res_data_opt.reset();
@@ -4026,8 +4027,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
 template <bool _Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
-          class _RandomAccessIterator2, class _OutputIterator, class _Compare, class _Proj1, class _Proj2,
-          class _SetOp>
+          class _RandomAccessIterator2, class _OutputIterator, class _Compare, class _Proj1, class _Proj2, class _SetOp>
 oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                         _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
@@ -4081,7 +4081,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
         _RandomAccessIterator2 __last2_tmp =
             !_Bounded ? __last2
-                       : __first2 + std::min<_DifferenceType>(__n2, __n_out > __n1_tmp ? __n_out - __n1_tmp : 0);
+                      : __first2 + std::min<_DifferenceType>(__n2, __n_out > __n1_tmp ? __n_out - __n1_tmp : 0);
         const _DifferenceType2 __n2_tmp = __last2_tmp - __first2;
 
         //{1} < {2}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
@@ -4110,7 +4110,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
         _RandomAccessIterator1 __last1_tmp =
             !_Bounded ? __last1
-                       : __first1 + std::min<_DifferenceType>(__n1, __n_out > __n2_tmp ? __n_out - __n2_tmp : 0);
+                      : __first1 + std::min<_DifferenceType>(__n1, __n_out > __n2_tmp ? __n_out - __n2_tmp : 0);
         const _DifferenceType1 __n1_tmp = __last1_tmp - __first1;
 
         //{2} < {1}: seq1 is wholly greater than seq2, so, do parallel copying seq2 and seq1
@@ -4204,8 +4204,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     }
 
     return __internal::__parallel_set_op<_Bounded>(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                    __first2, __last2, __result1, __result2, __comp, __proj1, __proj2,
-                                                    __size_func, __mask_size_func, __set_op);
+                                                   __first2, __last2, __result1, __result2, __comp, __proj1, __proj2,
+                                                   __size_func, __mask_size_func, __set_op);
 }
 
 //------------------------------------------------------------------------
@@ -4356,7 +4356,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return __internal::__except_handler([&]() {
             return __internal::__parallel_set_op</*_Bounded*/ false>(
                        __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2,
-                       __result, __result + std::min(__n1, __n2), __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
+                       __result, __result + std::min(__n1, __n2), __comp, oneapi::dpl::identity{},
+                       oneapi::dpl::identity{},
                        [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
                        [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
                        [](auto&&... __args) {
@@ -4375,7 +4376,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return __internal::__except_handler([&]() {
             return __internal::__parallel_set_op</*_Bounded*/ false>(
                        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2,
-                       __result, __result + std::min(__n1, __n2), __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
+                       __result, __result + std::min(__n1, __n2), __comp, oneapi::dpl::identity{},
+                       oneapi::dpl::identity{},
                        [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
                        [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
                        [](auto&&... __args) {
