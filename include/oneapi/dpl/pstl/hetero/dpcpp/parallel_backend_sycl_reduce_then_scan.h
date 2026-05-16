@@ -1811,7 +1811,6 @@ struct __stop_pos_payloads_tools
     }
 
   protected:
-
     template <std::size_t __Index, typename _TupleOfSizes, typename _StopPos>
     static void
     __update_each_field(_TupleOfSizes& __result, const _StopPos& __oob_pos)
