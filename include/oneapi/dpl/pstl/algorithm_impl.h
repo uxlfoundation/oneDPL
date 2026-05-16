@@ -4452,7 +4452,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     {
         return __parallel_set_op</*_Bounded*/ false>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
-                   __result + __n1 + __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
+                   __result + __n1, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
                    [](_DifferenceType __n, _DifferenceType) { return __n; },
                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
                    [](auto&&... __args) {
