@@ -3520,16 +3520,6 @@ struct _SetOpReachedPosEvaluator
     }
 
   protected:
-    struct _NoopConstruct
-    {
-        template <typename _ForwardIterator>
-        std::nullptr_t
-        operator()(_ForwardIterator, _ForwardIterator, std::nullptr_t)
-        {
-            return nullptr;
-        }
-    };
-
     template <typename _DifferenceTypeArg>
     _DifferenceTypeArg
     __eval_reached_pos(oneapi::dpl::__utils::__parallel_set_op_mask* __mask_buffer_begin,
