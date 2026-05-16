@@ -239,7 +239,7 @@ __simd_assign(_InputIterator __first, _DifferenceType __n, _OutputIterator __res
     return __result + __n;
 }
 
-template <bool __Bounded, class _InIterator, class _DifferenceType, class _OutIterator, class _IndexPredicate>
+template <bool _Bounded, class _InIterator, class _DifferenceType, class _OutIterator, class _IndexPredicate>
 std::pair<_DifferenceType, _DifferenceType>
 __simd_selective_copy(_InIterator __first, _DifferenceType __n, _OutIterator __result, _DifferenceType __n_out,
                       _IndexPredicate __pred) noexcept
@@ -260,7 +260,7 @@ __simd_selective_copy(_InIterator __first, _DifferenceType __n, _OutIterator __r
         _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__write_pos)
         if (__suitable)
         {
-            if constexpr (__Bounded)
+            if constexpr (_Bounded)
             {
                 if (__write_pos < __n_out)
                     __result[__write_pos] = __first[__i];
@@ -290,7 +290,7 @@ __simd_compute_mask(_Iterator __first, _DifferenceType __n, _IndexPredicate __pr
     return __count;
 }
 
-template <bool __Bounded, class _InputIterator, class _DifferenceType, class _OutputIterator, class _Assigner>
+template <bool _Bounded, class _InputIterator, class _DifferenceType, class _OutputIterator, class _Assigner>
 _DifferenceType
 __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _DifferenceType __n_out,
                     bool* __mask, _Assigner __assign) noexcept
@@ -308,7 +308,7 @@ __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator
         _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__write_pos)
         if (__mask[__i])
         {
-            if constexpr (__Bounded)
+            if constexpr (_Bounded)
             {
                 if (__write_pos < __n_out)
                     __assign(__first + __i, __result + __write_pos);

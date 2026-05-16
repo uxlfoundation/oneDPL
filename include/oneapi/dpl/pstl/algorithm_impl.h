@@ -1202,7 +1202,7 @@ __brick_compute_mask(_RandomAccessIterator __first, _DifferenceType __len, _Inde
     return std::make_pair(__count_true, __len - __count_true);
 }
 
-template <bool __Bounded, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
+template <bool _Bounded, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
 _Bound
 __brick_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAccessIterator2 __result, _Bound __out_len,
                      bool* __mask, _Assigner __assigner, /*vector=*/std::false_type) noexcept
@@ -1212,7 +1212,7 @@ __brick_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAcc
     {
         if (__mask[__i])
         {
-            if constexpr (__Bounded)
+            if constexpr (_Bounded)
                 if (__j == __out_len)
                     break;
             __assigner(__first + __i, __result + __j);
@@ -1222,12 +1222,12 @@ __brick_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAcc
     return __i;
 }
 
-template <bool __Bounded, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
+template <bool _Bounded, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
 _Bound
 __brick_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAccessIterator2 __result, _Bound __out_len,
                      bool* __mask, _Assigner __assigner, /*vector=*/std::true_type) noexcept
 {
-    return __unseq_backend::__simd_copy_by_mask<__Bounded>(__first, __in_len, __result, __out_len, __mask, __assigner);
+    return __unseq_backend::__simd_copy_by_mask<_Bounded>(__first, __in_len, __result, __out_len, __mask, __assigner);
 }
 
 template <class _ForwardIterator, class _OutputIterator1, class _OutputIterator2>
@@ -3377,7 +3377,7 @@ struct _SrcProcessedDataAmount
 };
 
 // Describes a data window in the temporary buffer and corresponding positions in the output range
-template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut,
+template <bool _Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut,
           typename _DifferenceTypeMask>
 struct _SetRangeImpl
 {
@@ -3388,7 +3388,7 @@ struct _SetRangeImpl
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
     using _DataStorage = std::conditional_t<
-        !__Bounded, _DataPart<_DifferenceType>,
+        !_Bounded, _DataPart<_DifferenceType>,
         std::tuple<_DataPart<_DifferenceType>, _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>,
                    _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>>>;
 
@@ -3397,7 +3397,7 @@ struct _SetRangeImpl
     const _DataPart<_DifferenceType>&
     get_data_part() const
     {
-        if constexpr (!__Bounded)
+        if constexpr (!_Bounded)
             return __data;
         else
             return std::get<_DataIndex>(__data);
@@ -3406,14 +3406,14 @@ struct _SetRangeImpl
     const _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>&
     get_src_offsets_part() const
     {
-        static_assert(__Bounded, "Source data offsets part is available only for bounded set operations");
+        static_assert(_Bounded, "Source data offsets part is available only for bounded set operations");
         return std::get<_SrcOffsetsIndex>(__data);
     }
 
     const _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>&
     get_src_processed_data_amount_part() const
     {
-        static_assert(__Bounded, "Source data processed amount part is available only for bounded set operations");
+        static_assert(_Bounded, "Source data processed amount part is available only for bounded set operations");
         return std::get<_SrcProcessedDataIndex>(__data);
     }
 
@@ -3422,7 +3422,7 @@ struct _SetRangeImpl
     {
         auto __new_data_part = _DataPart<_DifferenceType>::combine_with(__a.get_data_part(), __b.get_data_part());
 
-        if constexpr (!__Bounded)
+        if constexpr (!_Bounded)
         {
             return _SetRangeImpl{__new_data_part};
         }
@@ -3442,15 +3442,15 @@ struct _SetRangeImpl
 
 struct _ParallelSetOpCombinePred
 {
-    template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
+    template <bool _Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
               typename _DifferenceTypeOut>
-    _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, _DifferenceTypeMask>
-    operator()(const _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
+    _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, _DifferenceTypeMask>
+    operator()(const _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
                                    _DifferenceTypeMask>& __a,
-               const _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
+               const _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
                                    _DifferenceTypeMask>& __b) const
     {
-        return _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
+        return _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
                              _DifferenceTypeMask>::combine_with(__a, __b);
     }
 };
@@ -3460,8 +3460,8 @@ using __parallel_set_op_return_t =
     oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename __SetOp,
-          class _SizeFunction, class _MaskSizeFunction, typename _SetRange, bool __Bounded>
+          class _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _SetOp,
+          class _SizeFunction, class _MaskSizeFunction, typename _SetRange, bool _Bounded>
 struct _SetOpReachedPosEvaluator
 {
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
@@ -3476,7 +3476,7 @@ struct _SetOpReachedPosEvaluator
                               _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
                               _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                               _OutputIterator __result1, _OutputIterator __result2, _Compare __comp, _Proj1 __proj1,
-                              _Proj2 __proj2, __SetOp __set_op, _SizeFunction __size_func,
+                              _Proj2 __proj2, _SetOp __set_op, _SizeFunction __size_func,
                               _MaskSizeFunction __mask_size_func)
         : __tag(__tag), __exec(__exec), __first1(__first1), __last1(__last1), __first2(__first2), __last2(__last2),
           __result1(__result1), __result2(__result2), __comp(__comp), __proj1(__proj1), __proj2(__proj2),
@@ -3491,7 +3491,7 @@ struct _SetOpReachedPosEvaluator
     {
         assert(__offset_from_n_out < 2);
 
-        __output_size_reached_info_opt[__offset_from_n_out] = OutputSizeReachedInfo{__data_part, __source_data_offsets};
+        __output_size_reached_info_opt[__offset_from_n_out] = _OutputSizeReachedInfo{__data_part, __source_data_offsets};
 
         // Reset reached positions in the output and input ranges due to they will be evaluated based on the information about output size reached point
         __res_data_opt.reset();
@@ -3617,7 +3617,7 @@ struct _SetOpReachedPosEvaluator
     std::pair<_DifferenceType1, _DifferenceType2>
     __eval_reached_input_positions() const
     {
-        if constexpr (!__Bounded)
+        if constexpr (!_Bounded)
         {
             // In not bounded set operation we don't have real output size reached point,
             // so just return the amounts of processed data in input ranges which are equal to input ranges sizes
@@ -3655,27 +3655,27 @@ struct _SetOpReachedPosEvaluator
             // Process data based on buffer with mask
 
             assert(__output_size_reached_info_opt[0].has_value());
-            const OutputSizeReachedInfo& __ri_n0 = __output_size_reached_info_opt[0].value();
+            const _OutputSizeReachedInfo& __ri_n0 = __output_size_reached_info_opt[0].value();
 
             using __backend_tag = typename decltype(__tag)::__backend_tag;
 
             // Calculate reached positions based on mask buffer
-            _DifferenceType1 __res_reachedPos1 = {};
-            _DifferenceType2 __res_reachedPos2 = {};
+            _DifferenceType1 __res_reached_pos1 = {};
+            _DifferenceType2 __res_reached_pos2 = {};
             __par_backend::__parallel_invoke(
                 __backend_tag{}, __exec,
                 [&]() {
-                    __res_reachedPos1 = __eval_reached_pos(
+                    __res_reached_pos1 = __eval_reached_pos(
                         __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::data1,
                         __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in1.__offset);
                 },
                 [&]() {
-                    __res_reachedPos2 = __eval_reached_pos(
+                    __res_reached_pos2 = __eval_reached_pos(
                         __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::data2,
                         __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in2.__offset);
                 });
 
-            return {__res_reachedPos1, __res_reachedPos2};
+            return {__res_reached_pos1, __res_reached_pos2};
         }
     }
 
@@ -3708,7 +3708,7 @@ struct _SetOpReachedPosEvaluator
     _Compare __comp;
     _Proj1 __proj1;
     _Proj2 __proj2;
-    __SetOp __set_op;
+    _SetOp __set_op;
     _SizeFunction __size_func;
     _MaskSizeFunction __mask_size_func;
 
@@ -3716,7 +3716,7 @@ struct _SetOpReachedPosEvaluator
 
     _SetRange __apex_total;
 
-    struct OutputSizeReachedInfo
+    struct _OutputSizeReachedInfo
     {
         _DataPart<_DifferenceType> __data_part;
         _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __src_offsets_part;
@@ -3725,18 +3725,18 @@ struct _SetOpReachedPosEvaluator
     // Information about two data parts which can generate output data when output size will be reached:
     // - element 0: the part which reached output size (__n)
     // - element 1: the part which reached output size (__n + 1)
-    std::optional<OutputSizeReachedInfo> __output_size_reached_info_opt[2];
+    std::optional<_OutputSizeReachedInfo> __output_size_reached_info_opt[2];
 
     // Reached positions in the input and output ranges
     std::optional<_SetOpReachedPosEvaluatorData> __res_data_opt;
 };
 
-template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typename _SetRange, typename _OutputIterator,
+template <bool _Bounded, class _IsVector, typename _ProcessingDataPointer, typename _SetRange, typename _OutputIterator,
           typename _SetOpReachedPosEvaluator>
 struct _ParallelSetOpScanPred
 {
     __parallel_tag<_IsVector> __tag;
-    ProcessingDataPointer __buf_pos_begin, __buf_pos_end;         // Temporary data buffer (windowed)
+    _ProcessingDataPointer __buf_pos_begin, __buf_pos_end;         // Temporary data buffer (windowed)
     _OutputIterator __result_buf_pos_begin, __result_buf_pos_end; // Result data buffer
     _SetOpReachedPosEvaluator& __source_final_pos_evaluator; // Evaluator of the final position in the source ranges
 
@@ -3746,7 +3746,7 @@ struct _ParallelSetOpScanPred
     {
         const _DataPart<_DifferenceType>& __data_part = __s.get_data_part();
 
-        if constexpr (!__Bounded)
+        if constexpr (!_Bounded)
         {
             // 1. Copy source data (unbounded)
             __copy_data_to_result_buf(__data_part);
@@ -3754,7 +3754,7 @@ struct _ParallelSetOpScanPred
         else
         {
             // Copy source data (bounded)
-            ProcessingDataPointer __buf_pos_start_of_not_copied = __buf_pos_begin;
+            _ProcessingDataPointer __buf_pos_start_of_not_copied = __buf_pos_begin;
             const auto __remaining_data_size = __eval_remaining_data_size(__data_part);
             if (__remaining_data_size > 0)
                 __buf_pos_start_of_not_copied = __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
@@ -3805,7 +3805,7 @@ struct _ParallelSetOpScanPred
     }
 
     template <typename _DifferenceType>
-    ProcessingDataPointer
+    _ProcessingDataPointer
     __copy_data_to_result_buf_bounded(const _DataPart<_DifferenceType>& __data_part,
                                       _DifferenceType __result_remaining) const
     {
@@ -3829,23 +3829,23 @@ struct _ParallelSetOpScanPred
     template <typename _RandomAccessIterator,
               typename Size = typename std::iterator_traits<_RandomAccessIterator>::difference_type>
     _RandomAccessIterator
-    __advance_clamped(_RandomAccessIterator __begin, Size n, _RandomAccessIterator __end) const
+    __advance_clamped(_RandomAccessIterator __begin, Size __n, _RandomAccessIterator __end) const
     {
         assert(__begin <= __end);
         using _CommonSize = std::common_type_t<decltype(__end - __begin), Size>;
-        return __begin + std::min<_CommonSize>(__end - __begin, n);
+        return __begin + std::min<_CommonSize>(__end - __begin, __n);
     }
 };
 
-template <bool __Bounded, typename _SetRange, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
-          typename _OutputIterator, typename _SizeFunction, typename __SetOp, typename _Compare, typename _Proj1,
+template <bool _Bounded, typename _SetRange, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
+          typename _OutputIterator, typename _SizeFunction, typename _SetOp, typename _Compare, typename _Proj1,
           typename _Proj2, typename _T>
 struct _ParallelSetOpStrictReducePred
 {
     _RandomAccessIterator1 __first1, __last1;
     _RandomAccessIterator2 __first2, __last2;
     _SizeFunction __size_func;
-    __SetOp __set_op;
+    _SetOp __set_op;
 
     _Compare __comp;
     _Proj1 __proj1;
@@ -3887,7 +3887,7 @@ struct _ParallelSetOpStrictReducePred
 
             _DataPart<_DifferenceType> __new_processing_data{0, 0, __buf_pos};
 
-            if constexpr (!__Bounded)
+            if constexpr (!_Bounded)
             {
                 return _SetRange{__new_processing_data};
             }
@@ -3926,7 +3926,7 @@ struct _ParallelSetOpStrictReducePred
         // Prepare processed data info
         const _DataPart<_DifferenceType> __new_processing_data{0, __output_reached - __buffer_b, __buf_pos};
 
-        if constexpr (!__Bounded)
+        if constexpr (!_Bounded)
         {
             return _SetRange{__new_processing_data};
         }
@@ -3948,11 +3948,11 @@ struct _ParallelSetOpStrictReducePred
     }
 };
 
-template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typename _SetRange, typename _OutputIterator,
+template <bool _Bounded, class _IsVector, typename _ProcessingDataPointer, typename _SetRange, typename _OutputIterator,
           typename _DifferenceType, typename _SetOpReachedPosEvaluator>
 struct _ParallelSetOpApexPred
 {
-    _ParallelSetOpScanPred<__Bounded, _IsVector, ProcessingDataPointer, _SetRange, _OutputIterator,
+    _ParallelSetOpScanPred<_Bounded, _IsVector, _ProcessingDataPointer, _SetRange, _OutputIterator,
                            _SetOpReachedPosEvaluator>& __scan_pred;
 
     void
@@ -3965,14 +3965,14 @@ struct _ParallelSetOpApexPred
     }
 };
 
-template <bool __Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
+template <bool _Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
           class _RandomAccessIterator2, class _OutputIterator, class _Compare, class _Proj1, class _Proj2,
-          class _SizeFunction, class _MaskSizeFunction, class __SetOp>
+          class _SizeFunction, class _MaskSizeFunction, class _SetOp>
 __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                   _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                   _OutputIterator __result1, _OutputIterator __result2, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
-                  _SizeFunction __size_func, _MaskSizeFunction __mask_size_func, __SetOp __set_op)
+                  _SizeFunction __size_func, _MaskSizeFunction __mask_size_func, _SetOp __set_op)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -3992,7 +3992,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         typename std::iterator_traits<oneapi::dpl::__utils::__parallel_set_op_mask*>::difference_type;
 
     using _SetRange =
-        _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __mask_difference_type_t>;
+        _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __mask_difference_type_t>;
 
     return __internal::__except_handler([__tag, &__exec, __n1, __first1, __last1, __first2, __last2, __result1,
                                          __result2, __comp, __proj1, __proj2, __size_func, __mask_size_func, __set_op,
@@ -4002,25 +4002,25 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         _T* __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
         _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
-                                  _OutputIterator, _Compare, _Proj1, _Proj2, __SetOp, _SizeFunction, _MaskSizeFunction,
-                                  _SetRange, __Bounded>
+                                  _OutputIterator, _Compare, _Proj1, _Proj2, _SetOp, _SizeFunction, _MaskSizeFunction,
+                                  _SetRange, _Bounded>
             __source_final_pos_evaluator(__tag, __exec, __first1, __last1, __first2, __last2, __result1, __result2,
                                          __comp, __proj1, __proj2, __set_op, __size_func, __mask_size_func);
 
         // Scan predicate
-        _ParallelSetOpScanPred<__Bounded, _IsVector, _T*, _SetRange, _OutputIterator,
+        _ParallelSetOpScanPred<_Bounded, _IsVector, _T*, _SetRange, _OutputIterator,
                                decltype(__source_final_pos_evaluator)>
             __scan_pred{__tag,     __buf_raw_data_begin,        __buf_raw_data_end, __result1,
                         __result2, __source_final_pos_evaluator};
 
-        _ParallelSetOpStrictReducePred<__Bounded, _SetRange, _RandomAccessIterator1, _RandomAccessIterator2,
-                                       _OutputIterator, _SizeFunction, __SetOp, _Compare, _Proj1, _Proj2, _T>
+        _ParallelSetOpStrictReducePred<_Bounded, _SetRange, _RandomAccessIterator1, _RandomAccessIterator2,
+                                       _OutputIterator, _SizeFunction, _SetOp, _Compare, _Proj1, _Proj2, _T>
             __reduce_pred{__first1, __last1, __first2, __last2, __size_func,
                           __set_op, __comp,  __proj1,  __proj2, __buf_raw_data_begin};
 
         _ParallelSetOpCombinePred __combine_pred;
 
-        _ParallelSetOpApexPred<__Bounded, _IsVector, _T*, _SetRange, _OutputIterator, _DifferenceType1,
+        _ParallelSetOpApexPred<_Bounded, _IsVector, _T*, _SetRange, _OutputIterator, _DifferenceType1,
                                decltype(__source_final_pos_evaluator)>
             __apex_pred{__scan_pred};
 
@@ -4028,23 +4028,23 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                                               __scan_pred, __apex_pred);
 
         // Get evaluated reached positions for the source ranges and output range
-        const auto [__res_reachedPos1, __res_reachedPos2, __res_reachedPosOut] =
+        const auto [__res_reached_pos1, __res_reached_pos2, __res_reached_posOut] =
             __source_final_pos_evaluator.__get_reached_positions();
 
         return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
-            __first1 + __res_reachedPos1, __first2 + __res_reachedPos2, __result1 + __res_reachedPosOut};
+            __first1 + __res_reached_pos1, __first2 + __res_reached_pos2, __result1 + __res_reached_posOut};
     });
 }
 
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
-template <bool __Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
+template <bool _Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
           class _RandomAccessIterator2, class _OutputIterator, class _Compare, class _Proj1, class _Proj2,
-          class __SetOp>
+          class _SetOp>
 oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                         _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                         _OutputIterator __result1, _OutputIterator __result2, _Compare __comp, _Proj1 __proj1,
-                        _Proj2 __proj2, __SetOp __set_op)
+                        _Proj2 __proj2, _SetOp __set_op)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -4062,7 +4062,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     // {1} {}: parallel copying just first sequence
     if (__n2 == 0)
     {
-        _RandomAccessIterator1 __last1_tmp = !__Bounded ? __last1 : __first1 + std::min<_DifferenceType>(__n1, __n_out);
+        _RandomAccessIterator1 __last1_tmp = !_Bounded ? __last1 : __first1 + std::min<_DifferenceType>(__n1, __n_out);
 
         _OutputIterator __result_finish = __internal::__pattern_walk2_brick(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1_tmp, __result1, __copy_range);
@@ -4073,7 +4073,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     // {} {2}: parallel copying just second sequence
     if (__n1 == 0)
     {
-        _RandomAccessIterator2 __last2_tmp = !__Bounded ? __last2 : __first2 + std::min<_DifferenceType>(__n2, __n_out);
+        _RandomAccessIterator2 __last2_tmp = !_Bounded ? __last2 : __first2 + std::min<_DifferenceType>(__n2, __n_out);
 
         _OutputIterator __result_finish = __internal::__pattern_walk2_brick(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2_tmp, __result1, __copy_range);
@@ -4088,11 +4088,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     if (__left_bound_seq_1 == __last1)
     {
-        _RandomAccessIterator1 __last1_tmp = !__Bounded ? __last1 : __first1 + std::min<_DifferenceType>(__n1, __n_out);
+        _RandomAccessIterator1 __last1_tmp = !_Bounded ? __last1 : __first1 + std::min<_DifferenceType>(__n1, __n_out);
         const _DifferenceType1 __n1_tmp = __last1_tmp - __first1;
 
         _RandomAccessIterator2 __last2_tmp =
-            !__Bounded ? __last2
+            !_Bounded ? __last2
                        : __first2 + std::min<_DifferenceType>(__n2, __n_out > __n1_tmp ? __n_out - __n1_tmp : 0);
         const _DifferenceType2 __n2_tmp = __last2_tmp - __first2;
 
@@ -4117,11 +4117,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     if (__left_bound_seq_2 == __last2)
     {
-        _RandomAccessIterator2 __last2_tmp = !__Bounded ? __last2 : __first2 + std::min<_DifferenceType>(__n2, __n_out);
+        _RandomAccessIterator2 __last2_tmp = !_Bounded ? __last2 : __first2 + std::min<_DifferenceType>(__n2, __n_out);
         const _DifferenceType2 __n2_tmp = __last2_tmp - __first2;
 
         _RandomAccessIterator1 __last1_tmp =
-            !__Bounded ? __last1
+            !_Bounded ? __last1
                        : __first1 + std::min<_DifferenceType>(__n1, __n_out > __n2_tmp ? __n_out - __n2_tmp : 0);
         const _DifferenceType1 __n1_tmp = __last1_tmp - __first1;
 
@@ -4139,8 +4139,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         return {__last1_tmp, __last2_tmp, __result1 + __n1_tmp + __n2_tmp};
     }
 
-    auto __size_fnc = [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; };
-    auto __mask_size_fnc = __size_fnc;
+    auto __size_func = [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; };
+    auto __mask_size_func = __size_func;
 
     const _DifferenceType1 __m1 = __left_bound_seq_1 - __first1;
     if (__m1 > __set_algo_cut_off)
@@ -4148,7 +4148,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             __finish;
 
-        const _DifferenceType __to_copy = __Bounded ? std::min<_DifferenceType>(__m1, __n_out) : __m1;
+        const _DifferenceType __to_copy = _Bounded ? std::min<_DifferenceType>(__m1, __n_out) : __m1;
 
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
@@ -4158,12 +4158,12 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                                                   __copy_range);
             },
             [=, &__exec, &__finish] {
-                __finish = __internal::__parallel_set_op<__Bounded>(
+                __finish = __internal::__parallel_set_op<_Bounded>(
                     __tag, __exec, __left_bound_seq_1, __last1, __first2, __last2, __result1 + __to_copy, __result2,
-                    __comp, __proj1, __proj2, __size_fnc, __mask_size_fnc, __set_op);
+                    __comp, __proj1, __proj2, __size_func, __mask_size_func, __set_op);
             });
 
-        if constexpr (__Bounded)
+        if constexpr (_Bounded)
             if (__to_copy < __m1)
                 __finish.__in1 = __first1 + __to_copy;
 
@@ -4177,7 +4177,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             __finish;
 
-        const _DifferenceType __to_copy = __Bounded ? std::min<_DifferenceType>(__m2, __n_out) : __m2;
+        const _DifferenceType __to_copy = _Bounded ? std::min<_DifferenceType>(__m2, __n_out) : __m2;
 
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
@@ -4187,21 +4187,21 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                                                   __copy_range);
             },
             [=, &__exec, &__finish] {
-                __finish = __internal::__parallel_set_op<__Bounded>(
+                __finish = __internal::__parallel_set_op<_Bounded>(
                     __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result1 + __to_copy, __result2,
-                    __comp, __proj1, __proj2, __size_fnc, __mask_size_fnc, __set_op);
+                    __comp, __proj1, __proj2, __size_func, __mask_size_func, __set_op);
             });
 
-        if constexpr (__Bounded)
+        if constexpr (_Bounded)
             if (__to_copy < __m2)
                 __finish.__in2 = __first2 + __to_copy;
 
         return __finish;
     }
 
-    return __internal::__parallel_set_op<__Bounded>(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+    return __internal::__parallel_set_op<_Bounded>(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                     __first2, __last2, __result1, __result2, __comp, __proj1, __proj2,
-                                                    __size_fnc, __mask_size_fnc, __set_op);
+                                                    __size_func, __mask_size_func, __set_op);
 }
 
 //------------------------------------------------------------------------
@@ -4268,7 +4268,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     if (__n1 + __n2 <= __set_algo_cut_off)
         return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
-    return __parallel_set_union_op</*__Bounded*/ false>(
+    return __parallel_set_union_op</*_Bounded*/ false>(
                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
                __result + __n1 + __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
                [](auto&&... __args) {
@@ -4350,7 +4350,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_set_op</*__Bounded*/ false>(
+            return __internal::__parallel_set_op</*_Bounded*/ false>(
                        __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2,
                        __result, __result + __n1 + __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
                        [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
@@ -4369,7 +4369,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_set_op</*__Bounded*/ false>(
+            return __internal::__parallel_set_op</*_Bounded*/ false>(
                        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2,
                        __result, __result + __n1 + __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
                        [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
@@ -4462,7 +4462,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     if (__n1 + __n2 > __set_algo_cut_off)
     {
-        return __parallel_set_op</*__Bounded*/ false>(
+        return __parallel_set_op</*_Bounded*/ false>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
                    __result + __n1 + __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
                    [](_DifferenceType __n, _DifferenceType) { return __n; },
@@ -4534,7 +4534,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
         return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
     return __internal::__except_handler([&]() {
-        return __internal::__parallel_set_union_op</*__Bounded*/ false>(
+        return __internal::__parallel_set_union_op</*_Bounded*/ false>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
                    __result + __n1 + __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
                    [](auto&&... __args) {
