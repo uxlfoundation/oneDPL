@@ -199,12 +199,10 @@ test_set_symmetric_difference_checker()
 
         auto res = set_symmetric_difference_checker(set1, set2, set3);
 
-        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
-        EXPECT_EQ(res.in2, set2.end(), "Wrong 'in2' state of result");
-        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
-
-        set3.erase(res.out, set3.end());
-        EXPECT_EQ_RANGES(set3, resExpected, "Wrong output data state");
+        EXPECT_EQ(set1.end(), res.in1, "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.end(), res.in2, "Wrong 'in2' state of result");
+        EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
 
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
@@ -224,12 +222,10 @@ test_set_symmetric_difference_checker()
 
         auto res = set_symmetric_difference_checker(set1, set2, set3);
 
-        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
-        EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 4), "Wrong 'in2' state of result");
-        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
-
-        set3.erase(res.out, set3.end());
-        EXPECT_EQ_RANGES(set3, resExpected, "Wrong output data state");
+        EXPECT_EQ(set1.end(), res.in1, "Wrong 'in1' state of result");
+        EXPECT_EQ(std::find(set2.begin(), set2.end(), 4), res.in2, "Wrong 'in2' state of result");
+        EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
 #endif
 
@@ -249,12 +245,10 @@ test_set_symmetric_difference_checker()
 
         auto res = set_symmetric_difference_checker(set1, set2, set3);
 
-        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
-        EXPECT_EQ(res.in2, set2.end(), "Wrong 'in2' state of result");
-        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
-
-        set3.erase(res.out, set3.end());
-        EXPECT_EQ_RANGES(set3, resExpected, "Wrong output data state");
+        EXPECT_EQ(set1.end(), res.in1, "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.end(), res.in2, "Wrong 'in2' state of result");
+        EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
 
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
@@ -274,12 +268,10 @@ test_set_symmetric_difference_checker()
 
         auto res = set_symmetric_difference_checker(set1, set2, set3);
 
-        EXPECT_EQ(res.in1, std::find(set1.begin(), set1.end(), 6), "Wrong 'in1' state of result");
-        EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 8), "Wrong 'in2' state of result");
-        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
-
-        set3.erase(res.out, set3.end());
-        EXPECT_EQ_RANGES(set3, resExpected, "Wrong output data state");
+        EXPECT_EQ(std::find(set1.begin(), set1.end(), 6), res.in1, "Wrong 'in1' state of result");
+        EXPECT_EQ(std::find(set2.begin(), set2.end(), 8), res.in2, "Wrong 'in2' state of result");
+        EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
 #endif
 }
