@@ -26,7 +26,7 @@
 #include <functional>
 #include <ranges>
 #include <iterator>
-#include <algorithm> // for std::count_if
+#include <algorithm>
 
 // The idea of this struct is to have a data item that can be used in set tests.
 // Each item has a value, an index in container and a container number.
