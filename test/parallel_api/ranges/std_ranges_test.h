@@ -1128,7 +1128,7 @@ eval_remaining_space_min(TSize1 size1, TIndex1 index1, TSize2 size2, TIndex2 ind
     const TSize1 space1 = eval_remaining_space(size1, index1);
     const TSize2 space2 = eval_remaining_space(size2, index2);
 
-    return std::min(space1, space2);
+    return std::min<std::common_type_t<TSize1, TSize2>>(space1, space2);
 }
 
 } //namespace test_std_ranges
