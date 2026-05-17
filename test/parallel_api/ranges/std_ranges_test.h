@@ -1108,6 +1108,29 @@ struct test_range_algo
     }
 };
 
+// @param TSize size - 1-based size of the range, zero for empty range
+// @param TIndex index - 0-based index of item in range to calculate remaining space for
+// @return TSize - remaining space in range starting from index
+template <typename TSize, typename TIndex>
+TSize
+eval_remaining_space(TSize size, TIndex index)
+{
+    if (size >= index)
+        return size - index;
+
+    return 0;
+}
+
+template <typename TSize1, typename TIndex1, typename TSize2, typename TIndex2>
+std::common_type_t<TSize1, TSize2>
+eval_remaining_space_min(TSize1 size1, TIndex1 index1, TSize2 size2, TIndex2 index2)
+{
+    const TSize1 space1 = eval_remaining_space(size1, index1);
+    const TSize2 space2 = eval_remaining_space(size2, index2);
+
+    return std::min(space1, space2);
+}
+
 } //namespace test_std_ranges
 
 #endif //_ENABLE_STD_RANGES_TESTING

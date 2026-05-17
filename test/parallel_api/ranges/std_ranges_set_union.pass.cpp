@@ -151,27 +151,15 @@ struct
             }
         }
 
-        if (idx1 < n1)
-        {
-            const auto remaining_space = nOut - idxOut;
-            const auto remaining_input = n1 - idx1;
-            const auto to_copy = std::min(remaining_space, remaining_input);
-            std::copy(in1 + idx1, in1 + idx1 + to_copy, out + idxOut);
+        const auto to_copy1 = test_std_ranges::eval_remaining_space_min(nOut, idxOut, n1, idx1);
+        std::copy_n(in1 + idx1, to_copy1, out + idxOut);
+        idx1 += to_copy1;
+        idxOut += to_copy1;
 
-            idx1 += to_copy;
-            idxOut += to_copy;
-        }
-
-        if (idx2 < n2)
-        {
-            const auto remaining_space = nOut - idxOut;
-            const auto remaining_input = n2 - idx2;
-            const auto to_copy = std::min(remaining_space, remaining_input);
-            std::copy(in2 + idx2, in2 + idx2 + to_copy, out + idxOut);
-
-            idx2 += to_copy;
-            idxOut += to_copy;
-        }
+        const auto to_copy2 = test_std_ranges::eval_remaining_space_min(nOut, idxOut, n2, idx2);
+        std::copy_n(in2 + idx2, to_copy2, out + idxOut);
+        idx2 += to_copy2;
+        idxOut += to_copy2;
 
         return {in1 + idx1, in2 + idx2, out + idxOut};
     }
