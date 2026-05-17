@@ -223,7 +223,7 @@ test_set_difference_checker()
         EXPECT_EQ(std::find(set1.begin(), set1.end(), 13), res.in1, "Wrong 'in1' state of result");
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 14), res.in2, "Wrong 'in2' state of result");
         EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
-        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state"));
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
 #endif
 
