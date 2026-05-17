@@ -26,7 +26,7 @@
 #include <functional>
 #include <ranges>
 #include <iterator>
-#include <algorithm> // for std::count_if
+#include <algorithm>
 
 // The idea of this struct is to have a data item that can be used in set tests.
 // Each item has a value, an index in container and a container number.
@@ -360,7 +360,7 @@ test_set_union_construct_edge_cases()
         contOut.destroy_range(out);
     }
 
-    // The case: all items in the first container less then in the second one
+    // The case: all items in the first container less than in the second one
     {
         const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
         const Container cont2       = {                                 {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
