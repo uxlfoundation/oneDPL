@@ -1788,6 +1788,25 @@ struct __stop_pos_payloads_tools
             return std::monostate{};
     }
 
+    template <typename _StopPosPayload>
+    static typename _StopPosPayload::_ValueType
+    __get_default_stop_pos_value()
+    {
+        using _StopPos = typename _StopPosPayload::_ValueType;
+        return oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_StopPos>();
+    }
+
+    template <typename _StopPosPayload>
+    static bool
+    __stop_pos_is_default(_StopPosPayload& __stop_pos_payload)
+    {
+        using _StopPos = typename _StopPosPayload::_ValueType;
+        _StopPos __current_pos;
+        __stop_pos_payload.__copy_result(&__current_pos, 1);
+
+        return __current_pos == __get_default_stop_pos_value<_StopPosPayload>();
+    }
+
     template <typename _TupleOfSizes, typename _StopPosPayload>
     static _TupleOfSizes
     __get_finish_pos(_StopPosPayload& __stop_pos_payload, _TupleOfSizes __src_sizes)
@@ -1795,13 +1814,12 @@ struct __stop_pos_payloads_tools
         _TupleOfSizes __result{__src_sizes};
 
         using _StopPos = typename _StopPosPayload::_ValueType;
-        const _StopPos __sentinel = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_StopPos>();
 
         constexpr std::size_t ___TupleOfSizesItems = std::tuple_size_v<_TupleOfSizes>;
         constexpr std::size_t __StopPosItems = std::tuple_size_v<_StopPos>;
         static_assert(___TupleOfSizesItems <= __StopPosItems);
 
-        _StopPos __oob_pos = __sentinel;
+        _StopPos __oob_pos = __get_default_stop_pos_value<_StopPosPayload>();
         __stop_pos_payload.__copy_result(&__oob_pos, 1);
 
         constexpr std::size_t __Index = std::min(___TupleOfSizesItems, __StopPosItems);
@@ -2352,7 +2370,23 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
                                            __inputs_remaining, __b, __stop_pos_payload,
                                            /*__need_init_stop_pos_payload*/ __b == 0, __stop_pos_t{});
-        // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
+
+        // 2. Check early exit scenario starting from the second iteration.
+        //    Stop position may be settled up inside __scan_submitter.
+        //    The next call of __reduce_submitter has `depents_on` on the prior __scan_submitter,
+        //    so the stop position will be ready by the time we submit the next __reduce_submitter.
+        if constexpr (_Bounded)
+        {
+            if (__b > 0 && !__stop_pos_payloads_tools::__stop_pos_is_default(__stop_pos_payload))
+            {
+                // In this situation we may have modified by __reduce_submitter temporary data part in __result_and_scratch,
+                // but still have correct result data part, which has been settled up in the last __scan_submitter() call.
+                // So we can break the loop and return the result.
+                break;
+            }
+        }
+
+        // 3. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
         __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
                                          __prior_event, __inputs_remaining, __b, __stop_pos_payload);
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
