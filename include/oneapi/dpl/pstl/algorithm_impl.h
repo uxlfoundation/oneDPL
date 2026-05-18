@@ -3488,7 +3488,7 @@ struct _SetOpReachedPosEvaluator
         __output_size_reached_info_opt[__offset_from_n_out] =
             _OutputSizeReachedInfo{__data_part, __source_data_offsets};
 
-        // Reset reached positions in the output and input ranges due to they will be evaluated based on the information about output size reached point
+        // Reset reached positions in the output and input ranges because they will be evaluated based on the information about output size reached point
         __res_data_opt.reset();
     }
 
