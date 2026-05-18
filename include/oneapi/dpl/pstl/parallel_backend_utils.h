@@ -307,7 +307,7 @@ using _union_construct_return_t = std::tuple<_ForwardIterator1, _ForwardIterator
 // If _OutputIterator is oneapi::dpl::discard_iterator, no data will be generated.
 // If _MaskIterator is std::nullptr_t, no mask will be generated.
 // It is expected that in this case the caller doesn't need a mask at all and simply ignores it.
-// The same behavior has place for all four set-op funtions: __set_union_construct, __set_intersection_construct,
+// The same behavior has place for all four set-op functions: __set_union_construct, __set_intersection_construct,
 // __set_difference_construct and __set_symmetric_difference_construct.
 template <typename _CopyConstructRange, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
