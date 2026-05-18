@@ -3775,7 +3775,10 @@ struct _ParallelSetOpScanPred
 
             const _DifferenceType __n_out = __result_buf_pos_end - __result_buf_pos_begin;
 
-            // Save subrange info if we reached final/after final positions at this subrange
+            // Record the information about the chunk containing the last successfully written item:
+            // the chunk's starting position and length in the output range and both input ranges.
+            // Do the same for the chunk containing the first item which did not fit into the output range,
+            // if this item exists.
             for (_DifferenceType __n_offset : {0, 1})
             {
                 if (__data_part.is_output_size_reached(__n_out + __n_offset))
