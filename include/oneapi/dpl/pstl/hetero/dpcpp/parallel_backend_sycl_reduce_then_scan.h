@@ -1550,7 +1550,7 @@ struct __parallel_reduce_then_scan_reduce_submitter;
 
 template <bool _Bounded, typename _StopPosPayload>
 auto
-__get_stop_pos_accessor_opt(sycl::handler& __cgh, _StopPosPayload& __stop_pos_payload)
+__get_stop_pos_accessor_opt([[maybe_unused]] sycl::handler& __cgh, [[maybe_unused]] _StopPosPayload& __stop_pos_payload)
 {
     if constexpr (_Bounded)
     {
