@@ -3541,7 +3541,7 @@ struct _SetOpReachedPosEvaluator
             __reached_pos += __test_mask(__dest_data_mask_state, __state) ? 1 : 0;
         }
 
-        // 2. Pass positions which not generates output
+        // 2. Pass positions which do not generate output
         for (; __mask_buffer_it != __mask_buffer_end; ++__mask_buffer_it)
         {
             auto __state = *__mask_buffer_it;
