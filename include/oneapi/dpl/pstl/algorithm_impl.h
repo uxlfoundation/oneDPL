@@ -3302,26 +3302,26 @@ struct _DataPart
     _DifferenceType __buf_pos{}; // Offset in temporary buffer w/o limitation to output data size
 
     bool
-    empty() const
+    __empty() const
     {
         return __len == 0;
     }
 
     static bool
-    is_left(const _DataPart& __a, const _DataPart& __b)
+    __is_left(const _DataPart& __a, const _DataPart& __b)
     {
-        return __b.__buf_pos > __a.__buf_pos || (__b.__buf_pos == __a.__buf_pos && !__b.empty());
+        return __b.__buf_pos > __a.__buf_pos || (__b.__buf_pos == __a.__buf_pos && !__b.__empty());
     }
 
     static _DataPart
-    combine_with(const _DataPart& __a, const _DataPart& __b)
+    __combine_with(const _DataPart& __a, const _DataPart& __b)
     {
-        return is_left(__a, __b) ? _DataPart{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos}
-                                 : _DataPart{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
+        return __is_left(__a, __b) ? _DataPart{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos}
+                                   : _DataPart{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
     }
 
     bool
-    is_output_size_reached(_DifferenceType __n_out) const
+    __is_output_size_reached(_DifferenceType __n_out) const
     {
         const _DifferenceType __n_out_idx =
             std::max(__n_out, _DifferenceType{1}) - 1; // to handle zero output size case
@@ -3364,7 +3364,7 @@ struct _SrcProcessedDataAmount
     _DifferenceType2 __length2 = {}; // Amount of processed data in the second input range
 
     static _SrcProcessedDataAmount
-    combine_with(const _SrcProcessedDataAmount& __a, const _SrcProcessedDataAmount& __b)
+    __combine_with(const _SrcProcessedDataAmount& __a, const _SrcProcessedDataAmount& __b)
     {
         return _SrcProcessedDataAmount{std::max(__a.__length1, __b.__length1), std::max(__a.__length2, __b.__length2)};
     }
@@ -3389,7 +3389,7 @@ struct _SetRangeImpl
     _DataStorage __data{};
 
     const _DataPart<_DifferenceType>&
-    get_data_part() const
+    __get_data_part() const
     {
         if constexpr (!_Bounded)
             return __data;
@@ -3398,23 +3398,23 @@ struct _SetRangeImpl
     }
 
     const _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>&
-    get_src_offsets_part() const
+    __get_src_offsets_part() const
     {
         static_assert(_Bounded, "Source data offsets part is available only for bounded set operations");
         return std::get<_SrcOffsetsIndex>(__data);
     }
 
     const _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>&
-    get_src_processed_data_amount_part() const
+    __get_src_processed_data_amount_part() const
     {
         static_assert(_Bounded, "Source data processed amount part is available only for bounded set operations");
         return std::get<_SrcProcessedDataIndex>(__data);
     }
 
     static _SetRangeImpl
-    combine_with(const _SetRangeImpl& __a, const _SetRangeImpl& __b)
+    __combine_with(const _SetRangeImpl& __a, const _SetRangeImpl& __b)
     {
-        auto __new_data_part = _DataPart<_DifferenceType>::combine_with(__a.get_data_part(), __b.get_data_part());
+        auto __new_data_part = _DataPart<_DifferenceType>::__combine_with(__a.__get_data_part(), __b.__get_data_part());
 
         if constexpr (!_Bounded)
         {
@@ -3424,11 +3424,11 @@ struct _SetRangeImpl
         {
             typename _SetRangeImpl::_DataStorage __ds{
                 __new_data_part,
-                _DataPart<_DifferenceType>::is_left(__a.get_data_part(), __b.get_data_part())
-                    ? __b.get_src_offsets_part()
-                    : __a.get_src_offsets_part(),
-                _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>::combine_with(
-                    __a.get_src_processed_data_amount_part(), __b.get_src_processed_data_amount_part())};
+                _DataPart<_DifferenceType>::__is_left(__a.__get_data_part(), __b.__get_data_part())
+                    ? __b.__get_src_offsets_part()
+                    : __a.__get_src_offsets_part(),
+                _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>::__combine_with(
+                    __a.__get_src_processed_data_amount_part(), __b.__get_src_processed_data_amount_part())};
             return _SetRangeImpl{__ds};
         }
     }
@@ -3445,7 +3445,7 @@ struct _ParallelSetOpCombinePred
         const
     {
         return _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
-                             _DifferenceTypeMask>::combine_with(__a, __b);
+                             _DifferenceTypeMask>::__combine_with(__a, __b);
     }
 };
 
@@ -3507,7 +3507,7 @@ struct _SetOpReachedPosEvaluator
     {
         if (!__res_data_opt.has_value())
         {
-            const _DataPart<_DifferenceType>& __apex_total_data_part = __apex_total.get_data_part();
+            const _DataPart<_DifferenceType>& __apex_total_data_part = __apex_total.__get_data_part();
 
             const std::pair<_DifferenceType1, _DifferenceType2> __input_reached_positions =
                 __eval_reached_input_positions();
@@ -3616,7 +3616,7 @@ struct _SetOpReachedPosEvaluator
             if (!__output_size_reached_info_opt[0].has_value())
             {
                 const _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>& __src_processed =
-                    __apex_total.get_src_processed_data_amount_part();
+                    __apex_total.__get_src_processed_data_amount_part();
                 return {__src_processed.__length1, __src_processed.__length2};
             }
 
@@ -3751,7 +3751,7 @@ struct _ParallelSetOpScanPred
     void
     operator()(_DifferenceType, _DifferenceType, const _SetRange& __s) const
     {
-        const _DataPart<_DifferenceType>& __data_part = __s.get_data_part();
+        const _DataPart<_DifferenceType>& __data_part = __s.__get_data_part();
 
         if constexpr (!_Bounded)
         {
@@ -3781,9 +3781,9 @@ struct _ParallelSetOpScanPred
             // if this item exists.
             for (_DifferenceType __n_offset : {0, 1})
             {
-                if (__data_part.is_output_size_reached(__n_out + __n_offset))
+                if (__data_part.__is_output_size_reached(__n_out + __n_offset))
                     __source_final_pos_evaluator.__on_output_size_reached(__n_offset, __data_part,
-                                                                          __s.get_src_offsets_part());
+                                                                          __s.__get_src_offsets_part());
             }
         }
     }
