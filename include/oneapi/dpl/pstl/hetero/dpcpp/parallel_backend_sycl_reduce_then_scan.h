@@ -1759,7 +1759,7 @@ struct __stop_pos_payloads_tools
 {
     template <bool _Bounded, typename _TupleOfSizes>
     static std::conditional_t<_Bounded, __scan_stop_pos_storage_t<_TupleOfSizes>, std::monostate>
-    __create_storage_opt(sycl::queue& __q)
+    __create_storage_opt([[maybe_unused]] sycl::queue& __q)
     {
         if constexpr (_Bounded)
             return __scan_stop_pos_storage_t<_TupleOfSizes>(__q, 1);
