@@ -83,27 +83,6 @@ struct __noop_temp_data
     }
 };
 
-// ScanStopPosT selector
-template <typename _T, typename = void>
-struct __scan_stop_pos_selector
-{
-    using ScanStopPosT = std::void_t<>;
-    static constexpr bool DetectOOBPos = false;
-};
-
-template <typename _T>
-struct __scan_stop_pos_selector<_T, std::void_t<typename _T::ScanStopPosT>>
-{
-    using ScanStopPosT = typename _T::ScanStopPosT;
-    static constexpr bool DetectOOBPos = !std::is_same_v<ScanStopPosT, std::void_t<>>;
-};
-
-template <typename _T>
-using __scan_stop_pos_selector_t = typename __scan_stop_pos_selector<_T>::ScanStopPosT;
-
-template <typename _T>
-static constexpr bool __detect_oob_pos_v = __scan_stop_pos_selector<_T>::DetectOOBPos;
-
 // Extracts a range from a zip iterator based on the element ID
 template <std::size_t _EleId>
 struct __extract_range_from_zip
@@ -1859,6 +1838,27 @@ struct __tuple_of_sizes_selector<_T, std::void_t<typename _T::_TupleOfSizes>>
 template <typename _T>
 using __tuple_of_sizes_selector_t = typename __tuple_of_sizes_selector<_T>::type;
 
+// ScanStopPosT selector
+template <typename _T, typename = void>
+struct __scan_stop_pos_selector
+{
+    using ScanStopPosT = std::void_t<>;
+    static constexpr bool DetectOOBPos = false;
+};
+
+template <typename _T>
+struct __scan_stop_pos_selector<_T, std::void_t<typename _T::ScanStopPosT>>
+{
+    using ScanStopPosT = typename _T::ScanStopPosT;
+    static constexpr bool DetectOOBPos = !std::is_same_v<ScanStopPosT, std::void_t<>>;
+};
+
+template <typename _T>
+using __scan_stop_pos_selector_t = typename __scan_stop_pos_selector<_T>::ScanStopPosT;
+
+template <typename _T>
+static constexpr bool __detect_oob_pos_v = __scan_stop_pos_selector<_T>::DetectOOBPos;
+
 } // namespace __details
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
@@ -1875,6 +1875,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
 {
     using _InitValueType = typename _InitType::__value_type;
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
+    static constexpr bool _DetectOOBPos = _Bounded && __details::__detect_oob_pos_v<_WriteOp>;
 
     _InitValueType
     __get_block_carry_in(const std::size_t __block_num, _InitValueType* __tmp_ptr,
@@ -1889,6 +1890,32 @@ struct __parallel_reduce_then_scan_scan_submitter<
                           const std::size_t __num_sub_groups_global) const
     {
         __tmp_ptr[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
+    }
+
+    template <typename _InRng, typename _StopPosAcc>
+    auto
+    __create_on_oob_reached_callback(_InRng&, _StopPosAcc& __stop_pos_acc) const
+    {
+        if constexpr (_DetectOOBPos)
+        {
+            using _ScanPosT = __details::__scan_stop_pos_selector_t<_WriteOp>;
+
+            return [&]([[maybe_unused]] const _ScanPosT& __oob_source_pos) {
+                using __result_pos_t = __scan_stop_pos_t<_InRng>;
+
+                // OOB can be reached by at most one work-item per kernel invocation:
+                // output indices are monotonically increasing across all work-items,
+                // so only the single work-item that first crosses the output boundary
+                // can have get_oob_source_pos() return true.
+                // Therefore, no atomic fetch_min is needed here - at most one writer.
+                __stop_pos_acc.__data()[0] =
+                    oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__oob_source_pos);
+            };
+        }
+        else
+        {
+            return nullptr;
+        }
     }
 
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc, typename _StopPosPayload>
@@ -2151,57 +2178,25 @@ struct __parallel_reduce_then_scan_scan_submitter<
                     __group_start_id + (__sub_group_id * __sub_group_params.__inputs_per_sub_group);
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
+                if (__sub_group_carry_initialized)
                 {
-                    constexpr bool _DetectOOBPos = _Bounded && __detect_oob_pos_v<_WriteOp>;
-
-                    auto __on_oob_reached_factory = [&]() {
-                        if constexpr (_DetectOOBPos)
-                        {
-                            using _ScanPosT = __scan_stop_pos_selector_t<_WriteOp>;
-
-                            auto __on_oob_reached = [&]([[maybe_unused]] const _ScanPosT& __oob_source_pos) {
-                                if constexpr (_DetectOOBPos)
-                                {
-                                    using __result_pos_t = __scan_stop_pos_t<_InRng>;
-
-                                    // OOB can be reached by at most one work-item per kernel invocation:
-                                    // output indices are monotonically increasing across all work-items,
-                                    // so only the single work-item that first crosses the output boundary
-                                    // can have get_oob_source_pos() return true.
-                                    // Therefore, no atomic fetch_min is needed here - at most one writer.
-                                    __stop_pos_acc.__data()[0] =
-                                        oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__oob_source_pos);
-                                }
-                            };
-
-                            return __on_oob_reached;
-                        }
-                        else
-                        {
-                            return nullptr;
-                        }
-                    };
-
-                    if (__sub_group_carry_initialized)
-                    {
-                        __scan_through_elements_helper<_DetectOOBPos, __sub_group_size, __is_inclusive,
-                                                       /*__init_present=*/true,
-                                                       /*__capture_output=*/true, __max_inputs_per_item>(
-                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                            __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
-                            __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
-                            __active_subgroups, __on_oob_reached_factory());
-                    }
-                    else // first group first block, no subgroup carry
-                    {
-                        __scan_through_elements_helper<_DetectOOBPos, __sub_group_size, __is_inclusive,
-                                                       /*__init_present=*/false,
-                                                       /*__capture_output=*/true, __max_inputs_per_item>(
-                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                            __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
-                            __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
-                            __active_subgroups, __on_oob_reached_factory());
-                    }
+                    __scan_through_elements_helper<_DetectOOBPos, __sub_group_size, __is_inclusive,
+                                                   /*__init_present=*/true,
+                                                   /*__capture_output=*/true, __max_inputs_per_item>(
+                        __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                        __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
+                        __subgroup_start_id, __sub_group_id, __active_subgroups,
+                        __create_on_oob_reached_callback(__in_rng, __stop_pos_acc));
+                }
+                else // first group first block, no subgroup carry
+                {
+                    __scan_through_elements_helper<_DetectOOBPos, __sub_group_size, __is_inclusive,
+                                                   /*__init_present=*/false,
+                                                   /*__capture_output=*/true, __max_inputs_per_item>(
+                        __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                        __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
+                        __subgroup_start_id, __sub_group_id, __active_subgroups,
+                        __create_on_oob_reached_callback(__in_rng, __stop_pos_acc));
                 }
 
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
