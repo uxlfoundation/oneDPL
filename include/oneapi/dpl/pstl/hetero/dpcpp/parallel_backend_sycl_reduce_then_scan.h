@@ -1612,7 +1612,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                 __reduce_then_scan_sub_group_params __sub_group_params(
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
 
-                _InitValueType* __tmp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
+                _InitValueType* __temp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                 _InitValueType* __comm_slm_ptr = __use_subgroup_ops ? nullptr : &__comm_slm[0];
                 std::size_t __group_id = __ndi.get_group(0);
                 std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
@@ -1670,7 +1670,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                                                             (__sub_group, __v, __reduce_op, __sub_group_carry,
                                                             __active_subgroups, __comm_slm_ptr, __use_subgroup_ops);
                         if (__sub_group_local_id < __active_subgroups)
-                            __tmp_ptr[__start_id + __sub_group_local_id] = __v;
+                            __temp_ptr[__start_id + __sub_group_local_id] = __v;
                     }
                     else
                     {
@@ -1679,7 +1679,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                         _InitValueType __v = __sub_group_partials[__reduction_scan_id];
                         __sub_group_scan<__sub_group_size, /*__is_inclusive=*/true, /*__init_present=*/false>(
                             __sub_group, __v, __reduce_op, __sub_group_carry, __comm_slm_ptr, __use_subgroup_ops);
-                        __tmp_ptr[__start_id + __reduction_scan_id] = __v;
+                        __temp_ptr[__start_id + __reduction_scan_id] = __v;
                         __reduction_scan_id += __sub_group_size;
 
                         for (std::uint32_t __i = 1; __i < __iters - 1; __i++)
@@ -1687,7 +1687,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                             __v = __sub_group_partials[__reduction_scan_id];
                             __sub_group_scan<__sub_group_size, /*__is_inclusive=*/true, /*__init_present=*/true>(
                                 __sub_group, __v, __reduce_op, __sub_group_carry, __comm_slm_ptr, __use_subgroup_ops);
-                            __tmp_ptr[__start_id + __reduction_scan_id] = __v;
+                            __temp_ptr[__start_id + __reduction_scan_id] = __v;
                             __reduction_scan_id += __sub_group_size;
                         }
                         // If we are past the input range, then the previous value of v is passed to the sub-group scan.
@@ -1701,7 +1701,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                             __sub_group, __v, __reduce_op, __sub_group_carry,
                             __active_subgroups - ((__iters - 1) * __sub_group_size), __comm_slm_ptr, __use_subgroup_ops);
                         if (__reduction_scan_id < __sub_group_params.__num_sub_groups_local)
-                            __tmp_ptr[__start_id + __reduction_scan_id] = __v;
+                            __temp_ptr[__start_id + __reduction_scan_id] = __v;
                     }
 
                     __sub_group_carry.__destroy();
