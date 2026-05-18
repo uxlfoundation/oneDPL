@@ -2198,7 +2198,6 @@ struct __parallel_reduce_then_scan_scan_submitter<
                         __subgroup_start_id, __sub_group_id, __active_subgroups,
                         __create_on_oob_reached_callback(__in_rng, __stop_pos_acc));
                 }
-
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block
                 if (__sub_group_local_id == 0 && (__active_groups == __group_id + 1) &&
