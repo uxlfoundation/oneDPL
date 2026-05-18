@@ -3630,6 +3630,27 @@ struct _SetOpReachedPosEvaluator
             std::vector<oneapi::dpl::__utils::__parallel_set_op_mask> __mask_bufs(
                 __mask_buf_size, oneapi::dpl::__utils::__parallel_set_op_mask::none);
 
+            // Range1                    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            //    -----------------------------------------------------------------------------------------
+            //    ^                      ^                                 ^                               ^
+            //    |                      |                                 |                               |
+            // __first1                  |                                 |                          __last1
+            //                    + __offset1                       + __size1
+            // Range2                               bbbbbbbbbbbbbbbbbbbb
+            //    ---------------------------------------------------------------------------
+            //    ^                                 ^                   ^                    ^
+            //    |                                 |                   |                    |
+            // __first2                             |                   |               __last2
+            //                               + __offset2         + __size2
+
+            // mask_buf: size(<a>) + size(<b>)
+            // set_union(<a>, <b>, discard, mask_buf);
+            //
+            // 0 1 1 1 .....
+            // 1 0 1 0 .....
+            // -------------
+            // 1 1 2 1 .....
+
             auto [__first1_tmp_reached, __first2_tmp_reached, __output_discard_it_reached, __mask_buffer_reached] =
                 __set_op(__first1 + __offset1, __first1 + __offset1 + __size1, // First input range bounds
                          __first2 + __offset2, __first2 + __offset2 + __size2, // Second input range bounds
