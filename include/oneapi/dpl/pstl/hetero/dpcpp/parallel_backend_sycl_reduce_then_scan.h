@@ -2154,18 +2154,31 @@ struct __parallel_reduce_then_scan_scan_submitter<
                 {
                     constexpr bool _DetectOOBPos = _Bounded && __detect_oob_pos_v<_WriteOp>;
 
-                    auto __on_oob_reached = [&]([[maybe_unused]] auto __oob_source_pos) {
+                    auto __on_oob_reached_factory = [&]() {
                         if constexpr (_DetectOOBPos)
                         {
-                            using __result_pos_t = __scan_stop_pos_t<_InRng>;
+                            using _ScanPosT = __scan_stop_pos_selector_t<_WriteOp>;
 
-                            // OOB can be reached by at most one work-item per kernel invocation:
-                            // output indices are monotonically increasing across all work-items,
-                            // so only the single work-item that first crosses the output boundary
-                            // can have get_oob_source_pos() return true.
-                            // Therefore, no atomic fetch_min is needed here - at most one writer.
-                            __stop_pos_acc.__data()[0] =
-                                oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__oob_source_pos);
+                            auto __on_oob_reached = [&]([[maybe_unused]] const _ScanPosT& __oob_source_pos) {
+                                if constexpr (_DetectOOBPos)
+                                {
+                                    using __result_pos_t = __scan_stop_pos_t<_InRng>;
+
+                                    // OOB can be reached by at most one work-item per kernel invocation:
+                                    // output indices are monotonically increasing across all work-items,
+                                    // so only the single work-item that first crosses the output boundary
+                                    // can have get_oob_source_pos() return true.
+                                    // Therefore, no atomic fetch_min is needed here - at most one writer.
+                                    __stop_pos_acc.__data()[0] =
+                                        oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__oob_source_pos);
+                                }
+                            };
+
+                            return __on_oob_reached;
+                        }
+                        else
+                        {
+                            return nullptr;
                         }
                     };
 
@@ -2177,7 +2190,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                             __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                             __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
                             __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
-                            __active_subgroups, __on_oob_reached);
+                            __active_subgroups, __on_oob_reached_factory());
                     }
                     else // first group first block, no subgroup carry
                     {
@@ -2187,7 +2200,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                             __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                             __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
                             __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
-                            __active_subgroups, __on_oob_reached);
+                            __active_subgroups, __on_oob_reached_factory());
                     }
                 }
 
