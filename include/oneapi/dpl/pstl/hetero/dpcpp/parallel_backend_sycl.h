@@ -558,7 +558,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
                             _ValueType __out_idx = __lacc[__idx + __n_uniform];
                             if (__out_idx < __n_out)
                                 __assign(static_cast<__tuple_type>(__in_rng[__idx]), __out_rng[__out_idx]);
-                            if (__out_idx == __n_out)
+                            else if (__out_idx == __n_out)
                                 __lacc[2 * __n_uniform] = __idx; // the actual stop position in the input
                         }
                     }
