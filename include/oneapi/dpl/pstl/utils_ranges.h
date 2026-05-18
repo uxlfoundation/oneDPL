@@ -828,7 +828,7 @@ using __set_difference_return_t =
 #    endif
 
 // Helper function to create the appropriate return type for oneapi::dpl::ranges::set_difference based on C++26 compatibility mode.
-// In C++23, set_difference returns in_out_result with the second input iterator omitted, as it is not needed for the caller.
+// In C++23, set_difference returns in_out_result with the second input iterator omitted, as it is not needed by the caller.
 template <typename _It1, typename _It2, typename _ItOut>
 #    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
 std::ranges::in_in_out_result<_It1, _It2, _ItOut>

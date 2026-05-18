@@ -3546,7 +3546,7 @@ struct _SetOpReachedPosEvaluator
         {
             auto __state = *__mask_buffer_it;
 
-            // Breaks if we detected mask which describes output data generation from specified data set
+            // Break if we detect a mask that describes output data generation from the specified data set
             if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::data_out, __state))
                 break;
 
@@ -3605,13 +3605,13 @@ struct _SetOpReachedPosEvaluator
     {
         if constexpr (!_Bounded)
         {
-            // In not bounded set operation we don't have real output size reached point,
+            // In an unbounded set operation we don't have a real output size reached point,
             // so just return the amounts of processed data in input ranges which are equal to input ranges sizes
             return {__last1 - __first1, __last2 - __first2};
         }
         else
         {
-            // In bounded set operation when we don't reached output size limit, we can process all data in input ranges,
+            // In a bounded set operation when we haven't reached the output size limit, we can process all data in input ranges,
             // so return the amounts of processed data in input ranges which are equal to input ranges sizes
             if (!__output_size_reached_info_opt[0].has_value())
             {
