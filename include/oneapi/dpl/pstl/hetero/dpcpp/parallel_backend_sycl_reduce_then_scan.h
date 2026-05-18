@@ -1572,11 +1572,13 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
             __cgh.parallel_for<_KernelName...>(
-                    __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_actual_sg_sz_device())]] {
+                    __nd_range, [=, *this](sycl::nd_item<1> __ndi) 
+                        [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_actual_sg_sz_device())]]{
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
-                __reduce_then_scan_sub_group_params __sub_group_params(
-                    __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
+                __reduce_then_scan_sub_group_params __sub_group_params(__work_group_size, __sub_group_size,
+                                                                        __max_num_work_groups, __max_block_size,
+                                                                        __inputs_remaining);
 
                 _InitValueType* __temp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                 _InitValueType* __comm_slm_ptr = __use_subgroup_ops ? nullptr : &__comm_slm[0];
@@ -1747,8 +1749,10 @@ struct __parallel_reduce_then_scan_scan_submitter<__is_inclusive, __is_unique_pa
             auto __res_acc =
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
-            __cgh.parallel_for<_KernelName...>(
-                    __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_actual_sg_sz_device())]] {
+            __cgh.parallel_for<
+                _KernelName...>(__nd_range, [=, *this](
+                                                sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(
+                                                __get_reduce_then_scan_actual_sg_sz_device())]] {
                 _InitValueType* __comm_slm_ptr = __use_subgroup_ops ? nullptr : &__comm_slm[0];
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
@@ -2070,10 +2074,10 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // the work-group size appropriately. The actual sub-group size used by each kernel is determined
     // at runtime via sub_group::get_max_local_range().
     const auto __supported_sg_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
-const auto [__min_sg_it, __max_sg_it] =
-    std::minmax_element(__supported_sg_sizes.begin(), __supported_sg_sizes.end());
-const std::uint8_t __min_sub_group_size = *__min_sg_it;
-const std::uint8_t __max_sub_group_size = *__max_sg_it;
+    const auto [__min_sg_it, __max_sg_it] =
+        std::minmax_element(__supported_sg_sizes.begin(), __supported_sg_sizes.end());
+    const std::uint8_t __min_sub_group_size = *__min_sg_it;
+    const std::uint8_t __max_sub_group_size = *__max_sg_it;
     // Empirically determined maximum. May be less for non-full blocks.
     constexpr std::uint16_t __max_inputs_per_item =
         std::max(std::uint16_t{1}, std::uint16_t{512 / __bytes_per_work_item_iter});
