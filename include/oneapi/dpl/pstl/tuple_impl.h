@@ -698,13 +698,20 @@ template <typename _Dst, typename _Src>
 _Dst
 __convert_tuple_to(const _Src& __src)
 {
-    _Dst __result = {};
+    if constexpr (std::is_same_v<_Src, _Dst>)
+    {
+        return __src;
+    }
+    else
+    {
+        _Dst __result = {};
 
-    constexpr std::size_t _N = std::tuple_size_v<_Src>;
-    static_assert(_N <= std::tuple_size_v<_Dst>, "Source tuple cannot be larger than destination tuple");
-    __convert_tuple_to_impl(__result, __src, std::make_index_sequence<_N>());
+        constexpr std::size_t _N = std::tuple_size_v<_Src>;
+        static_assert(_N <= std::tuple_size_v<_Dst>, "Source tuple cannot be larger than destination tuple");
+        __convert_tuple_to_impl(__result, __src, std::make_index_sequence<_N>());
 
-    return __result;
+        return __result;
+    }
 }
 
 template <typename Size>
