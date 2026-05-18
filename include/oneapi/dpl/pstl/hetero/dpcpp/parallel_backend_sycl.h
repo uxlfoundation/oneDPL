@@ -709,18 +709,17 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
             }
         }
     }
-    //reduce_then_scan implementation
-    {
-        using _GenInput =
-            oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation, typename _InitType::__value_type>;
-        using _ScanInputTransform = oneapi::dpl::identity;
-        using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
+    using _GenInput =
+        oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation, typename _InitType::__value_type>;
+    using _ScanInputTransform = oneapi::dpl::identity;
+    using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
 
-        return __parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type), _CustomName>(
-            __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform,
-            __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
-            /*_IsUniquePattern=*/std::false_type{});
-    }
+    _GenInput __gen_transform{__unary_op};
+
+    return __parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type), _CustomName>(
+        __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform, __binary_op,
+        __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
+        /*_IsUniquePattern=*/std::false_type{});
 }
 
 template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask, typename _WriteOp,
@@ -909,8 +908,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __n_out,
             oneapi::dpl::__internal::__pred_at_index{__pred}, __assign, __max_wg_size);
     }
-    else if (__n_out >= __n)
-    // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
+    else if (__n_out >= __n) // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
