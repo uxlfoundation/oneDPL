@@ -1073,8 +1073,7 @@ template <typename _ValueType>
 auto
 __create_future(sycl::event&& __event, __combined_storage<_ValueType>&& __payload)
 {
-    return __future(std::move(__event),
-                    __result_and_scratch_storage<_ValueType>(__payload.__move_state()));
+    return __future(std::move(__event), __result_and_scratch_storage<_ValueType>(std::move(__payload).__move_state()));
 }
 
 struct __scalar_load_op
