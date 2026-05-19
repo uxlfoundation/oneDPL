@@ -1775,7 +1775,7 @@ struct __stop_pos_payloads_tools
 
     template <typename _StopPosPayload>
     static bool
-    __pos_is_equal_to(_StopPosPayload& __pos_payload, const _StopPosPayload::_ValueType& __checking_pos)
+    __stored_pos_equals(_StopPosPayload& __pos_payload, const _StopPosPayload::_ValueType& __checking_pos)
     {
         using _StopPos = typename _StopPosPayload::_ValueType;
         _StopPos __current_pos;
@@ -2343,6 +2343,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // Allocate storage for stop position payload if needed
     using __stop_pos_t = __scan_stop_pos_t<_InRng>;
     auto __oob_pos_payload = __stop_pos_payloads_tools::template __create_storage_opt<_Bounded, __stop_pos_t>(__q);
+
+    // Create initial `sentinel` state for stop position payload
     const auto __oob_pos_init_state = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<__stop_pos_t>();
 
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
@@ -2367,7 +2369,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         //    so the stop position will be ready by the time we submit the next __reduce_submitter.
         if constexpr (_Bounded)
         {
-            if (__b > 0 && !__stop_pos_payloads_tools::__pos_is_equal_to(__oob_pos_payload, __oob_pos_init_state))
+            if (__b > 0 && !__stop_pos_payloads_tools::__stored_pos_equals(__oob_pos_payload, __oob_pos_init_state))
             {
                 // In this situation we may have modified by __reduce_submitter temporary data part in __result_and_scratch,
                 // but still have correct result data part, which has been settled up in the last __scan_submitter() call.
