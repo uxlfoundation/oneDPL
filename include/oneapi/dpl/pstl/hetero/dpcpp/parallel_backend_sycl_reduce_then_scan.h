@@ -22,6 +22,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <cmath>
 #include <cassert>
 #include <array>
@@ -82,6 +83,81 @@ struct __noop_temp_data
     }
 };
 
+// *** Bounded-output handler ***
+//
+// Building block that owns OOB tracking for bounded scan-copy algorithms (copy_if, unique_copy).
+// Symmetric with the other building blocks (_GenScanInput, _WriteOp): it is constructed at the
+// algorithm level, passed into __parallel_transform_reduce_then_scan, and threaded through both
+// kernels. Pass std::monostate when the algorithm does not need bounded behavior; everything
+// collapses to no-ops via __is_bounded_v.
+template <typename _T>
+inline constexpr bool __is_bounded_v = !std::is_same_v<std::decay_t<_T>, std::monostate>;
+
+// Kernel-side view of the handler. Holds the read_write accessor used in the kernel lambda;
+// constructed inside the submitter via __get_kernel_view(__cgh).
+template <typename _StopPosT, typename _Acc>
+struct __bounded_handler_kernel_view
+{
+    using __stop_pos_t = _StopPosT;
+    _Acc __acc;
+
+    // Called once from the reduce submitter on the first block by a single work-item: seed the
+    // OOB slot with the input size. Any later OOB write will overwrite it with a smaller value,
+    // so the final slot value IS the answer (no sentinel post-processing).
+    template <typename _InRng>
+    void
+    __init_stop_positions(const _InRng& __in_rng) const
+    {
+        __acc.__data()[0] = static_cast<_StopPosT>(oneapi::dpl::__ranges::__size(__in_rng));
+    }
+
+    // OOB hit: only one work-item per block can win this race because output indices are
+    // monotonically increasing across work-items, so a plain store is sufficient (no atomic).
+    void
+    __on_oob_reached(_StopPosT __pos) const
+    {
+        __acc.__data()[0] = __pos;
+    }
+};
+
+// Host-side handler. Owns the result_storage; algorithm-level wrappers construct it, pass it to
+// __parallel_transform_reduce_then_scan, and read the final value via __finish_pos() after the
+// kernel completes.
+template <typename _StopPosT>
+struct __bounded_handler
+{
+    using __stop_pos_t = _StopPosT;
+    using __storage_t = __result_storage<_StopPosT>;
+
+    explicit __bounded_handler(const sycl::queue& __q) : __storage(__q, 1) {}
+
+    auto
+    __get_kernel_view(sycl::handler& __cgh)
+    {
+        auto __acc = __get_accessor(sycl::read_write, __storage, __cgh, __dpl_sycl::__no_init{});
+        return __bounded_handler_kernel_view<_StopPosT, decltype(__acc)>{__acc};
+    }
+
+    // Read the current slot value on the host (used between blocks for the early-exit check).
+    _StopPosT
+    __read_current()
+    {
+        _StopPosT __v{};
+        __storage.__copy_result(&__v, 1);
+        return __v;
+    }
+
+    // Final OOB position for the algorithm: either the original input size (if no OOB write
+    // occurred) or the index of the first work-item that crossed the output boundary.
+    _StopPosT
+    __finish_pos()
+    {
+        return __read_current();
+    }
+
+    __storage_t __storage;
+};
+
 // Extracts a range from a zip iterator based on the element ID
 template <std::size_t _EleId>
 struct __extract_range_from_zip
@@ -121,9 +197,9 @@ __write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __ass
 struct __simple_write_to_id
 {
     using _TempData = __noop_temp_data;
-    template <typename _OutRng, typename _ValueType>
-    void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
+    template <typename _OutRng, typename _ValueType, typename _BoundedHandler>
+    bool
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&, _BoundedHandler&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -132,59 +208,46 @@ struct __simple_write_to_id
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__v)>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
         __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
+        return true;
     }
 };
 
 // Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1 + __offset`, but only if the
-// condition `get<0>(__v)` is `true`. Used in __parallel_copy_if, __parallel_unique_copy, and
-// __parallel_set_reduce_then_scan_set_a_write
-template <std::int32_t __offset, typename _Assign, typename _ScanStopPosT = std::void_t<>>
+// condition `get<1>(__v)` is `true`. Used in __parallel_copy_if, __parallel_unique_copy, and
+// __parallel_set_reduce_then_scan_set_a_write. When the algorithm is bounded, the passed-in handler is used to
+// gate writes against the output size and to record the input index of the first OOB hit.
+template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
 {
     using _TempData = __noop_temp_data;
-    using ScanStopPosT = _ScanStopPosT;
 
-    template <typename _OutRng, typename _SizeType, typename _ValueType>
-    void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
-    {
-        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
-        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
-        // through.
-        using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
-        if (std::get<1>(__v))
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
-    }
-
-    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _BoundedHandler>
     bool
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&,
-               _OnOOBReached __on_oob_reached) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, _BoundedHandler& __bh) const
     {
+        if (!std::get<1>(__v))
+            return true;
+
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
+        const auto __out_rng_idx = std::get<0>(__v) - 1 + __offset;
 
-        if (std::get<1>(__v))
+        if constexpr (__is_bounded_v<_BoundedHandler>)
         {
-            const auto __out_rng_idx = std::get<0>(__v) - 1 + __offset;
-
             return __write_if_in_bounds(
                 oneapi::dpl::__ranges::__size(__out_rng), __out_rng_idx,
                 [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]); },
-                [&]() {
-                    ScanStopPosT __oob_pos{};
-                    std::get<0>(__oob_pos) = __id;
-                    __on_oob_reached(__oob_pos);
-                });
+                [&]() { __bh.__on_oob_reached(static_cast<typename _BoundedHandler::__stop_pos_t>(__id)); });
         }
-
-        return true;
+        else
+        {
+            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]);
+            return true;
+        }
     }
 
     _Assign __assign;
@@ -197,9 +260,9 @@ template <typename _Assign>
 struct __write_to_id_if_else
 {
     using _TempData = __noop_temp_data;
-    template <typename _OutRng, typename _SizeType, typename _ValueType>
-    void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _BoundedHandler>
+    bool
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, _BoundedHandler&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -212,6 +275,7 @@ struct __write_to_id_if_else
         else
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
                      std::get<1>(__out_rng[__id - std::get<0>(__v)]));
+        return true;
     }
     _Assign __assign;
 };
@@ -222,9 +286,9 @@ template <typename _BinaryPred>
 struct __write_red_by_seg
 {
     using _TempData = __noop_temp_data;
-    template <typename _OutRng, typename _Tup>
-    void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
+    template <typename _OutRng, typename _Tup, typename _BoundedHandler>
+    bool
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&, _BoundedHandler&) const
     {
         using std::get;
 
@@ -253,6 +317,7 @@ struct __write_red_by_seg
             if (__id != __n - 1)
                 __out_keys[__out_idx + 1] = __next_key;
         }
+        return true;
     }
     _BinaryPred __binary_pred;
     std::size_t __n;
@@ -265,9 +330,9 @@ struct __write_scan_by_seg
     _InitType __init_value;
     _BinaryOp __binary_op;
 
-    template <typename _OutRng, typename _ValueType>
-    void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
+    template <typename _OutRng, typename _ValueType, typename _BoundedHandler>
+    bool
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&, _BoundedHandler&) const
     {
         using std::get;
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -292,6 +357,7 @@ struct __write_scan_by_seg
                 get<1>(__v) ? static_cast<_ConvertedTupleType>(__init_value.__value)
                             : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
         }
+        return true;
     }
 };
 
@@ -302,9 +368,10 @@ struct __write_scan_by_seg
 template <typename _Assign>
 struct __write_multiple_to_id
 {
-    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
-    void
-    operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data) const
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData, typename _BoundedHandler>
+    bool
+    operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data,
+               _BoundedHandler&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -318,6 +385,7 @@ struct __write_multiple_to_id
             __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
                      __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
         }
+        return true;
     }
     _Assign __assign;
 };
@@ -1432,18 +1500,17 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
     }
 }
 
-template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
+template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
           std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
           typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng, typename _ScanValueType,
-          typename _OnOOBReached = std::nullptr_t>
+          typename _BoundedHandler>
 void
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
                                _LazyValueType& __sub_group_carry, const _InRng& __in_rng, _OutRng& __out_rng,
                                std::size_t __start_id, std::size_t __n, std::uint32_t __iters_per_item,
                                std::size_t __subgroup_start_id, std::uint32_t __sub_group_id,
-                               std::uint32_t __active_subgroups, _ScanValueType* __comm_slm,
-                               _OnOOBReached __on_oob_reached = {})
+                               std::uint32_t __active_subgroups, _ScanValueType* __comm_slm, _BoundedHandler& __bh)
 {
     using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t, typename _GenInput::TempData&>;
 
@@ -1454,12 +1521,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
 
     auto __call_write_op = [&](std::size_t __id, const auto& __v) -> bool {
         if constexpr (__capture_output)
-        {
-            if constexpr (_Bounded)
-                return __write_op.template operator()(__out_rng, __id, __v, __temp_data, __on_oob_reached);
-            else
-                __write_op.template operator()(__out_rng, __id, __v, __temp_data);
-        }
+            return __write_op.template operator()(__out_rng, __id, __v, __temp_data, __bh);
         return true;
     };
 
@@ -1623,40 +1685,24 @@ class __reduce_then_scan_reduce_kernel;
 template <typename... _Name>
 class __reduce_then_scan_scan_kernel;
 
-template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
-template <bool _Bounded, typename _StopPosPayload>
-auto
-__get_stop_pos_accessor_opt([[maybe_unused]] sycl::handler& __cgh, [[maybe_unused]] _StopPosPayload& __stop_pos_payload)
-{
-    if constexpr (_Bounded)
-    {
-        // By using this sycl::read_write option we implement source data initialization under this accessor
-        return __get_accessor(sycl::read_write, __stop_pos_payload, __cgh, __dpl_sycl::__no_init{});
-    }
-    else
-    {
-        return nullptr;
-    }
-}
-
-template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename... _KernelName>
-struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __is_inclusive,
-                                                    __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType,
+struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_inclusive, __is_unique_pattern_v,
+                                                    _GenReduceInput, _ReduceOp, _InitType,
                                                     __internal::__optional_kernel_name<_KernelName...>>
 {
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
-    template <typename _InRng, typename _TmpStorageAcc, typename _StopPosPayload, typename _TupleOfSizes>
+    template <typename _InRng, typename _TmpStorageAcc, typename _BoundedHandler>
     sycl::event
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
-               const std::size_t __inputs_remaining, const std::size_t __block_num, _StopPosPayload& __oob_pos_payload,
-               bool __need_init_stop_pos_payload, const _TupleOfSizes& __oob_pos_init_state) const
+               const std::size_t __inputs_remaining, const std::size_t __block_num, _BoundedHandler& __bh) const
     {
         using _InitValueType = typename _InitType::__value_type;
         return __q.submit([&, this](sycl::handler& __cgh) {
@@ -1667,7 +1713,13 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __get_accessor(sycl::read_write, __scratch_container, __cgh, __dpl_sycl::__no_init{});
-            auto __oob_pos_acc = __get_stop_pos_accessor_opt<_Bounded>(__cgh, __oob_pos_payload);
+            // Capture the bounded-handler kernel view (or std::monostate) into the kernel by value below.
+            auto __bh_view = [&]() {
+                if constexpr (__is_bounded_v<_BoundedHandler>)
+                    return __bh.__get_kernel_view(__cgh);
+                else
+                    return std::monostate{};
+            }();
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
@@ -1704,13 +1756,13 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                 {
                     // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
-                    __scan_through_elements_helper</*_Bounded*/ false, __sub_group_size, __is_inclusive,
+                    __scan_through_elements_helper<__sub_group_size, __is_inclusive,
                                                    /*__init_present=*/false,
                                                    /*__capture_output=*/false, __max_inputs_per_item>(
                         __sub_group, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, nullptr,
                         __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __n,
                         __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
-                        __comm_slm_ptr);
+                        __comm_slm_ptr, __bh_view);
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__v;
                     __sub_group_carry.__destroy();
@@ -1772,13 +1824,13 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                     __sub_group_carry.__destroy();
                 }
 
-                if constexpr (!std::is_same_v<std::remove_cv_t<_StopPosPayload>, std::nullptr_t>)
+                if constexpr (__is_bounded_v<_BoundedHandler>)
                 {
-                    if (__need_init_stop_pos_payload && __ndi.get_global_linear_id() == 0)
-                    {
-                        // Initialize OOB pos to max sentinel - means "not yet found"
-                        __oob_pos_acc.__data()[0] = __oob_pos_init_state;
-                    }
+                    // On the first block, a single work-item seeds the OOB slot with the input size.
+                    // Any later OOB write will overwrite it with a smaller value, so the final slot
+                    // value IS the answer (no host-side sentinel post-processing needed).
+                    if (__block_num == 0 && __ndi.get_global_linear_id() == 0)
+                        __bh_view.__init_stop_positions(__in_rng);
                 }
             });
         });
@@ -1797,162 +1849,20 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
     _InitType __init;
 };
 
-namespace __details
-{
-
-template <typename... _Ranges>
-struct __scan_stop_pos_type;
-
-template <typename _Range>
-struct __scan_stop_pos_type<_Range>
-{
-    using _Type = decltype(oneapi::dpl::__ranges::__size(std::declval<_Range>()));
-};
-
-template <typename... _Ranges>
-struct __scan_stop_pos_type<oneapi::dpl::__ranges::zip_view<_Ranges...>>
-{
-    using _Type = std::tuple<decltype(oneapi::dpl::__ranges::__size(std::declval<_Ranges>()))...>;
-};
-
-// Helper to build the final stop-position tuple type.
-// General case (multiple ranges, or single plain range): wrap each range's size type into a flat tuple.
-template <typename... _Ranges>
-struct __scan_stop_pos_helper
-{
-    using _Type = std::tuple<typename __scan_stop_pos_type<_Ranges>::_Type...>;
-};
-
-// Single zip_view: its _Type is already a flat tuple<SZ...>, so return it directly without an extra wrapping tuple.
-template <typename... _ZipRanges>
-struct __scan_stop_pos_helper<oneapi::dpl::__ranges::zip_view<_ZipRanges...>>
-{
-    using _Type = typename __scan_stop_pos_type<oneapi::dpl::__ranges::zip_view<_ZipRanges...>>::_Type;
-};
-
-} // namespace __details
-
-// Define std::tuple of sizes for specified source ranges.
-// - Single plain range              -> tuple<SZ>
-// - Single zip_view<R1,R2>          -> tuple<SZ,SZ>          (flat, not nested)
-// - Multiple plain ranges R1,R2     -> tuple<SZ,SZ>
-// - zip_view<R1,R2> + plain R3      -> tuple<tuple<SZ,SZ>,SZ>
-template <typename... _Ranges>
-using __scan_stop_pos_t = typename __details::__scan_stop_pos_helper<std::decay_t<_Ranges>...>::_Type;
-
-template <bool _Bounded, typename _ValueType, typename... _Ranges>
-using __transform_reduce_then_scan_result_t = std::conditional_t<
-    _Bounded,
-    std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<__scan_stop_pos_t<_Ranges...>>>,
-    std::tuple<sycl::event, __combined_storage<_ValueType>>>;
-
-struct __stop_pos_payloads_tools
-{
-    template <bool _Bounded, typename _TupleOfSizes>
-    static std::conditional_t<_Bounded, __result_storage<_TupleOfSizes>, std::nullptr_t>
-    __create_storage_opt([[maybe_unused]] sycl::queue& __q)
-    {
-        if constexpr (_Bounded)
-            return __result_storage<_TupleOfSizes>(__q, 1);
-        else
-            return nullptr;
-    }
-
-    template <typename _StopPosPayload>
-    static typename _StopPosPayload::_ValueType
-    __get_default_stop_pos_value()
-    {
-        using _StopPos = typename _StopPosPayload::_ValueType;
-        return oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_StopPos>();
-    }
-
-    template <typename _StopPosPayload>
-    static bool
-    __stored_pos_equals(_StopPosPayload& __pos_payload, const _StopPosPayload::_ValueType& __checking_pos)
-    {
-        using _StopPos = typename _StopPosPayload::_ValueType;
-        _StopPos __current_pos;
-        __pos_payload.__copy_result(&__current_pos, 1);
-
-        return __current_pos == __checking_pos;
-    }
-
-    template <typename _TupleOfSizes, typename _OOBPosPayload>
-    static _TupleOfSizes
-    __get_finish_pos(_OOBPosPayload&& __oob_pos_payload, _TupleOfSizes __src_sizes)
-    {
-        _TupleOfSizes __result{__src_sizes};
-
-        using _StopPos = typename _OOBPosPayload::_ValueType;
-
-        constexpr std::size_t ___TupleOfSizesItems = std::tuple_size_v<_TupleOfSizes>;
-        constexpr std::size_t __StopPosItems = std::tuple_size_v<_StopPos>;
-        static_assert(___TupleOfSizesItems <= __StopPosItems);
-
-        _StopPos __oob_pos = __get_default_stop_pos_value<_OOBPosPayload>();
-        __oob_pos_payload.__copy_result(&__oob_pos, 1);
-
-        constexpr std::size_t __Index = std::min(___TupleOfSizesItems, __StopPosItems);
-        if constexpr (__Index > 0)
-            __update_each_field<__Index - 1>(__result, __oob_pos);
-
-        return __result;
-    }
-
-  protected:
-    template <std::size_t __Index, typename _TupleOfSizes, typename _StopPos>
-    static void
-    __update_each_field(_TupleOfSizes& __result, const _StopPos& __oob_pos)
-    {
-        using _FieldType = std::tuple_element_t<__Index, _TupleOfSizes>;
-        std::get<__Index>(__result) = std::min<_FieldType>(std::get<__Index>(__result), std::get<__Index>(__oob_pos));
-
-        if constexpr (__Index > 0)
-            __update_each_field<__Index - 1>(__result, __oob_pos);
-    }
-};
-
-namespace __details
-{
-
-// ScanStopPosT selector
-template <typename _T, typename = void>
-struct __scan_stop_pos_selector
-{
-    using ScanStopPosT = std::void_t<>;
-    static constexpr bool DetectOOBPos = false;
-};
-
-template <typename _T>
-struct __scan_stop_pos_selector<_T, std::void_t<typename _T::ScanStopPosT>>
-{
-    using ScanStopPosT = typename _T::ScanStopPosT;
-    static constexpr bool DetectOOBPos = !std::is_same_v<ScanStopPosT, std::void_t<>>;
-};
-
-template <typename _T>
-using __scan_stop_pos_selector_t = typename __scan_stop_pos_selector<_T>::ScanStopPosT;
-
-template <typename _T>
-static constexpr bool __detect_oob_pos_v = __scan_stop_pos_selector<_T>::DetectOOBPos;
-
-} // namespace __details
-
-template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
-          typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp,
-          typename _InitType, typename _KernelName>
+template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
+          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
+          typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
-template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
-          typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp,
-          typename _InitType, typename... _KernelName>
-struct __parallel_reduce_then_scan_scan_submitter<
-    _Bounded, __max_inputs_per_item, __is_inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput,
-    _ScanInputTransform, _WriteOp, _InitType, __internal::__optional_kernel_name<_KernelName...>>
+template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
+          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
+          typename... _KernelName>
+struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_inclusive, __is_unique_pattern_v,
+                                                  _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
+                                                  __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
-    static constexpr bool _DetectOOBPos = _Bounded && __details::__detect_oob_pos_v<_WriteOp>;
 
     template <typename _TmpAcc>
     _InitValueType
@@ -1970,36 +1880,11 @@ struct __parallel_reduce_then_scan_scan_submitter<
         __tmp_acc[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
     }
 
-    template <typename _InRng, typename _StopPosAcc>
-    auto
-    __create_on_oob_reached_callback(_InRng&, _StopPosAcc& __stop_pos_acc) const
-    {
-        if constexpr (_DetectOOBPos)
-        {
-            using _ScanPosT = __details::__scan_stop_pos_selector_t<_WriteOp>;
-
-            return [&]([[maybe_unused]] const _ScanPosT& __oob_source_pos) {
-
-                // OOB can be reached by at most one work-item per kernel invocation:
-                // output indices are monotonically increasing across all work-items,
-                // so only the single work-item that first crosses the output boundary
-                // can have get_oob_source_pos() return true.
-                // Therefore, no atomic fetch_min is needed here - at most one writer.
-                __stop_pos_acc.__data()[0] = __oob_source_pos;
-            };
-        }
-        else
-        {
-            return nullptr;
-        }
-    }
-
-    template <typename _InRng, typename _OutRng, typename _TmpStorageAcc, typename _StopPosPayload>
+    template <typename _InRng, typename _OutRng, typename _TmpStorageAcc, typename _BoundedHandler>
     sycl::event
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
-               const std::size_t __inputs_remaining, const std::size_t __block_num,
-               _StopPosPayload& __stop_pos_payload) const
+               const std::size_t __inputs_remaining, const std::size_t __block_num, _BoundedHandler& __bh) const
     {
         using _OutSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
         const _OutSize __n_out = oneapi::dpl::__ranges::__size(__out_rng);
@@ -2027,7 +1912,12 @@ struct __parallel_reduce_then_scan_scan_submitter<
             auto __res_acc =
                 __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
 
-            auto __stop_pos_acc = __get_stop_pos_accessor_opt<_Bounded>(__cgh, __stop_pos_payload);
+            auto __bh_view = [&]() {
+                if constexpr (__is_bounded_v<_BoundedHandler>)
+                    return __bh.__get_kernel_view(__cgh);
+                else
+                    return std::monostate{};
+            }();
 
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
@@ -2260,23 +2150,21 @@ struct __parallel_reduce_then_scan_scan_submitter<
 
                 if (__sub_group_carry_initialized)
                 {
-                    __scan_through_elements_helper<_DetectOOBPos, __sub_group_size, __is_inclusive,
+                    __scan_through_elements_helper<__sub_group_size, __is_inclusive,
                                                    /*__init_present=*/true,
                                                    /*__capture_output=*/true, __max_inputs_per_item>(
                         __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                         __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
-                        __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_slm_ptr,
-                        __create_on_oob_reached_callback(__in_rng, __stop_pos_acc));
+                        __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_slm_ptr, __bh_view);
                 }
                 else // first group first block, no subgroup carry
                 {
-                    __scan_through_elements_helper<_DetectOOBPos, __sub_group_size, __is_inclusive,
+                    __scan_through_elements_helper<__sub_group_size, __is_inclusive,
                                                    /*__init_present=*/false,
                                                    /*__capture_output=*/true, __max_inputs_per_item>(
                         __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                         __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
-                        __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_slm_ptr,
-                        __create_on_oob_reached_callback(__in_rng, __stop_pos_acc));
+                        __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_slm_ptr, __bh_view);
                 }
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block
@@ -2297,7 +2185,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
 
                         // For scan patterns with bounds checking, we need to ensure that the final value does not exceed the output size,
                         // as it may be used for the return value of the scan.
-                        if constexpr (_Bounded)
+                        if constexpr (__is_bounded_v<_BoundedHandler>)
                         {
                             __res_ptr[0] = std::min<std::decay_t<decltype(__res_ptr[0])>>(__res_ptr[0], __n_out);
                         }
@@ -2350,16 +2238,16 @@ __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 // _ReduceOp - a binary function which is used in the reduction and scan operations
 // _WriteOp - a function which accepts output range, index, and output of `_GenScanInput` applied to the input range
 //            and performs the final write to output operation
-template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng,
-          typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
-          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
-          typename _IsUniquePattern>
-__transform_reduce_then_scan_result_t<_Bounded, typename _InitType::__value_type, _InRng>
+template <std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng, typename _OutRng,
+          typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
+          typename _WriteOp, typename _InitType, typename _Inclusive, typename _IsUniquePattern,
+          typename _BoundedHandler = std::monostate>
+std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
 __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
                                       _WriteOp __write_op, _InitType __init, _Inclusive, _IsUniquePattern,
-                                      sycl::event __prior_event = {})
+                                      _BoundedHandler&& __bh = std::monostate{}, sycl::event __prior_event = {})
 {
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_reduce_kernel<_CustomName>>;
@@ -2414,12 +2302,12 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     const bool __use_subgroup_ops = std::is_trivially_copyable_v<_ValueType>;
 
     // Reduce and scan step implementations
-    using _ReduceSubmitter = __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive,
-                                                                          __is_unique_pattern_v, _GenReduceInput,
-                                                                          _ReduceOp, _InitType, _ReduceKernel>;
+    using _ReduceSubmitter =
+        __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __inclusive, __is_unique_pattern_v,
+                                                     _GenReduceInput, _ReduceOp, _InitType, _ReduceKernel>;
     using _ScanSubmitter =
-        __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_item, __inclusive, __is_unique_pattern_v,
-                                                   _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
+        __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __inclusive, __is_unique_pattern_v, _ReduceOp,
+                                                   _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
                                                    _ScanKernel>;
     _ReduceSubmitter __reduce_submitter{__num_work_groups,
                                         __work_group_size,
@@ -2444,13 +2332,6 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                     __write_op,
                                     __init};
 
-    // Allocate storage for stop position payload if needed
-    using __stop_pos_t = __scan_stop_pos_t<_InRng>;
-    auto __oob_pos_payload = __stop_pos_payloads_tools::template __create_storage_opt<_Bounded, __stop_pos_t>(__q);
-
-    // Create initial `sentinel` state for stop position payload
-    const auto __oob_pos_init_state = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<__stop_pos_t>();
-
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
     // with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
@@ -2464,27 +2345,11 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
-                                           __inputs_remaining, __b, __oob_pos_payload,
-                                           /*__need_init_stop_pos_payload*/ __b == 0, __oob_pos_init_state);
+                                           __inputs_remaining, __b, __bh);
 
-        // 2. Check early exit scenario starting from the second iteration.
-        //    Stop position may be settled up inside __scan_submitter.
-        //    The next call of __reduce_submitter has `depents_on` on the prior __scan_submitter,
-        //    so the stop position will be ready by the time we submit the next __reduce_submitter.
-        if constexpr (_Bounded)
-        {
-            if (__b > 0 && !__stop_pos_payloads_tools::__stored_pos_equals(__oob_pos_payload, __oob_pos_init_state))
-            {
-                // In this situation we may have modified by __reduce_submitter temporary data part in __result_and_scratch,
-                // but still have correct result data part, which has been settled up in the last __scan_submitter() call.
-                // So we can break the loop and return the result.
-                break;
-            }
-        }
-
-        // 3. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
+        // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
         __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
-                                         __prior_event, __inputs_remaining, __b, __oob_pos_payload);
+                                         __prior_event, __inputs_remaining, __b, __bh);
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
         {
@@ -2496,10 +2361,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         }
     }
 
-    if constexpr (_Bounded)
-        return {std::move(__prior_event), std::move(__result_and_scratch), std::move(__oob_pos_payload)};
-    else
-        return {std::move(__prior_event), std::move(__result_and_scratch)};
+    return {std::move(__prior_event), std::move(__result_and_scratch)};
 }
 
 template <typename _CustomName, typename _InInOutRng, typename _GenReduceInput>
