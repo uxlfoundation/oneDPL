@@ -681,7 +681,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
     using _Type = typename _InitType::__value_type;
 
-    bool __use_reduce_then_scan = oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local);
+    const bool __use_reduce_then_scan = oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local);
 
     // The single work-group implementation requires a fundamental type which must be trivially copyable.
     if constexpr (std::is_trivially_copyable_v<_Type>)

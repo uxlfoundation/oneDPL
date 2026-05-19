@@ -88,7 +88,7 @@ __sub_group_scan(const _SubGroup& __sub_group, _InputTypeWrapped __input[__iters
     oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __carry;
     oneapi::dpl::__internal::__scoped_destroyer<_InputType> __destroy_when_leaving_scope{__carry};
     using _ScanValueType = _InputType;
-    _ScanValueType* __no_slm = nullptr;
+    constexpr _ScanValueType* __no_slm = nullptr;
     if (__is_full)
     {
         oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size,

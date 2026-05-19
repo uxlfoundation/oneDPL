@@ -70,7 +70,7 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
         oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __wg_carry;
         std::uint8_t __idx = __sub_group.get_local_linear_id();
         _InputType __val = __local_acc[__idx];
-        _InputType* __no_slm = nullptr;
+        constexpr _InputType* __no_slm = nullptr;
         if (__num_iters == 1)
         {
             oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial<__sub_group_size,
