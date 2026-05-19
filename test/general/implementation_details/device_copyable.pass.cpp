@@ -191,18 +191,18 @@ test_device_copyable()
 
     //__gen_count_mask
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_count_mask<
-                      oneapi::dpl::__par_backend_hetero::__gen_mask<noop_device_copyable>>>,
+                      oneapi::dpl::__par_backend_hetero::__gen_mask<noop_device_copyable>, int>>,
                   "__gen_count_mask is not device copyable with device copyable types");
 
     //__gen_expand_count_mask
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<
-                      oneapi::dpl::__par_backend_hetero::__gen_mask<noop_device_copyable>>>,
+                      oneapi::dpl::__par_backend_hetero::__gen_mask<noop_device_copyable>, int>>,
                   "__gen_expand_count_mask is not device copyable with device copyable types");
 
     //__gen_set_balanced_path
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
                       oneapi::dpl::__par_backend_hetero::__set_intersection,
-                      oneapi::dpl::__par_backend_hetero::__get_bounds_simple, binary_op_device_copyable,
+                      oneapi::dpl::__par_backend_hetero::__get_bounds_simple, int, binary_op_device_copyable,
                       binary_op_device_copyable, binary_op_device_copyable>>,
                   "__gen_set_balanced_path is not device copyable with device copyable types");
 
@@ -211,18 +211,18 @@ test_device_copyable()
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter<
                       oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
                           oneapi::dpl::__par_backend_hetero::__set_intersection,
-                          oneapi::dpl::__par_backend_hetero::__get_bounds_simple, binary_op_device_copyable,
+                          oneapi::dpl::__par_backend_hetero::__get_bounds_simple, int, binary_op_device_copyable,
                           binary_op_device_copyable, binary_op_device_copyable>,
                       oneapi::dpl::execution::DefaultKernelName>>,
                   "__partition_set_balanced_path_submitter is not device copyable with device copyable types");
 #endif
 
     //__gen_set_op_from_known_balanced_path
-    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<
-                      oneapi::dpl::__par_backend_hetero::__set_intersection,
-                      oneapi::dpl::__par_backend_hetero::__noop_temp_data,
-                      binary_op_device_copyable, binary_op_device_copyable, binary_op_device_copyable>>,
-                  "__gen_set_op_from_known_balanced_path is not device copyable with device copyable types");
+    static_assert(
+        sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<
+            oneapi::dpl::__par_backend_hetero::__set_intersection, oneapi::dpl::__par_backend_hetero::__noop_temp_data,
+            int, binary_op_device_copyable, binary_op_device_copyable, binary_op_device_copyable>>,
+        "__gen_set_op_from_known_balanced_path is not device copyable with device copyable types");
 
     //__write_to_id_if
     static_assert(
@@ -525,18 +525,18 @@ test_non_device_copyable()
 
     //__gen_count_mask
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_count_mask<
-                      oneapi::dpl::__par_backend_hetero::__gen_mask<noop_non_device_copyable>>>,
+                      oneapi::dpl::__par_backend_hetero::__gen_mask<noop_non_device_copyable>, int>>,
                   "__gen_count_mask is device copyable with non device copyable types");
 
     //__gen_expand_count_mask
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<
-                      oneapi::dpl::__par_backend_hetero::__gen_mask<noop_non_device_copyable>>>,
+                      oneapi::dpl::__par_backend_hetero::__gen_mask<noop_non_device_copyable>, int>>,
                   "__gen_expand_count_mask is device copyable with non device copyable types");
 
     //__gen_set_balanced_path
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
                       oneapi::dpl::__par_backend_hetero::__set_intersection,
-                      oneapi::dpl::__par_backend_hetero::__get_bounds_simple, binary_op_non_device_copyable,
+                      oneapi::dpl::__par_backend_hetero::__get_bounds_simple, int, binary_op_non_device_copyable,
                       binary_op_non_device_copyable, binary_op_non_device_copyable>>,
                   "__gen_set_balanced_path is device copyable with non device copyable types");
 
@@ -546,7 +546,7 @@ test_non_device_copyable()
         !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter<
             oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
                 oneapi::dpl::__par_backend_hetero::__set_intersection,
-                oneapi::dpl::__par_backend_hetero::__get_bounds_simple, binary_op_non_device_copyable,
+                oneapi::dpl::__par_backend_hetero::__get_bounds_simple, int, binary_op_non_device_copyable,
                 binary_op_non_device_copyable, binary_op_non_device_copyable>,
             oneapi::dpl::execution::DefaultKernelName>>,
         "__partition_set_balanced_path_submitter is device copyable with non device copyable types");
@@ -556,7 +556,7 @@ test_non_device_copyable()
     static_assert(
         !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<
             oneapi::dpl::__par_backend_hetero::__set_intersection, oneapi::dpl::__par_backend_hetero::__noop_temp_data,
-            binary_op_non_device_copyable, binary_op_non_device_copyable, binary_op_non_device_copyable>>,
+            int, binary_op_non_device_copyable, binary_op_non_device_copyable, binary_op_non_device_copyable>>,
         "__gen_set_op_from_known_balanced_path is device copyable with non device copyable types");
 
     //__write_to_id_if

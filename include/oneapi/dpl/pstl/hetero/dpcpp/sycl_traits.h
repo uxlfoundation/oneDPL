@@ -447,10 +447,10 @@ struct __gen_mask;
 template <typename _BinaryPredicate>
 struct __gen_unique_mask;
 
-template <typename _GenMask>
+template <typename _GenMask, typename _RetType>
 struct __gen_count_mask;
 
-template <typename _GenMask, typename _RangeTransform>
+template <typename _GenMask, typename _RetType, typename _RangeTransform>
 struct __gen_expand_count_mask;
 
 template <int32_t __offset, typename _Assign, typename _ScanStopPosT>
@@ -480,10 +480,12 @@ struct __red_by_seg_op;
 template <typename _BinaryOp>
 struct __scan_by_seg_op;
 
-template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _SetOpCount, typename _BoundsProvider, typename _RetType, typename _Compare, typename _Proj1,
+          typename _Proj2>
 struct __gen_set_balanced_path;
 
-template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _SetOpCount, typename _TempData, typename _RetType, typename _Compare, typename _Proj1,
+          typename _Proj2>
 struct __gen_set_op_from_known_balanced_path;
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
@@ -548,15 +550,16 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPredicate>
 {
 };
-template <typename _GenMask>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_count_mask, _GenMask)>
+template <typename _GenMask, typename _RetType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_count_mask, _GenMask,
+                                                       _RetType)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
 {
 };
 
-template <typename _GenMask, typename _RangeTransform>
+template <typename _GenMask, typename _RetType, typename _RangeTransform>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask,
-                                                       _GenMask, _RangeTransform)>
+                                                       _GenMask, _RetType, _RangeTransform)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
 {
 };
@@ -621,17 +624,20 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2,
+          typename _RetType>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path,
-                                                       _SetOpCount, _BoundsProvider, _Compare, _Proj1, _Proj2)>
+                                                       _SetOpCount, _BoundsProvider, _RetType, _Compare, _Proj1,
+                                                       _Proj2)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_SetOpCount, _BoundsProvider, _Compare, _Proj1, _Proj2>
 {
 };
 
-template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
-struct sycl::is_device_copyable<
-    _ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path,
-                           _SetOpCount, _TempData, _Compare, _Proj1, _Proj2)>
+template <typename _SetOpCount, typename _TempData, typename _RetType, typename _Compare, typename _Proj1,
+          typename _Proj2>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
+    oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path, _SetOpCount, _TempData, _RetType,
+    _Compare, _Proj1, _Proj2)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_SetOpCount, _Compare, _Proj1, _Proj2>
 {
 };
