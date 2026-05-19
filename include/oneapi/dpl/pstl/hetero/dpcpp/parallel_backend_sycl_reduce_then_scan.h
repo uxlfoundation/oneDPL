@@ -1756,23 +1756,20 @@ struct __scan_stop_pos_helper<oneapi::dpl::__ranges::zip_view<_ZipRanges...>>
 template <typename... _Ranges>
 using __scan_stop_pos_t = typename __details::__scan_stop_pos_helper<std::decay_t<_Ranges>...>::_Type;
 
-template <typename _TupleOfSizes>
-using __scan_stop_pos_storage_t = __result_storage<_TupleOfSizes>;
-
 template <bool _Bounded, typename _ValueType, typename... _Ranges>
 using __transform_reduce_then_scan_result_t = std::conditional_t<
     _Bounded,
-    std::tuple<sycl::event, __combined_storage<_ValueType>, __scan_stop_pos_storage_t<__scan_stop_pos_t<_Ranges...>>>,
+    std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<__scan_stop_pos_t<_Ranges...>>>,
     std::tuple<sycl::event, __combined_storage<_ValueType>>>;
 
 struct __stop_pos_payloads_tools
 {
     template <bool _Bounded, typename _TupleOfSizes>
-    static std::conditional_t<_Bounded, __scan_stop_pos_storage_t<_TupleOfSizes>, std::nullptr_t>
+    static std::conditional_t<_Bounded, __result_storage<_TupleOfSizes>, std::nullptr_t>
     __create_storage_opt([[maybe_unused]] sycl::queue& __q)
     {
         if constexpr (_Bounded)
-            return __scan_stop_pos_storage_t<_TupleOfSizes>(__q, 1);
+            return __result_storage<_TupleOfSizes>(__q, 1);
         else
             return nullptr;
     }
