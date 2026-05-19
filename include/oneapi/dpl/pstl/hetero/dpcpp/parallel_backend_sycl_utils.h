@@ -939,7 +939,7 @@ struct __combined_storage : public __device_storage<_T>
     }
 
     __copyable_storage_state<_T>
-    __move_state_from() &&
+    __move_state() &&
     {
         return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf), __sz, __kind};
     }
@@ -1062,21 +1062,19 @@ class __future : private std::tuple<_Args...>
     }
 };
 
-template <typename _Event, typename _Payload>
+template <typename _ValueType>
 auto
-__create_future(_Event&& __event, _Payload&& __payload)
+__create_future(sycl::event&& __event, __result_and_scratch_storage<_ValueType>&& __payload)
 {
-    using _ValueType = typename std::decay_t<_Payload>::_ValueType;
-
-    return __future(std::forward<_Event>(__event),
-                    __result_and_scratch_storage<_ValueType>(std::forward<_Payload>(__payload).__move_state_from()));
+    return __future(std::move(__event), std::move(__payload));
 }
 
-template <typename _Event, typename _ValueType>
+template <typename _ValueType>
 auto
-__create_future(_Event&& __event, __result_and_scratch_storage<_ValueType>&& __payload)
+__create_future(sycl::event&& __event, __combined_storage<_ValueType>&& __payload)
 {
-    return __future(std::forward<_Event>(__event), std::forward<decltype(__payload)>(__payload));
+    return __future(std::move(__event),
+                    __result_and_scratch_storage<_ValueType>(__payload.__move_state()));
 }
 
 struct __scalar_load_op
