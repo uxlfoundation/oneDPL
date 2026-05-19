@@ -846,12 +846,14 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<
             1, _Assign, oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<_Range1>>;
 
-        auto __res = __parallel_reduce_then_scan_copy</*_Bounded*/ true, _CustomName>(
-            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
-            _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
+        auto [__event, __stop_pos_payload, __oob_pos_payload] =
+            __parallel_reduce_then_scan_copy</*_Bounded*/ true, _CustomName>(
+                __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
+                _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
 
-        _Size __stop_out = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
-        auto __finish_pos = __stop_pos_payloads_tools::__get_finish_pos(std::get<2>(__res), std::tuple<_Size>(__n));
+        const _Size __stop_out = __wait_and_get_result(std::move(__event), std::move(__stop_pos_payload));
+        const auto __finish_pos =
+            __stop_pos_payloads_tools::__get_finish_pos(std::move(__oob_pos_payload), std::tuple<_Size>(__n));
 
         __ret = {__stop_out, static_cast<_Size>(std::get<0>(__finish_pos))};
     }
