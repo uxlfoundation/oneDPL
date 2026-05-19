@@ -75,30 +75,25 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
         {
             oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial<__sub_group_size,
                                                                         /*__is_inclusive*/ true,
-                                                                        /*__init_present*/ false>(__sub_group, __val,
-                                                                                                  __binary_op,
-                                                                                                  __wg_carry,
-                                                                                                  __active_sub_groups,
-                                                                                                  __no_slm);
+                                                                        /*__init_present*/ false>(
+                __sub_group, __val, __binary_op, __wg_carry, __active_sub_groups, __no_slm);
             __local_acc[__idx] = __val;
         }
         else
         {
-            oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size, 
+            oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size,
                                                                 /*__is_inclusive*/ true,
-                                                                /*__init_present*/ false>(__sub_group, __val,
-                                                                                          __binary_op, __wg_carry,
-                                                                                          __no_slm);
+                                                                /*__init_present*/ false>(
+                __sub_group, __val, __binary_op, __wg_carry, __no_slm);
             __local_acc[__idx] = __val;
             __idx += __sub_group_size;
             for (std::uint8_t __i = 1; __i < __num_iters - 1; ++__i)
             {
                 __val = __local_acc[__idx];
-                oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size, 
+                oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size,
                                                                     /*__is_inclusive*/ true,
-                                                                    /*__init_present*/ true>(__sub_group, __val,
-                                                                                             __binary_op, __wg_carry,
-                                                                                             __no_slm);
+                                                                    /*__init_present*/ true>(
+                    __sub_group, __val, __binary_op, __wg_carry, __no_slm);
                 __local_acc[__idx] = __val;
                 __idx += __sub_group_size;
             }
