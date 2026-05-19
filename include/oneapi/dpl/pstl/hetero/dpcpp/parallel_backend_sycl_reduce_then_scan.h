@@ -1793,20 +1793,20 @@ struct __stop_pos_payloads_tools
         return __current_pos == __checking_pos;
     }
 
-    template <typename _TupleOfSizes, typename _StopPosPayload>
+    template <typename _TupleOfSizes, typename _OOBPosPayload>
     static _TupleOfSizes
-    __get_finish_pos(_StopPosPayload& __stop_pos_payload, _TupleOfSizes __src_sizes)
+    __get_finish_pos(_OOBPosPayload&& __oob_pos_payload, _TupleOfSizes __src_sizes)
     {
         _TupleOfSizes __result{__src_sizes};
 
-        using _StopPos = typename _StopPosPayload::_ValueType;
+        using _StopPos = typename _OOBPosPayload::_ValueType;
 
         constexpr std::size_t ___TupleOfSizesItems = std::tuple_size_v<_TupleOfSizes>;
         constexpr std::size_t __StopPosItems = std::tuple_size_v<_StopPos>;
         static_assert(___TupleOfSizesItems <= __StopPosItems);
 
-        _StopPos __oob_pos = __get_default_stop_pos_value<_StopPosPayload>();
-        __stop_pos_payload.__copy_result(&__oob_pos, 1);
+        _StopPos __oob_pos = __get_default_stop_pos_value<_OOBPosPayload>();
+        __oob_pos_payload.__copy_result(&__oob_pos, 1);
 
         constexpr std::size_t __Index = std::min(___TupleOfSizesItems, __StopPosItems);
         if constexpr (__Index > 0)
