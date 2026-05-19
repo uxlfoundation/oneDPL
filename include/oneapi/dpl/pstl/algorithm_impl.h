@@ -3668,20 +3668,35 @@ struct _SetOpReachedPosEvaluator
             using __backend_tag = typename decltype(__tag)::__backend_tag;
 
             // Calculate reached positions based on mask buffer
+            const auto __eval_res_reached_pos1 = [&]() {
+                return __eval_reached_pos(__mask_bufs.data(), __mask_buffer_reached,
+                                          oneapi::dpl::__utils::__parallel_set_op_mask::data1,
+                                          __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in1.__offset);
+            };
+
+            const auto __eval_res_reached_pos2 = [&]() {
+                return __eval_reached_pos(__mask_bufs.data(), __mask_buffer_reached,
+                                          oneapi::dpl::__utils::__parallel_set_op_mask::data2,
+                                          __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in2.__offset);
+            };
+
+            // To avoid parallelization overhead for small buffers. Can be tuned.
+            constexpr std::size_t __mask_cut_off = 2048;
+            const auto __mask_n = __mask_buffer_reached - __mask_bufs.data();
+
             _DifferenceType1 __res_reached_pos1 = {};
             _DifferenceType2 __res_reached_pos2 = {};
-            __par_backend::__parallel_invoke(
-                __backend_tag{}, __exec,
-                [&]() {
-                    __res_reached_pos1 = __eval_reached_pos(
-                        __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::data1,
-                        __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in1.__offset);
-                },
-                [&]() {
-                    __res_reached_pos2 = __eval_reached_pos(
-                        __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::data2,
-                        __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in2.__offset);
-                });
+            if (__mask_n <= __mask_cut_off)
+            {
+                __res_reached_pos1 = __eval_res_reached_pos1();
+                __res_reached_pos2 = __eval_res_reached_pos2();
+            }
+            else
+            {
+                __par_backend::__parallel_invoke(
+                    __backend_tag{}, __exec, [&]() { __res_reached_pos1 = __eval_res_reached_pos1(); },
+                    [&]() { __res_reached_pos2 = __eval_res_reached_pos2(); });
+            }
 
             return {__res_reached_pos1, __res_reached_pos2};
         }
