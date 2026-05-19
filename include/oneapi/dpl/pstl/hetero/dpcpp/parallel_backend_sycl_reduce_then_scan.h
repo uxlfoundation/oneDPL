@@ -1855,13 +1855,11 @@ struct __stop_pos_payloads_tools
             return nullptr;
     }
 
-    template <typename _TupleOfSizes, typename _OOBPosPayload>
+    template <typename _StopPos, typename _TupleOfSizes>
     static _TupleOfSizes
-    __get_finish_pos(_OOBPosPayload&& __oob_pos_payload, _TupleOfSizes __src_sizes)
+    __get_finish_pos(__result_storage<_StopPos>&& __oob_pos_payload, _TupleOfSizes __src_sizes)
     {
         _TupleOfSizes __result{__src_sizes};
-
-        using _StopPos = typename _OOBPosPayload::_ValueType;
 
         constexpr std::size_t ___TupleOfSizesItems = std::tuple_size_v<_TupleOfSizes>;
         constexpr std::size_t __StopPosItems = std::tuple_size_v<_StopPos>;

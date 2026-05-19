@@ -853,8 +853,6 @@ struct __result_storage : public __device_storage<_T>
 {
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __result_storage.");
 
-    using _ValueType = _T;
-
     std::size_t __result_sz = 0;
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
 
@@ -886,8 +884,6 @@ struct __result_storage : public __device_storage<_T>
 template <typename _T>
 struct __combined_storage : public __device_storage<_T>
 {
-    using _ValueType = _T;
-
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __combined_storage.");
 
     std::unique_ptr<_T, __internal::__sycl_usm_free> __result_buf = nullptr;
