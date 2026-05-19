@@ -116,7 +116,6 @@ __sub_group_scan(const _SubGroup& __sub_group, _InputTypeWrapped __input[__iters
         }
         else if (__limited_iters_per_item > 1)
         {
-            oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
             oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
                                                                 /*__init_present*/ false>(
                 __sub_group, __extract_scan_input(__input[__i++]), __binary_op, __carry, __no_slm);

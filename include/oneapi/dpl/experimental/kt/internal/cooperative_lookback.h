@@ -351,7 +351,7 @@ struct __cooperative_lookback
             else
             {
                 oneapi::dpl::__par_backend_hetero::__sub_group_scan<
-                    __sub_group_size, /*__is_inclusive*/ true,
+                    /*__is_inclusive*/ true,
                     /*__init_present*/ decltype(__is_initialized)::value>(
                     __subgroup, __tile_value, __binary_op, __running, static_cast<decltype(__tile_value)*>(nullptr));
                 return false;
