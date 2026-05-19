@@ -1045,6 +1045,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     if (__left_bound_seq_2 == __last2)
         return {__first1, __last2, __result1};
 
+    auto __size_func = [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); };
+    auto __mask_size_func = __size_func;
+
     const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
     if (__m1 > oneapi::dpl::__internal::__set_algo_cut_off)
     {
@@ -1052,10 +1055,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return __internal::__except_handler([&]() {
             return __internal::__parallel_set_op</*_Bounded*/ true>(
                 __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2,
-                __result1, __result2, __comp, __proj1, __proj2,
-                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-                [](auto&&... __args) {
+                __result1, __result2, __comp, __proj1, __proj2, __size_func, __mask_size_func, [](auto&&... __args) {
                     return oneapi::dpl::__utils::__set_intersection_construct<
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
                         std::forward<decltype(__args)>(__args)...);
@@ -1071,8 +1071,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
             return __internal::__parallel_set_op</*_Bounded*/ true>(
                 __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2,
                 __result1, __result2, __comp, __proj1, __proj2,
-                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
+                __size_func, __mask_size_func,
                 [](auto&&... __args) {
                     return oneapi::dpl::__utils::__set_intersection_construct<
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
@@ -1228,12 +1227,13 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     if (__n1 + __n2 > __set_algo_cut_off)
     {
+        auto __size_func = [](_DifferenceType __n, _DifferenceType) { return __n; };
+        auto __mask_size_func = __size_func;
+
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         auto [__it1, __it2, __it_out] = __internal::__parallel_set_op</*_Bounded*/ true>(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result1,
-            __result2, __comp, __proj1, __proj2, [](_DifferenceType __n, _DifferenceType) { return __n; },
-            [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-            [](auto&&... __args) {
+            __result2, __comp, __proj1, __proj2, __size_func, __mask_size_func, [](auto&&... __args) {
                 return oneapi::dpl::__utils::__set_difference_construct<__BrickCopyConstruct<_IsVector>>(
                     std::forward<decltype(__args)>(__args)...);
             });

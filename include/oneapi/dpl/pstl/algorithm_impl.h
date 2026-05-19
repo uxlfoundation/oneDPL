@@ -4389,6 +4389,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     if (__left_bound_seq_2 == __last2)
         return __result;
 
+    auto __size_func = [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); };
+    auto __mask_size_func = __size_func;
+
     const _DifferenceType __m1 = __last1 - __left_bound_seq_1 + __n2;
     if (__m1 > __set_algo_cut_off)
     {
@@ -4397,8 +4400,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
             return __internal::__parallel_set_op</*_Bounded*/ false>(
                        __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2,
                        __result, __result + std::min(__n1, __n2), __comp, oneapi::dpl::identity{},
-                       oneapi::dpl::identity{},
-                       [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
+                       oneapi::dpl::identity{}, __size_func, __mask_size_func,
                        [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
                        [](auto&&... __args) {
                            return oneapi::dpl::__utils::__set_intersection_construct<
@@ -4417,9 +4419,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
             return __internal::__parallel_set_op</*_Bounded*/ false>(
                        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2,
                        __result, __result + std::min(__n1, __n2), __comp, oneapi::dpl::identity{},
-                       oneapi::dpl::identity{},
-                       [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                       [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
+                       oneapi::dpl::identity{}, __size_func, __mask_size_func,
                        [](auto&&... __args) {
                            return oneapi::dpl::__utils::__set_intersection_construct<
                                oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
