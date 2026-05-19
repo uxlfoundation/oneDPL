@@ -1893,8 +1893,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                 // so only the single work-item that first crosses the output boundary
                 // can have get_oob_source_pos() return true.
                 // Therefore, no atomic fetch_min is needed here - at most one writer.
-                __stop_pos_acc.__data()[0] =
-                    oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__oob_source_pos);
+                __stop_pos_acc.__data()[0] = __oob_source_pos;
             };
         }
         else
