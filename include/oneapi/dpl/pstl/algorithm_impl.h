@@ -24,6 +24,7 @@
 #include <cmath>
 #include <tuple>
 #include <optional> // for std::optional
+#include <vector>
 
 #include "algorithm_fwd.h"
 
