@@ -25,7 +25,6 @@
 #include <cmath>
 #include <cassert>
 #include <array>
-#include <variant> // std::monostate
 #include <vector>
 
 #include "sycl_defs.h"
@@ -1559,7 +1558,7 @@ __get_stop_pos_accessor_opt([[maybe_unused]] sycl::handler& __cgh, [[maybe_unuse
     }
     else
     {
-        return std::monostate{};
+        return nullptr;
     }
 }
 
@@ -1690,7 +1689,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                     __sub_group_carry.__destroy();
                 }
 
-                if constexpr (!std::is_same_v<std::remove_cv_t<_StopPosPayload>, std::monostate>)
+                if constexpr (!std::is_same_v<std::remove_cv_t<_StopPosPayload>, std::nullptr_t>)
                 {
                     if (__need_init_stop_pos_payload && __ndi.get_global_linear_id() == 0)
                     {
@@ -1758,13 +1757,13 @@ using __transform_reduce_then_scan_result_t = std::conditional_t<
 struct __stop_pos_payloads_tools
 {
     template <bool _Bounded, typename _TupleOfSizes>
-    static std::conditional_t<_Bounded, __scan_stop_pos_storage_t<_TupleOfSizes>, std::monostate>
+    static std::conditional_t<_Bounded, __scan_stop_pos_storage_t<_TupleOfSizes>, std::nullptr_t>
     __create_storage_opt([[maybe_unused]] sycl::queue& __q)
     {
         if constexpr (_Bounded)
             return __scan_stop_pos_storage_t<_TupleOfSizes>(__q, 1);
         else
-            return std::monostate{};
+            return nullptr;
     }
 
     template <typename _StopPosPayload>
@@ -1826,7 +1825,7 @@ namespace __details
 template <typename _T, typename = void>
 struct __tuple_of_sizes_selector
 {
-    using type = std::monostate;
+    using type = std::nullptr_t;
 };
 
 template <typename _T>

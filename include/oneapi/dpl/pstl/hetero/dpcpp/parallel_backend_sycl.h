@@ -30,7 +30,6 @@
 #include <cstdint>
 #include <array>
 #include <tuple>
-#include <variant> // for std::monostate
 
 #include "../../iterator_impl.h"
 #include "../../execution_impl.h"
