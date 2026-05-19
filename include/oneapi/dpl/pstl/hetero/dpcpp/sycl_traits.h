@@ -500,6 +500,9 @@ struct __parallel_reduce_then_scan_scan_submitter;
 template <typename _GenInput, typename _KernelName>
 struct __partition_set_balanced_path_submitter;
 
+template <typename _StopPosT, typename _Acc>
+struct __bounded_handler_kernel_view;
+
 } // namespace oneapi::dpl::__par_backend_hetero
 
 template <typename _UnaryOp, typename _InitType>
@@ -513,6 +516,13 @@ template <typename _Predicate, typename _RangeTransform>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_mask, _Predicate,
                                                        _RangeTransform)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Predicate>
+{
+};
+
+template <typename _StopPosT, typename _Acc>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__bounded_handler_kernel_view,
+                                                       _StopPosT, _Acc)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Acc>
 {
 };
 
