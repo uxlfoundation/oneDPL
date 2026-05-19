@@ -1886,7 +1886,6 @@ struct __parallel_reduce_then_scan_scan_submitter<
             using _ScanPosT = __details::__scan_stop_pos_selector_t<_WriteOp>;
 
             return [&]([[maybe_unused]] const _ScanPosT& __oob_source_pos) {
-                using __result_pos_t = __scan_stop_pos_t<_InRng>;
 
                 // OOB can be reached by at most one work-item per kernel invocation:
                 // output indices are monotonically increasing across all work-items,
