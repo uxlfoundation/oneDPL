@@ -1575,8 +1575,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
     sycl::event
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
-               const std::size_t __inputs_remaining, const std::size_t __block_num, _StopPosPayload& __stop_pos_payload,
-               bool __need_init_stop_pos_payload, const _TupleOfSizes&) const
+               const std::size_t __inputs_remaining, const std::size_t __block_num, _StopPosPayload& __oob_pos_payload,
+               bool __need_init_stop_pos_payload, const _TupleOfSizes& __oob_pos_init_state) const
     {
         using _InitValueType = typename _InitType::__value_type;
         return __q.submit([&, this](sycl::handler& __cgh) {
@@ -1584,7 +1584,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __get_accessor(sycl::read_write, __scratch_container, __cgh, __dpl_sycl::__no_init{});
-            auto __stop_pos_acc = __get_stop_pos_accessor_opt<_Bounded>(__cgh, __stop_pos_payload);
+            auto __oob_pos_acc = __get_stop_pos_accessor_opt<_Bounded>(__cgh, __oob_pos_payload);
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                 // Compute work distribution fields dependent on sub-group size within the kernel. This is because we
@@ -1694,8 +1694,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                     if (__need_init_stop_pos_payload && __ndi.get_global_linear_id() == 0)
                     {
                         // Initialize OOB pos to max sentinel - means "not yet found"
-                        __stop_pos_acc.__data()[0] =
-                            oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_TupleOfSizes>();
+                        __oob_pos_acc.__data()[0] = __oob_pos_init_state;
                     }
                 }
             });
@@ -1776,13 +1775,13 @@ struct __stop_pos_payloads_tools
 
     template <typename _StopPosPayload>
     static bool
-    __stop_pos_is_default(_StopPosPayload& __stop_pos_payload)
+    __pos_is_equal_to(_StopPosPayload& __pos_payload, const _StopPosPayload::_ValueType& __checking_pos)
     {
         using _StopPos = typename _StopPosPayload::_ValueType;
         _StopPos __current_pos;
-        __stop_pos_payload.__copy_result(&__current_pos, 1);
+        __pos_payload.__copy_result(&__current_pos, 1);
 
-        return __current_pos == __get_default_stop_pos_value<_StopPosPayload>();
+        return __current_pos == __checking_pos;
     }
 
     template <typename _TupleOfSizes, typename _StopPosPayload>
@@ -2343,7 +2342,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 
     // Allocate storage for stop position payload if needed
     using __stop_pos_t = __scan_stop_pos_t<_InRng>;
-    auto __stop_pos_payload = __stop_pos_payloads_tools::template __create_storage_opt<_Bounded, __stop_pos_t>(__q);
+    auto __oob_pos_payload = __stop_pos_payloads_tools::template __create_storage_opt<_Bounded, __stop_pos_t>(__q);
+    const auto __oob_pos_init_state = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<__stop_pos_t>();
 
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
     // with sufficiently large L2 / L3 caches.
@@ -2358,8 +2358,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
-                                           __inputs_remaining, __b, __stop_pos_payload,
-                                           /*__need_init_stop_pos_payload*/ __b == 0, __stop_pos_t{});
+                                           __inputs_remaining, __b, __oob_pos_payload,
+                                           /*__need_init_stop_pos_payload*/ __b == 0, __oob_pos_init_state);
 
         // 2. Check early exit scenario starting from the second iteration.
         //    Stop position may be settled up inside __scan_submitter.
@@ -2367,7 +2367,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         //    so the stop position will be ready by the time we submit the next __reduce_submitter.
         if constexpr (_Bounded)
         {
-            if (__b > 0 && !__stop_pos_payloads_tools::__stop_pos_is_default(__stop_pos_payload))
+            if (__b > 0 && !__stop_pos_payloads_tools::__pos_is_equal_to(__oob_pos_payload, __oob_pos_init_state))
             {
                 // In this situation we may have modified by __reduce_submitter temporary data part in __result_and_scratch,
                 // but still have correct result data part, which has been settled up in the last __scan_submitter() call.
@@ -2378,7 +2378,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 
         // 3. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
         __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
-                                         __prior_event, __inputs_remaining, __b, __stop_pos_payload);
+                                         __prior_event, __inputs_remaining, __b, __oob_pos_payload);
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
         {
@@ -2391,7 +2391,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     }
 
     if constexpr (_Bounded)
-        return {std::move(__prior_event), std::move(__result_and_scratch), std::move(__stop_pos_payload)};
+        return {std::move(__prior_event), std::move(__result_and_scratch), std::move(__oob_pos_payload)};
     else
         return {std::move(__prior_event), std::move(__result_and_scratch)};
 }
