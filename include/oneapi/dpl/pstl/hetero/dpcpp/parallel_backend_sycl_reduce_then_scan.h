@@ -1341,6 +1341,8 @@ __sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __ma
     else
     {
         __exclusive_sub_group_masked_scan<__use_subgroup_ops, __init_present>(
+            __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
+    }
 }
 template <bool __is_inclusive, bool __init_present, typename _BinaryOp, typename _ValueType, typename _LazyValueType>
 void
