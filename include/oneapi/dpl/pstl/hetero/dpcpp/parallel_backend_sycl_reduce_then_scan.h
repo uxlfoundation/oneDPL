@@ -1713,36 +1713,48 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
     _InitType __init;
 };
 
-template <bool _OnTopLevel, typename... _InRng>
+namespace __details
+{
+
+template <typename... _Ranges>
 struct __scan_stop_pos_type;
 
-template <bool _OnTopLevel, typename _Range>
-struct __scan_stop_pos_type<_OnTopLevel, _Range>
+template <typename _Range>
+struct __scan_stop_pos_type<_Range>
 {
-    using _SizeT = decltype(oneapi::dpl::__ranges::__size(std::declval<_Range>()));
-
-    using _Type = std::conditional_t<_OnTopLevel, std::tuple<_SizeT>, _SizeT>;
+    using _Type = decltype(oneapi::dpl::__ranges::__size(std::declval<_Range>()));
 };
 
-template <bool _OnTopLevel, typename... _Ranges>
-struct __scan_stop_pos_type<_OnTopLevel, oneapi::dpl::__ranges::zip_view<_Ranges...>>
+template <typename... _Ranges>
+struct __scan_stop_pos_type<oneapi::dpl::__ranges::zip_view<_Ranges...>>
 {
     using _Type = std::tuple<decltype(oneapi::dpl::__ranges::__size(std::declval<_Ranges>()))...>;
 };
 
-template <bool _OnTopLevel, typename _Range, typename... _Ranges>
-struct __scan_stop_pos_type<_OnTopLevel, _Range, _Ranges...>
+// Helper to build the final stop-position tuple type.
+// General case (multiple ranges, or single plain range): wrap each range's size type into a flat tuple.
+template <typename... _Ranges>
+struct __scan_stop_pos_helper
 {
-    using _Type = std::tuple<typename __scan_stop_pos_type</*_OnTopLevel=*/false, _Range>::_Type,
-                             typename __scan_stop_pos_type</*_OnTopLevel=*/false, _Ranges>::_Type...>;
+    using _Type = std::tuple<typename __scan_stop_pos_type<_Ranges>::_Type...>;
 };
 
+// Single zip_view: its _Type is already a flat tuple<SZ...>, so return it directly without an extra wrapping tuple.
+template <typename... _ZipRanges>
+struct __scan_stop_pos_helper<oneapi::dpl::__ranges::zip_view<_ZipRanges...>>
+{
+    using _Type = typename __scan_stop_pos_type<oneapi::dpl::__ranges::zip_view<_ZipRanges...>>::_Type;
+};
+
+} // namespace __details
+
 // Define std::tuple of sizes for specified source ranges.
-// For one or more multiple source ranges, the stop position is a tuple of stop positions for each range.
-// For each source range represented by zip_view, the stop position is represented by a tuple of sizes, one for each range in the zip_view.
-// For non-zip_view source ranges, the stop position is represented by a tuple of one size.
-template <typename... _InRng>
-using __scan_stop_pos_t = typename __scan_stop_pos_type</*_OnTopLevel=*/true, std::decay_t<_InRng>...>::_Type;
+// - Single plain range              -> tuple<SZ>
+// - Single zip_view<R1,R2>          -> tuple<SZ,SZ>          (flat, not nested)
+// - Multiple plain ranges R1,R2     -> tuple<SZ,SZ>
+// - zip_view<R1,R2> + plain R3      -> tuple<tuple<SZ,SZ>,SZ>
+template <typename... _Ranges>
+using __scan_stop_pos_t = typename __details::__scan_stop_pos_helper<std::decay_t<_Ranges>...>::_Type;
 
 template <typename _TupleOfSizes>
 using __scan_stop_pos_storage_t = __result_storage<_TupleOfSizes>;
