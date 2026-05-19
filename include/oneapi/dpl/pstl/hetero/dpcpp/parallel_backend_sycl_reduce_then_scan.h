@@ -1822,20 +1822,6 @@ struct __stop_pos_payloads_tools
 
 namespace __details
 {
-template <typename _T, typename = void>
-struct __tuple_of_sizes_selector
-{
-    using type = std::nullptr_t;
-};
-
-template <typename _T>
-struct __tuple_of_sizes_selector<_T, std::void_t<typename _T::_TupleOfSizes>>
-{
-    using type = typename _T::_TupleOfSizes;
-};
-
-template <typename _T>
-using __tuple_of_sizes_selector_t = typename __tuple_of_sizes_selector<_T>::type;
 
 // ScanStopPosT selector
 template <typename _T, typename = void>
