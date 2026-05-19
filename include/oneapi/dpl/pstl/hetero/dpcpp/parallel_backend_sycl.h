@@ -1112,11 +1112,6 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     return __create_future(std::move(__event), std::move(__payload));
 }
 
-template <typename _Range1, typename _Range2, typename _Range3>
-using __parallel_rng_set_op_return_t =
-    std::tuple<oneapi::dpl::__internal::__difference_t<_Range1>, oneapi::dpl::__internal::__difference_t<_Range2>,
-               oneapi::dpl::__internal::__difference_t<_Range3>>;
-
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range1>>>
