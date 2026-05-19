@@ -1257,13 +1257,6 @@ struct __tuple_upper_bound_sentinel
             },
             std::forward<decltype(__tup)>(__tup));
     }
-
-    template <typename _TValue>
-    static constexpr std::enable_if_t<std::is_arithmetic_v<std::decay_t<_TValue>>, std::decay_t<_TValue>>
-    __convert_fields(_TValue&& __value)
-    {
-        return std::numeric_limits<std::decay_t<_TValue>>::max();
-    }
 };
 
 } // namespace __internal
