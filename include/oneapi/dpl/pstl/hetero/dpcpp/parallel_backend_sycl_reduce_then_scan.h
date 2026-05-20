@@ -1858,14 +1858,6 @@ struct __stop_pos_payloads_tools
     }
 
     template <typename _StopPosPayload>
-    static typename _StopPosPayload::_ValueType
-    __get_default_stop_pos_value()
-    {
-        using _StopPos = typename _StopPosPayload::_ValueType;
-        return oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_StopPos>();
-    }
-
-    template <typename _StopPosPayload>
     static bool
     __stored_pos_equals(_StopPosPayload& __pos_payload, const typename _StopPosPayload::_ValueType& __checking_pos)
     {
@@ -1889,7 +1881,7 @@ struct __stop_pos_payloads_tools
         constexpr std::size_t __StopPosItems = std::tuple_size_v<_StopPos>;
         static_assert(___TupleOfSizesItems <= __StopPosItems);
 
-        _StopPos __oob_pos = __get_default_stop_pos_value<_OOBPosPayload>();
+        _StopPos __oob_pos = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_StopPos>();
         __oob_pos_payload.__copy_result(&__oob_pos, 1);
 
         constexpr std::size_t __Index = std::min(___TupleOfSizesItems, __StopPosItems);
