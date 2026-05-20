@@ -3450,10 +3450,6 @@ struct _ParallelSetOpCombinePred
     }
 };
 
-template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator>
-using __parallel_set_op_return_t =
-    oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
-
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _SetOp,
           class _SizeFunction, typename _SetRange, bool _Bounded>
@@ -3995,7 +3991,7 @@ struct _ParallelSetOpApexPred
 template <bool _Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
           class _RandomAccessIterator2, class _OutputIterator, class _Compare, class _Proj1, class _Proj2,
           class _SizeFunction, class _SetOp>
-__parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
+oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                   _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                   _OutputIterator __result1, _OutputIterator __result2, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
@@ -4057,7 +4053,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         const auto [__res_reached_pos1, __res_reached_pos2, __res_reached_posOut] =
             __source_final_pos_evaluator.__get_reached_positions();
 
-        return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
+        return oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
             __first1 + __res_reached_pos1, __first2 + __res_reached_pos2, __result1 + __res_reached_posOut};
     });
 }
