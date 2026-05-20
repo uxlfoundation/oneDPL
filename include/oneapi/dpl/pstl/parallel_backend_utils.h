@@ -598,15 +598,6 @@ struct __set_operations_result
         return {__in1, __in2, __it_out};
     }
 #endif
-
-    __set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessOutputIterator>
-    operator+(std::tuple<typename std::iterator_traits<_RandomAccessIterator1>::difference_type,
-                         typename std::iterator_traits<_RandomAccessIterator2>::difference_type,
-                         typename std::iterator_traits<_RandomAccessOutputIterator>::difference_type>
-                  __offsets) const
-    {
-        return {__in1 + std::get<0>(__offsets), __in2 + std::get<1>(__offsets), __it_out + std::get<2>(__offsets)};
-    }
 };
 
 } // namespace __utils
