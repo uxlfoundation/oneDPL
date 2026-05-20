@@ -93,26 +93,41 @@ struct __noop_temp_data
 template <typename _T>
 inline constexpr bool __is_bounded_v = !std::is_same_v<std::decay_t<_T>, std::monostate>;
 
+// Default extractor used by __init_stop_positions to compute the seed value (the "max" stop
+// position, i.e. the answer when no OOB write occurs). For copy_if/unique_copy this is just the
+// input size. Algorithms with a richer stop-position type (e.g. set_a_b_write, where the stop
+// position is a (rng1_idx, rng2_idx) pair and the input is a zip of (rng1, rng2, scratch)) will
+// supply their own extractor that picks the relevant components out of the zipped range.
+struct __default_stop_pos_max_extractor
+{
+    template <typename _StopPosT, typename _InRng>
+    static _StopPosT
+    get(const _InRng& __in_rng)
+    {
+        return static_cast<_StopPosT>(oneapi::dpl::__ranges::__size(__in_rng));
+    }
+};
+
 // Kernel-side view of the handler. Holds the read_write accessor used in the kernel lambda;
 // constructed inside the submitter via __get_kernel_view(__cgh).
-template <typename _StopPosT, typename _Acc>
+template <typename _StopPosT, typename _Acc, typename _MaxExtractor>
 struct __bounded_handler_kernel_view
 {
     using __stop_pos_t = _StopPosT;
     _Acc __acc;
 
     // Called once from the reduce submitter on the first block by a single work-item: seed the
-    // OOB slot with the input size. Any later OOB write will overwrite it with a smaller value,
-    // so the final slot value IS the answer (no sentinel post-processing).
+    // OOB slot with the max value (input size for copy_if; pair of input sizes for set_a_b).
+    // Any later OOB write will overwrite it with a smaller value, so the final slot value IS the
+    // answer (no sentinel post-processing).
     template <typename _InRng>
     void
     __init_stop_positions(const _InRng& __in_rng) const
     {
-        __acc.__data()[0] = static_cast<_StopPosT>(oneapi::dpl::__ranges::__size(__in_rng));
+        __acc.__data()[0] = _MaxExtractor::template get<_StopPosT>(__in_rng);
     }
 
-    // OOB hit: only one work-item per block can win this race because output indices are
-    // monotonically increasing across work-items, so a plain store is sufficient (no atomic).
+
     void
     __on_oob_reached(_StopPosT __pos) const
     {
@@ -123,7 +138,7 @@ struct __bounded_handler_kernel_view
 // Host-side handler. Owns the result_storage; algorithm-level wrappers construct it, pass it to
 // __parallel_transform_reduce_then_scan, and read the final value via __finish_pos() after the
 // kernel completes.
-template <typename _StopPosT>
+template <typename _StopPosT, typename _MaxExtractor = __default_stop_pos_max_extractor>
 struct __bounded_handler
 {
     using __stop_pos_t = _StopPosT;
@@ -135,7 +150,7 @@ struct __bounded_handler
     __get_kernel_view(sycl::handler& __cgh)
     {
         auto __acc = __get_accessor(sycl::read_write, __storage, __cgh, __dpl_sycl::__no_init{});
-        return __bounded_handler_kernel_view<_StopPosT, decltype(__acc)>{__acc};
+        return __bounded_handler_kernel_view<_StopPosT, decltype(__acc), _MaxExtractor>{__acc};
     }
 
     // Read the current slot value on the host (used between blocks for the early-exit check).

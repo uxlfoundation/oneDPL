@@ -500,7 +500,7 @@ struct __parallel_reduce_then_scan_scan_submitter;
 template <typename _GenInput, typename _KernelName>
 struct __partition_set_balanced_path_submitter;
 
-template <typename _StopPosT, typename _Acc>
+template <typename _StopPosT, typename _Acc, typename _MaxExtractor>
 struct __bounded_handler_kernel_view;
 
 } // namespace oneapi::dpl::__par_backend_hetero
@@ -519,9 +519,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <typename _StopPosT, typename _Acc>
+template <typename _StopPosT, typename _Acc, typename _MaxExtractor>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__bounded_handler_kernel_view,
-                                                       _StopPosT, _Acc)>
+                                                       _StopPosT, _Acc, _MaxExtractor)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Acc>
 {
 };
