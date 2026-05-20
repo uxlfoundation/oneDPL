@@ -694,7 +694,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
             // GPU: reduce-then-scan is efficient for moderate-sized inputs, so the single-group cutoff is low.
             // CPU: kernel launch overhead dominates, so prefer the single-group path for larger inputs.
-            std::size_t __single_group_upper_limit = __q_local.get_device().is_gpu() ? 2048 : 16384;
+            const std::size_t __single_group_upper_limit = __q_local.get_device().is_gpu() ? 2048 : 16384;
             if (__group_scan_fits_in_slm<_Type>(__q_local, __n, __n_uniform, __single_group_upper_limit))
             {
                 auto __event = __parallel_transform_scan_single_group<_CustomName>(
