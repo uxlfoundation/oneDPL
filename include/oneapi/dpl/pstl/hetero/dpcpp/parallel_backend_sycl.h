@@ -852,7 +852,11 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
                 __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
                 _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
 
-        const _Size __stop_out = __wait_and_get_result(std::move(__event), std::move(__stop_pos_payload));
+        __event.wait_and_throw();
+
+        _Size __stop_out = {};
+        __stop_pos_payload.__copy_result(&__stop_out, 1);
+        
         const auto __finish_pos =
             __stop_pos_payloads_tools::__get_finish_pos(std::move(__oob_pos_payload), std::tuple<_Size>(__n));
 
@@ -974,7 +978,11 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
                 __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
                 _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{});
 
-        const _Size __stop_out = __wait_and_get_result(std::move(__event), std::move(__stop_pos_payload));
+        __event.wait_and_throw();
+
+        _Size __stop_out = {};
+        __stop_pos_payload.__copy_result(&__stop_out, 1);
+
         const auto __finish_pos =
             __stop_pos_payloads_tools::__get_finish_pos(std::move(__oob_pos_payload), std::tuple<_Size>(__n));
 
@@ -2348,12 +2356,19 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 #if !defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250000
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
-        auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
-            __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
-            std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
+        auto [__event, __payload] =
+            oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
+                __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
+                std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
+
+        __event.wait_and_throw();
+
+        using _PayloadT = decltype(__payload);
+        typename _PayloadT::_ValueType __output_res = {};
+        __payload.__copy_result(&__output_res, 1);
+
         // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
         // past-the-end iterator pair of segmented reduction.
-        auto __output_res = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
         return std::get<0>(__output_res) + 1;
     }
 #endif
