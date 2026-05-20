@@ -2455,23 +2455,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
                                            __inputs_remaining, __b, __oob_pos_payload,
                                            /*__need_init_stop_pos_payload*/ __b == 0, __oob_pos_init_state);
-
-        // 2. Check early exit scenario starting from the second iteration.
-        //    Stop position may be settled up inside __scan_submitter.
-        //    The next call of __reduce_submitter has `depents_on` on the prior __scan_submitter,
-        //    so the stop position will be ready by the time we submit the next __reduce_submitter.
-        if constexpr (_Bounded)
-        {
-            if (__b > 0 && !__stop_pos_payloads_tools::__stored_pos_equals(__oob_pos_payload, __oob_pos_init_state))
-            {
-                // In this situation we may have modified by __reduce_submitter temporary data part in __result_and_scratch,
-                // but still have correct result data part, which has been settled up in the last __scan_submitter() call.
-                // So we can break the loop and return the result.
-                break;
-            }
-        }
-
-        // 3. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
+        // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
         __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
                                          __prior_event, __inputs_remaining, __b, __oob_pos_payload);
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
