@@ -26,6 +26,7 @@
 #include <cassert>
 #include <cstdint> // for std::uint8_t
 #include <memory>  // for std::addressof
+#include <algorithm>
 #include "utils.h"
 #include "memory_fwd.h"
 #include "functional_impl.h" // for oneapi::dpl::identity, std::invoke
