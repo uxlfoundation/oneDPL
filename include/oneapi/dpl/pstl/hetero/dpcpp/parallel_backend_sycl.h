@@ -853,14 +853,9 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
                 _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
 
         __event.wait_and_throw();
-
-        _Size __stop_out = {};
-        __stop_pos_payload.__copy_result(&__stop_out, 1);
-
-        const auto __finish_pos =
-            __stop_pos_payloads_tools::__get_finish_pos(std::move(__oob_pos_payload), std::tuple<_Size>(__n));
-
-        __ret = {__stop_out, static_cast<_Size>(std::get<0>(__finish_pos))};
+        __stop_pos_payload.__copy_result(__ret.data(), 1);
+        __ret[1] = std::get<0>(__stop_pos_payloads_tools::__get_finish_pos(std::move(__oob_pos_payload),
+                                                                           std::tuple<_Size>(__n)));
     }
     else
     {
@@ -882,8 +877,8 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
 
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
-std::tuple<sycl::event,
-           __combined_storage<oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
+__future<sycl::event, __result_and_scratch_storage<
+                          oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
 __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
                                               _Range3&& __out_keys, _Range4&& __out_values,
                                               _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
@@ -902,7 +897,7 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
     std::size_t __n = oneapi::dpl::__ranges::__size(__keys);
     // __gen_red_by_seg_scan_input requires that __n > 1
     assert(__n > 1);
-    return __parallel_transform_reduce_then_scan<
+    auto [__event, __payload] = __parallel_transform_reduce_then_scan<
         /*_Bounded*/ false, sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>), _CustomName>(
         __q, __n, oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values)),
@@ -910,6 +905,7 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
         _ScanInputTransform{}, _WriteOp{__binary_pred, __n},
         oneapi::dpl::unseq_backend::__no_init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>{},
         /*Inclusive*/ std::true_type{}, /*_IsUniquePattern=*/std::false_type{});
+    return __create_future(std::move(__event), std::move(__payload));
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
@@ -979,14 +975,9 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
                 _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{});
 
         __event.wait_and_throw();
-
-        _Size __stop_out = {};
-        __stop_pos_payload.__copy_result(&__stop_out, 1);
-
-        const auto __finish_pos =
-            __stop_pos_payloads_tools::__get_finish_pos(std::move(__oob_pos_payload), std::tuple<_Size>(__n));
-
-        return {__stop_out, static_cast<_Size>(std::get<0>(__finish_pos))};
+        __stop_pos_payload.__copy_result(__ret.data(), 1);
+        __ret[1] = std::get<0>(__stop_pos_payloads_tools::__get_finish_pos(std::move(__oob_pos_payload),
+                                                                           std::tuple<_Size>(__n)));
     }
     else
     {
@@ -2356,20 +2347,12 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 #if !defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250000
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
-        auto&& [__event, __payload] =
-            oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
-                __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
-                std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
-
-        __event.wait_and_throw();
-
-        using _PayloadT = decltype(__payload);
-        typename _PayloadT::_ValueType __output_res = {};
-        __payload.__copy_result(&__output_res, 1);
-
+        auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
+            __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
+            std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
         // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
         // past-the-end iterator pair of segmented reduction.
-        return std::get<0>(__output_res) + 1;
+        return std::get<0>(__res.get()) + 1;
     }
 #endif
     return __parallel_reduce_by_segment_fallback(
@@ -2384,8 +2367,8 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 //------------------------------------------------------------------------
 template <typename _CustomName, bool __is_inclusive, typename _Range1, typename _Range2, typename _Range3,
           typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
-std::tuple<sycl::event, __combined_storage<
-                            oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
+__future<sycl::event, __result_and_scratch_storage<
+                          oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
 __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
                                             _Range3&& __out_values, _BinaryPredicate __binary_pred,
                                             _BinaryOperator __binary_op, [[maybe_unused]] _InitType __init)
@@ -2406,11 +2389,13 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
     // and functions differently than the typical scan init which is only applied once in a single location.
     oneapi::dpl::unseq_backend::__no_init_value<_PackedFlagValueType> __placeholder_no_init{};
     using _WriteOp = __write_scan_by_seg<__is_inclusive, _InitType, _BinaryOperator>;
-    return __parallel_transform_reduce_then_scan</*_Bounded*/ false, sizeof(_PackedFlagValueType), _CustomName>(
+    auto [__event, __payload] = __parallel_transform_reduce_then_scan<
+        /*_Bounded*/ false, sizeof(_PackedFlagValueType), _CustomName>(
         __q, __n, oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
         std::forward<_Range3>(__out_values), _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{},
         _ScanInputTransform{}, _WriteOp{__init, __binary_op}, __placeholder_no_init,
         /*Inclusive*/ std::bool_constant<__is_inclusive>{}, /*_IsUniquePattern=*/std::false_type{});
+    return __create_future(std::move(__event), std::move(__payload));
 }
 
 template <typename _CustomName>
@@ -2536,10 +2521,10 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
     sycl::queue __q_local = __exec.queue();
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
-        auto __res = __parallel_scan_by_segment_reduce_then_scan<_CustomName, __is_inclusive>(
+        __parallel_scan_by_segment_reduce_then_scan<_CustomName, __is_inclusive>(
             __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
-            std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __init);
-        std::get<0>(__res).wait_and_throw();
+            std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __init)
+            .wait();
         return;
     }
     // Implicit synchronization in this call. We need to wrap the policy as the implementation may still call
