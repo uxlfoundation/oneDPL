@@ -1845,6 +1845,23 @@ using __transform_reduce_then_scan_result_t = std::conditional_t<
 
 struct __stop_pos_payloads_tools
 {
+    // Primary variable template - default case
+    template<typename _T, typename = void>
+    static constexpr _T __sentinel = _T{};
+
+    // Specialization for arithmetic types
+    template<typename _T>
+    static constexpr _T __sentinel<_T, std::enable_if_t<std::is_arithmetic_v<_T>>> = 
+        std::numeric_limits<_T>::max();
+
+    // Specializations for tuple types
+    template<typename... _Types>
+    static constexpr std::tuple<_Types...> __sentinel<std::tuple<_Types...>> = {__sentinel<_Types>...};
+
+    template<typename... _Types>
+    static constexpr oneapi::dpl::__internal::tuple<_Types...> __sentinel<std::tuple<_Types...>> =
+        {__sentinel<_Types>...};
+
     template <bool _Bounded, typename _TupleOfSizes>
     static std::conditional_t<_Bounded, __result_storage<_TupleOfSizes>, std::nullptr_t>
     __create_storage_opt([[maybe_unused]] sycl::queue& __q)
@@ -1865,7 +1882,7 @@ struct __stop_pos_payloads_tools
         constexpr std::size_t __StopPosItems = std::tuple_size_v<_StopPos>;
         static_assert(___TupleOfSizesItems <= __StopPosItems);
 
-        _StopPos __oob_pos = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_StopPos>();
+        _StopPos __oob_pos = __sentinel<_StopPos>;
         __oob_pos_payload.__copy_result(&__oob_pos, 1);
 
         constexpr std::size_t __Index = std::min(___TupleOfSizesItems, __StopPosItems);
@@ -1875,7 +1892,7 @@ struct __stop_pos_payloads_tools
         return __result;
     }
 
-  protected:
+  private:
     template <std::size_t __Index, typename _TupleOfSizes, typename _StopPos>
     static void
     __update_each_field(_TupleOfSizes& __result, const _StopPos& __oob_pos)
@@ -2424,7 +2441,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     auto __oob_pos_payload = __stop_pos_payloads_tools::template __create_storage_opt<_Bounded, __stop_pos_t>(__q);
 
     // Create initial `sentinel` state for stop position payload
-    const auto __oob_pos_init_state = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<__stop_pos_t>();
+    const auto __oob_pos_init_state = __stop_pos_payloads_tools::__sentinel<__stop_pos_t>;
 
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
     // with sufficiently large L2 / L3 caches.
