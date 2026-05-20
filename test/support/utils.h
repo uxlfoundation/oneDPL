@@ -1421,37 +1421,6 @@ struct DefaultInitializedToOne
     }
 };
 
-// Device copyable arithmetic wrapper supporting the operations required by scan-style algorithms.
-// Intentionally non-trivially copyable to test that device_copyable specialization works and we are not
-// relying on trivial copyability.
-struct arith_device_copyable
-{
-    int i;
-    arith_device_copyable() = default;
-    arith_device_copyable(int __i) : i(__i) {}
-    // Intentionally user-provided so the type is not trivially copy constructible. No I/O here
-    // because copies happen inside SYCL kernels.
-    arith_device_copyable(const arith_device_copyable& other) : i(other.i) {}
-    arith_device_copyable&
-    operator=(const arith_device_copyable&) = default;
-
-    friend arith_device_copyable
-    operator+(const arith_device_copyable& a, const arith_device_copyable& b)
-    {
-        return arith_device_copyable(a.i + b.i);
-    }
-    friend bool
-    operator==(const arith_device_copyable& a, const arith_device_copyable& b)
-    {
-        return a.i == b.i;
-    }
-    friend bool
-    operator!=(const arith_device_copyable& a, const arith_device_copyable& b)
-    {
-        return !(a == b);
-    }
-};
-
 } /* namespace TestUtils */
 
 #if _ENABLE_STD_RANGES_TESTING
@@ -1466,10 +1435,6 @@ inline constexpr bool enable_borrowed_range<TestUtils::MinimalisticRange<RandomI
 } // namespace ranges
 } // namespace std
 
-template <>
-struct sycl::is_device_copyable<TestUtils::arith_device_copyable> : std::true_type
-{
-};
 
 #endif // _ENABLE_STD_RANGES_TESTING
 

@@ -426,5 +426,42 @@ test4buffers(int mult = kDefaultMultValue)
     test4buffers<alloc_type, typename TestName::UsedValueType, TestName, TestSyclBuffer>(mult, TestName::ScaleStep, TestName::ScaleMax);
 }
 
+// Device copyable arithmetic wrapper supporting the operations required by scan-style algorithms.
+// Intentionally non-trivially copyable to test that device_copyable specialization works and we are not
+// relying on trivial copyability.
+struct arith_device_copyable
+{
+    int i;
+    arith_device_copyable() = default;
+    arith_device_copyable(int __i) : i(__i) {}
+    // Intentionally user-provided so the type is not trivially copy constructible. No I/O here
+    // because copies happen inside SYCL kernels.
+    arith_device_copyable(const arith_device_copyable& other) : i(other.i) {}
+    arith_device_copyable&
+    operator=(const arith_device_copyable&) = default;
+
+    friend arith_device_copyable
+    operator+(const arith_device_copyable& a, const arith_device_copyable& b)
+    {
+        return arith_device_copyable(a.i + b.i);
+    }
+    friend bool
+    operator==(const arith_device_copyable& a, const arith_device_copyable& b)
+    {
+        return a.i == b.i;
+    }
+    friend bool
+    operator!=(const arith_device_copyable& a, const arith_device_copyable& b)
+    {
+        return !(a == b);
+    }
+};
+
 } /* namespace TestUtils */
+
+template <>
+struct sycl::is_device_copyable<TestUtils::arith_device_copyable> : std::true_type
+{
+};
+
 #endif // _UTILS_SYCL_H
