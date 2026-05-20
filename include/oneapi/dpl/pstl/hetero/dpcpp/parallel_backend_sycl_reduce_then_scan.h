@@ -1857,7 +1857,7 @@ struct __stop_pos_payloads_tools
 
     template <typename _StopPos, typename _TupleOfSizes>
     static _TupleOfSizes
-    __get_finish_pos(__result_storage<_StopPos>&& __oob_pos_payload, _TupleOfSizes __src_sizes)
+    __get_finish_pos(__result_storage<_StopPos>& __oob_pos_payload, _TupleOfSizes __src_sizes)
     {
         _TupleOfSizes __result{__src_sizes};
 
