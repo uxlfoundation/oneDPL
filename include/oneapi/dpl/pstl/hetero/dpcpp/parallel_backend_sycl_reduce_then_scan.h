@@ -1355,12 +1355,17 @@ __sub_group_scan(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value
 {
     auto __mask_fn = [](auto __sub_group_local_id, auto __offset) { return __sub_group_local_id >= __offset; };
     std::uint8_t __init_broadcast_id = __sub_group.get_max_local_range()[0] - 1;
-    if (__comm_slm == nullptr)
+    if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {
-        __sub_group_masked_scan<__sub_group_size, /*__use_subgroup_ops=*/true, __is_inclusive, __init_present>(
-            __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
+        if (__comm_slm == nullptr)
+        {
+            // use native subgroup operations for scan (best for GPU & trivially copyable types)
+            __sub_group_masked_scan<__sub_group_size, /*__use_subgroup_ops=*/true, __is_inclusive, __init_present>(
+                __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
+            return;
+        }
     }
-    else
+    //else
     {
         __sub_group_masked_scan<__sub_group_size, /*__use_subgroup_ops=*/false, __is_inclusive, __init_present>(
             __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
@@ -1377,12 +1382,17 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
         return __sub_group_local_id >= __offset && __sub_group_local_id < __elements_to_process;
     };
     std::uint8_t __init_broadcast_id = __elements_to_process - 1;
-    if (__comm_slm == nullptr)
+    if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {
-        __sub_group_masked_scan<__sub_group_size, /*__use_subgroup_ops=*/true, __is_inclusive, __init_present>(
-            __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
+        if (__comm_slm == nullptr)
+        {
+            // use native subgroup operations for scan (best for GPU & trivially copyable types)
+            __sub_group_masked_scan<__sub_group_size, /*__use_subgroup_ops=*/true, __is_inclusive, __init_present>(
+                __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
+            return;
+        }
     }
-    else
+    //else
     {
         __sub_group_masked_scan<__sub_group_size, /*__use_subgroup_ops=*/false, __is_inclusive, __init_present>(
             __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
