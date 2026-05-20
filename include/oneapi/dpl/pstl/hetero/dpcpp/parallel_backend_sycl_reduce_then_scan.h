@@ -1855,18 +1855,6 @@ struct __stop_pos_payloads_tools
             return nullptr;
     }
 
-    template <typename _StopPosPayload>
-    static bool
-    __stored_pos_equals(_StopPosPayload& __pos_payload, const typename _StopPosPayload::_ValueType& __checking_pos)
-    {
-        using _StopPos = typename _StopPosPayload::_ValueType;
-
-        _StopPos __current_pos;
-        __pos_payload.__copy_result(&__current_pos, 1);
-
-        return __current_pos == __checking_pos;
-    }
-
     template <typename _TupleOfSizes, typename _OOBPosPayload>
     static _TupleOfSizes
     __get_finish_pos(_OOBPosPayload&& __oob_pos_payload, _TupleOfSizes __src_sizes)
