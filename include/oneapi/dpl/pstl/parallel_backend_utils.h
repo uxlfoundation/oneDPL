@@ -300,7 +300,7 @@ struct _CopyConstructRangeOpWrapper
 };
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator>
-using _union_construct_return_t = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>;
+using __set_construct_return_t = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>;
 
 // ATTENTION.
 // Real data generation and mask generation in this function depend on _OutputIterator and _MaskIterator.
@@ -311,7 +311,7 @@ using _union_construct_return_t = std::tuple<_ForwardIterator1, _ForwardIterator
 // __set_difference_construct and __set_symmetric_difference_construct.
 template <typename _CopyConstructRange, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
-_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
+__set_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                       _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
                       _Proj2 __proj2, _MaskIterator __mask)
@@ -380,7 +380,7 @@ struct _CopyOpWrapper
 
 template <typename _CopyFunc, typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
           typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
-_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
+__set_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                              _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
                              _Proj2 __proj2, _MaskIterator __mask)
@@ -414,7 +414,7 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
 
 template <typename _CopyConstructRange, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
-_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
+__set_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                            _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
                            _Proj2 __proj2, _MaskIterator __mask)
@@ -460,7 +460,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 
 template <typename _CopyConstructRange, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
-_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
+__set_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                                      _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
                                      _Proj1 __proj1, _Proj2 __proj2, _MaskIterator __mask)
