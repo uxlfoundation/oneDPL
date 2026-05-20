@@ -1859,7 +1859,7 @@ struct __stop_pos_payloads_tools
     static constexpr std::tuple<_Types...> __sentinel<std::tuple<_Types...>> = {__sentinel<_Types>...};
 
     template<typename... _Types>
-    static constexpr oneapi::dpl::__internal::tuple<_Types...> __sentinel<std::tuple<_Types...>> =
+    static constexpr oneapi::dpl::__internal::tuple<_Types...> __sentinel<oneapi::dpl::__internal::tuple<_Types...>> =
         {__sentinel<_Types>...};
 
     template <bool _Bounded, typename _TupleOfSizes>
