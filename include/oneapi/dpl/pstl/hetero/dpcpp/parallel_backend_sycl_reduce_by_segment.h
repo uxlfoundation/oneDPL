@@ -55,7 +55,6 @@
 #include "sycl_traits.h"
 
 #include "../../utils.h"
-#include "parallel_backend_sycl_scan_by_segment.h"
 
 namespace oneapi
 {
@@ -63,6 +62,42 @@ namespace dpl
 {
 namespace __par_backend_hetero
 {
+
+// This function is responsible for performing an exclusive segmented scan between work items in shared local memory.
+// Each work item passes __delta_local_id which is the distance to the closest lower indexed work item that
+// processes a segment end. A SLM accessor that is twice the work-group size must be provided.
+// Example across eight work items with addition as the binary operation :
+// -----------------------------
+// Local ID    : 0 1 2 3 4 5 6 7
+// Accumulator : 2 3 1 3 0 5 2 1
+// Delta       : 0 1 2 3 0 1 0 0
+// -----------------------------
+// Return Vals : 0 2 5 6 9 0 5 2
+// -----------------------------
+// __wg_segmented_scan is a derivative work and the reason for the additional copyright notice.
+template <typename _NdItem, typename _LocalAcc, typename _IdxType, typename _ValueType, typename _BinaryOp>
+_ValueType
+__wg_segmented_scan(_NdItem __item, _LocalAcc __local_acc, _IdxType __local_id, _IdxType __delta_local_id,
+                    _ValueType __accumulator, _ValueType __identity, _BinaryOp __binary_op, std::size_t __wgroup_size)
+{
+    _IdxType __first = 0;
+    __local_acc[__local_id] = __accumulator;
+
+    __dpl_sycl::__group_barrier(__item);
+
+    for (std::size_t __i = 1; __i < __wgroup_size; __i *= 2)
+    {
+        if (__delta_local_id >= __i)
+            __accumulator = __binary_op(__local_acc[__first + __local_id - __i], __accumulator);
+
+        __first = __wgroup_size - __first;
+        __local_acc[__first + __local_id] = __accumulator;
+        __dpl_sycl::__group_barrier(__item);
+    }
+
+    return (__local_id ? __local_acc[__first + __local_id - 1] : __identity);
+}
+
 
 template <typename... Name>
 class __seg_reduce_count_kernel;
