@@ -724,7 +724,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
         const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
         auto [__event, __payload] =
-            __parallel_transform_reduce_then_scan</*_Bounded*/ false, sizeof(typename _InitType::__value_type), _CustomName>(
+            __parallel_transform_reduce_then_scan</*_Bounded*/ false, sizeof(typename _InitType::__value_type),
+                                                  _CustomName>(
                 __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform,
                 __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
                 /*_IsUniquePattern=*/std::false_type{});
@@ -2366,8 +2367,8 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 //------------------------------------------------------------------------
 // parallel_scan_by_segment - sync pattern
 //------------------------------------------------------------------------
-template <typename _CustomName, bool __is_inclusive, typename _Range1, typename _Range2,
-          typename _Range3, typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
+template <typename _CustomName, bool __is_inclusive, typename _Range1, typename _Range2, typename _Range3,
+          typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
 std::tuple<sycl::event, __combined_storage<
                             oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
 __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,

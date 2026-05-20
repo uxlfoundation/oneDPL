@@ -1842,8 +1842,7 @@ using __scan_stop_pos_t = typename __details::__scan_stop_pos_helper<std::decay_
 
 template <bool _Bounded, typename _ValueType, typename... _Ranges>
 using __transform_reduce_then_scan_result_t = std::conditional_t<
-    _Bounded,
-    std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<__scan_stop_pos_t<_Ranges...>>>,
+    _Bounded, std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<__scan_stop_pos_t<_Ranges...>>>,
     std::tuple<sycl::event, __combined_storage<_ValueType>>>;
 
 struct __stop_pos_payloads_tools
@@ -1980,7 +1979,6 @@ struct __parallel_reduce_then_scan_scan_submitter<
             using _ScanPosT = __details::__scan_stop_pos_selector_t<_WriteOp>;
 
             return [&]([[maybe_unused]] const _ScanPosT& __oob_source_pos) {
-
                 // OOB can be reached by at most one work-item per kernel invocation:
                 // output indices are monotonically increasing across all work-items,
                 // so only the single work-item that first crosses the output boundary
