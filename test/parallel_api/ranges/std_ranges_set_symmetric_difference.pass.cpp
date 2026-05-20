@@ -15,9 +15,42 @@
 
 #include "std_ranges_test.h"
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING
 namespace test_std_ranges
 {
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <>
+struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
+{
+    static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
+};
+
+#if TEST_DPCPP_BACKEND_PRESENT
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <>
+struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_symmetric_difference)>>
+{
+    template <typename Policy, std::size_t Index>
+    static constexpr bool
+    ShouldCheckReturnValueField() // Hetero policy: check all fields
+    {
+        if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>)
+        {
+            if constexpr (Index == 1 || Index == 2)
+            {
+#if STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
+                // Skip .in2 state check in the results of oneapi::dpl::ranges::set_symmetric_difference call
+                // for hetero policies in C++26 compatibility mode because it just not implemented for now.
+                return false;
+#endif
+            }
+        }
+
+        return true;
+    }
+};
+#endif
+
 template<>
 int out_size_with_empty_in2<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_symmetric_difference)>>(int in1_size)
 {
@@ -42,14 +75,10 @@ void test_mixed_types_host()
     std::vector<int> out_unseq(out_expected.size(), 0xCD);
     std::vector<int> out_par_unseq(out_expected.size(), 0xCD);
 
-    oneapi::dpl::ranges::set_symmetric_difference(
-        oneapi::dpl::execution::seq, r1, r2, out_seq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
-    oneapi::dpl::ranges::set_symmetric_difference(
-        oneapi::dpl::execution::par, r1, r2, out_par, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
-    oneapi::dpl::ranges::set_symmetric_difference(
-        oneapi::dpl::execution::unseq, r1, r2, out_unseq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
-    oneapi::dpl::ranges::set_symmetric_difference(
-        oneapi::dpl::execution::par_unseq, r1, r2, out_par_unseq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    oneapi::dpl::ranges::set_symmetric_difference(oneapi::dpl::execution::seq,       r1, r2, out_seq,       std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    oneapi::dpl::ranges::set_symmetric_difference(oneapi::dpl::execution::par,       r1, r2, out_par,       std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    oneapi::dpl::ranges::set_symmetric_difference(oneapi::dpl::execution::unseq,     r1, r2, out_unseq,     std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    oneapi::dpl::ranges::set_symmetric_difference(oneapi::dpl::execution::par_unseq, r1, r2, out_par_unseq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
 
     EXPECT_EQ_RANGES(out_expected, out_seq, "wrong result with seq policy");
     EXPECT_EQ_RANGES(out_expected, out_par, "wrong result with par policy");
@@ -84,42 +113,191 @@ void test_mixed_types_device()
     }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
-#endif // _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+
+struct
+{
+    template <std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+              std::ranges::random_access_range _ROut, typename Comp = std::ranges::less, typename Proj1 = std::identity,
+              typename Proj2 = std::identity>
+    std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                                 std::ranges::borrowed_iterator_t<_R2>,
+                                                 std::ranges::borrowed_iterator_t<_ROut>>
+    operator()(_R1&& r_1, _R2&& r_2, _ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
+    {
+        auto in1 = std::ranges::begin(r_1);
+        auto in2 = std::ranges::begin(r_2);
+        auto out = std::ranges::begin(r_out);
+
+        const auto n1 = std::ranges::size(r_1);
+        const auto n2 = std::ranges::size(r_2);
+        const auto nOut = std::ranges::size(r_out);
+
+        std::size_t idx1 = 0;
+        std::size_t idx2 = 0;
+        std::size_t idxOut = 0;
+
+        while (idx1 < n1)
+        {
+            if (idx2 == n2)
+            {
+                const auto to_copy = test_std_ranges::eval_remaining_space_min(nOut, idxOut, n1, idx1);
+                std::copy_n(in1 + idx1, to_copy, out + idxOut);
+
+                idx1 += to_copy;
+                idxOut += to_copy;
+                break;
+            }
+
+            if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
+            {
+                if (idxOut < nOut)
+                    out[idxOut++] = in1[idx1++];
+                else
+                    break;
+            }
+            else
+            {
+                if (std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
+                {
+                    if (idxOut < nOut)
+                        out[idxOut++] = in2[idx2];
+                    else
+                        break;
+                }
+                else
+                    ++idx1;
+                ++idx2;
+            }
+        }
+
+        const auto to_copy = test_std_ranges::eval_remaining_space_min(nOut, idxOut, n2, idx2);
+        std::copy_n(in2 + idx2, to_copy, out + idxOut);
+        idx2 += to_copy;
+        idxOut += to_copy;
+
+        return {in1 + idx1, in2 + idx2, out + idxOut};
+    }
+} set_symmetric_difference_checker;
+
+// Check the correctness of the set_symmetric_difference_checker against the logic of std::ranges::set_symmetric_difference
+void
+test_set_symmetric_difference_checker()
+{
+    // oneapi::dpl::ranges::set_symmetric_difference logic
+    {
+        // set1:                   1, 2, 3
+        // set2:                   4, 5, 6
+        //                         --------^
+        // res:                    1, 2, 3, 4, 5, 6
+        // final position in set1: --------+
+        // final position in set2:---------+
+
+        std::vector<int> set1{1, 2, 3};
+        std::vector<int> set2{4, 5, 6};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{1, 2, 3, 4, 5, 6};
+
+        auto res = set_symmetric_difference_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.end(), res.in1, "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.end(), res.in2, "Wrong 'in2' state of result");
+        EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+    // oneapi::dpl::ranges::set_symmetric_difference logic
+    {
+        // set1:                   1, 2, 3
+        // set2:                   4, 5, 6
+        //                         --------^
+        // res:                    1, 2, 3 |
+        // final position in set1: --------+
+        // final position in set2: ^
+
+        std::vector<int> set1{1, 2, 3};
+        std::vector<int> set2{4, 5, 6};
+        std::vector<int> set3(3);
+        const std::vector<int> resExpected{1, 2, 3};
+
+        auto res = set_symmetric_difference_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.end(), res.in1, "Wrong 'in1' state of result");
+        EXPECT_EQ(std::find(set2.begin(), set2.end(), 4), res.in2, "Wrong 'in2' state of result");
+        EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+#endif
+
+    // oneapi::dpl::ranges::set_symmetric_difference logic
+    {
+        // set1:                   1, 3, 5, 6
+        // set2:                   1, 2, 8, 9
+        //                         --------- ^
+        // res:                    2, 3, 5, 6, 8, 9
+        // final position in set1: ----------+
+        // final position in set2: ----------+
+
+        std::vector<int> set1{1, 3, 5, 6};
+        std::vector<int> set2{1, 2, 8, 9};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{2, 3, 5, 6, 8, 9};
+
+        auto res = set_symmetric_difference_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.end(), res.in1, "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.end(), res.in2, "Wrong 'in2' state of result");
+        EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+    // oneapi::dpl::ranges::set_symmetric_difference logic
+    {
+        // set1:                   1, 3, 5, 6
+        // set2:                   1, 2,   ^  8, 9
+        //                         --------+ ^
+        // res:                    2, 3, 5 | |
+        // final position in set1: --------+ |
+        // final position in set2: ----------+
+
+        std::vector<int> set1{1, 3, 5, 6};
+        std::vector<int> set2{1, 2, 8, 9};
+        std::vector<int> set3(3);
+        const std::vector<int> resExpected{2, 3, 5};
+
+        auto res = set_symmetric_difference_checker(set1, set2, set3);
+
+        EXPECT_EQ(std::find(set1.begin(), set1.end(), 6), res.in1, "Wrong 'in1' state of result");
+        EXPECT_EQ(std::find(set2.begin(), set2.end(), 8), res.in2, "Wrong 'in2' state of result");
+        EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+#endif
+}
+#endif // _ENABLE_STD_RANGES_TESTING
 
 int
 main()
 {
     bool bProcessed = false;
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING
+
+    // Check the correctness of the set_symmetric_difference_checker against the logic of std::ranges::set_symmetric_difference
+    test_set_symmetric_difference_checker();
+
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    // TODO: use data_in_in_out_lim when set_symmetric_difference supports
-    // output range not-sufficiently large to hold all the processed elements
-    // this will also require adding a custom serial implementation of the algorithm into the checker
-
-    auto checker = [](std::ranges::random_access_range auto&& r1,
-                      std::ranges::random_access_range auto&& r2,
-                      std::ranges::random_access_range auto&& r_out, auto&&... args)
-    {
-        auto res = std::ranges::set_symmetric_difference(std::forward<decltype(r1)>(r1), std::forward<decltype(r2)>(r2),
-                                                         std::ranges::begin(r_out), std::forward<decltype(args)>(args)...);
-
-        using ret_type = std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<decltype(r1)>,
-                                                                      std::ranges::borrowed_iterator_t<decltype(r2)>,
-                                                                      std::ranges::borrowed_iterator_t<decltype(r_out)>>;
-        return ret_type{res.in1, res.in2, res.out};
-    };
-
-    test_range_algo<0, int, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_symmetric_difference, checker);
-    test_range_algo<1, int, data_in_in_out, mul1_t, div3_t>{big_sz}(dpl_ranges::set_symmetric_difference, checker, std::ranges::less{}, proj);
+    test_range_algo<0, int, data_in_in_out_lim, div3_t, mul1_t>{big_sz}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker);
+    test_range_algo<1, int, data_in_in_out_lim, mul1_t, div3_t>{big_sz}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, proj);
 
     // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
-    test_range_algo<2, int, data_in_in_out, mul1_t, mul1_t>{100}(dpl_ranges::set_symmetric_difference, checker, std::ranges::less{}, proj, proj);
+    test_range_algo<2, int, data_in_in_out_lim, mul1_t, mul1_t>{100}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, proj, proj);
 
-    test_range_algo<3,  P2, data_in_in_out, mul1_t, div3_t>{}(dpl_ranges::set_symmetric_difference, checker, std::ranges::less{}, &P2::x, &P2::x);
-    test_range_algo<4,  P2, data_in_in_out, mul1_t, div3_t>{}(dpl_ranges::set_symmetric_difference, checker, std::ranges::less{}, &P2::proj, &P2::proj);
+    test_range_algo<3,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, &P2::x, &P2::x);
+    test_range_algo<4,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
     // Check if projections are applied to the right sequences and trigger a compile-time error if not
     test_mixed_types_host();
@@ -129,7 +307,7 @@ main()
 
     bProcessed = true;
 
-#endif //_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(bProcessed);
 }

@@ -224,6 +224,12 @@ template <typename I1, typename I2>
 static constexpr bool check_in_in_result<std::ranges::in_in_result<I1, I2>> = true;
 
 template <typename T>
+static constexpr bool check_in_out_result{};
+
+template <typename I1, typename O>
+static constexpr bool check_in_out_result<std::ranges::in_out_result<I1, O>> = true;
+
+template <typename T>
 static constexpr bool check_in_in_out_result{};
 
 template <typename I1, typename I2, typename O>
@@ -274,6 +280,23 @@ void call_with_host_policies(auto algo, auto... args)
     algo(oneapi::dpl::execution::par, args...);
     algo(oneapi::dpl::execution::par_unseq, args...);
 }
+
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <typename Algo>
+struct CheckResultResolver
+{
+    // Attention: Index is 1-based field number in result types,
+    // e.g. for in_in_out_result:
+    //      1 - first input range iterator,
+    //      2 - second input range iterator,
+    //      3 - output range iterator
+    template <typename Policy, std::size_t Index>
+    static constexpr bool
+    ShouldCheckReturnValueField()
+    {
+        return true;
+    }
+};
 
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
@@ -398,26 +421,49 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        if constexpr (check_in_out_result<decltype(expected_res)>)
         {
-            EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 1>())
+            {
+                EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                          (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            }
+        }
+        else if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        {
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 1>())
+            {
+                EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                          (std::string("wrong input stop position with ") + names + sizes).c_str());
+            }
 
-            EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 2>())
+            {
+                EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
+                          (std::string("wrong input stop position with ") + names + sizes).c_str());
+            }
         }
         else if constexpr (check_in_in_result<decltype(expected_res)>)
         {
-            EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 1>())
+            {
+                EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                          (std::string("wrong input stop position with ") + names + sizes).c_str());
+            }
 
-            EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 2>())
+            {
+                EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
+                          (std::string("wrong input stop position with ") + names + sizes).c_str());
+            }
         }
         else
         {
-            EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 1>())
+            {
+                EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                          (std::string("wrong input stop position with ") + names + sizes).c_str());
+            }
         }
 
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
@@ -463,7 +509,7 @@ public:
         process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-	    process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -474,11 +520,11 @@ public:
         process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test case size of input range is less than size of output and vice-versa
-        process_data_in_out(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_out(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size / 2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size / 2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, 0,      0, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_out(max_n, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_out(max_n, 0, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
@@ -496,8 +542,8 @@ public:
         process_data_in_in(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test case the sizes of input ranges are different
-        process_data_in_in(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
-        process_data_in_in(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size / 2, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size / 2, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test cases with empty sequence(s)
         process_data_in_in(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
@@ -534,13 +580,19 @@ private:
 
         if constexpr (check_in_in_result<decltype(expected_res)>)
         {
-            EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 1>())
+            {
+                EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                          (std::string("wrong stop position with ") + typeid(Algo).name() +
+                           typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+            }
 
-            EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 2>())
+            {
+                EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
+                          (std::string("wrong stop position with ") + typeid(Algo).name() +
+                           typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+            }
         }
         else if constexpr (!std::is_same_v<decltype(res), bool>)
         {
@@ -612,13 +664,24 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        if constexpr (check_in_out_result<decltype(expected_res)>)
         {
-            EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+            EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
                       (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
+        else if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        {
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 1>())
+            {
+                EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                          (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            }
 
-            EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
-                      (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            if constexpr (CheckResultResolver<Algo>::template ShouldCheckReturnValueField<Policy, 2>())
+            {
+                EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
+                          (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            }
         }
         else
         {
@@ -664,10 +727,10 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size * 2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0,      0,                                     0, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, 0, r_size, out_size_with_empty_in1<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, r_size, 0, out_size_with_empty_in2<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
@@ -677,17 +740,17 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size/2, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size,     CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size * 2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size / 2, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size / 2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size / 2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s) and/or zero output capacity
-        process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, 0, r_size / 2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size / 2, 0, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0,           0,     0,     CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size,     0,     CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, r_size / 2, r_size,     CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size / 2, 0, r_size,     CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, 0, r_size / 2, r_size / 4, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, r_size / 2, 0, r_size / 4, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
@@ -933,6 +996,13 @@ struct span_view_fo
 };
 #endif
 
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <TestDataMode mode>
+struct ResolveTestDataModeForHeteroPolicy
+{
+    static constexpr TestDataMode res_mode = mode;
+};
+
 template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
 struct test_range_algo
@@ -1008,11 +1078,14 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
-                test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
-                test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
+                // TODO remove after implementation range-based set operations for bounded output range with hetero policies
+                constexpr TestDataMode resHeteroMode = ResolveTestDataModeForHeteroPolicy<mode>::res_mode;
+
+                test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
+                test<T, usm_subrange<T>, resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-                test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
-                test<T, usm_span<T>,     mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
+                test<T, usm_span<T>,     resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
             }
         }
@@ -1034,6 +1107,29 @@ struct test_range_algo
 #endif // TEST_DPCPP_BACKEND_PRESENT
     }
 };
+
+// @param TSize size - 1-based size of the range, zero for empty range
+// @param TIndex index - 0-based index of item in range to calculate remaining space for
+// @return TSize - remaining space in range starting from index
+template <typename TSize, typename TIndex>
+TSize
+eval_remaining_space(TSize size, TIndex index)
+{
+    if (size >= index)
+        return size - index;
+
+    return 0;
+}
+
+template <typename TSize1, typename TIndex1, typename TSize2, typename TIndex2>
+std::common_type_t<TSize1, TSize2>
+eval_remaining_space_min(TSize1 size1, TIndex1 index1, TSize2 size2, TIndex2 index2)
+{
+    const TSize1 space1 = eval_remaining_space(size1, index1);
+    const TSize2 space2 = eval_remaining_space(size2, index2);
+
+    return std::min<std::common_type_t<TSize1, TSize2>>(space1, space2);
+}
 
 } //namespace test_std_ranges
 

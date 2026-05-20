@@ -312,17 +312,6 @@
 #   define _PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN 0
 #endif
 
-// There is a bug in the libc++ at the time of writing this comment with 21 being the latest major release
-// 23 is set to avoid frequent bump-ups.
-// See: https://github.com/llvm/llvm-project/blob/6096d35ea93c75f648a253a00775b4d74915c819/libcxx/include/__algorithm/ranges_set_union.h#L94
-// This line does not take into account that the iterator-based implementation may arbitrary call comp(a, b) or comp(b, a)
-// TODO: report it or contribute.
-#if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION <= 230000
-#    define _PSTL_LIBCPP_RANGE_SET_BROKEN 1
-#else
-#    define _PSTL_LIBCPP_RANGE_SET_BROKEN 0
-#endif
-
 // Drop view throws exceptions in libstdc++ 10
 #define _PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN (_GLIBCXX_RELEASE == 10)
 
@@ -345,5 +334,8 @@
 // P2325R3 also removed default_initializable from weakly_incrementable, which breaks
 // std::input_iterator and std::output_iterator on the same pre-P2325R3 implementations.
 #define _ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+
+// TODO remove after implementation of range-based set operations with hetero policies
+#define STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
 
 #endif // _TEST_CONFIG_H
