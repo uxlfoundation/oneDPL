@@ -1488,29 +1488,16 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     }
 }
 
-constexpr inline std::uint8_t
-__get_reduce_then_scan_default_sg_sz()
-{
-    return 32;
-}
-
-constexpr inline std::uint8_t
-__get_reduce_then_scan_workaround_sg_sz()
-{
-    return 16;
-}
-
 // To workaround a hardware bug on certain Intel iGPUs with older driver versions and -O0 device compilation, use a
 // sub-group size of 16. Note this function may only be called on the device as _ONEDPL_DETECT_SPIRV_COMPILATION is only
 // valid here.
 constexpr inline std::uint8_t
 __get_reduce_then_scan_actual_sg_sz_device()
 {
-    return
 #if _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED || !_ONEDPL_DETECT_SPIRV_COMPILATION
-        __get_reduce_then_scan_default_sg_sz();
+    return 32; // best value
 #else
-        __get_reduce_then_scan_workaround_sg_sz();
+    return 16; // workaround value
 #endif
 }
 
