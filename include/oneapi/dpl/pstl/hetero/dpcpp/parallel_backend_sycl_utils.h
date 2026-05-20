@@ -853,8 +853,6 @@ struct __result_storage : public __device_storage<_T>
 {
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __result_storage.");
 
-    using _ValueType = _T;
-
     std::size_t __result_sz = 0;
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
 
@@ -886,8 +884,6 @@ struct __result_storage : public __device_storage<_T>
 template <typename _T>
 struct __combined_storage : public __device_storage<_T>
 {
-    using _ValueType = _T;
-
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __combined_storage.");
 
     std::unique_ptr<_T, __internal::__sycl_usm_free> __result_buf = nullptr;
@@ -939,7 +935,7 @@ struct __combined_storage : public __device_storage<_T>
     }
 
     __copyable_storage_state<_T>
-    __move_state_from() &&
+    __move_state() &&
     {
         return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf), __sz, __kind};
     }
@@ -1062,21 +1058,18 @@ class __future : private std::tuple<_Args...>
     }
 };
 
-template <typename _Event, typename _Payload>
+template <typename _ValueType>
 auto
-__create_future(_Event&& __event, _Payload&& __payload)
+__create_future(sycl::event&& __event, __combined_storage<_ValueType>&& __payload)
 {
-    using _ValueType = typename std::decay_t<_Payload>::_ValueType;
-
-    return __future(std::forward<_Event>(__event),
-                    __result_and_scratch_storage<_ValueType>(std::forward<_Payload>(__payload).__move_state_from()));
+    return __future(std::move(__event), __result_and_scratch_storage<_ValueType>(std::move(__payload).__move_state()));
 }
 
-template <typename _Event, typename _ValueType>
+template <typename _ValueType>
 auto
-__create_future(_Event&& __event, __result_and_scratch_storage<_ValueType>&& __payload)
+__create_future(sycl::event&& __event, __result_and_scratch_storage<_ValueType>&& __payload)
 {
-    return __future(std::forward<_Event>(__event), std::forward<decltype(__payload)>(__payload));
+    return __future(std::move(__event), std::move(__payload));
 }
 
 struct __scalar_load_op
