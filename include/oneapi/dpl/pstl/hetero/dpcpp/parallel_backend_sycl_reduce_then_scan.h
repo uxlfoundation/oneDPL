@@ -24,6 +24,7 @@
 #include <utility>
 #include <cmath>
 #include <cassert>
+#include <limits>
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
@@ -1846,19 +1847,18 @@ using __transform_reduce_then_scan_result_t = std::conditional_t<
 struct __stop_pos_payloads_tools
 {
     // Primary variable template - default case
-    template<typename _T, typename = void>
+    template <typename _T, typename = void>
     static constexpr _T __sentinel = _T{};
 
     // Specialization for arithmetic types
-    template<typename _T>
-    static constexpr _T __sentinel<_T, std::enable_if_t<std::is_arithmetic_v<_T>>> = 
-        std::numeric_limits<_T>::max();
+    template <typename _T>
+    static constexpr _T __sentinel<_T, std::enable_if_t<std::is_arithmetic_v<_T>>> = std::numeric_limits<_T>::max();
 
     // Specializations for tuple types
-    template<typename... _Types>
+    template <typename... _Types>
     static constexpr std::tuple<_Types...> __sentinel<std::tuple<_Types...>> = {__sentinel<_Types>...};
 
-    template<typename... _Types>
+    template <typename... _Types>
     static constexpr oneapi::dpl::__internal::tuple<_Types...> __sentinel<oneapi::dpl::__internal::tuple<_Types...>> =
         {__sentinel<_Types>...};
 
