@@ -24,7 +24,6 @@
 #include <utility>
 #include <cmath>
 #include <cassert>
-#include <array>
 #include <vector>
 
 #include "sycl_defs.h"
