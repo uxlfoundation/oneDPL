@@ -24,7 +24,6 @@
 #include <utility>
 #include <cmath>
 #include <cassert>
-#include <vector>
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
