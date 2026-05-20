@@ -856,7 +856,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
 
         _Size __stop_out = {};
         __stop_pos_payload.__copy_result(&__stop_out, 1);
-        
+
         const auto __finish_pos =
             __stop_pos_payloads_tools::__get_finish_pos(std::move(__oob_pos_payload), std::tuple<_Size>(__n));
 
