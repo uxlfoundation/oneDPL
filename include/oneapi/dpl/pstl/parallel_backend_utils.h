@@ -592,12 +592,6 @@ struct __set_operations_result
     {
         return {__in1, __in2, __it_out};
     }
-
-    template <typename _I1, typename _I2, typename _O>
-    operator std::ranges::in_in_out_result<_I1, _I2, _O>() const
-    {
-        return {__in1, __in2, __it_out};
-    }
 #endif
 };
 
