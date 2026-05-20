@@ -3623,7 +3623,8 @@ struct _SetOpReachedPosEvaluator
             const auto [__offset1, __size1] = __eval_offset_and_size<true>(__first1, __last1);
             const auto [__offset2, __size2] = __eval_offset_and_size<false>(__first2, __last2);
 
-            const auto __mask_buf_size = __size_func(__size1, __size2);
+            // The __mask_bufs can coontain more elements than the max output size for a certain set operation.
+            const auto __mask_buf_size = __size1 + __size2;
 
             // We need to have initialized memory under mask buffer
             std::vector<oneapi::dpl::__utils::__parallel_set_op_mask> __mask_bufs(
