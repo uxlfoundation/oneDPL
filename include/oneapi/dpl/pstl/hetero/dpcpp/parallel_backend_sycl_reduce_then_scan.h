@@ -1868,9 +1868,10 @@ struct __stop_pos_payloads_tools
 
     template <typename _StopPosPayload>
     static bool
-    __stored_pos_equals(_StopPosPayload& __pos_payload, const _StopPosPayload::_ValueType& __checking_pos)
+    __stored_pos_equals(_StopPosPayload& __pos_payload, const typename _StopPosPayload::_ValueType& __checking_pos)
     {
         using _StopPos = typename _StopPosPayload::_ValueType;
+
         _StopPos __current_pos;
         __pos_payload.__copy_result(&__current_pos, 1);
 
