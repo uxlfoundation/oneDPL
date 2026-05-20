@@ -1390,7 +1390,6 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
             __sub_group_masked_scan<__sub_group_size, /*__use_subgroup_ops=*/true, __is_inclusive, __init_present>(
                 __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
             return;
-        
         }
     }
     //else
