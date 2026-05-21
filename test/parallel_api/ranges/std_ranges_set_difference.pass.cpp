@@ -274,6 +274,32 @@ test_set_difference_checker()
         EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
         EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
+
+    // Check duplicate handling logic
+    {
+        // set1:                   1, 2, 3, 4, 5, 5, 5, 5, 6, 7
+        // set2:                   1, 2, 3, 4, 5, 5, 5,    6    ^
+        //                         -------------------------^---|
+        // res:                                         5,  | 7 |
+        // final position in set1: -------------------------|---+
+        // final position in set2:--------------------------+
+
+        std::vector<int> set1{1, 2, 3, 4, 5, 5, 5, 5, 6, 7};
+        std::vector<int> set2{1, 2, 3, 4, 5, 5, 5,    6};
+        std::vector<int> set3(set1.size());
+        const std::vector<int> resExpected{5, 7};
+
+        auto res = set_difference_checker(set1, set2, set3);
+
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+        EXPECT_EQ(set1.end(), res.in1, "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.end(), res.in2, "Wrong 'in2' state of result");
+#else
+        EXPECT_EQ(set1.end(), res.in, "Wrong 'in' state of result");
+#endif
+        EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
 }
 #endif // _ENABLE_STD_RANGES_TESTING
 
