@@ -1800,14 +1800,14 @@ using __transform_reduce_then_scan_result_t = std::conditional_t<
     _Bounded, std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<__scan_stop_pos_t<_Range>>>,
     std::tuple<sycl::event, __combined_storage<_ValueType>>>;
 
-template <typename _StopPos>
-static _StopPos
+template <typename _ResultT, typename _StopPos>
+_ResultT
 __get_finish_pos(__result_storage<_StopPos>& __oob_pos_payload, _StopPos __n)
 {
     _StopPos __oob_pos = std::numeric_limits<_StopPos>::max();
     __oob_pos_payload.__copy_result(&__oob_pos, 1);
 
-    return std::min(__oob_pos, __n);
+    return std::min<_ResultT>(__oob_pos, __n);
 }
 
 namespace __details
