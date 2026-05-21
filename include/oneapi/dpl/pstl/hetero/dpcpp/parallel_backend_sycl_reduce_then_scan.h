@@ -1583,7 +1583,7 @@ __get_comm_slm_acc_data(std::nullptr_t)
 
 template <typename CommSlmAcc>
 auto
-__get_comm_slm_acc_data(CommSlmAcc& __comm_slm_acc_opt)
+__get_comm_slm_acc_data(const CommSlmAcc& __comm_slm_acc_opt)
 {
     return __dpl_sycl::__get_accessor_ptr(__comm_slm_acc_opt);
 }
