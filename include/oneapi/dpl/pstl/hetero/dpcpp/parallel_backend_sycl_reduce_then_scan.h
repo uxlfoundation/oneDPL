@@ -1204,12 +1204,12 @@ struct __scan_by_seg_op
 // slice at offset [sub_group_id * sub_group_size, (sub_group_id + 1) * sub_group_size].
 
 // structure to signify no slm has been allocated, and native subgroup ops should be used
-struct __no_slm_t{};
+struct __no_slm_tag{};
 
 template <typename _ValueType>
 _ValueType
 __shift_group_right(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, std::uint32_t __shift,
-                    __no_slm_t)
+                    __no_slm_tag)
 {
     return sycl::shift_group_right(__sub_group, __value, __shift);
 }
@@ -1233,7 +1233,7 @@ __shift_group_right(const __dpl_sycl::__sub_group& __sub_group, _ValueType __val
 template <typename _ValueType, typename _IdType>
 _ValueType
 __group_broadcast(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, _IdType __broadcast_id,
-                  __no_slm_t)
+                  __no_slm_tag)
 {
     return sycl::group_broadcast(__sub_group, __value, __broadcast_id);
 }
@@ -1346,7 +1346,7 @@ __sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __ma
 }
 
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp,
-          typename _ValueType, typename _LazyValueType, typename _CommSLMPtr = __no_slm_t>
+          typename _ValueType, typename _LazyValueType, typename _CommSLMPtr = __no_slm_tag>
 void
 __sub_group_scan(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value, _BinaryOp __binary_op,
                  _LazyValueType& __init_and_carry, _CommSLMPtr __comm_slm = {})
@@ -1358,7 +1358,7 @@ __sub_group_scan(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value
 }
 
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp,
-          typename _ValueType, typename _LazyValueType, typename _SizeType, typename _CommSLMPtr = __no_slm_t>
+          typename _ValueType, typename _LazyValueType, typename _SizeType, typename _CommSLMPtr = __no_slm_tag>
 void
 __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value, _BinaryOp __binary_op,
                          _LazyValueType& __init_and_carry, _SizeType __elements_to_process, _CommSLMPtr __comm_slm = {})
@@ -1548,11 +1548,11 @@ struct __reduce_then_scan_sub_group_params
 };
 
 template <bool __use_subgroup_ops, typename _InitValueType>
-std::enable_if_t<__use_subgroup_ops, __no_slm_t>
+std::enable_if_t<__use_subgroup_ops, __no_slm_tag>
 __create_comm_slm_acc_opt(const std::uint32_t /*__work_group_size*/, sycl::handler& /*__cgh*/)
 {
     //embed the __use_subgroup_ops information into the type of the slm accessor & pointer
-    return __no_slm_t{};
+    return __no_slm_tag{};
 }
 
 template <bool __use_subgroup_ops, typename _InitValueType>
@@ -1562,13 +1562,13 @@ __create_comm_slm_acc_opt(const std::uint32_t __work_group_size, sycl::handler& 
     return __dpl_sycl::__local_accessor<_InitValueType>(__work_group_size, __cgh);
 }
 
-inline __no_slm_t
-__get_comm_slm_acc_data(__no_slm_t)
+inline __no_slm_tag
+__get_comm_slm_acc_data(__no_slm_tag)
 {
     // embed the __use_subgroup_ops information into the type of the slm accessor & pointer
     // this allows us to avoid adding many bool template argments into leaf nodes, as we can encode this in the type
     // of the SLM pointer we are already sending.
-    return __no_slm_t{};
+    return __no_slm_tag{};
 }
 
 template <typename CommSlmAcc>
