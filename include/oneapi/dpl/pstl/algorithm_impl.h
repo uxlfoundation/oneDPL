@@ -3315,7 +3315,7 @@ struct _DataPart
     }
 
     static _DataPart
-    __combine_with(const _DataPart& __a, const _DataPart& __b)
+    __combine(const _DataPart& __a, const _DataPart& __b)
     {
         return __is_left(__a, __b) ? _DataPart{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos}
                                    : _DataPart{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
@@ -3365,7 +3365,7 @@ struct _SrcProcessedDataAmount
     _DifferenceType2 __length2 = {}; // Amount of processed data in the second input range
 
     static _SrcProcessedDataAmount
-    __combine_with(const _SrcProcessedDataAmount& __a, const _SrcProcessedDataAmount& __b)
+    __combine(const _SrcProcessedDataAmount& __a, const _SrcProcessedDataAmount& __b)
     {
         return _SrcProcessedDataAmount{std::max(__a.__length1, __b.__length1), std::max(__a.__length2, __b.__length2)};
     }
@@ -3413,9 +3413,9 @@ struct _SetRangeImpl
     }
 
     static _SetRangeImpl
-    __combine_with(const _SetRangeImpl& __a, const _SetRangeImpl& __b)
+    __combine(const _SetRangeImpl& __a, const _SetRangeImpl& __b)
     {
-        auto __new_data_part = _DataPart<_DifferenceType>::__combine_with(__a.__get_data_part(), __b.__get_data_part());
+        auto __new_data_part = _DataPart<_DifferenceType>::__combine(__a.__get_data_part(), __b.__get_data_part());
 
         if constexpr (!_Bounded)
         {
@@ -3428,7 +3428,7 @@ struct _SetRangeImpl
                 _DataPart<_DifferenceType>::__is_left(__a.__get_data_part(), __b.__get_data_part())
                     ? __b.__get_src_offsets_part()
                     : __a.__get_src_offsets_part(),
-                _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>::__combine_with(
+                _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>::__combine(
                     __a.__get_src_processed_data_amount_part(), __b.__get_src_processed_data_amount_part())};
             return _SetRangeImpl{__ds};
         }
@@ -3446,7 +3446,7 @@ struct _ParallelSetOpCombinePred
         const
     {
         return _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
-                             _DifferenceTypeMask>::__combine_with(__a, __b);
+                             _DifferenceTypeMask>::__combine(__a, __b);
     }
 };
 
