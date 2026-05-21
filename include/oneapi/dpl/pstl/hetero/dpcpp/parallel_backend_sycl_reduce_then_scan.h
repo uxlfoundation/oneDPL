@@ -1838,9 +1838,9 @@ struct __parallel_reduce_then_scan_scan_submitter<
         __tmp_acc[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
     }
 
-    template <typename _InRng, typename _OobPosAcc>
+    template <typename _InRng, typename _OOBPosAcc>
     auto
-    __create_on_oob_reached_callback(_InRng&, _OobPosAcc& __oob_pos_acc) const
+    __create_on_oob_reached_callback(_InRng&, _OOBPosAcc& __oob_pos_acc) const
     {
         if constexpr (_Bounded)
         {
@@ -1859,12 +1859,12 @@ struct __parallel_reduce_then_scan_scan_submitter<
         }
     }
 
-    template <typename _InRng, typename _OutRng, typename _TmpStorageAcc, typename _OobPosStorage>
+    template <typename _InRng, typename _OutRng, typename _TmpStorageAcc, typename _OOBPosStorage>
     sycl::event
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::size_t __inputs_remaining, const std::size_t __block_num,
-               _OobPosStorage& __oob_pos_storage) const
+               _OOBPosStorage& __oob_pos_storage) const
     {
         using _OutSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
         const _OutSize __n_out = oneapi::dpl::__ranges::__size(__out_rng);
