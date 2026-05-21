@@ -30,6 +30,7 @@
 #include <cmath>
 #include <cstdint>
 #include <exception>
+#include <limits> // for std::numeric_limits
 
 #if _ONEDPL_BACKEND_SYCL
 #    include "hetero/dpcpp/sycl_defs.h"
@@ -1188,6 +1189,75 @@ inline constexpr bool __trivial_uninitialized_value_construct =
 // Trick to get behavior similar to static_assert(false) pre-C++23.
 template <typename...>
 inline constexpr bool __always_false_v = false;
+
+struct __tuple_upper_bound_sentinel
+{
+    // _Tuple is expected to be a potentially nested tuple type - std::tuple or oneapi::dpl::__internal::tuple.
+    // The __create() function returns a tuple of the same structure where all arithmetic types are replaced
+    // with their maximum value and all other types are default constructed.
+    // This is used to create a max sentinel for tuple comparisons in algorithms like min_element and max_element.
+    template <typename _Tuple>
+    static constexpr _Tuple
+    __create()
+    {
+        return __convert_fields(_Tuple{});
+    }
+
+  protected:
+    template <typename _T>
+    struct _is_tuple : std::false_type
+    {
+    };
+
+    template <typename... _Ts>
+    struct _is_tuple<std::tuple<_Ts...>> : std::true_type
+    {
+    };
+
+    template <typename... _Ts>
+    struct _is_tuple<oneapi::dpl::__internal::tuple<_Ts...>> : std::true_type
+    {
+    };
+
+    template <typename _T>
+    static constexpr bool __is_tuple_v = _is_tuple<std::decay_t<_T>>::value;
+
+    template <typename _T>
+    static constexpr auto
+    __convert_field(_T&& __t)
+    {
+        using _TDecayed = std::decay_t<_T>;
+
+        if constexpr (__is_tuple_v<_TDecayed>)
+            return __convert_fields(std::forward<_T>(__t));
+        else if constexpr (std::is_arithmetic_v<_TDecayed>)
+            return std::numeric_limits<_TDecayed>::max();
+        else
+            return std::forward<_T>(__t);
+    }
+
+    template <typename... _Types>
+    static constexpr auto
+    __convert_fields(std::tuple<_Types...>&& __tup)
+    {
+        return std::apply(
+            [](auto&&... __args) {
+                return std::make_tuple(__convert_field(std::forward<decltype(__args)>(__args))...);
+            },
+            std::forward<decltype(__tup)>(__tup));
+    }
+
+    template <typename... _Types>
+    static constexpr auto
+    __convert_fields(oneapi::dpl::__internal::tuple<_Types...>&& __tup)
+    {
+        return std::apply(
+            [](auto&&... __args) {
+                return oneapi::dpl::__internal::make_tuple(__convert_field(std::forward<decltype(__args)>(__args))...);
+            },
+            std::forward<decltype(__tup)>(__tup));
+    }
+};
 
 } // namespace __internal
 } // namespace dpl
