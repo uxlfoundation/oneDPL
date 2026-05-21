@@ -1212,7 +1212,7 @@ __shift_group_right(const __dpl_sycl::__sub_group& __sub_group, _ValueType __val
 }
 
 template <typename _ValueType>
-std::enable_if_t<!std::is_trivially_copyable_v<_ValueType>, _ValueType>
+_ValueType
 __shift_group_right(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, std::uint32_t __shift,
                     _ValueType* __comm_slm)
 {
@@ -1236,7 +1236,7 @@ __group_broadcast(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value
 }
 
 template <typename _ValueType, typename _IdType>
-std::enable_if_t<!std::is_trivially_copyable_v<_ValueType>, _ValueType>
+_ValueType
 __group_broadcast(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, _IdType __broadcast_id,
                   _ValueType* __comm_slm)
 {
