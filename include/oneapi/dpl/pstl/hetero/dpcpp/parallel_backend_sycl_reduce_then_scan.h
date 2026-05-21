@@ -1796,7 +1796,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
     _InitType __init;
 };
 
-namespace __details
+namespace __internal
 {
 
 template <typename... _Ranges>
@@ -1829,7 +1829,7 @@ struct __scan_stop_pos_helper<oneapi::dpl::__ranges::zip_view<_ZipRanges...>>
     using _Type = typename __scan_stop_pos_type<oneapi::dpl::__ranges::zip_view<_ZipRanges...>>::_Type;
 };
 
-} // namespace __details
+} // namespace __internal
 
 // Define std::tuple of sizes for specified source ranges.
 // - Single plain range              -> tuple<SZ>
@@ -1837,7 +1837,7 @@ struct __scan_stop_pos_helper<oneapi::dpl::__ranges::zip_view<_ZipRanges...>>
 // - Multiple plain ranges R1,R2     -> tuple<SZ,SZ>
 // - zip_view<R1,R2> + plain R3      -> tuple<tuple<SZ,SZ>,SZ>
 template <typename... _Ranges>
-using __scan_stop_pos_t = typename __details::__scan_stop_pos_helper<std::decay_t<_Ranges>...>::_Type;
+using __scan_stop_pos_t = typename __internal::__scan_stop_pos_helper<std::decay_t<_Ranges>...>::_Type;
 
 template <bool _Bounded, typename _ValueType, typename... _Ranges>
 using __transform_reduce_then_scan_result_t = std::conditional_t<
@@ -1905,7 +1905,7 @@ struct __stop_pos_payloads_tools
     }
 };
 
-namespace __details
+namespace __internal
 {
 
 // ScanStopPosT selector
@@ -1929,7 +1929,7 @@ using __scan_stop_pos_selector_t = typename __scan_stop_pos_selector<_T>::ScanSt
 template <typename _T>
 static constexpr bool __detect_oob_pos_v = __scan_stop_pos_selector<_T>::DetectOOBPos;
 
-} // namespace __details
+} // namespace __internal
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp,
@@ -1945,7 +1945,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
 {
     using _InitValueType = typename _InitType::__value_type;
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
-    static constexpr bool _DetectOOBPos = _Bounded && __details::__detect_oob_pos_v<_WriteOp>;
+    static constexpr bool _DetectOOBPos = _Bounded && __internal::__detect_oob_pos_v<_WriteOp>;
 
     template <typename _TmpAcc>
     _InitValueType
@@ -1969,7 +1969,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
     {
         if constexpr (_DetectOOBPos)
         {
-            using _ScanPosT = __details::__scan_stop_pos_selector_t<_WriteOp>;
+            using _ScanPosT = __internal::__scan_stop_pos_selector_t<_WriteOp>;
 
             return [&]([[maybe_unused]] const _ScanPosT& __oob_source_pos) {
                 // OOB can be reached by at most one work-item per kernel invocation:
