@@ -1644,12 +1644,12 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
-    template <typename _InRng, typename _TmpStorageAcc, typename _OOBPosStorage, typename _TupleOfSizes>
+    template <typename _InRng, typename _TmpStorageAcc, typename _OOBPosStorage>
     sycl::event
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
-               const std::size_t __inputs_remaining, const std::size_t __block_num, _OOBPosStorage& __oob_pos_storage,
-               const _TupleOfSizes& __oob_pos_init_state) const
+               const std::size_t __inputs_remaining, const std::size_t __block_num,
+               _OOBPosStorage& __oob_pos_storage) const
     {
         using _InitValueType = typename _InitType::__value_type;
         return __q.submit([&, this](sycl::handler& __cgh) {
@@ -1770,7 +1770,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                     if (__block_num == 0 && __ndi.get_global_linear_id() == 0)
                     {
                         // Initialize OOB pos to max sentinel - means "not yet found"
-                        __oob_pos_acc.__data()[0] = __oob_pos_init_state;
+                        __oob_pos_acc.__data()[0] = __in_rng.size();
                     }
                 }
             });
@@ -2320,9 +2320,6 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // Allocate storage for out-of-bounds position if needed
     auto __oob_pos_storage = __create_oob_pos_storage_opt<_Bounded, _InRng>(__q);
 
-    // Create initial `sentinel` state for out-of-bounds position
-    oneapi::dpl::__internal::__difference_t<_InRng> __oob_pos_init_state = __n;
-
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
     // with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
@@ -2336,7 +2333,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
-                                           __inputs_remaining, __b, __oob_pos_storage, __oob_pos_init_state);
+                                           __inputs_remaining, __b, __oob_pos_storage);
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
         __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
                                          __prior_event, __inputs_remaining, __b, __oob_pos_storage);
