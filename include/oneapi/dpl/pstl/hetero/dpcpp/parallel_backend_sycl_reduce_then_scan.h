@@ -1799,14 +1799,14 @@ using __transform_reduce_then_scan_result_t =
                                   __result_storage<oneapi::dpl::__internal::__difference_t<_Range>>>,
                        std::tuple<sycl::event, __combined_storage<_ValueType>>>;
 
-template <typename _ResultT, typename _StopPos>
-_ResultT
-__get_finish_pos(__result_storage<_StopPos>& __oob_pos_payload, _StopPos __n)
+template <typename _Range, typename _ResultT>
+std::common_type_t<oneapi::dpl::__internal::__difference_t<_Range>, _ResultT>
+__get_finish_pos(__result_storage<oneapi::dpl::__internal::__difference_t<_Range>>& __oob_pos_payload, _ResultT __n)
 {
-    _StopPos __oob_pos = std::numeric_limits<_StopPos>::max();
+    auto __oob_pos = std::numeric_limits<oneapi::dpl::__internal::__difference_t<_Range>>::max();
     __oob_pos_payload.__copy_result(&__oob_pos, 1);
 
-    return std::min<_ResultT>(__oob_pos, __n);
+    return std::min<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Range>, _ResultT>>(__oob_pos, __n);
 }
 
 namespace __details
