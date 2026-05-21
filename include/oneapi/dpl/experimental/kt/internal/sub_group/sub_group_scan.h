@@ -87,7 +87,6 @@ __sub_group_scan(const _SubGroup& __sub_group, _InputTypeWrapped __input[__iters
     const bool __is_full = __items_in_scan == __sub_group_size * __iters_per_item;
     oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __carry;
     oneapi::dpl::__internal::__scoped_destroyer<_InputType> __destroy_when_leaving_scope{__carry};
-    using _ScanValueType = _InputType;
     if (__is_full)
     {
         oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
@@ -115,8 +114,7 @@ __sub_group_scan(const _SubGroup& __sub_group, _InputTypeWrapped __input[__iters
         }
         else if (__limited_iters_per_item > 1)
         {
-            oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size,
-                                                                /*__is_inclusive*/ true,
+            oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
                                                                 /*__init_present*/ false>(
                 __sub_group, __extract_scan_input(__input[__i++]), __binary_op, __carry);
             for (; __i < __limited_iters_per_item - 1; ++__i)
