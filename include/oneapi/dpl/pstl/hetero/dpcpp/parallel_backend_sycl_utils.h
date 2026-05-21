@@ -934,13 +934,10 @@ struct __combined_storage : public __device_storage<_T>
         }
     }
 
-    template <typename _Forwarding>
-    friend
-    std::enable_if_t<std::is_same_v<std::decay_t<_Forwarding>, __combined_storage<_T>>, __copyable_storage_state<_T>>
-    __move_state_from(_Forwarding&& __src)
+    __copyable_storage_state<_T>
+    __move_state() &&
     {
-        return {std::move(__src.__result_buf), std::move(__src.__usm_buf), std::move(__src.__sycl_buf),
-                __src.__sz, __src.__kind};
+        return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf), __sz, __kind};
     }
 };
 
@@ -1060,6 +1057,13 @@ class __future : private std::tuple<_Args...>
         return __future<_Event, _T, _Args...>(__my_event, new_tuple);
     }
 };
+
+template <typename _ValueType>
+auto
+__create_future(sycl::event&& __event, __combined_storage<_ValueType>&& __payload)
+{
+    return __future(std::move(__event), __result_and_scratch_storage<_ValueType>(std::move(__payload).__move_state()));
+}
 
 struct __scalar_load_op
 {
