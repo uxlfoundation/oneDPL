@@ -24,7 +24,6 @@
 #include <utility>
 #include <cmath>
 #include <cassert>
-#include <limits> // for std::numeric_limits
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
@@ -137,11 +136,11 @@ struct __simple_write_to_id
 // Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1 + __offset`, but only if the
 // condition `get<0>(__v)` is `true`. Used in __parallel_copy_if, __parallel_unique_copy, and
 // __parallel_set_reduce_then_scan_set_a_write
-template <std::int32_t __offset, typename _Assign, typename _ScanStopPosT = std::void_t<>>
+template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
 {
     using _TempData = __noop_temp_data;
-    using ScanStopPosT = _ScanStopPosT;
+    static constexpr bool DetectOOBPos = true;
 
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
@@ -1803,37 +1802,11 @@ template <typename _T, typename _Size>
 std::common_type_t<_T, _Size>
 __get_finish_pos(__result_storage<_T>& __oob_pos_payload, _Size __n)
 {
-    auto __oob_pos = std::numeric_limits<_T>::max();
+    _T __oob_pos = __n;
     __oob_pos_payload.__copy_result(&__oob_pos, 1);
 
     return std::min<std::common_type_t<_T, _Size>>(__oob_pos, __n);
 }
-
-namespace __details
-{
-
-// ScanStopPosT selector
-template <typename _T, typename = void>
-struct __scan_stop_pos_selector
-{
-    using ScanStopPosT = std::void_t<>;
-    static constexpr bool DetectOOBPos = false;
-};
-
-template <typename _T>
-struct __scan_stop_pos_selector<_T, std::void_t<typename _T::ScanStopPosT>>
-{
-    using ScanStopPosT = typename _T::ScanStopPosT;
-    static constexpr bool DetectOOBPos = !std::is_same_v<ScanStopPosT, std::void_t<>>;
-};
-
-template <typename _T>
-using __scan_stop_pos_selector_t = typename __scan_stop_pos_selector<_T>::ScanStopPosT;
-
-template <typename _T>
-static constexpr bool __detect_oob_pos_v = __scan_stop_pos_selector<_T>::DetectOOBPos;
-
-} // namespace __details
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp,
@@ -1849,7 +1822,6 @@ struct __parallel_reduce_then_scan_scan_submitter<
 {
     using _InitValueType = typename _InitType::__value_type;
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
-    static constexpr bool _DetectOOBPos = _Bounded && __details::__detect_oob_pos_v<_WriteOp>;
 
     template <typename _TmpAcc>
     _InitValueType
@@ -1871,11 +1843,9 @@ struct __parallel_reduce_then_scan_scan_submitter<
     auto
     __create_on_oob_reached_callback(_InRng&, _StopPosAcc& __stop_pos_acc) const
     {
-        if constexpr (_DetectOOBPos)
+        if constexpr (_Bounded)
         {
-            using _ScanPosT = __details::__scan_stop_pos_selector_t<_WriteOp>;
-
-            return [&]([[maybe_unused]] const _ScanPosT& __oob_source_pos) {
+            return [&](auto __oob_source_pos) {
                 // OOB can be reached by at most one work-item per kernel invocation:
                 // output indices are monotonically increasing across all work-items,
                 // so only the single work-item that first crosses the output boundary
@@ -2156,7 +2126,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
 
                 if (__sub_group_carry_initialized)
                 {
-                    __scan_through_elements_helper<_DetectOOBPos, __sub_group_size, __is_inclusive,
+                    __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
                                                    /*__init_present=*/true,
                                                    /*__capture_output=*/true, __max_inputs_per_item>(
                         __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
@@ -2166,7 +2136,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                 }
                 else // first group first block, no subgroup carry
                 {
-                    __scan_through_elements_helper<_DetectOOBPos, __sub_group_size, __is_inclusive,
+                    __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
                                                    /*__init_present=*/false,
                                                    /*__capture_output=*/true, __max_inputs_per_item>(
                         __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
@@ -2354,7 +2324,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     auto __oob_pos_payload = __create_oob_pos_payload_opt<_Bounded, _InRng>(__q);
 
     // Create initial `sentinel` state for stop position payload
-    const auto __oob_pos_init_state = std::numeric_limits<oneapi::dpl::__internal::__difference_t<_InRng>>::max();
+    oneapi::dpl::__internal::__difference_t<_InRng> __oob_pos_init_state = __n;
 
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
     // with sufficiently large L2 / L3 caches.

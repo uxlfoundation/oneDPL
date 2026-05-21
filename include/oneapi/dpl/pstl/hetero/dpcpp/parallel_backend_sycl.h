@@ -843,9 +843,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
-        using _WriteOp =
-            oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign,
-                                                                oneapi::dpl::__internal::__difference_t<_Range1>>;
+        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
 
         auto&& [__event, __stop_pos_payload, __oob_pos_payload] =
             __parallel_reduce_then_scan_copy</*_Bounded*/ true, _CustomName>(
@@ -965,9 +963,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
-        using _WriteOp =
-            oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign,
-                                                                oneapi::dpl::__internal::__difference_t<_InRng>>;
+        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
 
         auto&& [__event, __stop_pos_payload, __oob_pos_payload] =
             __parallel_reduce_then_scan_copy</*_Bounded*/ true, _CustomName>(
