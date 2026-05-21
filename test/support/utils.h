@@ -1057,6 +1057,30 @@ generate_arithmetic_data(T* input, std::size_t size, std::uint32_t seed)
     }
 }
 
+#if TEST_DPCPP_BACKEND_PRESENT
+inline void
+generate_arithmetic_data(sycl::half* input, std::size_t size, std::uint32_t seed)
+{
+    std::default_random_engine gen{seed};
+    std::size_t unique_threshold = 75 * size / 100;
+    std::uniform_int_distribution<std::uint16_t> dist(0, 0xFFFFu);
+
+    auto generate_valid_half = [&]() {
+        std::uint16_t raw = dist(gen);
+        constexpr std::uint16_t exp_mask = 0x7C00u;
+        constexpr std::uint16_t frac_mask = 0x03FFu;
+        if (((raw & exp_mask) == exp_mask) && ((raw & frac_mask) != 0))
+            raw &= ~std::uint16_t(0x0400u);
+        return sycl::bit_cast<sycl::half>(raw);
+    };
+
+    std::generate(input, input + unique_threshold, generate_valid_half);
+    assert(unique_threshold >= size / 2 && unique_threshold < size);
+    for (std::uint32_t i = 0, j = unique_threshold; j < size; ++i, ++j)
+        input[j] = input[i];
+}
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
 // Utility that models __estimate_best_start_size in the SYCL backend parallel_for to ensure large enough inputs are
 // used to test the large submitter path. A multiplier to the max size is added to ensure we get a few separate test inputs
 // for this path. For debug testing, only test with a single large size to avoid timeouts. Returns a monotonically increasing
