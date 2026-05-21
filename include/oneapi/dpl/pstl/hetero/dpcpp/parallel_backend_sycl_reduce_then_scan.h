@@ -1342,8 +1342,6 @@ __sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __ma
     }
 }
 
-// Entry points for per-scan dispatch: pick a sub-group-ops or SLM specialization at runtime, keeping
-// all code above a single instantiation. The branch executes once per scan (not per element).
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp,
           typename _ValueType, typename _LazyValueType, typename _CommSlmPtr>
 void
