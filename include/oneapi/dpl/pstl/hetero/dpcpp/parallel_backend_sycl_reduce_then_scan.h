@@ -1792,13 +1792,12 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
     _InitType __init;
 };
 
-template <typename _Range>
-using __scan_stop_pos_t = oneapi::dpl::__internal::__difference_t<_Range>;
-
 template <bool _Bounded, typename _ValueType, typename _Range>
-using __transform_reduce_then_scan_result_t = std::conditional_t<
-    _Bounded, std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<__scan_stop_pos_t<_Range>>>,
-    std::tuple<sycl::event, __combined_storage<_ValueType>>>;
+using __transform_reduce_then_scan_result_t =
+    std::conditional_t<_Bounded,
+                       std::tuple<sycl::event, __combined_storage<_ValueType>,
+                                  __result_storage<oneapi::dpl::__internal::__difference_t<_Range>>>,
+                       std::tuple<sycl::event, __combined_storage<_ValueType>>>;
 
 template <typename _ResultT, typename _StopPos>
 _ResultT
@@ -2238,11 +2237,11 @@ __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 }
 
 template <bool _Bounded, typename _Range>
-std::conditional_t<_Bounded, __result_storage<__scan_stop_pos_t<_Range>>, std::nullptr_t>
+std::conditional_t<_Bounded, __result_storage<oneapi::dpl::__internal::__difference_t<_Range>>, std::nullptr_t>
 __create_oob_pos_payload_opt([[maybe_unused]] sycl::queue& __q)
 {
     if constexpr (_Bounded)
-        return __result_storage<__scan_stop_pos_t<_Range>>(__q, 1);
+        return __result_storage<oneapi::dpl::__internal::__difference_t<_Range>>(__q, 1);
     else
         return nullptr;
 }
@@ -2352,11 +2351,10 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                     __init};
 
     // Allocate storage for stop position payload if needed
-    using __stop_pos_t = __scan_stop_pos_t<_InRng>;
     auto __oob_pos_payload = __create_oob_pos_payload_opt<_Bounded, _InRng>(__q);
 
     // Create initial `sentinel` state for stop position payload
-    const auto __oob_pos_init_state = std::numeric_limits<__stop_pos_t>::max();
+    const auto __oob_pos_init_state = std::numeric_limits<oneapi::dpl::__internal::__difference_t<_InRng>>::max();
 
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
     // with sufficiently large L2 / L3 caches.
