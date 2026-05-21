@@ -1071,6 +1071,9 @@ generate_arithmetic_data(sycl::half* input, std::size_t size, std::uint32_t seed
         constexpr std::uint16_t frac_mask = 0x03FFu;
         if (((raw & exp_mask) == exp_mask) && ((raw & frac_mask) != 0))
             raw &= ~std::uint16_t(0x0400u);
+        // Avoid -0 (0x8000) to avoid comparison issues with 0 (0x0000)
+        if (raw == 0x8000u)
+            raw = 0x0000u;
         return sycl::bit_cast<sycl::half>(raw);
     };
 
