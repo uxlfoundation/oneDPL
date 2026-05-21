@@ -1551,7 +1551,6 @@ template <bool __use_subgroup_ops, typename _InitValueType>
 std::enable_if_t<__use_subgroup_ops, __no_slm_tag>
 __create_comm_slm_acc_opt(const std::uint32_t /*__work_group_size*/, sycl::handler& /*__cgh*/)
 {
-    //embed the __use_subgroup_ops information into the type of the slm accessor & pointer
     return __no_slm_tag{};
 }
 
@@ -1565,9 +1564,9 @@ __create_comm_slm_acc_opt(const std::uint32_t __work_group_size, sycl::handler& 
 inline __no_slm_tag
 __get_comm_slm_acc_data(__no_slm_tag)
 {
-    // embed the __use_subgroup_ops information into the type of the slm accessor & pointer
-    // this allows us to avoid adding many bool template argments into leaf nodes, as we can encode this in the type
-    // of the SLM pointer we are already sending.
+    // Embed the __use_subgroup_ops information into the type of the SLM argument.
+    // This allows us to avoid adding bool flag template arguments into helper functions,
+    // as we can utilize this type to provide either the SLM pointer or an explicit tag.
     return __no_slm_tag{};
 }
 
