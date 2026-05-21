@@ -39,7 +39,7 @@ struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set
             if constexpr (Index == 1 || Index == 2)
             {
 #if STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
-                // Skip .in2 state check in the results of oneapi::dpl::ranges::set_intersection call
+                // Skip .in1 and .in2 state checks in the results of oneapi::dpl::ranges::set_intersection call
                 // for hetero policies in C++26 compatibility mode because it just not implemented for now.
                 return false;
 #endif
