@@ -1845,11 +1845,9 @@ struct __parallel_reduce_then_scan_scan_submitter<
         if constexpr (_Bounded)
         {
             return [&](auto __oob_source_pos) {
-                // OOB can be reached by at most one work-item per kernel invocation:
-                // output indices are monotonically increasing across all work-items,
-                // so only the single work-item that first crosses the output boundary
-                // can have get_oob_source_pos() return true.
-                // Therefore, no atomic fetch_min is needed here - at most one writer.
+                // Output indices are monotonically increasing across work-items, so at most one
+                // work-item can write to the first position past the end of the output range.
+                // No synchronization is needed.
                 __oob_pos_acc.__data()[0] = __oob_source_pos;
             };
         }
