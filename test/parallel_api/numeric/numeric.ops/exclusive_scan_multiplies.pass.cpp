@@ -33,7 +33,7 @@ test_with_multiplies()
     T init = 1;
     const std::size_t custom_item_count = 10;
 
-    for (size_t n = custom_item_count; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n = custom_item_count; n <= TestUtils::get_scan_test_max_n(); n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         Sequence<T> out(n, [&](size_t) { return trash; });
         Sequence<T> expected(n, [&](size_t) { return trash; });

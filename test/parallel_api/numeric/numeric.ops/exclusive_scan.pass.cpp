@@ -59,7 +59,7 @@ template <typename In, typename Init, typename Out, typename Convert>
 void
 test_with_plus(Init init, Out trash, Convert convert)
 {
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n = 0; n <= TestUtils::get_scan_test_max_n(); n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         Sequence<In> in(n, convert);
         Sequence<Out> expected(n);
@@ -74,11 +74,13 @@ test_with_plus(Init init, Out trash, Convert convert)
 #if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
     // testing of large number of items may take too much time in debug mode
     unsigned long n =
-#if PSTL_USE_DEBUG
+#    if ONEDPL_TEST_LIMIT_SCAN_SIZE
+        TestUtils::get_scan_test_max_n();
+#    elif PSTL_USE_DEBUG
         1000000;
-#else
+#    else
         100000000;
-#endif
+#    endif
 
     Sequence<In> in(n, convert);
     Sequence<Out> expected(n);

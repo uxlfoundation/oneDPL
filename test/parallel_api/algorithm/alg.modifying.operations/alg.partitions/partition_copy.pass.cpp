@@ -70,7 +70,7 @@ void
 test(UnaryPred pred)
 {
 
-    const ::std::size_t max_size = 100000;
+    const std::size_t max_size = TestUtils::get_scan_test_max_n();
     Sequence<T> in(max_size, [](::std::size_t v) -> T { return T(v); });
     Sequence<T> actual_true(max_size);
     Sequence<T> actual_false(max_size);
