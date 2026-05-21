@@ -1197,10 +1197,11 @@ struct __scan_by_seg_op
 // *** Main reduce then scan infrastructure ***
 
 // Sub-group communication wrappers with SLM fallback.
-// When __use_subgroup_ops is true, native SYCL sub-group operations are used (trivially copyable types only).
-// When __use_subgroup_ops is false, SLM-based communication is used. This path is required for
-// non-trivially-copyable types and preferred for CPU targets where sub-group ops are slow.
-// The __comm_slm parameter points to a work-group-sized SLM buffer; each sub-group uses its own
+// Each wrapper has two overloads dispatched by the type of the __comm_slm parameter:
+//   - std::nullptr_t: native SYCL sub-group operations are used (trivially copyable types only).
+//   - _ValueType*:    SLM-based communication is used. This path is required for
+//                     non-trivially-copyable types and preferred for CPU targets where sub-group ops are slow.
+// When __comm_slm is a pointer, it points to a work-group-sized SLM buffer; each sub-group uses its own
 // slice at offset [sub_group_id * sub_group_size, (sub_group_id + 1) * sub_group_size].
 
 template <typename _ValueType>
