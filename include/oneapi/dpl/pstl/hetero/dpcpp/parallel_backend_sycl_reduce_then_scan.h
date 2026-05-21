@@ -24,6 +24,7 @@
 #include <utility>
 #include <cmath>
 #include <cassert>
+#include <limits> // for std::numeric_limits
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
@@ -175,11 +176,7 @@ struct __write_to_id_if
             return __write_if_in_bounds(
                 oneapi::dpl::__ranges::__size(__out_rng), __out_rng_idx,
                 [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]); },
-                [&]() {
-                    ScanStopPosT __oob_pos{};
-                    std::get<0>(__oob_pos) = __id;
-                    __on_oob_reached(__oob_pos);
-                });
+                [&]() { __on_oob_reached(__id); });
         }
 
         return true;
@@ -1796,57 +1793,22 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
 };
 
 template <typename _Range>
-using __scan_stop_pos_t = std::tuple<decltype(oneapi::dpl::__ranges::__size(std::declval<_Range>()))>;
+using __scan_stop_pos_t = oneapi::dpl::__internal::__difference_t<_Range>;
 
 template <bool _Bounded, typename _ValueType, typename _Range>
 using __transform_reduce_then_scan_result_t = std::conditional_t<
     _Bounded, std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<__scan_stop_pos_t<_Range>>>,
     std::tuple<sycl::event, __combined_storage<_ValueType>>>;
 
-struct __stop_pos_payloads_tools
+template <typename _StopPos>
+static _StopPos
+__get_finish_pos(__result_storage<_StopPos>& __oob_pos_payload, _StopPos __n)
 {
-    template <bool _Bounded, typename _TupleOfSizes>
-    static std::conditional_t<_Bounded, __result_storage<_TupleOfSizes>, std::nullptr_t>
-    __create_storage_opt([[maybe_unused]] sycl::queue& __q)
-    {
-        if constexpr (_Bounded)
-            return __result_storage<_TupleOfSizes>(__q, 1);
-        else
-            return nullptr;
-    }
+    _StopPos __oob_pos = std::numeric_limits<_StopPos>::max();
+    __oob_pos_payload.__copy_result(&__oob_pos, 1);
 
-    template <typename _StopPos, typename _TupleOfSizes>
-    static _TupleOfSizes
-    __get_finish_pos(__result_storage<_StopPos>& __oob_pos_payload, _TupleOfSizes __src_sizes)
-    {
-        _TupleOfSizes __result{__src_sizes};
-
-        constexpr std::size_t ___TupleOfSizesItems = std::tuple_size_v<_TupleOfSizes>;
-        constexpr std::size_t __StopPosItems = std::tuple_size_v<_StopPos>;
-        static_assert(___TupleOfSizesItems <= __StopPosItems);
-
-        _StopPos __oob_pos = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_StopPos>();
-        __oob_pos_payload.__copy_result(&__oob_pos, 1);
-
-        constexpr std::size_t __Index = std::min(___TupleOfSizesItems, __StopPosItems);
-        if constexpr (__Index > 0)
-            __update_each_field<__Index - 1>(__result, __oob_pos);
-
-        return __result;
-    }
-
-  protected:
-    template <std::size_t __Index, typename _TupleOfSizes, typename _StopPos>
-    static void
-    __update_each_field(_TupleOfSizes& __result, const _StopPos& __oob_pos)
-    {
-        using _FieldType = std::tuple_element_t<__Index, _TupleOfSizes>;
-        std::get<__Index>(__result) = std::min<_FieldType>(std::get<__Index>(__result), std::get<__Index>(__oob_pos));
-
-        if constexpr (__Index > 0)
-            __update_each_field<__Index - 1>(__result, __oob_pos);
-    }
-};
+    return std::min(__oob_pos, __n);
+}
 
 namespace __details
 {
@@ -2275,6 +2237,16 @@ __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
             oneapi::dpl::__internal::__supports_sub_group_size(__q, __get_reduce_then_scan_reqd_sg_sz_host()));
 }
 
+template <bool _Bounded, typename _Range>
+std::conditional_t<_Bounded, __result_storage<__scan_stop_pos_t<_Range>>, std::nullptr_t>
+__create_oob_pos_payload_opt([[maybe_unused]] sycl::queue& __q)
+{
+    if constexpr (_Bounded)
+        return __result_storage<__scan_stop_pos_t<_Range>>(__q, 1);
+    else
+        return nullptr;
+}
+
 // General scan-like algorithm helpers
 // _GenReduceInput - a function which accepts the input range and index to generate the data needed by the main output
 //                   used in the reduction operation (to calculate the global carries)
@@ -2381,10 +2353,10 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 
     // Allocate storage for stop position payload if needed
     using __stop_pos_t = __scan_stop_pos_t<_InRng>;
-    auto __oob_pos_payload = __stop_pos_payloads_tools::template __create_storage_opt<_Bounded, __stop_pos_t>(__q);
+    auto __oob_pos_payload = __create_oob_pos_payload_opt<_Bounded, _InRng>(__q);
 
     // Create initial `sentinel` state for stop position payload
-    const auto __oob_pos_init_state = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<__stop_pos_t>();
+    const auto __oob_pos_init_state = std::numeric_limits<__stop_pos_t>::max();
 
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
     // with sufficiently large L2 / L3 caches.

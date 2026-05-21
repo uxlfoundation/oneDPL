@@ -853,7 +853,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
 
         __event.wait_and_throw();
         __stop_pos_payload.__copy_result(__ret.data(), 1);
-        __ret[1] = std::get<0>(__stop_pos_payloads_tools::__get_finish_pos(__oob_pos_payload, std::tuple<_Size>(__n)));
+        __ret[1] = __get_finish_pos(__oob_pos_payload, __n);
     }
     else
     {
@@ -974,7 +974,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
         __event.wait_and_throw();
         __stop_pos_payload.__copy_result(__ret.data(), 1);
-        __ret[1] = std::get<0>(__stop_pos_payloads_tools::__get_finish_pos(__oob_pos_payload, std::tuple<_Size>(__n)));
+        __ret[1] = __get_finish_pos(__oob_pos_payload, __n);
     }
     else
     {
