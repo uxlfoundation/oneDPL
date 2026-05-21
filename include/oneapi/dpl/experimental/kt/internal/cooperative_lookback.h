@@ -344,8 +344,8 @@ struct __cooperative_lookback
                 oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial<
                     __sub_group_size,
                     /*__is_inclusive*/ true,
-                    /*__init_present*/ decltype(__is_initialized)::value>(
-                    __subgroup, __tile_value, __binary_op, __running, __lowest_item_with_full + 1, nullptr);
+                    /*__init_present*/ decltype(__is_initialized)::value>(__subgroup, __tile_value, __binary_op,
+                                                                          __running, __lowest_item_with_full + 1);
                 return true;
             }
             else
@@ -354,7 +354,7 @@ struct __cooperative_lookback
                     __sub_group_size,
                     /*__is_inclusive*/ true,
                     /*__init_present*/ decltype(__is_initialized)::value>(__subgroup, __tile_value, __binary_op,
-                                                                          __running, nullptr);
+                                                                          __running);
                 return false;
             }
         };

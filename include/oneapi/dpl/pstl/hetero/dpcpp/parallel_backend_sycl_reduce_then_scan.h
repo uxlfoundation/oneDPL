@@ -1203,10 +1203,13 @@ struct __scan_by_seg_op
 // The __comm_slm parameter points to a work-group-sized SLM buffer; each sub-group uses its own
 // slice at offset [sub_group_id * sub_group_size, (sub_group_id + 1) * sub_group_size].
 
+// structure to signify no slm has been allocated, and native subgroup ops should be used
+struct __no_slm_t{};
+
 template <typename _ValueType>
 _ValueType
 __shift_group_right(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, std::uint32_t __shift,
-                    std::nullptr_t)
+                    __no_slm_t)
 {
     return sycl::shift_group_right(__sub_group, __value, __shift);
 }
@@ -1230,7 +1233,7 @@ __shift_group_right(const __dpl_sycl::__sub_group& __sub_group, _ValueType __val
 template <typename _ValueType, typename _IdType>
 _ValueType
 __group_broadcast(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, _IdType __broadcast_id,
-                  std::nullptr_t)
+                  __no_slm_t)
 {
     return sycl::group_broadcast(__sub_group, __value, __broadcast_id);
 }
@@ -1343,10 +1346,10 @@ __sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __ma
 }
 
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp,
-          typename _ValueType, typename _LazyValueType, typename _CommSLMPtr>
+          typename _ValueType, typename _LazyValueType, typename _CommSLMPtr = __no_slm_t>
 void
 __sub_group_scan(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value, _BinaryOp __binary_op,
-                 _LazyValueType& __init_and_carry, _CommSLMPtr __comm_slm)
+                 _LazyValueType& __init_and_carry, _CommSLMPtr __comm_slm = {})
 {
     auto __mask_fn = [](auto __sub_group_local_id, auto __offset) { return __sub_group_local_id >= __offset; };
     std::uint8_t __init_broadcast_id = __sub_group.get_max_local_range()[0] - 1;
@@ -1355,10 +1358,10 @@ __sub_group_scan(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value
 }
 
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp,
-          typename _ValueType, typename _LazyValueType, typename _SizeType, typename _CommSLMPtr>
+          typename _ValueType, typename _LazyValueType, typename _SizeType, typename _CommSLMPtr = __no_slm_t>
 void
 __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value, _BinaryOp __binary_op,
-                         _LazyValueType& __init_and_carry, _SizeType __elements_to_process, _CommSLMPtr __comm_slm)
+                         _LazyValueType& __init_and_carry, _SizeType __elements_to_process, _CommSLMPtr __comm_slm = {})
 {
     auto __mask_fn = [__elements_to_process](auto __sub_group_local_id, auto __offset) {
         return __sub_group_local_id >= __offset && __sub_group_local_id < __elements_to_process;
@@ -1545,11 +1548,11 @@ struct __reduce_then_scan_sub_group_params
 };
 
 template <bool __use_subgroup_ops, typename _InitValueType>
-std::enable_if_t<__use_subgroup_ops, std::nullptr_t>
+std::enable_if_t<__use_subgroup_ops, __no_slm_t>
 __create_comm_slm_acc_opt(const std::uint32_t /*__work_group_size*/, sycl::handler& /*__cgh*/)
 {
     //embed the __use_subgroup_ops information into the type of the slm accessor & pointer
-    return nullptr;
+    return __no_slm_t{};
 }
 
 template <bool __use_subgroup_ops, typename _InitValueType>
@@ -1559,13 +1562,13 @@ __create_comm_slm_acc_opt(const std::uint32_t __work_group_size, sycl::handler& 
     return __dpl_sycl::__local_accessor<_InitValueType>(__work_group_size, __cgh);
 }
 
-inline std::nullptr_t
-__get_comm_slm_acc_data(std::nullptr_t)
+inline __no_slm_t
+__get_comm_slm_acc_data(__no_slm_t)
 {
     // embed the __use_subgroup_ops information into the type of the slm accessor & pointer
     // this allows us to avoid adding many bool template argments into leaf nodes, as we can encode this in the type
     // of the SLM pointer we are already sending.
-    return nullptr;
+    return __no_slm_t{};
 }
 
 template <typename CommSlmAcc>
