@@ -724,10 +724,10 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
         const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
         auto&& [__event, __payload] = __parallel_transform_reduce_then_scan<
-                /*_Bounded*/ false, sizeof(typename _InitType::__value_type), _CustomName>(
-                __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform,
-                __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
-                /*_IsUniquePattern=*/std::false_type{});
+            /*_Bounded*/ false, sizeof(typename _InitType::__value_type), _CustomName>(
+            __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform,
+            __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
+            /*_IsUniquePattern=*/std::false_type{});
         return __create_future(std::move(__event), std::move(__payload));
     }
     else // use multi pass scan implementation
@@ -1019,16 +1019,16 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
     oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__n);
 
     auto&& [__event, __payload] = __parallel_transform_reduce_then_scan<
-            /*_Bounded*/ false, sizeof(oneapi::dpl::__internal::__value_t<_Range1>), _CustomName>(
-            __q, __n,
-            oneapi::dpl::__ranges::make_zip_view(
-                std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
-                    __mask_buf.get_buffer())),
-            std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp, __proj1, __proj2}}, _ReduceOp{},
-            _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
-            _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-            /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
+        /*_Bounded*/ false, sizeof(oneapi::dpl::__internal::__value_t<_Range1>), _CustomName>(
+        __q, __n,
+        oneapi::dpl::__ranges::make_zip_view(
+            std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
+                __mask_buf.get_buffer())),
+        std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp, __proj1, __proj2}}, _ReduceOp{},
+        _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
+        _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
+        /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
     return __create_future(std::move(__event), std::move(__payload));
 }
 

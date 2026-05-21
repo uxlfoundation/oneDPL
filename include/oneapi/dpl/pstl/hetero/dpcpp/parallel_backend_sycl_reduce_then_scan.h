@@ -1839,8 +1839,8 @@ template <typename... _Ranges>
 using __scan_stop_pos_t = typename __details::__scan_stop_pos_helper<std::decay_t<_Ranges>...>::_Type;
 
 template <bool _Bounded, typename _ValueType, typename... _Ranges>
-using __transform_reduce_then_scan_result_t = std::conditional_t<_Bounded,
-    std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<__scan_stop_pos_t<_Ranges...>>>,
+using __transform_reduce_then_scan_result_t = std::conditional_t<
+    _Bounded, std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<__scan_stop_pos_t<_Ranges...>>>,
     std::tuple<sycl::event, __combined_storage<_ValueType>>>;
 
 struct __stop_pos_payloads_tools
