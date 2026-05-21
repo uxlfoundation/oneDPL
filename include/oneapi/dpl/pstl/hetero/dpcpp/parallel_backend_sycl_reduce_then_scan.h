@@ -1215,7 +1215,7 @@ template <typename _ValueType>
 std::enable_if_t<!std::is_trivially_copyable_v<_ValueType>, _ValueType>
 __shift_group_right(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, std::uint32_t __shift,
                     _ValueType* __comm_slm)
-{                                                           
+{
     // SLM-based fallback: used for non-trivially-copyable types or when SLM communication is
     // preferred (e.g., CPU targets where sub-group ops are slow).
     std::uint32_t __local_id = __sub_group.get_local_linear_id();
@@ -1251,8 +1251,8 @@ __group_broadcast(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value
     return __result;
 }
 
-template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp,
-          typename _InitBroadcastId, typename _BinaryOp, typename _ValueType, typename _LazyValueType, typename _CommSLMPtr>
+template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId,
+          typename _BinaryOp, typename _ValueType, typename _LazyValueType, typename _CommSLMPtr>
 void
 __exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __mask_fn,
                                   _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
@@ -1575,13 +1575,11 @@ __create_comm_slm_acc_opt(const std::uint32_t __work_group_size, sycl::handler& 
     return __dpl_sycl::__local_accessor<_InitValueType>(__work_group_size, __cgh);
 }
 
-inline
-auto
+inline auto
 __get_comm_slm_acc_data(std::nullptr_t)
 {
     return nullptr;
 }
-
 
 template <typename CommSlmAcc>
 auto
@@ -1614,7 +1612,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
             // SLM for sub-group communication (shift_group_right / group_broadcast).
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
-            auto __comm_slm_acc_opt = __create_comm_slm_acc_opt<__use_subgroup_ops, _InitValueType>(__work_group_size, __cgh);
+            auto __comm_slm_acc_opt =
+                __create_comm_slm_acc_opt<__use_subgroup_ops, _InitValueType>(__work_group_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
@@ -1627,7 +1626,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
 
                 _InitValueType* __temp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
-                auto __comm_slm_ptr = __get_comm_slm_acc_data(__comm_slm_acc_opt); 
+                auto __comm_slm_ptr = __get_comm_slm_acc_data(__comm_slm_acc_opt);
                 std::size_t __group_id = __ndi.get_group(0);
                 std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
                 std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
@@ -1793,16 +1792,18 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
             // SLM for sub-group communication (shift_group_right / group_broadcast).
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
-            auto __comm_slm_acc_opt = __create_comm_slm_acc_opt<__use_subgroup_ops, _InitValueType>(__work_group_size, __cgh);
+            auto __comm_slm_acc_opt =
+                __create_comm_slm_acc_opt<__use_subgroup_ops, _InitValueType>(__work_group_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
             auto __res_acc =
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
-            __cgh.parallel_for<_KernelName...>(
-                    __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
-                auto __comm_slm_ptr = __get_comm_slm_acc_data(__comm_slm_acc_opt); 
+            __cgh.parallel_for<_KernelName...>(__nd_range, [=,
+                                                            *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(
+                                                               __sub_group_size)]] {
+                auto __comm_slm_ptr = __get_comm_slm_acc_data(__comm_slm_acc_opt);
 
                 __reduce_then_scan_sub_group_params __sub_group_params(
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
