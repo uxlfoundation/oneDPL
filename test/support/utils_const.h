@@ -35,9 +35,10 @@ test_queue_is_cpu();
 constexpr ::std::size_t max_n = 100000;
 
 // Default caps used by scan-based tests (scan, copy_if, unique, partition,
-// set_*, etc.). The runtime helpers below (defined in utils_sycl.h when the
-// dpcpp backend is present) shrink these when the test queue targets a CPU
-// device, where the default sizes are too slow.
+// set_*, etc.). The get_scan_test_*_max_n() helpers defined below in this
+// header shrink these when the test queue targets a CPU device, using
+// test_queue_is_cpu() when the dpcpp backend is present, where the default
+// sizes are too slow.
 constexpr std::size_t scan_test_max_n_default = 100000;
 constexpr std::size_t scan_test_set_max_n_default = 100000;
 constexpr std::size_t scan_test_unique_max_n_default = 1000000;
