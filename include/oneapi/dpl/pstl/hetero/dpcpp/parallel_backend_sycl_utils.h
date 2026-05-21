@@ -1065,13 +1065,6 @@ __create_future(sycl::event&& __event, __combined_storage<_ValueType>&& __payloa
     return __future(std::move(__event), __result_and_scratch_storage<_ValueType>(std::move(__payload).__move_state()));
 }
 
-template <typename _ValueType>
-auto
-__create_future(sycl::event&& __event, __result_and_scratch_storage<_ValueType>&& __payload)
-{
-    return __future(std::move(__event), std::move(__payload));
-}
-
 struct __scalar_load_op
 {
     oneapi::dpl::__internal::__pstl_assign __assigner;
