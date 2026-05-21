@@ -179,7 +179,6 @@ struct
 void
 test_set_difference_checker()
 {
-    // oneapi::dpl::ranges::set_difference logic
     {
         // set1:                   1, 2, 3, 4, 5,             10, 11, 12, 13, 14, 15
         // set2:                   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,                 20, 21, 22, 23, 24, 25
@@ -204,7 +203,6 @@ test_set_difference_checker()
     }
 
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
-    // oneapi::dpl::ranges::set_difference logic
     {
         // set1:                   1, 2, 3, 4, 5,             10, 11, 12, 13, 14, 15, 16, 17
         // set2:                                  6, 7, 8, 9,     11, 12, ^   14
@@ -227,7 +225,6 @@ test_set_difference_checker()
     }
 #endif
 
-    // oneapi::dpl::ranges::set_difference logic
     {
         // set1:                   1, 2, 3, 4, 5,             10, 11, 12, 13, 14, 15
         // set2:                   1, 2, 3, 4, 5, 6, 7, 8, 9,                                          20, 21, 22, 23, 24, 25
@@ -253,7 +250,6 @@ test_set_difference_checker()
         EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
 
-    // oneapi::dpl::ranges::set_difference logic
     {
         // set1:                   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,                 15, 16, 17, 18, 19, 20
         // set2:                            4, 5, 6, 7,           11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25

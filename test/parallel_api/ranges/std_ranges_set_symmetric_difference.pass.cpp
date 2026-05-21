@@ -183,7 +183,6 @@ struct
 void
 test_set_symmetric_difference_checker()
 {
-    // oneapi::dpl::ranges::set_symmetric_difference logic
     {
         // set1:                   1, 2, 3
         // set2:                   4, 5, 6
@@ -206,7 +205,6 @@ test_set_symmetric_difference_checker()
     }
 
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
-    // oneapi::dpl::ranges::set_symmetric_difference logic
     {
         // set1:                   1, 2, 3
         // set2:                   4, 5, 6
@@ -229,7 +227,6 @@ test_set_symmetric_difference_checker()
     }
 #endif
 
-    // oneapi::dpl::ranges::set_symmetric_difference logic
     {
         // set1:                   1, 3, 5, 6
         // set2:                   1, 2, 8, 9
@@ -252,7 +249,6 @@ test_set_symmetric_difference_checker()
     }
 
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
-    // oneapi::dpl::ranges::set_symmetric_difference logic
     {
         // set1:                   1, 3, 5, 6
         // set2:                   1, 2,   ^  8, 9
