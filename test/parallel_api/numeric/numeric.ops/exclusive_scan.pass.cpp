@@ -73,7 +73,7 @@ test_with_plus(Init init, Out trash, Convert convert)
 
 #if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
     // testing of large number of items may take too much time in debug mode
-    unsigned long n = TestUtils::test_queue_is_cpu() ? TestUtils::get_scan_test_max_n() :
+    std::size_t n = TestUtils::test_queue_is_cpu() ? TestUtils::get_scan_test_max_n() :
 #    if PSTL_USE_DEBUG
                                                      1000000;
 #    else
