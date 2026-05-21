@@ -1795,52 +1795,12 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
     _InitType __init;
 };
 
-namespace __details
-{
-
-template <typename... _Ranges>
-struct __scan_stop_pos_type;
-
 template <typename _Range>
-struct __scan_stop_pos_type<_Range>
-{
-    using _Type = decltype(oneapi::dpl::__ranges::__size(std::declval<_Range>()));
-};
+using __scan_stop_pos_t = std::tuple<decltype(oneapi::dpl::__ranges::__size(std::declval<_Range>()))>;
 
-template <typename... _Ranges>
-struct __scan_stop_pos_type<oneapi::dpl::__ranges::zip_view<_Ranges...>>
-{
-    using _Type = std::tuple<decltype(oneapi::dpl::__ranges::__size(std::declval<_Ranges>()))...>;
-};
-
-// Helper to build the final stop-position tuple type.
-// General case (multiple ranges, or single plain range): wrap each range's size type into a flat tuple.
-template <typename... _Ranges>
-struct __scan_stop_pos_helper
-{
-    using _Type = std::tuple<typename __scan_stop_pos_type<_Ranges>::_Type...>;
-};
-
-// Single zip_view: its _Type is already a flat tuple<SZ...>, so return it directly without an extra wrapping tuple.
-template <typename... _ZipRanges>
-struct __scan_stop_pos_helper<oneapi::dpl::__ranges::zip_view<_ZipRanges...>>
-{
-    using _Type = typename __scan_stop_pos_type<oneapi::dpl::__ranges::zip_view<_ZipRanges...>>::_Type;
-};
-
-} // namespace __details
-
-// Define std::tuple of sizes for specified source ranges.
-// - Single plain range              -> tuple<SZ>
-// - Single zip_view<R1,R2>          -> tuple<SZ,SZ>          (flat, not nested)
-// - Multiple plain ranges R1,R2     -> tuple<SZ,SZ>
-// - zip_view<R1,R2> + plain R3      -> tuple<tuple<SZ,SZ>,SZ>
-template <typename... _Ranges>
-using __scan_stop_pos_t = typename __details::__scan_stop_pos_helper<std::decay_t<_Ranges>...>::_Type;
-
-template <bool _Bounded, typename _ValueType, typename... _Ranges>
+template <bool _Bounded, typename _ValueType, typename _Range>
 using __transform_reduce_then_scan_result_t = std::conditional_t<
-    _Bounded, std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<__scan_stop_pos_t<_Ranges...>>>,
+    _Bounded, std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<__scan_stop_pos_t<_Range>>>,
     std::tuple<sycl::event, __combined_storage<_ValueType>>>;
 
 struct __stop_pos_payloads_tools
