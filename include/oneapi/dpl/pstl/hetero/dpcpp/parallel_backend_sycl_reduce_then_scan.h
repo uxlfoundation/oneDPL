@@ -140,7 +140,6 @@ template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
 {
     using _TempData = __noop_temp_data;
-    static constexpr bool DetectOOBPos = true;
 
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
