@@ -1203,65 +1203,66 @@ struct __scan_by_seg_op
 // The __comm_slm parameter points to a work-group-sized SLM buffer; each sub-group uses its own
 // slice at offset [sub_group_id * sub_group_size, (sub_group_id + 1) * sub_group_size].
 
-template <bool __use_subgroup_ops, typename _ValueType>
+template <typename _ValueType>
+std::enable_if_t<std::is_trivially_copyable_v<_ValueType>, _ValueType>
+__shift_group_right(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, std::uint32_t __shift,
+                    std::nullptr_t)
+{
+    return sycl::shift_group_right(__sub_group, __value, __shift);
+}
+
+template <typename _ValueType>
 _ValueType
 __shift_group_right(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, std::uint32_t __shift,
                     _ValueType* __comm_slm)
 {
-    if constexpr (__use_subgroup_ops)
-    {
-        return sycl::shift_group_right(__sub_group, __value, __shift);
-    }
-    else
-    {
-        // SLM-based fallback: used for non-trivially-copyable types or when SLM communication is
-        // preferred (e.g., CPU targets where sub-group ops are slow).
-        std::uint32_t __local_id = __sub_group.get_local_linear_id();
-        std::uint32_t __sg_base = __sub_group.get_group_linear_id() * __sub_group.get_max_local_range()[0];
-        __comm_slm[__sg_base + __local_id] = __value;
-        sycl::group_barrier(__sub_group);
-        _ValueType __result = __comm_slm[__sg_base + ((__local_id >= __shift) ? __local_id - __shift : __local_id)];
-        sycl::group_barrier(__sub_group);
-        return __result;
-    }
+    // SLM-based fallback: used for non-trivially-copyable types or when SLM communication is
+    // preferred (e.g., CPU targets where sub-group ops are slow).
+    std::uint32_t __local_id = __sub_group.get_local_linear_id();
+    std::uint32_t __sg_base = __sub_group.get_group_linear_id() * __sub_group.get_max_local_range()[0];
+    __comm_slm[__sg_base + __local_id] = __value;
+    sycl::group_barrier(__sub_group);
+    _ValueType __result = __comm_slm[__sg_base + ((__local_id >= __shift) ? __local_id - __shift : __local_id)];
+    sycl::group_barrier(__sub_group);
+    return __result;
 }
 
-template <bool __use_subgroup_ops, typename _ValueType, typename _IdType>
+template <typename _ValueType, typename _IdType>
+std::enable_if_t<std::is_trivially_copyable_v<_ValueType>, _ValueType>
+__group_broadcast(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, _IdType __broadcast_id,
+                  std::nullptr_t)
+{
+    return sycl::group_broadcast(__sub_group, __value, __broadcast_id);
+}
+
+template <typename _ValueType, typename _IdType>
 _ValueType
 __group_broadcast(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, _IdType __broadcast_id,
                   _ValueType* __comm_slm)
 {
-    if constexpr (__use_subgroup_ops)
-    {
-        return sycl::group_broadcast(__sub_group, __value, __broadcast_id);
-    }
-    else
-    {
-        // SLM-based fallback: used for non-trivially-copyable types or when SLM communication is
-        // preferred (e.g., CPU targets where sub-group ops are slow).
-        std::uint32_t __local_id = __sub_group.get_local_linear_id();
-        std::uint32_t __sg_base = __sub_group.get_group_linear_id() * __sub_group.get_max_local_range()[0];
-        __comm_slm[__sg_base + __local_id] = __value;
-        sycl::group_barrier(__sub_group);
-        _ValueType __result = __comm_slm[__sg_base + __broadcast_id];
-        sycl::group_barrier(__sub_group);
-        return __result;
-    }
+    // SLM-based fallback: used for non-trivially-copyable types or when SLM communication is
+    // preferred (e.g., CPU targets where sub-group ops are slow).
+    std::uint32_t __local_id = __sub_group.get_local_linear_id();
+    std::uint32_t __sg_base = __sub_group.get_group_linear_id() * __sub_group.get_max_local_range()[0];
+    __comm_slm[__sg_base + __local_id] = __value;
+    sycl::group_barrier(__sub_group);
+    _ValueType __result = __comm_slm[__sg_base + __broadcast_id];
+    sycl::group_barrier(__sub_group);
+    return __result;
 }
 
-template <std::uint8_t __sub_group_size, bool __use_subgroup_ops, bool __init_present, typename _MaskOp,
-          typename _InitBroadcastId, typename _BinaryOp, typename _ValueType, typename _LazyValueType>
+template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId,
+          typename _BinaryOp, typename _ValueType, typename _LazyValueType, typename _CommSLMPtr>
 void
 __exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __mask_fn,
                                   _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
-                                  _LazyValueType& __init_and_carry, _ValueType* __comm_slm)
+                                  _LazyValueType& __init_and_carry, _CommSLMPtr __comm_slm)
 {
     std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
     _ONEDPL_PRAGMA_UNROLL
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
     {
-        _ValueType __partial_carry_in =
-            __shift_group_right<__use_subgroup_ops>(__sub_group, __value, __shift, __comm_slm);
+        _ValueType __partial_carry_in = __shift_group_right(__sub_group, __value, __shift, __comm_slm);
         if (__mask_fn(__sub_group_local_id, __shift))
         {
             __value = __binary_op(__partial_carry_in, __value);
@@ -1273,16 +1274,14 @@ __exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
         __value = __binary_op(__init_and_carry.__v, __value);
         if (__sub_group_local_id == 0)
             __old_init.__setup(__init_and_carry.__v);
-        __init_and_carry.__v =
-            __group_broadcast<__use_subgroup_ops>(__sub_group, __value, __init_broadcast_id, __comm_slm);
+        __init_and_carry.__v = __group_broadcast(__sub_group, __value, __init_broadcast_id, __comm_slm);
     }
     else
     {
-        __init_and_carry.__setup(
-            __group_broadcast<__use_subgroup_ops>(__sub_group, __value, __init_broadcast_id, __comm_slm));
+        __init_and_carry.__setup(__group_broadcast(__sub_group, __value, __init_broadcast_id, __comm_slm));
     }
 
-    __value = __shift_group_right<__use_subgroup_ops>(__sub_group, __value, 1, __comm_slm);
+    __value = __shift_group_right(__sub_group, __value, 1, __comm_slm);
     if constexpr (__init_present)
     {
         if (__sub_group_local_id == 0)
@@ -1294,19 +1293,18 @@ __exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
     //return by reference __value and __init_and_carry
 }
 
-template <std::uint8_t __sub_group_size, bool __use_subgroup_ops, bool __init_present, typename _MaskOp,
-          typename _InitBroadcastId, typename _BinaryOp, typename _ValueType, typename _LazyValueType>
+template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId,
+          typename _BinaryOp, typename _ValueType, typename _LazyValueType, typename _CommSlmPtr>
 void
 __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __mask_fn,
                                   _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
-                                  _LazyValueType& __init_and_carry, _ValueType* __comm_slm)
+                                  _LazyValueType& __init_and_carry, _CommSlmPtr __comm_slm)
 {
     std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
     _ONEDPL_PRAGMA_UNROLL
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
     {
-        _ValueType __partial_carry_in =
-            __shift_group_right<__use_subgroup_ops>(__sub_group, __value, __shift, __comm_slm);
+        _ValueType __partial_carry_in = __shift_group_right(__sub_group, __value, __shift, __comm_slm);
         if (__mask_fn(__sub_group_local_id, __shift))
         {
             __value = __binary_op(__partial_carry_in, __value);
@@ -1315,90 +1313,73 @@ __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
     if constexpr (__init_present)
     {
         __value = __binary_op(__init_and_carry.__v, __value);
-        __init_and_carry.__v =
-            __group_broadcast<__use_subgroup_ops>(__sub_group, __value, __init_broadcast_id, __comm_slm);
+        __init_and_carry.__v = __group_broadcast(__sub_group, __value, __init_broadcast_id, __comm_slm);
     }
     else
     {
-        __init_and_carry.__setup(
-            __group_broadcast<__use_subgroup_ops>(__sub_group, __value, __init_broadcast_id, __comm_slm));
+        __init_and_carry.__setup(__group_broadcast(__sub_group, __value, __init_broadcast_id, __comm_slm));
     }
     //return by reference __value and __init_and_carry
 }
 
-template <std::uint8_t __sub_group_size, bool __use_subgroup_ops, bool __is_inclusive, bool __init_present,
-          typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType, typename _LazyValueType>
+template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _MaskOp,
+          typename _InitBroadcastId, typename _BinaryOp, typename _ValueType, typename _LazyValueType,
+          typename _CommSlmPtr>
 void
 __sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __mask_fn,
                         _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
-                        _LazyValueType& __init_and_carry, _ValueType* __comm_slm)
+                        _LazyValueType& __init_and_carry, _CommSlmPtr __comm_slm)
 {
     if constexpr (__is_inclusive)
     {
-        __inclusive_sub_group_masked_scan<__sub_group_size, __use_subgroup_ops, __init_present>(
+        __inclusive_sub_group_masked_scan<__sub_group_size, __init_present>(
             __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
     }
     else
     {
-        __exclusive_sub_group_masked_scan<__sub_group_size, __use_subgroup_ops, __init_present>(
+        __exclusive_sub_group_masked_scan<__sub_group_size, __init_present>(
             __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
     }
 }
 
-// Entry points for per-scan dispatch: pick a sub-group-ops or SLM specialization at runtime, keeping
-// all code above a single instantiation. The branch executes once per scan (not per element).
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp,
-          typename _ValueType, typename _LazyValueType>
+          typename _ValueType, typename _LazyValueType, typename _CommSlmPtr>
 void
 __sub_group_scan(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value, _BinaryOp __binary_op,
-                 _LazyValueType& __init_and_carry, _ValueType* __comm_slm)
+                 _LazyValueType& __init_and_carry, _CommSlmPtr __comm_slm)
 {
     auto __mask_fn = [](auto __sub_group_local_id, auto __offset) { return __sub_group_local_id >= __offset; };
     std::uint8_t __init_broadcast_id = __sub_group.get_max_local_range()[0] - 1;
-    if (__comm_slm == nullptr)
-    {
-        __sub_group_masked_scan<__sub_group_size, /*__use_subgroup_ops=*/true, __is_inclusive, __init_present>(
-            __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
-    }
-    else
-    {
-        __sub_group_masked_scan<__sub_group_size, /*__use_subgroup_ops=*/false, __is_inclusive, __init_present>(
-            __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
-    }
+
+    __sub_group_masked_scan<__sub_group_size, __is_inclusive, __init_present>(
+        __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
 }
 
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp,
-          typename _ValueType, typename _LazyValueType, typename _SizeType>
+          typename _ValueType, typename _LazyValueType, typename _SizeType, typename _CommSlmPtr>
 void
 __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value, _BinaryOp __binary_op,
-                         _LazyValueType& __init_and_carry, _SizeType __elements_to_process, _ValueType* __comm_slm)
+                         _LazyValueType& __init_and_carry, _SizeType __elements_to_process, _CommSlmPtr __comm_slm)
 {
     auto __mask_fn = [__elements_to_process](auto __sub_group_local_id, auto __offset) {
         return __sub_group_local_id >= __offset && __sub_group_local_id < __elements_to_process;
     };
     std::uint8_t __init_broadcast_id = __elements_to_process - 1;
-    if (__comm_slm == nullptr)
-    {
-        __sub_group_masked_scan<__sub_group_size, /*__use_subgroup_ops=*/true, __is_inclusive, __init_present>(
-            __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
-    }
-    else
-    {
-        __sub_group_masked_scan<__sub_group_size, /*__use_subgroup_ops=*/false, __is_inclusive, __init_present>(
-            __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
-    }
+
+    __sub_group_masked_scan<__sub_group_size, __is_inclusive, __init_present>(
+        __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
 }
 
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
           std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
-          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng, typename _ScanValueType>
+          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng, typename _CommSlmPtr>
 void
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
                                _LazyValueType& __sub_group_carry, const _InRng& __in_rng, _OutRng& __out_rng,
                                std::size_t __start_id, std::size_t __n, std::uint32_t __iters_per_item,
                                std::size_t __subgroup_start_id, std::uint32_t __sub_group_id,
-                               std::uint32_t __active_subgroups, _ScanValueType* __comm_slm)
+                               std::uint32_t __active_subgroups, _CommSlmPtr __comm_slm)
 {
     using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t, typename _GenInput::TempData&>;
 
@@ -1578,6 +1559,33 @@ template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_un
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
+template <bool __use_subgroup_ops, typename _InitValueType>
+std::enable_if_t<__use_subgroup_ops, std::nullptr_t>
+__create_comm_slm_acc_opt(const std::uint32_t /*__work_group_size*/, sycl::handler& /*__cgh*/)
+{
+    return nullptr;
+}
+
+template <bool __use_subgroup_ops, typename _InitValueType>
+std::enable_if_t<!__use_subgroup_ops, __dpl_sycl::__local_accessor<_InitValueType>>
+__create_comm_slm_acc_opt(const std::uint32_t __work_group_size, sycl::handler& __cgh)
+{
+    return __dpl_sycl::__local_accessor<_InitValueType>(__work_group_size, __cgh);
+}
+
+inline auto
+__get_comm_slm_acc_data(std::nullptr_t)
+{
+    return nullptr;
+}
+
+template <typename CommSlmAcc>
+auto
+__get_comm_slm_acc_data(const CommSlmAcc& __comm_slm_acc_opt)
+{
+    return __dpl_sycl::__get_accessor_ptr(__comm_slm_acc_opt);
+}
+
 template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename... _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_inclusive, __is_unique_pattern_v,
@@ -1585,6 +1593,10 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                                                     __internal::__optional_kernel_name<_KernelName...>>
 {
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
+
+    // Native sycl sub-group operations can only be used on trivially copyable types.
+    static const bool __use_subgroup_ops = std::is_trivially_copyable_v<typename _InitType::__value_type>;
+
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
     template <typename _InRng, typename _TmpStorageAcc>
@@ -1598,7 +1610,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
             // SLM for sub-group communication (shift_group_right / group_broadcast).
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
-            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_subgroup_ops ? 0 : __work_group_size, __cgh);
+            auto __comm_slm_acc_opt =
+                __create_comm_slm_acc_opt<__use_subgroup_ops, _InitValueType>(__work_group_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
@@ -1611,7 +1624,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
 
                 _InitValueType* __temp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
-                _InitValueType* __comm_slm_ptr = __use_subgroup_ops ? nullptr : &__comm_slm[0];
+                auto __comm_slm_ptr = __get_comm_slm_acc_data(__comm_slm_acc_opt);
                 std::size_t __group_id = __ndi.get_group(0);
                 std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
                 std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
@@ -1716,7 +1729,6 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
     const std::uint32_t __max_block_size;
     const std::uint32_t __max_num_sub_groups_local;
     const std::size_t __n;
-    const bool __use_subgroup_ops;
 
     const _GenReduceInput __gen_reduce_input;
     const _ReduceOp __reduce_op;
@@ -1737,6 +1749,9 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
 {
     using _InitValueType = typename _InitType::__value_type;
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
+
+    // Native sycl sub-group operations can only be used on trivially copyable types.
+    static const bool __use_subgroup_ops = std::is_trivially_copyable_v<_InitValueType>;
 
     template <typename _TmpAcc>
     _InitValueType
@@ -1775,16 +1790,18 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
             // SLM for sub-group communication (shift_group_right / group_broadcast).
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
-            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_subgroup_ops ? 0 : __work_group_size, __cgh);
+            auto __comm_slm_acc_opt =
+                __create_comm_slm_acc_opt<__use_subgroup_ops, _InitValueType>(__work_group_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
             auto __res_acc =
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
-            __cgh.parallel_for<_KernelName...>(
-                    __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
-                _InitValueType* __comm_slm_ptr = __use_subgroup_ops ? nullptr : &__comm_slm[0];
+            __cgh.parallel_for<_KernelName...>(__nd_range, [=,
+                                                            *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(
+                                                               __sub_group_size)]] {
+                auto __comm_slm_ptr = __get_comm_slm_acc_data(__comm_slm_acc_opt);
 
                 __reduce_then_scan_sub_group_params __sub_group_params(
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
@@ -2066,7 +2083,6 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
     const std::uint32_t __max_num_sub_groups_global;
     const std::size_t __num_blocks;
     const std::size_t __n;
-    const bool __use_subgroup_ops;
 
     const _ReduceOp __reduce_op;
     const _GenScanInput __gen_scan_input;
@@ -2154,9 +2170,6 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // between reading and writing the block carry-out within a single kernel.
     __result_and_scratch_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2};
 
-    // Native sycl sub-group operations can only be used on trivially copyable types.
-    const bool __use_subgroup_ops = std::is_trivially_copyable_v<_ValueType>;
-
     // Reduce and scan step implementations
     using _ReduceSubmitter =
         __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __inclusive, __is_unique_pattern_v,
@@ -2170,7 +2183,6 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                         __max_inputs_per_block,
                                         __max_num_sub_groups_local,
                                         __n,
-                                        __use_subgroup_ops,
                                         __gen_reduce_input,
                                         __reduce_op,
                                         __init};
@@ -2181,7 +2193,6 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                     __max_num_sub_groups_global,
                                     __num_blocks,
                                     __n,
-                                    __use_subgroup_ops,
                                     __reduce_op,
                                     __gen_scan_input,
                                     __scan_input_transform,
