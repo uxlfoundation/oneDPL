@@ -40,6 +40,14 @@ namespace TestUtils
 // Implemented in utils_sycl.h, required to include this file.
 sycl::queue get_test_queue();
 
+// Returns true if the queue used by tests targets a CPU device.
+inline bool
+test_queue_is_cpu()
+{
+    static const bool is_cpu = get_test_queue().get_device().is_cpu();
+    return is_cpu;
+}
+
 /**
  * make_policy functions test wrappers
  * The main purpose of this function wrapper in TestUtils namespace - to cut template params from

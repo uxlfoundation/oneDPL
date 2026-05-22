@@ -95,7 +95,7 @@ test_by_type(Generator generator, UnaryPred pred)
 {
 
     using namespace std;
-    size_t max_size = 100000;
+    size_t max_size = TestUtils::get_scan_test_max_n();
     Sequence<T> in(max_size, [](size_t v) { return T(v); });
     Sequence<T> exp(max_size, [](size_t v) { return T(v); });
 

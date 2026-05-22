@@ -35,7 +35,7 @@ main()
 
     auto unique_checker = TEST_PREPARE_CALLABLE(std::ranges::unique);
 
-    test_range_algo<0>{big_sz}(dpl_ranges::unique, unique_checker);
+    test_range_algo<0>{get_scan_big_sz()}(dpl_ranges::unique, unique_checker);
     test_range_algo<1>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{});
     test_range_algo<2>{}(dpl_ranges::unique, unique_checker, std::not_equal_to{});
     test_range_algo<3>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, proj);
