@@ -117,8 +117,8 @@ main()
     test_range_algo<2, int, data_in_out_lim>{}(dpl_ranges::remove_copy_if, remove_copy_if_checker, select_many, proj);
     test_range_algo<3, P2, data_in_out_lim, repeating_gen>{}(dpl_ranges::remove_copy_if, remove_copy_if_checker, modulo_3_is_1, &P2::x);
     test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::remove_copy_if, remove_copy_if_checker, pred, &P2::proj);
-    test_range_algo<5, int, data_in_out_lim>{big_sz}(dpl_ranges::remove_copy_if, remove_copy_if_checker, pred);
-    test_range_algo<6, int, data_in_out_lim, repeating_gen>{big_sz}(dpl_ranges::remove_copy_if, remove_copy_if_checker, select_many);
+    test_range_algo<5, int, data_in_out_lim>{get_scan_big_sz()}(dpl_ranges::remove_copy_if, remove_copy_if_checker, pred);
+    test_range_algo<6, int, data_in_out_lim, repeating_gen>{get_scan_big_sz()}(dpl_ranges::remove_copy_if, remove_copy_if_checker, select_many);
 #endif // _ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

@@ -54,6 +54,10 @@ inline constexpr int big_size = (1<<22) + 37; //4M
 inline constexpr int big_size = (1<<24) + 10; //16M
 #endif
 
+// Cap used for the device tier of scan-based std_ranges tests when the dpcpp
+// backend targets a CPU device.
+inline constexpr int big_size_scan_cpu = (1 << 20) + 10; //1M
+
 // ~100K is sufficient for parallel policies.
 // It also usually results in using multiple-work-group specializations for device policies.
 inline constexpr int medium_size = (1<<17) + 10; //128K
@@ -64,8 +68,23 @@ inline constexpr int small_size = 2025;
 
 #if TEST_DPCPP_BACKEND_PRESENT
 inline constexpr std::array<int, 3> big_sz = {/*serial*/ small_size, /*par*/ medium_size, /*device*/ big_size};
+
+// Size tuple for scan-based std_ranges tests (copy_if, remove*, unique*,
+// set_*). Shrinks the device tier for CPU+dpcpp at runtime.
+inline std::array<int, 3>
+get_scan_big_sz()
+{
+    const int device_size = TestUtils::test_queue_is_cpu() ? big_size_scan_cpu : big_size;
+    return {/*serial*/ small_size, /*par*/ medium_size, /*device*/ device_size};
+}
 #else
 inline constexpr std::array<int, 2> big_sz = {/*serial*/ small_size, /*par*/ medium_size};
+
+inline std::array<int, 2>
+get_scan_big_sz()
+{
+    return {/*serial*/ small_size, /*par*/ medium_size};
+}
 #endif
 
 enum TestDataMode

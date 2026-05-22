@@ -75,7 +75,7 @@ template <typename T, typename Predicate, typename Convert>
 void
 test(T trash, const T& value, Predicate pred, Convert convert)
 {
-    const ::std::size_t max_size = 100000;
+    const std::size_t max_size = TestUtils::get_scan_test_max_n();
     Sequence<T> out(max_size, [trash](size_t) { return trash; });
     Sequence<T> expected(max_size, [trash](size_t) { return trash; });
 
