@@ -470,5 +470,4 @@ test4buffers(int mult = kDefaultMultValue)
 }
 
 } /* namespace TestUtils */
-
 #endif // _UTILS_SYCL_H
