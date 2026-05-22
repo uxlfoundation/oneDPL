@@ -1433,7 +1433,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                std::size_t __start_id, std::size_t __n, std::uint32_t __iters_per_item,
                                std::size_t __subgroup_start_id, std::uint32_t __sub_group_id,
                                std::uint32_t __active_subgroups, _ScanValueType* __comm_slm,
-                               _OnOOBReached __on_oob_reached = {})
+                               [[maybe_unused]] _OnOOBReached __on_oob_reached = {})
 {
     using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t, typename _GenInput::TempData&>;
 
