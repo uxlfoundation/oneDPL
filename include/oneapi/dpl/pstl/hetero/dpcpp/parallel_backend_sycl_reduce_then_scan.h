@@ -1612,6 +1612,14 @@ template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusiv
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
+// Sentinel type used as a stand-in for the OOB-position accessor when _Bounded=false.
+struct __no_oob_pos_acc_tag
+{
+};
+
+template <typename _T>
+inline constexpr bool __is_no_oob_pos_acc_v = std::is_same_v<std::remove_cv_t<_T>, __no_oob_pos_acc_tag>;
+
 template <bool _Bounded, typename _OOBPosStorage>
 auto
 __get_oob_pos_accessor_opt([[maybe_unused]] sycl::handler& __cgh, [[maybe_unused]] _OOBPosStorage& __oob_pos_storage)
@@ -1623,7 +1631,7 @@ __get_oob_pos_accessor_opt([[maybe_unused]] sycl::handler& __cgh, [[maybe_unused
     }
     else
     {
-        return nullptr;
+        return __no_oob_pos_acc_tag{};
     }
 }
 
@@ -1757,7 +1765,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                     __sub_group_carry.__destroy();
                 }
 
-                if constexpr (!std::is_same_v<std::remove_cv_t<_OOBPosStorage>, std::nullptr_t>)
+                if constexpr (!__is_no_oob_pos_acc_v<decltype(__oob_pos_acc)>)
                 {
                     if (__block_num == 0 && __ndi.get_global_linear_id() == 0)
                     {
@@ -2194,13 +2202,13 @@ __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 }
 
 template <bool _Bounded, typename _Range>
-std::conditional_t<_Bounded, __result_storage<oneapi::dpl::__internal::__difference_t<_Range>>, std::nullptr_t>
+std::conditional_t<_Bounded, __result_storage<oneapi::dpl::__internal::__difference_t<_Range>>, __no_oob_pos_acc_tag>
 __create_oob_pos_storage_opt([[maybe_unused]] sycl::queue& __q)
 {
     if constexpr (_Bounded)
         return __result_storage<oneapi::dpl::__internal::__difference_t<_Range>>(__q, 1);
     else
-        return nullptr;
+        return __no_oob_pos_acc_tag{};
 }
 
 // General scan-like algorithm helpers
