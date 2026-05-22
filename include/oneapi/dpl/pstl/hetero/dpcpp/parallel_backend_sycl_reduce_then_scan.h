@@ -106,12 +106,10 @@ struct __get_zeroth_element
 // *** Write Operations ***
 
 template <typename _OutSize, typename _OutIndex, typename _Assigner, typename _OOBReachedPred>
-bool
+void
 __write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __assign, _OOBReachedPred __oob_pred)
 {
-    const bool __is_in_bounds = __out_idx < __out_size;
-    __is_in_bounds ? __assign() : (__out_idx == __out_size ? __oob_pred() : void());
-    return __is_in_bounds;
+    __out_idx < __out_size ? __assign() : (__out_idx == __out_size ? __oob_pred() : void());
 }
 
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
@@ -155,7 +153,7 @@ struct __write_to_id_if
     }
 
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
-    bool
+    void
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&,
                _OnOOBReached __on_oob_reached) const
     {
@@ -170,13 +168,11 @@ struct __write_to_id_if
         {
             const auto __out_rng_idx = std::get<0>(__v) - 1 + __offset;
 
-            return __write_if_in_bounds(
+            __write_if_in_bounds(
                 oneapi::dpl::__ranges::__size(__out_rng), __out_rng_idx,
                 [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]); },
                 [&]() { __on_oob_reached(__id); });
         }
-
-        return true;
     }
     _Assign __assign;
 };
@@ -1443,21 +1439,15 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     using _TempData = typename _GenInput::TempData;
     _TempData __temp_data{};
 
-    auto __call_write_op = [&](std::size_t __id, const auto& __v) -> bool {
+    auto __call_write_op = [&](std::size_t __id, const auto& __v) {
         if constexpr (__capture_output)
         {
             if constexpr (_Bounded)
-                return __write_op(__out_rng, __id, __v, __temp_data, __on_oob_reached);
+                __write_op(__out_rng, __id, __v, __temp_data, __on_oob_reached);
             else
                 __write_op(__out_rng, __id, __v, __temp_data);
         }
-        return true;
     };
-
-    // Short-circuit flag: once an out-of-bounds write is detected, all subsequent
-    // __call_write_op() calls are skipped via &&-evaluation, avoiding unnecessary
-    // writes beyond the output boundary. The final value is intentionally unused.
-    bool __all_writes_in_bounds = true;
 
     if (__is_full_thread)
     {
@@ -1465,7 +1455,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
         __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
                                                                            __binary_op, __sub_group_carry, __comm_slm);
-        __all_writes_in_bounds = __all_writes_in_bounds && __call_write_op(__start_id, __v);
+        __call_write_op(__start_id, __v);
 
         if (__is_full_block)
         {
@@ -1476,8 +1466,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __comm_slm);
-                __all_writes_in_bounds =
-                    __all_writes_in_bounds && __call_write_op(__start_id + __j * __sub_group_size, __v);
+                __call_write_op(__start_id + __j * __sub_group_size, __v);
             }
         }
         else
@@ -1489,8 +1478,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __comm_slm);
-                __all_writes_in_bounds =
-                    __all_writes_in_bounds && __call_write_op(__start_id + __j * __sub_group_size, __v);
+                __call_write_op(__start_id + __j * __sub_group_size, __v);
             }
         }
     }
@@ -1512,7 +1500,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__start_id < __n)
-                        __all_writes_in_bounds = __all_writes_in_bounds && __call_write_op(__start_id, __v);
+                        __call_write_op(__start_id, __v);
                 }
             }
             else
@@ -1520,7 +1508,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
                 __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __comm_slm);
-                __all_writes_in_bounds = __all_writes_in_bounds && __call_write_op(__start_id, __v);
+                __call_write_op(__start_id, __v);
 
                 for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
                 {
@@ -1528,7 +1516,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                     __v = __gen_input(__in_rng, __local_id, __temp_data);
                     __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __comm_slm);
-                    __all_writes_in_bounds = __all_writes_in_bounds && __call_write_op(__local_id, __v);
+                    __call_write_op(__local_id, __v);
                 }
 
                 std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
@@ -1540,7 +1528,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__offset < __n)
-                        __all_writes_in_bounds = __all_writes_in_bounds && __call_write_op(__offset, __v);
+                        __call_write_op(__offset, __v);
                 }
             }
         }
