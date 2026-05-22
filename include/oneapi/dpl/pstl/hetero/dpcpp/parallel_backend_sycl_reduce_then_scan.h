@@ -109,7 +109,10 @@ template <typename _OutSize, typename _OutIndex, typename _Assigner, typename _O
 void
 __write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __assign, _OOBReachedPred __oob_pred)
 {
-    __out_idx < __out_size ? __assign() : (__out_idx == __out_size ? __oob_pred() : void());
+    if (__out_idx < __out_size)
+        __assign();
+    else if (__out_idx == __out_size)
+        __oob_pred();
 }
 
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
