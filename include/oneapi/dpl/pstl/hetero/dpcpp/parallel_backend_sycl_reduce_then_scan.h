@@ -132,7 +132,7 @@ struct __simple_write_to_id
 };
 
 // Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1 + __offset`, but only if the
-// condition `get<0>(__v)` is `true`. Used in __parallel_copy_if, __parallel_unique_copy, and
+// condition `get<1>(__v)` is `true`. Used in __parallel_copy_if, __parallel_unique_copy, and
 // __parallel_set_reduce_then_scan_set_a_write
 template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
