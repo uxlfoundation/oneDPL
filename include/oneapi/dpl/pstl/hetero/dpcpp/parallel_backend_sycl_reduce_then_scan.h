@@ -1208,8 +1208,7 @@ struct __no_slm_tag{};
 
 template <typename _ValueType>
 _ValueType
-__shift_group_right(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, std::uint32_t __shift,
-                    __no_slm_tag)
+__shift_group_right(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, std::uint32_t __shift, __no_slm_tag)
 {
     return sycl::shift_group_right(__sub_group, __value, __shift);
 }
@@ -1232,8 +1231,7 @@ __shift_group_right(const __dpl_sycl::__sub_group& __sub_group, _ValueType __val
 
 template <typename _ValueType, typename _IdType>
 _ValueType
-__group_broadcast(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, _IdType __broadcast_id,
-                  __no_slm_tag)
+__group_broadcast(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value, _IdType __broadcast_id, __no_slm_tag)
 {
     return sycl::group_broadcast(__sub_group, __value, __broadcast_id);
 }
@@ -2247,7 +2245,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 
     if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {
-        // CPU targets should use the SLM-based approach, as they do not perform well with the native sub-group 
+        // CPU targets should use the SLM-based approach, as they do not perform well with the native sub-group
         // operations used in the GPU-optimized approach.
         if (__q.get_device().is_gpu())
         {
@@ -2261,7 +2259,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 
     // if CPU target or non-trivially-copyable type, use SLM-based approach
     return __parallel_transform_reduce_then_scan_impl</*__use_subgroup_ops=*/false, __bytes_per_work_item_iter,
-                                                        _CustomName>(
+                                                      _CustomName>(
         __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
         __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
         std::move(__prior_event));
