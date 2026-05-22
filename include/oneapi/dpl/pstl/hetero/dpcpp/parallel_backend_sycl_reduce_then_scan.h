@@ -1759,7 +1759,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                     if (__block_num == 0 && __ndi.get_global_linear_id() == 0)
                     {
                         // Initialize OOB pos to max sentinel - means "not yet found"
-                        __oob_pos_acc.__data()[0] = __in_rng.size();
+                        __oob_pos_acc.__data()[0] = oneapi::dpl::__ranges::__size(__in_rng);
                     }
                 }
             });
