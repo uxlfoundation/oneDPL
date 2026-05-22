@@ -1796,7 +1796,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
             // SLM for sub-group communication (shift_group_right / group_broadcast).
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
-            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_subgroup_ops ? 0 : __work_group_size, __cgh);
+            auto __comm_slm = __create_comm_slm_acc_opt<__use_subgroup_ops, _InitValueType>(__work_group_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
@@ -1804,8 +1804,8 @@ struct __parallel_reduce_then_scan_scan_submitter<
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
             __cgh.parallel_for<_KernelName...>(
-                    __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
-                _InitValueType* __comm_slm_ptr = __use_subgroup_ops ? nullptr : &__comm_slm[0];
+                __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
+                auto __comm_slm_ptr = __get_comm_slm_acc_data(__comm_slm);
 
                 __reduce_then_scan_sub_group_params __sub_group_params(
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
