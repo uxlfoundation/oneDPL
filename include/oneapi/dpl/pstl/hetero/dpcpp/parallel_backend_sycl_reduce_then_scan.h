@@ -1449,9 +1449,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         if constexpr (__capture_output)
         {
             if constexpr (_Bounded)
-                return __write_op.template operator()(__out_rng, __id, __v, __temp_data, __on_oob_reached);
+                return __write_op(__out_rng, __id, __v, __temp_data, __on_oob_reached);
             else
-                __write_op.template operator()(__out_rng, __id, __v, __temp_data);
+                __write_op(__out_rng, __id, __v, __temp_data);
         }
         return true;
     };
