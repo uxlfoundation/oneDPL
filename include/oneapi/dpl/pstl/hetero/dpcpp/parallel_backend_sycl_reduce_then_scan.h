@@ -155,9 +155,9 @@ struct __write_to_id_if
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
     }
 
-    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
+    template <typename _OutRng, typename _OutSize, typename _SizeType, typename _ValueType, typename _OnOOBReached>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&,
+    operator()(_OutRng& __out_rng, const _OutSize __out_size, _SizeType __id, const _ValueType& __v, const _TempData&,
                _OnOOBReached __on_oob_reached) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -172,7 +172,7 @@ struct __write_to_id_if
             const auto __out_rng_idx = std::get<0>(__v) - 1 + __offset;
 
             __write_if_in_bounds(
-                oneapi::dpl::__ranges::__size(__out_rng), __out_rng_idx,
+                __out_size, __out_rng_idx,
                 [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]); },
                 [&]() { __on_oob_reached(__id); });
         }
@@ -1442,11 +1442,14 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     using _TempData = typename _GenInput::TempData;
     _TempData __temp_data{};
 
+    using _OutRngSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
+    const _OutRngSize __out_rng_size = oneapi::dpl::__ranges::__size(__out_rng);
+
     auto __call_write_op = [&](std::size_t __id, const auto& __v) {
         if constexpr (__capture_output)
         {
             if constexpr (_Bounded)
-                __write_op(__out_rng, __id, __v, __temp_data, __on_oob_reached);
+                __write_op(__out_rng, __out_rng_size, __id, __v, __temp_data, __on_oob_reached);
             else
                 __write_op(__out_rng, __id, __v, __temp_data);
         }
