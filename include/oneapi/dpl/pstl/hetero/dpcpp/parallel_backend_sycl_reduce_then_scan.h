@@ -1564,9 +1564,7 @@ __create_comm_slm_acc_opt(const std::uint32_t __work_group_size, sycl::handler& 
 inline __no_slm_tag
 __get_comm_slm_acc_data(__no_slm_tag)
 {
-    // Embed the __use_subgroup_ops information into the type of the SLM argument.
-    // This allows us to avoid adding bool flag template arguments into helper functions,
-    // as we can utilize this type to provide either the SLM pointer or an explicit tag.
+    // Noop, type carries dispatch info for broadcast and shift left subgroup ops
     return __no_slm_tag{};
 }
 
@@ -2249,7 +2247,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 
     if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {
-        //CPU targets should use the SLM-based approach, as they do not perform well with the native sub-group operations used in the GPU-optimized approach.
+        // CPU targets should use the SLM-based approach, as they do not perform well with the native sub-group 
+        // operations used in the GPU-optimized approach.
         if (__q.get_device().is_gpu())
         {
             return __parallel_transform_reduce_then_scan_impl</*__use_subgroup_ops=*/true, __bytes_per_work_item_iter,
@@ -2259,14 +2258,13 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                 __is_unique_pattern, std::move(__prior_event));
         }
     }
+
     // if CPU target or non-trivially-copyable type, use SLM-based approach
-    {
-        return __parallel_transform_reduce_then_scan_impl</*__use_subgroup_ops=*/false, __bytes_per_work_item_iter,
-                                                          _CustomName>(
-            __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
-            __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
-            std::move(__prior_event));
-    }
+    return __parallel_transform_reduce_then_scan_impl</*__use_subgroup_ops=*/false, __bytes_per_work_item_iter,
+                                                        _CustomName>(
+        __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
+        __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
+        std::move(__prior_event));
 }
 
 template <typename _CustomName, typename _InInOutRng, typename _GenReduceInput>
