@@ -297,7 +297,7 @@ test_device_copyable()
             oneapi::dpl::unseq_backend::__no_init_value<int_device_copyable>,
             oneapi::dpl::execution::DefaultKernelName>>,
         "__parallel_reduce_then_scan_scan_submitter is not device copyable with device copyable types");
-#    endif
+#endif
 
     //__not_pred
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__not_pred<noop_device_copyable>>,

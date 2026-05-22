@@ -1795,7 +1795,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
             __cgh.parallel_for<_KernelName...>(
-                __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
+                    __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                 auto __comm_slm_ptr = __get_comm_slm_acc_data(__comm_slm);
 
                 __reduce_then_scan_sub_group_params __sub_group_params(

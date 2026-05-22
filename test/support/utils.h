@@ -1435,7 +1435,6 @@ inline constexpr bool enable_borrowed_range<TestUtils::MinimalisticRange<RandomI
 } // namespace ranges
 } // namespace std
 
-
 #endif // _ENABLE_STD_RANGES_TESTING
 
 #endif // _UTILS_H
