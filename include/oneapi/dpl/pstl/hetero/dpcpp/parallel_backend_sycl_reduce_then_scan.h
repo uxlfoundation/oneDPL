@@ -1659,15 +1659,17 @@ __get_oob_pos_accessor_opt([[maybe_unused]] sycl::handler& __cgh, [[maybe_unused
     }
 }
 
-template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, bool __use_subgroup_ops,
-          typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename _KernelName>
+template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+          bool __use_subgroup_ops, typename _GenReduceInput, typename _ReduceOp, typename _InitType,
+          typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
-template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, bool __use_subgroup_ops,
-          typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename... _KernelName>
-struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __is_inclusive, __is_unique_pattern_v,
-                                                    __use_subgroup_ops, _GenReduceInput, _ReduceOp, _InitType,
-                                                    __internal::__optional_kernel_name<_KernelName...>>
+template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+          bool __use_subgroup_ops, typename _GenReduceInput, typename _ReduceOp, typename _InitType,
+          typename... _KernelName>
+struct __parallel_reduce_then_scan_reduce_submitter<
+    _Bounded, __max_inputs_per_item, __is_inclusive, __is_unique_pattern_v, __use_subgroup_ops, _GenReduceInput,
+    _ReduceOp, _InitType, __internal::__optional_kernel_name<_KernelName...>>
 {
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
@@ -1834,17 +1836,17 @@ __get_finish_pos(__result_storage<_T>& __oob_pos_storage, _Size __n)
     return std::min<std::common_type_t<_T, _Size>>(__oob_pos, __n);
 }
 
-template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, bool __use_subgroup_ops,
-          typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp,
-          typename _InitType, typename _KernelName>
+template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+          bool __use_subgroup_ops, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
+          typename _WriteOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
-template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, bool __use_subgroup_ops,
-          typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp,
-          typename _InitType, typename... _KernelName>
+template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+          bool __use_subgroup_ops, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
+          typename _WriteOp, typename _InitType, typename... _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter<
-    _Bounded, __max_inputs_per_item, __is_inclusive, __is_unique_pattern_v, __use_subgroup_ops, _ReduceOp, _GenScanInput,
-    _ScanInputTransform, _WriteOp, _InitType, __internal::__optional_kernel_name<_KernelName...>>
+    _Bounded, __max_inputs_per_item, __is_inclusive, __is_unique_pattern_v, __use_subgroup_ops, _ReduceOp,
+    _GenScanInput, _ScanInputTransform, _WriteOp, _InitType, __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
@@ -2302,9 +2304,9 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 
     // Reduce and scan step implementations
     using _ReduceSubmitter =
-        __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive, __is_unique_pattern_v,
-                                                     __use_subgroup_ops, _GenReduceInput, _ReduceOp, _InitType,
-                                                     _ReduceKernel>;
+        __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive,
+                                                     __is_unique_pattern_v, __use_subgroup_ops, _GenReduceInput,
+                                                     _ReduceOp, _InitType, _ReduceKernel>;
     using _ScanSubmitter =
         __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_item, __inclusive, __is_unique_pattern_v,
                                                    __use_subgroup_ops, _ReduceOp, _GenScanInput, _ScanInputTransform,
@@ -2377,9 +2379,10 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 // _ReduceOp - a binary function which is used in the reduction and scan operations
 // _WriteOp - a function which accepts output range, index, and output of `_GenScanInput` applied to the input range
 //            and performs the final write to output operation
-template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng, typename _OutRng,
-          typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
-          typename _WriteOp, typename _InitType, typename _Inclusive, typename _IsUniquePattern>
+template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng,
+          typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
+          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
+          typename _IsUniquePattern>
 __transform_reduce_then_scan_result_t<_Bounded, typename _InitType::__value_type, _InRng>
 __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
