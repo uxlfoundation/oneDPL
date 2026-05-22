@@ -140,7 +140,6 @@ template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
 {
     using _TempData = __noop_temp_data;
-
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
@@ -179,7 +178,6 @@ struct __write_to_id_if
 
         return true;
     }
-
     _Assign __assign;
 };
 
@@ -1885,11 +1883,9 @@ struct __parallel_reduce_then_scan_scan_submitter<
             __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_subgroup_ops ? 0 : __work_group_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
-
             auto __temp_acc = __get_accessor(sycl::read_write, __scratch_container, __cgh);
             auto __res_acc =
                 __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
-
             auto __oob_pos_acc = __get_oob_pos_accessor_opt<_Bounded>(__cgh, __oob_pos_storage);
 
             __cgh.parallel_for<_KernelName...>(
