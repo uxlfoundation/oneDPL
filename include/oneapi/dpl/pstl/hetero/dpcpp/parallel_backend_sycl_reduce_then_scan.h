@@ -1610,10 +1610,6 @@ template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusiv
 struct __parallel_reduce_then_scan_reduce_submitter;
 
 // Sentinel type used as a stand-in for the OOB-position accessor when _Bounded=false.
-// Capturing a std::nullptr_t value into a SYCL kernel lambda has been observed to cause
-// kernel-argument-index mismatches under DPC++ Debug builds (-O0), surfacing as
-// UR_RESULT_ERROR_INVALID_KERNEL_ARGUMENT_INDEX on Level Zero. An empty tag struct is
-// captured cleanly and gives us a distinct type to detect at compile time.
 struct __no_oob_pos_acc_tag
 {
 };
