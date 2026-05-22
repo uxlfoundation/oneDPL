@@ -2242,6 +2242,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     using _ValueType = typename _InitType::__value_type;
     // Native sycl sub-group operations can only be used on trivially copyable types. Dispatch above the
     // kernel here so the kernel itself is instantiated with a fixed __use_subgroup_ops template arg.
+    // The icpx compiler is able to avoid JIT compilation for kernels for platform types which are not
+    // in the real runtime path of the program, so we can branch like this without JIT-time penalty.
 
     if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {
