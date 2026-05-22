@@ -45,21 +45,21 @@ struct TestingAlgoritmInclusiveScan
     }
 };
 
-template <typename BinaryOp, int InitValue>
+template <typename BinaryOp, int InitValue, typename InitT = int>
 struct TestingAlgoritmInclusiveScanExt
 {
     template <typename... TArgs>
     void
     call_onedpl(TArgs&&... args)
     {
-        oneapi::dpl::inclusive_scan(std::forward<TArgs>(args)..., BinaryOp(), InitValue);
+        oneapi::dpl::inclusive_scan(std::forward<TArgs>(args)..., BinaryOp(), InitT(InitValue));
     }
 
     template <typename... TArgs>
     void
     call_serial(TArgs&&... args)
     {
-        inclusive_scan_serial(std::forward<TArgs>(args)..., BinaryOp(), InitValue);
+        inclusive_scan_serial(std::forward<TArgs>(args)..., BinaryOp(), InitT(InitValue));
     }
 
     const char*
@@ -74,12 +74,14 @@ void
 run_test()
 {
     // Non inplace
-    test2buffers<alloc_type, test_scan_non_inplace<ValueType, TestingAlgoritmInclusiveScan> >();
-    test2buffers<alloc_type, test_scan_non_inplace<ValueType, TestingAlgoritmInclusiveScanExt<BinaryOperation, 2 > > >();
+    test2buffers<alloc_type, test_scan_non_inplace<ValueType, TestingAlgoritmInclusiveScan>>();
+    test2buffers<alloc_type,
+                 test_scan_non_inplace<ValueType, TestingAlgoritmInclusiveScanExt<BinaryOperation, 2, ValueType>>>();
 
     // Inplace
     test1buffer<alloc_type, test_scan_inplace<ValueType, TestingAlgoritmInclusiveScan>>();
-    test1buffer<alloc_type, test_scan_inplace<ValueType, TestingAlgoritmInclusiveScanExt<BinaryOperation, 2 > > >();
+    test1buffer<alloc_type,
+                test_scan_inplace<ValueType, TestingAlgoritmInclusiveScanExt<BinaryOperation, 2, ValueType>>>();
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
@@ -95,6 +97,12 @@ main()
     run_test<sycl::usm::alloc::shared, ValueType, BinaryOperation>();
     // Run tests for USM device memory
     run_test<sycl::usm::alloc::device, ValueType, BinaryOperation>();
+
+    // Run tests with a non-trivially-copyable but device-copyable value type
+    using NonTrivialValueType = arith_device_copyable;
+    using NonTrivialBinaryOperation = std::plus<NonTrivialValueType>;
+    run_test<sycl::usm::alloc::shared, NonTrivialValueType, NonTrivialBinaryOperation>();
+    run_test<sycl::usm::alloc::device, NonTrivialValueType, NonTrivialBinaryOperation>();
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
