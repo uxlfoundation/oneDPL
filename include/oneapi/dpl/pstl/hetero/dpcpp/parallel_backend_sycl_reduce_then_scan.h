@@ -1827,9 +1827,9 @@ struct __parallel_reduce_then_scan_scan_submitter<
         __tmp_acc[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
     }
 
-    template <typename _InRng, typename _OOBPosAcc>
+    template <typename _OOBPosAcc>
     auto
-    __create_on_oob_reached_callback(_InRng&, _OOBPosAcc& __oob_pos_acc) const
+    __create_on_oob_reached_callback([[maybe_unused]] _OOBPosAcc& __oob_pos_acc) const
     {
         if constexpr (_Bounded)
         {
@@ -2116,7 +2116,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                         __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                         __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
                         __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_slm_ptr,
-                        __create_on_oob_reached_callback(__in_rng, __oob_pos_acc));
+                        __create_on_oob_reached_callback(__oob_pos_acc));
                 }
                 else // first group first block, no subgroup carry
                 {
@@ -2126,7 +2126,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                         __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                         __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
                         __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_slm_ptr,
-                        __create_on_oob_reached_callback(__in_rng, __oob_pos_acc));
+                        __create_on_oob_reached_callback(__oob_pos_acc));
                 }
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block
