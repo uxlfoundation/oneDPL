@@ -23,21 +23,21 @@ using namespace TestUtils;
 static const char kMsgExclusiveScanNormal [] = "Wrong effect from exclusive scan (non-inplace)";
 static const char kMsgExclusiveScanInplace[] = "Wrong effect from exclusive scan (inplace)";
 
-template <int InitValue>
+template <int InitValue, typename InitT = int>
 struct TestingAlgoritmExclusiveScan
 {
     template <typename... TArgs>
     void
     call_onedpl(TArgs&&... args)
     {
-        oneapi::dpl::exclusive_scan(std::forward<TArgs>(args)..., InitValue);
+        oneapi::dpl::exclusive_scan(std::forward<TArgs>(args)..., InitT(InitValue));
     }
 
     template <typename... TArgs>
     void
     call_serial(TArgs&&... args)
     {
-        exclusive_scan_serial(std::forward<TArgs>(args)..., InitValue);
+        exclusive_scan_serial(std::forward<TArgs>(args)..., InitT(InitValue));
     }
 
     const char*
@@ -47,21 +47,21 @@ struct TestingAlgoritmExclusiveScan
     }
 };
 
-template <int InitValue, typename BinaryOp>
+template <int InitValue, typename BinaryOp, typename InitT = int>
 struct TestingAlgoritmExclusiveScanExt
 {
     template <typename... TArgs>
     void
     call_onedpl(TArgs&&... args)
     {
-        oneapi::dpl::exclusive_scan(std::forward<TArgs>(args)..., InitValue, BinaryOp());
+        oneapi::dpl::exclusive_scan(std::forward<TArgs>(args)..., InitT(InitValue), BinaryOp());
     }
 
     template <typename... TArgs>
     void
     call_serial(TArgs&&... args)
     {
-        exclusive_scan_serial(std::forward<TArgs>(args)..., InitValue, BinaryOp());
+        exclusive_scan_serial(std::forward<TArgs>(args)..., InitT(InitValue), BinaryOp());
     }
 
     const char*
@@ -76,12 +76,14 @@ void
 run_test()
 {
     // Non inplace
-    test2buffers<alloc_type, test_scan_non_inplace<ValueType, TestingAlgoritmExclusiveScan<2>>>();
-    test2buffers<alloc_type, test_scan_non_inplace<ValueType, TestingAlgoritmExclusiveScanExt<2, BinaryOperation>>>();
+    test2buffers<alloc_type, test_scan_non_inplace<ValueType, TestingAlgoritmExclusiveScan<2, ValueType>>>();
+    test2buffers<alloc_type,
+                 test_scan_non_inplace<ValueType, TestingAlgoritmExclusiveScanExt<2, BinaryOperation, ValueType>>>();
 
     // Inplace
-    test1buffer<alloc_type, test_scan_inplace<ValueType, TestingAlgoritmExclusiveScan<2>>>();
-    test1buffer<alloc_type, test_scan_inplace<ValueType, TestingAlgoritmExclusiveScanExt<2, BinaryOperation>>>();
+    test1buffer<alloc_type, test_scan_inplace<ValueType, TestingAlgoritmExclusiveScan<2, ValueType>>>();
+    test1buffer<alloc_type,
+                test_scan_inplace<ValueType, TestingAlgoritmExclusiveScanExt<2, BinaryOperation, ValueType>>>();
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
@@ -97,6 +99,12 @@ main()
     run_test<sycl::usm::alloc::shared, ValueType, BinaryOperation>();
     // Run tests for USM device memory
     run_test<sycl::usm::alloc::device, ValueType, BinaryOperation>();
+
+    // Run tests with a non-trivially-copyable but device-copyable value type
+    using NonTrivialValueType = arith_device_copyable;
+    using NonTrivialBinaryOperation = std::plus<NonTrivialValueType>;
+    run_test<sycl::usm::alloc::shared, NonTrivialValueType, NonTrivialBinaryOperation>();
+    run_test<sycl::usm::alloc::device, NonTrivialValueType, NonTrivialBinaryOperation>();
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
