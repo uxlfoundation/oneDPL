@@ -1502,7 +1502,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                     __comm_slm);
                 if constexpr (__capture_output)
                 {
-                    if (__start_id < __n)
+                    if constexpr (_Bounded)
+                        __call_write_op(__start_id, __v);
+                    else if (__start_id < __n)
                         __call_write_op(__start_id, __v);
                 }
             }
@@ -1530,7 +1532,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                     __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size), __comm_slm);
                 if constexpr (__capture_output)
                 {
-                    if (__offset < __n)
+                    if constexpr (_Bounded)
+                        __call_write_op(__start_id, __v);
+                    else if (__offset < __n)
                         __call_write_op(__offset, __v);
                 }
             }
