@@ -25,7 +25,7 @@ template <typename In, typename Out, typename BinaryOp>
 void
 test_matrix(Out init, BinaryOp binary_op, Out trash)
 {
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n = 0; n <= TestUtils::get_scan_test_max_n(); n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         Sequence<In> in(n, [](size_t k) { return In(k, k + 1); });
 
