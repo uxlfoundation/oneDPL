@@ -105,14 +105,14 @@ struct __get_zeroth_element
 
 // *** Write Operations ***
 
-template <typename _OutSize, typename _OutIndex, typename _Assigner, typename _OOBReachedPred>
+template <typename _OutSize, typename _OutIndex, typename _Assigner, typename _OnOOBReached>
 void
-__write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __assign, _OOBReachedPred __oob_pred)
+__write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __assign, _OnOOBReached __on_oob_reached)
 {
     if (__out_idx < __out_size)
         __assign();
     else if (__out_idx == __out_size)
-        __oob_pred();
+        __on_oob_reached();
 }
 
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
