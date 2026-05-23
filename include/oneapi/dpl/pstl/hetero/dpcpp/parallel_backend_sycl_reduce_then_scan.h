@@ -1826,16 +1826,6 @@ using __transform_reduce_then_scan_result_t =
                                   __result_storage<oneapi::dpl::__internal::__difference_t<_Range>>>,
                        std::tuple<sycl::event, __combined_storage<_ValueType>>>;
 
-template <typename _T, typename _Size>
-std::common_type_t<_T, _Size>
-__get_finish_pos(__result_storage<_T>& __oob_pos_storage, _Size __n)
-{
-    _T __oob_pos = __n;
-    __oob_pos_storage.__copy_result(&__oob_pos, 1);
-
-    return std::min<std::common_type_t<_T, _Size>>(__oob_pos, __n);
-}
-
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           bool __use_subgroup_ops, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
           typename _WriteOp, typename _InitType, typename _KernelName>

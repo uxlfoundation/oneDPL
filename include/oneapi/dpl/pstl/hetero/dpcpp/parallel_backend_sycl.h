@@ -817,6 +817,16 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 }
 
+template <typename _T>
+_T
+__load_result(__result_storage<_T>& __storage)
+{
+    _T __result = {};
+    __storage.__copy_result(&__result, 1);
+
+    return __result;
+}
+
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size, typename _BinaryPredicate>
 std::array<_Size, 2>
 __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
@@ -852,7 +862,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
 
         __event.wait_and_throw();
         __stop_out_storage.__copy_result(__ret.data(), 1);
-        __ret[1] = __get_finish_pos(__oob_pos_storage, __n);
+        __ret[1] = __load_result(__oob_pos_storage);
     }
     else
     {
@@ -972,7 +982,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
         __event.wait_and_throw();
         __stop_out_storage.__copy_result(__ret.data(), 1);
-        __ret[1] = __get_finish_pos(__oob_pos_storage, __n);
+        __ret[1] = __load_result(__oob_pos_storage);
     }
     else
     {
