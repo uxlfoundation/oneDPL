@@ -174,13 +174,229 @@ struct
 void
 test_set_union_checker()
 {
+    // range 1 shorter than range2
     {
-        // set1:                   1, 2, 3
-        // set2:                          ^ 4, 5, 6
-        //                         -------+-------- ^
-        // res:                    1, 2, 3, 4, 5, 6 |
-        // final position in set1: -------+         |
-        // final position in set2:------------------+
+        // set1: 0, 1,    5, 6,    9, 10
+        // set2:       3,    6, 7, 9,     13, 15, 100
+        //       ------------------------------------
+        // res:  0, 1, 3, 5, 6, 7, 9, 10, 13, 15, 100
+
+        std::vector<int> set1{0, 1, 5, 6, 9, 10};
+        std::vector<int> set2{3, 6, 7, 9, 13, 15, 100};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{0, 1, 3, 5, 6, 7, 9, 10, 13, 15, 100};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
+        EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+    // range 2 shorter than range 1
+    {
+        // set1:    2, 6, 8, 12, 15, 16
+        // set2: 0, 2,    8
+        //       ----------------------
+        // res:  0, 2, 6, 8, 12, 15, 16
+
+        std::vector<int> set1{2, 6, 8, 12, 15, 16};
+        std::vector<int> set2{0, 2, 8};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{0, 2, 6, 8, 12, 15, 16};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
+        EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+    // range 1 and range 2 have the same length but different elements
+    {
+        // set1:    2, 6, 8, 12, 15, 16
+        // set2: 0, 2,    8,     15,     17, 19
+        //       ------------------------------
+        // res:  0, 2, 6, 8, 12, 15, 16, 17, 19
+
+        std::vector<int> set1{2, 6, 8, 12, 15, 16};
+        std::vector<int> set2{0, 2, 8, 15, 17, 19};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{0, 2, 6, 8, 12, 15, 16, 17, 19};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
+        EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+    // range 1 == range 2
+    {
+        // set1: 0, 1, 2
+        // set2: 0, 1, 2
+        //       -------
+        // res:  0, 1, 2
+
+        std::vector<int> set1{0, 1, 2};
+        std::vector<int> set2{0, 1, 2};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{0, 1, 2};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
+        EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+    // range 1 is super set of range 2
+    {
+        // set1: 8, 8, 10, 12, 13
+        // set2: 8,    10
+        //       ----------------
+        // res:  8, 8, 10, 12, 13
+
+        std::vector<int> set1{8, 8, 10, 12, 13};
+        std::vector<int> set2{8, 10};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{8, 8, 10, 12, 13};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
+        EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+    // range 2 is super set of range 1
+    {
+        // set1: 0, 1, 1
+        // set2: 0, 1, 1, 2, 5
+        //       -------------
+        // res:  0, 1, 1, 2, 5
+
+        std::vector<int> set1{0, 1, 1};
+        std::vector<int> set2{0, 1, 1, 2, 5};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{0, 1, 1, 2, 5};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
+        EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+    // range 1 and range 2 have no elements in common
+    {
+        // set1:          7, 7,    9,     12
+        // set2: 1, 5, 5,       8,    10
+        //       ---------------------------
+        // res:  1, 5, 5, 7, 7, 8, 9, 10, 12
+
+        std::vector<int> set1{7, 7, 9, 12};
+        std::vector<int> set2{1, 5, 5, 8, 10};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{1, 5, 5, 7, 7, 8, 9, 10, 12};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
+        EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+    // range 1 and range 2 have duplicated equal elements
+    {
+        // set1: 7, 7,     9, 12
+        // set2: 7, 7, 7,        13
+        //       ------------------
+        // res:  7, 7, 7, 9, 12, 13
+
+        std::vector<int> set1{7, 7, 9, 12};
+        std::vector<int> set2{7, 7, 7, 13};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{7, 7, 7, 9, 12, 13};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
+        EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+    // range 1 is empty
+    {
+        // set1: (empty)
+        // set2: 3, 4, 5
+        //       -------
+        // res:  3, 4, 5
+
+        std::vector<int> set1{};
+        std::vector<int> set2{3, 4, 5};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{3, 4, 5};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
+        EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+    // range 2 is empty
+    {
+        // set1: 3, 4, 5
+        // set2: (empty)
+        //       -------
+        // res:  3, 4, 5
+
+        std::vector<int> set1{3, 4, 5};
+        std::vector<int> set2{};
+        std::vector<int> set3(set1.size() + set2.size());
+        const std::vector<int> resExpected{3, 4, 5};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
+        EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+    // both ranges are empty
+    {
+        // set1: (empty)
+        // set2: (empty)
+        // res:  (empty)
+
+        std::vector<int> set1{};
+        std::vector<int> set2{};
+        std::vector<int> set3(0);
+        const std::vector<int> resExpected{};
+
+        auto res = set_union_checker(set1, set2, set3);
+
+        EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
+        EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+    {
+        // set1:1, 2, 3
+        // set2:         4, 5, 6
+        //      ----------------
+        // res: 1, 2, 3, 4, 5, 6
 
         std::vector<int> set1{1, 2, 3};
         std::vector<int> set2{        4, 5, 6};
