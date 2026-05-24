@@ -47,17 +47,18 @@ struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set
         }
     }
 
-    template <typename Policy, std::size_t Index>
-    static constexpr bool
-    check_result_field() // Hetero policy: skip <in1> and <in2> fields check in C++26 compatibility mode
+    template <typename Policy>
+    static bool
+    check_result_field(std::size_t Index, bool /*output_size_is_enough*/)
     {
         if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>)
         {
-            if constexpr (Index == 1 || Index == 2)
+            if (Index == 1 || Index == 2)
             {
 #if STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
-                // Skip .in1 and .in2 state checks in the results of oneapi::dpl::ranges::set_intersection call
-                // for hetero policies in C++26 compatibility mode because it just not implemented for now.
+                // Skip .in1 and .in2 states check in the results of oneapi::dpl::ranges::set_intersection call
+                // because if not calculated correctly for hetero policies in C++26 compatibility mode
+                // if output size in not enough.
                 return false;
 #endif
             }
@@ -162,7 +163,11 @@ struct
             }
         }
 
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         return {in1 + idx1, in2 + idx2, out + idxOut};
+#else
+        return {in1 + n1, in2 + n2, out + idxOut};
+#endif
     }
 } set_intersection_checker;
 
@@ -426,8 +431,8 @@ test_set_intersection_checker()
         // final position in set1: ---------------------------------------------------------------------+
         // final position in set2:----------------------------------------------------------------------+
 
-        std::vector<int> set1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 18, 19, 20};
-        std::vector<int> set2{4, 5, 6, 7, 11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
+        std::vector<int> set1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10,             15, 16, 17, 18, 19,     20};
+        std::vector<int> set2{         4, 5, 6, 7,           11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
         std::vector<int> set3(set1.size() + set2.size());
         const std::vector<int> resExpected{4, 5, 6, 7, 15, 16, 17, 18, 19, 20};
 

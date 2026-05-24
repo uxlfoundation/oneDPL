@@ -47,18 +47,20 @@ struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set
         }
     }
 
-    template <typename Policy, std::size_t Index>
-    static constexpr bool
-    check_result_field()
+    template <typename Policy>
+    static bool
+    check_result_field(std::size_t Index, bool output_size_is_enough)
     {
         if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>)
         {
-            if constexpr (Index == 1 || Index == 2)
+            if (Index == 1 || Index == 2)
             {
 #if STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
-                // Skip .in2 state check in the results of oneapi::dpl::ranges::set_union call
-                // for hetero policies in C++26 compatibility mode because it just not implemented for now.
-                return false;
+                // Skip .in1 and .in2 states check in the results of oneapi::dpl::ranges::set_union call
+                // because if not calculated correctly for hetero policies in C++26 compatibility mode
+                // if output size in not enough.
+                if (!output_size_is_enough)
+                    return false;
 #endif
             }
         }
@@ -422,9 +424,9 @@ test_set_union_checker()
 
         auto res = set_union_checker(set1, set2, set3);
 
-        EXPECT_EQ(set1.end(), res.in1, "Wrong 'in1' state of result");
-        EXPECT_EQ(set2.end(), res.in2, "Wrong 'in2' state of result");
-        EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
+        EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
+        EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
         EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
 
@@ -444,9 +446,9 @@ test_set_union_checker()
 
         auto res = set_union_checker(set1, set2, set3);
 
-        EXPECT_EQ(set1.end(), res.in1, "Wrong 'in1' state of result");
-        EXPECT_EQ(std::find(set2.begin(), set2.end(), 5), res.in2, "Wrong 'in2' state of result");
-        EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
+        EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(std::find(set2.begin(), set2.end(), 5) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
+        EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
         EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
 

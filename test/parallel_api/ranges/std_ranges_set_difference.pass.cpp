@@ -71,20 +71,29 @@ struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set
         }
     }
 
-    template <typename Policy, std::size_t Index>
-    static constexpr bool
-    check_result_field() // Hetero policy: skip <in2> field check in C++26 compatibility mode
+    template <typename Policy>
+    static bool
+    check_result_field(std::size_t Index, bool output_size_is_enough)
     {
         if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>)
         {
-            if constexpr (Index == 2)
-            {
 #if STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
+            if (Index == 1)
+            {
+                // Skip .in1 state check in the results of oneapi::dpl::ranges::set_difference call
+                // because if not calculated correctly for hetero policies in C++26 compatibility mode
+                // if output size in not enough.
+                if (!output_size_is_enough)
+                    return false;
+            }
+
+            else if (Index == 2)
+            {
                 // Skip .in2 state check in the results of oneapi::dpl::ranges::set_difference call
                 // for hetero policies in C++26 compatibility mode because it just not implemented for now.
                 return false;
-#endif
             }
+#endif
         }
 
         return true;
@@ -92,7 +101,7 @@ struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set
 };
 #endif
 
-template<>
+template <>
 inline int out_size_with_empty_in2<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_difference)>>(int in1_size)
 {
     return in1_size;
@@ -151,23 +160,23 @@ void test_mixed_types_device()
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
-template <std::ranges::range _R1, std::ranges::range _R2, std::ranges::range _ROut>
+template <std::ranges::range R1, std::ranges::range R2, std::ranges::range ROut>
 using set_difference_result_t =
-    std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                                  std::ranges::borrowed_iterator_t<_ROut>>;
+    std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<R1>, std::ranges::borrowed_iterator_t<R2>,
+                                  std::ranges::borrowed_iterator_t<ROut>>;
 #else
-template <std::ranges::range _R1, std::ranges::range _R2, std::ranges::range _ROut>
+template <std::ranges::range R1, std::ranges::range R2, std::ranges::range ROut>
 using set_difference_result_t =
-    std::ranges::in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_ROut>>;
+    std::ranges::in_out_result<std::ranges::borrowed_iterator_t<R1>, std::ranges::borrowed_iterator_t<ROut>>;
 #endif
 
 struct
 {
-    template <std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
-              std::ranges::random_access_range _ROut, typename Comp = std::ranges::less, typename Proj1 = std::identity,
+    template <std::ranges::random_access_range R1, std::ranges::random_access_range R2,
+              std::ranges::random_access_range ROut, typename Comp = std::ranges::less, typename Proj1 = std::identity,
               typename Proj2 = std::identity>
-    set_difference_result_t<_R1, _R2, _ROut>
-    operator()(_R1&& r_1, _R2&& r_2, _ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
+    set_difference_result_t<R1, R2, ROut>
+    operator()(R1&& r_1, R2&& r_2, ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
     {
         auto in1 = std::ranges::begin(r_1);
         auto in2 = std::ranges::begin(r_2);
@@ -479,8 +488,8 @@ test_set_difference_checker()
         // final position in set1: ---------------------------------------------------------------------+
         // final position in set2:----------------------------------------------------------------------+
 
-        std::vector<int> set1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 18, 19, 20};
-        std::vector<int> set2{4, 5, 6, 7, 11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
+        std::vector<int> set1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10,             15, 16,     17, 18, 19, 20};
+        std::vector<int> set2{         4, 5, 6, 7,           11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
         std::vector<int> set3(set1.size() + set2.size());
         const std::vector<int> resExpected{1, 2, 3, 8, 9, 10};
 
