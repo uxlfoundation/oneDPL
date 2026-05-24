@@ -1164,12 +1164,12 @@ __pattern_set_intersection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
 
+    // intersection is empty
+    if (oneapi::dpl::__ranges::__empty(__r1) || oneapi::dpl::__ranges::__empty(__r2))
+        return {__first1, __first2, __result};
+
     const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
     const auto __n2 = oneapi::dpl::__ranges::__size(__r2);
-
-    // intersection is empty
-    if (__n1 == 0 || __n2 == 0)
-        return {__first1 + __n1, __first2 + __n2, __result};
 
     const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_IntersectionTag>(
         _BackendTag{}, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
