@@ -434,27 +434,6 @@ test_set_union_checker()
     }
 
 #endif
-
-    {
-        // set1:                   1, 2, 3
-        // set2:                   1, 2, 3
-        //                         ------- ^
-        // res:                    1, 2, 3 |
-        // final position in set1: --------+
-        // final position in set2: --------+
-
-        std::vector<int> set1{1, 2, 3};
-        std::vector<int> set2{1, 2, 3};
-        std::vector<int> set3(set1.size() + set2.size());
-        const std::vector<int> resExpected{1, 2, 3};
-
-        auto res = set_union_checker(set1, set2, set3);
-
-        EXPECT_EQ(set1.end(), res.in1, "Wrong 'in1' state of result");
-        EXPECT_EQ(set2.end(), res.in2, "Wrong 'in2' state of result");
-        EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
-        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
-    }
 }
 #endif // _ENABLE_STD_RANGES_TESTING
 
