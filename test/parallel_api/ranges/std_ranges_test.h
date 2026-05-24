@@ -304,6 +304,13 @@ void call_with_host_policies(auto algo, auto... args)
 template <typename Algo>
 struct CheckResultResolver
 {
+    template <typename RIn1, typename RIn2, typename ROut, typename Result>
+    static bool
+    output_size_is_enough(const RIn1&, const RIn2&, const ROut&, const Result)
+    {
+        return true;
+    }
+
     // Attention: Index is 1-based field number in result types,
     // e.g. for in_in_out_result:
     //      1 - first input range iterator,

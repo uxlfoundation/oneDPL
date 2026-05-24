@@ -30,6 +30,47 @@ struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
 template <>
 struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_difference)>>
 {
+    template <typename RIn1, typename RIn2, typename ROut, typename Result>
+    static bool
+    output_size_is_enough(const RIn1& r_in1, const RIn2& r_in2, const ROut& r_out, const Result res)
+    {
+        if constexpr (std::ranges::borrowed_range<ROut>)
+        {
+            const auto out_size = oneapi::dpl::__ranges::__size(r_out);
+            const auto res_filled = res.out - r_out.begin();
+
+            if (res_filled < out_size)
+                return true;
+
+            if (res_filled == out_size)
+            {
+                if constexpr (std::is_same_v<Result,
+                                             std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<RIn1>,
+                                                                           std::ranges::borrowed_iterator_t<RIn2>,
+                                                                           std::ranges::borrowed_iterator_t<ROut>>>)
+                {
+                    return res.in1 == r_in1.end() && res.in2 == r_in2.end();
+                }
+                else if constexpr (std::is_same_v<Result,
+                                                  std::ranges::in_out_result<std::ranges::borrowed_iterator_t<RIn1>,
+                                                                             std::ranges::borrowed_iterator_t<ROut>>>)
+                {
+                    return res.in == r_in1.end();
+                }
+                else
+                {
+                    static_assert(false);
+                }
+            }
+
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+
     template <typename Policy, std::size_t Index>
     static constexpr bool
     ShouldCheckReturnValueField() // Hetero policy: skip <in2> field check in C++26 compatibility mode
