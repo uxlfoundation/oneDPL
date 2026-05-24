@@ -73,7 +73,7 @@ struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set
 
     template <typename Policy, std::size_t Index>
     static constexpr bool
-    ShouldCheckReturnValueField() // Hetero policy: skip <in2> field check in C++26 compatibility mode
+    check_result_field() // Hetero policy: skip <in2> field check in C++26 compatibility mode
     {
         if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>)
         {
