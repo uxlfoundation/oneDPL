@@ -1423,7 +1423,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     _TempData __temp_data{};
 
     using _OutRngSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
-    const _OutRngSize __out_rng_size = oneapi::dpl::__ranges::__size(__out_rng);
+    _OutRngSize __out_rng_size = 0;
+    if constexpr (__capture_output && _Bounded)
+        __out_rng_size = oneapi::dpl::__ranges::__size(__out_rng);
 
     auto __call_write_op = [&](std::size_t __id, const auto& __v) {
         if constexpr (__capture_output)
