@@ -30,26 +30,9 @@ struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
 template <>
 struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_intersection)>>
 {
-    template <typename RIn1, typename RIn2, typename ROut, typename Result>
-    static bool
-    output_size_is_enough(const RIn1& r_in1, const RIn2& r_in2, const ROut& r_out, const Result res)
-    {
-        if constexpr (std::ranges::borrowed_range<ROut>)
-        {
-            const auto out_size = oneapi::dpl::__ranges::__size(r_out);
-            const auto res_filled = res.out - r_out.begin();
-
-            return res_filled < out_size || (res_filled == out_size && res.in1 == r_in1.end() && res.in2 == r_in2.end());
-        }
-        else
-        {
-            return true;
-        }
-    }
-
     template <typename Policy>
     static bool
-    check_result_field(std::size_t Index, bool /*output_size_is_enough*/)
+    check_result_field(std::size_t Index)
     {
         if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>)
         {

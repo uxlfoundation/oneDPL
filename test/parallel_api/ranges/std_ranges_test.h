@@ -304,13 +304,6 @@ void call_with_host_policies(auto algo, auto... args)
 template <typename Algo>
 struct CheckResultResolver
 {
-    template <typename RIn1, typename RIn2, typename ROut, typename Result>
-    static bool
-    output_size_is_enough(const RIn1&, const RIn2&, const ROut&, const Result)
-    {
-        return true;
-    }
-
     // Attention: Index is 1-based field number in result types,
     // e.g. for in_in_out_result:
     //      1 - first input range iterator,
@@ -318,7 +311,7 @@ struct CheckResultResolver
     //      3 - output range iterator
     template <typename Policy>
     static bool
-    check_result_field(std::size_t /*Index*/, bool /*output_size_is_enough*/)
+    check_result_field(std::size_t /*Index*/)
     {
         return true;
     }
@@ -444,14 +437,12 @@ private:
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
 
-        constexpr bool output_size_is_enough = true;
-
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
         if constexpr (check_in_out_result<decltype(expected_res)>)
         {
-            if (CheckResultResolver<Algo>::template check_result_field<Policy>(1, output_size_is_enough))
+            if (CheckResultResolver<Algo>::template check_result_field<Policy>(1))
             {
                 EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
                           (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
@@ -459,13 +450,13 @@ private:
         }
         else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
-            if (CheckResultResolver<Algo>::template check_result_field<Policy>(1, output_size_is_enough))
+            if (CheckResultResolver<Algo>::template check_result_field<Policy>(1))
             {
                 EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                           (std::string("wrong input stop position with ") + names + sizes).c_str());
             }
 
-            if (CheckResultResolver<Algo>::template check_result_field<Policy>(2, output_size_is_enough))
+            if (CheckResultResolver<Algo>::template check_result_field<Policy>(2))
             {
                 EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
                           (std::string("wrong input stop position with ") + names + sizes).c_str());
@@ -473,13 +464,13 @@ private:
         }
         else if constexpr (check_in_in_result<decltype(expected_res)>)
         {
-            if (CheckResultResolver<Algo>::template check_result_field<Policy>(1, output_size_is_enough))
+            if (CheckResultResolver<Algo>::template check_result_field<Policy>(1))
             {
                 EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                           (std::string("wrong input stop position with ") + names + sizes).c_str());
             }
 
-            if (CheckResultResolver<Algo>::template check_result_field<Policy>(2, output_size_is_enough))
+            if (CheckResultResolver<Algo>::template check_result_field<Policy>(2))
             {
                 EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
                           (std::string("wrong input stop position with ") + names + sizes).c_str());
@@ -487,7 +478,7 @@ private:
         }
         else
         {
-            if (CheckResultResolver<Algo>::template check_result_field<Policy>(1, output_size_is_enough))
+            if (CheckResultResolver<Algo>::template check_result_field<Policy>(1))
             {
                 EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
                           (std::string("wrong input stop position with ") + names + sizes).c_str());
@@ -606,18 +597,16 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        constexpr bool output_size_is_enough = true;
-
         if constexpr (check_in_in_result<decltype(expected_res)>)
         {
-            if (CheckResultResolver<Algo>::template check_result_field<Policy>(1, output_size_is_enough))
+            if (CheckResultResolver<Algo>::template check_result_field<Policy>(1))
             {
                 EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                           (std::string("wrong stop position with ") + typeid(Algo).name() +
                            typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
             }
 
-            if (CheckResultResolver<Algo>::template check_result_field<Policy>(2, output_size_is_enough))
+            if (CheckResultResolver<Algo>::template check_result_field<Policy>(2))
             {
                 EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
                           (std::string("wrong stop position with ") + typeid(Algo).name() +
@@ -684,7 +673,6 @@ private:
         auto src_view2 = tr_in(std::views::all(cont_in2()));
         auto expected_view = tr_out(std::views::all(cont_exp()));
         auto expected_res = checker(src_view1, src_view2, expected_view, args...);
-        const bool output_size_is_enough = CheckResultResolver<Algo>::output_size_is_enough(src_view1, src_view2, expected_view, expected_res);
 
         typename Container::type& A = cont_in1();
         typename Container::type& B = cont_in2();
@@ -702,13 +690,13 @@ private:
         }
         else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
-            if (CheckResultResolver<Algo>::template check_result_field<Policy>(1, output_size_is_enough))
+            if (CheckResultResolver<Algo>::template check_result_field<Policy>(1))
             {
                 EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                           (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
             }
 
-            if (CheckResultResolver<Algo>::template check_result_field<Policy>(2, output_size_is_enough))
+            if (CheckResultResolver<Algo>::template check_result_field<Policy>(2))
             {
                 EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
                           (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
