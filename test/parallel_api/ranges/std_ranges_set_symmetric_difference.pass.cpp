@@ -449,6 +449,21 @@ test_set_symmetric_difference_checker()
         EXPECT_EQ(resExpected.size(), res.out - set3.begin(), "Wrong 'out' state of result");
         EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
+
+    // check handling of duplicates and skipped elements
+    {
+        std::vector<int> set1{   1, 2, 2, 2, 6, 6  };
+        std::vector<int> set2{0, 1, 2,            7};
+        std::vector<int> set3(1);
+        const std::vector<int> resExpected{0};
+
+        auto res = set_symmetric_difference_checker(set1, set2, set3);
+
+        EXPECT_EQ(2, res.in1 - set1.begin(), "Wrong 'in1' state of result");
+        EXPECT_EQ(std::find(set2.begin(), set2.end(), 7) - set2.begin(), res.in2 - set2.begin() , "Wrong 'in2' state of result");
+        EXPECT_EQ(set3.begin() + resExpected.size(), res.out, "Wrong 'out' state of result");
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
 #endif
 }
 #endif // _ENABLE_STD_RANGES_TESTING
