@@ -867,20 +867,20 @@ struct __internal::__set_intersection_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         return oneapi::dpl::__internal::__ranges::__pattern_set_intersection(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
-#else
+#    else
         auto __end1 = __r1.end();
-        auto __end2 = __r2.end();   
+        auto __end2 = __r2.end();
 
         return {__end1, __end2,
                 oneapi::dpl::__internal::__ranges::__pattern_set_intersection(
                     __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1),
                     std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2)
                     .out};
-#endif
+#    endif
     }
 }; //__set_intersection_fn
 inline constexpr __internal::__set_intersection_fn set_intersection;

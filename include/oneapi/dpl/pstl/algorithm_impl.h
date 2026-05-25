@@ -4056,7 +4056,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         const auto [__res_reached_pos1, __res_reached_pos2, __res_reached_posOut] =
             __source_final_pos_evaluator.__get_reached_positions();
 
-        return oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
+        return oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2,
+                                                             _OutputIterator>{
             __first1 + __res_reached_pos1, __first2 + __res_reached_pos2, __result1 + __res_reached_posOut};
     });
 }
