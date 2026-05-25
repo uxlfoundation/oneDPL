@@ -1107,6 +1107,10 @@ std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges
 __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                     _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
+#    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+    static_assert(false, "std::ranges::set_union is not implemented for hetero backend in C++26 compatibility mode.");
+#    endif
+
     const auto __first1 = std::ranges::begin(__r1);
     const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
@@ -1160,6 +1164,11 @@ std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std:
 __pattern_set_intersection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                            _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
+#    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+    static_assert(false,
+                  "std::ranges::set_intersection is not implemented for hetero backend in C++26 compatibility mode.");
+#    endif
+
     const auto __first1 = std::ranges::begin(__r1);
     const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
@@ -1189,6 +1198,11 @@ oneapi::dpl::__ranges::__set_difference_return_t<_R1, _R2, _OutRange>
 __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                          _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
+#    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+    static_assert(false,
+                  "std::ranges::set_difference is not implemented for hetero backend in C++26 compatibility mode.");
+#    endif
+
     const auto __first1 = std::ranges::begin(__r1);
     const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
@@ -1238,6 +1252,12 @@ std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R
 __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
+#    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+    static_assert(
+        false,
+        "std::ranges::set_symmetric_difference is not implemented for hetero backend in C++26 compatibility mode.");
+#    endif
+
     const auto __first1 = std::ranges::begin(__r1);
     const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);

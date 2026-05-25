@@ -26,37 +26,10 @@ struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
 };
 
 #if TEST_DPCPP_BACKEND_PRESENT
-// TODO remove after implementation range-based set operations for bounded output range with hetero policies
-template <>
-struct CheckResultResolver<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_difference)>>
-{
-    template <typename Policy, std::size_t Index>
-    static constexpr bool
-    check_result_field()
-    {
-        if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>>)
-        {
 #if STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
-            if (Index == 1)
-            {
-                // Skip .in1 state check in the results of oneapi::dpl::ranges::set_difference call
-                // because if not calculated correctly for hetero policies in C++26 compatibility mode
-                // if output size in not enough.
-                return false;
-            }
-
-            else if (Index == 2)
-            {
-                // Skip .in2 state check in the results of oneapi::dpl::ranges::set_difference call
-                // for hetero policies in C++26 compatibility mode because it just not implemented for now.
-                return false;
-            }
+template <>
+inline constexpr bool skip_test_for_hetero_policy<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_difference)>> = true;
 #endif
-        }
-
-        return true;
-    }
-};
 #endif
 
 template <>
@@ -90,6 +63,7 @@ void test_mixed_types_host()
 }
 
 #if TEST_DPCPP_BACKEND_PRESENT
+#if !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
 void test_mixed_types_device()
 {
     auto policy = TestUtils::get_dpcpp_test_policy();
@@ -115,6 +89,7 @@ void test_mixed_types_device()
         EXPECT_EQ_RANGES(out_expected, out, "wrong result with device policy");
     }
 }
+#endif // !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 #if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
@@ -522,7 +497,9 @@ main()
     // Check if projections are applied to the right sequences and trigger a compile-time error if not
     test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
+#if !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
     test_mixed_types_device();
+#endif
 #endif
 
     bProcessed = true;

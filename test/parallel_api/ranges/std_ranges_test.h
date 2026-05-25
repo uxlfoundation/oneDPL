@@ -302,20 +302,7 @@ void call_with_host_policies(auto algo, auto... args)
 
 // TODO remove after implementation range-based set operations for bounded output range with hetero policies
 template <typename Algo>
-struct CheckResultResolver
-{
-    // Attention: Index is 1-based field number in result types,
-    // e.g. for in_in_out_result:
-    //      1 - first input range iterator,
-    //      2 - second input range iterator,
-    //      3 - output range iterator
-    template <typename Policy, std::size_t Index>
-    static constexpr bool
-    check_result_field()
-    {
-        return true;
-    }
-};
+inline constexpr bool skip_test_for_hetero_policy = false;
 
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
@@ -442,47 +429,27 @@ private:
 
         if constexpr (check_in_out_result<decltype(expected_res)>)
         {
-            if constexpr (CheckResultResolver<Algo>::template check_result_field<Policy, 1>())
-            {
-                EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                          (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
-            }
+            EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                        (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
         }
         else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
-            if constexpr (CheckResultResolver<Algo>::template check_result_field<Policy, 1>())
-            {
-                EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                          (std::string("wrong input stop position with ") + names + sizes).c_str());
-            }
-
-            if constexpr (CheckResultResolver<Algo>::template check_result_field<Policy, 2>())
-            {
-                EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
-                          (std::string("wrong input stop position with ") + names + sizes).c_str());
-            }
+            EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                        (std::string("wrong input stop position with ") + names + sizes).c_str());
+            EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
+                        (std::string("wrong input stop position with ") + names + sizes).c_str());
         }
         else if constexpr (check_in_in_result<decltype(expected_res)>)
         {
-            if constexpr (CheckResultResolver<Algo>::template check_result_field<Policy, 1>())
-            {
-                EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                          (std::string("wrong input stop position with ") + names + sizes).c_str());
-            }
-
-            if constexpr (CheckResultResolver<Algo>::template check_result_field<Policy, 2>())
-            {
-                EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
-                          (std::string("wrong input stop position with ") + names + sizes).c_str());
-            }
+            EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                        (std::string("wrong input stop position with ") + names + sizes).c_str());
+            EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
+                        (std::string("wrong input stop position with ") + names + sizes).c_str());
         }
         else
         {
-            if constexpr (CheckResultResolver<Algo>::template check_result_field<Policy, 1>())
-            {
-                EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                          (std::string("wrong input stop position with ") + names + sizes).c_str());
-            }
+            EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                        (std::string("wrong input stop position with ") + names + sizes).c_str());
         }
 
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
@@ -599,19 +566,14 @@ private:
 
         if constexpr (check_in_in_result<decltype(expected_res)>)
         {
-            if constexpr (CheckResultResolver<Algo>::template check_result_field<Policy, 1>())
-            {
-                EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                          (std::string("wrong stop position with ") + typeid(Algo).name() +
-                           typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
-            }
-
-            if constexpr (CheckResultResolver<Algo>::template check_result_field<Policy, 2>())
-            {
-                EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
-                          (std::string("wrong stop position with ") + typeid(Algo).name() +
-                           typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
-            }
+            EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                      (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes)
+                          .c_str());
+            EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
+                      (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes)
+                          .c_str());
         }
         else if constexpr (!std::is_same_v<decltype(res), bool>)
         {
@@ -690,17 +652,10 @@ private:
         }
         else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
-            if constexpr (CheckResultResolver<Algo>::template check_result_field<Policy, 1>())
-            {
-                EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                          (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
-            }
-
-            if constexpr (CheckResultResolver<Algo>::template check_result_field<Policy, 2>())
-            {
-                EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
-                          (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
-            }
+            EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
+                      (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
         }
         else
         {
@@ -1117,12 +1072,16 @@ struct test_range_algo
         test_range_algo_impl_host(algo, checker, args...);
 
 #if TEST_DPCPP_BACKEND_PRESENT
-        auto policy = TestUtils::get_dpcpp_test_policy();
-        test_range_algo_impl_hetero(policy, algo, checker, args...);
+        // TODO remove after implementation range-based set operations for bounded output range with hetero policies
+        if constexpr (!skip_test_for_hetero_policy<decltype(algo)>)
+        {
+            auto policy = TestUtils::get_dpcpp_test_policy();
+            test_range_algo_impl_hetero(policy, algo, checker, args...);
 
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
-        TestUtils::check_compilation(policy, [&](auto&& policy) { test_range_algo_impl_hetero(policy, algo, checker, args...); });
+            TestUtils::check_compilation(policy, [&](auto&& policy) { test_range_algo_impl_hetero(policy, algo, checker, args...); });
 #endif
+        }
 #endif // TEST_DPCPP_BACKEND_PRESENT
     }
 };
