@@ -111,7 +111,7 @@ __write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __ass
 {
     if (__out_idx < __out_size)
         __assign();
-    else if (__out_idx == __out_size)
+    if (__out_idx == __out_size)
         __on_oob_reached();
 }
 
