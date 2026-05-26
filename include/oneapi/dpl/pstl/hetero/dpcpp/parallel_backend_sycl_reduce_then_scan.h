@@ -2287,8 +2287,8 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
                                            _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
                                            _ReduceOp __reduce_op, _GenScanInput __gen_scan_input,
                                            _ScanInputTransform __scan_input_transform, _WriteOp __write_op,
-                                           _InitType __init, _Inclusive, _IsUniquePattern, sycl::event __prior_event,
-                                           _TransformResult __transform_result)
+                                           _InitType __init, _Inclusive, _IsUniquePattern,
+                                           _TransformResult __transform_result, sycl::event __prior_event)
 {
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_reduce_kernel<__reduce_then_scan_subgroup_ops_tag<__use_subgroup_ops>, _CustomName>>;
@@ -2445,7 +2445,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                                               __bytes_per_work_item_iter, _CustomName>(
                 __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input,
                 __reduce_op, __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive,
-                __is_unique_pattern, std::move(__prior_event), __transform_result);
+                __is_unique_pattern, __transform_result, std::move(__prior_event));
         }
     }
 
@@ -2454,7 +2454,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                                       __bytes_per_work_item_iter, _CustomName>(
         __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
         __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
-        std::move(__prior_event), __transform_result);
+        __transform_result, std::move(__prior_event));
 }
 
 template <typename _CustomName, typename _InInOutRng, typename _GenReduceInput>
