@@ -771,23 +771,18 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
 
     const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
 
-    if constexpr (!_Bounded)
-    {
-        return __parallel_transform_reduce_then_scan</*_Bounded*/ false, sizeof(_Size), _CustomName>(
-            __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
-            _GenReduceInput{__generate_mask}, _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{},
-            __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-            /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
-    }
-    else
-    {
-        return __parallel_transform_reduce_then_scan</*_Bounded*/ true, sizeof(_Size), _CustomName>(
-            __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
-            _GenReduceInput{__generate_mask}, _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{},
-            __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-            /*_Inclusive=*/std::true_type{}, __is_unique_pattern, sycl::event{},
-            __clamp_max<_Size>{oneapi::dpl::__ranges::__size(__out_rng)});
-    }
+    auto __get_result_limiter = [&__out_rng]() {
+        if constexpr (_Bounded)
+            return __clamp_max<_Size>{oneapi::dpl::__ranges::__size(__out_rng)};
+        else
+            return oneapi::dpl::identity{};
+    };
+
+    return __parallel_transform_reduce_then_scan<_Bounded, sizeof(_Size), _CustomName>(
+        __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask},
+        _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
+        oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
+        /*_Inclusive=*/std::true_type{}, __is_unique_pattern, sycl::event{}, __get_result_limiter());
 }
 
 template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _IndexPred,
