@@ -131,7 +131,7 @@ __bounds(_Range&& __rng)
     const auto __n = __size(__rng);
     auto __first = __begin(__rng);
 
-    return __bounds_info<_Range>{__first, __first + __n};
+    return {__first, __first + __n};
 }
 
 // Returns begin, end and size of the range
@@ -142,7 +142,7 @@ __bounds_and_size(_Range&& __rng)
     const auto __n = __size(__rng);
     auto __first = __begin(__rng);
 
-    return __bounds_and_size_info<_Range>{{__first, __first + __n}, __n};
+    return {__first, __first + __n, __n};
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -928,53 +928,5 @@ __get_subscription_view(_View&& __view)
 template <typename _R, typename _Size>
 constexpr bool std::ranges::enable_view<oneapi::dpl::__ranges::drop_view_simple<_R, _Size>> = true;
 #endif
-
-#if _ONEDPL_CPP20_RANGES_PRESENT
-// Support structure bindings
-namespace std
-{
-
-template <typename _Range>
-struct tuple_size<oneapi::dpl::__ranges::__bounds_info<_Range>> : integral_constant<size_t, 2>
-{
-};
-
-template <typename _Range>
-struct tuple_element<0, oneapi::dpl::__ranges::__bounds_info<_Range>>
-{
-    using type = typename oneapi::dpl::__ranges::__bounds_info<_Range>::iterator_t;
-};
-
-template <typename _Range>
-struct tuple_element<1, oneapi::dpl::__ranges::__bounds_info<_Range>>
-{
-    using type = typename oneapi::dpl::__ranges::__bounds_info<_Range>::iterator_t;
-};
-
-template <typename _Range>
-struct tuple_size<oneapi::dpl::__ranges::__bounds_and_size_info<_Range>> : integral_constant<size_t, 3>
-{
-};
-
-template <typename _Range>
-struct tuple_element<0, oneapi::dpl::__ranges::__bounds_and_size_info<_Range>>
-{
-    using type = typename oneapi::dpl::__ranges::__bounds_and_size_info<_Range>::iterator_t;
-};
-
-template <typename _Range>
-struct tuple_element<1, oneapi::dpl::__ranges::__bounds_and_size_info<_Range>>
-{
-    using type = typename oneapi::dpl::__ranges::__bounds_and_size_info<_Range>::iterator_t;
-};
-
-template <typename _Range>
-struct tuple_element<2, oneapi::dpl::__ranges::__bounds_and_size_info<_Range>>
-{
-    using type = typename oneapi::dpl::__ranges::__bounds_and_size_info<_Range>::size_t;
-};
-
-} // namespace std
-#endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 #endif // _ONEDPL_UTILS_RANGES_H
