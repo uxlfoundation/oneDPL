@@ -872,13 +872,10 @@ struct __internal::__set_intersection_fn
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 #    else
-        auto __end1 = __r1.end();
-        auto __end2 = __r2.end();
-
-        return {__end1, __end2,
+        return {__r1.end(), __r2.end(),
                 oneapi::dpl::__internal::__ranges::__pattern_set_intersection(
-                    __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1),
-                    std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2)
+                    __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __r1, __r2,
+                    std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2)
                     .out};
 #    endif
     }
