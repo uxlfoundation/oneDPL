@@ -119,9 +119,6 @@ __make_SLM_binhash(_BinHash __bin_hash, _ExtraMemAccessor __slm_mem, const sycl:
 }
 
 template <typename... _Name>
-class __histo_kernel_repl_local_red;
-
-template <typename... _Name>
 class __histo_kernel_local_atomics;
 
 template <typename... _Name>
@@ -196,11 +193,11 @@ __reduce_out_histograms(const _HistAccessorIn& __in_histogram, const _OffsetT& _
 }
 
 template <std::uint16_t __iters_per_work_item, typename _KernelName>
-struct __histogram_general_repl_local_reduction_submitter;
+struct __histogram_general_local_atomics_submitter;
 
 template <std::uint16_t __iters_per_work_item, typename... _KernelName>
-struct __histogram_general_repl_local_reduction_submitter<__iters_per_work_item,
-                                                          __internal::__optional_kernel_name<_KernelName...>>
+struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
+                                                   __internal::__optional_kernel_name<_KernelName...>>
 {
     template <typename _Range1, typename _Range2, typename _BinHashMgr>
     sycl::event
@@ -234,16 +231,18 @@ struct __histogram_general_repl_local_reduction_submitter<__iters_per_work_item,
                     const std::size_t __wgroup_idx = __self_item.get_group(0);
                     const std::size_t __seg_start = __work_group_size * __iters_per_work_item * __wgroup_idx;
                     auto __SLM_binhash = __make_SLM_binhash(_device_copyable_func, __extra_SLM, __self_item);
-                    __dpl_sycl::__sub_group __sg = __self_item.get_sub_group();
-                    const std::uint32_t __sg_id = __sg.get_group_linear_id();
-                    const std::uint32_t __copy_id = __sg_id % __num_slm_copies;
-                    const std::uint32_t __sg_offset = __copy_id * __num_bins;
+                    std::uint32_t __sg_offset = 0;
+#if _ONEDPL_USE_SUB_GROUPS
+                    if (__num_slm_copies > 1)
+                    {
+                        __dpl_sycl::__sub_group __sg = __self_item.get_sub_group();
+                        const std::uint32_t __sg_id = __sg.get_group_linear_id();
+                        __sg_offset = (__sg_id % __num_slm_copies) * __num_bins;
+                    }
+#endif
 
-                    // Clear SLM histogram copies
                     __clear_wglocal_histograms(__local_histogram, 0, __num_slm_copies * __num_bins, __self_item);
 
-                    // Main accumulation loop: SLM atomics to per-copy histogram.
-                    // No private histogram array → low GRF pressure → small GRF mode → full occupancy.
                     if (__seg_start + __work_group_size * __iters_per_work_item < __n)
                     {
                         _ONEDPL_PRAGMA_UNROLL
@@ -270,9 +269,8 @@ struct __histogram_general_repl_local_reduction_submitter<__iters_per_work_item,
 
                     __dpl_sycl::__group_barrier(__self_item);
 
-                    // Merge SLM histogram copies directly to global output.
-                    // Iterate over bins in a strided fashion so all bins are covered,
-                    // even when __num_bins exceeds the work-group size.
+                    // Merge SLM histogram copies into global output via atomic add per bin.
+                    // Iterate strided so all bins are covered when __num_bins exceeds work-group size.
                     for (std::uint16_t __bin = __self_lidx; __bin < __num_bins; __bin += __work_group_size)
                     {
                         _local_histogram_type __merged = 0;
@@ -292,99 +290,9 @@ struct __histogram_general_repl_local_reduction_submitter<__iters_per_work_item,
 template <typename _CustomName, std::uint16_t __iters_per_work_item, typename _Range1, typename _Range2,
           typename _BinHashMgr>
 sycl::event
-__histogram_general_repl_local_reduction(sycl::queue& __q, const sycl::event& __init_event,
-                                         std::uint16_t __work_group_size, std::uint32_t __num_slm_copies,
-                                         _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
-{
-    using _iters_per_work_item_t = std::integral_constant<std::uint16_t, __iters_per_work_item>;
-
-    // Required to include _iters_per_work_item_t in kernel name because we compile multiple kernels and decide between
-    // them at runtime.  Other compile time arguments aren't required as it is the user's responsibility to provide a
-    // unique kernel name to the policy for each call when using no-unamed-lambdas
-    using _ReplLocalReducName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __histo_kernel_repl_local_red<_iters_per_work_item_t, _CustomName>>;
-
-    return __histogram_general_repl_local_reduction_submitter<__iters_per_work_item, _ReplLocalReducName>()(
-        __q, __init_event, __work_group_size, __num_slm_copies, std::forward<_Range1>(__input),
-        std::forward<_Range2>(__bins), __binhash_manager);
-}
-
-template <std::uint16_t __iters_per_work_item, typename _KernelName>
-struct __histogram_general_local_atomics_submitter;
-
-template <std::uint16_t __iters_per_work_item, typename... _KernelName>
-struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
-                                                   __internal::__optional_kernel_name<_KernelName...>>
-{
-    template <typename _Range1, typename _Range2, typename _BinHashMgr>
-    sycl::event
-    operator()(sycl::queue& __q, const sycl::event& __init_event, std::uint16_t __work_group_size, _Range1&& __input,
-               _Range2&& __bins, const _BinHashMgr& __binhash_manager)
-    {
-        using _local_histogram_type = std::uint32_t;
-        using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
-        using _extra_memory_type = typename _BinHashMgr::_extra_memory_type;
-
-        std::size_t __extra_SLM_elements = __binhash_manager.get_required_SLM_elements();
-        const std::size_t __n = __input.size();
-        const std::size_t __num_bins = __bins.size();
-        std::size_t __segments =
-            oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
-        return __q.submit([&](auto& __h) {
-            __h.depends_on(__init_event);
-            auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
-            oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
-            // minimum type size for atomics
-            __dpl_sycl::__local_accessor<_local_histogram_type> __local_histogram(sycl::range(__num_bins), __h);
-            __dpl_sycl::__local_accessor<_extra_memory_type> __extra_SLM(sycl::range(__extra_SLM_elements), __h);
-            __h.template parallel_for<_KernelName...>(
-                sycl::nd_range<1>(__segments * __work_group_size, __work_group_size),
-                [=](sycl::nd_item<1> __self_item) {
-                    constexpr auto _atomic_address_space = sycl::access::address_space::local_space;
-                    const std::size_t __self_lidx = __self_item.get_local_id(0);
-                    const std::uint32_t __wgroup_idx = __self_item.get_group(0);
-                    const std::size_t __seg_start = __work_group_size * __wgroup_idx * __iters_per_work_item;
-                    auto __SLM_binhash = __make_SLM_binhash(_device_copyable_func, __extra_SLM, __self_item);
-
-                    __clear_wglocal_histograms(__local_histogram, 0, __num_bins, __self_item);
-
-                    if (__seg_start + __work_group_size * __iters_per_work_item < __n)
-                    {
-                        _ONEDPL_PRAGMA_UNROLL
-                        for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
-                        {
-                            std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
-                            __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __local_histogram, 0,
-                                                                              __SLM_binhash);
-                        }
-                    }
-                    else
-                    {
-                        _ONEDPL_PRAGMA_UNROLL
-                        for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
-                        {
-                            std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
-                            if (__val_idx < __n)
-                            {
-                                __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __local_histogram,
-                                                                                  0, __SLM_binhash);
-                            }
-                        }
-                    }
-                    __dpl_sycl::__group_barrier(__self_item);
-
-                    __reduce_out_histograms<_bin_type, std::uint16_t>(__local_histogram, 0, __bins, __num_bins,
-                                                                      __self_item);
-                });
-        });
-    }
-};
-
-template <typename _CustomName, std::uint16_t __iters_per_work_item, typename _Range1, typename _Range2,
-          typename _BinHashMgr>
-sycl::event
 __histogram_general_local_atomics(sycl::queue& __q, const sycl::event& __init_event, std::uint16_t __work_group_size,
-                                  _Range1&& __input, _Range2&& __bins, const _BinHashMgr& __binhash_manager)
+                                  std::uint32_t __num_slm_copies, _Range1&& __input, _Range2&& __bins,
+                                  const _BinHashMgr& __binhash_manager)
 {
     using _iters_per_work_item_t = ::std::integral_constant<::std::uint16_t, __iters_per_work_item>;
 
@@ -395,8 +303,8 @@ __histogram_general_local_atomics(sycl::queue& __q, const sycl::event& __init_ev
         __histo_kernel_local_atomics<_iters_per_work_item_t, _CustomName>>;
 
     return __histogram_general_local_atomics_submitter<__iters_per_work_item, _local_atomics_name>()(
-        __q, __init_event, __work_group_size, std::forward<_Range1>(__input), std::forward<_Range2>(__bins),
-        __binhash_manager);
+        __q, __init_event, __work_group_size, __num_slm_copies, std::forward<_Range1>(__input),
+        std::forward<_Range2>(__bins), __binhash_manager);
 }
 
 template <typename _KernelName>
@@ -505,40 +413,45 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
 
     std::size_t __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
 
-    // Compute number of SLM histogram copies: one per assumed sub-group, based on device's minimum
-    // sub-group size (floored to 16 to avoid over-allocating on devices reporting very small sizes).
-    const std::uint32_t __assumed_sg_size =
+    // Upper bound on useful copies: one per assumed sub-group, based on device's minimum
+    // sub-group size (floored to 16 to avoid over-allocating on devices reporting very small
+    // sizes). When sub-groups are unavailable we cannot map work-items to copies.
 #if _ONEDPL_USE_SUB_GROUPS
+    const std::uint32_t __assumed_sg_size =
         std::max<std::uint32_t>(std::uint32_t(16), oneapi::dpl::__internal::__min_sub_group_size(__q));
-#else
-        //if we dont have access to subgroups, use a reasonable default for a fixed level of replication.
-        16;
-#endif
-    const std::uint32_t __num_slm_copies =
+    const std::uint32_t __max_useful_copies =
         std::max<std::uint32_t>(2, static_cast<std::uint32_t>(__work_group_size) / __assumed_sg_size);
-    const std::size_t __slm_replicated_size =
-        __num_slm_copies * __num_bins * sizeof(_local_histogram_type) +
-        __binhash_manager.get_required_SLM_elements() * sizeof(_extra_memory_type);
+#else
+    const std::uint32_t __max_useful_copies = 1;
+#endif
+    const std::size_t __extra_SLM_bytes = __binhash_manager.get_required_SLM_elements() * sizeof(_extra_memory_type);
+    const std::size_t __per_copy_bytes = __num_bins * sizeof(_local_histogram_type);
 
-    // Use SLM-replicated path when replicated histograms fit within a quarter of local memory
-    // (leaving room for concurrent work-groups to preserve occupancy) and there is enough input
-    // to amortize the extra clear + merge overhead.
+    // Replication is only worth its clear + merge overhead when input is large enough to amortize
+    // it. Below that threshold, a single SLM copy is used.
     const std::size_t __n = __input.size();
-    if (__slm_replicated_size <= static_cast<std::size_t>(__local_mem_size) / 4 &&
-        __n > __work_group_size * __iters_per_work_item / 2)
+    const bool __replicate =
+        __n > __work_group_size * __iters_per_work_item / 2 && __local_mem_size / 4 > __extra_SLM_bytes;
+
+    // For replication, use as many copies as fit in a quarter of local memory (leaving room for
+    // concurrent work-groups to preserve occupancy), capped by the useful-copies bound.
+    std::size_t __num_slm_copies =
+        __replicate ? std::min<std::uint32_t>(__max_useful_copies,
+                                              (__local_mem_size / 4 - __extra_SLM_bytes) / __per_copy_bytes)
+                    : 0;
+
+    if (__num_slm_copies == 0)
     {
-        return __future(__histogram_general_repl_local_reduction<_CustomName, __iters_per_work_item>(
-            __q, __init_event, __work_group_size, __num_slm_copies, std::forward<_Range1>(__input),
-            std::forward<_Range2>(__bins), __binhash_manager));
+        // If we can't fit any within 1/4 of SLM, or its not worth it to replicate, try to fit at least one copy by
+        // using all available SLM, this is better than global atomics
+        __num_slm_copies = static_cast<std::size_t>(__local_mem_size) - __extra_SLM_bytes >= __per_copy_bytes ? 1 : 0;
     }
-    // if bins fit into SLM, use local atomics
-    else if (__num_bins * sizeof(_local_histogram_type) +
-                 __binhash_manager.get_required_SLM_elements() * sizeof(_extra_memory_type) <
-             __local_mem_size)
+
+    if (__num_slm_copies > 0)
     {
         return __future(__histogram_general_local_atomics<_CustomName, __iters_per_work_item>(
-            __q, __init_event, __work_group_size, std::forward<_Range1>(__input), std::forward<_Range2>(__bins),
-            __binhash_manager));
+            __q, __init_event, __work_group_size, __num_slm_copies, std::forward<_Range1>(__input),
+            std::forward<_Range2>(__bins), __binhash_manager));
     }
     else // otherwise, use global atomics (private copies per workgroup)
     {
