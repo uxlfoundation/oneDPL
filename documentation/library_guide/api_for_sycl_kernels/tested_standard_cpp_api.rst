@@ -55,7 +55,7 @@ Tested Standard C++ API Reference
 ===================================== ========== ========== ==========
 C++ Standard API                      libstdc++  libc++     MSVC
 ===================================== ========== ========== ==========
-``std::swap``                         Tested     Tested     Tested
+``std::swap``                         Tested     Tested     Tested [1]_
 ------------------------------------- ---------- ---------- ----------
 ``std::lower_bound``                  Tested                Tested
 ------------------------------------- ---------- ---------- ----------
@@ -221,7 +221,7 @@ C++ Standard API                      libstdc++  libc++     MSVC
 ------------------------------------- ---------- ---------- ----------
 ``std::is_trivially_copyable``        Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
-``std::array``                        Tested     Tested     Tested
+``std::array``                        Tested     Tested     Tested [1]_
 ------------------------------------- ---------- ---------- ----------
 ``std::ratio``                        Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
@@ -343,7 +343,7 @@ C++ Standard API                      libstdc++  libc++     MSVC
 ------------------------------------- ---------- ---------- ----------
 ``std::for_each``                     Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
-``std::find``                         Tested                Tested
+``std::find``                         Tested                Tested [1]_
 ------------------------------------- ---------- ---------- ----------
 ``std::find_if``                      Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
@@ -387,9 +387,9 @@ C++ Standard API                      libstdc++  libc++     MSVC
 ------------------------------------- ---------- ---------- ----------
 ``std::move_backward``                Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
-``std::is_sorted``                    Tested     Tested     Tested
+``std::is_sorted``                    Tested     Tested     Tested [1]_
 ------------------------------------- ---------- ---------- ----------
-``std::is_sorted_until``              Tested     Tested     Tested
+``std::is_sorted_until``              Tested     Tested     Tested [1]_
 ------------------------------------- ---------- ---------- ----------
 ``std::isgreater``                    Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
@@ -456,11 +456,19 @@ The testing was conducted for the following versions of the C++ standard librari
 C++ Standard Library                          C++ Standard Library Version                  SYCL Compiler Used
 ============================================= ============================================= ==================================
 libstdc++ (GNU)                               Provided with GCC* 8.4.0, GCC 9.3.0,          Intel® oneAPI DPC++/C++ Compiler
-                                              GCC 11.4.0, GCC 13.2.0
+                                              GCC 11.4.0, GCC 13.2.0, GCC 15.2.0
 --------------------------------------------- --------------------------------------------- ----------------------------------
-Microsoft Visual C++* (MSVC) Standard Library Provided with Microsoft Visual Studio 2019    Intel® oneAPI DPC++/C++ Compiler 
-                                              and Microsoft Visual Studio 2022.
+Microsoft Visual C++* (MSVC) Standard Library Provided with Microsoft Visual Studio 2019,    Intel® oneAPI DPC++/C++ Compiler
+                                              Microsoft Visual Studio 2022 and
+                                              Microsoft Visual Studio 2026
 --------------------------------------------- --------------------------------------------- ----------------------------------
 libc++ (LLVM)                                 Provided with Clang* 18.1, Clang 19.1,        AdaptiveCpp
                                               Clang 20.1
 ============================================= ============================================= ==================================
+
+.. [1] The API has been tested with ``_USE_STD_VECTOR_ALGORITHMS`` macro defined as ``0``
+  to disable manual vectorization in some MSVC STL algorithms and functions,
+  which is not allowed in SYCL device code.
+  It includes algorithms described in
+  `Vectorized MSVC STL Algorithms <https://learn.microsoft.com/en-us/cpp/standard-library/vectorized-stl-algorithms?view=msvc-180>`_
+  as well as ``std::swap`` and comparison operators applied to ``std::array`` objects.
