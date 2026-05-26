@@ -1026,40 +1026,40 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__bounds_and_size(__r1);
-    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__bounds_and_size(__r2);
-    auto [__result1, __result2] = oneapi::dpl::__ranges::__bounds(__out_r);
+    auto __r1_info = oneapi::dpl::__ranges::__bounds_and_size(__r1);
+    auto __r2_info = oneapi::dpl::__ranges::__bounds_and_size(__r2);
+    auto __out_info = oneapi::dpl::__ranges::__bounds_and_size(__out_r);
 
     // intersection is empty
-    if (__n1 == 0 || __n2 == 0)
-        return {__first1, __first2, __result1};
+    if (__r1_info.size == 0 || __r2_info.size == 0)
+        return {__r1_info.first, __r2_info.first, __out_info.first};
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_1 =
-        __first1 + oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
-                                                               __first2, __comp, __proj1, __proj2);
+        __r1_info.first + oneapi::dpl::__internal::__pstl_lower_bound(__r1_info.first, _DifferenceType1{0}, __r1_info.last - __r1_info.first,
+                                                               __r2_info.first, __comp, __proj1, __proj2);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
-    if (__left_bound_seq_1 == __last1)
-        return {__last1, __first2, __result1};
+    if (__left_bound_seq_1 == __r1_info.last)
+        return {__r1_info.last, __r2_info.first, __out_info.first};
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_2 =
-        __first2 + oneapi::dpl::__internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
-                                                               __first1, __comp, __proj2, __proj1);
+        __r2_info.first + oneapi::dpl::__internal::__pstl_lower_bound(__r2_info.first, _DifferenceType2{0}, __r2_info.last - __r2_info.first,
+                                                               __r1_info.first, __comp, __proj2, __proj1);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, the intersection is empty
-    if (__left_bound_seq_2 == __last2)
-        return {__first1, __last2, __result1};
+    if (__left_bound_seq_2 == __r2_info.last)
+        return {__r1_info.first, __r2_info.last, __out_info.first};
 
     auto __size_func = [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); };
 
-    const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
+    const auto __m1 = __r1_info.last - __left_bound_seq_1 + __r2_info.size;
     if (__m1 > oneapi::dpl::__internal::__set_algo_cut_off)
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         return __internal::__except_handler([&]() {
             return __internal::__parallel_set_op</*_Bounded*/ true>(
-                __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2,
-                __result1, __result2, __comp, __proj1, __proj2, __size_func, [](auto&&... __args) {
+                __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __r1_info.last, __r2_info.first, __r2_info.last,
+                __out_info.first, __out_info.last, __comp, __proj1, __proj2, __size_func, [](auto&&... __args) {
                     return oneapi::dpl::__utils::__set_intersection_construct<
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
                         std::forward<decltype(__args)>(__args)...);
@@ -1067,14 +1067,14 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         });
     }
 
-    const auto __m2 = __last2 - __left_bound_seq_2 + __n1;
+    const auto __m2 = __r2_info.last - __left_bound_seq_2 + __r1_info.size;
     if (__m2 > oneapi::dpl::__internal::__set_algo_cut_off)
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __internal::__except_handler([&]() {
             return __internal::__parallel_set_op</*_Bounded*/ true>(
-                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2,
-                __result1, __result2, __comp, __proj1, __proj2, __size_func, [](auto&&... __args) {
+                __tag, std::forward<_ExecutionPolicy>(__exec), __r1_info.first, __r1_info.last, __left_bound_seq_2, __r2_info.last,
+                __out_info.first, __out_info.last, __comp, __proj1, __proj2, __size_func, [](auto&&... __args) {
                     return oneapi::dpl::__utils::__set_intersection_construct<
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
                         std::forward<decltype(__args)>(__args)...);
@@ -1083,8 +1083,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     }
 
     // [left_bound_seq_1; last1) and [left_bound_seq_2; last2) - use serial algorithm
-    return __serial_set_intersection(std::ranges::subrange(__left_bound_seq_1, __last1),
-                                     std::ranges::subrange(__left_bound_seq_2, __last2), __out_r, __comp, __proj1,
+    return __serial_set_intersection(std::ranges::subrange(__left_bound_seq_1, __r1_info.last),
+                                     std::ranges::subrange(__left_bound_seq_2, __r2_info.last), __out_r, __comp, __proj1,
                                      __proj2);
 }
 
