@@ -1555,7 +1555,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
 
             constexpr std::int32_t __write_output_offset = __write_op_output_offset<_WriteOp>::value;
             const std::size_t __carry_in = __init_present ? __sub_group_carry.__v : 0;
-            if (__carry_in + __max_inputs_per_item * __sub_group_size + __write_output_offset > __out_rng_size)
+            if (__carry_in + __max_inputs_per_item * __sub_group_size > __out_rng_size - __write_output_offset)
             {
                 auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
                     __write_op(__out_rng, __out_rng_size, __id, __v, __temp_data, __on_oob_reached);
