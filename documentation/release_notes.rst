@@ -17,7 +17,7 @@ New Features
   ``remove_copy``, ``remove_copy_if``, ``find_last``, ``find_last_if``, ``find_last_if_not``, ``starts_with``,
   ``ends_with``, ``contains``, ``contains_subrange``, ``lexicographical_compare``.
 - The sorting algorithms with device policies now can use radix sort with
-  the ``less`` and ``greater`` comparators from the ``std::ranges`` namespace.
+  the ``less`` and ``greater`` comparators from the ``std::ranges`` namespace [#fnote1]_.
 
 Known Issues and Limitations
 ----------------------------
@@ -1173,7 +1173,7 @@ Known Issues and Limitations
 .. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types and
   ``sycl::half`` (since oneDPL 2022.6) compared with ``less`` or ``greater`` from
   the ``std`` and ``std::ranges`` (since oneDPL 2022.13) namespaces, otherwise Merge sort.
-.. _`oneDPL Guide`: https://uxlfoundation.github.io/oneDPL/index.html
+.. _`oneDPL Guide`: https://uxlfoundation.github.io/oneDPL/library_guide/index.html
 .. _`Intel® oneAPI Threading Building Blocks (oneTBB) Release Notes`: https://www.intel.com/content/www/us/en/developer/articles/release-notes/intel-oneapi-threading-building-blocks-release-notes.html
 .. _`restrictions and known limitations`: https://uxlfoundation.github.io/oneDPL/library_guide/introduction.html#restrictions.
 .. _`Tested Standard C++ API`: https://uxlfoundation.github.io/oneDPL/library_guide/api_for_sycl_kernels/tested_standard_cpp_api.html#tested-standard-c-api-reference
