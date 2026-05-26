@@ -818,7 +818,7 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
 }
 
 template <typename _T>
-std::enable_if_t<std::is_default_constructible<_T>::value, _T>
+std::enable_if_t<std::is_default_constructible_v<_T>, _T>
 __load_result(__result_storage<_T>& __storage)
 {
     _T __result = {};
