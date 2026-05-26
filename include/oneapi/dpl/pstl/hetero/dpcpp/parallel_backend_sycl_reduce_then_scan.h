@@ -1639,9 +1639,7 @@ template <bool __use_subgroup_ops>
 struct __reduce_then_scan_subgroup_ops_tag;
 
 // Sentinel type used as a stand-in for the OOB-position accessor when _Bounded=false.
-struct __no_oob_pos_acc_tag
-{
-};
+struct __no_oob_pos_acc_tag {};
 
 template <typename _T>
 inline constexpr bool __is_no_oob_pos_acc_v = std::is_same_v<std::remove_cv_t<_T>, __no_oob_pos_acc_tag>;
