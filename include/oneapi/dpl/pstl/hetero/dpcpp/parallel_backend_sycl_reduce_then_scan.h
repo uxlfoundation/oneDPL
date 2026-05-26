@@ -962,6 +962,18 @@ struct __gen_set_op_from_known_balanced_path
     _Proj2 __proj2;
 };
 
+template <typename _TResult>
+struct __clamp_max
+{
+    inline _TResult
+    operator()(_TResult __arg) const
+    {
+        return std::min(__arg, __max_value);
+    }
+
+    _TResult __max_value{};
+};
+
 // kernel for balanced path to partition the input into tiles by calculating balanced path on diagonals of tile bounds
 template <typename _GenInput, typename _KernelName>
 struct __partition_set_balanced_path_submitter;
@@ -1828,15 +1840,16 @@ using __transform_reduce_then_scan_result_t =
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           bool __use_subgroup_ops, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
-          typename _WriteOp, typename _InitType, typename _KernelName>
+          typename _WriteOp, typename _InitType, typename _ResultLimiter, typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           bool __use_subgroup_ops, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
-          typename _WriteOp, typename _InitType, typename... _KernelName>
-struct __parallel_reduce_then_scan_scan_submitter<
-    _Bounded, __max_inputs_per_item, __is_inclusive, __is_unique_pattern_v, __use_subgroup_ops, _ReduceOp,
-    _GenScanInput, _ScanInputTransform, _WriteOp, _InitType, __internal::__optional_kernel_name<_KernelName...>>
+          typename _WriteOp, typename _InitType, typename _ResultLimiter, typename... _KernelName>
+struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_item, __is_inclusive,
+                                                  __is_unique_pattern_v, __use_subgroup_ops, _ReduceOp, _GenScanInput,
+                                                  _ScanInputTransform, _WriteOp, _InitType, _ResultLimiter,
+                                                  __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
@@ -2167,18 +2180,11 @@ struct __parallel_reduce_then_scan_scan_submitter<
                         if constexpr (__is_unique_pattern_v)
                         {
                             // unique patterns automatically copy the 0th element and scan starting at index 1
-                            __res_ptr[0] = __sub_group_carry.__v + 1;
+                            __res_ptr[0] = __result_limiter(__sub_group_carry.__v + 1);
                         }
                         else
                         {
-                            __res_ptr[0] = __sub_group_carry.__v;
-                        }
-
-                        // For scan patterns with bounds checking, we need to ensure that the final value does not exceed the output size,
-                        // as it may be used for the return value of the scan.
-                        if constexpr (_Bounded)
-                        {
-                            __res_ptr[0] = std::min<std::decay_t<decltype(__res_ptr[0])>>(__res_ptr[0], __n_out);
+                            __res_ptr[0] = __result_limiter(__sub_group_carry.__v);
                         }
                     }
                     else
@@ -2206,6 +2212,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
     const _ScanInputTransform __scan_input_transform;
     const _WriteOp __write_op;
     _InitType __init;
+    const _ResultLimiter __result_limiter;
 };
 
 // Enable reduce-then-scan if the device uses the required sub-group size and is ran on a device
@@ -2234,13 +2241,14 @@ __create_oob_pos_storage_opt(sycl::queue& __q)
 template <bool _Bounded, bool __use_subgroup_ops, std::uint32_t __bytes_per_work_item_iter, typename _CustomName,
           typename _InRng, typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
-          typename _IsUniquePattern>
+          typename _IsUniquePattern, typename _ResultLimiter>
 __transform_reduce_then_scan_result_t<_Bounded, typename _InitType::__value_type, _InRng>
 __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng,
                                            _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
                                            _ReduceOp __reduce_op, _GenScanInput __gen_scan_input,
                                            _ScanInputTransform __scan_input_transform, _WriteOp __write_op,
-                                           _InitType __init, _Inclusive, _IsUniquePattern, sycl::event __prior_event)
+                                           _InitType __init, _Inclusive, _IsUniquePattern, sycl::event __prior_event,
+                                           _ResultLimiter __result_limiter)
 {
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_reduce_kernel<__reduce_then_scan_subgroup_ops_tag<__use_subgroup_ops>, _CustomName>>;
@@ -2299,7 +2307,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     using _ScanSubmitter =
         __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_item, __inclusive, __is_unique_pattern_v,
                                                    __use_subgroup_ops, _ReduceOp, _GenScanInput, _ScanInputTransform,
-                                                   _WriteOp, _InitType, _ScanKernel>;
+                                                   _WriteOp, _InitType, _ResultLimiter, _ScanKernel>;
     _ReduceSubmitter __reduce_submitter{__num_work_groups,
                                         __work_group_size,
                                         __max_inputs_per_block,
@@ -2319,7 +2327,8 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
                                     __gen_scan_input,
                                     __scan_input_transform,
                                     __write_op,
-                                    __init};
+                                    __init,
+                                    __result_limiter};
 
     // Allocate storage for out-of-bounds position if needed
     auto __oob_pos_storage = __create_oob_pos_storage_opt<_Bounded, _InRng>(__q);
@@ -2371,13 +2380,14 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng,
           typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
-          typename _IsUniquePattern>
+          typename _IsUniquePattern, typename _ResultLimiter = std::identity>
 __transform_reduce_then_scan_result_t<_Bounded, typename _InitType::__value_type, _InRng>
 __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
                                       _WriteOp __write_op, _InitType __init, _Inclusive __inclusive,
-                                      _IsUniquePattern __is_unique_pattern, sycl::event __prior_event = {})
+                                      _IsUniquePattern __is_unique_pattern, sycl::event __prior_event = {},
+                                      _ResultLimiter __result_limiter = {})
 {
     using _ValueType = typename _InitType::__value_type;
     // Native sycl sub-group operations can only be used on trivially copyable types. Dispatch above the
@@ -2395,7 +2405,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                                               __bytes_per_work_item_iter, _CustomName>(
                 __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input,
                 __reduce_op, __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive,
-                __is_unique_pattern, std::move(__prior_event));
+                __is_unique_pattern, std::move(__prior_event), __result_limiter);
         }
     }
 
@@ -2404,7 +2414,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                                       __bytes_per_work_item_iter, _CustomName>(
         __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
         __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
-        std::move(__prior_event));
+        std::move(__prior_event), __result_limiter);
 }
 
 template <typename _CustomName, typename _InInOutRng, typename _GenReduceInput>
