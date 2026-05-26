@@ -1188,7 +1188,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     // {1} \ {}: parallel copying just first sequence
     if (__n2 == 0)
     {
-        const _DifferenceType __n = std::min(__last1 - __first1, __result2 - __result1);
+        const _DifferenceType __n = __count_to_copy(__first1, __last1, __result1, __result2);
         auto __out_last =
             __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
                                               __result1, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
@@ -1202,7 +1202,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, parallel copying just first sequence
     if (__left_bound_seq_1 == __last1)
     {
-        const _DifferenceType __n = std::min(__last1 - __first1, __result2 - __result1);
+        const _DifferenceType __n = __count_to_copy(__first1, __last1, __result1, __result2);
         auto __out_last =
             __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
                                               __result1, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
@@ -1216,7 +1216,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, parallel copying just first sequence
     if (__left_bound_seq_2 == __last2)
     {
-        const _DifferenceType __n = std::min(__last1 - __first1, __result2 - __result1);
+        const _DifferenceType __n = __count_to_copy(__first1, __last1, __result1, __result2);
         auto __out_last =
             __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
                                               __result1, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
