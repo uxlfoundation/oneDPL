@@ -821,7 +821,7 @@ template <typename _T>
 std::enable_if_t<std::is_default_constructible_v<_T>, _T>
 __load_result(__result_storage<_T>& __storage)
 {
-    _T __result = {};
+    _T __result{};
     __storage.__copy_result(&__result, 1);
 
     return __result;
