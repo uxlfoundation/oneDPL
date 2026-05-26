@@ -1203,7 +1203,7 @@ __brick_compute_mask(_RandomAccessIterator __first, _DifferenceType __len, _Inde
     return std::make_pair(__count_true, __len - __count_true);
 }
 
-template <bool _Bounded, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
+template <bool __Bounded, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
 _Bound
 __brick_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAccessIterator2 __result, _Bound __out_len,
                      bool* __mask, _Assigner __assigner, /*vector=*/std::false_type) noexcept
@@ -1213,7 +1213,7 @@ __brick_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAcc
     {
         if (__mask[__i])
         {
-            if constexpr (_Bounded)
+            if constexpr (__Bounded)
                 if (__j == __out_len)
                     break;
             __assigner(__first + __i, __result + __j);
@@ -1223,12 +1223,12 @@ __brick_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAcc
     return __i;
 }
 
-template <bool _Bounded, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
+template <bool __Bounded, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
 _Bound
 __brick_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAccessIterator2 __result, _Bound __out_len,
                      bool* __mask, _Assigner __assigner, /*vector=*/std::true_type) noexcept
 {
-    return __unseq_backend::__simd_copy_by_mask<_Bounded>(__first, __in_len, __result, __out_len, __mask, __assigner);
+    return __unseq_backend::__simd_copy_by_mask<__Bounded>(__first, __in_len, __result, __out_len, __mask, __assigner);
 }
 
 template <class _ForwardIterator, class _OutputIterator1, class _OutputIterator2>
