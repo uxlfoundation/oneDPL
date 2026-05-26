@@ -2426,8 +2426,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
                                       _WriteOp __write_op, _InitType __init, _Inclusive __inclusive,
-                                      _IsUniquePattern __is_unique_pattern, sycl::event __prior_event = {},
-                                      _TransformResult __transform_result = {})
+                                      _IsUniquePattern __is_unique_pattern, _TransformResult __transform_result = {},
+                                      sycl::event __prior_event = {})
 {
     using _ValueType = typename _InitType::__value_type;
     // Native sycl sub-group operations can only be used on trivially copyable types. Dispatch above the
