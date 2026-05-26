@@ -884,6 +884,8 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         std::get<1>(__res).__copy_result(__ret.data(), 1);
         if constexpr (_Bounded)
             __ret[1] = __load_result(std::get<2>(__res));
+        else
+            __ret[1] = __n;
     }
     else
     {
@@ -1004,6 +1006,8 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         std::get<1>(__res).__copy_result(__ret.data(), 1);
         if constexpr (_Bounded)
             __ret[1] = __load_result(std::get<2>(__res));
+        else
+            __ret[1] = __n;
     }
     else
     {
