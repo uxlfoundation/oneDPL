@@ -162,9 +162,14 @@ Known Limitations
   ``std::sqrt`` require device support for double precision.
 * STL algorithm functions (such as ``std::for_each``) used in DPC++ kernels do not compile with the debug version of
   the Microsoft Visual C++ standard library.
-* ``std::array`` cannot be swapped in DPC++ kernels with ``std::swap`` function or ``swap`` member function
-  in the Microsoft Visual C++ standard library. For a workaround, define the
-  ``_USE_STD_VECTOR_ALGORITHMS`` macro to `` 0`` to the source file before including any headers.
+* Some algorithms and functions in the Microsoft* Visual C++ standard library
+  use manual vectorization. This can lead to
+  "SYCL kernel cannot call undefined functions without the SYCL_EXTERNAL attribute"
+  compilation error when called from a SYCL kernel.
+  To disable vectorization, define the ``_USE_STD_VECTOR_ALGORITHMS`` macro as ``0``
+  in the source file before including any headers.
+  This affects ``std::swap`` and comparison operators applied to ``std::array`` objects, and
+  algorithms described on the `Vectorized MSVC STL Algorithms <https://learn.microsoft.com/en-us/cpp/standard-library/vectorized-stl-algorithms?view=msvc-180>`_ page.
 * ``exclusive_scan``, ``inclusive_scan``, ``exclusive_scan_by_segment``,
   ``inclusive_scan_by_segment``, ``transform_exclusive_scan``, ``transform_inclusive_scan``,
   when used with C++ standard aligned policies, impose limitations on the initial value type if an
