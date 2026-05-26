@@ -1896,8 +1896,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                const std::size_t __inputs_remaining, const std::size_t __block_num,
                _OOBPosStorage& __oob_pos_storage) const
     {
-        const auto __n_out = oneapi::dpl::__ranges::__size(__out_rng);
-
         std::size_t __num_remaining = __n - __block_num * __max_block_size;
         // for unique patterns, the first element is always copied to the output, so we need to skip it
         if constexpr (__is_unique_pattern_v)
