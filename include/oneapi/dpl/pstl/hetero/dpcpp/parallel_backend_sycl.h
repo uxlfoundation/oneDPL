@@ -771,7 +771,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
 
     const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
 
-    auto __get_result_limiter = [&__out_rng]() {
+    auto __get_transform_result = [&__out_rng]() {
         if constexpr (_Bounded)
             return __clamp_max<_Size>{oneapi::dpl::__ranges::__size(__out_rng)};
         else
@@ -782,7 +782,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
         __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask},
         _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-        /*_Inclusive=*/std::true_type{}, __is_unique_pattern, sycl::event{}, __get_result_limiter());
+        /*_Inclusive=*/std::true_type{}, __is_unique_pattern, sycl::event{}, __get_transform_result());
 }
 
 template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _IndexPred,
