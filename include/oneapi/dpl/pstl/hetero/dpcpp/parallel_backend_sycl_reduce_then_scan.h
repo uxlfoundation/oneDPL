@@ -975,18 +975,6 @@ struct __gen_set_op_from_known_balanced_path
     _Proj2 __proj2;
 };
 
-template <typename _TResult>
-struct __clamp_max
-{
-    inline _TResult
-    operator()(_TResult __arg) const
-    {
-        return std::min(__arg, __max_value);
-    }
-
-    _TResult __max_value{};
-};
-
 // kernel for balanced path to partition the input into tiles by calculating balanced path on diagonals of tile bounds
 template <typename _GenInput, typename _KernelName>
 struct __partition_set_balanced_path_submitter;

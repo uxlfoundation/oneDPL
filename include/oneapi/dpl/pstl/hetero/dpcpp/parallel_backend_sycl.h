@@ -758,6 +758,18 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     }
 }
 
+template <typename _TResult, typename = std::enable_if_t<std::is_trivially_copyable_v<_TResult>>>
+struct __clamp_max
+{
+    inline _TResult
+    operator()(_TResult __arg) const
+    {
+        return std::min(__arg, __max_value);
+    }
+
+    _TResult __max_value{};
+};
+
 template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
           typename _WriteOp, typename _IsUniquePattern>
 __transform_reduce_then_scan_result_t<_Bounded, _Size, _InRng>

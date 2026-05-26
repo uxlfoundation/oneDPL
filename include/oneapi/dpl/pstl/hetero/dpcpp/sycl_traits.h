@@ -488,9 +488,6 @@ template <typename _SetOpCount, typename _TempData, typename _RetType, typename 
           typename _Proj2>
 struct __gen_set_op_from_known_balanced_path;
 
-template <typename _Size>
-struct __clamp_max;
-
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           bool __use_subgroup_ops, typename _GenReduceInput, typename _ReduceOp, typename _InitType,
           typename _KernelName>
@@ -643,12 +640,6 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
     oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path, _SetOpCount, _TempData, _RetType,
     _Compare, _Proj1, _Proj2)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_SetOpCount, _Compare, _Proj1, _Proj2>
-{
-};
-
-template <typename _Size>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__clamp_max, _Size)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Size>
 {
 };
 
