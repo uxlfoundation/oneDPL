@@ -405,7 +405,7 @@ C++ Standard API                      libstdc++  libc++     MSVC
 ------------------------------------- ---------- ---------- ----------
 ``std::isunordered``                  Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
-``std::partial_sort``                 Tested     Tested     Tested
+``std::partial_sort``                 Tested     Tested     Tested [1]_
 ------------------------------------- ---------- ---------- ----------
 ``std::partial_sort_copy``            Tested     Tested     Tested
 ------------------------------------- ---------- ---------- ----------
