@@ -893,7 +893,7 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
-    std::size_t __num_copied = __par_backend_hetero::__parallel_copy_if(_BackendTag{},
+    std::size_t __num_copied = __par_backend_hetero::__parallel_copy_if</*_Bounded*/ false>(_BackendTag{},
         std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __n, __pred)[0];
 
     return __result_first + __num_copied;
@@ -966,8 +966,9 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
-    std::size_t __num_copied = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(_BackendTag{},
-        std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __n, __pred)[0];
+    std::size_t __num_copied = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy</*_Bounded*/ false>(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __n,
+        __pred)[0];
 
     return __result_first + __num_copied;
 }

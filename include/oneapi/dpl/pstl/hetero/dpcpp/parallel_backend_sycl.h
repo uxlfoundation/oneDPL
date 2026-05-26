@@ -840,7 +840,7 @@ __load_result(__result_storage<_T>& __storage)
     return __result;
 }
 
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size, typename _BinaryPredicate>
+template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size, typename _BinaryPredicate>
 std::array<_Size, 2>
 __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
                        _Range2&& __result, _Size __n, _Size __n_out, _BinaryPredicate __pred)
@@ -869,7 +869,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
 
         auto&& [__event, __stop_out_storage, __oob_pos_storage] =
-            __parallel_reduce_then_scan_copy</*_Bounded*/ true, _CustomName>(
+            __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
                 __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
                 _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
 
@@ -959,7 +959,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     }
 }
 
-template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
+template <bool _Bounded, typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
           typename _Assign = oneapi::dpl::__internal::__pstl_assign>
 std::array<_Size, 2>
 __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _InRng&& __in_rng,
@@ -989,7 +989,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
 
         auto&& [__event, __stop_out_storage, __oob_pos_storage] =
-            __parallel_reduce_then_scan_copy</*_Bounded*/ true, _CustomName>(
+            __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
                 __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
                 _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{});
 
@@ -2277,7 +2277,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     // evenly divisible by wg size (ensures segments are not long), or has a key not equal to the
     // adjacent element (marks end of real segments)
     // TODO: replace wgroup size with segment size based on platform specifics.
-    auto __intermediate_result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+    auto __intermediate_result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if</*_Bounded*/ false>(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec),
         __view1, __view2, __n, __view2.size(),
@@ -2315,7 +2315,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     // element is copied if it is the 0th element (marks beginning of first segment), or has a key not equal to
     // the adjacent element (end of a segment). Artificial segments based on wg size are not created.
-    auto __result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+    auto __result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if</*_Bounded*/ false>(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec), __view3, __view4,
         __size_type(__view3.size()), __size_type(__view4.size()),
