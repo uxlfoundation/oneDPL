@@ -2380,7 +2380,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng,
           typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
-          typename _IsUniquePattern, typename _ResultLimiter = std::identity>
+          typename _IsUniquePattern, typename _ResultLimiter = oneapi::dpl::identity>
 __transform_reduce_then_scan_result_t<_Bounded, typename _InitType::__value_type, _InRng>
 __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
