@@ -864,14 +864,14 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
 
-        auto&& [__event, __stop_out_storage, __oob_pos_storage] =
-            __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
-                __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
-                _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
+        auto __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
+            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
+            _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
 
-        __event.wait_and_throw();
-        __stop_out_storage.__copy_result(__ret.data(), 1);
-        __ret[1] = __load_result(__oob_pos_storage);
+        std::get<0>(__res).wait_and_throw();
+        std::get<1>(__res).__copy_result(__ret.data(), 1);
+        if constexpr (_Bounded)
+            __ret[1] = __load_result(std::get<2>(__res));
     }
     else
     {
