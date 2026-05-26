@@ -840,7 +840,8 @@ __load_result(__result_storage<_T>& __storage)
     return __result;
 }
 
-template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size, typename _BinaryPredicate>
+template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size,
+          typename _BinaryPredicate>
 std::array<_Size, 2>
 __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
                        _Range2&& __result, _Size __n, _Size __n_out, _BinaryPredicate __pred)
@@ -2279,8 +2280,8 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     // TODO: replace wgroup size with segment size based on platform specifics.
     auto __intermediate_result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if</*_Bounded*/ false>(
         oneapi::dpl::__internal::__device_backend_tag{},
-        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec),
-        __view1, __view2, __n, __view2.size(),
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2, __n,
+        __view2.size(),
         __internal::__parallel_reduce_by_segment_fallback_fn1<_BinaryPredicate>{__binary_pred, __wgroup_size},
         unseq_backend::__brick_assign_key_position{})[0];
 
