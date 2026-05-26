@@ -1646,7 +1646,7 @@ inline constexpr bool __is_no_oob_pos_acc_v = std::is_same_v<std::remove_cv_t<_T
 
 template <bool _Bounded, typename _OOBPosStorage>
 auto
-__get_oob_pos_accessor_opt([[maybe_unused]] sycl::handler& __cgh, [[maybe_unused]] _OOBPosStorage& __oob_pos_storage)
+__get_oob_pos_accessor_opt(sycl::handler& __cgh, _OOBPosStorage& __oob_pos_storage)
 {
     if constexpr (_Bounded)
     {
@@ -1859,7 +1859,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
 
     template <typename _OOBPosAcc>
     auto
-    __create_on_oob_reached_callback([[maybe_unused]] _OOBPosAcc& __oob_pos_acc) const
+    __create_on_oob_reached_callback(_OOBPosAcc& __oob_pos_acc) const
     {
         if constexpr (_Bounded)
         {
@@ -2220,7 +2220,7 @@ __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 
 template <bool _Bounded, typename _Range>
 std::conditional_t<_Bounded, __result_storage<oneapi::dpl::__internal::__difference_t<_Range>>, __no_oob_pos_acc_tag>
-__create_oob_pos_storage_opt([[maybe_unused]] sycl::queue& __q)
+__create_oob_pos_storage_opt(sycl::queue& __q)
 {
     if constexpr (_Bounded)
         return __result_storage<oneapi::dpl::__internal::__difference_t<_Range>>(__q, 1);
