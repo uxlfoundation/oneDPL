@@ -1115,11 +1115,14 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
 
-    if (oneapi::dpl::__ranges::__empty(__r1) && oneapi::dpl::__ranges::__empty(__r2))
+    const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
+    const auto __n2 = oneapi::dpl::__ranges::__size(__r2);
+
+    if (__n1 == 0 && __n2 == 0)
         return {__first1, __first2, __result};
 
     //{1} is empty
-    if (oneapi::dpl::__ranges::__empty(__r1))
+    if (__n1 == 0)
     {
         const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag,
@@ -1129,11 +1132,11 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__ranges::__get_subscription_view(__r2),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
-        return {__first1, __first2 + __idx, __result + __idx};
+        return {__first1, __first2 + __n2, __result + __idx};
     }
 
     //{2} is empty
-    if (oneapi::dpl::__ranges::__empty(__r2))
+    if (__n2 == 0)
     {
         const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag,
@@ -1143,11 +1146,8 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__ranges::__get_subscription_view(__r1),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
-        return {__first1 + __idx, __first2, __result + __idx};
+        return {__first1 + __n1, __first2, __result + __idx};
     }
-
-    const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
-    const auto __n2 = oneapi::dpl::__ranges::__size(__r2);
 
     const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_UnionTag>(
         _BackendTag{}, unseq_backend::_UnionTag{}, std::forward<_ExecutionPolicy>(__exec),
