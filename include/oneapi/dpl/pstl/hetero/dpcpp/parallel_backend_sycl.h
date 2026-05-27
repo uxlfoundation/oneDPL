@@ -781,8 +781,6 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask, _Size>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
-    const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
-
     auto __get_transform_result = [&]() {
         if constexpr (_Bounded)
             return __clamp_max<_Size>{oneapi::dpl::__ranges::__size(__out_rng)};
@@ -791,9 +789,9 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
     };
 
     return __parallel_transform_reduce_then_scan<_Bounded, sizeof(_Size), _CustomName>(
-        __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask},
-        _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
-        oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
+        __q, oneapi::dpl::__ranges::__size(__in_rng), std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
+        _GenReduceInput{__generate_mask}, _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{},
+        __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, __is_unique_pattern, __get_transform_result());
 }
 
