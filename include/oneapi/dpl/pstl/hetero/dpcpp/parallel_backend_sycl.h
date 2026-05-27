@@ -856,7 +856,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     assert(__n_out > 0 && __n > 0);
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _Assign = oneapi::dpl::__internal::__pstl_assign;
-    std::array<_Size, 2> __ret;
+    std::array<_Size, 2> __ret{};
     sycl::queue __q_local = __exec.queue();
 
     constexpr std::size_t __max_elem_per_item = 2;
