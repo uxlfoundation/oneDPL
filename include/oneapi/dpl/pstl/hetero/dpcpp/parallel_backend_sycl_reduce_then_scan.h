@@ -1417,16 +1417,16 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
 
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
           std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
-          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _CommSLMPtr, typename _TempData>
+          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _CommSLMPtr>
 void
 __scan_through_elements_helper_impl(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                     _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op,
                                     _WriteOp __write_op, _LazyValueType& __sub_group_carry, const _InRng& __in_rng,
                                     std::size_t __start_id, std::size_t __n, std::uint32_t __iters_per_item,
                                     std::size_t __subgroup_start_id, std::uint32_t __sub_group_id,
-                                    std::uint32_t __active_subgroups, _CommSLMPtr __comm_slm, _TempData& __temp_data)
+                                    std::uint32_t __active_subgroups, _CommSLMPtr __comm_slm)
 {
-    using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t, typename _GenInput::TempData&>;
+    using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t>;
 
     bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
     bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
@@ -1434,7 +1434,7 @@ __scan_through_elements_helper_impl(const __dpl_sycl::__sub_group& __sub_group, 
     if (__is_full_thread)
     {
 
-        _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
+        _GenInputType __v = __gen_input(__in_rng, __start_id);
         __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
                                                                            __binary_op, __sub_group_carry, __comm_slm);
         __write_op(__start_id, __v);
@@ -1445,7 +1445,7 @@ __scan_through_elements_helper_impl(const __dpl_sycl::__sub_group& __sub_group, 
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __j = 1; __j < __max_inputs_per_item; __j++)
             {
-                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
+                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __comm_slm);
                 __write_op(__start_id + __j * __sub_group_size, __v);
@@ -1457,7 +1457,7 @@ __scan_through_elements_helper_impl(const __dpl_sycl::__sub_group& __sub_group, 
             // can proceed without special casing for partial subgroups.
             for (std::uint32_t __j = 1; __j < __iters_per_item; __j++)
             {
-                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
+                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __comm_slm);
                 __write_op(__start_id + __j * __sub_group_size, __v);
@@ -1475,7 +1475,7 @@ __scan_through_elements_helper_impl(const __dpl_sycl::__sub_group& __sub_group, 
             if (__iters == 1)
             {
                 std::size_t __local_id = (__start_id < __n) ? __start_id : __n - 1;
-                _GenInputType __v = __gen_input(__in_rng, __local_id, __temp_data);
+                _GenInputType __v = __gen_input(__in_rng, __local_id);
                 __sub_group_scan_partial<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __n - __subgroup_start_id,
                     __comm_slm);
@@ -1487,7 +1487,7 @@ __scan_through_elements_helper_impl(const __dpl_sycl::__sub_group& __sub_group, 
             }
             else
             {
-                _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
+                _GenInputType __v = __gen_input(__in_rng, __start_id);
                 __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __comm_slm);
 
@@ -1496,7 +1496,7 @@ __scan_through_elements_helper_impl(const __dpl_sycl::__sub_group& __sub_group, 
                 for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
                 {
                     std::size_t __local_id = __start_id + __j * __sub_group_size;
-                    __v = __gen_input(__in_rng, __local_id, __temp_data);
+                    __v = __gen_input(__in_rng, __local_id);
                     __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __comm_slm);
                     __write_op(__local_id, __v);
@@ -1504,7 +1504,7 @@ __scan_through_elements_helper_impl(const __dpl_sycl::__sub_group& __sub_group, 
 
                 std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
                 std::size_t __local_id = (__offset < __n) ? __offset : __n - 1;
-                __v = __gen_input(__in_rng, __local_id, __temp_data);
+                __v = __gen_input(__in_rng, __local_id);
                 __sub_group_scan_partial<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                     __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size), __comm_slm);
@@ -1534,6 +1534,10 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     using _TempData = typename _GenInput::TempData;
     _TempData __temp_data{};
 
+    auto __gen_input_impl = [&](const _InRng& __rng, std::size_t __id) {
+        return __gen_input(__rng, __id, __temp_data);
+    };
+
     using _OutRngSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
 
     if constexpr (!__capture_output)
@@ -1541,9 +1545,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         auto __noop_write_op = [&](std::size_t, const auto&) {};
         __scan_through_elements_helper_impl<__sub_group_size, __is_inclusive, __init_present, __capture_output,
                                             __max_inputs_per_item>(
-            __sub_group, __gen_input, __scan_input_transform, __binary_op, __noop_write_op, __sub_group_carry, __in_rng,
-            __start_id, __n, __iters_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_slm,
-            __temp_data);
+            __sub_group, __gen_input_impl, __scan_input_transform, __binary_op, __noop_write_op, __sub_group_carry,
+            __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
+            __comm_slm);
     }
     else
     {
@@ -1560,9 +1564,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 };
                 __scan_through_elements_helper_impl<__sub_group_size, __is_inclusive, __init_present, __capture_output,
                                                     __max_inputs_per_item>(
-                    __sub_group, __gen_input, __scan_input_transform, __binary_op, __bounded_write_op,
+                    __sub_group, __gen_input_impl, __scan_input_transform, __binary_op, __bounded_write_op,
                     __sub_group_carry, __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __sub_group_id,
-                    __active_subgroups, __comm_slm, __temp_data);
+                    __active_subgroups, __comm_slm);
                 return;
             }
         }
@@ -1572,9 +1576,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         };
         __scan_through_elements_helper_impl<__sub_group_size, __is_inclusive, __init_present, __capture_output,
                                             __max_inputs_per_item>(
-            __sub_group, __gen_input, __scan_input_transform, __binary_op, __unbounded_write_op, __sub_group_carry,
+            __sub_group, __gen_input_impl, __scan_input_transform, __binary_op, __unbounded_write_op, __sub_group_carry,
             __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
-            __comm_slm, __temp_data);
+            __comm_slm);
     }
 }
 
