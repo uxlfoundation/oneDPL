@@ -156,7 +156,7 @@ __accum_local_atomics_iter(const _ValueType& __x, const _HistAccessor& __wg_loca
                            _BinFunc __func)
 {
     using _histo_value_type = typename _HistAccessor::value_type;
-    std::int32_t __c = __func.get_bin(__x);
+    auto __c = __func.get_bin(__x);
     if (__c >= 0)
     {
         __dpl_sycl::__atomic_ref<_histo_value_type, _AddressSpace> __local_bin(__wg_local_histogram[__offset + __c]);
@@ -206,12 +206,12 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
                const _BinHashMgr& __binhash_manager)
     {
         const std::size_t __n = __input.size();
-        const std::uint16_t __num_bins = __bins.size();
+        const std::uint16_t __num_bins = oneapi::dpl::__ranges::__size(__bins);
         using _local_histogram_type = std::uint32_t;
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
         using _extra_memory_type = typename _BinHashMgr::_extra_memory_type;
 
-        std::size_t __extra_SLM_elements = __binhash_manager.get_required_SLM_elements();
+        auto __extra_SLM_elements = __binhash_manager.get_required_SLM_elements();
         std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
         return __q.submit([&](auto& __h) {
