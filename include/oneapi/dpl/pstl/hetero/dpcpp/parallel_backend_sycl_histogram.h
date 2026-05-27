@@ -431,7 +431,7 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     // it. Below that empirically determined threshold, a single SLM copy is used.
     const std::size_t __n = __input.size();
     const bool __replicate =
-        __n > __work_group_size * __iters_per_work_item / 2 && __local_mem_size / 4 > __extra_SLM_bytes;
+        (__n > __work_group_size * __iters_per_work_item / 2) && __local_mem_size / 4 > __extra_SLM_bytes;
 
     // For replication, use as many copies as fit in a quarter of local memory (leaving room for
     // concurrent work-groups to preserve occupancy), capped by the useful-copies bound.
