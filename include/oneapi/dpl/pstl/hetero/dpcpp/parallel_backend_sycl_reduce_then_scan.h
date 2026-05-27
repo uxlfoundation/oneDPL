@@ -2119,20 +2119,24 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     constexpr std::uint8_t __min_sub_group_size = __get_reduce_then_scan_workaround_sg_sz();
     constexpr std::uint8_t __max_sub_group_size = __get_reduce_then_scan_default_sg_sz();
     // Empirically determined maximum. May be less for non-full blocks.
+    const bool __target_is_gpu = __q.get_device().is_gpu();
     constexpr std::uint16_t __max_inputs_per_item =
         std::max(std::uint16_t{1}, std::uint16_t{512 / __bytes_per_work_item_iter});
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
-
-    const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, 8192);
-    // Round down to nearest multiple of the subgroup size
+    // empirical derived caps for workgroup size based upon target
+    const std::uint32_t __wg_size_cap = __target_is_gpu ? 1024 : 256;
+    const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, __wg_size_cap);
+    // Round down to nearest multiple of the max subgroup size to ensure compatibility with all sub-group sizes
     const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
 
-    // TODO: Investigate potentially basing this on some scale of the number of compute units. 128 work-groups has been
-    // found to be reasonable number for most devices.
-    constexpr std::uint32_t __num_work_groups = 128;
-    // We may use a sub-group size of 16 or 32 depending on the compiler optimization level. Allocate sufficient
-    // temporary storage to handle both cases.
+    // use work groups equal to the number of compute units.
+
+    const std::uint32_t __max_compute_units =
+        __q.get_device().template get_info<sycl::info::device::max_compute_units>();
+    const std::uint32_t __num_work_groups =
+        oneapi::dpl::__internal::__dpl_bit_ceil(__max_compute_units) / (__target_is_gpu ? 4 : 1);
+    // Allocate sufficient temporary storage for the worst case (smallest sub-group size = most sub-groups).
     const std::uint32_t __max_num_sub_groups_local = __work_group_size / __min_sub_group_size;
     const std::uint32_t __max_num_sub_groups_global = __max_num_sub_groups_local * __num_work_groups;
     const std::uint32_t __max_inputs_per_work_group = __work_group_size * __max_inputs_per_item;
