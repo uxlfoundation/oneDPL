@@ -976,7 +976,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
                    _OutRng&& __out_rng, _Size __n, _Size __n_out, _Pred __pred, _Assign __assign = _Assign{})
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-    std::array<_Size, 2> __ret = {__n_out, __n};
+    std::array<_Size, 2> __ret{};
     sycl::queue __q_local = __exec.queue();
 
     constexpr std::size_t __max_elem_per_item = 2;
