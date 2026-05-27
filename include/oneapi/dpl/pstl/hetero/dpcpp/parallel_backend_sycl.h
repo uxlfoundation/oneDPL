@@ -761,10 +761,11 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 template <typename _TResult, typename = std::enable_if_t<std::is_trivially_copyable_v<_TResult>>>
 struct __clamp_max
 {
-    inline _TResult
-    operator()(_TResult __arg) const
+    template <typename _TArg>
+    _TArg
+    operator()(_TArg __arg) const
     {
-        return std::min(__arg, __max_value);
+        return std::min<_TArg>(__arg, __max_value);
     }
 
     _TResult __max_value{};
@@ -783,7 +784,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
 
     auto __get_transform_result = [&]() {
         if constexpr (_Bounded)
-            return __clamp_max<_Size>{static_cast<_Size>(oneapi::dpl::__ranges::__size(__out_rng))};
+            return __clamp_max{oneapi::dpl::__ranges::__size(__out_rng)};
         else
             return oneapi::dpl::identity{};
     };
