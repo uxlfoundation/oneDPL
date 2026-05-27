@@ -420,7 +420,7 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     const std::uint32_t __assumed_sg_size =
         std::max<std::uint32_t>(std::uint32_t(16), oneapi::dpl::__internal::__min_sub_group_size(__q));
     const std::uint32_t __max_useful_copies =
-        std::max<std::uint32_t>(2, static_cast<std::uint32_t>(__work_group_size) / __assumed_sg_size);
+        oneapi::dpl::__internal::__dpl_ceiling_div(static_cast<std::uint32_t>(__work_group_size), __assumed_sg_size);
 #else
     const std::uint32_t __max_useful_copies = 1;
 #endif
@@ -428,14 +428,14 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     const std::size_t __per_copy_bytes = __num_bins * sizeof(_local_histogram_type);
 
     // Replication is only worth its clear + merge overhead when input is large enough to amortize
-    // it. Below that threshold, a single SLM copy is used.
+    // it. Below that empirically determined threshold, a single SLM copy is used.
     const std::size_t __n = __input.size();
     const bool __replicate =
         __n > __work_group_size * __iters_per_work_item / 2 && __local_mem_size / 4 > __extra_SLM_bytes;
 
     // For replication, use as many copies as fit in a quarter of local memory (leaving room for
     // concurrent work-groups to preserve occupancy), capped by the useful-copies bound.
-    std::size_t __num_slm_copies =
+    std::uint32_t __num_slm_copies =
         __replicate ? std::min<std::uint32_t>(__max_useful_copies,
                                               (__local_mem_size / 4 - __extra_SLM_bytes) / __per_copy_bytes)
                     : 0;
@@ -444,7 +444,7 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     {
         // If we can't fit any within 1/4 of SLM, or its not worth it to replicate, try to fit at least one copy by
         // using all available SLM, this is better than global atomics
-        __num_slm_copies = static_cast<std::size_t>(__local_mem_size) >= __per_copy_bytes + __extra_SLM_bytes ? 1 : 0;
+        __num_slm_copies = (__local_mem_size >= __per_copy_bytes + __extra_SLM_bytes) ? 1 : 0;
     }
 
     if (__num_slm_copies > 0)
