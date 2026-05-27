@@ -444,7 +444,7 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     {
         // If we can't fit any within 1/4 of SLM, or its not worth it to replicate, try to fit at least one copy by
         // using all available SLM, this is better than global atomics
-        __num_slm_copies = static_cast<std::size_t>(__local_mem_size) - __extra_SLM_bytes >= __per_copy_bytes ? 1 : 0;
+        __num_slm_copies = static_cast<std::size_t>(__local_mem_size) >= __per_copy_bytes + __extra_SLM_bytes ? 1 : 0;
     }
 
     if (__num_slm_copies > 0)
