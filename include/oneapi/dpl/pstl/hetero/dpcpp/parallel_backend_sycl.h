@@ -880,7 +880,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
 
-        auto __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
+        std::tuple __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
             _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
 
@@ -1002,7 +1002,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
 
-        auto __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
+        std::tuple __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
             _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{});
 
