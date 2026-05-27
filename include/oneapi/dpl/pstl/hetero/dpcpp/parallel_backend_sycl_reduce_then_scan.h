@@ -180,19 +180,6 @@ struct __write_to_id_if
     _Assign __assign;
 };
 
-// Compile-time trait describing the offset between the running output index (used in unique* apis) and the actual
-// index into the output range that the write op may target.
-// Default to 0; specialize for write ops with a known non-zero offset (e.g., __write_to_id_if).
-template <typename _WriteOp>
-struct __write_op_output_offset : std::integral_constant<std::int32_t, 0>
-{
-};
-
-template <std::int32_t __offset, typename _Assign>
-struct __write_op_output_offset<__write_to_id_if<__offset, _Assign>> : std::integral_constant<std::int32_t, __offset>
-{
-};
-
 // Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1`, but only if the
 // condition `get<1>(__v)` is `true`. Otherwise, writes the element to the output range at the index,
 // `__id - get<0>(__v)`. Used for __parallel_partition_copy.
@@ -1519,9 +1506,9 @@ __scan_through_elements_helper_impl(const __dpl_sycl::__sub_group& __sub_group, 
 }
 
 template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
-          std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
-          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng, typename _CommSLMPtr,
-          typename _OnOOBReached = std::nullptr_t>
+          bool __is_unique_pattern_v, std::uint16_t __max_inputs_per_item, typename _GenInput,
+          typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp, typename _LazyValueType, typename _InRng,
+          typename _OutRng, typename _CommSLMPtr, typename _OnOOBReached = std::nullptr_t>
 void
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
@@ -1555,7 +1542,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         {
             _OutRngSize __out_rng_size = oneapi::dpl::__ranges::__size(__out_rng);
 
-            constexpr std::int32_t __write_output_offset = __write_op_output_offset<_WriteOp>::value;
+            constexpr std::int32_t __write_output_offset = __is_unique_pattern_v ? 1 : 0;
             const std::size_t __carry_in = __init_present ? __sub_group_carry.__v : 0;
             if (__carry_in + __max_inputs_per_item * __sub_group_size > __out_rng_size - __write_output_offset)
             {
@@ -1773,7 +1760,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
                     __scan_through_elements_helper</*_Bounded*/ false, __sub_group_size, __is_inclusive,
                                                    /*__init_present=*/false,
-                                                   /*__capture_output=*/false, __max_inputs_per_item>(
+                                                   /*__capture_output=*/false, __is_unique_pattern_v,
+                                                   __max_inputs_per_item>(
                         __sub_group, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, nullptr,
                         __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __n,
                         __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
@@ -2184,7 +2172,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 {
                     __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
                                                    /*__init_present=*/true,
-                                                   /*__capture_output=*/true, __max_inputs_per_item>(
+                                                   /*__capture_output=*/true, __is_unique_pattern_v,
+                                                   __max_inputs_per_item>(
                         __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                         __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
                         __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_slm_ptr,
@@ -2194,7 +2183,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 {
                     __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
                                                    /*__init_present=*/false,
-                                                   /*__capture_output=*/true, __max_inputs_per_item>(
+                                                   /*__capture_output=*/true, __is_unique_pattern_v,
+                                                   __max_inputs_per_item>(
                         __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                         __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
                         __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_slm_ptr,
