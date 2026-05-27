@@ -783,13 +783,9 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
 
     const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
 
-    [[maybe_unused]] _Size __n_out{};
-    if constexpr (_Bounded)
-        __n_out = static_cast<_Size>(oneapi::dpl::__ranges::__size(__out_rng));
-
     auto __get_transform_result = [&]() {
         if constexpr (_Bounded)
-            return __clamp_max<_Size>{__n_out};
+            return __clamp_max<_Size>{oneapi::dpl::__ranges::__size(__out_rng)};
         else
             return oneapi::dpl::identity{};
     };
