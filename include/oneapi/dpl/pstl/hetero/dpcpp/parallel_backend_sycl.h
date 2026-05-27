@@ -784,7 +784,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
 
     auto __get_transform_result = [&]() {
         if constexpr (_Bounded)
-            return __clamp_max{oneapi::dpl::__ranges::__size(__out_rng)};
+            return __clamp_max<_Size>{oneapi::dpl::__ranges::__size(__out_rng)};
         else
             return oneapi::dpl::identity{};
     };
