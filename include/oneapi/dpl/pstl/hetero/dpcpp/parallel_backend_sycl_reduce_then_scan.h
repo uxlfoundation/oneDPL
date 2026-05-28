@@ -1040,7 +1040,6 @@ struct __gen_scan_by_seg_reduce_input
 template <typename _BinaryPred>
 struct __gen_red_by_seg_scan_input
 {
-    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // ((new_seg_mask, value), output_value, next_key, current_key)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
@@ -1050,7 +1049,7 @@ struct __gen_red_by_seg_scan_input
     // KeyType current_key : The current element's key. This is only ever used by work-item 0 to write the first key
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1096,14 +1095,13 @@ struct __gen_red_by_seg_scan_input
 template <typename _BinaryPred>
 struct __gen_scan_by_seg_scan_input
 {
-    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // ((new_seg_mask, value), new_seg_mask)
     // bool new_seg_mask : true for a start of a new segment, false otherwise
     // ValueType value   : Current element's value for reduction
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
