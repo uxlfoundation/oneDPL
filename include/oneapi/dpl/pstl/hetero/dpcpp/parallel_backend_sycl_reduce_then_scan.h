@@ -362,10 +362,9 @@ struct __gen_count_mask
 template <typename _GenMask, typename _RetType, typename _RangeTransform = oneapi::dpl::identity>
 struct __gen_expand_count_mask
 {
-    using TempData = __noop_temp_data;
     template <typename _InRng>
     auto
-    operator()(_InRng&& __in_rng, _RetType __id, TempData&) const
+    operator()(_InRng&& __in_rng, _RetType __id) const
     {
         auto __transformed_input = __rng_transform(__in_rng);
         // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
