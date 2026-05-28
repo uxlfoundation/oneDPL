@@ -246,13 +246,12 @@ struct __write_red_by_seg
 template <bool __is_inclusive, typename _InitType, typename _BinaryOp>
 struct __write_scan_by_seg
 {
-    using _TempData = __noop_temp_data;
     _InitType __init_value;
     _BinaryOp __binary_op;
 
     template <typename _OutRng, typename _ValueType>
     void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v) const
     {
         using std::get;
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
