@@ -238,10 +238,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
                     const std::size_t __seg_start = __work_group_size * __iters_per_work_item * __wgroup_idx;
                     auto __SLM_binhash = __make_SLM_binhash(_device_copyable_func, __extra_SLM, __self_item);
                     // Blocked SLM layout: replicas of bin B occupy [B*num_copies, (B+1)*num_copies).
-                    // Each work-item picks a copy slot indexed by its sub-group lane id, so within
-                    // a sub-group every lane writes to a distinct slot of the same bin, eliminating
-                    // intra-sub-group collisions. Cross-sub-group accesses to the same slot are
-                    // time-interleaved by HW thread scheduling.
+                    // Each work-item picks a copy slot indexed by its sub-group lane id.
                     std::uint32_t __copy_slot = 0;
 #if _ONEDPL_USE_SUB_GROUPS
                     if (__num_slm_copies > 1)
@@ -280,9 +277,8 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
 
                     __dpl_sycl::__group_barrier(__self_item);
 
-                    // Merge per-bin replica slots (contiguous in SLM under blocked layout) into
-                    // global output via atomic add. Iterate strided so all bins are covered when
-                    // __num_bins exceeds work-group size.
+                    // Merge SLM histogram copies into global output via atomic add per bin.
+                    // Iterate strided so all bins are covered when __num_bins exceeds work-group size.
                     for (std::uint16_t __bin = __self_lidx; __bin < __num_bins; __bin += __work_group_size)
                     {
                         _local_histogram_type __merged = 0;
