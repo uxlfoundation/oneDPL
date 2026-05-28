@@ -424,11 +424,14 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     std::size_t __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
 
     // Upper bound on useful copies: one per sub-group lane (replicas indexed by lane id).
-    // Floored to 16 to avoid over-allocating on devices reporting very small sub-group sizes.
+    // Use device's max sub-group size (the realized SIMD width for ordinary kernels on Intel
+    // GPUs), capped at 32 to bound SLM and merge cost on devices reporting larger maxima. If
+    // the compiler ends up selecting a smaller SIMD width, surplus slots are simply unused;
+    // the SLM-ratio guard further limits total allocation.
     // When sub-groups are unavailable we cannot map work-items to copies.
 #if _ONEDPL_USE_SUB_GROUPS
     const std::uint32_t __max_useful_copies =
-        std::max<std::uint32_t>(std::uint32_t(16), oneapi::dpl::__internal::__min_sub_group_size(__q));
+        std::min<std::uint32_t>(std::uint32_t(32), oneapi::dpl::__internal::__max_sub_group_size(__q));
 #else
     const std::uint32_t __max_useful_copies = 1;
 #endif
