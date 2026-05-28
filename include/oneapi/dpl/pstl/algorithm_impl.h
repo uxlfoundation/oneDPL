@@ -4020,57 +4020,46 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     using _SetRange =
         _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __mask_difference_type_t>;
 
-    // clang-format off
-    return __internal::__except_handler([__tag, &__exec, __n1,
-                                         __first1, __last1, __first2, __last2, __result1, __result2,
-                                         __comp, __proj1, __proj2,
-                                         __size_func, __set_op, &__buf, __buf_size]() {
+    return __internal::__except_handler([__tag, &__exec, __n1, __first1, __last1, __first2, __last2, __result1,
+                                         __result2, __comp, __proj1, __proj2, __size_func, __set_op, &__buf,
+                                         __buf_size]() {
         // Buffer raw data begin/end pointers
         _T* __buf_raw_data_begin = __buf.get();
         _T* __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
-        using _SetOpReachedPosEvaluatorT = _SetOpReachedPosEvaluator<
-            _IsVector, _ExecutionPolicy,
-            _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator,
-            _Compare, _Proj1, _Proj2, _SetOp,
-            _SizeFunction, _SetRange, _Bounded>;
-
-        _SetOpReachedPosEvaluatorT __source_final_pos_evaluator(
-            __tag, __exec,
-            __first1, __last1, __first2, __last2, __result1, __result2,
-            __comp, __proj1, __proj2,
-            __set_op, __size_func);
+        using _SetOpReachedPosEvaluatorT =
+            _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
+                                      _OutputIterator, _Compare, _Proj1, _Proj2, _SetOp, _SizeFunction, _SetRange,
+                                      _Bounded>;
+        _SetOpReachedPosEvaluatorT __source_final_pos_evaluator(__tag, __exec, __first1, __last1, __first2, __last2,
+                                                                __result1, __result2, __comp, __proj1, __proj2,
+                                                                __set_op, __size_func);
 
         // Scan predicate
         _ParallelSetOpScanPred<_Bounded, _IsVector, _T*, _SetRange, _OutputIterator, _SetOpReachedPosEvaluatorT>
-            __scan_pred{__tag,
-                        __buf_raw_data_begin, __buf_raw_data_end, __result1, __result2,
-                        __source_final_pos_evaluator};
+            __scan_pred{__tag, __buf_raw_data_begin, __buf_raw_data_end, __result1, __result2, __source_final_pos_evaluator};
 
-        _ParallelSetOpStrictReducePred<_Bounded, _SetRange,
-                                       _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator,
-                                       _SizeFunction, _SetOp,
-                                       _Compare, _Proj1, _Proj2, _T>
-            __reduce_pred{__first1, __last1, __first2, __last2,
-                          __size_func, __set_op,
-                          __comp, __proj1, __proj2, __buf_raw_data_begin};
+        _ParallelSetOpStrictReducePred<_Bounded, _SetRange, _RandomAccessIterator1, _RandomAccessIterator2,
+                                       _OutputIterator, _SizeFunction, _SetOp, _Compare, _Proj1, _Proj2, _T>
+            __reduce_pred{__first1, __last1, __first2, __last2, __size_func,
+                          __set_op, __comp,  __proj1,  __proj2, __buf_raw_data_begin};
 
         _ParallelSetOpCombinePred __combine_pred;
 
         _ParallelSetOpApexPred<_Bounded, _IsVector, _T*, _SetRange, _OutputIterator, _DifferenceType1, _SetOpReachedPosEvaluatorT>
             __apex_pred{__scan_pred};
 
-        __par_backend::__parallel_strict_scan(__backend_tag{}, __exec, __n1, _SetRange(),
-                                              __reduce_pred, __combine_pred, __scan_pred, __apex_pred);
+        __par_backend::__parallel_strict_scan(__backend_tag{}, __exec, __n1, _SetRange(), __reduce_pred, __combine_pred,
+                                              __scan_pred, __apex_pred);
 
         // Get evaluated reached positions for the source ranges and output range
         const auto [__res_reached_pos1, __res_reached_pos2, __res_reached_posOut] =
             __source_final_pos_evaluator.__get_reached_positions();
 
-        return oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
+        return oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2,
+                                                             _OutputIterator>{
             __first1 + __res_reached_pos1, __first2 + __res_reached_pos2, __result1 + __res_reached_posOut};
     });
-    // clang-format on
 }
 
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
