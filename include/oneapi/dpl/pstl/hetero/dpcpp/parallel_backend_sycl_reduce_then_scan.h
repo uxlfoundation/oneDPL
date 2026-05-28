@@ -988,14 +988,13 @@ struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional
 template <typename _BinaryPred>
 struct __gen_red_by_seg_reduce_input
 {
-    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // (new_seg_mask, value)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
     // ValueType value     : Current element's value for reduction
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
