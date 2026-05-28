@@ -207,10 +207,9 @@ struct __write_to_id_if_else
 template <typename _BinaryPred>
 struct __write_red_by_seg
 {
-    using _TempData = __noop_temp_data;
     template <typename _OutRng, typename _Tup>
     void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup) const
     {
         using std::get;
 
