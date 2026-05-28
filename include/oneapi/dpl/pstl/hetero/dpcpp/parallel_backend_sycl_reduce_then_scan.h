@@ -315,10 +315,9 @@ struct __write_multiple_to_id
 template <typename _UnaryOp, typename _InitType>
 struct __gen_transform_input
 {
-    using TempData = __noop_temp_data;
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id) const
     {
         // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
         // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
