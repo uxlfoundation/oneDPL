@@ -348,10 +348,9 @@ struct __gen_mask
 template <typename _GenMask, typename _RetType>
 struct __gen_count_mask
 {
-    using TempData = __noop_temp_data;
     template <typename _InRng>
     _RetType
-    operator()(_InRng&& __in_rng, _RetType __id, TempData&) const
+    operator()(_InRng&& __in_rng, _RetType __id) const
     {
         return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _RetType{1} : _RetType{0};
     }
