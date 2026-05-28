@@ -823,6 +823,10 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
         });
 }
 
+//---------------------------------------------------------------------------------------------------------------------
+// set_union
+//---------------------------------------------------------------------------------------------------------------------
+
 template <typename Iterator1, typename Iterator2>
 std::common_type_t<typename std::iterator_traits<Iterator1>::difference_type,
                    typename std::iterator_traits<Iterator2>::difference_type>
@@ -834,10 +838,6 @@ __min_range_size(Iterator1 __first1, Iterator1 __last1, Iterator2 __first2, Iter
 
     return std::min<_DifferenceTypeCommon>(__last1 - __first1, __last2 - __first2);
 }
-
-//---------------------------------------------------------------------------------------------------------------------
-// set_union
-//---------------------------------------------------------------------------------------------------------------------
 
 template <typename _R1, typename _R2, typename _OutRange>
 using __set_union_return_t =
