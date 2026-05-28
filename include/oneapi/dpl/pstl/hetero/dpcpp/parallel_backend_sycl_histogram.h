@@ -210,7 +210,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
                std::uint32_t __num_slm_copies, _Range1&& __input, _Range2&& __bins,
                const _BinHashMgr& __binhash_manager)
     {
-        const std::size_t __n = __input.size();
+        const std::size_t __n = oneapi::dpl::__ranges::__size(__input);
         const std::uint16_t __num_bins = oneapi::dpl::__ranges::__size(__bins);
         using _local_histogram_type = std::uint32_t;
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
@@ -416,7 +416,7 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     using _local_histogram_type = std::uint32_t;
     using _extra_memory_type = typename _BinHashMgr::_extra_memory_type;
 
-    const std::uint32_t __num_bins = __bins.size();
+    const std::uint32_t __num_bins = oneapi::dpl::__ranges::__size(__bins);
     // Limit the maximum work-group size for better performance. Empirically found value.
     std::uint16_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, std::uint16_t(1024));
 
@@ -439,7 +439,7 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
 
     // Replication is only worth its clear + merge overhead when input is large enough to amortize
     // it. Below that empirically determined threshold, a single SLM copy is used.
-    const std::size_t __n = __input.size();
+    const std::size_t __n = oneapi::dpl::__ranges::__size(__input);
 
     // try to fit within a subset of SLM to preserve occupancy (at least 2 concurrent work-groups)
     const std::size_t __target_slm_size = __local_mem_size / 3;
