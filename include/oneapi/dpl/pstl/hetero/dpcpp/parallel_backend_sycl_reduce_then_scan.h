@@ -1015,14 +1015,13 @@ struct __gen_red_by_seg_reduce_input
 template <typename _BinaryPred>
 struct __gen_scan_by_seg_reduce_input
 {
-    using TempData = __noop_temp_data;
     // Returns the following tuple:
     // (new_seg_mask, value)
     // bool new_seg_mask : true for a start of a new segment, false otherwise
     // ValueType value   : Current element's value for reduction
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id) const
     {
         // Get source base
         auto&& __tuple = __in_rng.base();
