@@ -154,11 +154,10 @@ __clear_wglocal_histograms(const _HistAccessor& __local_histogram, const _Offset
 // where __c is the bin index. Stride=1 with offset=base gives the contiguous per-WG
 // layout used by the global-atomics path; stride=num_copies with offset=copy_slot gives
 // the blocked-by-bin replicated layout used by the SLM path.
-template <sycl::access::address_space _AddressSpace, typename _ValueType, typename _HistAccessor, typename _OffsetT,
-          typename _StrideT, typename _BinFunc>
+template <sycl::access::address_space _AddressSpace, typename _ValueType, typename _HistAccessor, typename _BinFunc>
 void
-__accum_local_atomics_iter(const _ValueType& __x, const _HistAccessor& __wg_local_histogram, const _OffsetT& __offset,
-                           const _StrideT& __stride, _BinFunc __func)
+__accum_local_atomics_iter(const _ValueType& __x, const _HistAccessor& __wg_local_histogram, std::size_t __offset,
+                           std::uint32_t __stride, _BinFunc __func)
 {
     using _histo_value_type = typename _HistAccessor::value_type;
     auto __c = __func.get_bin(__x);
@@ -368,8 +367,8 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                         {
                             ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
                             __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __hacc_private,
-                                                                              __wgroup_idx * __num_bins,
-                                                                              std::uint32_t{1}, _device_copyable_func);
+                                                                              __wgroup_idx * __num_bins, 1u,
+                                                                              _device_copyable_func);
                         }
                     }
                     else
@@ -379,9 +378,9 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                             ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
                             if (__val_idx < __n)
                             {
-                                __accum_local_atomics_iter<_atomic_address_space>(
-                                    __input[__val_idx], __hacc_private, __wgroup_idx * __num_bins, std::uint32_t{1},
-                                    _device_copyable_func);
+                                __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __hacc_private,
+                                                                                  __wgroup_idx * __num_bins, 1u,
+                                                                                  _device_copyable_func);
                             }
                         }
                     }
