@@ -225,7 +225,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
             // SLM histogram copies to reduce atomic contention. Number of copies is based
-            // on device sub-group size, with sub-groups mapped to copies via modulo.
+            // on device sub-group size, with sub-group lanes mapped to copies via modulo.
             __dpl_sycl::__local_accessor<_local_histogram_type> __local_histogram(
                 sycl::range(__num_slm_copies * __num_bins), __h);
             __dpl_sycl::__local_accessor<_extra_memory_type> __extra_SLM(sycl::range(__extra_SLM_elements), __h);
@@ -445,10 +445,12 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     // try to fit within a subset of SLM to preserve occupancy (at least 2 concurrent work-groups)
     const std::size_t __target_slm_size = __local_mem_size / 3;
 
+    // If we only have less than half of a single WG, replication does not make sense as contention is not an issue.
+    // SLM comparison is to avoid underflow.
     const bool __replicate =
         (__n > __work_group_size * __iters_per_work_item / 2) && __target_slm_size > __extra_SLM_bytes;
 
-    // For replication, use as many copies as fit in a quarter of local memory (leaving room for
+    // For replication, use as many copies as fit within target memory limits (leaving room for
     // concurrent work-groups to preserve occupancy), capped by the useful-copies bound.
     std::uint32_t __num_slm_copies =
         __replicate
