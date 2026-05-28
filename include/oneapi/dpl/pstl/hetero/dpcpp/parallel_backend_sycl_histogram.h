@@ -236,8 +236,8 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
                     if (__num_slm_copies > 1)
                     {
                         __dpl_sycl::__sub_group __sg = __self_item.get_sub_group();
-                        const std::uint32_t __sg_id = __sg.get_group_linear_id();
-                        __sg_offset = (__sg_id % __num_slm_copies) * __num_bins;
+                        const std::uint32_t __lane_id = __sg.get_local_linear_id();
+                        __sg_offset = (__lane_id % __num_slm_copies) * __num_bins;
                     }
 #endif
 
@@ -419,8 +419,8 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
 #if _ONEDPL_USE_SUB_GROUPS
     const std::uint32_t __assumed_sg_size =
         std::max<std::uint32_t>(std::uint32_t(16), oneapi::dpl::__internal::__min_sub_group_size(__q));
-    const std::uint32_t __max_useful_copies =
-        oneapi::dpl::__internal::__dpl_ceiling_div(static_cast<std::uint32_t>(__work_group_size), __assumed_sg_size);
+    // Per-lane replicas: useful copy count is bounded by the sub-group size (one copy per lane).
+    const std::uint32_t __max_useful_copies = __assumed_sg_size;
 #else
     const std::uint32_t __max_useful_copies = 1;
 #endif
