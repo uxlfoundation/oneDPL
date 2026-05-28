@@ -1492,6 +1492,21 @@ __scan_through_elements_helper_impl(const __dpl_sycl::__sub_group& __sub_group, 
     }
 }
 
+// Detecting TempData type alias in the specified structure
+template <typename, typename = void>
+struct __temp_data_required
+{
+    static constexpr bool value = false;
+    using type = __noop_temp_data;
+};
+
+template <typename _T>
+struct __temp_data_required<_T, std::void_t<typename _T::TempData>>
+{
+    static constexpr bool value = true;
+    using type = typename _T::TempData;
+};
+
 template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
           bool __is_unique_pattern_v, std::uint16_t __max_inputs_per_item, typename _GenInput,
           typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp, typename _LazyValueType, typename _InRng,
@@ -1505,7 +1520,10 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                std::uint32_t __active_subgroups, _CommSLMPtr __comm_slm,
                                _OnOOBReached __on_oob_reached = {})
 {
-    using _TempData = typename _GenInput::TempData;
+    using __temp_data_required_t = __temp_data_required<_GenInput>;
+    constexpr bool __is_temp_data_required = __temp_data_required_t::value;
+
+    using _TempData = typename __temp_data_required_t::type;
     _TempData __temp_data{};
 
     auto __gen_input_impl = [&](const _InRng& __rng, std::size_t __id) {
