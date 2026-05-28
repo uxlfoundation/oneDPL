@@ -430,14 +430,18 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     // Replication is only worth its clear + merge overhead when input is large enough to amortize
     // it. Below that empirically determined threshold, a single SLM copy is used.
     const std::size_t __n = __input.size();
+
+    // try to fit within a subset of SLM to preserve occupancy (at least 2 concurrent work-groups)
+    const std::size_t __target_slm_size = __local_mem_size / 3;
+
     const bool __replicate =
-        (__n > __work_group_size * __iters_per_work_item / 2) && __local_mem_size / 4 > __extra_SLM_bytes;
+        (__n > __work_group_size * __iters_per_work_item / 2) && __target_slm_size > __extra_SLM_bytes;
 
     // For replication, use as many copies as fit in a quarter of local memory (leaving room for
     // concurrent work-groups to preserve occupancy), capped by the useful-copies bound.
     std::uint32_t __num_slm_copies =
         __replicate ? std::min<std::uint32_t>(__max_useful_copies,
-                                              (__local_mem_size / 4 - __extra_SLM_bytes) / __per_copy_bytes)
+                                              (__target_slm_size - __extra_SLM_bytes) / __per_copy_bytes)
                     : 0;
 
     if (__num_slm_copies == 0)
