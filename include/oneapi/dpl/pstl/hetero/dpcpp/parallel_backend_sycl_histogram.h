@@ -446,20 +446,19 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     const std::size_t __target_slm_size = __local_mem_size / 3;
 
     // If we only have less than half of a single WG, replication does not make sense as contention is not an issue.
-    // SLM comparison is to avoid underflow.
-    const bool __replicate =
-        (__n > __work_group_size * __iters_per_work_item / 2) && __target_slm_size > __extra_SLM_bytes;
+    const bool __replicate = __n > __work_group_size * __iters_per_work_item / 2;
 
     // For replication, use as many copies as fit within target memory limits (leaving room for
-    // concurrent work-groups to preserve occupancy), capped by the useful-copies bound.
+    // concurrent work-groups to preserve occupancy), capped by the useful-copies bound. The
+    // __target_slm_size > __extra_SLM_bytes check guards against underflow in the subtraction.
     std::uint32_t __num_slm_copies =
-        __replicate
+        (__target_slm_size > __extra_SLM_bytes)
             ? std::min<std::uint32_t>(__max_useful_copies, (__target_slm_size - __extra_SLM_bytes) / __per_copy_bytes)
             : 0;
 
-    if (__num_slm_copies == 0)
+    if (!__replicate || __num_slm_copies == 0)
     {
-        // If we can't fit any within 1/4 of SLM, or its not worth it to replicate, try to fit at least one copy by
+        // If the target size is too small, or its not worth it to replicate, try to fit at least one copy by
         // using all available SLM, this is better than global atomics
         __num_slm_copies = (__local_mem_size >= __per_copy_bytes + __extra_SLM_bytes) ? 1 : 0;
     }
