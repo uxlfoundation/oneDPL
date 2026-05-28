@@ -451,9 +451,9 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     // For replication, use as many copies as fit in a quarter of local memory (leaving room for
     // concurrent work-groups to preserve occupancy), capped by the useful-copies bound.
     std::uint32_t __num_slm_copies =
-        __replicate ? std::min<std::uint32_t>(__max_useful_copies,
-                                              (__target_slm_size - __extra_SLM_bytes) / __per_copy_bytes)
-                    : 0;
+        __replicate
+            ? std::min<std::uint32_t>(__max_useful_copies, (__target_slm_size - __extra_SLM_bytes) / __per_copy_bytes)
+            : 0;
 
     if (__num_slm_copies == 0)
     {
