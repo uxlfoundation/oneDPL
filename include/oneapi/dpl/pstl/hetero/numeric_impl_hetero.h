@@ -136,12 +136,12 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
     auto __buf1 = __keep1(__first, __last);
 
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write,
-                                                            /*_IsNoInitRequested=*/true>();
+                                                           /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__result, __result + __n);
 
     oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n,
-        __unary_op, __init, __binary_op, _Inclusive{})
+        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __unary_op,
+        __init, __binary_op, _Inclusive{})
         .__checked_deferrable_wait();
 
     return __result + __n;
