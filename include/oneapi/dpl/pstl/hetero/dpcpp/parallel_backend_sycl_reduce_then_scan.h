@@ -2283,7 +2283,6 @@ struct __parallel_reduce_then_scan_scan_submitter<
     const _TransformResult __transform_result;
 };
 
-
 template <bool _Bounded, typename _Range>
 std::conditional_t<_Bounded, __result_storage<oneapi::dpl::__internal::__difference_t<_Range>>, __no_oob_pos_acc_tag>
 __create_oob_pos_storage_opt(sycl::queue& __q)
