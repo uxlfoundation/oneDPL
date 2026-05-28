@@ -430,7 +430,7 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     // When sub-groups are unavailable we cannot map work-items to copies.
 #if _ONEDPL_USE_SUB_GROUPS
     const std::uint32_t __max_useful_copies =
-        std::min<std::uint32_t>(std::uint32_t(32), oneapi::dpl::__internal::__max_sub_group_size(__q));
+        std::min<std::uint32_t>(32u, oneapi::dpl::__internal::__max_sub_group_size(__q));
 #else
     const std::uint32_t __max_useful_copies = 1;
 #endif
