@@ -1527,7 +1527,10 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     _TempData __temp_data{};
 
     auto __gen_input_impl = [&](const _InRng& __rng, std::size_t __id) {
-        return __gen_input(__rng, __id, __temp_data);
+        if constexpr (__is_temp_data_required)
+            return __gen_input(__rng, __id, __temp_data);
+        else
+            return __gen_input(__rng, __id);
     };
 
     using _OutRngSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
@@ -1552,7 +1555,10 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             if (__carry_in + __max_inputs_per_item * __sub_group_size > __out_rng_size - __write_output_offset)
             {
                 auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
-                    __write_op(__out_rng, __out_rng_size, __id, __v, __temp_data, __on_oob_reached);
+                    if constexpr (__is_temp_data_required)
+                        __write_op(__out_rng, __out_rng_size, __id, __v, __temp_data, __on_oob_reached);
+                    else
+                        __write_op(__out_rng, __out_rng_size, __id, __v, __on_oob_reached);
                 };
                 __scan_through_elements_helper_impl<__sub_group_size, __is_inclusive, __init_present, __capture_output,
                                                     __max_inputs_per_item>(
@@ -1564,7 +1570,10 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         }
 
         auto __unbounded_write_op = [&](std::size_t __id, const auto& __v) {
-            __write_op(__out_rng, __id, __v, __temp_data);
+            if constexpr (__is_temp_data_required)
+                __write_op(__out_rng, __id, __v, __temp_data);
+            else
+                __write_op(__out_rng, __id, __v);
         };
         __scan_through_elements_helper_impl<__sub_group_size, __is_inclusive, __init_present, __capture_output,
                                             __max_inputs_per_item>(
