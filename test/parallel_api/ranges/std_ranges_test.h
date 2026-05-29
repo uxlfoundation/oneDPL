@@ -118,6 +118,7 @@ using mul1_t = decltype(mul1);
 auto div3 = [](auto&& v) { return v / 3; };
 using div3_t = decltype(div3);
 
+
 struct P2
 {
     P2() {}

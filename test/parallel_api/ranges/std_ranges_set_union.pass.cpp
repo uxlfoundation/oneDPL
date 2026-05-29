@@ -432,9 +432,9 @@ main()
     namespace dpl_ranges = oneapi::dpl::ranges;
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    constexpr auto test_mode = TestDataMode::data_in_in_out_lim;
-#else
     constexpr auto test_mode = TestDataMode::data_in_in_out;
+#else
+    constexpr auto test_mode = TestDataMode::data_in_in_out_lim;
 #endif
 
     test_range_algo<0, int, test_mode, mul1_t, div3_t>{get_scan_big_sz()}(dpl_ranges::set_union, set_union_checker);
