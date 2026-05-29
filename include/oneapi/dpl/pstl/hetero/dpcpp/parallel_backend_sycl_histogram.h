@@ -299,8 +299,8 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                std::uint16_t __work_group_size, _Range1&& __input, _Range2&& __bins,
                const _BinHashMgr& __binhash_manager)
     {
-        const ::std::size_t __n = __input.size();
-        const ::std::size_t __num_bins = __bins.size();
+        const ::std::size_t __n = oneapi::dpl::__ranges::__size(__input);
+        const ::std::size_t __num_bins = oneapi::dpl::__ranges::__size(__bins);
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
 
         const std::uint64_t __global_mem_size = __q.get_device().get_info<sycl::info::device::global_mem_size>();
@@ -463,7 +463,7 @@ __parallel_histogram(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
 
     sycl::queue __q_local = __exec.queue();
 
-    if (__input.size() < 1048576) // 2^20
+    if (oneapi::dpl::__ranges::__size(__input) < 1048576) // 2^20
     {
         return __parallel_histogram_select_kernel<_CustomName, /*iters_per_workitem = */ 4>(
             __q_local, __init_event, std::forward<_Range1>(__input), std::forward<_Range2>(__bins), __binhash_manager);
