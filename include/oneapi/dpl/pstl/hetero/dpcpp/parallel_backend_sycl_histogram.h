@@ -173,8 +173,7 @@ template <typename _BinType, typename _FactorType, typename _HistAccessorIn, typ
           typename _HistAccessorOut, typename _Size>
 void
 __reduce_out_histograms(const _HistAccessorIn& __in_histogram, const _OffsetT& __offset,
-                        const _HistAccessorOut& __out_histogram, _Size __num_bins, std::uint32_t __num_copies,
-                        const sycl::nd_item<1>& __self_item)
+                        const _HistAccessorOut& __out_histogram, _Size __num_bins, const sycl::nd_item<1>& __self_item)
 {
     using _BinUint_t =
         ::std::conditional_t<(sizeof(_Size) >= sizeof(::std::uint32_t)), ::std::uint64_t, ::std::uint32_t>;
@@ -183,27 +182,18 @@ __reduce_out_histograms(const _HistAccessorIn& __in_histogram, const _OffsetT& _
     _FactorType __factor = oneapi::dpl::__internal::__dpl_ceiling_div(__num_bins, __gSize);
     _FactorType __k = 0;
 
-    auto __merge_bin = [&](_BinUint_t __bin) {
-        using _InValueType = typename _HistAccessorIn::value_type;
-        _InValueType __sum = 0;
-        const _BinUint_t __base = __offset + __bin * __num_copies;
-        for (std::uint32_t __s = 0; __s < __num_copies; ++__s)
-        {
-            __sum += __in_histogram[__base + __s];
-        }
-        __dpl_sycl::__atomic_ref<_BinType, sycl::access::address_space::global_space> __global_bin(
-            __out_histogram[__bin]);
-        __global_bin += __sum;
-    };
-
     for (; __k < __factor - 1; ++__k)
     {
-        __merge_bin(__gSize * __k + __self_lidx);
+        __dpl_sycl::__atomic_ref<_BinType, sycl::access::address_space::global_space> __global_bin(
+            __out_histogram[__gSize * __k + __self_lidx]);
+        __global_bin += __in_histogram[__offset + __gSize * __k + __self_lidx];
     }
     // residual
     if (__gSize * __k + __self_lidx < __num_bins)
     {
-        __merge_bin(__gSize * __k + __self_lidx);
+        __dpl_sycl::__atomic_ref<_BinType, sycl::access::address_space::global_space> __global_bin(
+            __out_histogram[__gSize * __k + __self_lidx]);
+        __global_bin += __in_histogram[__offset + __gSize * __k + __self_lidx];
     }
 }
 
@@ -286,8 +276,20 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
 
                     __dpl_sycl::__group_barrier(__self_item);
 
-                    __reduce_out_histograms<_bin_type, std::uint16_t>(__local_histogram, 0, __bins, __num_bins,
-                                                                      __num_slm_copies, __self_item);
+                    // Merge SLM histogram copies into global output via atomic add per bin.
+                    // Iterate strided so all bins are covered when __num_bins exceeds work-group size.
+                    for (std::uint16_t __bin = __self_lidx; __bin < __num_bins; __bin += __work_group_size)
+                    {
+                        _local_histogram_type __merged = 0;
+                        const std::uint32_t __base = __bin * __num_slm_copies;
+                        for (std::uint32_t __s = 0; __s < __num_slm_copies; ++__s)
+                        {
+                            __merged += __local_histogram[__base + __s];
+                        }
+                        __dpl_sycl::__atomic_ref<_bin_type, sycl::access::address_space::global_space> __global_bin(
+                            __bins[__bin]);
+                        __global_bin += __merged;
+                    }
                 });
         });
     }
@@ -386,7 +388,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                     __dpl_sycl::__group_barrier(__self_item, __dpl_sycl::__fence_space_global);
 
                     __reduce_out_histograms<_bin_type, ::std::uint32_t>(__hacc_private, __wgroup_idx * __num_bins,
-                                                                        __bins, __num_bins, 1u, __self_item);
+                                                                        __bins, __num_bins, __self_item);
                 });
         });
     }
