@@ -67,8 +67,7 @@ void test_mixed_types_host()
     EXPECT_EQ_RANGES(out_expected, out_par_unseq, "wrong result with par_unseq policy");
 }
 
-#if TEST_DPCPP_BACKEND_PRESENT
-#if !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
+#if TEST_DPCPP_BACKEND_PRESENT && !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
 void test_mixed_types_device()
 {
     auto policy = TestUtils::get_dpcpp_test_policy();
@@ -93,7 +92,6 @@ void test_mixed_types_device()
         EXPECT_EQ_RANGES(out_expected, out, "wrong result with device policy");
     }
 }
-#endif // !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 struct
@@ -440,7 +438,7 @@ main()
 #endif
 
     test_range_algo<0, int, test_mode, mul1_t, div3_t>{get_scan_big_sz()}(dpl_ranges::set_union, set_union_checker);
-    test_range_algo<1, int, test_mode, mul1_t, div3_t>{get_scan_big_sz()}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, proj);
+    test_range_algo<1, int, test_mode, div3_t, mul1_t>{get_scan_big_sz()}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, proj);
 
     // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
     test_range_algo<2, int, test_mode, mul1_t, div3_t>{100}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, proj, proj);
@@ -449,7 +447,7 @@ main()
     test_range_algo<4,  P2, test_mode, mul1_t, div3_t>{}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
     test_mixed_types_host();
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
     test_mixed_types_device();
 #endif
 

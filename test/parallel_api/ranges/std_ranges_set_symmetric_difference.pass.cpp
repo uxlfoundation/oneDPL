@@ -67,8 +67,7 @@ void test_mixed_types_host()
     EXPECT_EQ_RANGES(out_expected, out_par_unseq, "wrong result with par_unseq policy");
 }
 
-#if TEST_DPCPP_BACKEND_PRESENT
-#if !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
+#if TEST_DPCPP_BACKEND_PRESENT && !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
 void test_mixed_types_device()
 {
     auto policy = TestUtils::get_dpcpp_test_policy();
@@ -94,7 +93,6 @@ void test_mixed_types_device()
         EXPECT_EQ_RANGES(out_expected, out, "wrong result with device policy");
     }
 }
-#endif // !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 struct
@@ -480,7 +478,7 @@ main()
 
     // Check if projections are applied to the right sequences and trigger a compile-time error if not
     test_mixed_types_host();
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
     test_mixed_types_device();
 #endif
 
