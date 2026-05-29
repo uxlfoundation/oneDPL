@@ -26,6 +26,7 @@
 
 #    include "execution_impl.h"
 #    include "algorithm_impl.h"
+#    include "set_algorithms_utils.h" // for __set_difference_return_t, __create_set_difference_result()
 
 namespace oneapi
 {
@@ -1143,7 +1144,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 
 template <bool _Bounded, typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1,
           typename _Proj2>
-oneapi::dpl::__ranges::__set_difference_return_t<_R1, _R2, _OutRange>
+oneapi::dpl::__utils::__set_difference_return_t<_R1, _R2, _OutRange>
 __serial_set_difference_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     auto [__it1, __end1] = oneapi::dpl::__ranges::__bounds(__r1);
@@ -1178,13 +1179,13 @@ __serial_set_difference_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp 
     // 2. Copying the rest of the first sequence
     auto __copy = std::ranges::copy_n(__it1, __min_iterator_distance(__it1, __end1, __out_it, __out_end), __out_it);
 
-    return oneapi::dpl::__ranges::__create_set_difference_result(__copy.in, __it2, __copy.out);
+    return oneapi::dpl::__utils::__create_set_difference_result(__copy.in, __it2, __copy.out);
 }
 
 // Bounded set difference: performs set_difference with output range capacity checking.
 // Truncates result if output range is too small.
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-oneapi::dpl::__ranges::__set_difference_return_t<_R1, _R2, _OutRange>
+oneapi::dpl::__utils::__set_difference_return_t<_R1, _R2, _OutRange>
 __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
@@ -1201,7 +1202,7 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-oneapi::dpl::__ranges::__set_difference_return_t<_R1, _R2, _OutRange>
+oneapi::dpl::__utils::__set_difference_return_t<_R1, _R2, _OutRange>
 __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                        /*__is_vector=*/std::false_type) noexcept
 {
@@ -1210,7 +1211,7 @@ __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-oneapi::dpl::__ranges::__set_difference_return_t<_R1, _R2, _OutRange>
+oneapi::dpl::__utils::__set_difference_return_t<_R1, _R2, _OutRange>
 __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                        /*__is_vector=*/std::true_type) noexcept
 {
@@ -1221,7 +1222,7 @@ __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-oneapi::dpl::__ranges::__set_difference_return_t<_R1, _R2, _OutRange>
+oneapi::dpl::__utils::__set_difference_return_t<_R1, _R2, _OutRange>
 __pattern_set_difference(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                          _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -1233,7 +1234,7 @@ __pattern_set_difference(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutR
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-oneapi::dpl::__ranges::__set_difference_return_t<_R1, _R2, _OutRange>
+oneapi::dpl::__utils::__set_difference_return_t<_R1, _R2, _OutRange>
 __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                          _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -1250,7 +1251,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     // {} \ {2}: the difference is empty
     if (__n1 == 0)
-        return oneapi::dpl::__ranges::__create_set_difference_result(__first1, __first2, __result1);
+        return oneapi::dpl::__utils::__create_set_difference_result(__first1, __first2, __result1);
 
     // {1} \ {}: parallel copying just first sequence
     if (__n2 == 0)
@@ -1259,7 +1260,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         auto __out_last =
             __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
                                               __result1, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
-        return oneapi::dpl::__ranges::__create_set_difference_result(__first1 + __n, __first2, __out_last);
+        return oneapi::dpl::__utils::__create_set_difference_result(__first1 + __n, __first2, __out_last);
     }
 
     // testing  whether the sequences are intersected
@@ -1273,7 +1274,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         auto __out_last =
             __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
                                               __result1, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
-        return oneapi::dpl::__ranges::__create_set_difference_result(__first1 + __n, __first2, __out_last);
+        return oneapi::dpl::__utils::__create_set_difference_result(__first1 + __n, __first2, __out_last);
     }
 
     // testing  whether the sequences are intersected
@@ -1287,7 +1288,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         auto __out_last =
             __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
                                               __result1, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
-        return oneapi::dpl::__ranges::__create_set_difference_result(__first1 + __n, __last2, __out_last);
+        return oneapi::dpl::__utils::__create_set_difference_result(__first1 + __n, __last2, __out_last);
     }
 
     if (__n1 + __n2 > __set_algo_cut_off)
@@ -1302,7 +1303,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                     std::forward<decltype(__args)>(__args)...);
             });
 
-        return oneapi::dpl::__ranges::__create_set_difference_result(__it1, __it2, __it_out);
+        return oneapi::dpl::__utils::__create_set_difference_result(__it1, __it2, __it_out);
     }
 
     // use serial algorithm

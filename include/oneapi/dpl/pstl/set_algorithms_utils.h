@@ -20,9 +20,13 @@
 #include <memory>      // for std::addressof
 #include <tuple>       // for std::tuple
 #include <type_traits> // for std::is_same_v
-#include <algorithm>   // for std::ranges::in_in_out_result
+#include <algorithm>
 
-#include "functional_impl.h" // for std::invoke
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#    include <ranges> // for std::ranges::in_in_out_result, std::ranges::in_out_result, std::ranges::borrowed_iterator_t
+#endif
+
+#include "functional_impl.h"
 #include "iterator_impl.h"   // for oneapi::dpl::discard_iterator
 
 namespace oneapi
@@ -302,6 +306,36 @@ struct __set_operations_result
     }
 #endif
 };
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+template <typename _R1, typename _R2, typename _OutRange>
+using __set_difference_return_t =
+    std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                  std::ranges::borrowed_iterator_t<_OutRange>>;
+#    else
+template <typename _R1, typename _R2, typename _OutRange>
+using __set_difference_return_t =
+    std::ranges::in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>;
+#    endif
+
+// Helper function to create the appropriate return type for oneapi::dpl::ranges::set_difference based on C++26 compatibility mode.
+// In C++23, set_difference returns in_out_result with the second input iterator omitted, as it is not needed by the caller.
+template <typename _It1, typename _It2, typename _ItOut>
+#    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+std::ranges::in_in_out_result<_It1, _It2, _ItOut>
+#    else
+std::ranges::in_out_result<_It1, _ItOut>
+#    endif
+__create_set_difference_result(_It1 __it1, [[maybe_unused]] _It2 __it2, _ItOut __it_out)
+{
+#    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+    return {__it1, __it2, __it_out};
+#    else
+    return {__it1, __it_out};
+#    endif
+}
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 } // namespace __utils
 } // namespace dpl
