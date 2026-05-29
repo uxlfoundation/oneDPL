@@ -418,7 +418,9 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     // Limit the maximum work-group size for better performance. Empirically found value.
     std::uint16_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, std::uint16_t(1024));
 
-    std::size_t __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
+    // Reserve some SLM as headroom for runtime overhead.
+    const std::size_t __local_mem_size =
+        (__q.get_device().template get_info<sycl::info::device::local_mem_size>() * 4) / 5;
 
     // Upper bound on useful copies: one per sub-group lane (replicas indexed by lane id).
     // Use device's max sub-group size (the realized SIMD width for ordinary kernels on Intel
@@ -440,7 +442,7 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     const std::size_t __n = oneapi::dpl::__ranges::__size(__input);
 
     // try to fit within a subset of SLM to preserve occupancy (at least 2 concurrent work-groups)
-    const std::size_t __target_slm_size = __local_mem_size / 3;
+    const std::size_t __target_slm_size = __local_mem_size / 2;
 
     // If we only have less than half of a single WG, replication does not make sense as contention is not an issue.
     const bool __replicate = __n > __work_group_size * __iters_per_work_item / 2;
