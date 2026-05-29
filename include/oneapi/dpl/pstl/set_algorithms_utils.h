@@ -153,7 +153,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
     return {__first1, __last2, __result, __mask};
 }
 
-template <typename _CopyFunc, typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
           typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
 __set_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,

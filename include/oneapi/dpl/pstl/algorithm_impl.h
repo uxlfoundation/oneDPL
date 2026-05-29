@@ -4401,8 +4401,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                        __result, __result + std::min(__n1, __n2), __comp, oneapi::dpl::identity{},
                        oneapi::dpl::identity{}, __size_func,
                        [](auto&&... __args) {
-                           return oneapi::dpl::__utils::__set_intersection_construct<
-                               oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
+                           return oneapi::dpl::__utils::__set_intersection_construct(
                                std::forward<decltype(__args)>(__args)...);
                        })
                 .__it_out;
@@ -4419,8 +4418,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                        __result, __result + std::min(__n1, __n2), __comp, oneapi::dpl::identity{},
                        oneapi::dpl::identity{}, __size_func,
                        [](auto&&... __args) {
-                           return oneapi::dpl::__utils::__set_intersection_construct<
-                               oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
+                           return oneapi::dpl::__utils::__set_intersection_construct(
                                std::forward<decltype(__args)>(__args)...);
                        })
                 .__it_out;

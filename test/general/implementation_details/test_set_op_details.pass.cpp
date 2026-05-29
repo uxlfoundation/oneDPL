@@ -70,16 +70,6 @@ evalMaskSize(const Container1& cont1, const Container2& cont2)
     return cont1.size() + cont2.size();
 }
 
-struct UninitializedCopyValueOp
-{
-    template <typename _SourceT, typename _TargetT>
-    void
-    operator()(_SourceT&& __source, _TargetT& __target) const
-    {
-        new (std::addressof(__target)) _TargetT(std::forward<_SourceT>(__source));
-    }
-};
-
 // For details please see description of the enum oneapi::dpl::__utils::__parallel_set_op_mask
 using MaskContainer = std::vector<oneapi::dpl::__utils::__parallel_set_op_mask>;
 
@@ -428,7 +418,7 @@ test_set_intersection_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UninitializedCopyValueOp>(
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -457,7 +447,7 @@ test_set_intersection_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UninitializedCopyValueOp>(
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -489,7 +479,7 @@ test_set_intersection_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UninitializedCopyValueOp>(
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -514,7 +504,7 @@ test_set_intersection_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UninitializedCopyValueOp>(
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -539,7 +529,7 @@ test_set_intersection_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UninitializedCopyValueOp>(
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -564,7 +554,7 @@ test_set_intersection_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UninitializedCopyValueOp>(
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),

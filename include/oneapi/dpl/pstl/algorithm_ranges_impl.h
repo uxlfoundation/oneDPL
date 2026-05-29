@@ -1111,8 +1111,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
             return __internal::__parallel_set_op</*_Bounded*/ true>(
                 __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2,
                 __result1, __result2, __comp, __proj1, __proj2, __size_func, [](auto&&... __args) {
-                    return oneapi::dpl::__utils::__set_intersection_construct<
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
+                    return oneapi::dpl::__utils::__set_intersection_construct(
                         std::forward<decltype(__args)>(__args)...);
                 });
         });
@@ -1126,8 +1125,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
             return __internal::__parallel_set_op</*_Bounded*/ true>(
                 __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2,
                 __result1, __result2, __comp, __proj1, __proj2, __size_func, [](auto&&... __args) {
-                    return oneapi::dpl::__utils::__set_intersection_construct<
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
+                    return oneapi::dpl::__utils::__set_intersection_construct(
                         std::forward<decltype(__args)>(__args)...);
                 });
         });
