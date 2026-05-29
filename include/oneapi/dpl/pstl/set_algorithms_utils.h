@@ -81,20 +81,16 @@ __set_iterator_mask_n(__parallel_set_op_mask* __mask, __parallel_set_op_mask __s
 }
 
 template <typename _InputIterator, typename _OutputIterator>
-struct _UninitializedCopyItem
+void
+__uninitialized_copy_or_discard(_InputIterator __it_in, _OutputIterator __it_out) const
 {
     using _OutValueType = typename std::iterator_traits<_OutputIterator>::value_type;
-
-    void
-    operator()(_InputIterator __it_in, _OutputIterator __it_out) const
+    if constexpr (!std::is_same_v<_OutputIterator, oneapi::dpl::discard_iterator>)
     {
-        if constexpr (!std::is_same_v<_OutputIterator, oneapi::dpl::discard_iterator>)
-        {
-            // We should use placement new here because this method really works with raw uninitialized memory
-            new (std::addressof(*__it_out)) _OutValueType(*__it_in);
-        }
+        // We should use placement new here because this method really works with raw uninitialized memory
+        new (std::addressof(*__it_out)) _OutValueType(*__it_in);
     }
-};
+}
 } // namespace __internal
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator>
