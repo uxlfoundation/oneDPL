@@ -20,7 +20,7 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-#include <oneapi/dpl/pstl/parallel_backend_utils.h>
+#include <oneapi/dpl/pstl/set_algorithms_utils.h>
 
 #include <vector>
 #include <functional>

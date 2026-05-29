@@ -36,7 +36,8 @@
 #include "parallel_backend.h"
 #include "parallel_impl.h"
 #include "iterator_impl.h"
-#include "functional_impl.h" // for oneapi::dpl::identity, std::invoke
+#include "functional_impl.h"      // for oneapi::dpl::identity, std::invoke
+#include "set_algorithms_utils.h" // for __set_iterator_mask and etc.
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/algorithm_impl_hetero.h" // for __pattern_fill_n, __pattern_generate_n
