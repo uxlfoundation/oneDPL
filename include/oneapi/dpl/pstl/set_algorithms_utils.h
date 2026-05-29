@@ -20,7 +20,7 @@
 #include <memory>      // for std::addressof
 #include <tuple>       // for std::tuple
 #include <type_traits> // for std::is_same_v
-#include <algorithm>   // for std::ranges::in_in_out_result         
+#include <algorithm>   // for std::ranges::in_in_out_result
 
 #include "functional_impl.h" // for std::invoke
 #include "iterator_impl.h"   // for oneapi::dpl::discard_iterator
