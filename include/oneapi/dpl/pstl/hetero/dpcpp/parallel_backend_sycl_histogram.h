@@ -169,34 +169,6 @@ __accum_local_atomics_iter(const _ValueType& __x, const _HistAccessor& __wg_loca
     }
 }
 
-template <typename _BinType, typename _FactorType, typename _HistAccessorIn, typename _OffsetT,
-          typename _HistAccessorOut, typename _Size>
-void
-__reduce_out_histograms(const _HistAccessorIn& __in_histogram, const _OffsetT& __offset,
-                        const _HistAccessorOut& __out_histogram, _Size __num_bins, const sycl::nd_item<1>& __self_item)
-{
-    using _BinUint_t =
-        ::std::conditional_t<(sizeof(_Size) >= sizeof(::std::uint32_t)), ::std::uint64_t, ::std::uint32_t>;
-    _BinUint_t __gSize = __self_item.get_local_range()[0];
-    ::std::uint32_t __self_lidx = __self_item.get_local_id(0);
-    _FactorType __factor = oneapi::dpl::__internal::__dpl_ceiling_div(__num_bins, __gSize);
-    _FactorType __k = 0;
-
-    for (; __k < __factor - 1; ++__k)
-    {
-        __dpl_sycl::__atomic_ref<_BinType, sycl::access::address_space::global_space> __global_bin(
-            __out_histogram[__gSize * __k + __self_lidx]);
-        __global_bin += __in_histogram[__offset + __gSize * __k + __self_lidx];
-    }
-    // residual
-    if (__gSize * __k + __self_lidx < __num_bins)
-    {
-        __dpl_sycl::__atomic_ref<_BinType, sycl::access::address_space::global_space> __global_bin(
-            __out_histogram[__gSize * __k + __self_lidx]);
-        __global_bin += __in_histogram[__offset + __gSize * __k + __self_lidx];
-    }
-}
-
 template <std::uint16_t __iters_per_work_item, typename _KernelName>
 struct __histogram_general_local_atomics_submitter;
 
@@ -386,9 +358,13 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                     }
 
                     __dpl_sycl::__group_barrier(__self_item, __dpl_sycl::__fence_space_global);
-
-                    __reduce_out_histograms<_bin_type, ::std::uint32_t>(__hacc_private, __wgroup_idx * __num_bins,
-                                                                        __bins, __num_bins, __self_item);
+                    const std::size_t __offset = __wgroup_idx * __num_bins;
+                    for (std::size_t __bin = __self_lidx; __bin < __num_bins; __bin += __work_group_size)
+                    {
+                        __dpl_sycl::__atomic_ref<_bin_type, sycl::access::address_space::global_space> __global_bin(
+                            __bins[__bin]);
+                        __global_bin += __hacc_private[__offset + __bin];
+                    }
                 });
         });
     }
