@@ -27,7 +27,7 @@
 #endif
 
 #include "functional_impl.h"
-#include "iterator_impl.h"   // for oneapi::dpl::discard_iterator
+#include "iterator_impl.h" // for oneapi::dpl::discard_iterator
 
 namespace oneapi
 {
