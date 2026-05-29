@@ -415,23 +415,17 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     const std::size_t __extra_SLM_bytes = __binhash_manager.get_required_SLM_elements() * sizeof(_extra_memory_type);
     const std::size_t __per_copy_bytes = __num_bins * sizeof(_local_histogram_type);
 
-    // Replication is only worth its clear + merge overhead when input is large enough to amortize
-    // it. Below that empirically determined threshold, a single SLM copy is used.
-    const std::size_t __n = oneapi::dpl::__ranges::__size(__input);
-
-    // try to fit within a subset of SLM to preserve occupancy (at least 2 concurrent work-groups)
-    const std::size_t __target_slm_size = __local_mem_size / 2;
-
+    // Replication is only worth its clear + merge overhead when input is large enough to amortize it.
     // If we only have less than half of a single WG, replication does not make sense as contention is not an issue.
+    const std::size_t __n = oneapi::dpl::__ranges::__size(__input);
     const bool __replicate = __n > __work_group_size * __iters_per_work_item / 2;
 
-    // For replication, use as many copies as fit within target memory limits (leaving room for
-    // concurrent work-groups to preserve occupancy), capped by the useful-copies bound. The
-    // __target_slm_size > __extra_SLM_bytes check guards against underflow in the subtraction.
-    std::uint32_t __num_slm_copies =
-        (__target_slm_size > __extra_SLM_bytes)
-            ? std::min<std::uint32_t>(__max_useful_copies, (__target_slm_size - __extra_SLM_bytes) / __per_copy_bytes)
-            : 0;
+    // Try to fit within a subset of SLM to preserve occupancy with 2 concurrent work-groups
+    const std::size_t __target_slm_size =
+        (__local_mem_size / 2 > __extra_SLM_bytes) ? __local_mem_size / 2 - __extra_SLM_bytes : 0;
+
+    // Use as many copies as fit within target memory limits, capped by the useful-copies bound.
+    std::uint32_t __num_slm_copies = std::min<std::uint32_t>(__max_useful_copies, __target_slm_size / __per_copy_bytes);
 
     if (!__replicate || __num_slm_copies == 0)
     {
