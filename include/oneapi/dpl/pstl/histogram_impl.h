@@ -41,7 +41,7 @@ __brick_histogram(_ForwardIterator __first, _ForwardIterator __last, _IdxHashFun
 {
     for (; __first != __last; ++__first)
     {
-        std::int32_t __bin = __func.get_bin(*__first);
+        oneapi::dpl::__internal::__bin_idx_t __bin = __func.get_bin(*__first);
         if (__bin >= 0)
         {
             ++__histogram_first[__bin];

@@ -45,7 +45,7 @@ struct __custom_boundary_range_binhash
     __custom_boundary_range_binhash(_Range __boundaries_) : __boundaries(__boundaries_) {}
 
     template <typename _T2>
-    auto
+    oneapi::dpl::__internal::__bin_idx_t
     get_bin(_T2 __value) const
     {
         return oneapi::dpl::__internal::__custom_boundary_get_bin_helper(
@@ -66,7 +66,7 @@ struct __binhash_SLM_wrapper
     }
 
     template <typename _T>
-    auto
+    oneapi::dpl::__internal::__bin_idx_t
     get_bin(_T __value) const
     {
         return __bin_hash.get_bin(__value);
@@ -102,7 +102,7 @@ struct __binhash_SLM_wrapper<__custom_boundary_range_binhash<_Range>, _ExtraMemA
     }
 
     template <typename _T>
-    auto
+    oneapi::dpl::__internal::__bin_idx_t
     get_bin(_T __value) const
     {
         auto __size = __slm_mem.size();
@@ -160,7 +160,7 @@ __accum_local_atomics_iter(const _ValueType& __x, const _HistAccessor& __wg_loca
                            std::uint32_t __stride, _BinFunc __func)
 {
     using _histo_value_type = typename _HistAccessor::value_type;
-    auto __c = __func.get_bin(__x);
+    oneapi::dpl::__internal::__bin_idx_t __c = __func.get_bin(__x);
     if (__c >= 0)
     {
         __dpl_sycl::__atomic_ref<_histo_value_type, _AddressSpace> __local_bin(
