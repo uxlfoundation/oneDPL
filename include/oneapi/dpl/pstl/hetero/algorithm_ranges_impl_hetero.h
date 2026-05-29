@@ -1212,8 +1212,8 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 
     // {} \ {2}: the difference is empty
     if (__n1 == 0)
-        return oneapi::dpl::__ranges::__create_set_difference_result(__first1, /*not used in result for now*/ __first2,
-                                                                     __result);
+        return oneapi::dpl::__ranges::__create_set_difference_result(
+            __first1, /*not used in result for now*/ __first2, __result);
 
     // {1} \ {}: the difference is {1}
     if (oneapi::dpl::__ranges::__empty(__r2))
