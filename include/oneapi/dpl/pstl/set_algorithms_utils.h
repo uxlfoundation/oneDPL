@@ -91,25 +91,6 @@ struct _UninitializedCopyItem
         }
     }
 };
-
-template <typename _CopyFunc>
-struct _CopyOpWrapper
-{
-    _CopyFunc _copy;
-
-    template <typename _InputIterator>
-    void
-    operator()(_InputIterator, oneapi::dpl::discard_iterator) const
-    {
-    }
-
-    template <typename _InputIterator, typename _OutputIterator>
-    void
-    operator()(_InputIterator __it_in, _OutputIterator __it_out) const
-    {
-        _copy(*__it_in, *__it_out);
-    }
-};
 } // namespace __internal
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator>
@@ -179,7 +160,7 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
                              _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
                              _Proj2 __proj2, _MaskIterator __mask)
 {
-    __internal::_CopyOpWrapper<_CopyFunc> __copy;
+    __internal::_UninitializedCopyItem<_ForwardIterator1, _OutputIterator> _uninitialized_copy_from1;
 
     while (__first1 != __last1 && __first2 != __last2)
     {
@@ -195,7 +176,7 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
         }
         else
         {
-            __copy(__first1, __result);
+            _uninitialized_copy_from1(__first1, __result);
             ++__first1;
             ++__first2;
             ++__result;
