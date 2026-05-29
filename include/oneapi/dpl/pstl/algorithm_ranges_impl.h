@@ -899,13 +899,11 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _P
     const auto __n_out = oneapi::dpl::__ranges::__size(__r_out);
 
     if (__n_out >= __n1 + __n2)
-        return __serial_set_union_impl</*_Bounded*/ false>(
-            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__r_out), __comp, __proj1,
-            __proj2);
+        return __serial_set_union_impl</*_Bounded*/ false>(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                           std::forward<_OutRange>(__r_out), __comp, __proj1, __proj2);
     else
-        return __serial_set_union_impl</*_Bounded*/ true>(
-            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__r_out), __comp, __proj1,
-            __proj2);
+        return __serial_set_union_impl</*_Bounded*/ true>(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                          std::forward<_OutRange>(__r_out), __comp, __proj1, __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -1019,13 +1017,13 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
     const auto __n_out = oneapi::dpl::__ranges::__size(__out_r);
 
     if (__n_out >= std::min(__n1, __n2))
-        return __serial_set_intersection_impl</*_Bounded*/ false>(
-            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
-            __proj2);
+        return __serial_set_intersection_impl</*_Bounded*/ false>(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                                  std::forward<_OutRange>(__out_r), __comp, __proj1,
+                                                                  __proj2);
     else
-        return __serial_set_intersection_impl</*_Bounded*/ true>(
-            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
-            __proj2);
+        return __serial_set_intersection_impl</*_Bounded*/ true>(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                                 std::forward<_OutRange>(__out_r), __comp, __proj1,
+                                                                 __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -1195,13 +1193,13 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
     const auto __n_out = oneapi::dpl::__ranges::__size(__out_r);
 
     if (__n_out >= __n1)
-        return __serial_set_difference_impl</*_Bounded*/ false>(
-            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
-            __proj2);
+        return __serial_set_difference_impl</*_Bounded*/ false>(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                                std::forward<_OutRange>(__out_r), __comp, __proj1,
+                                                                __proj2);
     else
-        return __serial_set_difference_impl</*_Bounded*/ true>(
-            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
-            __proj2);
+        return __serial_set_difference_impl</*_Bounded*/ true>(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                                               std::forward<_OutRange>(__out_r), __comp, __proj1,
+                                                               __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
