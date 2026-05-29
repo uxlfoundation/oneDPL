@@ -92,26 +92,6 @@ struct _UninitializedCopyItem
     }
 };
 
-template <typename _CopyConstructRange>
-struct _CopyConstructRangeOpWrapper
-{
-    _CopyConstructRange _cc_range;
-
-    template <typename _InputIterator>
-    oneapi::dpl::discard_iterator
-    operator()(_InputIterator, _InputIterator, oneapi::dpl::discard_iterator)
-    {
-        return oneapi::dpl::discard_iterator{};
-    }
-
-    template <typename _InputIterator, typename _OutputIterator>
-    _OutputIterator
-    operator()(_InputIterator __first, _InputIterator __last, _OutputIterator __result)
-    {
-        return _cc_range(__first, __last, __result);
-    }
-};
-
 template <typename _CopyFunc>
 struct _CopyOpWrapper
 {
@@ -152,7 +132,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
     __internal::_UninitializedCopyItem<_ForwardIterator1, _OutputIterator> _uninitialized_copy_from1;
     __internal::_UninitializedCopyItem<_ForwardIterator2, _OutputIterator> _uninitialized_copy_from2;
 
-    __internal::_CopyConstructRangeOpWrapper<_CopyConstructRange> __cc_range;
+    _CopyConstructRange __cc_range;
 
     for (; __first1 != __last1; ++__result)
     {
@@ -235,7 +215,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 {
     __internal::_UninitializedCopyItem<_ForwardIterator1, _OutputIterator> _uninitialized_copy_from1;
 
-    __internal::_CopyConstructRangeOpWrapper<_CopyConstructRange> __cc_range;
+    _CopyConstructRange __cc_range;
 
     while (__first1 != __last1)
     {
@@ -282,7 +262,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
     __internal::_UninitializedCopyItem<_ForwardIterator1, _OutputIterator> _uninitialized_copy_from1;
     __internal::_UninitializedCopyItem<_ForwardIterator2, _OutputIterator> _uninitialized_copy_from2;
 
-    __internal::_CopyConstructRangeOpWrapper<_CopyConstructRange> __cc_range;
+    _CopyConstructRange __cc_range;
 
     while (__first1 != __last1)
     {

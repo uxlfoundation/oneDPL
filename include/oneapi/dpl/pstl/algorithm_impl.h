@@ -4265,7 +4265,10 @@ struct __BrickCopyConstruct
     _OutputIterator
     operator()(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result)
     {
-        return __brick_uninitialized_copy(__first, __last, __result, _IsVector());
+        if constexpr (!std::is_same_v<std::remove_cv_t<_OutputIterator>, oneapi::dpl::discard_iterator>)
+            return __brick_uninitialized_copy(__first, __last, __result, _IsVector());
+        else
+            return __result;
     }
 };
 
