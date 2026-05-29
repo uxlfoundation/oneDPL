@@ -463,21 +463,25 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    test_range_algo<0, int, data_in_in_out, div3_t, mul1_t>{get_scan_big_sz()}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker);
-    test_range_algo<1, int, data_in_in_out, mul1_t, div3_t>{get_scan_big_sz()}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, proj);
+#if TEST_DPCPP_BACKEND_PRESENT
+    constexpr auto test_mode = TestDataMode::data_in_in_out_lim;
+#else
+    constexpr auto test_mode = TestDataMode::data_in_in_out;
+#endif
+
+    test_range_algo<0, int, test_mode, div3_t, mul1_t>{get_scan_big_sz()}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker);
+    test_range_algo<1, int, test_mode, mul1_t, div3_t>{get_scan_big_sz()}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, proj);
 
     // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
-    test_range_algo<2, int, data_in_in_out_lim, mul1_t, mul1_t>{100}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, proj, proj);
+    test_range_algo<2, int, test_mode, mul1_t, mul1_t>{100}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, proj, proj);
 
-    test_range_algo<3,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, &P2::x, &P2::x);
-    test_range_algo<4,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, &P2::proj, &P2::proj);
+    test_range_algo<3,  P2, test_mode, mul1_t, div3_t>{}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, &P2::x, &P2::x);
+    test_range_algo<4,  P2, test_mode, mul1_t, div3_t>{}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
     // Check if projections are applied to the right sequences and trigger a compile-time error if not
     test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
-#if !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
     test_mixed_types_device();
-#endif
 #endif
 
     bProcessed = true;
