@@ -210,14 +210,14 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
         }
         else
         {
-            if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+            if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
             {
-                ++__first1;
-                __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::both);
+                __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::data2);
             }
             else
             {
-                __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::data2);
+                ++__first1;
+                __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::both);
             }
             ++__first2;
         }
