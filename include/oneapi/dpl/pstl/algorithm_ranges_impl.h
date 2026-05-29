@@ -844,7 +844,7 @@ using __set_union_return_t =
     std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                                   std::ranges::borrowed_iterator_t<_OutRange>>;
 
-template <bool _NeedOutputBoundsCheck, typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1,
+template <bool _Bounded, typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1,
           typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
 __serial_set_union_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -856,7 +856,7 @@ __serial_set_union_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __com
     // 1. Main set_union operation
     while (__it1 != __end1 && __it2 != __end2)
     {
-        if constexpr (_NeedOutputBoundsCheck)
+        if constexpr (_Bounded)
         {
             if (__out_it == __out_end)
                 break;
@@ -899,11 +899,11 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _P
     const auto __n_out = oneapi::dpl::__ranges::__size(__r_out);
 
     if (__n_out >= __n1 + __n2)
-        return __serial_set_union_impl</*_NeedOutputBoundsCheck*/ false>(
+        return __serial_set_union_impl</*_Bounded*/ false>(
             std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__r_out), __comp, __proj1,
             __proj2);
     else
-        return __serial_set_union_impl</*_NeedOutputBoundsCheck*/ true>(
+        return __serial_set_union_impl</*_Bounded*/ true>(
             std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__r_out), __comp, __proj1,
             __proj2);
 }
@@ -971,7 +971,7 @@ using __set_intersection_return_t =
     std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                                          std::ranges::borrowed_iterator_t<_OutRange>>;
 
-template <bool _NeedOutputBoundsCheck, typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1,
+template <bool _Bounded, typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1,
           typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
 __serial_set_intersection_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
@@ -993,7 +993,7 @@ __serial_set_intersection_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Com
         }
         else
         {
-            if constexpr (_NeedOutputBoundsCheck)
+            if constexpr (_Bounded)
             {
                 if (__out_it == __out_end)
                     break;
@@ -1019,11 +1019,11 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
     const auto __n_out = oneapi::dpl::__ranges::__size(__out_r);
 
     if (__n_out >= std::min(__n1, __n2))
-        return __serial_set_intersection_impl</*_NeedOutputBoundsCheck*/ false>(
+        return __serial_set_intersection_impl</*_Bounded*/ false>(
             std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
             __proj2);
     else
-        return __serial_set_intersection_impl</*_NeedOutputBoundsCheck*/ true>(
+        return __serial_set_intersection_impl</*_Bounded*/ true>(
             std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
             __proj2);
 }
@@ -1145,7 +1145,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 // set_difference
 //---------------------------------------------------------------------------------------------------------------------
 
-template <bool _NeedOutputBoundsCheck, typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1,
+template <bool _Bounded, typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1,
           typename _Proj2>
 oneapi::dpl::__ranges::__set_difference_return_t<_R1, _R2, _OutRange>
 __serial_set_difference_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -1159,7 +1159,7 @@ __serial_set_difference_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp 
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
         {
-            if constexpr (_NeedOutputBoundsCheck)
+            if constexpr (_Bounded)
             {
                 if (__out_it == __out_end)
                     break;
@@ -1195,11 +1195,11 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
     const auto __n_out = oneapi::dpl::__ranges::__size(__out_r);
 
     if (__n_out >= __n1)
-        return __serial_set_difference_impl</*_NeedOutputBoundsCheck*/ false>(
+        return __serial_set_difference_impl</*_Bounded*/ false>(
             std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
             __proj2);
     else
-        return __serial_set_difference_impl</*_NeedOutputBoundsCheck*/ true>(
+        return __serial_set_difference_impl</*_Bounded*/ true>(
             std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
             __proj2);
 }
@@ -1324,7 +1324,7 @@ using __set_symmetric_difference_return_t =
                                                  std::ranges::borrowed_iterator_t<_R2>,
                                                  std::ranges::borrowed_iterator_t<_OutRange>>;
 
-template <bool _NeedOutputBoundsCheck, typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1,
+template <bool _Bounded, typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1,
           typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
 __serial_set_symmetric_difference_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
@@ -1339,7 +1339,7 @@ __serial_set_symmetric_difference_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
         {
-            if constexpr (_NeedOutputBoundsCheck)
+            if constexpr (_Bounded)
             {
                 if (__out_it == __out_end)
                     break;
@@ -1350,7 +1350,7 @@ __serial_set_symmetric_difference_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out
         }
         else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
         {
-            if constexpr (_NeedOutputBoundsCheck)
+            if constexpr (_Bounded)
             {
                 if (__out_it == __out_end)
                     break;
@@ -1385,11 +1385,11 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
     const auto __n_out = oneapi::dpl::__ranges::__size(__out_r);
 
     if (__n_out >= __n1 + __n2)
-        return __serial_set_symmetric_difference_impl</*_NeedOutputBoundsCheck*/ false>(
+        return __serial_set_symmetric_difference_impl</*_Bounded*/ false>(
             std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
             __proj2);
     else
-        return __serial_set_symmetric_difference_impl</*_NeedOutputBoundsCheck*/ true>(
+        return __serial_set_symmetric_difference_impl</*_Bounded*/ true>(
             std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
             __proj2);
 }
