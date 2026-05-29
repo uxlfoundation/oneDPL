@@ -1108,7 +1108,8 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
                     _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
 #    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
-    static_assert(false, "std::ranges::set_union is not implemented for hetero backend in C++26 compatibility mode.");
+    static_assert(oneapi::dpl::__internal::__always_false_v<_ExecutionPolicy>,
+                  "std::ranges::set_union is not implemented for hetero backend in C++26 compatibility mode.");
 #    endif
 
     const auto __first1 = std::ranges::begin(__r1);
@@ -1165,7 +1166,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
                            _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
 #    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
-    static_assert(false,
+    static_assert(oneapi::dpl::__internal::__always_false_v<_ExecutionPolicy>,
                   "std::ranges::set_intersection is not implemented for hetero backend in C++26 compatibility mode.");
 #    endif
 
@@ -1199,7 +1200,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                          _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
 #    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
-    static_assert(false,
+    static_assert(oneapi::dpl::__internal::__always_false_v<_ExecutionPolicy>,
                   "std::ranges::set_difference is not implemented for hetero backend in C++26 compatibility mode.");
 #    endif
 
@@ -1255,7 +1256,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
 {
 #    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
     static_assert(
-        false,
+        oneapi::dpl::__internal::__always_false_v<_ExecutionPolicy>,
         "std::ranges::set_symmetric_difference is not implemented for hetero backend in C++26 compatibility mode.");
 #    endif
 
