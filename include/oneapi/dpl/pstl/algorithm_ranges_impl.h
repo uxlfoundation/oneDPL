@@ -844,19 +844,24 @@ using __set_union_return_t =
     std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                                   std::ranges::borrowed_iterator_t<_OutRange>>;
 
-// Bounded set union: performs set_union with output range capacity checking.
-// Truncates result if output range is too small.
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+template <bool _NeedOutputBoundsCheck, typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1,
+          typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
-__serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__serial_set_union_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     auto [__it1, __end1] = oneapi::dpl::__ranges::__bounds(__r1);
     auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__r_out);
 
     // 1. Main set_union operation
-    while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
+    while (__it1 != __end1 && __it2 != __end2)
     {
+        if constexpr (_NeedOutputBoundsCheck)
+        {
+            if (__out_it == __out_end)
+                break;
+        }
+
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
         {
             *__out_it = *__it1;
@@ -881,6 +886,26 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _P
     auto __copy2 = std::ranges::copy_n(__it2, __min_range_size(__it2, __end2, __copy1.out, __out_end), __copy1.out);
 
     return {__copy1.in, __copy2.in, __copy2.out};
+}
+
+// Bounded set union: performs set_union with output range capacity checking.
+// Truncates result if output range is too small.
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+__set_union_return_t<_R1, _R2, _OutRange>
+__serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
+    const auto __n2 = oneapi::dpl::__ranges::__size(__r2);
+    const auto __n_out = oneapi::dpl::__ranges::__size(__r_out);
+
+    if (__n_out >= __n1 + __n2)
+        return __serial_set_union_impl</*_NeedOutputBoundsCheck*/ false>(
+            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__r_out), __comp, __proj1,
+            __proj2);
+    else
+        return __serial_set_union_impl</*_NeedOutputBoundsCheck*/ true>(
+            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__r_out), __comp, __proj1,
+            __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -946,11 +971,11 @@ using __set_intersection_return_t =
     std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                                          std::ranges::borrowed_iterator_t<_OutRange>>;
 
-// Bounded set intersection: performs set_intersection with output range capacity checking.
-// Truncates result if output range is too small.
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+template <bool _NeedOutputBoundsCheck, typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1,
+          typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
-__serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__serial_set_intersection_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
+                               _Proj2 __proj2)
 {
     auto [__it1, __end1] = oneapi::dpl::__ranges::__bounds(__r1);
     auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds(__r2);
@@ -966,20 +991,41 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
         {
             ++__it2;
         }
-        else if (__out_it != __out_end)
+        else
         {
+            if constexpr (_NeedOutputBoundsCheck)
+            {
+                if (__out_it == __out_end)
+                    break;
+            }
             *__out_it = *__it1;
             ++__out_it;
             ++__it1;
             ++__it2;
         }
-        else
-        {
-            break;
-        }
     }
 
     return {__it1, __it2, __out_it};
+}
+
+// Bounded set intersection: performs set_intersection with output range capacity checking.
+// Truncates result if output range is too small.
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+__set_intersection_return_t<_R1, _R2, _OutRange>
+__serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
+    const auto __n2 = oneapi::dpl::__ranges::__size(__r2);
+    const auto __n_out = oneapi::dpl::__ranges::__size(__out_r);
+
+    if (__n_out >= std::min(__n1, __n2))
+        return __serial_set_intersection_impl</*_NeedOutputBoundsCheck*/ false>(
+            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
+            __proj2);
+    else
+        return __serial_set_intersection_impl</*_NeedOutputBoundsCheck*/ true>(
+            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
+            __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -1099,11 +1145,10 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 // set_difference
 //---------------------------------------------------------------------------------------------------------------------
 
-// Bounded set difference: performs set_difference with output range capacity checking.
-// Truncates result if output range is too small.
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+template <bool _NeedOutputBoundsCheck, typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1,
+          typename _Proj2>
 oneapi::dpl::__ranges::__set_difference_return_t<_R1, _R2, _OutRange>
-__serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__serial_set_difference_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     auto [__it1, __end1] = oneapi::dpl::__ranges::__bounds(__r1);
     auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds(__r2);
@@ -1114,14 +1159,14 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
         {
-            if (__out_it != __out_end)
+            if constexpr (_NeedOutputBoundsCheck)
             {
-                *__out_it = *__it1;
-                ++__it1;
-                ++__out_it;
+                if (__out_it == __out_end)
+                    break;
             }
-            else
-                break;
+            *__out_it = *__it1;
+            ++__it1;
+            ++__out_it;
         }
         else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
         {
@@ -1138,6 +1183,25 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
     auto __copy = std::ranges::copy_n(__it1, __min_range_size(__it1, __end1, __out_it, __out_end), __out_it);
 
     return oneapi::dpl::__ranges::__create_set_difference_result(__copy.in, __it2, __copy.out);
+}
+
+// Bounded set difference: performs set_difference with output range capacity checking.
+// Truncates result if output range is too small.
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+oneapi::dpl::__ranges::__set_difference_return_t<_R1, _R2, _OutRange>
+__serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
+    const auto __n_out = oneapi::dpl::__ranges::__size(__out_r);
+
+    if (__n_out >= __n1)
+        return __serial_set_difference_impl</*_NeedOutputBoundsCheck*/ false>(
+            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
+            __proj2);
+    else
+        return __serial_set_difference_impl</*_NeedOutputBoundsCheck*/ true>(
+            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
+            __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -1260,12 +1324,11 @@ using __set_symmetric_difference_return_t =
                                                  std::ranges::borrowed_iterator_t<_R2>,
                                                  std::ranges::borrowed_iterator_t<_OutRange>>;
 
-// Bounded set symmetric difference: performs set_symmetric_difference with output range capacity checking.
-// Truncates result if output range is too small.
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+template <bool _NeedOutputBoundsCheck, typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1,
+          typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
-__serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
-                                  _Proj2 __proj2)
+__serial_set_symmetric_difference_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
+                                       _Proj2 __proj2)
 {
     auto [__it1, __end1] = oneapi::dpl::__ranges::__bounds(__r1);
     auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds(__r2);
@@ -1276,25 +1339,25 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
         {
-            if (__out_it != __out_end)
+            if constexpr (_NeedOutputBoundsCheck)
             {
-                *__out_it = *__it1;
-                ++__it1;
-                ++__out_it;
+                if (__out_it == __out_end)
+                    break;
             }
-            else
-                break;
+            *__out_it = *__it1;
+            ++__it1;
+            ++__out_it;
         }
         else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
         {
-            if (__out_it != __out_end)
+            if constexpr (_NeedOutputBoundsCheck)
             {
-                *__out_it = *__it2;
-                ++__it2;
-                ++__out_it;
+                if (__out_it == __out_end)
+                    break;
             }
-            else
-                break;
+            *__out_it = *__it2;
+            ++__it2;
+            ++__out_it;
         }
         else
         {
@@ -1308,6 +1371,27 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
     auto __copy2 = std::ranges::copy_n(__it2, __min_range_size(__it2, __end2, __copy1.out, __out_end), __copy1.out);
 
     return {__copy1.in, __copy2.in, __copy2.out};
+}
+
+// Bounded set symmetric difference: performs set_symmetric_difference with output range capacity checking.
+// Truncates result if output range is too small.
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+__set_symmetric_difference_return_t<_R1, _R2, _OutRange>
+__serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
+                                  _Proj2 __proj2)
+{
+    const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
+    const auto __n2 = oneapi::dpl::__ranges::__size(__r2);
+    const auto __n_out = oneapi::dpl::__ranges::__size(__out_r);
+
+    if (__n_out >= __n1 + __n2)
+        return __serial_set_symmetric_difference_impl</*_NeedOutputBoundsCheck*/ false>(
+            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
+            __proj2);
+    else
+        return __serial_set_symmetric_difference_impl</*_NeedOutputBoundsCheck*/ true>(
+            std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp, __proj1,
+            __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
