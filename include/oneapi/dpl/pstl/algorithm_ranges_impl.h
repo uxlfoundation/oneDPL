@@ -846,8 +846,7 @@ using __set_union_return_t =
 
 // Bounded set union: performs set_union with output range capacity checking.
 // Truncates result if output range is too small.
-template <std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
-          std::ranges::random_access_range _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
 __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
