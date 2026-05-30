@@ -2410,31 +2410,23 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                       sycl::event __prior_event = {})
 {
     using _ValueType = typename _InitType::__value_type;
-    // Native sycl sub-group operations can only be used on trivially copyable types. Dispatch above the
-    // kernel here so the kernel itself is instantiated with a fixed __use_subgroup_ops template arg.
-    // The icpx compiler is able to avoid JIT compilation for kernels for platform types which are not
-    // in the real runtime path of the program, so we can branch like this without JIT-time penalty.
-
+    // Native sycl sub-group operations can only be used on trivially copyable types, for other types, use SLM variant
     if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {
-        // CPU targets should use the SLM-based approach, as they do not perform well with the native sub-group
-        // operations used in the GPU-optimized approach.
-        if (__q.get_device().is_gpu())
-        {
-            return __parallel_transform_reduce_then_scan_impl<_Bounded, /*__use_subgroup_ops=*/true,
-                                                              __bytes_per_work_item_iter, _CustomName>(
-                __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input,
-                __reduce_op, __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive,
-                __is_unique_pattern, __transform_result, std::move(__prior_event));
-        }
+        return __parallel_transform_reduce_then_scan_impl<_Bounded, /*__use_subgroup_ops=*/true,
+                                                            __bytes_per_work_item_iter, _CustomName>(
+            __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input,
+            __reduce_op, __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive,
+            __is_unique_pattern, __transform_result, std::move(__prior_event));
     }
-
-    // if CPU target or non-trivially-copyable type, use SLM-based approach
-    return __parallel_transform_reduce_then_scan_impl<_Bounded, /*__use_subgroup_ops=*/false,
-                                                      __bytes_per_work_item_iter, _CustomName>(
-        __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
-        __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
-        __transform_result, std::move(__prior_event));
+    else
+    {
+        return __parallel_transform_reduce_then_scan_impl<_Bounded, /*__use_subgroup_ops=*/false,
+                                                        __bytes_per_work_item_iter, _CustomName>(
+            __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
+            __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
+            __transform_result, std::move(__prior_event));
+    }
 }
 
 template <typename _CustomName, typename _InInOutRng, typename _GenReduceInput>
