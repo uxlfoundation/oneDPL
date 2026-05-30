@@ -2414,15 +2414,15 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {
         return __parallel_transform_reduce_then_scan_impl<_Bounded, /*__use_subgroup_ops=*/true,
-                                                            __bytes_per_work_item_iter, _CustomName>(
-            __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input,
-            __reduce_op, __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive,
-            __is_unique_pattern, __transform_result, std::move(__prior_event));
+                                                          __bytes_per_work_item_iter, _CustomName>(
+            __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
+            __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
+            __transform_result, std::move(__prior_event));
     }
     else
     {
         return __parallel_transform_reduce_then_scan_impl<_Bounded, /*__use_subgroup_ops=*/false,
-                                                        __bytes_per_work_item_iter, _CustomName>(
+                                                          __bytes_per_work_item_iter, _CustomName>(
             __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
             __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
             __transform_result, std::move(__prior_event));
