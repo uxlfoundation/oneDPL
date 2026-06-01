@@ -865,11 +865,8 @@ __serial_set_union_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __com
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__r_out);
 
     // 1. Main set_union operation
-    while (__it1 != __end1 && __it2 != __end2)
+    while (__it1 != __end1 && __it2 != __end2 && !__is_oob_reached<_Bounded>(__out_it, __out_end))
     {
-        if (__is_oob_reached<_Bounded>(__out_it, __out_end))
-            break;
-
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
         {
             *__out_it = *__it1;
