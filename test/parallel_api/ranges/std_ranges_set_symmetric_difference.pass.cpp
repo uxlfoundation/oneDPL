@@ -352,7 +352,7 @@ test_set_symmetric_difference_checker()
         EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
     {
         // set1:                   1, 2, 3
         // set2:                   4, 5, 6
@@ -410,7 +410,7 @@ test_set_symmetric_difference_checker()
         EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
     {
         // set1:                   1, 3, 5, 6
         // set2:                   1, 2,   ^  8, 9

@@ -868,7 +868,7 @@ struct __internal::__set_intersection_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
-#    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#    if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         return oneapi::dpl::__internal::__ranges::__pattern_set_intersection(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);

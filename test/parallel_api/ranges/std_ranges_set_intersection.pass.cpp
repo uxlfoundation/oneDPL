@@ -128,7 +128,7 @@ struct
             }
         }
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         return {in1 + idx1, in2 + idx2, out + idxOut};
 #else
         return {in1 + n1, in2 + n2, out + idxOut};
@@ -149,7 +149,7 @@ test_set_intersection_checker()
         auto res = set_intersection_checker(set1, set2, set3);
 
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 13) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
         EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
@@ -167,7 +167,7 @@ test_set_intersection_checker()
 
         auto res = set_intersection_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(std::find(set1.begin(), set1.end(), 12) - set1.begin(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
 #else
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
@@ -187,7 +187,7 @@ test_set_intersection_checker()
         auto res = set_intersection_checker(set1, set2, set3);
 
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 17) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
         EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
@@ -220,7 +220,7 @@ test_set_intersection_checker()
         
         auto res = set_intersection_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(std::find(set1.begin(), set1.end(), 12) - set1.begin(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
 #else
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
@@ -240,7 +240,7 @@ test_set_intersection_checker()
         auto res = set_intersection_checker(set1, set2, set3);
 
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 2) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
         EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
@@ -258,7 +258,7 @@ test_set_intersection_checker()
         
         auto res = set_intersection_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(std::find(set1.begin(), set1.end(), 12) - set1.begin(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
 #else
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
@@ -278,7 +278,7 @@ test_set_intersection_checker()
         auto res = set_intersection_checker(set1, set2, set3);
 
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 13) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
         EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
@@ -297,7 +297,7 @@ test_set_intersection_checker()
         auto res = set_intersection_checker(set1, set2, set3);
 
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 3) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
         EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
@@ -315,7 +315,7 @@ test_set_intersection_checker()
         
         auto res = set_intersection_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(std::find(set1.begin(), set1.end(), 3) - set1.begin(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
 #else
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
@@ -356,7 +356,7 @@ test_set_intersection_checker()
         auto res = set_intersection_checker(set1, set2, set3);
 
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 20) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
         EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
@@ -365,7 +365,7 @@ test_set_intersection_checker()
         EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
     {
         // set1:                   1, 2, 3, 4, 5,             10, 11, 12, 13, 14, 15
         // set2:                   1, 2, 3, 4, 5, 6, 7, 8, 9,                                         20, 21, 22, 23, 24, 25
@@ -404,7 +404,7 @@ test_set_intersection_checker()
         auto res = set_intersection_checker(set1, set2, set3);
 
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 21) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
         EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
@@ -413,7 +413,7 @@ test_set_intersection_checker()
         EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
     }
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
     {
         // set1:                   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,                 15, 16, 17, 18, 19, 20
         // set2:                            4, 5, 6, 7,           11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25
