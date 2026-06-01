@@ -16,7 +16,7 @@
 #ifndef _ONEDPL_UTILS_RANGES_H
 #define _ONEDPL_UTILS_RANGES_H
 
-#include <tuple>       // std::get
+#include <tuple>       // std::get, make_tuple
 #include <cstdint>     // std::uint8_t
 #include <cstddef>     // std::size_t, std::ptrdiff_t
 #include <utility>     // std::declval
@@ -102,6 +102,28 @@ __size(_Range&& __rng)
     return __end(__rng) - __begin(__rng);
 }
 #endif
+
+// Returns std::tuple with begin and end of the range
+template <typename _Range>
+auto
+__bounds(_Range&& __rng)
+{
+    const auto __n = __size(__rng);
+    auto __first = __begin(__rng);
+
+    return std::make_tuple(__first, __first + __n);
+}
+
+// Returns std::tuple with begin, end and size of the range
+template <typename _Range>
+auto
+__bounds_and_size(_Range&& __rng)
+{
+    const auto __n = __size(__rng);
+    auto __first = __begin(__rng);
+
+    return std::make_tuple(__first, __first + __n, __n);
+}
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _Range>

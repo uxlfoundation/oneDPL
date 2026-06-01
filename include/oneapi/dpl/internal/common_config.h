@@ -68,4 +68,8 @@
 #    endif
 #endif // __cplusplus >= 201703L
 
+#ifndef ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#    define ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED 0
+#endif
+
 #endif // _ONEDPL_COMMON_CONFIG_H

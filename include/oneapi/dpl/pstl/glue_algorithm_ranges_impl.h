@@ -30,6 +30,7 @@
 
 #include "execution_defs.h"
 #include "oneapi/dpl/pstl/ranges_defs.h"
+#include "set_algorithms_utils.h" // for __set_difference_return_t
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #    include "algorithm_ranges_impl.h"
@@ -866,9 +867,18 @@ struct __internal::__set_intersection_fn
                _Proj1 __proj1 = {}, _Proj2 __proj2 = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+
+#    if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
         return oneapi::dpl::__internal::__ranges::__pattern_set_intersection(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
+#    else
+        return {std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2) + std::ranges::size(__r2),
+                oneapi::dpl::__internal::__ranges::__pattern_set_intersection(
+                    __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __r1, __r2,
+                    std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2)
+                    .out};
+#    endif
     }
 }; //__set_intersection_fn
 inline constexpr __internal::__set_intersection_fn set_intersection;
@@ -886,8 +896,7 @@ struct __internal::__set_difference_fn
                  std::mergeable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>,
                                 std::ranges::iterator_t<_OutRange>, _Comp, _Proj1, _Proj2>
 
-    std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
-                                       std::ranges::borrowed_iterator_t<_OutRange>>
+    oneapi::dpl::__utils::__set_difference_return_t<_R1, _R2, _OutRange>
     operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp = {},
                _Proj1 __proj1 = {}, _Proj2 __proj2 = {}) const
     {

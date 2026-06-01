@@ -243,6 +243,12 @@ template <typename I1, typename I2>
 static constexpr bool check_in_in_result<std::ranges::in_in_result<I1, I2>> = true;
 
 template <typename T>
+static constexpr bool check_in_out_result{};
+
+template <typename I1, typename O>
+static constexpr bool check_in_out_result<std::ranges::in_out_result<I1, O>> = true;
+
+template <typename T>
 static constexpr bool check_in_in_out_result{};
 
 template <typename I1, typename I2, typename O>
@@ -293,6 +299,10 @@ void call_with_host_policies(auto algo, auto... args)
     algo(oneapi::dpl::execution::par, args...);
     algo(oneapi::dpl::execution::par_unseq, args...);
 }
+
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <typename Algo>
+inline constexpr bool skip_test_for_hetero_policy = false;
 
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
@@ -417,7 +427,12 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        if constexpr (check_in_out_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                        (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
+        else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                       (std::string("wrong input stop position with ") + names + sizes).c_str());
@@ -631,7 +646,12 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        if constexpr (check_in_out_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
+        else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                       (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
@@ -952,6 +972,13 @@ struct span_view_fo
 };
 #endif
 
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <TestDataMode mode>
+struct ResolveTestDataModeForHeteroPolicy
+{
+    static constexpr TestDataMode res_mode = mode;
+};
+
 template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
 struct test_range_algo
@@ -1027,11 +1054,14 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
-                test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
-                test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
+                // TODO remove after implementation range-based set operations for bounded output range with hetero policies
+                constexpr TestDataMode resHeteroMode = ResolveTestDataModeForHeteroPolicy<mode>::res_mode;
+
+                test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
+                test<T, usm_subrange<T>, resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-                test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
-                test<T, usm_span<T>,     mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
+                test<T, usm_span<T>,     resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
             }
         }
@@ -1044,15 +1074,42 @@ struct test_range_algo
         test_range_algo_impl_host(algo, checker, args...);
 
 #if TEST_DPCPP_BACKEND_PRESENT
-        auto policy = TestUtils::get_dpcpp_test_policy();
-        test_range_algo_impl_hetero(policy, algo, checker, args...);
+        // TODO remove after implementation range-based set operations for bounded output range with hetero policies
+        if constexpr (!skip_test_for_hetero_policy<decltype(algo)>)
+        {
+            auto policy = TestUtils::get_dpcpp_test_policy();
+            test_range_algo_impl_hetero(policy, algo, checker, args...);
 
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
-        TestUtils::check_compilation(policy, [&](auto&& policy) { test_range_algo_impl_hetero(policy, algo, checker, args...); });
+            TestUtils::check_compilation(policy, [&](auto&& policy) { test_range_algo_impl_hetero(policy, algo, checker, args...); });
 #endif
+        }
 #endif // TEST_DPCPP_BACKEND_PRESENT
     }
 };
+
+// @param TSize size - 1-based size of the range, zero for empty range
+// @param TIndex index - 0-based index of item in range to calculate remaining space for
+// @return TSize - remaining space in range starting from index
+template <typename TSize, typename TIndex>
+TSize
+eval_remaining_space(TSize size, TIndex index)
+{
+    if (size >= index)
+        return size - index;
+
+    return 0;
+}
+
+template <typename TSize1, typename TIndex1, typename TSize2, typename TIndex2>
+std::common_type_t<TSize1, TSize2>
+eval_remaining_space_min(TSize1 size1, TIndex1 index1, TSize2 size2, TIndex2 index2)
+{
+    const TSize1 space1 = eval_remaining_space(size1, index1);
+    const TSize2 space2 = eval_remaining_space(size2, index2);
+
+    return std::min<std::common_type_t<TSize1, TSize2>>(space1, space2);
+}
 
 } //namespace test_std_ranges
 
