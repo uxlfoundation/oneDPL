@@ -33,8 +33,6 @@ Existing Issues
 ^^^^^^^^^^^^^^^
 See oneDPL Guide for other `restrictions and known limitations`_.
 
-- ``ranges::copy_if`` and ``ranges::unique_copy`` with the output size smaller than the input size
-  may lose performance on GPU devices.
 - ``set_union``, ``set_intersection``, ``set_difference``, ``set_symmetric_difference`` range algorithms require the
   output range to have sufficient size to hold all resulting elements.
 - ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
