@@ -16,7 +16,7 @@
 #ifndef _ONEDPL_UTILS_RANGES_H
 #define _ONEDPL_UTILS_RANGES_H
 
-#include <tuple>       // std::get, std::make_tuple
+#include <tuple>       // std::get
 #include <cstdint>     // std::uint8_t
 #include <cstddef>     // std::size_t, std::ptrdiff_t
 #include <utility>     // std::declval, std::forward, std::move, std::pair, std::make_pair
@@ -103,7 +103,7 @@ __size(_Range&& __rng)
 }
 #endif
 
-// Returns std::pair with begin and end of the range
+// Returns std::tuple with begin and end of the range
 template <typename _Range>
 auto
 __bounds(_Range&& __rng)
@@ -111,7 +111,7 @@ __bounds(_Range&& __rng)
     const auto __n = __size(__rng);
     auto __first = __begin(__rng);
 
-    return std::make_pair(__first, __first + __n);
+    return std::make_tuple(__first, __first + __n);
 }
 
 // Returns std::tuple with begin, end and size of the range
