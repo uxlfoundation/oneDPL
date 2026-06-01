@@ -18,8 +18,8 @@ New Features
   ``ends_with``, ``contains``, ``contains_subrange``, ``lexicographical_compare``.
 - The sorting algorithms with device policies now can use radix sort with
   the ``less`` and ``greater`` comparators from the ``std::ranges`` namespace [#fnote1]_.
-- Implemented support for bounded output for range-based set algorithms with CPU policies.
-- Implemented C++26 semantic for range-based set algorithms with CPU policies.
+- Implemented support for bounded output for range-based set algorithms with CPU policies,
+  with optional support for C++26 semantics of return values.
 - Improved performance of ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` when using
   Radix sort [#fnote1]_ and device policies for key and/or value types larger than four bytes.
 - Improved performance of ``inclusive_scan``, ``exclusive_scan``, ``transform_inclusive_scan``, and
