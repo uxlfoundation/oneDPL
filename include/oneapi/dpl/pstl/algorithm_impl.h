@@ -3895,13 +3895,11 @@ struct _ParallelSetOpStrictReducePred
 
         //try searching for the first element which not equal to *__b
         if (__b != __first1)
-            __b +=
-                __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
+            __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
 
         //try searching for the first element which not equal to *__e
         if (__e != __last1)
-            __e +=
-                __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
+            __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
 
         //check is [__b; __e) empty
         if (__e - __b < 1)
@@ -3910,21 +3908,16 @@ struct _ParallelSetOpStrictReducePred
             if (__b != __last1)
                 __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b,
                                                                  __comp, __proj2, __proj1);
-
             const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
-
             _DataPart<_DifferenceType> __new_processing_data{0, 0, __buf_pos};
 
             if constexpr (_Bounded)
             {
                 _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{
                     {__b - __first1, 0}, {__bb - __first2, 0}};
-
                 _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2> __new_processed_data_amount{0, 0};
-
                 typename _SetRange::_DataStorage _ds{__new_processing_data, __new_offsets_to_processing_data,
                                                      __new_processed_data_amount};
-
                 return _SetRange{_ds};
             }
             else
@@ -3938,16 +3931,12 @@ struct _ParallelSetOpStrictReducePred
         if (__b != __first1)
             __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b,
                                                              __comp, __proj2, __proj1);
-
         _RandomAccessIterator2 __ee = __last2;
         if (__e != __last1)
             __ee = __bb + __internal::__pstl_lower_bound(__bb, _DifferenceType2{0}, __last2 - __bb, __e, __comp,
                                                          __proj2, __proj1);
-
         const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
-
         _T* __buffer_b = __buf_raw_data_begin + __buf_pos;
-
         auto [__it1_reached, __it2_reached, __output_reached, __mask_reached] =
             __set_op(__b, __e, __bb, __ee, __buffer_b, __comp, __proj1, __proj2, nullptr);
 
@@ -3958,15 +3947,11 @@ struct _ParallelSetOpStrictReducePred
         {
             _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{
                 {__b - __first1, __it1_reached - __b}, {__bb - __first2, __it2_reached - __bb}};
-
             const bool __something_reached = __it1_reached != __b || __it2_reached != __bb;
-
             _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2> __new_processed_data_amount{
                 __something_reached ? __it1_reached - __first1 : 0, __it2_reached - __first2};
-
             typename _SetRange::_DataStorage _ds{__new_processing_data, __new_offsets_to_processing_data,
                                                  __new_processed_data_amount};
-
             return _SetRange{_ds};
         }
         else
