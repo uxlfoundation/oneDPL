@@ -4088,7 +4088,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     // {1} {}: parallel copying just first sequence
     if (__n2 == 0)
     {
-        _RandomAccessIterator1 __last1_tmp = !_Bounded ? __last1 : __first1 + std::min<_DifferenceType>(__n1, __n_out);
+        _RandomAccessIterator1 __last1_tmp = _Bounded ? __first1 + std::min<_DifferenceType>(__n1, __n_out) : __last1;
 
         _OutputIterator __result_finish = __internal::__pattern_walk2_brick(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1_tmp, __result1, __copy_range);
@@ -4099,7 +4099,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     // {} {2}: parallel copying just second sequence
     if (__n1 == 0)
     {
-        _RandomAccessIterator2 __last2_tmp = !_Bounded ? __last2 : __first2 + std::min<_DifferenceType>(__n2, __n_out);
+        _RandomAccessIterator2 __last2_tmp = _Bounded ? __first2 + std::min<_DifferenceType>(__n2, __n_out) : __last2;
 
         _OutputIterator __result_finish = __internal::__pattern_walk2_brick(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2_tmp, __result1, __copy_range);
@@ -4114,12 +4114,12 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     if (__left_bound_seq_1 == __last1)
     {
-        _RandomAccessIterator1 __last1_tmp = !_Bounded ? __last1 : __first1 + std::min<_DifferenceType>(__n1, __n_out);
+        _RandomAccessIterator1 __last1_tmp = _Bounded ? __first1 + std::min<_DifferenceType>(__n1, __n_out) : __last1;
         const _DifferenceType1 __n1_tmp = __last1_tmp - __first1;
 
         _RandomAccessIterator2 __last2_tmp =
-            !_Bounded ? __last2
-                      : __first2 + std::min<_DifferenceType>(__n2, __n_out > __n1_tmp ? __n_out - __n1_tmp : 0);
+            _Bounded ? __first2 + std::min<_DifferenceType>(__n2, __n_out > __n1_tmp ? __n_out - __n1_tmp : 0)
+                     : __last2;
         const _DifferenceType2 __n2_tmp = __last2_tmp - __first2;
 
         //{1} < {2}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
@@ -4143,12 +4143,12 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     if (__left_bound_seq_2 == __last2)
     {
-        _RandomAccessIterator2 __last2_tmp = !_Bounded ? __last2 : __first2 + std::min<_DifferenceType>(__n2, __n_out);
+        _RandomAccessIterator2 __last2_tmp = _Bounded ? __first2 + std::min<_DifferenceType>(__n2, __n_out) : __last2;
         const _DifferenceType2 __n2_tmp = __last2_tmp - __first2;
 
         _RandomAccessIterator1 __last1_tmp =
-            !_Bounded ? __last1
-                      : __first1 + std::min<_DifferenceType>(__n1, __n_out > __n2_tmp ? __n_out - __n2_tmp : 0);
+            _Bounded ? __first1 + std::min<_DifferenceType>(__n1, __n_out > __n2_tmp ? __n_out - __n2_tmp : 0)
+                     : __last1;
         const _DifferenceType1 __n1_tmp = __last1_tmp - __first1;
 
         //{2} < {1}: seq1 is wholly greater than seq2, so, do parallel copying seq2 and seq1
