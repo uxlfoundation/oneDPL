@@ -16,10 +16,10 @@
 #ifndef _ONEDPL_UTILS_RANGES_H
 #define _ONEDPL_UTILS_RANGES_H
 
-#include <tuple>       // std::get
+#include <tuple>       // std::get, make_tuple
 #include <cstdint>     // std::uint8_t
 #include <cstddef>     // std::size_t, std::ptrdiff_t
-#include <utility>     // std::declval, std::forward, std::move, std::pair, std::make_pair
+#include <utility>     // std::declval
 #include <iterator>    // std::iterator_traits
 #include <type_traits> // std::decay_t, std::remove_cv_t, std::remove_reference_t, std::invoke_result_t, ...
 #include <cassert>     // assert
