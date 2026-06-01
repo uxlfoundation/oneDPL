@@ -873,8 +873,7 @@ struct __internal::__set_intersection_fn
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 #    else
-        return {oneapi::dpl::__ranges::__begin(__r1) + oneapi::dpl::__ranges::__size(__r1),
-                oneapi::dpl::__ranges::__begin(__r2) + oneapi::dpl::__ranges::__size(__r2),
+        return {std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2) + std::ranges::size(__r2),
                 oneapi::dpl::__internal::__ranges::__pattern_set_intersection(
                     __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __r1, __r2,
                     std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2)
