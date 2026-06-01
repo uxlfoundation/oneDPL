@@ -3384,19 +3384,20 @@ struct _SetRangeImpl
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
     using _DataStorage = std::conditional_t<
-        !_Bounded, _DataPart<_DifferenceType>,
+        _Bounded,
         std::tuple<_DataPart<_DifferenceType>, _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>,
-                   _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>>>;
+                   _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>>,
+        _DataPart<_DifferenceType>>;
 
     _DataStorage __data{};
 
     const _DataPart<_DifferenceType>&
     __get_data_part() const
     {
-        if constexpr (!_Bounded)
-            return __data;
-        else
+        if constexpr (_Bounded)
             return std::get<_DataIndex>(__data);
+        else
+            return __data;
     }
 
     const _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>&
@@ -3418,11 +3419,7 @@ struct _SetRangeImpl
     {
         auto __new_data_part = _DataPart<_DifferenceType>::__combine(__a.__get_data_part(), __b.__get_data_part());
 
-        if constexpr (!_Bounded)
-        {
-            return _SetRangeImpl{__new_data_part};
-        }
-        else
+        if constexpr (_Bounded)
         {
             typename _SetRangeImpl::_DataStorage __ds{
                 __new_data_part,
@@ -3432,6 +3429,10 @@ struct _SetRangeImpl
                 _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>::__combine(
                     __a.__get_src_processed_data_amount_part(), __b.__get_src_processed_data_amount_part())};
             return _SetRangeImpl{__ds};
+        }
+        else
+        {
+            return _SetRangeImpl{__new_data_part};
         }
     }
 };
@@ -3599,13 +3600,7 @@ struct _SetOpReachedPosEvaluator
     std::pair<_DifferenceType1, _DifferenceType2>
     __eval_reached_input_positions() const
     {
-        if constexpr (!_Bounded)
-        {
-            // In an unbounded set operation we don't have a real output size reached point,
-            // so just return the amounts of processed data in input ranges which are equal to input ranges sizes
-            return {__last1 - __first1, __last2 - __first2};
-        }
-        else
+        if constexpr (_Bounded)
         {
             // In a bounded set operation when we haven't reached the output size limit, we can process all data in input ranges,
             // so return the amounts of processed data in input ranges which are equal to input ranges sizes
@@ -3699,6 +3694,12 @@ struct _SetOpReachedPosEvaluator
 
             return {__res_reached_pos1, __res_reached_pos2};
         }
+        else
+        {
+            // In an unbounded set operation we don't have a real output size reached point,
+            // so just return the amounts of processed data in input ranges which are equal to input ranges sizes
+            return {__last1 - __first1, __last2 - __first2};
+        }
     }
 
     bool
@@ -3767,12 +3768,7 @@ struct _ParallelSetOpScanPred
     {
         const _DataPart<_DifferenceType>& __data_part = __s.__get_data_part();
 
-        if constexpr (!_Bounded)
-        {
-            // 1. Copy source data (unbounded)
-            __copy_data_to_result_buf(__data_part);
-        }
-        else
+        if constexpr (_Bounded)
         {
             // Copy source data (bounded)
             const auto __chunk_buf_pos_begin = __buf_pos_begin + __data_part.__buf_pos;
@@ -3799,6 +3795,11 @@ struct _ParallelSetOpScanPred
                     __source_final_pos_evaluator.__on_output_size_reached(__n_offset, __data_part,
                                                                           __s.__get_src_offsets_part());
             }
+        }
+        else
+        {
+            // Copy source data (unbounded)
+            __copy_data_to_result_buf(__data_part);
         }
     }
 
@@ -3914,11 +3915,7 @@ struct _ParallelSetOpStrictReducePred
 
             _DataPart<_DifferenceType> __new_processing_data{0, 0, __buf_pos};
 
-            if constexpr (!_Bounded)
-            {
-                return _SetRange{__new_processing_data};
-            }
-            else
+            if constexpr (_Bounded)
             {
                 _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{
                     {__b - __first1, 0}, {__bb - __first2, 0}};
@@ -3929,6 +3926,10 @@ struct _ParallelSetOpStrictReducePred
                                                      __new_processed_data_amount};
 
                 return _SetRange{_ds};
+            }
+            else
+            {
+                return _SetRange{__new_processing_data};
             }
         }
 
@@ -3953,11 +3954,7 @@ struct _ParallelSetOpStrictReducePred
         // Prepare processed data info
         const _DataPart<_DifferenceType> __new_processing_data{0, __output_reached - __buffer_b, __buf_pos};
 
-        if constexpr (!_Bounded)
-        {
-            return _SetRange{__new_processing_data};
-        }
-        else
+        if constexpr (_Bounded)
         {
             _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{
                 {__b - __first1, __it1_reached - __b}, {__bb - __first2, __it2_reached - __bb}};
@@ -3971,6 +3968,10 @@ struct _ParallelSetOpStrictReducePred
                                                  __new_processed_data_amount};
 
             return _SetRange{_ds};
+        }
+        else
+        {
+            return _SetRange{__new_processing_data};
         }
     }
 };
