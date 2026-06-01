@@ -117,6 +117,7 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202605L`` or a greater value,
 * ``remove_copy``, ``remove_copy_if``
 * ``replace_copy``, ``replace_copy_if``
 * ``starts_with``, ``ends_with``
+* ``ONEDPL_SET_RANGE_ALGS_CPP26_LIKE`` macro to enable C++26-conformant return values for ``set_*`` algorithms
 
 Usage Example for Parallel Range Algorithms
 -------------------------------------------
