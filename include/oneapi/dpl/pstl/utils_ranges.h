@@ -16,10 +16,10 @@
 #ifndef _ONEDPL_UTILS_RANGES_H
 #define _ONEDPL_UTILS_RANGES_H
 
-#include <tuple>       // std::get
+#include <tuple>       // std::get, std::make_tuple
 #include <cstdint>     // std::uint8_t
 #include <cstddef>     // std::size_t, std::ptrdiff_t
-#include <utility>     // std::declval
+#include <utility>     // std::declval, std::forward, std::move, std::pair, std::make_pair
 #include <iterator>    // std::iterator_traits
 #include <type_traits> // std::decay_t, std::remove_cv_t, std::remove_reference_t, std::invoke_result_t, ...
 #include <cassert>     // assert
@@ -103,46 +103,26 @@ __size(_Range&& __rng)
 }
 #endif
 
+// Returns std::pair with begin and end of the range
 template <typename _Range>
-struct __bounds_info
-{
-    using iterator_t = decltype(__begin(std::declval<_Range>()));
-
-    iterator_t first;
-    iterator_t last;
-};
-
-template <typename _Range>
-struct __bounds_and_size_info
-{
-    using iterator_t = decltype(__begin(std::declval<_Range>()));
-    using size_t = decltype(__size(std::declval<_Range>()));
-
-    iterator_t first;
-    iterator_t last;
-    size_t size{};
-};
-
-// Returns begin and end of the range
-template <typename _Range>
-__bounds_info<_Range>
+auto
 __bounds(_Range&& __rng)
 {
     const auto __n = __size(__rng);
     auto __first = __begin(__rng);
 
-    return {__first, __first + __n};
+    return std::make_pair(__first, __first + __n);
 }
 
-// Returns begin, end and size of the range
+// Returns std::tuple with begin, end and size of the range
 template <typename _Range>
-__bounds_and_size_info<_Range>
+auto
 __bounds_and_size(_Range&& __rng)
 {
     const auto __n = __size(__rng);
     auto __first = __begin(__rng);
 
-    return {__first, __first + __n, __n};
+    return std::make_tuple(__first, __first + __n, __n);
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
