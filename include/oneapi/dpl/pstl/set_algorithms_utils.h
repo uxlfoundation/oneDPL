@@ -131,14 +131,14 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
         else
         {
             __internal::__uninitialized_copy_or_discard(__first1, __result);
-            if (!std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
+            if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
             {
-                ++__first2;
-                __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::both_out);
+                __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::data1_out);
             }
             else
             {
-                __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::data1_out);
+                ++__first2;
+                __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::both_out);
             }
             ++__first1;
         }
