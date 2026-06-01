@@ -1519,10 +1519,10 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                std::uint32_t __active_subgroups, _CommSLMPtr __comm_slm,
                                _OnOOBReached __on_oob_reached = {})
 {
-    using __temp_data_type_selector_t = __temp_data_type_selector<_GenInput>;
-    constexpr bool __is_temp_data_required = !std::is_same_v<typename __temp_data_type_selector_t::type, __noop_temp_data>;
+    using __temp_data_required_t = __temp_data_type_selector<_GenInput>;
+    constexpr bool __is_temp_data_required = !std::is_same_v<typename __temp_data_required_t::type, __noop_temp_data>;
 
-    using _TempData = typename __temp_data_type_selector_t::type;
+    using _TempData = typename __temp_data_required_t::type;
     _TempData __temp_data{};
 
     auto __gen_input_impl = [&](const _InRng& __rng, std::size_t __id) {
