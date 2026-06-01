@@ -840,6 +840,16 @@ __min_iterator_distance(Iterator1 __first1, Iterator1 __last1, Iterator2 __first
     return std::min<_DifferenceTypeCommon>(__last1 - __first1, __last2 - __first2);
 }
 
+template <bool _Bounded, typename _IteratorOut>
+bool
+__is_oob_reached(_IteratorOut __out_it, _IteratorOut __out_end)
+{
+    if constexpr (_Bounded)
+        return __out_it == __out_end;
+    else
+        return false;
+}
+
 template <typename _R1, typename _R2, typename _OutRange>
 using __set_union_return_t =
     std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
@@ -857,11 +867,8 @@ __serial_set_union_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __com
     // 1. Main set_union operation
     while (__it1 != __end1 && __it2 != __end2)
     {
-        if constexpr (_Bounded)
-        {
-            if (__out_it == __out_end)
-                break;
-        }
+        if (__is_oob_reached<_Bounded>(__out_it, __out_end))
+            break;
 
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
         {
@@ -992,11 +999,8 @@ __serial_set_intersection_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Com
         }
         else
         {
-            if constexpr (_Bounded)
-            {
-                if (__out_it == __out_end)
-                    break;
-            }
+            if (__is_oob_reached<_Bounded>(__out_it, __out_end))
+                break;
             *__out_it = *__it1;
             ++__out_it;
             ++__it1;
@@ -1156,11 +1160,8 @@ __serial_set_difference_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp 
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
         {
-            if constexpr (_Bounded)
-            {
-                if (__out_it == __out_end)
-                    break;
-            }
+            if (__is_oob_reached<_Bounded>(__out_it, __out_end))
+                break;
             *__out_it = *__it1;
             ++__it1;
             ++__out_it;
@@ -1336,22 +1337,16 @@ __serial_set_symmetric_difference_impl(_R1&& __r1, _R2&& __r2, _OutRange&& __out
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
         {
-            if constexpr (_Bounded)
-            {
-                if (__out_it == __out_end)
-                    break;
-            }
+            if (__is_oob_reached<_Bounded>(__out_it, __out_end))
+                break;
             *__out_it = *__it1;
             ++__it1;
             ++__out_it;
         }
         else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
         {
-            if constexpr (_Bounded)
-            {
-                if (__out_it == __out_end)
-                    break;
-            }
+            if (__is_oob_reached<_Bounded>(__out_it, __out_end))
+                break;
             *__out_it = *__it2;
             ++__it2;
             ++__out_it;
