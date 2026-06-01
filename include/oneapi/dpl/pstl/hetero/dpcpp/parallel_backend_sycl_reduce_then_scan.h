@@ -1495,16 +1495,14 @@ __scan_through_elements_helper_impl(const __dpl_sycl::__sub_group& __sub_group, 
 
 // Detecting TempData type alias in the specified structure
 template <typename, typename = void>
-struct __temp_data_required
+struct __temp_data_type_selector
 {
-    static constexpr bool value = false;
     using type = __noop_temp_data;
 };
 
 template <typename _T>
-struct __temp_data_required<_T, std::void_t<typename _T::TempData>>
+struct __temp_data_type_selector<_T, std::void_t<typename _T::TempData>>
 {
-    static constexpr bool value = true;
     using type = typename _T::TempData;
 };
 
@@ -1521,8 +1519,8 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                std::uint32_t __active_subgroups, _CommSLMPtr __comm_slm,
                                _OnOOBReached __on_oob_reached = {})
 {
-    using __temp_data_required_t = __temp_data_required<_GenInput>;
-    constexpr bool __is_temp_data_required = __temp_data_required_t::value;
+    using __temp_data_required_t = __temp_data_type_selector<_GenInput>;
+    constexpr bool __is_temp_data_required = !std::is_same_v<typename __temp_data_required_t::type, __noop_temp_data>;
 
     using _TempData = typename __temp_data_required_t::type;
     _TempData __temp_data{};
