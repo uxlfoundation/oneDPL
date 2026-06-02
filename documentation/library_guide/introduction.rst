@@ -107,7 +107,9 @@ Difference with Standard C++ Parallel Algorithms
   ``set_symmetric_difference``, ``set_union``, ``stable_partition``, ``unique``.
 * The following algorithms require additional O(n) memory space for parallel execution:
   ``copy_if``, ``inplace_merge``, ``partial_sort``, ``partial_sort_copy``, ``partition_copy``,
-  ``remove``, ``remove_if``, ``rotate``, ``sort``, ``stable_sort``, ``unique``, ``unique_copy``.
+  ``remove``, ``remove_if``, ``rotate``, ``sort``, ``stable_sort``,
+  ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union``,
+  ``unique``, ``unique_copy``.
 
 Restrictions
 ************
