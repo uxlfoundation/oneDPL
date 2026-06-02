@@ -192,11 +192,6 @@ Known Limitations
   or cause a segmentation fault when used with a device execution policy on a CPU device. To avoid this issue, pass the
   ``-fsycl-device-code-split=per_kernel`` option to the compiler or use Intel® oneAPI DPC++/C++ Compiler version 2025.1
   or newer.
-* ``esimd::radix_sort`` and ``esimd::radix_sort_by_key`` kernel templates fail to compile when a program
-  is built with ``-g``, ``-O0``, ``-O1`` compiler options and a Linux General Purpose Intel GPUs Driver version older
-  than ``2423.32`` (Rolling) and ``2350.61`` (LTS) is used.
-  See the `Release Types <https://dgpu-docs.intel.com/releases/releases.html>`_
-  to find information about the relevant Rolling and LTS releases.
 * ``std::ranges::drop_view`` from libstdc++ version 10 may throw exceptions.
   This can lead to a "SYCL kernel cannot use exceptions" compilation error
   when it is used to pass data to a range-based algorithm with a device policy.
