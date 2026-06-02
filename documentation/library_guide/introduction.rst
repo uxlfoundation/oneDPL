@@ -162,9 +162,11 @@ Known Limitations
   ``std::sqrt`` require device support for double precision.
 * STL algorithm functions (such as ``std::for_each``) used in DPC++ kernels do not compile with the debug version of
   the Microsoft Visual C++ standard library.
-* ``std::array`` cannot be swapped in DPC++ kernels with ``std::swap`` function or ``swap`` member function
-  in the Microsoft Visual C++ standard library. For a workaround, define the
-  ``_USE_STD_VECTOR_ALGORITHMS`` macro to `` 0`` to the source file before including any headers.
+* Some Microsoft* Visual C++ standard library functions use manual vectorization,
+  which may cause a "SYCL kernel cannot call undefined functions without the SYCL_EXTERNAL attribute" compilation error.
+  To disable it, define ``_USE_STD_VECTOR_ALGORITHMS`` as ``0`` before including any headers.
+  This affects ``std::swap``, the ``swap`` member function, comparison operators for ``std::array`` objects,
+  and the `Vectorized MSVC STL Algorithms <https://learn.microsoft.com/en-us/cpp/standard-library/vectorized-stl-algorithms?view=msvc-180>`_.
 * ``exclusive_scan``, ``inclusive_scan``, ``exclusive_scan_by_segment``,
   ``inclusive_scan_by_segment``, ``transform_exclusive_scan``, ``transform_inclusive_scan``,
   when used with C++ standard aligned policies, impose limitations on the initial value type if an
@@ -203,7 +205,7 @@ Known Limitations
   As a result, customizations targeting ``std::ranges::iter_swap`` will not be respected.
 * Passing rvalue views to ``ranges::zip_view`` requires standard library support for views with ownership (P2415R2).
   This can be detected using the ``__cpp_lib_ranges`` feature macro (value ``202110L`` or higher).
-- Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
+* Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
   ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``
   with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler 2024.1 or earlier
   with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
