@@ -92,7 +92,7 @@ void test_mixed_types_device()
 #endif // !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
 template <std::ranges::range R1, std::ranges::range R2, std::ranges::range ROut>
 using set_difference_result_t =
     std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<R1>, std::ranges::borrowed_iterator_t<R2>,
@@ -151,7 +151,7 @@ struct
         assert(idx1 <= n1);
         assert(idxOut <= nOut);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         return {in1 + idx1, in2 + idx2, out + idxOut};
 #else
         return {in1 + idx1, out + idxOut};
@@ -171,7 +171,7 @@ test_set_difference_checker()
         
         auto res = set_difference_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 13) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
@@ -191,7 +191,7 @@ test_set_difference_checker()
         
         auto res = set_difference_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
         EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
@@ -211,7 +211,7 @@ test_set_difference_checker()
         
         auto res = set_difference_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 17) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
@@ -231,7 +231,7 @@ test_set_difference_checker()
         
         auto res = set_difference_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
         EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
@@ -251,7 +251,7 @@ test_set_difference_checker()
         
         auto res = set_difference_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
         EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
@@ -271,7 +271,7 @@ test_set_difference_checker()
         
         auto res = set_difference_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 2) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
@@ -291,7 +291,7 @@ test_set_difference_checker()
         
         auto res = set_difference_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 3) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
@@ -311,7 +311,7 @@ test_set_difference_checker()
         
         auto res = set_difference_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
         EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
@@ -331,7 +331,7 @@ test_set_difference_checker()
         
         auto res = set_difference_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
         EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
@@ -356,7 +356,7 @@ test_set_difference_checker()
 
         auto res = set_difference_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 20) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
@@ -365,7 +365,7 @@ test_set_difference_checker()
         EXPECT_EQ(set3.begin(), res.out, "Wrong 'out' state of result");
     }
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
     {
         // set1:                   1, 2, 3, 4, 5,             10, 11, 12, 13, 14, 15, 16, 17
         // set2:                                  6, 7, 8, 9,     11, 12, ^   14
@@ -403,7 +403,7 @@ test_set_difference_checker()
 
         auto res = set_difference_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 20) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
@@ -428,7 +428,7 @@ test_set_difference_checker()
 
         auto res = set_difference_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
         EXPECT_EQ(std::find(set2.begin(), set2.end(), 21) - set2.begin(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else                                                               
@@ -454,7 +454,7 @@ test_set_difference_checker()
 
         auto res = set_difference_checker(set1, set2, set3);
 
-#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
+#if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
         EXPECT_EQ(set1.size(), res.in1 - set1.begin(), "Wrong 'in1' state of result");
         EXPECT_EQ(set2.size(), res.in2 - set2.begin(), "Wrong 'in2' state of result");
 #else
