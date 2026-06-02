@@ -201,6 +201,12 @@ make_iter_mode(const _Iterator& __it) -> decltype(iter_mode<outMode>()(__it))
 // set of class templates to name kernels
 
 template <typename... _Name>
+class __scan_local_kernel;
+
+template <typename... _Name>
+class __scan_group_kernel;
+
+template <typename... _Name>
 class __find_or_kernel_one_wg;
 
 template <typename... _Name>
@@ -208,6 +214,9 @@ class __find_or_kernel_init;
 
 template <typename... _Name>
 class __find_or_kernel;
+
+template <typename... _Name>
+class __scan_propagate_kernel;
 
 template <typename... _Name>
 class __scan_single_wg_kernel;
@@ -230,8 +239,130 @@ __parallel_copy_impl(sycl::queue& __q, _Index __count, _Range1&& __rng1, _Range2
 }
 
 //------------------------------------------------------------------------
-// parallel_transform_scan single group - async pattern
+// parallel_transform_scan - async pattern
 //------------------------------------------------------------------------
+
+// Please see the comment above __parallel_for_small_submitter for optional kernel name explanation
+template <typename _CustomName, typename _PropagateScanName>
+struct __parallel_scan_submitter;
+
+// Even if this class submits three kernel optional name is allowed to be only for one of them
+// because for two others we have to provide the name to get the reliable work group size
+template <typename _CustomName, typename... _PropagateScanName>
+struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name<_PropagateScanName...>>
+{
+    template <typename _Range1, typename _Range2, typename _InitType, typename _LocalScan, typename _GroupScan,
+              typename _GlobalScan, typename _Apex>
+    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
+    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _InitType __init, _LocalScan __local_scan,
+               _GroupScan __group_scan, _GlobalScan __global_scan, _Apex __apex) const
+    {
+        using _Type = typename _InitType::__value_type;
+        using _LocalScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
+            __scan_local_kernel, _CustomName, _Range1, _Range2, _Type, _LocalScan, _GroupScan, _GlobalScan>;
+        using _GroupScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
+            __scan_group_kernel, _CustomName, _Range1, _Range2, _Type, _LocalScan, _GroupScan, _GlobalScan>;
+        std::size_t __n = oneapi::dpl::__ranges::__size(__rng1);     // input size
+        std::size_t __n_out = oneapi::dpl::__ranges::__size(__rng2); // output size
+        assert(__n > 0 && __n_out > 0);
+
+        auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__q);
+        // get the work group size adjusted to the local memory limit
+        // TODO: find a way to generalize getting of reliable work-group sizes
+        std::size_t __wgroup_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, sizeof(_Type));
+        // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
+        // This value matches the current practical limit for GPUs, but may need to be re-evaluated in the future.
+        __wgroup_size = std::min(__wgroup_size, (std::size_t)1024);
+
+#if _ONEDPL_COMPILE_KERNEL
+        //Actually there is one kernel_bundle for the all kernels of the pattern.
+        auto __kernels = __internal::__kernel_compiler<_LocalScanKernel, _GroupScanKernel>::__compile(__q);
+        auto __kernel_1 = __kernels[0];
+        auto __kernel_2 = __kernels[1];
+        auto __wgroup_size_kernel_1 = oneapi::dpl::__internal::__kernel_work_group_size(__q, __kernel_1);
+        auto __wgroup_size_kernel_2 = oneapi::dpl::__internal::__kernel_work_group_size(__q, __kernel_2);
+        __wgroup_size = ::std::min({__wgroup_size, __wgroup_size_kernel_1, __wgroup_size_kernel_2});
+#endif
+
+        // Practically this is the better value that was found
+        constexpr std::size_t __iters_per_witem = 16;
+        std::size_t __size_per_wg = __iters_per_witem * __wgroup_size;
+        std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
+        // Storage for the results of scan for each workgroup
+        __combined_storage<_Type> __temp_and_result{__q, __n_groups + 1, /*result size*/ 2};
+
+        _PRINT_INFO_IN_DEBUG_MODE(__q, __wgroup_size, __max_cu);
+
+        // 1. Local scan on each workgroup
+        auto __submit_event = __q.submit([&](sycl::handler& __cgh) {
+            oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
+            auto __temp_acc = __get_accessor(sycl::write_only, __temp_and_result, __cgh, __dpl_sycl::__no_init{});
+            auto __res_acc = __get_result_accessor(sycl::write_only, __temp_and_result, __cgh, __dpl_sycl::__no_init{});
+            __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+            __cgh.use_kernel_bundle(__kernel_1.get_kernel_bundle());
+#endif
+            __cgh.parallel_for<_LocalScanKernel>(
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
+                __kernel_1,
+#endif
+                sycl::nd_range<1>(__n_groups * __wgroup_size, __wgroup_size), [=](sycl::nd_item<1> __item) {
+                    auto __temp_ptr = __temp_acc.__data();
+                    __local_scan(__item, __n, __n_out, __local_acc, __rng1, __rng2, __temp_ptr, __size_per_wg,
+                                 __wgroup_size, __iters_per_witem, __init);
+                    if (__n_groups == 1)
+                    {
+                        __dpl_sycl::__group_barrier(__item);
+                        if (__item.get_local_id(0) == 0)
+                            __apex(__res_acc.__data(), __temp_ptr[0], __n_out, __n);
+                    }
+                });
+        });
+        // 2. Scan the partial sums from each workgroup (runs on a single workgroup, and is skipped if __n_groups == 1)
+        if (__n_groups > 1)
+        {
+            auto __iters_per_single_wg = oneapi::dpl::__internal::__dpl_ceiling_div(__n_groups, __wgroup_size);
+            __submit_event = __q.submit([&](sycl::handler& __cgh) {
+                __cgh.depends_on(__submit_event);
+                auto __temp_acc = __get_accessor(sycl::read_write, __temp_and_result, __cgh);
+                auto __res_acc =
+                    __get_result_accessor(sycl::write_only, __temp_and_result, __cgh, __dpl_sycl::__no_init{});
+                __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+                __cgh.use_kernel_bundle(__kernel_2.get_kernel_bundle());
+#endif
+                __cgh.parallel_for<_GroupScanKernel>(
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
+                    __kernel_2,
+#endif
+                    // TODO: try to balance work between several workgroups instead of one
+                    sycl::nd_range<1>(__wgroup_size, __wgroup_size), [=](sycl::nd_item<1> __item) {
+                        auto __temp_ptr = __temp_acc.__data();
+                        __group_scan(__item, __n_groups, __n_groups, __local_acc, __temp_ptr, __temp_ptr,
+                                     /*dummy*/ __temp_ptr, __n_groups, __wgroup_size, __iters_per_single_wg);
+                        __dpl_sycl::__group_barrier(__item);
+                        if (__item.get_local_id(0) == 0)
+                            __apex(__res_acc.__data(), __temp_ptr[__n_groups - 1], __n_out, __n);
+                    });
+            });
+        }
+
+        // 3. Final scan for whole range
+        auto __final_event = __q.submit([&](sycl::handler& __cgh) {
+            __cgh.depends_on(__submit_event);
+            oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
+            auto __temp_acc = __get_accessor(sycl::read_only, __temp_and_result, __cgh);
+            auto __res_acc = __get_result_accessor(sycl::write_only, __temp_and_result, __cgh);
+            __cgh.parallel_for<_PropagateScanName...>(sycl::range<1>(__n_groups * __size_per_wg), [=](auto __item) {
+                auto __temp_ptr = __temp_acc.__data();
+                auto __res_ptr = __res_acc.__data();
+                __global_scan(__item, __rng2, __rng1, __temp_ptr, __res_ptr, __n_out, __n, __size_per_wg);
+            });
+        });
+
+        return {std::move(__final_event), std::move(__temp_and_result)};
+    }
+};
 
 template <typename _ValueType, bool _Inclusive, typename _Group, typename _InPtr, typename _OutPtr,
           typename _BinaryOperation>
@@ -512,6 +643,20 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
     }
 }
 
+template <typename _CustomName, typename _Range1, typename _Range2, typename _InitType, typename _LocalScan,
+          typename _GroupScan, typename _GlobalScan, typename _Apex>
+std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
+__parallel_transform_scan_base(sycl::queue& __q, _Range1&& __in_rng, _Range2&& __out_rng, _InitType __init,
+                               _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan,
+                               _Apex __apex)
+{
+    using _PropagateKernel =
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__scan_propagate_kernel<_CustomName>>;
+
+    return __parallel_scan_submitter<_CustomName, _PropagateKernel>()(__q, std::forward<_Range1>(__in_rng),
+        std::forward<_Range2>(__out_rng), __init, __local_scan, __group_scan, __global_scan, __apex);
+}
+
 template <typename _Type>
 bool
 __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __n_uniform,
@@ -620,6 +765,46 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
         _GenReduceInput{__generate_mask}, _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{},
         __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, __is_unique_pattern, __get_transform_result());
+}
+
+template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _IndexPred,
+          typename _CopyByMaskOp>
+std::tuple<sycl::event, __combined_storage<_Size>>
+__parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _IndexPred __pred,
+                     _CopyByMaskOp __copy_by_mask_op)
+{
+    using _ReduceOp = std::plus<_Size>;
+    using _Assigner = unseq_backend::__scan_assigner;
+    using _NoAssign = unseq_backend::__scan_ignore;
+    using _MaskAssigner = unseq_backend::__mask_assigner<1>;
+    using _Unchanged = unseq_backend::__unchanged;
+    using _InitType = unseq_backend::__no_init_value<_Size>;
+    using _CreateMaskOp = unseq_backend::__create_mask<_IndexPred, _Size>;
+
+    _Assigner __assign_op{};
+    _ReduceOp __reduce_op{};
+    _MaskAssigner __add_mask_op{};
+    _Unchanged __read_op{};
+    _CreateMaskOp __create_mask_op{__pred};
+
+    // temporary buffer to store boolean mask
+    oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n);
+
+    return __parallel_transform_scan_base<_CustomName>(
+        __q,
+        oneapi::dpl::__ranges::zip_view(
+            __in_rng, oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
+                          __mask_buf.get_buffer())),
+        std::forward<_OutRng>(__out_rng), _InitType{},
+        // local scan
+        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _Unchanged, _Assigner, _MaskAssigner,
+                              _CreateMaskOp, _InitType>{__reduce_op, __read_op, __assign_op, __add_mask_op,
+                                                        __create_mask_op},
+        // scan between groups
+        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _Unchanged, _NoAssign, _Assigner, _Unchanged,
+                              _InitType>{__reduce_op, __read_op, _NoAssign{}, __assign_op, __read_op},
+        // global scan and apex
+        __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 }
 
 template <typename _T>
@@ -901,6 +1086,55 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
 
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
+__future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range1>>>
+__parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
+                    _Proj1 __proj1, _Proj2 __proj2)
+{
+    using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
+    using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
+
+    _Size1 __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    _Size2 __n2 = oneapi::dpl::__ranges::__size(__rng2);
+
+    //Algo is based on the recommended approach of set_intersection algo for GPU: binary search + scan (copying by mask).
+    using _ReduceOp = std::plus<_Size1>;
+    using _Assigner = unseq_backend::__scan_assigner;
+    using _NoAssign = unseq_backend::__scan_ignore;
+    using _MaskAssigner = unseq_backend::__mask_assigner<2>;
+    using _InitType = unseq_backend::__no_init_value<_Size1>;
+    using _Unchanged = unseq_backend::__unchanged;
+
+    _ReduceOp __reduce_op{};
+    _Assigner __assign_op{};
+    _Unchanged __read_op{};
+    unseq_backend::__copy_by_mask<oneapi::dpl::__internal::__pstl_assign, 2> __copy_by_mask_op{};
+    unseq_backend::__brick_set_op<_SetTag, _Size1, _Size2, _Compare, _Proj1, _Proj2> __create_mask_op{
+        __n1, __n2, __comp, __proj1, __proj2};
+
+    // temporary buffer to store boolean mask
+    oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n1);
+
+    auto&& [__event, __payload] = __par_backend_hetero::__parallel_transform_scan_base<_CustomName>(
+        __q,
+        oneapi::dpl::__ranges::make_zip_view(
+            std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+            oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
+                __mask_buf.get_buffer())),
+        std::forward<_Range3>(__result), _InitType{},
+        // local scan
+        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _Unchanged, _Assigner, _MaskAssigner,
+                              decltype(__create_mask_op), _InitType>{__reduce_op, __read_op, __assign_op,
+                                                                     _MaskAssigner{}, __create_mask_op},
+        // scan between groups
+        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _Unchanged, _NoAssign, _Assigner, _Unchanged,
+                              _InitType>{__reduce_op, __read_op, _NoAssign{}, __assign_op, __read_op},
+        // global scan and apex
+        __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
+    return __create_future(std::move(__event), std::move(__payload));
+}
+
+template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
+          typename _Compare, typename _Proj1, typename _Proj2>
 std::size_t
 __set_op_impl(_SetTag __set_tag, sycl::queue&, _Range1&&, _Range2&&, _Range3&&, _Compare, _Proj1, _Proj2);
 
@@ -1066,6 +1300,9 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag, sycl::queue& _
 
 template <typename _CustomName>
 struct reduce_then_scan_wrapper;
+
+template <typename _CustomName>
+struct scan_then_propagate_wrapper;
 
 template <typename _CustomName>
 struct set_a_write_wrapper;

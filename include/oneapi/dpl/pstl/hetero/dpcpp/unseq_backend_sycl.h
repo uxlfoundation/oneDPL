@@ -630,6 +630,396 @@ struct first_match_pred
 };
 
 //------------------------------------------------------------------------
+// scan
+//------------------------------------------------------------------------
+
+// mask assigner for tuples
+template <::std::size_t N>
+struct __mask_assigner
+{
+    template <typename _Acc, typename _OutAcc, typename _OutIdx, typename _InAcc, typename _InIdx>
+    void
+    operator()(_Acc& __acc, _OutAcc&, const _OutIdx __out_idx, const _OutIdx __acc_sz, _OutIdx, const _InAcc& __in_acc,
+               const _InIdx __in_idx) const
+    {
+        using ::std::get;
+        if (__out_idx < __acc_sz)
+            get<N>(__acc[__out_idx]) = __in_acc[__in_idx];
+    }
+};
+
+// data assigners and accessors for transform_scan
+struct __scan_assigner
+{
+    template <typename _OutAcc, typename _OutIdx, typename _InAcc, typename _InIdx>
+    std::enable_if_t<!std::is_pointer_v<_OutAcc>>
+    operator()(_OutAcc& __out_acc, const _OutIdx __out_idx, const _InAcc& __in_acc, _InIdx __in_idx) const
+    {
+        __out_acc[__out_idx] = __in_acc[__in_idx];
+    }
+
+    template <typename _OutAcc, typename _OutIdx, typename _InAcc, typename _InIdx>
+    std::enable_if_t<std::is_pointer_v<_OutAcc>>
+    operator()(_OutAcc __out_acc, const _OutIdx __out_idx, const _InAcc& __in_acc, _InIdx __in_idx) const
+    {
+        __out_acc[__out_idx] = __in_acc[__in_idx];
+    }
+
+    template <typename _Acc, typename _OutAcc, typename _OutIdx, typename _InAcc, typename _InIdx>
+    void
+    operator()(_Acc&, _OutAcc& __out_acc, const _OutIdx __out_idx, _OutIdx, const _OutIdx __out_sz,
+               const _InAcc& __in_acc, _InIdx __in_idx) const
+    {
+        if (__out_idx < __out_sz)
+            __out_acc[__out_idx] = __in_acc[__in_idx];
+    }
+};
+
+struct __scan_ignore
+{
+    template <typename... _Params>
+    void
+    operator()(_Params&&...) const
+    {
+    }
+};
+
+// create mask
+template <typename _IndexPred, typename _ValueType>
+struct __create_mask
+{
+    _IndexPred __pred;
+
+    template <typename _Idx, typename... _Ranges>
+    _ValueType
+    operator()(const _Idx __idx, const oneapi::dpl::__ranges::zip_view<_Ranges...>& __input) const
+    {
+        bool __mask_value = __pred(std::get<0>(__input.base()), __idx);
+        std::get<1>(__input[__idx]) = __mask_value;
+        return _ValueType(__mask_value);
+    }
+};
+
+// functors for scan
+template <typename _Assigner, std::size_t N>
+struct __copy_by_mask
+{
+    _Assigner __assigner;
+
+    template <typename _Item, typename _OutAcc, typename _InAcc, typename _WgSumsPtr, typename _RetPtr, typename _Size,
+              typename _SizePerWg>
+    void
+    operator()(_Item __item, _OutAcc& __out_acc, const _InAcc& __in_acc, _WgSumsPtr* __wg_sums_ptr, _RetPtr* __ret_ptr,
+               _Size __n_out, _Size __n, _SizePerWg __size_per_wg) const
+    {
+        using std::get;
+        auto __item_idx = __item.get_linear_id();
+
+        auto __local_scan_of_mask = (__item_idx < __n) ? get<N>(__in_acc[__item_idx]) : 0;
+        // Restore the mask from the scan: for the first element in a group it is equal to the scan value,
+        // then to the difference with the previous value.
+        bool __restored_mask = __local_scan_of_mask > 0 &&
+            (__item_idx % __size_per_wg == 0 || __local_scan_of_mask > get<N>(__in_acc[__item_idx - 1]));
+        if (__restored_mask)
+        {
+            // calculate the output position
+            auto __out_idx = __local_scan_of_mask - 1;
+            if (__item_idx >= __size_per_wg)
+            {
+                auto __wg_sums_idx = __item_idx / __size_per_wg - 1;
+                __out_idx += __wg_sums_ptr[__wg_sums_idx];
+            }
+            // If we work with tuples we might have a situation when internal tuple is assigned to std::tuple
+            // (e.g. returned by user-provided lambda).
+            // For internal::tuple<T...> we have a conversion operator to std::tuple<T...>. The problem here
+            // is that the types of these 2 tuples may be different but still convertible to each other.
+            // Technically this should be solved by adding to internal::tuple<T...> an additional conversion
+            // operator to std::tuple<U...>, but for some reason this doesn't work (conversion from
+            // std::tuple<T...> to std::tuple<U...> fails). What does work is the explicit cast:
+            // for internal::tuple<T...> we define a field that provides a corresponding std::tuple<T...>
+            // with matching types. We get this type (see __tuple_type definition below) and use it
+            // for static cast to explicitly convert internal::tuple<T...> -> std::tuple<T...>.
+            // Now we have the following assignment std::tuple<U...> = std::tuple<T...> which works as expected.
+            // NOTE: we only need this explicit conversion when we have internal::tuple and
+            // std::tuple as operands, in all the other cases this is not necessary and no conversion
+            // is performed (i.e. __tuple_type is the same type as its operand).
+            using __tuple_type =
+                typename __internal::__get_tuple_type<std::decay_t<decltype(get<0>(__in_acc[__item_idx]))>,
+                                                      std::decay_t<decltype(__out_acc[__out_idx])>>::__type;
+            if (__out_idx < __n_out)
+                __assigner(static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]);
+            if (__out_idx == __n_out)
+                __ret_ptr[1] = __item_idx;
+        }
+    }
+};
+
+struct __copy_by_mask_stops
+{
+    // "Apex" function that complements __copy_by_mask by detecting some stop positions before the global scan phase
+    template <typename _ValueType, typename _Size>
+    void
+    operator()(_ValueType* __res_ptr, const _ValueType& __needed_sz, _Size __out_sz, _Size __in_sz) const
+    {
+        if (__needed_sz > __out_sz) // not enough space in the output
+        {
+            __res_ptr[0] = __out_sz;
+            // The stop position in the input is determined by final scan
+        }
+        else
+        {
+            __res_ptr[0] = __needed_sz;
+            __res_ptr[1] = __in_sz;
+        }
+    }
+};
+
+struct __partition_by_mask
+{
+    template <typename _Item, typename _OutAcc, typename _InAcc, typename _WgSumsPtr, typename _RetPtr, typename _Size,
+              typename _SizePerWg>
+    void
+    operator()(_Item __item, _OutAcc& __out_acc, const _InAcc& __in_acc, _WgSumsPtr* __wg_sums_ptr, _RetPtr*,
+               _Size, _Size __n, _SizePerWg __size_per_wg) const
+    {
+        auto __item_idx = __item.get_linear_id();
+        if (__item_idx < __n)
+        {
+            using ::std::get;
+            using __in_type = ::std::decay_t<decltype(get<0>(__in_acc[__item_idx]))>;
+            auto __wg_sums_idx = __item_idx / __size_per_wg;
+            bool __not_first_wg = __item_idx >= __size_per_wg;
+            if (get<1>(__in_acc[__item_idx]) &&
+                (__item_idx % __size_per_wg == 0 || get<1>(__in_acc[__item_idx]) != get<1>(__in_acc[__item_idx - 1])))
+            {
+                auto __out_idx = get<1>(__in_acc[__item_idx]) - 1;
+                using __tuple_type = typename __internal::__get_tuple_type<
+                    __in_type, ::std::decay_t<decltype(get<0>(__out_acc[__out_idx]))>>::__type;
+
+                if (__not_first_wg)
+                    __out_idx += __wg_sums_ptr[__wg_sums_idx - 1];
+                get<0>(__out_acc[__out_idx]) = static_cast<__tuple_type>(get<0>(__in_acc[__item_idx]));
+            }
+            else
+            {
+                auto __out_idx = __item_idx - get<1>(__in_acc[__item_idx]);
+                using __tuple_type = typename __internal::__get_tuple_type<
+                    __in_type, ::std::decay_t<decltype(get<1>(__out_acc[__out_idx]))>>::__type;
+
+                if (__not_first_wg)
+                    __out_idx -= __wg_sums_ptr[__wg_sums_idx - 1];
+                get<1>(__out_acc[__out_idx]) = static_cast<__tuple_type>(get<0>(__in_acc[__item_idx]));
+            }
+        }
+    }
+};
+
+template <typename _Inclusive, typename _BinaryOp, typename _InitType>
+struct __global_scan_functor
+{
+    _BinaryOp __binary_op;
+    _InitType __init;
+
+    template <typename _Item, typename _OutAcc, typename _InAcc, typename _WgSumsPtr, typename _RetPtr, typename _Size,
+              typename _SizePerWg>
+    void
+    operator()(_Item __item, _OutAcc& __out_acc, const _InAcc&, _WgSumsPtr* __wg_sums_ptr, _RetPtr*, _Size, _Size __n,
+               _SizePerWg __size_per_wg) const
+    {
+        constexpr auto __shift = _Inclusive{} ? 0 : 1;
+        auto __item_idx = __item.get_linear_id();
+        // skip the first group scanned locally
+        if (__item_idx >= __size_per_wg && __item_idx + __shift < __n)
+        {
+            auto __wg_sums_idx = __item_idx / __size_per_wg - 1;
+            // an initial value precedes the first group for the exclusive scan
+            __item_idx += __shift;
+            auto __bin_op_result = __binary_op(__wg_sums_ptr[__wg_sums_idx], __out_acc[__item_idx]);
+            using __out_type = ::std::decay_t<decltype(__out_acc[__item_idx])>;
+            using __in_type = ::std::decay_t<decltype(__bin_op_result)>;
+            __out_acc[__item_idx] =
+                static_cast<typename __internal::__get_tuple_type<__in_type, __out_type>::__type>(__bin_op_result);
+        }
+        if constexpr (!_Inclusive::value)
+            //store an initial value to the output first position should be done as postprocess (for in-place scanning)
+            if (__item_idx == 0)
+            {
+                using _Tp = typename _InitType::__value_type;
+                __init_processing<_Tp> __use_init{};
+                __use_init(__init, __out_acc[__item_idx]);
+            }
+    }
+};
+
+template <typename _Inclusive, typename _BinaryOperation, typename _UnaryOp, typename _WgAssigner,
+          typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
+struct __scan
+{
+    using _Tp = typename _InitType::__value_type;
+    _BinaryOperation __bin_op;
+    _UnaryOp __unary_op;
+    _WgAssigner __wg_assigner;
+    _GlobalAssigner __gl_assigner;
+    _DataAccessor __data_acc;
+
+    // A workaround implementation of inclusive scan-over-group
+    template <typename _AccLocal>
+    _Tp
+    __log_scan_over_group(std::size_t __wgroup_size, sycl::nd_item<1> __item, std::size_t __local_id,
+                          _AccLocal& __local_acc, _Tp __adder) const
+    {
+        _Tp __value = __local_acc[__local_id];
+        __dpl_sycl::__group_barrier(__item);
+        // Hillis-Steele algorithm
+        for (std::size_t __shift = 1; __shift < __wgroup_size; __shift *= 2)
+        {
+            if (__local_id >= __shift)
+                __value = __bin_op(__local_acc[__local_id - __shift], __value);
+            __dpl_sycl::__group_barrier(__item);
+            __local_acc[__local_id] = __value;
+            __dpl_sycl::__group_barrier(__item);
+        }
+        return __bin_op(__adder, __value);
+    }
+
+    template <typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc, typename _WGSumsPtr>
+    void
+    __scan_impl(sycl::nd_item<1> __item, _Size __n, _Size __n_out, _AccLocal& __local_acc, const _InAcc& __acc,
+                _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
+                std::size_t __iters_per_wg, _InitType __init, std::false_type /*has_known_identity*/) const
+    {
+        std::size_t __group_id = __item.get_group(0);
+        std::size_t __global_id = __item.get_global_id(0);
+        std::size_t __local_id = __item.get_local_id(0);
+        __init_processing<_Tp> __use_init{};
+
+        constexpr std::size_t __shift = _Inclusive{} ? 0 : 1;
+
+        std::size_t __adjusted_global_id = __local_id + __size_per_wg * __group_id;
+        auto __adder = __local_acc[0];
+        for (std::size_t __iter = 0; __iter < __iters_per_wg; ++__iter, __adjusted_global_id += __wgroup_size)
+        {
+            if (__adjusted_global_id < __n)
+            {
+                // get input data
+                __local_acc[__local_id] = __data_acc(__adjusted_global_id, __acc);
+                // apply unary op
+                __local_acc[__local_id] = __unary_op(__local_id, __local_acc);
+            }
+            if (__local_id == 0 && __iter > 0)
+                __local_acc[0] = __bin_op(__adder, __local_acc[0]);
+            else if (__global_id == 0)
+                __use_init(__init, __local_acc[__global_id], __bin_op);
+
+            // 1. reduce
+            std::size_t __k = 1;
+            // TODO: use adjacent work items for better SIMD utilization
+            // Consider the example with the mask of work items performing reduction:
+            // iter    now         proposed
+            // 1:      01010101    11110000
+            // 2:      00010001    11000000
+            // 3:      00000001    10000000
+            do
+            {
+                __dpl_sycl::__group_barrier(__item);
+
+                if (__adjusted_global_id < __n && __local_id % (2 * __k) == 2 * __k - 1)
+                {
+                    __local_acc[__local_id] = __bin_op(__local_acc[__local_id - __k], __local_acc[__local_id]);
+                }
+                __k *= 2;
+            } while (__k < __wgroup_size);
+            __dpl_sycl::__group_barrier(__item);
+
+            // 2. scan
+            auto __partial_sums = __local_acc[__local_id];
+            __k = 2;
+            do
+            {
+                // use signed type to avoid overflowing
+                std::int32_t __shifted_local_id = __local_id - __local_id % __k - 1;
+                if (__shifted_local_id >= 0 && __adjusted_global_id < __n && __local_id % (2 * __k) >= __k &&
+                    __local_id % (2 * __k) < 2 * __k - 1)
+                {
+                    __partial_sums = __bin_op(__local_acc[__shifted_local_id], __partial_sums);
+                }
+                __k *= 2;
+            } while (__k < __wgroup_size);
+            __dpl_sycl::__group_barrier(__item);
+
+            __local_acc[__local_id] = __partial_sums;
+            __dpl_sycl::__group_barrier(__item);
+            __adder = __local_acc[__wgroup_size - 1];
+
+            __gl_assigner(__acc, __out_acc, __adjusted_global_id + __shift, __n, __n_out, __local_acc, __local_id);
+
+            if (__adjusted_global_id == __n - 1)
+                __wg_assigner(__wg_sums_ptr, __group_id, __local_acc, __local_id);
+        }
+
+        if (__local_id == __wgroup_size - 1 && __adjusted_global_id - __wgroup_size < __n)
+            __wg_assigner(__wg_sums_ptr, __group_id, __local_acc, __local_id);
+    }
+
+    template <typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc, typename _WGSumsPtr>
+    void
+    __scan_impl(sycl::nd_item<1> __item, _Size __n, _Size __n_out, _AccLocal& __local_acc, const _InAcc& __acc,
+                _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
+                std::size_t __iters_per_wg, _InitType __init, std::true_type /*has_known_identity*/) const
+    {
+        std::size_t __group_id = __item.get_group(0);
+        std::size_t __local_id = __item.get_local_id(0);
+        __init_processing<_Tp> __use_init{};
+
+        constexpr auto __shift = _Inclusive{} ? 0 : 1;
+
+        _Size __adjusted_global_id = __local_id + __size_per_wg * __group_id;
+        auto __adder = _Tp{__known_identity<_BinaryOperation, _Tp>};
+        if (__group_id == 0)
+            __use_init(__init, __adder, __bin_op);
+
+        for (std::size_t __iter = 0; __iter < __iters_per_wg; ++__iter, __adjusted_global_id += __wgroup_size)
+        {
+            if (__adjusted_global_id < __n)
+            {
+                __local_acc[__local_id] = __data_acc(__adjusted_global_id, __acc);
+                __local_acc[__local_id] = __unary_op(__local_id, __local_acc);
+            }
+            else
+                __local_acc[__local_id] = _Tp{__known_identity<_BinaryOperation, _Tp>};
+
+            // TODO: investigate why the code below sometimes produces incorrect results for copy_if etc.,
+            //       and then decide whether to switch it back on or to keep __log_scan_over_group.
+            // _Tp __value = __local_acc[__local_id];
+            // __local_acc[__local_id] =
+            //    __dpl_sycl::__inclusive_scan_over_group(__item.get_group(), __value, __bin_op, __adder);
+            __local_acc[__local_id] = __log_scan_over_group(__wgroup_size, __item, __local_id, __local_acc, __adder);
+
+            __dpl_sycl::__group_barrier(__item);
+            __adder = __local_acc[__wgroup_size - 1];
+
+            __gl_assigner(__acc, __out_acc, __adjusted_global_id + __shift, __n, __n_out, __local_acc, __local_id);
+
+            if (__adjusted_global_id == __n - 1)
+                __wg_assigner(__wg_sums_ptr, __group_id, __local_acc, __local_id);
+        }
+
+        if (__local_id == __wgroup_size - 1 && __adjusted_global_id - __wgroup_size < __n)
+            __wg_assigner(__wg_sums_ptr, __group_id, __local_acc, __local_id);
+    }
+
+    template <typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc, typename _WGSumsPtr>
+    void
+    operator()(sycl::nd_item<1> __item, _Size __n, _Size __n_out, _AccLocal& __local_acc, const _InAcc& __acc,
+               _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
+               std::size_t __iters_per_wg, _InitType __init = __no_init_value<typename _InitType::__value_type>{}) const
+    {
+        __scan_impl(__item, __n, __n_out, __local_acc, __acc, __out_acc, __wg_sums_ptr, __size_per_wg, __wgroup_size,
+                    __iters_per_wg, __init, __has_known_identity<_BinaryOperation, _Tp>{});
+    }
+};
+
+//------------------------------------------------------------------------
 // __brick_includes
 //------------------------------------------------------------------------
 
@@ -895,6 +1285,73 @@ struct _UnionTag
 
 struct _SymmetricDifferenceTag
 {
+};
+
+template <typename _SetTag, typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
+class __brick_set_op
+{
+    _SizeA __na;
+    _SizeB __nb;
+    _Compare __comp;
+    _ProjA __projA;
+    _ProjB __projB;
+
+  public:
+    __brick_set_op(_SizeA __na, _SizeB __nb, _Compare __comp, _ProjA __projA, _ProjB __projB)
+        : __na(__na), __nb(__nb), __comp(__comp), __projA(__projA), __projB(__projB) {}
+
+    template <typename _ItemId, typename _Acc>
+    bool
+    operator()(_ItemId __idx, const _Acc& __inout_acc) const
+    {
+        using std::get;
+
+        // Get source tuple
+        auto&& __tuple = __inout_acc.base();
+
+        auto __a = get<0>(__tuple); // first sequence
+        auto __b = get<1>(__tuple); // second sequence
+        auto __c = get<2>(__tuple); // mask buffer
+
+        const _SizeA __a_beg = 0;
+        const _SizeB __b_beg = 0;
+
+        auto __idx_c = __idx;
+        const _SizeA __idx_a = _SizeA(__idx);
+
+        const _SizeB __res =
+            __internal::__pstl_lower_bound_idx(__b, __b_beg, __nb, __a, __a_beg + __idx_a, __comp, __projB, __projA);
+
+        constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
+        bool bres = __is_difference; //initialization is true in case of difference operation; false - intersection.
+        if (__res == __nb || std::invoke(__comp, std::invoke(__projA, __a[__a_beg + __idx_a]),
+                                         std::invoke(__projB, __b[__b_beg + __res])))
+        {
+            // there is no __a[__a_beg + __idx_a] in __b, so __b in the difference {__a}/{__b};
+        }
+        else
+        {
+            //Difference operation logic: if number of duplication in __a on left side from __idx > total number of
+            //duplication in __b than a mask is 1
+
+            //Intersection operation logic: if number of duplication in __a on left side from __idx <= total number of
+            //duplication in __b than a mask is 1
+
+            const _SizeA __count_a_left =
+                __idx_a - __internal::__pstl_left_bound_idx(__a, __a_beg, __idx_a, __a, __a_beg + __idx_a, __comp, __projA, __projA) + 1;
+
+            const _SizeB __count_b =
+                __internal::__pstl_right_bound_idx(__b, __res, __nb, __b, __b_beg + __res, __comp, __projB, __projB) -
+                __internal::__pstl_left_bound_idx(__b, __b_beg, __res, __b, __b_beg + __res, __comp, __projB, __projB);
+
+            if constexpr (__is_difference)
+                bres = __count_a_left > __count_b; /*difference*/
+            else
+                bres = __count_a_left <= __count_b; /*intersection*/
+        }
+        __c[__idx_c] = bres; //store a mask
+        return bres;
+    }
 };
 
 template <typename _DiffType>

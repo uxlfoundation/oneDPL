@@ -704,11 +704,27 @@ struct n_elem_match_pred;
 template <typename _Pred>
 struct first_match_pred;
 
+template <typename _Pred, typename _ValueType>
+struct __create_mask;
+
+template <typename _Assigner, std::size_t N>
+struct __copy_by_mask;
+
+template <typename _Inclusive, typename _BinaryOp, typename _InitType>
+struct __global_scan_functor;
+
 template <typename _InitType>
 struct __init_value;
 
+template <typename _Inclusive, typename _BinaryOperation, typename _UnaryOp, typename _WgAssigner,
+          typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
+struct __scan;
+
 template <typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
 struct __brick_includes;
+
+template <typename _SetTag, typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
+class __brick_set_op;
 
 template <typename _BinaryOperator, typename _Size>
 struct __brick_reduce_idx;
@@ -778,15 +794,51 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
+template <typename _Pred, typename _ValueType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__create_mask, _Pred, _ValueType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
+{
+};
+
+template <typename _Assigner, std::size_t N>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__copy_by_mask, _Assigner, N)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Assigner>
+{
+};
+
+template <typename _Inclusive, typename _BinaryOp, typename _InitType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__global_scan_functor, _Inclusive,
+                                                       _BinaryOp, _InitType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOp, _InitType>
+{
+};
+
 template <typename _InitType>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__init_value, _InitType)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_InitType>
 {
 };
 
+template <typename _Inclusive, typename _BinaryOperation, typename _UnaryOp, typename _WgAssigner,
+          typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__scan, _Inclusive, _BinaryOperation,
+                                                       _UnaryOp, _WgAssigner, _GlobalAssigner, _DataAccessor,
+                                                       _InitType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOperation, _UnaryOp, _WgAssigner, _GlobalAssigner,
+                                                         _DataAccessor, _InitType>
+{
+};
+
 template <typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_includes, _SizeA, _SizeB,
                                                        _Compare, _ProjA, _ProjB)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_SizeA, _SizeB, _Compare, _ProjA, _ProjB>
+{
+};
+
+template <typename _SetTag, typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_set_op, _SetTag, _SizeA,
+                                                       _SizeB, _Compare, _ProjA, _ProjB)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_SizeA, _SizeB, _Compare, _ProjA, _ProjB>
 {
 };
