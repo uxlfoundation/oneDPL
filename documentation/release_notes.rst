@@ -18,6 +18,14 @@ New Features
   ``ends_with``, ``contains``, ``contains_subrange``, ``lexicographical_compare``.
 - The sorting algorithms with device policies now can use radix sort with
   the ``less`` and ``greater`` comparators from the ``std::ranges`` namespace [#fnote1]_.
+- Implemented support for bounded output for range-based set algorithms with CPU policies,
+  with optional support for C++26 semantics of return values.
+- Improved performance of ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` when using
+  Radix sort [#fnote1]_ and device policies for key and/or value types larger than four bytes.
+- Improved performance of ``inclusive_scan``, ``exclusive_scan``, ``transform_inclusive_scan``, and
+  ``transform_exclusive_scan`` with device policies for non-trivially-copyable value types on GPU devices.
+- Improved performance of the ``histogram_even`` and ``histogram_range`` algorithms with device policies for a small
+  number of bins on GPU devices.
 
 Known Issues and Limitations
 ----------------------------
@@ -25,10 +33,8 @@ Existing Issues
 ^^^^^^^^^^^^^^^
 See oneDPL Guide for other `restrictions and known limitations`_.
 
-- ``ranges::copy_if`` and ``ranges::unique_copy`` with the output size smaller than the input size
-  may lose performance on GPU devices.
-- ``set_union``, ``set_intersection``, ``set_difference``, ``set_symmetric_difference`` range algorithms require the
-  output range to have sufficient size to hold all resulting elements.
+- When used with device policies, ``set_union``, ``set_intersection``, ``set_difference``, ``set_symmetric_difference``
+  range algorithms require the output range to have sufficient size to hold all resulting elements.
 - ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
   when used with a device policy on hardware that does not support 64-bit atomic operations.
 - For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
