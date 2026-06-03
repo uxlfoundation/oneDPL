@@ -1401,15 +1401,15 @@ void
 __sub_group_scan(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value, _BinaryOp __binary_op,
                  _LazyValueType& __init_and_carry, __slm_or_subgroup_tag<_ValueType> __comm_slm)
 {
-    if (__comm_slm.__value_ptr)
-    {
-        __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
-            __sub_group, __value, __binary_op, __init_and_carry, __slm_only_tag<_ValueType>{__comm_slm.__value_ptr});
-    }
-    else
+    if (!__comm_slm.__value_ptr)
     {
         __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __value, __binary_op,
                                                                            __init_and_carry, __subgroup_only_tag{});
+    }
+    else
+    {
+        __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
+            __sub_group, __value, __binary_op, __init_and_carry, __slm_only_tag<_ValueType>{__comm_slm.__value_ptr});
     }
 }
 
@@ -1434,16 +1434,16 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
                          _LazyValueType& __init_and_carry, _SizeType __elements_to_process,
                          __slm_or_subgroup_tag<_ValueType> __comm_slm)
 {
-    if (__comm_slm.__value_ptr)
+    if (!__comm_slm.__value_ptr)
     {
         __sub_group_scan_partial<__sub_group_size, __is_inclusive, __init_present>(
-            __sub_group, __value, __binary_op, __init_and_carry, __elements_to_process,
-            __slm_only_tag<_ValueType>{__comm_slm.__value_ptr});
+            __sub_group, __value, __binary_op, __init_and_carry, __elements_to_process, __subgroup_only_tag{});
     }
     else
     {
         __sub_group_scan_partial<__sub_group_size, __is_inclusive, __init_present>(
-            __sub_group, __value, __binary_op, __init_and_carry, __elements_to_process, __subgroup_only_tag{});
+            __sub_group, __value, __binary_op, __init_and_carry, __elements_to_process,
+            __slm_only_tag<_ValueType>{__comm_slm.__value_ptr});
     }
 }
 
