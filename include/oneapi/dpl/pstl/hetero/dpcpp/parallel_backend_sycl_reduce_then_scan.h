@@ -1703,7 +1703,7 @@ template <typename _ScanOpsTag, typename _InitValueType>
 struct __comm_slm_handler
 {
     auto
-    __get_accessor(const std::uint32_t __work_group_size, bool __use_subgroup_ops, sycl::handler& __cgh) const
+    __get_accessor(const std::uint32_t __work_group_size, sycl::handler& __cgh) const
     {
         if (!__use_subgroup_ops)
             return __dpl_sycl::__local_accessor<_InitValueType>(__work_group_size, __cgh);
@@ -1713,27 +1713,29 @@ struct __comm_slm_handler
 
     template <typename _Acc>
     _ScanOpsTag
-    __get_data(const _Acc& __comm_slm_acc_opt, bool __use_subgroup_ops) const
+    __get_data(const _Acc& __comm_slm_acc_opt) const
     {
         if (!__use_subgroup_ops)
             return _ScanOpsTag{__dpl_sycl::__get_accessor_ptr(__comm_slm_acc_opt)};
         else
             return _ScanOpsTag{nullptr};
     }
+    bool __use_subgroup_ops;
 };
 
 template <typename _InitValueType>
 struct __comm_slm_handler<__subgroup_only_tag, _InitValueType>
 {
+    __comm_slm_handler(bool /*__use_subgroup_ops*/){}
+
     __subgroup_only_tag
-    __get_accessor(const std::uint32_t /*__work_group_size*/, bool /*__use_subgroup_ops*/,
-                   sycl::handler& /*__cgh*/) const
+    __get_accessor(const std::uint32_t /*__work_group_size*/ ,sycl::handler& /*__cgh*/) const
     {
         return __subgroup_only_tag{};
     }
 
     __subgroup_only_tag
-    __get_data(__subgroup_only_tag, bool /*__use_subgroup_ops*/) const
+    __get_data(__subgroup_only_tag) const
     {
         // Noop, type carries dispatch info for broadcast and shift left subgroup ops
         return __subgroup_only_tag{};
@@ -1798,8 +1800,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
             // SLM for sub-group communication (shift_group_right / group_broadcast).
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
-            __comm_slm_handler<_ScanOpsTag, _InitValueType> __comm_handler{};
-            auto __comm_slm = __comm_handler.__get_accessor(__work_group_size, __use_subgroup_ops, __cgh);
+            __comm_slm_handler<_ScanOpsTag, _InitValueType> __comm_handler{__use_subgroup_ops};
+            auto __comm_slm = __comm_handler.__get_accessor(__work_group_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __get_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
@@ -1812,7 +1814,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
 
                 _InitValueType* __temp_ptr = __temp_acc.__data();
-                auto __comm_slm_ptr = __comm_handler.__get_data(__comm_slm, __use_subgroup_ops);
+                auto __comm_slm_ptr = __comm_handler.__get_data(__comm_slm);
                 std::size_t __group_id = __ndi.get_group(0);
                 std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
                 std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
@@ -2013,8 +2015,8 @@ struct __parallel_reduce_then_scan_scan_submitter<
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
             // SLM for sub-group communication (shift_group_right / group_broadcast).
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
-            __comm_slm_handler<_ScanOpsTag, _InitValueType> __comm_handler{};
-            auto __comm_slm = __comm_handler.__get_accessor(__work_group_size, __use_subgroup_ops, __cgh);
+            __comm_slm_handler<_ScanOpsTag, _InitValueType> __comm_handler{__use_subgroup_ops};
+            auto __comm_slm = __comm_handler.__get_accessor(__work_group_size, __cgh);
 
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
@@ -2025,7 +2027,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
 
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
-                auto __comm_slm_ptr = __comm_handler.__get_data(__comm_slm, __use_subgroup_ops);
+                auto __comm_slm_ptr = __comm_handler.__get_data(__comm_slm);
 
                 __reduce_then_scan_sub_group_params __sub_group_params(
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
