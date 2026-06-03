@@ -191,6 +191,7 @@ struct __subgroup_radix_sort
                             _ValT __v[__block_size];
                             __storage() {}
                         } __values;
+                        sycl::group __g = __it.get_group();
                         std::uint16_t __wi = __it.get_local_linear_id();
                         std::uint16_t __begin_bit = 0;
                         constexpr std::uint16_t __end_bit = sizeof(_KeyT) * std::numeric_limits<unsigned char>::digits;
@@ -198,7 +199,7 @@ struct __subgroup_radix_sort
                         //copy(move) values construction
                         __block_load<_ValT>(__wi, __src, __values.__v, __n);
                         // TODO: check if the barrier can be removed
-                        __dpl_sycl::__group_barrier(__it);
+                        sycl::group_barrier(__g);
 
                         while (true)
                         {
@@ -233,7 +234,7 @@ struct __subgroup_radix_sort
                                     __indices[__i] = *__p;
                                     *__p = __indices[__i] + 1;
                                 }
-                                __dpl_sycl::__group_barrier(__it);
+                                sycl::group_barrier(__g);
 
                                 //2. scan phase
                                 {
@@ -246,11 +247,11 @@ struct __subgroup_radix_sort
                                     _ONEDPL_PRAGMA_UNROLL
                                     for (std::uint16_t __i = 1; __i < __bin_count; ++__i)
                                         __bin_sum[__i] = __bin_sum[__i - 1] + __counter_lacc[__wi * __bin_count + __i];
-                                    __dpl_sycl::__group_barrier(__it);
+                                    sycl::group_barrier(__g);
 
                                     //exclusive scan local sum
                                     std::uint16_t __sum_scan = __dpl_sycl::__exclusive_scan_over_group(
-                                        __it.get_group(), __bin_sum[__bin_count - 1],
+                                        __g, __bin_sum[__bin_count - 1],
                                         __dpl_sycl::__plus<std::uint16_t>());
                                     //add to local sum, generate exclusive scan result
                                     _ONEDPL_PRAGMA_UNROLL
@@ -259,7 +260,7 @@ struct __subgroup_radix_sort
 
                                     if (__wi == 0)
                                         __counter_lacc[0] = 0;
-                                    __dpl_sycl::__group_barrier(__it);
+                                    sycl::group_barrier(__g);
                                 }
 
                                 _ONEDPL_PRAGMA_UNROLL
@@ -273,7 +274,7 @@ struct __subgroup_radix_sort
                             __begin_bit += __radix;
 
                             //3. "re-order" phase
-                            __dpl_sycl::__group_barrier(__it);
+                            sycl::group_barrier(__g);
                             if (__begin_bit >= __end_bit)
                             {
                                 // the last iteration - writing out the result
@@ -321,7 +322,7 @@ struct __subgroup_radix_sort
                                         __exchange_lacc[__r] = std::move(__values.__v[__i]);
                                 }
                             }
-                            __dpl_sycl::__group_barrier(__it);
+                            sycl::group_barrier(__g);
 
                             _ONEDPL_PRAGMA_UNROLL
                             for (std::uint16_t __i = 0; __i < __block_size; ++__i)
@@ -330,7 +331,7 @@ struct __subgroup_radix_sort
                                 if (__idx < __n)
                                     __values.__v[__i] = std::move(__exchange_lacc[__idx]);
                             }
-                            __dpl_sycl::__group_barrier(__it);
+                            sycl::group_barrier(__g);
                         }
                     }));
             });

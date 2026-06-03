@@ -145,7 +145,7 @@ __clear_wglocal_histograms(const _HistAccessor& __local_histogram, const _Offset
     {
         __local_histogram[__offset + __gSize * __k + __self_lidx] = 0;
     }
-    __dpl_sycl::__group_barrier(__self_item);
+    sycl::group_barrier(__self_item.get_group());
 }
 
 // Atomically increment the bin for __x in a histogram with generalized addressing:
@@ -245,7 +245,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
                         }
                     }
 
-                    __dpl_sycl::__group_barrier(__self_item);
+                    sycl::group_barrier(__self_item.get_group());
 
                     // Merge SLM histogram copies into global output via atomic add per bin.
                     // Iterate strided so all bins are covered when __num_bins exceeds work-group size.
@@ -355,7 +355,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                         }
                     }
 
-                    __dpl_sycl::__group_barrier(__self_item);
+                    sycl::group_barrier(__self_item.get_group());
                     const std::size_t __offset = __wgroup_idx * __num_bins;
                     for (std::size_t __bin = __self_lidx; __bin < __num_bins; __bin += __work_group_size)
                     {

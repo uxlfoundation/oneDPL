@@ -224,13 +224,6 @@ __get_accessor_size(const _Accessor& __accessor)
 #endif
 }
 
-template <typename _Item>
-void
-__group_barrier(_Item __item)
-{
-    sycl::group_barrier(__item.get_group(), sycl::memory_scope::work_group);
-}
-
 template <typename... _Args>
 constexpr auto
 __group_broadcast(_Args... __args)

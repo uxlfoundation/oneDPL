@@ -75,7 +75,7 @@ __wg_segmented_scan(_NdItem __item, _LocalAcc __local_acc, _IdxType __local_id, 
     _IdxType __first = 0;
     __local_acc[__local_id] = __accumulator;
 
-    __dpl_sycl::__group_barrier(__item);
+    sycl::group_barrier(__item.get_group());
 
     for (std::size_t __i = 1; __i < __wgroup_size; __i *= 2)
     {
@@ -84,7 +84,7 @@ __wg_segmented_scan(_NdItem __item, _LocalAcc __local_acc, _IdxType __local_id, 
 
         __first = __wgroup_size - __first;
         __local_acc[__first + __local_id] = __accumulator;
-        __dpl_sycl::__group_barrier(__item);
+        sycl::group_barrier(__item.get_group());
     }
 
     return (__local_id ? __local_acc[__first + __local_id - 1] : __identity);
@@ -269,7 +269,7 @@ struct __sycl_scan_by_segment_impl
                    __seg_scan_prefix_kernel,
 #endif
                    sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
-                       auto __group = __item.get_group();
+                       sycl::group __group = __item.get_group();
                        std::size_t __group_id = __item.get_group(0);
                        std::size_t __global_id = __item.get_global_id(0);
                        std::size_t __local_id = __item.get_local_id(0);
@@ -307,7 +307,7 @@ struct __sycl_scan_by_segment_impl
                                    }
                                }
                                __loc_partials_acc[__local_id] = __local_collector;
-                               __dpl_sycl::__group_barrier(__item);
+                               sycl::group_barrier(__group);
                                // Serial aggregate collection and synchronization
                                if (__local_id == 0)
                                {
@@ -321,8 +321,8 @@ struct __sycl_scan_by_segment_impl
                                        }
                                    }
                                }
-                               __agg_collector = __dpl_sycl::__group_broadcast(__item.get_group(), __agg_collector);
-                               __last_it = __dpl_sycl::__group_broadcast(__item.get_group(), __last_it);
+                               __agg_collector = __dpl_sycl::__group_broadcast(__group, __agg_collector);
+                               __last_it = __dpl_sycl::__group_broadcast(__group, __last_it);
                            }
                            __ag_exists = __dpl_sycl::__any_of_group(__group, __ag_exists);
 

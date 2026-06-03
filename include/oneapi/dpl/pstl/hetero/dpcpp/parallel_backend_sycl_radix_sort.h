@@ -280,6 +280,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 const std::size_t __self_lidx = __self_item.get_local_id(0);
                 const std::size_t __wgroup_idx = __self_item.get_group(0);
                 const std::size_t __seg_start = __elem_per_segment * __wgroup_idx;
+                sycl::group __group = __self_item.get_group();
 
                 // Subgroup info for SG-strided memory access pattern
                 __dpl_sycl::__sub_group __sub_group = __self_item.get_sub_group();
@@ -338,7 +339,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                         __val_rng2, __proj, __radix_offset, __sg_chunk_start, __sg_chunk_end, __full_end, __sg_size,
                         __sg_local_id, __self_lidx, __slm_buckets, __views);
 
-                __dpl_sycl::__group_barrier(__self_item);
+                sycl::group_barrier(__group);
 
                 // 2. ACCUMULATION PHASE: Read uint8_t columns into _CountT Registers (__count_arr)
                 //    WIs are grouped to prevent uint8_t overflow. Example: __reduction_factor = 4.
@@ -372,7 +373,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                             __slm_buckets[__views.__get_bucket_idx(__radix_base + __r, __col_base + __c)]);
                     }
                 }
-                __dpl_sycl::__group_barrier(__self_item);
+                sycl::group_barrier(__group);
 
                 // 3. REDUCTION PHASE: Write to SLM accessed as _CountT array (__slm_counts)
                 //    The same N bytes of SLM are now viewed as (N / __packing_ratio) _CountT elements.
@@ -395,7 +396,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                     __slm_counts[__views.__get_count_idx(__wg_size, __radix_base + __r, __wi_in_group)] =
                         __count_arr[__r];
                 }
-                __dpl_sycl::__group_barrier(__self_item);
+                sycl::group_barrier(__group);
 
                 // Tree reduction: reduce partial sums down to 1 per radix state
                 std::uint32_t __num_partial_sums = __wis_per_radix_group;
@@ -412,7 +413,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                                                                      __wi_in_group + __stride)];
                         }
                     }
-                    __dpl_sycl::__group_barrier(__self_item);
+                    sycl::group_barrier(__group);
                 }
 
                 // Write final count to global memory (only first 16 WIs, one per radix state)
@@ -562,7 +563,8 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
         }
     }
 
-    __dpl_sycl::__group_barrier(__self_item);
+    sycl::group __group = __self_item.get_group();
+    sycl::group_barrier(__group);
 
     // Phase 2: Compute subgroup prefix (subgroups loop through radix states)
     // Reuses the same SLM region: reads totals, computes prefix, writes back in-place
@@ -595,7 +597,7 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
         }
     }
 
-    __dpl_sycl::__group_barrier(__self_item);
+    sycl::group_barrier(__group);
 
     // Phase 3: Compute final offsets = global_base + sg_prefix + wi_prefix
     _OffsetT __offsets[__radix_states];
