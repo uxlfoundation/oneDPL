@@ -1711,8 +1711,9 @@ struct __comm_slm_handler
             return __dpl_sycl::__local_accessor<_InitValueType>(0, __cgh); // Dummy accessor, won't actually be used
     }
 
+    template <typename _Acc>
     _ScanOpsTag
-    __get_data(const auto& __comm_slm_acc_opt, bool __use_subgroup_ops) const
+    __get_data(const _Acc& __comm_slm_acc_opt, bool __use_subgroup_ops) const
     {
         if (!__use_subgroup_ops)
             return _ScanOpsTag{__dpl_sycl::__get_accessor_ptr(__comm_slm_acc_opt)};
