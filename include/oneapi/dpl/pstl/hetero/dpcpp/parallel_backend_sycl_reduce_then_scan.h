@@ -2025,9 +2025,9 @@ struct __parallel_reduce_then_scan_scan_submitter<
                 __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
             auto __oob_pos_acc = __get_oob_pos_accessor_opt<_Bounded>(__cgh, __oob_pos_storage);
 
-            __cgh.parallel_for<_KernelName...>(__nd_range, [=,
-                                                            *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(
-                                                               __sub_group_size)]] {
+
+            __cgh.parallel_for<_KernelName...>(
+                    __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                 // The sub-group-ops vs SLM-fallback decision is dispatched at each sub-group-scan region
                 // (see __scan_through_elements_helper and the carry-computation block below).
                 _ScanOpsTag __comm_scan_tag = __comm_handler.__get_data(__comm_slm);
