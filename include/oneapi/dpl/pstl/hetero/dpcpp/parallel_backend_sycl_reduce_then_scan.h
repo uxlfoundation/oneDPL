@@ -1218,25 +1218,22 @@ struct __scan_by_seg_op
 // *** Main reduce then scan infrastructure ***
 
 // Sub-group communication wrappers with SLM fallback.
-// The scan tag dictates what implementation paths are available in the kernel, one or both of the subgroup operation
-// variant and the slm fallback may be available in the kernel, but only one kernel should be compiled per type.
-// For trivially copyable, types, both paths should be available in the kernel, and a runtime parameter
-// will choose between them. This enables CPU trivially copyable types to use the SLM-based path, which is considerably
-// faster. For non-trivially copyable types, only the SLM fallback is available. For some kernel templates, the subgroup
-// operation variant is the only one instantiated.
-// The __comm_slm parameter points to a work-group-sized SLM buffer; each sub-group uses its own
-// slice at offset [sub_group_id * sub_group_size, (sub_group_id + 1) * sub_group_size].
+// The scan tag dictates what implementation paths are available in the kernel, and holds a slm pointer if applicable.
 
+// For KT kernels, or after the runtime branch where only the subgroup operations are available
 struct __subgroup_only_tag
 {
 };
 
+// For non-trivially copyable types, only the SLM fallback is available.
 template <typename _ValueType>
 struct __slm_only_tag
 {
     _ValueType* __value_ptr;
 };
 
+// For trivially copyable types, both paths are available in the kernel, and a runtime parameter chooses between them.
+// This enables CPU trivially copyable types to use the SLM-based path, which is considerably faster.
 template <typename _ValueType>
 struct __slm_or_subgroup_tag
 {
@@ -1808,9 +1805,9 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
 
                 _InitValueType* __temp_ptr = __temp_acc.__data();
-                // Polymorphic communication tag; the sub-group-ops vs SLM-fallback decision is dispatched at each
-                // sub-group-scan region (see __scan_through_elements_helper and the carry-computation block below).
-                auto __comm_slm_ptr = __comm_handler.__get_data(__comm_slm);
+                // The sub-group-ops vs SLM-fallback decision is dispatched at each sub-group-scan region
+                // (see __scan_through_elements_helper and the carry-computation block below).
+                _ScanOpsTag __comm_scan_tag = __comm_handler.__get_data(__comm_slm);
                 std::size_t __group_id = __ndi.get_group(0);
                 std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
                 std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
@@ -1845,7 +1842,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                         __sub_group, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, nullptr,
                         __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __n,
                         __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
-                        __comm_slm_ptr);
+                        __comm_scan_tag);
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__v;
                     __sub_group_carry.__destroy();
@@ -1862,7 +1859,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                     std::uint8_t __iters =
                         oneapi::dpl::__internal::__dpl_ceiling_div(__active_subgroups, __sub_group_size);
                     // Dispatch the sub-group-ops vs SLM-fallback decision once for this carry-computation region.
-                    __dispatch_comm_tag(__comm_slm_ptr, [&](auto __comm_slm_concrete) {
+                    __dispatch_comm_tag(__comm_scan_tag, [&](auto __comm_slm_concrete) {
                         if (__iters == 1)
                         {
                             // fill with unused dummy values to avoid overrunning input
@@ -2031,9 +2028,9 @@ struct __parallel_reduce_then_scan_scan_submitter<
             __cgh.parallel_for<_KernelName...>(__nd_range, [=,
                                                             *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(
                                                                __sub_group_size)]] {
-                // Polymorphic communication tag; the sub-group-ops vs SLM-fallback decision is dispatched at each
-                // sub-group-scan region (see __scan_through_elements_helper and the carry-computation block below).
-                auto __comm_slm_ptr = __comm_handler.__get_data(__comm_slm);
+                // The sub-group-ops vs SLM-fallback decision is dispatched at each sub-group-scan region
+                // (see __scan_through_elements_helper and the carry-computation block below).
+                _ScanOpsTag __comm_scan_tag = __comm_handler.__get_data(__comm_slm);
                 __reduce_then_scan_sub_group_params __sub_group_params(
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
 
@@ -2113,7 +2110,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                         const std::size_t __pre_carry_iters =
                             oneapi::dpl::__internal::__dpl_ceiling_div(__elements_to_process, __sub_group_size);
                         // Dispatch the sub-group-ops vs SLM-fallback decision once for this carry-computation region.
-                        __dispatch_comm_tag(__comm_slm_ptr, [&](auto __comm_slm_concrete) {
+                        __dispatch_comm_tag(__comm_scan_tag, [&](auto __comm_slm_concrete) {
                             if (__pre_carry_iters == 1)
                             {
                                 // single partial scan
@@ -2272,7 +2269,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                                                    __max_inputs_per_item>(
                         __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                         __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
-                        __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_slm_ptr,
+                        __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_scan_tag,
                         __create_on_oob_reached_callback(__oob_pos_acc));
                 }
                 else // first group first block, no subgroup carry
@@ -2283,7 +2280,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                                                    __max_inputs_per_item>(
                         __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                         __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
-                        __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_slm_ptr,
+                        __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_scan_tag,
                         __create_on_oob_reached_callback(__oob_pos_acc));
                 }
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
