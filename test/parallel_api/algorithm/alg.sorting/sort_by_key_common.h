@@ -242,6 +242,40 @@ test_with_buffers(Policy&& exec, Size n, StabilityTag stability_tag, Compare... 
     check_sort(keys.begin(), vals.begin(), origin_keys.begin(), origin_vals.begin(), n, n, StableSortTag{}, compare...);
 }
 
+// Test that -0 and +0 keys are treated as equal (stability check).
+// All keys are either -0 or +0; values are sequential indices.
+// A stable sort must preserve the original order of values since all keys compare equal.
+// Without the -0 normalization fix, radix sort assigns different sort keys to -0 vs +0,
+// grouping all -0 before +0 and breaking stability.
+template <typename KeyT, typename ValT, sycl::usm::alloc alloc_type, std::uint32_t KernelNameID, typename Policy>
+void
+test_negative_zero_stability(Policy&& exec, std::size_t n)
+{
+    std::vector<KeyT> keys(n);
+    std::vector<ValT> values(n);
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        keys[i] = (i % 2 == 0) ? -KeyT(0.0) : KeyT(0.0);
+        values[i] = static_cast<ValT>(i);
+    }
+
+    std::vector<KeyT> expected_keys(keys);
+    std::vector<ValT> expected_values(values);
+    call_reference_sort(expected_keys.begin(), expected_values.begin(), n);
+
+    TestUtils::usm_data_transfer<alloc_type, KeyT> keys_device(exec, keys.begin(), keys.end());
+    TestUtils::usm_data_transfer<alloc_type, ValT> vals_device(exec, values.begin(), values.end());
+
+    using _NewKernelName = TestUtils::unique_kernel_name<TagUSM, KernelNameID>;
+    oneapi::dpl::stable_sort_by_key(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), keys_device.get_data(),
+                                    keys_device.get_data() + n, vals_device.get_data());
+
+    std::vector<ValT> actual_values(n);
+    vals_device.retrieve_data(actual_values.begin());
+
+    EXPECT_EQ_N(expected_values.begin(), actual_values.begin(), n, "negative zero stability broken in sort_by_key");
+}
+
 struct CustomGreat
 {
     template <typename T>
@@ -264,6 +298,16 @@ test_device_policy(Policy&& exec, StabilityTag stability_tag)
     test_with_buffers<float, float, 3>(CLONE_TEST_POLICY(exec), small_size, stability_tag, custom_greater);
     test_with_buffers<Particle::energy_type, Particle, 4>(CLONE_TEST_POLICY(exec), large_size, stability_tag, custom_greater);
     test_with_buffers<Particle::energy_type, Particle, 5>(CLONE_TEST_POLICY(exec), small_size, stability_tag);
+
+    if constexpr (std::is_same_v<StabilityTag, StableSortTag>)
+    {
+        test_negative_zero_stability<float, std::uint32_t, sycl::usm::alloc::shared, 6>(CLONE_TEST_POLICY(exec),
+                                                                                        small_size);
+        test_negative_zero_stability<double, std::uint32_t, sycl::usm::alloc::shared, 7>(CLONE_TEST_POLICY(exec),
+                                                                                         small_size);
+        test_negative_zero_stability<sycl::half, std::uint32_t, sycl::usm::alloc::shared, 8>(CLONE_TEST_POLICY(exec),
+                                                                                             small_size);
+    }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
