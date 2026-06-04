@@ -180,6 +180,36 @@ test_small_sizes(sycl::queue q, KernelParam param)
 
 template <typename T, bool IsAscending, std::uint8_t RadixBits, typename KernelParam>
 void
+test_negative_zero(sycl::queue q, KernelParam param)
+{
+    // Verify that -0 and +0 are treated as equal by radix sort (both map to the same key).
+    // Input: mix of -0 and +0 with other values to exercise different sort paths.
+    constexpr std::size_t size = 64;
+    std::vector<T> input(size);
+    for (std::size_t i = 0; i < size; ++i)
+    {
+        if (i % 3 == 0)
+            input[i] = -T(0.0);
+        else if (i % 3 == 1)
+            input[i] = T(0.0);
+        else
+            input[i] = T(i) * (i % 2 == 0 ? T(1.0) : T(-1.0));
+    }
+
+    std::vector<T> expected(input);
+    std::stable_sort(expected.begin(), expected.end(), Compare<T, IsAscending>{});
+
+    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> dt_input(q, input.begin(), input.end());
+    kt_ns::radix_sort<IsAscending, RadixBits>(q, dt_input.get_data(), dt_input.get_data() + size, param).wait();
+
+    std::vector<T> actual(size);
+    dt_input.retrieve_data(actual.begin());
+
+    EXPECT_EQ_N(expected.begin(), actual.begin(), size, "wrong results with negative zero test");
+}
+
+template <typename T, bool IsAscending, std::uint8_t RadixBits, typename KernelParam>
+void
 test_general_cases(sycl::queue q, std::size_t size, KernelParam param)
 {
     test_usm<T, IsAscending, RadixBits, sycl::usm::alloc::shared>(q, size, TestUtils::create_new_kernel_param_idx<0>(param));
@@ -212,6 +242,13 @@ main()
                     q, size, TestUtils::create_new_kernel_param_idx<1>(params));
             }
             test_small_sizes<TEST_KEY_TYPE, Ascending, TestRadixBits>(q, TestUtils::create_new_kernel_param_idx<3>(params));
+            if constexpr (std::is_floating_point_v<TEST_KEY_TYPE> || std::is_same_v<TEST_KEY_TYPE, sycl::half>)
+            {
+                test_negative_zero<TEST_KEY_TYPE, Ascending, TestRadixBits>(
+                    q, TestUtils::create_new_kernel_param_idx<4>(params));
+                test_negative_zero<TEST_KEY_TYPE, Descending, TestRadixBits>(
+                    q, TestUtils::create_new_kernel_param_idx<5>(params));
+            }
         }
         catch (const ::std::exception& exc)
         {

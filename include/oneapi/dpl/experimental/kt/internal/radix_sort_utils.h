@@ -133,6 +133,8 @@ std::uint16_t
 __order_preserving_cast_scalar(_Float __src)
 {
     std::uint16_t __uint16_src = sycl::bit_cast<std::uint16_t>(__src);
+    if ((__uint16_src & 0x7FFFu) == 0)
+        __uint16_src = 0;
     std::uint16_t __mask;
     bool __sign_bit_is_zero = (__uint16_src >> 15 == 0);
     if constexpr (__is_ascending)
@@ -153,6 +155,8 @@ std::uint32_t
 __order_preserving_cast_scalar(_Float __src)
 {
     std::uint32_t __uint32_src = sycl::bit_cast<std::uint32_t>(__src);
+    if ((__uint32_src & 0x7FFFFFFFu) == 0)
+        __uint32_src = 0;
     std::uint32_t __mask;
     bool __sign_bit_is_zero = (__uint32_src >> 31 == 0);
     if constexpr (__is_ascending)
@@ -173,6 +177,8 @@ std::uint64_t
 __order_preserving_cast_scalar(_Float __src)
 {
     std::uint64_t __uint64_src = sycl::bit_cast<std::uint64_t>(__src);
+    if ((__uint64_src & 0x7FFFFFFFFFFFFFFFu) == 0)
+        __uint64_src = 0;
     std::uint64_t __mask;
     bool __sign_bit_is_zero = (__uint64_src >> 63 == 0);
     if constexpr (__is_ascending)
