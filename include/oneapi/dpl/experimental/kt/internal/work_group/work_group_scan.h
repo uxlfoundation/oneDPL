@@ -40,6 +40,7 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
                        oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __input[__iters_per_item],
                        _BinaryOperation __binary_op, _InitCallback __init_callback, std::uint32_t __items_in_scan)
 {
+    sycl::group __group = __item.get_group();
     sycl::sub_group __sub_group = __item.get_sub_group();
     const std::uint8_t __sub_group_group_id = __sub_group.get_group_linear_id();
     const std::uint8_t __active_sub_groups =
@@ -60,7 +61,7 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
     {
         __local_acc[__sub_group.get_group_linear_id()] = __sub_group_carry;
     }
-    __dpl_sycl::__group_barrier(__item);
+    sycl::group_barrier(__group);
     // Scan over sub-group level reductions to compute incoming prefixes for a sub-group. Guard against
     // applying prefixes of non active sub-groups as there is no guarantee it is an identity.
     if (__sub_group_group_id == 0)
@@ -105,11 +106,11 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
         __init_callback(__wg_init, __sub_group, __wg_carry.__v);
         __wg_carry.__destroy();
     }
-    __dpl_sycl::__group_barrier(__item);
+    sycl::group_barrier(__group);
     // Determine incoming prefix from previous sub-groups and / or work-groups, and update results in __input
     if constexpr (_InitCallback::__apply_prefix)
     {
-        __wg_init = __dpl_sycl::__group_broadcast(__item.get_group(), __wg_init);
+        __wg_init = __dpl_sycl::__group_broadcast(__group, __wg_init);
         if (__sub_group_group_id < __active_sub_groups)
         {
             _InputType __sub_group_carry_in =

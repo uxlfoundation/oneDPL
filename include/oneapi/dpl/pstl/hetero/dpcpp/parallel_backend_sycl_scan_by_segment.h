@@ -67,15 +67,15 @@ namespace __par_backend_hetero
 // Return Vals : 0 2 5 6 9 0 5 2
 // -----------------------------
 // __wg_segmented_scan is a derivative work and the reason for the additional copyright notice.
-template <typename _NdItem, typename _LocalAcc, typename _IdxType, typename _ValueType, typename _BinaryOp>
+template <typename _Group, typename _LocalAcc, typename _IdxType, typename _ValueType, typename _BinaryOp>
 _ValueType
-__wg_segmented_scan(_NdItem __item, _LocalAcc __local_acc, _IdxType __local_id, _IdxType __delta_local_id,
+__wg_segmented_scan(_Group __group, _LocalAcc __local_acc, _IdxType __local_id, _IdxType __delta_local_id,
                     _ValueType __accumulator, _ValueType __identity, _BinaryOp __binary_op, std::size_t __wgroup_size)
 {
     _IdxType __first = 0;
     __local_acc[__local_id] = __accumulator;
 
-    __dpl_sycl::__group_barrier(__item);
+    sycl::group_barrier(__group);
 
     for (std::size_t __i = 1; __i < __wgroup_size; __i *= 2)
     {
@@ -84,7 +84,7 @@ __wg_segmented_scan(_NdItem __item, _LocalAcc __local_acc, _IdxType __local_id, 
 
         __first = __wgroup_size - __first;
         __local_acc[__first + __local_id] = __accumulator;
-        __dpl_sycl::__group_barrier(__item);
+        sycl::group_barrier(__group);
     }
 
     return (__local_id ? __local_acc[__first + __local_id - 1] : __identity);
@@ -219,7 +219,7 @@ struct __sycl_scan_by_segment_impl
                     //get rid of no segment end found flag
                     __closest_seg_id = std::max(std::int32_t(0), __closest_seg_id);
                     __val_type __carry_in =
-                        __wg_segmented_scan(__item, __loc_acc, __local_id, __local_id - __closest_seg_id, __accumulator,
+                        __wg_segmented_scan(__group, __loc_acc, __local_id, __local_id - __closest_seg_id, __accumulator,
                                             __identity, __binary_op, __wgroup_size); // need to use exclusive scan delta
 
                     // 1c. Update local partial reductions and write to global memory.
@@ -269,7 +269,7 @@ struct __sycl_scan_by_segment_impl
                    __seg_scan_prefix_kernel,
 #endif
                    sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
-                       auto __group = __item.get_group();
+                       sycl::group __group = __item.get_group();
                        std::size_t __group_id = __item.get_group(0);
                        std::size_t __global_id = __item.get_global_id(0);
                        std::size_t __local_id = __item.get_local_id(0);
@@ -307,7 +307,7 @@ struct __sycl_scan_by_segment_impl
                                    }
                                }
                                __loc_partials_acc[__local_id] = __local_collector;
-                               __dpl_sycl::__group_barrier(__item);
+                               sycl::group_barrier(__group);
                                // Serial aggregate collection and synchronization
                                if (__local_id == 0)
                                {
@@ -321,8 +321,8 @@ struct __sycl_scan_by_segment_impl
                                        }
                                    }
                                }
-                               __agg_collector = __dpl_sycl::__group_broadcast(__item.get_group(), __agg_collector);
-                               __last_it = __dpl_sycl::__group_broadcast(__item.get_group(), __last_it);
+                               __agg_collector = __dpl_sycl::__group_broadcast(__group, __agg_collector);
+                               __last_it = __dpl_sycl::__group_broadcast(__group, __last_it);
                            }
                            __ag_exists = __dpl_sycl::__any_of_group(__group, __ag_exists);
 

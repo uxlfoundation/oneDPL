@@ -1785,7 +1785,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__v;
                     __sub_group_carry.__destroy();
                 }
-                __dpl_sycl::__group_barrier(__ndi);
+                sycl::group_barrier(__ndi.get_group());
 
                 // compute sub-group local prefix sums on (T0..63) carries
                 // and store to scratch space at the end of dst; next
@@ -2112,7 +2112,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     }
                 }
 
-                __dpl_sycl::__group_barrier(__ndi);
+                sycl::group_barrier(__ndi.get_group());
 
                 // Get inter-work group and adjusted for intra-work group prefix
                 bool __sub_group_carry_initialized = true;

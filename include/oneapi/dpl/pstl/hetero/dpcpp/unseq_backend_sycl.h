@@ -495,7 +495,7 @@ struct reduce_over_group
         __local_mem[__local_idx] = __val;
         for (std::uint32_t __power_2 = 1; __power_2 < __group_size; __power_2 *= 2)
         {
-            __dpl_sycl::__group_barrier(__item);
+            sycl::group_barrier(__item.get_group());
             if ((__local_idx & (2 * __power_2 - 1)) == 0 && __local_idx + __power_2 < __group_size &&
                 __global_idx + __power_2 < __n)
             {
@@ -865,16 +865,17 @@ struct __scan
     __log_scan_over_group(std::size_t __wgroup_size, sycl::nd_item<1> __item, std::size_t __local_id,
                           _AccLocal& __local_acc, _Tp __adder) const
     {
+        sycl::group __group = __item.get_group();
         _Tp __value = __local_acc[__local_id];
-        __dpl_sycl::__group_barrier(__item);
+        sycl::group_barrier(__group);
         // Hillis-Steele algorithm
         for (std::size_t __shift = 1; __shift < __wgroup_size; __shift *= 2)
         {
             if (__local_id >= __shift)
                 __value = __bin_op(__local_acc[__local_id - __shift], __value);
-            __dpl_sycl::__group_barrier(__item);
+            sycl::group_barrier(__group);
             __local_acc[__local_id] = __value;
-            __dpl_sycl::__group_barrier(__item);
+            sycl::group_barrier(__group);
         }
         return __bin_op(__adder, __value);
     }
@@ -885,7 +886,8 @@ struct __scan
                 _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
                 std::size_t __iters_per_wg, _InitType __init, std::false_type /*has_known_identity*/) const
     {
-        std::size_t __group_id = __item.get_group(0);
+        sycl::group __group = __item.get_group();
+        std::size_t __group_id = __group.get_group_linear_id();
         std::size_t __global_id = __item.get_global_id(0);
         std::size_t __local_id = __item.get_local_id(0);
         __init_processing<_Tp> __use_init{};
@@ -918,7 +920,7 @@ struct __scan
             // 3:      00000001    10000000
             do
             {
-                __dpl_sycl::__group_barrier(__item);
+                sycl::group_barrier(__group);
 
                 if (__adjusted_global_id < __n && __local_id % (2 * __k) == 2 * __k - 1)
                 {
@@ -926,7 +928,7 @@ struct __scan
                 }
                 __k *= 2;
             } while (__k < __wgroup_size);
-            __dpl_sycl::__group_barrier(__item);
+            sycl::group_barrier(__group);
 
             // 2. scan
             auto __partial_sums = __local_acc[__local_id];
@@ -942,10 +944,10 @@ struct __scan
                 }
                 __k *= 2;
             } while (__k < __wgroup_size);
-            __dpl_sycl::__group_barrier(__item);
+            sycl::group_barrier(__group);
 
             __local_acc[__local_id] = __partial_sums;
-            __dpl_sycl::__group_barrier(__item);
+            sycl::group_barrier(__group);
             __adder = __local_acc[__wgroup_size - 1];
 
             __gl_assigner(__acc, __out_acc, __adjusted_global_id + __shift, __n, __n_out, __local_acc, __local_id);
@@ -964,7 +966,8 @@ struct __scan
                 _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
                 std::size_t __iters_per_wg, _InitType __init, std::true_type /*has_known_identity*/) const
     {
-        std::size_t __group_id = __item.get_group(0);
+        sycl::group __group = __item.get_group();
+        std::size_t __group_id = __group.get_group_linear_id();
         std::size_t __local_id = __item.get_local_id(0);
         __init_processing<_Tp> __use_init{};
 
@@ -989,10 +992,10 @@ struct __scan
             //       and then decide whether to switch it back on or to keep __log_scan_over_group.
             // _Tp __value = __local_acc[__local_id];
             // __local_acc[__local_id] =
-            //    __dpl_sycl::__inclusive_scan_over_group(__item.get_group(), __value, __bin_op, __adder);
+            //    __dpl_sycl::__inclusive_scan_over_group(__group, __value, __bin_op, __adder);
             __local_acc[__local_id] = __log_scan_over_group(__wgroup_size, __item, __local_id, __local_acc, __adder);
 
-            __dpl_sycl::__group_barrier(__item);
+            sycl::group_barrier(__group);
             __adder = __local_acc[__wgroup_size - 1];
 
             __gl_assigner(__acc, __out_acc, __adjusted_global_id + __shift, __n, __n_out, __local_acc, __local_id);

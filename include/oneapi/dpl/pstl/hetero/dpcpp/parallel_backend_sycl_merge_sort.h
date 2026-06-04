@@ -23,7 +23,7 @@
 #include <algorithm>   // std::min, std::max_element
 #include <type_traits> // std::decay_t, std::integral_constant
 
-#include "sycl_defs.h"                   // __dpl_sycl::__local_accessor, __dpl_sycl::__group_barrier
+#include "sycl_defs.h"                   // __dpl_sycl::__local_accessor
 #include "sycl_traits.h"                 // SYCL traits specialization for some oneDPL types.
 #include "../../utils.h"                 // __dpl_bit_floor, __dpl_bit_ceil
 #include "../../utils_ranges.h"          // __difference_t
@@ -95,7 +95,7 @@ struct __group_merge_path_sorter
             // TODO: copy the data into registers before the merge to halve the required amount of SLM
             __serial_merge(__in_ptr1, __in_ptr2, __out_ptr, __start.first, __start.second, __id, __data_per_workitem,
                            __n1, __n2, __comp);
-            __dpl_sycl::__group_barrier(__item);
+            sycl::group_barrier(__item.get_group());
 
             __sorted = __next_sorted;
             __next_sorted *= 2;
@@ -173,7 +173,7 @@ struct __leaf_sorter
         __item_start = std::min(__item_start, __adjusted_process_size);
         __item_end = std::min(__item_end, __adjusted_process_size);
         __sub_group_sorter.sort(__storage_acc, __comp, __item_start, __item_end);
-        __dpl_sycl::__group_barrier(__item);
+        sycl::group_barrier(__item.get_group());
 
         // 3. Sort on work-group level
         bool __data_in_temp =

@@ -312,7 +312,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                                  __wgroup_size, __iters_per_witem, __init);
                     if (__n_groups == 1)
                     {
-                        __dpl_sycl::__group_barrier(__item);
+                        sycl::group_barrier(__item.get_group());
                         if (__item.get_local_id(0) == 0)
                             __apex(__res_acc.__data(), __temp_ptr[0], __n_out, __n);
                     }
@@ -340,7 +340,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                         auto __temp_ptr = __temp_acc.__data();
                         __group_scan(__item, __n_groups, __n_groups, __local_acc, __temp_ptr, __temp_ptr,
                                      /*dummy*/ __temp_ptr, __n_groups, __wgroup_size, __iters_per_single_wg);
-                        __dpl_sycl::__group_barrier(__item);
+                        sycl::group_barrier(__item.get_group());
                         if (__item.get_local_id(0) == 0)
                             __apex(__res_acc.__data(), __temp_ptr[__n_groups - 1], __n_out, __n);
                     });
@@ -534,7 +534,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
 
             __hdl.parallel_for<_ScanKernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
                 [=](sycl::nd_item<1> __self_item) {
-                    const auto& __group = __self_item.get_group();
+                    sycl::group __group = __self_item.get_group();
                     // This kernel is only launched for sizes less than 2^16
                     const std::uint16_t __item_id = __self_item.get_local_linear_id();
                     _ValueType* __lacc_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
@@ -561,7 +561,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
                                 __lacc[2 * __n_uniform] = __idx; // the actual stop position in the input
                         }
                     }
-                    __dpl_sycl::__group_barrier(__self_item);
+                    sycl::group_barrier(__group);
 
                     if (__item_id == 0)
                     {
