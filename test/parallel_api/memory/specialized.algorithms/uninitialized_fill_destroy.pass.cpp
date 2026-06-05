@@ -342,7 +342,6 @@ void test_destroy_sycl()
 {
     constexpr std::size_t n = 10;
     sycl::queue q = TestUtils::get_test_queue();
-    auto p = oneapi::dpl::execution::make_device_policy(q);
     auto del_v = [&q](FlaggedValue* ptr) { sycl::free(ptr, q); };
     auto del_f = [&q](int* f) { sycl::free(f, q); };
     using del_v_t = decltype(del_v);
@@ -353,6 +352,7 @@ void test_destroy_sycl()
         for (size_t i = 0; i < n; ++i) new (ptr.get() + i) FlaggedValue(4, flags.get() + i);
         for (size_t i = 0; i < n; ++i) new (flags.get() + i) int(4);
 
+        auto p = TestUtils::make_device_policy<class Destroy>(q);
         oneapi::dpl::destroy(p, ptr.get(), ptr.get() + n);
         bool all_done = std::all_of(flags.get(), flags.get() + n, FlaggedValue::is_destroyed);
         EXPECT_TRUE(all_done, "destroy did not call destructors of all elements in the range");
@@ -363,6 +363,7 @@ void test_destroy_sycl()
         for (size_t i = 0; i < n; ++i) new (ptr.get() + i) FlaggedValue(4, flags.get() + i);
         for (size_t i = 0; i < n; ++i) new (flags.get() + i) int(4);
 
+        auto p = TestUtils::make_device_policy<class DestroyN>(q);
         oneapi::dpl::destroy_n(p, ptr.get(), n);
         bool all_done = std::all_of(flags.get(), flags.get() + n, FlaggedValue::is_destroyed);
         EXPECT_TRUE(all_done, "destroy_n did not call destructors of all elements in the range");
