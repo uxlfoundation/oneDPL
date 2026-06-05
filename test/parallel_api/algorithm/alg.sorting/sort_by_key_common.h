@@ -242,11 +242,7 @@ test_with_buffers(Policy&& exec, Size n, StabilityTag stability_tag, Compare... 
     check_sort(keys.begin(), vals.begin(), origin_keys.begin(), origin_vals.begin(), n, n, StableSortTag{}, compare...);
 }
 
-// Test that -0 and +0 keys are treated as equal (stability check).
-// All keys are either -0 or +0; values are sequential indices.
-// A stable sort must preserve the original order of values since all keys compare equal.
-// Without the -0 normalization fix, radix sort assigns different sort keys to -0 vs +0,
-// grouping all -0 before +0 and breaking stability.
+// Test that -0 and +0 keys are treated as equal.
 template <typename KeyT, typename ValT, sycl::usm::alloc alloc_type, std::uint32_t KernelNameID, typename Policy>
 void
 test_negative_zero_stability(Policy&& exec, std::size_t n)

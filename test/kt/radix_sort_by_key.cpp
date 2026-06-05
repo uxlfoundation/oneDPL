@@ -91,11 +91,7 @@ void test_usm(sycl::queue q, std::size_t size, KernelParam param)
     EXPECT_EQ_N(expected_values.begin(), actual_values.begin(), size, msg.c_str());
 }
 
-// Test that -0 and +0 keys are treated as equal (stability check).
-// All keys are either -0 or +0; values are sequential indices.
-// A stable sort must preserve the original order of values since all keys compare equal.
-// Without the -0 normalization fix, radix sort assigns different sort keys to -0 vs +0,
-// grouping all -0 before +0 and breaking stability.
+// Test that -0 and +0 keys are treated as equal.
 template <typename KeyT, typename ValueT, bool isAscending, std::uint32_t RadixBits, typename KernelParam>
 void
 test_negative_zero_stability(sycl::queue q, std::size_t size, KernelParam param)
