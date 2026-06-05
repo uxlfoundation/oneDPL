@@ -114,8 +114,8 @@ auto async_handler = [](sycl::exception_list ex_list) {
         }
         catch (sycl::exception& ex)
         {
-            ::std::cerr << ex.what() << ::std::endl;
-            ::std::exit(EXIT_FAILURE);
+            std::cerr << ex.what() << std::endl;
+            std::exit(EXIT_FAILURE);
         }
     }
 };
