@@ -136,36 +136,32 @@ template <typename KeyT, typename ValueT, bool isAscending, std::uint32_t RadixB
 void
 test_negative_zero_stability(sycl::queue q, std::size_t size, KernelParam param)
 {
-    std::vector<KeyT> keys(size);
-    std::vector<ValueT> values(size);
+    std::vector<KeyT> expected_keys(size);
+    std::vector<ValueT> expected_values(size);
     for (std::size_t i = 0; i < size; ++i)
     {
-        keys[i] = (i % 2 == 0) ? -KeyT(0.0) : KeyT(0.0);
-        values[i] = static_cast<ValueT>(i);
+        expected_keys[i] = (i % 2 == 0) ? -KeyT(0.0) : KeyT(0.0);
+        expected_values[i] = static_cast<ValueT>(i);
     }
 
-    std::vector<KeyT> expected_keys(keys);
-    std::vector<ValueT> expected_values(values);
-    auto expected_first = oneapi::dpl::make_zip_iterator(expected_keys.begin(), expected_values.begin());
-    std::stable_sort(expected_first, expected_first + size, CompareKey<isAscending>{});
-
-    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, KeyT> dt_keys(q, keys.begin(), keys.end());
-    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, ValueT> dt_values(q, values.begin(), values.end());
-    std::vector<KeyT> keys_out(size);
-    std::vector<ValueT> values_out(size);
-    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, KeyT> dt_keys_out(q, keys_out.begin(), keys_out.end());
-    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, ValueT> dt_values_out(q, values_out.begin(),
-                                                                                 values_out.end());
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, KeyT> dt_keys(q, expected_keys.begin(), expected_keys.end());
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, ValueT> dt_values(q, expected_values.begin(),
+                                                                             expected_values.end());
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, KeyT> dt_keys_out(q, size);
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, ValueT> dt_values_out(q, size);
 
     kt_ns::radix_sort_by_key<isAscending, RadixBits>(q, dt_keys.get_data(), dt_keys.get_data() + size,
                                                      dt_values.get_data(), dt_keys_out.get_data(),
                                                      dt_values_out.get_data(), param)
         .wait();
 
+    std::vector<KeyT> actual_keys(size);
     std::vector<ValueT> actual_values(size);
+    dt_keys_out.retrieve_data(actual_keys.begin());
     dt_values_out.retrieve_data(actual_values.begin());
 
     std::string msg = "negative zero stability broken (out-of-place), n: " + std::to_string(size);
+    EXPECT_EQ_N(expected_keys.begin(), actual_keys.begin(), size, msg.c_str());
     EXPECT_EQ_N(expected_values.begin(), actual_values.begin(), size, msg.c_str());
 }
 

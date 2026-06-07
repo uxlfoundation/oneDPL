@@ -136,7 +136,7 @@ __order_preserving_cast(__dpl_esimd::__ns::simd<_Float, _N> __src)
     else
     {
         __mask = __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<std::uint16_t, _N>(0x7FFFu),
-                                          __dpl_esimd::__ns::simd<std::uint16_t, _N>(::std::uint16_t(0)), __sign_bit_m);
+                                          __dpl_esimd::__ns::simd<std::uint16_t, _N>(std::uint16_t(0)), __sign_bit_m);
     }
     return __uint16_src ^ __mask;
 }

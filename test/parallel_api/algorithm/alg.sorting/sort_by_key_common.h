@@ -247,28 +247,27 @@ template <typename KeyT, typename ValT, sycl::usm::alloc alloc_type, std::uint32
 void
 test_negative_zero_stability(Policy&& exec, std::size_t n)
 {
-    std::vector<KeyT> keys(n);
-    std::vector<ValT> values(n);
+    std::vector<KeyT> expected_keys(n);
+    std::vector<ValT> expected_values(n);
     for (std::size_t i = 0; i < n; ++i)
     {
-        keys[i] = (i % 2 == 0) ? -KeyT(0.0) : KeyT(0.0);
-        values[i] = static_cast<ValT>(i);
+        expected_keys[i] = (i % 2 == 0) ? -KeyT(0.0) : KeyT(0.0);
+        expected_values[i] = static_cast<ValT>(i);
     }
 
-    std::vector<KeyT> expected_keys(keys);
-    std::vector<ValT> expected_values(values);
-    call_reference_sort(expected_keys.begin(), expected_values.begin(), n);
-
-    TestUtils::usm_data_transfer<alloc_type, KeyT> keys_device(exec, keys.begin(), keys.end());
-    TestUtils::usm_data_transfer<alloc_type, ValT> vals_device(exec, values.begin(), values.end());
+    TestUtils::usm_data_transfer<alloc_type, KeyT> keys_device(exec, expected_keys.begin(), expected_keys.end());
+    TestUtils::usm_data_transfer<alloc_type, ValT> vals_device(exec, expected_values.begin(), expected_values.end());
 
     using _NewKernelName = TestUtils::unique_kernel_name<TagUSM, KernelNameID>;
     oneapi::dpl::stable_sort_by_key(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), keys_device.get_data(),
                                     keys_device.get_data() + n, vals_device.get_data());
 
+    std::vector<KeyT> actual_keys(n);
     std::vector<ValT> actual_values(n);
+    keys_device.retrieve_data(actual_keys.begin());
     vals_device.retrieve_data(actual_values.begin());
 
+    EXPECT_EQ_N(expected_keys.begin(), actual_keys.begin(), n, "negative zero stability broken in sort_by_key (keys)");
     EXPECT_EQ_N(expected_values.begin(), actual_values.begin(), n, "negative zero stability broken in sort_by_key");
 }
 
