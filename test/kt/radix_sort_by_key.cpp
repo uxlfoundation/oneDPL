@@ -121,6 +121,39 @@ test_negative_zero_stability(sycl::queue q, std::size_t size, KernelParam param)
     EXPECT_EQ_N(expected_values.begin(), actual_values.begin(), size, msg.c_str());
 }
 
+// Test with constrained-range keys to exercise single-bin direct copy optimization.
+template <typename KeyT, typename ValueT, bool IsAscending, std::uint8_t RadixBits, typename KernelParam>
+void
+test_constrained_range_by_key(sycl::queue q, std::size_t size, KernelParam param)
+{
+    std::vector<KeyT> expected_keys(size);
+    std::vector<ValueT> expected_values(size);
+    std::default_random_engine gen{73};
+    std::uniform_int_distribution<std::uint32_t> dist(0, 1000);
+    std::generate(expected_keys.begin(), expected_keys.end(), [&] { return static_cast<KeyT>(dist(gen)); });
+    TestUtils::generate_arithmetic_data(expected_values.data(), size, 7);
+
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, KeyT> keys(q, expected_keys.begin(), expected_keys.end());
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, ValueT> values(q, expected_values.begin(),
+                                                                          expected_values.end());
+
+    auto expected_first = oneapi::dpl::make_zip_iterator(std::begin(expected_keys), std::begin(expected_values));
+    std::stable_sort(expected_first, expected_first + size, CompareKey<IsAscending>{});
+
+    kt_ns::radix_sort_by_key<IsAscending, RadixBits>(q, keys.get_data(), keys.get_data() + size, values.get_data(),
+                                                     param)
+        .wait();
+
+    std::vector<KeyT> actual_keys(size);
+    std::vector<ValueT> actual_values(size);
+    keys.retrieve_data(actual_keys.begin());
+    values.retrieve_data(actual_values.begin());
+
+    std::string msg = "wrong results with constrained range [0,1000] by key, n: " + std::to_string(size);
+    EXPECT_EQ_N(expected_keys.begin(), actual_keys.begin(), size, (msg + " (keys)").c_str());
+    EXPECT_EQ_N(expected_values.begin(), actual_values.begin(), size, (msg + " (values)").c_str());
+}
+
 int main()
 {
     bool run_test = false;
@@ -152,6 +185,18 @@ int main()
                     q, 64, TestUtils::create_new_kernel_param_idx<5>(params));
                 test_negative_zero_stability<TEST_KEY_TYPE, TEST_VALUE_TYPE, Ascending, TestRadixBits>(
                     q, 10000, TestUtils::create_new_kernel_param_idx<6>(params));
+            }
+
+            // Constrained-range tests to exercise single-bin optimization (only for key types >= 32 bits)
+            if constexpr (std::is_integral_v<TEST_KEY_TYPE> && sizeof(TEST_KEY_TYPE) >= 4)
+            {
+                for (auto size : {std::size_t(1000), std::size_t(67543), std::size_t(100'000)})
+                {
+                    test_constrained_range_by_key<TEST_KEY_TYPE, TEST_VALUE_TYPE, Ascending, TestRadixBits>(
+                        q, size, TestUtils::create_new_kernel_param_idx<4>(params));
+                    test_constrained_range_by_key<TEST_KEY_TYPE, TEST_VALUE_TYPE, Descending, TestRadixBits>(
+                        q, size, TestUtils::create_new_kernel_param_idx<5>(params));
+                }
             }
         }
         catch (const ::std::exception& exc)

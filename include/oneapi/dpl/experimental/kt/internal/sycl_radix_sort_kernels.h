@@ -377,7 +377,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         sycl::group_barrier(__idx.get_group());
     }
 
-    inline void
+    inline bool
     __rank_global(const sycl::nd_item<1>& __idx, sycl::sub_group __sub_group, std::uint32_t __tile_id,
                   std::uint32_t __sub_group_id, std::uint32_t __sub_group_local_id, _LocOffsetT* __slm_subgroup_hists,
                   _LocOffsetT* __slm_group_hist, _GlobOffsetT* __slm_global_incoming) const
@@ -419,7 +419,13 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             __inter_bin_scan_bin_width_totals<__bin_process_width>(__sub_group, __sub_group_id, __sub_group_local_id,
                                                                    __item_grf_hist_summary_arr, __slm_group_hist);
         }
-        sycl::group_barrier(__group);
+
+        // Detect single-bin tiles: if all elements land in one bin, we can skip SLM reorder.
+        // any_of_group provides the same synchronization as group_barrier (SYCL 2020 spec 4.17.3).
+        constexpr _LocOffsetT __total_tile_elements = __work_group_size * __data_per_work_item;
+        bool __my_bin_is_full =
+            (__sub_group_id < __bin_summary_sub_group_size) && (__item_bin_count == __total_tile_elements);
+        bool __is_single_bin = sycl::any_of_group(__group, __my_bin_is_full);
 
         // 1.4. Finalize the partial scans from step 1.3 by connecting the independent sub-group segments
         // together, propagating prefixes across the "__bin_process_width"-sized segments and converting
@@ -441,6 +447,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         }
 
         sycl::group_barrier(__group);
+        return __is_single_bin;
     }
 
     template <std::uint32_t __bin_process_width>
@@ -681,6 +688,54 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         }
     }
 
+    template <typename _KVPack>
+    void inline __direct_copy_to_output(const _KVPack& __pack, const _LocOffsetT (&__ranks)[__data_per_work_item],
+                                        std::uint32_t __sub_group_id, std::uint32_t __tile_id,
+                                        _LocOffsetT* __slm_subgroup_hists, _GlobOffsetT* __slm_global_incoming,
+                                        _LocOffsetT __single_bin_id) const
+    {
+        // Sub-group offset from the inclusive scan of this bin's count up to (sub_group_id - 1)
+        _LocOffsetT __sub_group_offset =
+            (__sub_group_id == 0) ? _LocOffsetT(0)
+                                  : __slm_subgroup_hists[(__sub_group_id - 1) * __bin_count + __single_bin_id];
+
+        _GlobOffsetT __global_base = __slm_global_incoming[__single_bin_id];
+
+        const _GlobOffsetT __tile_start =
+            static_cast<_GlobOffsetT>(__tile_id) * __work_group_size * __data_per_work_item;
+        bool __is_full_tile = (__tile_start + __work_group_size * __data_per_work_item) <= __n;
+
+        if (__is_full_tile)
+        {
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
+            {
+                _GlobOffsetT __global_pos = __global_base + __ranks[__i] + __sub_group_offset;
+                __out_pack.__keys_rng()[__global_pos] = __pack.__keys[__i];
+                if constexpr (__has_values)
+                {
+                    __out_pack.__vals_rng()[__global_pos] = __pack.__vals[__i];
+                }
+            }
+        }
+        else
+        {
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
+            {
+                _GlobOffsetT __global_pos = __global_base + __ranks[__i] + __sub_group_offset;
+                if (__global_pos < __n)
+                {
+                    __out_pack.__keys_rng()[__global_pos] = __pack.__keys[__i];
+                    if constexpr (__has_values)
+                    {
+                        __out_pack.__vals_rng()[__global_pos] = __pack.__vals[__i];
+                    }
+                }
+            }
+        }
+    }
+
     auto
     get(syclex::properties_tag) const
     {
@@ -724,24 +779,31 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
             __rank_local(__idx, __sub_group, __ranks, __bins, __slm_subgroup_hists, __sub_group_slm_offset,
                          __sg_local_id);
-            __rank_global(__idx, __sub_group, __tile_id, __sg_id, __sg_local_id, __slm_subgroup_hists, __slm_group_hist,
-                          __slm_global_incoming);
+            bool __is_single_bin = __rank_global(__idx, __sub_group, __tile_id, __sg_id, __sg_local_id,
+                                                 __slm_subgroup_hists, __slm_group_hist, __slm_global_incoming);
 
-            // For reorder phase, reinterpret the sub-group histogram space as key/value storage
-            // The reorder space overlaps with the sub-group histogram region (reinterpret_cast)
-            _KeyT* __slm_keys = reinterpret_cast<_KeyT*>(__slm_raw);
-            _ValT* __slm_vals = nullptr;
-            if constexpr (__has_values)
+            if (__is_single_bin)
             {
-                __slm_vals =
-                    reinterpret_cast<_ValT*>(__slm_raw + __work_group_size * __data_per_work_item * sizeof(_KeyT));
+                __direct_copy_to_output(__values_pack, __ranks, __sg_id, __tile_id, __slm_subgroup_hists,
+                                        __slm_global_incoming, __bins[0]);
             }
+            else
+            {
+                // Standard SLM reorder path
+                _KeyT* __slm_keys = reinterpret_cast<_KeyT*>(__slm_raw);
+                _ValT* __slm_vals = nullptr;
+                if constexpr (__has_values)
+                {
+                    __slm_vals =
+                        reinterpret_cast<_ValT*>(__slm_raw + __work_group_size * __data_per_work_item * sizeof(_KeyT));
+                }
 
-            __reorder_reg_to_slm(__idx, __values_pack, __ranks, __bins, __sg_id, __slm_subgroup_hists, __slm_group_hist,
-                                 __slm_global_incoming, __slm_keys, __slm_vals);
+                __reorder_reg_to_slm(__idx, __values_pack, __ranks, __bins, __sg_id, __slm_subgroup_hists,
+                                     __slm_group_hist, __slm_global_incoming, __slm_keys, __slm_vals);
 
-            __reorder_slm_to_glob(__idx, __values_pack, __sg_id, __sg_local_id, __slm_global_incoming, __slm_keys,
-                                  __slm_vals);
+                __reorder_slm_to_glob(__idx, __values_pack, __sg_id, __sg_local_id, __slm_global_incoming, __slm_keys,
+                                      __slm_vals);
+            }
 
             sycl::group_barrier(__group);
             // Make sure our atomic updates are pushed to other groups
