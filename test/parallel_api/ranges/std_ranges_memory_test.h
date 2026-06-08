@@ -40,12 +40,12 @@ struct Elem
 struct Elem_0
 {
     int val1;
-    volatile int val2; // volatile prevents optimization of the destructor observed with g++
+    int* val2_ptr;
 
-    Elem_0(): val1() {} //val1 has a zero-initialization here
-    Elem_0(Elem_0&& elem) { val2 = elem.val2; }
-    Elem_0(int v) { val2 = v; }
-    ~Elem_0() { val2 = 3;}
+    Elem_0(int v1, int* v2_ptr) : val1(v1), val2_ptr(v2_ptr) {}
+    Elem_0(Elem_0&& elem) { *val2_ptr = *(elem.val2_ptr); }
+    Elem_0(int v) { *val2_ptr = v; }
+    ~Elem_0() { *val2_ptr = 3; } // modify another memory region to check initialized memory in destroy test
 };
 
 template<typename>
@@ -57,10 +57,11 @@ struct test_memory_algo
     void run_host(auto algo, auto checker, auto&&... args)
     {
         std::allocator<Elem> alloc;
-        run_one_policy(alloc, oneapi::dpl::execution::seq, algo, checker, args...);
-        run_one_policy(alloc, oneapi::dpl::execution::unseq, algo, checker, args...);
-        run_one_policy(alloc, oneapi::dpl::execution::par, algo, checker, args...);
-        run_one_policy(alloc, oneapi::dpl::execution::par_unseq, algo, checker, std::forward<decltype(args)>(args)...);
+        std::allocator<int> alloc_extra;
+        run_one_policy(alloc, alloc_extra, oneapi::dpl::execution::seq, algo, checker, args...);
+        run_one_policy(alloc, alloc_extra, oneapi::dpl::execution::unseq, algo, checker, args...);
+        run_one_policy(alloc, alloc_extra, oneapi::dpl::execution::par, algo, checker, args...);
+        run_one_policy(alloc, alloc_extra, oneapi::dpl::execution::par_unseq, algo, checker, std::forward<decltype(args)>(args)...);
     }
 #if TEST_DPCPP_BACKEND_PRESENT
     void run_device(auto algo, auto checker, auto&&... args)
@@ -68,8 +69,8 @@ struct test_memory_algo
         //sycl::usm::alloc _alloc_type
         auto policy = TestUtils::get_dpcpp_test_policy();
         sycl::usm_allocator<Elem, sycl::usm::alloc::shared> q_alloc{policy.queue()};
-
-        run_one_policy(q_alloc, policy, algo, checker, std::forward<decltype(args)>(args)...);
+        sycl::usm_allocator<int, sycl::usm::alloc::shared>  q_alloc_extra{policy.queue()};
+        run_one_policy(q_alloc, q_alloc_extra, policy, algo, checker, std::forward<decltype(args)>(args)...);
     }
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
@@ -83,13 +84,16 @@ struct test_memory_algo
 
 private:
     // Tests both subrange and span
-    void run_one_policy(auto& alloc, auto&& policy, auto algo, auto checker, auto&&... args)
+    void run_one_policy(auto& alloc, auto&& alloc_extra, auto&& policy, auto algo, auto checker, auto&&... args)
     {
         const std::size_t n_in = medium_size;
+
         Elem* data_in1 = alloc.allocate(n_in);
         Elem* data_in2 = alloc.allocate(n_in);
+        int* extra_data = alloc_extra.allocate(n_in);
         std::memset(reinterpret_cast<void*>(data_in1), no_init_val, n_in*sizeof(Elem));
         std::memset(reinterpret_cast<void*>(data_in2), no_init_val, n_in*sizeof(Elem));
+        std::memset(reinterpret_cast<void*>(extra_data), no_init_val, n_in*sizeof(int));
         std::ranges::subrange subrange_in(data_in1, data_in1 + n_in);
         std::span span_in(data_in2, n_in);
 
@@ -118,6 +122,9 @@ private:
         // One range: destroy, uninitialized_fill, uninitialized_default_construct, uninitialized_value_construct
         else
         {
+            for (int i = 0; i < n_in; ++i)
+                data_in1[i].val2_ptr = &extra_data[i];
+
             run_impl(CLONE_TEST_POLICY_IDX(policy, 2), algo, checker, std::move(subrange_in), args...);
 #if TEST_CPP20_SPAN_PRESENT
             run_impl(CLONE_TEST_POLICY_IDX(policy, 3), algo, checker, std::move(span_in),
@@ -126,6 +133,7 @@ private:
         }
         alloc.deallocate(data_in1, n_in);
         alloc.deallocate(data_in2, n_in);
+        alloc_extra.deallocate(extra_data, n_in);
     }
 
     void run_impl(auto&& policy, auto algo, auto checker, auto&&... args)
