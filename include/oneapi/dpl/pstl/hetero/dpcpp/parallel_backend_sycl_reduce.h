@@ -76,13 +76,17 @@ __work_group_reduce_kernel(const _NDItemId __item, const _Size __n, const _Size 
 
     const _Size __n_items = __transform_pattern.output_size(__n, __group_size, __iters_per_work_item);
     // 2. Reduce within work group using local memory
-    __result.__v = __reduce_pattern(__item, __n_items, __result.__v, __local_mem);
-    if (__local_idx == 0)
+    auto __reduced_value = __reduce_pattern(__item, __n_items, __result, __local_mem);
+    if (__item.get_global_id(0) < __n_items)
     {
-        __reduce_pattern.apply_init(__init, __result.__v);
-        __res_ptr[0] = __result.__v;
+        __result.__v = __reduced_value;
+        if (__local_idx == 0)
+        {
+            __reduce_pattern.apply_init(__init, __result.__v);
+            __res_ptr[0] = __result.__v;
+        }
+        __result.__destroy();
     }
-    __result.__destroy();
 }
 
 // Device kernel that transforms and reduces __n elements to the number of work groups preliminary results.
@@ -103,10 +107,14 @@ __device_reduce_kernel(const _NDItemId __item, const _Size __n, const _Size __it
 
     const _Size __n_items = __transform_pattern.output_size(__n, __group_size, __iters_per_work_item);
     // 2. Reduce within work group using local memory
-    __result.__v = __reduce_pattern(__item, __n_items, __result.__v, __local_mem);
-    if (__local_idx == 0)
-        __reduce_result_ptr[__group_idx] = __result.__v;
-    __result.__destroy();
+    auto __reduced_value = __reduce_pattern(__item, __n_items, __result, __local_mem);
+    if (__item.get_global_id(0) < __n_items)
+    {
+        __result.__v = __reduced_value;
+        if (__local_idx == 0)
+            __reduce_result_ptr[__group_idx] = __result.__v;
+        __result.__destroy();
+    }
 }
 
 //------------------------------------------------------------------------
@@ -382,19 +390,23 @@ struct __parallel_transform_reduce_impl
                             __n_items = __transform_pattern2.output_size(__n, __work_group_size, __iters_per_work_item);
                         }
                         // 2. Reduce within work group using local memory
-                        __result.__v = __reduce_pattern(__item, __n_items, __result.__v, __temp_local);
-                        if (__local_idx == 0)
+                        auto __reduced_value = __reduce_pattern(__item, __n_items, __result, __temp_local);
+                        if (__item.get_global_id(0) < __n_items)
                         {
-                            // final reduction
-                            if (__n_groups == 1)
+                            __result.__v = __reduced_value;
+                            if (__local_idx == 0)
                             {
-                                __reduce_pattern.apply_init(__init, __result.__v);
-                                __res_ptr[0] = __result.__v;
-                            }
+                                // final reduction
+                                if (__n_groups == 1)
+                                {
+                                    __reduce_pattern.apply_init(__init, __result.__v);
+                                    __res_ptr[0] = __result.__v;
+                                }
 
-                            __temp_ptr[__offset_1 + __group_idx] = __result.__v;
+                                __temp_ptr[__offset_1 + __group_idx] = __result.__v;
+                            }
+                            __result.__destroy();
                         }
-                        __result.__destroy();
                     });
             });
             __is_first = false;
