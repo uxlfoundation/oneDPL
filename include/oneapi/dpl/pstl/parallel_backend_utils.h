@@ -268,14 +268,14 @@ struct __enumerable_thread_local_storage_base
     get_for_current_thread()
     {
         const std::size_t __i = _Derived::get_thread_num();
-        std::optional<_ValueType>& __current = __thread_specific_storage[__i];
-        if (!__current)
+        std::optional<_ValueType>& __local_value = __thread_specific_storage[__i];
+        if (!__local_value)
         {
             // create temporary storage on first usage to avoid extra parallel region and unnecessary instantiation
-            std::apply([&__current](_Args... __arg_pack) { __current.emplace(__arg_pack...); }, __args);
+            std::apply([&__local_value](_Args... __arg_pack) { __local_value.emplace(__arg_pack...); }, __args);
             __num_elements.fetch_add(1, std::memory_order_relaxed);
         }
-        return *__current;
+        return *__local_value;
     }
 
     std::vector<std::optional<_ValueType>> __thread_specific_storage;
