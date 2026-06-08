@@ -327,6 +327,50 @@ void test_empty_list_initialization_for_uninitialized_fill_n()
 #endif
 }
 
+#if TEST_DPCPP_BACKEND_PRESENT
+struct FlaggedValue
+{
+    int value;
+    int* flag;
+    FlaggedValue(const int& v, int* f) : value(v), flag(f) {}
+    ~FlaggedValue() { *flag = -117; }
+    static bool is_destroyed(int flag) { return flag == -117; }
+    bool operator==(const FlaggedValue& other) const { return value == other.value; }
+};
+
+void test_destroy_sycl()
+{
+    constexpr std::size_t n = 10;
+    sycl::queue q = TestUtils::get_test_queue();
+    auto del_v = [&q](FlaggedValue* ptr) { sycl::free(ptr, q); };
+    auto del_f = [&q](int* f) { sycl::free(f, q); };
+    using del_v_t = decltype(del_v);
+    using del_f_t = decltype(del_f);
+    {
+        std::unique_ptr<FlaggedValue[], del_v_t> ptr(sycl::malloc_shared<FlaggedValue>(n, q), del_v);
+        std::unique_ptr<int[], del_f_t> flags(sycl::malloc_shared<int>(n, q), del_f);
+        for (size_t i = 0; i < n; ++i) new (ptr.get() + i) FlaggedValue(4, flags.get() + i);
+        for (size_t i = 0; i < n; ++i) new (flags.get() + i) int(4);
+
+        auto p = TestUtils::make_device_policy<class Destroy>(q);
+        oneapi::dpl::destroy(p, ptr.get(), ptr.get() + n);
+        bool all_done = std::all_of(flags.get(), flags.get() + n, FlaggedValue::is_destroyed);
+        EXPECT_TRUE(all_done, "destroy did not call destructors of all elements in the range");
+    }
+    {
+        std::unique_ptr<FlaggedValue[], del_v_t> ptr(sycl::malloc_shared<FlaggedValue>(n, q), del_v);
+        std::unique_ptr<int[], del_f_t> flags(sycl::malloc_shared<int>(n, q), del_f);
+        for (size_t i = 0; i < n; ++i) new (ptr.get() + i) FlaggedValue(4, flags.get() + i);
+        for (size_t i = 0; i < n; ++i) new (flags.get() + i) int(4);
+
+        auto p = TestUtils::make_device_policy<class DestroyN>(q);
+        oneapi::dpl::destroy_n(p, ptr.get(), n);
+        bool all_done = std::all_of(flags.get(), flags.get() + n, FlaggedValue::is_destroyed);
+        EXPECT_TRUE(all_done, "destroy_n did not call destructors of all elements in the range");
+    }
+}
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
 int
 main()
 {
@@ -334,9 +378,11 @@ main()
     test_uninitialized_fill_destroy_by_type<std::int32_t>();
     test_uninitialized_fill_destroy_by_type<float64_t>();
 
-#if !TEST_DPCPP_BACKEND_PRESENT
     // for user-defined types
-    test_uninitialized_fill_destroy_by_type<Wrapper<::std::string>>();
+#if TEST_DPCPP_BACKEND_PRESENT
+    test_destroy_sycl();
+#else
+    test_uninitialized_fill_destroy_by_type<Wrapper<std::string>>();
     test_uninitialized_fill_destroy_by_type<Wrapper<std::int8_t*>>();
 #endif
 
