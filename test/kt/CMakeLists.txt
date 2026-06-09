@@ -144,6 +144,7 @@ if (ONEDPL_TEST_ENABLE_KT_ESIMD)
 
     # Pin some cases to track them
     _generate_sort_test("kt_esimd" "radix_sort_by_key_out_of_place" "96" "64" "uint32_t" "uint32_t" 1000)
+    _generate_sort_test("kt_esimd" "radix_sort_by_key" "96" "64" "sycl::half" "uint32_t" 1000)
     _generate_sort_test("kt_esimd" "radix_sort" "384" "64" "int32_t" "" 1000)
 endif()
 
@@ -153,6 +154,7 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
 
     # Pin some cases to track them
     _generate_sort_test("kt_sycl" "radix_sort_by_key_out_of_place" "3" "1024" "uint32_t" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_by_key" "5" "512" "float" "uint32_t" 1000)
     _generate_sort_test("kt_sycl" "radix_sort" "12" "1024" "int32_t" "" 1000)
 endif()
 

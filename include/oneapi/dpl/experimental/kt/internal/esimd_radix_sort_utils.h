@@ -124,7 +124,7 @@ __dpl_esimd::__ns::simd<std::uint16_t, _N>
 __order_preserving_cast(__dpl_esimd::__ns::simd<_Float, _N> __src)
 {
     __dpl_esimd::__ns::simd<std::uint16_t, _N> __uint16_src = __src.template bit_cast_view<std::uint16_t>();
-    __dpl_esimd::__ns::simd_mask<_N> __is_zero = (__uint16_src & 0x7FFFu) == 0;
+    __dpl_esimd::__ns::simd_mask<_N> __is_zero = (__src == _Float{0});
     __dpl_esimd::__ns::simd<std::uint16_t, _N> __mask;
     __dpl_esimd::__ns::simd_mask<_N> __sign_bit_m = (__uint16_src >> 15 == 0);
     if constexpr (__is_ascending)
@@ -147,7 +147,7 @@ __dpl_esimd::__ns::simd<::std::uint32_t, _N>
 __order_preserving_cast(__dpl_esimd::__ns::simd<_Float, _N> __src)
 {
     __dpl_esimd::__ns::simd<::std::uint32_t, _N> __uint32_src = __src.template bit_cast_view<::std::uint32_t>();
-    __dpl_esimd::__ns::simd_mask<_N> __is_zero = (__uint32_src & 0x7FFFFFFFu) == 0;
+    __dpl_esimd::__ns::simd_mask<_N> __is_zero = (__src == _Float{0});
     __dpl_esimd::__ns::simd<::std::uint32_t, _N> __mask;
     __dpl_esimd::__ns::simd_mask<_N> __sign_bit_m = (__uint32_src >> 31 == 0);
     if constexpr (__is_ascending)
@@ -171,7 +171,7 @@ __dpl_esimd::__ns::simd<::std::uint64_t, _N>
 __order_preserving_cast(__dpl_esimd::__ns::simd<_Float, _N> __src)
 {
     __dpl_esimd::__ns::simd<::std::uint64_t, _N> __uint64_src = __src.template bit_cast_view<::std::uint64_t>();
-    __dpl_esimd::__ns::simd_mask<_N> __is_zero = (__uint64_src & 0x7FFFFFFFFFFFFFFFu) == 0;
+    __dpl_esimd::__ns::simd_mask<_N> __is_zero = (__src == _Float{0});
     __dpl_esimd::__ns::simd<::std::uint64_t, _N> __mask;
     __dpl_esimd::__ns::simd_mask<_N> __sign_bit_m = (__uint64_src >> 63 == 0);
     if constexpr (__is_ascending)
