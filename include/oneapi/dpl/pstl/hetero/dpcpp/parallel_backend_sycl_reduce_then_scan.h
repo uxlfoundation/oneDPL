@@ -1237,7 +1237,7 @@ struct __slm_only_tag
 template <typename _ValueType>
 struct __slm_or_subgroup_tag
 {
-    _ValueType* __value_ptr;
+    _ValueType* __value_ptr = nullptr;
 };
 
 // Layer of abstraction that hoists the runtime "sub-group ops vs SLM fallback" decision to a single branch point.
@@ -1713,7 +1713,7 @@ struct __comm_slm_handler
         else
             return _ScanOpsTag{nullptr};
     }
-    bool __use_subgroup_ops;
+    bool __use_subgroup_ops = false;
 };
 
 template <typename _InitValueType>
