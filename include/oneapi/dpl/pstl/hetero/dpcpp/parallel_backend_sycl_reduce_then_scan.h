@@ -1867,9 +1867,9 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                                 std::min(std::uint32_t{__sub_group_local_id}, __active_subgroups - 1);
                             _InitValueType __v = __sub_group_partials[__load_id];
                             __sub_group_scan_partial<__sub_group_size, /*__is_inclusive=*/true,
-                                                        /*__init_present=*/false>(
-                                __sub_group, __v, __reduce_op, __sub_group_carry, __active_subgroups,
-                                __comm_tag_concrete);
+                                                     /*__init_present=*/false>(__sub_group, __v, __reduce_op,
+                                                                               __sub_group_carry, __active_subgroups,
+                                                                               __comm_tag_concrete);
                             if (__sub_group_local_id < __active_subgroups)
                                 __temp_ptr[__start_id + __sub_group_local_id] = __v;
                         }
@@ -1901,7 +1901,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
 
                             __v = __sub_group_partials[__load_id];
                             __sub_group_scan_partial<__sub_group_size, /*__is_inclusive=*/true,
-                                                        /*__init_present=*/true>(
+                                                     /*__init_present=*/true>(
                                 __sub_group, __v, __reduce_op, __sub_group_carry,
                                 __active_subgroups - ((__iters - 1) * __sub_group_size), __comm_tag_concrete);
                             if (__reduction_scan_id < __sub_group_params.__num_sub_groups_local)
@@ -2024,7 +2024,6 @@ struct __parallel_reduce_then_scan_scan_submitter<
             auto __res_acc =
                 __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
             auto __oob_pos_acc = __get_oob_pos_accessor_opt<_Bounded>(__cgh, __oob_pos_storage);
-
 
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
