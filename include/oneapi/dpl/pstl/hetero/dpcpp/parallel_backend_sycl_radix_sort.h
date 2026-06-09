@@ -77,7 +77,7 @@ __order_preserving_cast(sycl::half __val)
 {
     ::std::uint16_t __uint16_val = oneapi::dpl::__internal::__dpl_bit_cast<::std::uint16_t>(__val);
     if ((__uint16_val & 0x7FFFu) == 0)
-        __uint16_val = 0;
+        return 0x8000u;
     ::std::uint16_t __mask;
     // __uint16_val >> 15 takes the sign bit of the original value
     if constexpr (__is_ascending)
@@ -94,7 +94,7 @@ __order_preserving_cast(_Float __val)
 {
     ::std::uint32_t __uint32_val = oneapi::dpl::__internal::__dpl_bit_cast<::std::uint32_t>(__val);
     if ((__uint32_val & 0x7FFFFFFFu) == 0)
-        __uint32_val = 0;
+        return 0x80000000u;
     ::std::uint32_t __mask;
     // __uint32_val >> 31 takes the sign bit of the original value
     if constexpr (__is_ascending)
@@ -111,7 +111,7 @@ __order_preserving_cast(_Float __val)
 {
     ::std::uint64_t __uint64_val = oneapi::dpl::__internal::__dpl_bit_cast<::std::uint64_t>(__val);
     if ((__uint64_val & 0x7FFFFFFFFFFFFFFFu) == 0)
-        __uint64_val = 0;
+        return 0x8000000000000000u;
     ::std::uint64_t __mask;
     // __uint64_val >> 63 takes the sign bit of the original value
     if constexpr (__is_ascending)
