@@ -1887,8 +1887,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                             {
                                 __v = __sub_group_partials[__reduction_scan_id];
                                 __sub_group_scan<__sub_group_size, /*__is_inclusive=*/true,
-                                                    /*__init_present=*/true>(__sub_group, __v, __reduce_op,
-                                                                            __sub_group_carry, __comm_tag_concrete);
+                                                 /*__init_present=*/true>(__sub_group, __v, __reduce_op,
+                                                                          __sub_group_carry, __comm_tag_concrete);
                                 __temp_ptr[__start_id + __reduction_scan_id] = __v;
                                 __reduction_scan_id += __sub_group_size;
                             }
