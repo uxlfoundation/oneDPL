@@ -1411,7 +1411,7 @@ __sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __ma
 }
 
 template <bool __is_inclusive, bool __init_present, typename _BinaryOp,
-          typename _ValueType, typename _LazyValueType, typename _ScanOpsTag = __no_slm_tag>
+          typename _ValueType, typename _LazyValueType, typename _ScanOpsTag = __subgroup_only_tag>
 void
 __sub_group_scan(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value, _BinaryOp __binary_op,
                  _LazyValueType& __init_and_carry, _ScanOpsTag __comm_tag = {})
@@ -1584,7 +1584,8 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
 
                 constexpr std::int32_t __write_output_offset = __is_unique_pattern_v ? 1 : 0;
                 const std::size_t __carry_in = __init_present ? __sub_group_carry.__v : 0;
-                if (__carry_in + __max_inputs_per_item * __sub_group_size > __out_rng_size - __write_output_offset)
+                const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
+                if (__carry_in + __iters_per_item * __sub_group_size > __out_rng_size - __write_output_offset)
                 {
                     auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
                         if constexpr (__is_temp_data_required)
