@@ -2313,11 +2313,11 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     // Empirically determined maximum. May be less for non-full blocks.
     const bool __target_is_gpu = __q.get_device().is_gpu();
     const std::uint16_t __max_inputs_per_item =
-        std::max<uint16_t>(1, (__target_is_gpu ? 512 : 2048) / __bytes_per_work_item_iter);
+        std::max<uint16_t>(1, (__target_is_gpu ? 512 : 256) / __bytes_per_work_item_iter);
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
     // empirical derived caps for workgroup size based upon target
-    const std::uint32_t __wg_size_cap = __target_is_gpu ? 1024 : 128;
+    const std::uint32_t __wg_size_cap = __target_is_gpu ? 1024 : 256;
     const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, __wg_size_cap);
     // Round down to nearest multiple of the max subgroup size to ensure compatibility with all sub-group sizes
     const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
@@ -2326,7 +2326,8 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 
     const std::uint32_t __max_compute_units =
         __q.get_device().template get_info<sycl::info::device::max_compute_units>();
-    const std::uint32_t __num_work_groups = __target_is_gpu ? (__max_compute_units / 4)  : __max_compute_units * 64;
+    const std::uint32_t __num_work_groups =
+        oneapi::dpl::__internal::__dpl_bit_ceil(__max_compute_units) / (__target_is_gpu ? 4 : 1);
     // Allocate sufficient temporary storage for the worst case (smallest sub-group size = most sub-groups).
     const std::uint32_t __max_num_sub_groups_local = __work_group_size / __min_sub_group_size;
     const std::uint32_t __max_num_sub_groups_global = __max_num_sub_groups_local * __num_work_groups;
