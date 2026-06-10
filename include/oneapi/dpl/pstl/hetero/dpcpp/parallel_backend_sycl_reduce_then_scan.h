@@ -1982,9 +1982,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                 _ScanOpsTag __comm_scan_tag = __comm_handler.__get_tag_with_workspace(__comm_acc_or_placeholder);
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
-                __reduce_then_scan_sub_group_params __sub_group_params(__work_group_size, __sub_group_size,
-                                                                        __max_num_work_groups, __max_block_size,
-                                                                        __inputs_remaining);
+                __reduce_then_scan_sub_group_params __sub_group_params(
+                    __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
 
                 const std::uint32_t __active_groups = oneapi::dpl::__internal::__dpl_ceiling_div(
                     __inputs_in_block,
@@ -2033,8 +2032,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     //           S: sum(T0 carry...TS carry)
                     std::uint8_t __iters =
                         oneapi::dpl::__internal::__dpl_ceiling_div(__active_subgroups, __sub_group_size);
-                    std::size_t __subgroups_before_my_group =
-                        __group_id * __sub_group_params.__num_sub_groups_local;
+                    std::size_t __subgroups_before_my_group = __group_id * __sub_group_params.__num_sub_groups_local;
                     std::uint32_t __load_reduction_id = __sub_group_local_id;
                     std::uint8_t __i = 0;
                     for (; __i < __iters - 1; __i++)
@@ -2070,8 +2068,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                                     __sub_group_params.__num_sub_groups_local * __sub_group_local_id + __offset;
                                 std::size_t __remaining_elements = __elements_to_process;
                                 std::size_t __reduction_id = (__proposed_id < __subgroups_before_my_group)
-                                                                    ? __proposed_id
-                                                                    : __subgroups_before_my_group - 1;
+                                                                 ? __proposed_id
+                                                                 : __subgroups_before_my_group - 1;
                                 _InitValueType __value = __tmp_ptr[__reduction_id];
                                 __sub_group_scan_partial</*__is_inclusive=*/true, /*__init_present=*/false>(
                                     __sub_group, __value, __reduce_op, __carry_last, __remaining_elements,
@@ -2148,15 +2146,13 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     {
                         _InitValueType __value =
                             __sub_group_partials[std::min(__sub_group_id - 1, __active_subgroups - 1)];
-                        oneapi::dpl::unseq_backend::__init_processing<_InitValueType>{}(__init, __value,
-                                                                                        __reduce_op);
+                        oneapi::dpl::unseq_backend::__init_processing<_InitValueType>{}(__init, __value, __reduce_op);
                         __sub_group_carry.__setup(__value);
                     }
                     else if (__group_id > 0)
                     {
                         _InitValueType __value = __sub_group_partials[__active_subgroups];
-                        oneapi::dpl::unseq_backend::__init_processing<_InitValueType>{}(__init, __value,
-                                                                                        __reduce_op);
+                        oneapi::dpl::unseq_backend::__init_processing<_InitValueType>{}(__init, __value, __reduce_op);
                         __sub_group_carry.__setup(__value);
                     }
                     else // zeroth block, group and subgroup
@@ -2171,7 +2167,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         }
 
                         if constexpr (std::is_same_v<_InitType,
-                                                        oneapi::dpl::unseq_backend::__no_init_value<_InitValueType>>)
+                                                     oneapi::dpl::unseq_backend::__no_init_value<_InitValueType>>)
                         {
                             // This is the only case where we still don't have a carry in.  No init value, 0th block,
                             // group, and subgroup. This changes the final scan through elements below.
@@ -2189,22 +2185,20 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     {
                         _InitValueType __value =
                             __sub_group_partials[std::min(__sub_group_id - 1, __active_subgroups - 1)];
-                        __sub_group_carry.__setup(
-                            __reduce_op(__get_block_carry_in(__block_num, __tmp_ptr,
-                                                             __sub_group_params.__num_sub_groups_global),
-                                        __value));
+                        __sub_group_carry.__setup(__reduce_op(
+                            __get_block_carry_in(__block_num, __tmp_ptr, __sub_group_params.__num_sub_groups_global),
+                            __value));
                     }
                     else if (__group_id > 0)
                     {
-                        __sub_group_carry.__setup(
-                            __reduce_op(__get_block_carry_in(__block_num, __tmp_ptr,
-                                                             __sub_group_params.__num_sub_groups_global),
-                                        __sub_group_partials[__active_subgroups]));
+                        __sub_group_carry.__setup(__reduce_op(
+                            __get_block_carry_in(__block_num, __tmp_ptr, __sub_group_params.__num_sub_groups_global),
+                            __sub_group_partials[__active_subgroups]));
                     }
                     else
                     {
-                        __sub_group_carry.__setup(__get_block_carry_in(__block_num, __tmp_ptr,
-                                                                       __sub_group_params.__num_sub_groups_global));
+                        __sub_group_carry.__setup(
+                            __get_block_carry_in(__block_num, __tmp_ptr, __sub_group_params.__num_sub_groups_global));
                     }
                 }
 
@@ -2225,7 +2219,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                 else // first group first block, no subgroup carry
                 {
                     __scan_through_elements_helper<_Bounded, __is_inclusive, /*__init_present=*/false,
-                                                    /*__capture_output=*/true, __is_unique_pattern_v>(
+                                                   /*__capture_output=*/true, __is_unique_pattern_v>(
                         __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                         __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
                         __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_scan_tag,
