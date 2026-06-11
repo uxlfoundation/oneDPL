@@ -1259,11 +1259,11 @@ __get_reduce_then_scan_actual_sg_sz_device()
 // (and may even differ between sub-groups within a work-group, per the SYCL spec), so we read the actual size of THIS
 // sub-group at runtime via get_local_range(). Note: get_local_range() (the actual size of this sub-group), not
 // get_max_local_range() (the maximum), so a smaller-than-max or trailing-partial sub-group is handled correctly.
-#if _ONEDPL_DETECT_SPIRV_COMPILATION
-#    define _ONEDPL_RTS_SUB_GROUP_SIZE(__sg) (__get_reduce_then_scan_actual_sg_sz_device())
-#else
+//#if _ONEDPL_DETECT_SPIRV_COMPILATION
+//#    define _ONEDPL_RTS_SUB_GROUP_SIZE(__sg) (__get_reduce_then_scan_actual_sg_sz_device())
+//#else
 #    define _ONEDPL_RTS_SUB_GROUP_SIZE(__sg) ((__sg).get_local_range()[0])
-#endif
+//#endif
 
 // Per-work-item view computed once at kernel entry and passed by const-reference to the scan helpers, so the
 // sub-group accessors are queried a single time. Note that the sub-group *size* is deliberately NOT cached: on the
@@ -1292,7 +1292,7 @@ std::uint32_t
 __count_active_sub_groups(const _Group& __group, const __work_item_info& __wi, std::uint32_t __inputs_in_group,
                           std::uint32_t __inputs_per_item)
 {
-#if _ONEDPL_DETECT_SPIRV_COMPILATION
+#if 0 // _ONEDPL_DETECT_SPIRV_COMPILATION
     // Optimized case when all subgroups are equal sized from the reqd_sub_group_size attribute,
     // just calculate with simple ceiling division, no communication required.
     const std::uint32_t __inputs_per_sub_group = __inputs_per_item * _ONEDPL_RTS_SUB_GROUP_SIZE(__wi.__sub_group);
