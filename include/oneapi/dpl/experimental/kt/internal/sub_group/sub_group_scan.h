@@ -77,11 +77,12 @@ __extract_scan_input(_T&& __value)
 // the sub-group. This layout is to align with optimal loads from global memory without extra data movement.
 // The scan results are updated in __input.
 //
-template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputTypeWrapped, typename _SubGroup,
+template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputTypeWrapped,
           typename _BinaryOperation>
 auto
-__sub_group_scan(const _SubGroup& __sub_group, _InputTypeWrapped __input[__iters_per_item],
-                 _BinaryOperation __binary_op, std::uint32_t __items_in_scan)
+__sub_group_scan(const oneapi::dpl::__par_backend_hetero::__work_item_info& __wi,
+                 _InputTypeWrapped __input[__iters_per_item], _BinaryOperation __binary_op,
+                 std::uint32_t __items_in_scan)
 {
     using _InputType = __scan_input_t<_InputTypeWrapped>;
     const bool __is_full = __items_in_scan == __sub_group_size * __iters_per_item;
@@ -91,13 +92,13 @@ __sub_group_scan(const _SubGroup& __sub_group, _InputTypeWrapped __input[__iters
     {
         oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
                                                             /*__init_present*/ false>(
-            __sub_group, __extract_scan_input(__input[0]), __binary_op, __carry);
+            __wi, __extract_scan_input(__input[0]), __binary_op, __carry);
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __i = 1; __i < __iters_per_item; ++__i)
         {
             oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
                                                                 /*__init_present*/ true>(
-                __sub_group, __extract_scan_input(__input[__i]), __binary_op, __carry);
+                __wi, __extract_scan_input(__input[__i]), __binary_op, __carry);
         }
     }
     else
@@ -109,35 +110,35 @@ __sub_group_scan(const _SubGroup& __sub_group, _InputTypeWrapped __input[__iters
         {
             oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial</*__is_inclusive*/ true,
                                                                         /*__init_present*/ false>(
-                __sub_group, __extract_scan_input(__input[__i]), __binary_op, __carry,
+                __wi, __extract_scan_input(__input[__i]), __binary_op, __carry,
                 __items_in_scan - __i * __sub_group_size);
         }
         else if (__limited_iters_per_item > 1)
         {
             oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
                                                                 /*__init_present*/ false>(
-                __sub_group, __extract_scan_input(__input[__i++]), __binary_op, __carry);
+                __wi, __extract_scan_input(__input[__i++]), __binary_op, __carry);
             for (; __i < __limited_iters_per_item - 1; ++__i)
             {
                 oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
                                                                     /*__init_present*/ true>(
-                    __sub_group, __extract_scan_input(__input[__i]), __binary_op, __carry);
+                    __wi, __extract_scan_input(__input[__i]), __binary_op, __carry);
             }
             oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial</*__is_inclusive*/ true,
                                                                         /*__init_present*/ true>(
-                __sub_group, __extract_scan_input(__input[__i]), __binary_op, __carry,
+                __wi, __extract_scan_input(__input[__i]), __binary_op, __carry,
                 __items_in_scan - __i * __sub_group_size);
         }
     }
     return __carry.__v;
 }
 
-template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _SubGroup,
-          typename _BinaryOperation>
+template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _BinaryOperation>
 _InputType
-__sub_group_scan(const _SubGroup& __sub_group, _InputType __input[__iters_per_item], _BinaryOperation __binary_op)
+__sub_group_scan(const oneapi::dpl::__par_backend_hetero::__work_item_info& __wi, _InputType __input[__iters_per_item],
+                 _BinaryOperation __binary_op)
 {
-    return __sub_group_scan<__sub_group_size, __iters_per_item>(__sub_group, __input, __binary_op,
+    return __sub_group_scan<__sub_group_size, __iters_per_item>(__wi, __input, __binary_op,
                                                                 __sub_group_size * __iters_per_item);
 }
 
