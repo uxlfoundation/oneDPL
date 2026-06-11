@@ -132,6 +132,7 @@ template <bool __is_ascending, typename _Float, std::enable_if_t<std::is_same_v<
 std::uint16_t
 __order_preserving_cast_scalar(_Float __src)
 {
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
     if (__src == _Float{0})
         return 0x8000u;
     std::uint16_t __uint16_src = sycl::bit_cast<std::uint16_t>(__src);
@@ -154,6 +155,7 @@ template <bool __is_ascending, typename _Float,
 std::uint32_t
 __order_preserving_cast_scalar(_Float __src)
 {
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
     if (__src == _Float{0})
         return 0x80000000u;
     std::uint32_t __uint32_src = sycl::bit_cast<std::uint32_t>(__src);
@@ -176,6 +178,7 @@ template <bool __is_ascending, typename _Float,
 std::uint64_t
 __order_preserving_cast_scalar(_Float __src)
 {
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
     if (__src == _Float{0})
         return 0x8000000000000000u;
     std::uint64_t __uint64_src = sycl::bit_cast<std::uint64_t>(__src);
