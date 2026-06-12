@@ -1304,14 +1304,14 @@ __count_active_sub_groups([[maybe_unused]] const sycl::group<1>& __group, const 
         __inputs_per_item * __get_reduce_then_scan_actual_sub_group_size(__wi.__sub_group);
     return oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_in_group, __inputs_per_sub_group);
 #else
-    // When reqd_sub_group_size attribute is not available, calculate active subgroups with a reduction.
-    // With a possible arbitrary layout of differently sized subgroups (from sycl spec), some communication
-    // is required, and a reduction is simplest for this fallback case.
+    // When reqd_sub_group_size attribute is not available, calculate active subgroups with a broadcast.
+    // With a possible arbitrary layout of differently sized subgroups (from sycl spec), the sub-group id of a
+    // given work-item is not known, but the last active work item is known.
     const std::uint32_t __active_work_items =
         oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_in_group, __inputs_per_item);
-    const std::uint32_t __contribution =
-        (__wi.__sub_group_local_id == 0 && __wi.__sg_base < __active_work_items) ? 1 : 0;
-    return __dpl_sycl::__reduce_over_group(__group, __contribution, __dpl_sycl::__plus<std::uint32_t>());
+    const std::uint32_t __last_active_sub_group_id =
+        __dpl_sycl::__group_broadcast(__group, __wi.__sub_group_id, __active_work_items - 1);
+    return __last_active_sub_group_id + 1;
 #endif
 }
 
