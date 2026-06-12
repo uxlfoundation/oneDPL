@@ -1244,7 +1244,7 @@ struct __slm_or_subgroup_tag
 // sub-group size of 16. Note this function may only be called on the device as _ONEDPL_DETECT_SPIRV_COMPILATION is only
 // valid here.
 constexpr inline std::uint8_t
-__get_reduce_then_scan_actual_sg_sz_device()
+__get_reduce_then_scan_req_sg_sz_device()
 {
 #if _ONEDPL_DETECT_COMPILER_OPTIMIZATIONS_ENABLED || !_ONEDPL_DETECT_SPIRV_COMPILATION
     return 32; // best value
@@ -1254,16 +1254,25 @@ __get_reduce_then_scan_actual_sg_sz_device()
 }
 
 #if _ONEDPL_DETECT_SPIRV_COMPILATION
+
 // On SPIR-V, the reqd_sub_group_size attribute is honored, and we ensure the workgroup size is a multiple of the
 // subgroup size, so the sub-group size is a known fixed compile time constant for all subgroups.
-#    define _ONEDPL_RTS_SUB_GROUP_SIZE(__sg) (__get_reduce_then_scan_actual_sg_sz_device())
+constexpr inline std::uint8_t
+__get_reduce_then_scan_actual_sub_group_size(const sycl::sub_group&)
+{
+    return __get_reduce_then_scan_req_sg_sz_device();
+}
 #else
 // When not compiling for SPIR-V, we must use the real subgroup size obtained at runtime, which may be
 // implementation-defined and may even differ between subgroups within a work-group per the SYCL spec.
 // This will cause performance degradation, but is required for correctness according to the sycl specification.
 // In practice, most implementations will have a fixed subgroup size, but this fallback ensures correctness even
 // if that is not the case.
-#    define _ONEDPL_RTS_SUB_GROUP_SIZE(__sg) ((__sg).get_local_range()[0])
+inline std::uint8_t
+__get_reduce_then_scan_actual_sub_group_size(const sycl::sub_group& __sg)
+{
+    return __sg.get_local_range()[0];
+}
 #endif
 
 struct __work_item_info
@@ -1292,7 +1301,7 @@ __count_active_sub_groups(const _Group& __group, const __work_item_info& __wi, s
 #if _ONEDPL_DETECT_SPIRV_COMPILATION
     // Optimized case when all subgroups are equal sized from the reqd_sub_group_size attribute,
     // just calculate with simple ceiling division, no communication required.
-    const std::uint32_t __inputs_per_sub_group = __inputs_per_item * _ONEDPL_RTS_SUB_GROUP_SIZE(__wi.__sub_group);
+    const std::uint32_t __inputs_per_sub_group = __inputs_per_item * __get_reduce_then_scan_actual_sub_group_size(__wi.__sub_group);
     return oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_in_group, __inputs_per_sub_group);
 #else
     // When reqd_sub_group_size attribute is not available, calculate active subgroups with a reduction.
@@ -1388,7 +1397,7 @@ __exclusive_sub_group_masked_scan(const __work_item_info& __wi, _MaskOp __mask_f
                                   _CommTag __comm_tag)
 {
     std::uint8_t __sub_group_local_id = __wi.__sub_group_local_id;
-    const std::uint8_t __sub_group_size = _ONEDPL_RTS_SUB_GROUP_SIZE(__wi.__sub_group);
+    const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__wi.__sub_group);
     for (std::uint8_t __shift = 1; __shift < __sub_group_size; __shift <<= 1)
     {
         _ValueType __partial_carry_in = __shift_group_right(__wi, __value, __shift, __comm_tag);
@@ -1430,7 +1439,7 @@ __inclusive_sub_group_masked_scan(const __work_item_info& __wi, _MaskOp __mask_f
                                   _CommTag __comm_tag)
 {
     std::uint8_t __sub_group_local_id = __wi.__sub_group_local_id;
-    const std::uint8_t __sub_group_size = _ONEDPL_RTS_SUB_GROUP_SIZE(__wi.__sub_group);
+    const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__wi.__sub_group);
     for (std::uint8_t __shift = 1; __shift < __sub_group_size; __shift <<= 1)
     {
         _ValueType __partial_carry_in = __shift_group_right(__wi, __value, __shift, __comm_tag);
@@ -1477,7 +1486,7 @@ __sub_group_scan(const __work_item_info& __wi, _ValueType& __value, _BinaryOp __
                  _LazyValueType& __init_and_carry, _ScanOpsTag __comm_tag = {})
 {
     auto __mask_fn = [](auto __sub_group_local_id, auto __offset) { return __sub_group_local_id >= __offset; };
-    std::uint8_t __init_broadcast_id = _ONEDPL_RTS_SUB_GROUP_SIZE(__wi.__sub_group) - 1;
+    std::uint8_t __init_broadcast_id = __get_reduce_then_scan_actual_sub_group_size(__wi.__sub_group) - 1;
     __sub_group_masked_scan<__is_inclusive, __init_present>(__wi, __mask_fn, __init_broadcast_id, __value, __binary_op,
                                                             __init_and_carry, __comm_tag);
 }
@@ -1509,7 +1518,7 @@ __scan_through_elements_helper_impl(const __work_item_info& __wi, _GenInput __ge
 {
     using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t>;
 
-    const std::uint8_t __sub_group_size = _ONEDPL_RTS_SUB_GROUP_SIZE(__wi.__sub_group);
+    const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__wi.__sub_group);
     bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
 
     if (__is_full_thread)
@@ -1644,7 +1653,7 @@ __scan_through_elements_helper(const __work_item_info& __wi, _GenInput __gen_inp
 
                 constexpr std::int32_t __write_output_offset = __is_unique_pattern_v ? 1 : 0;
                 const std::size_t __carry_in = __init_present ? __sub_group_carry.__v : 0;
-                const std::uint8_t __sub_group_size = _ONEDPL_RTS_SUB_GROUP_SIZE(__wi.__sub_group);
+                const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__wi.__sub_group);
                 if (__carry_in + __iters_per_item * __sub_group_size > __out_rng_size - __write_output_offset)
                 {
                     auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
@@ -1781,9 +1790,9 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
             auto __oob_pos_acc = __get_oob_pos_accessor_opt<_Bounded>(__cgh, __oob_pos_storage);
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this](sycl::nd_item<1> __ndi)
-                        [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_actual_sg_sz_device())]]{
+                        [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_req_sg_sz_device())]]{
                 const __work_item_info __wi{__ndi};
-                const std::uint8_t __sub_group_size = _ONEDPL_RTS_SUB_GROUP_SIZE(__wi.__sub_group);
+                const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__wi.__sub_group);
 
                 _InitValueType* __temp_ptr = __temp_acc.__data();
                 // The sub-group-ops vs SLM-fallback decision is dispatched at each sub-group-scan region
@@ -2010,10 +2019,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(
-                        __get_reduce_then_scan_actual_sg_sz_device())]] {
+                        __get_reduce_then_scan_req_sg_sz_device())]] {
                 _ScanOpsTag __comm_scan_tag = __comm_handler.__get_tag_with_workspace(__comm_acc_or_placeholder);
                 const __work_item_info __wi{__ndi};
-                const std::uint8_t __sub_group_size = _ONEDPL_RTS_SUB_GROUP_SIZE(__wi.__sub_group);
+                const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__wi.__sub_group);
 
                 const std::uint32_t __active_groups =
                     oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_in_block, __inputs_per_work_group);
@@ -2336,7 +2345,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 
     // Query the device's supported sub-group sizes to allocate storage conservatively and round
     // the work-group size appropriately. The actual sub-group size used by each kernel is determined
-    // on the device (see _ONEDPL_RTS_SUB_GROUP_SIZE): a compile-time constant on the SPIR-V path and
+    // on the device (see __get_reduce_then_scan_actual_sub_group_size): a compile-time constant on the SPIR-V path and
     // the actual per-sub-group get_local_range() otherwise.
     const auto __supported_sg_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
     const auto [__min_sg_it, __max_sg_it] =
