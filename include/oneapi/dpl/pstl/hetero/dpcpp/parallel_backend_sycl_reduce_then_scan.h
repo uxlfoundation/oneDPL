@@ -1338,14 +1338,14 @@ __dispatch_comm_tag(__subgroup_only_tag, _Body&& __body)
 
 template <typename _ValueType>
 _ValueType
-__shift_group_right(const sycl::nd_item<1>& __ndi, _ValueType __value, std::uint32_t __shift, __subgroup_only_tag)
+__shift_sub_group_right(const sycl::nd_item<1>& __ndi, _ValueType __value, std::uint32_t __shift, __subgroup_only_tag)
 {
     return sycl::shift_group_right(__ndi.get_sub_group(), __value, __shift);
 }
 
 template <typename _ValueType>
 _ValueType
-__shift_group_right(const sycl::nd_item<1>& __ndi, _ValueType __value, std::uint32_t __shift,
+__shift_sub_group_right(const sycl::nd_item<1>& __ndi, _ValueType __value, std::uint32_t __shift,
                     __slm_only_tag<_ValueType> __comm_slm)
 {
     // SLM-based fallback: used for non-trivially-copyable types or when SLM communication is
@@ -1363,14 +1363,14 @@ __shift_group_right(const sycl::nd_item<1>& __ndi, _ValueType __value, std::uint
 
 template <typename _ValueType, typename _IdType>
 _ValueType
-__group_broadcast(const sycl::nd_item<1>& __ndi, _ValueType __value, _IdType __broadcast_id, __subgroup_only_tag)
+__broadcast_sub_group(const sycl::nd_item<1>& __ndi, _ValueType __value, _IdType __broadcast_id, __subgroup_only_tag)
 {
     return sycl::group_broadcast(__ndi.get_sub_group(), __value, __broadcast_id);
 }
 
 template <typename _ValueType, typename _IdType>
 _ValueType
-__group_broadcast(const sycl::nd_item<1>& __ndi, _ValueType __value, _IdType __broadcast_id,
+__broadcast_sub_group(const sycl::nd_item<1>& __ndi, _ValueType __value, _IdType __broadcast_id,
                   __slm_only_tag<_ValueType> __comm_slm)
 {
     // SLM-based fallback: used for non-trivially-copyable types or when SLM communication is
@@ -1395,7 +1395,7 @@ __exclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_
     const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
     for (std::uint8_t __shift = 1; __shift < __sub_group_size; __shift <<= 1)
     {
-        _ValueType __partial_carry_in = __shift_group_right(__ndi, __value, __shift, __comm_tag);
+        _ValueType __partial_carry_in = __shift_sub_group_right(__ndi, __value, __shift, __comm_tag);
         if (__mask_fn(__sub_group_local_id, __shift))
         {
             __value = __binary_op(__partial_carry_in, __value);
@@ -1407,14 +1407,14 @@ __exclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_
         __value = __binary_op(__init_and_carry.__v, __value);
         if (__sub_group_local_id == 0)
             __old_init.__setup(__init_and_carry.__v);
-        __init_and_carry.__v = __group_broadcast(__ndi, __value, __init_broadcast_id, __comm_tag);
+        __init_and_carry.__v = __broadcast_sub_group(__ndi, __value, __init_broadcast_id, __comm_tag);
     }
     else
     {
-        __init_and_carry.__setup(__group_broadcast(__ndi, __value, __init_broadcast_id, __comm_tag));
+        __init_and_carry.__setup(__broadcast_sub_group(__ndi, __value, __init_broadcast_id, __comm_tag));
     }
 
-    __value = __shift_group_right(__ndi, __value, 1, __comm_tag);
+    __value = __shift_sub_group_right(__ndi, __value, 1, __comm_tag);
     if constexpr (__init_present)
     {
         if (__sub_group_local_id == 0)
@@ -1437,7 +1437,7 @@ __inclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_
     const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
     for (std::uint8_t __shift = 1; __shift < __sub_group_size; __shift <<= 1)
     {
-        _ValueType __partial_carry_in = __shift_group_right(__ndi, __value, __shift, __comm_tag);
+        _ValueType __partial_carry_in = __shift_sub_group_right(__ndi, __value, __shift, __comm_tag);
         if (__mask_fn(__sub_group_local_id, __shift))
         {
             __value = __binary_op(__partial_carry_in, __value);
@@ -1446,11 +1446,11 @@ __inclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_
     if constexpr (__init_present)
     {
         __value = __binary_op(__init_and_carry.__v, __value);
-        __init_and_carry.__v = __group_broadcast(__ndi, __value, __init_broadcast_id, __comm_tag);
+        __init_and_carry.__v = __broadcast_sub_group(__ndi, __value, __init_broadcast_id, __comm_tag);
     }
     else
     {
-        __init_and_carry.__setup(__group_broadcast(__ndi, __value, __init_broadcast_id, __comm_tag));
+        __init_and_carry.__setup(__broadcast_sub_group(__ndi, __value, __init_broadcast_id, __comm_tag));
     }
     //return by reference __value and __init_and_carry
 }
