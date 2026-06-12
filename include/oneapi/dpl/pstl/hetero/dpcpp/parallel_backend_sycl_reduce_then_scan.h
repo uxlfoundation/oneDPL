@@ -1287,10 +1287,10 @@ struct __work_item_info
     {
     }
 
-    __dpl_sycl::__sub_group __sub_group;
-    std::uint32_t __sub_group_id;
-    std::uint32_t __sub_group_local_id;
-    std::uint32_t __sg_base;
+    const __dpl_sycl::__sub_group __sub_group;
+    const std::uint32_t __sub_group_id;
+    const std::uint32_t __sub_group_local_id;
+    const std::uint32_t __sg_base;
 };
 
 std::uint32_t
