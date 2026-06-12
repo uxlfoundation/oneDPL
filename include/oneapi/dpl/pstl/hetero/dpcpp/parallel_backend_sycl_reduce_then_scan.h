@@ -1422,6 +1422,18 @@ __exclusive_sub_group_masked_scan(const __work_item_info& __wi, _MaskOp __mask_f
     //return by reference __value and __init_and_carry
 }
 
+template <typename _ValueType, typename = void>
+struct __select_real_type_from_comm_tag
+{
+    using type = _ValueType;
+};
+
+template <typename _ValueType, typename _ValueTypeInTag>
+struct __select_real_type_from_comm_tag<_ValueType, __slm_only_tag<_ValueTypeInTag>>
+{
+    using type = _ValueTypeInTag;
+};
+
 template <bool __init_present, typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType,
           typename _LazyValueType, typename _CommTag>
 void
@@ -1429,11 +1441,13 @@ __inclusive_sub_group_masked_scan(const __work_item_info& __wi, _MaskOp __mask_f
                                   _ValueType& __value, _BinaryOp __binary_op, _LazyValueType& __init_and_carry,
                                   _CommTag __comm_tag)
 {
+    using _real_value_type = typename __select_real_type_from_comm_tag<_ValueType, _CommTag>::type;
+
     std::uint8_t __sub_group_local_id = __wi.__sub_group_local_id;
     const std::uint8_t __sub_group_size = _ONEDPL_RTS_SUB_GROUP_SIZE(__wi.__sub_group);
     for (std::uint8_t __shift = 1; __shift < __sub_group_size; __shift <<= 1)
     {
-        _ValueType __partial_carry_in = __shift_group_right(__wi, __value, __shift, __comm_tag);
+        _ValueType __partial_carry_in = __shift_group_right(__wi, _real_value_type{__value}, __shift, __comm_tag);
         if (__mask_fn(__sub_group_local_id, __shift))
         {
             __value = __binary_op(__partial_carry_in, __value);
@@ -1442,11 +1456,11 @@ __inclusive_sub_group_masked_scan(const __work_item_info& __wi, _MaskOp __mask_f
     if constexpr (__init_present)
     {
         __value = __binary_op(__init_and_carry.__v, __value);
-        __init_and_carry.__v = __group_broadcast(__wi, __value, __init_broadcast_id, __comm_tag);
+        __init_and_carry.__v = __group_broadcast(__wi, _real_value_type{__value}, __init_broadcast_id, __comm_tag);
     }
     else
     {
-        __init_and_carry.__setup(__group_broadcast(__wi, __value, __init_broadcast_id, __comm_tag));
+        __init_and_carry.__setup(__group_broadcast(__wi, _real_value_type{__value}, __init_broadcast_id, __comm_tag));
     }
     //return by reference __value and __init_and_carry
 }
