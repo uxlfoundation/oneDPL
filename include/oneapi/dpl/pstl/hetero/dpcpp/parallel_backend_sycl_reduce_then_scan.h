@@ -1856,7 +1856,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                     // Each group's region in the global temp is strided by __max_num_sub_groups_local (the allocated
                     // upper bound on sub-group count), not the actual count, so that regions of distinct groups never
                     // overlap regardless of how many sub-groups a given group actually has.
-                    __start_id = (__group_id * __max_num_sub_groups_local);
+                    __start_id = __group_id * __max_num_sub_groups_local;
                     std::uint8_t __iters =
                         oneapi::dpl::__internal::__dpl_ceiling_div(__active_subgroups, __sub_group_size);
                     // Dispatch the sub-group-ops vs SLM-fallback decision once for this carry-computation region.
