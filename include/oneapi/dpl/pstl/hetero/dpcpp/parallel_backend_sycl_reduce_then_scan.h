@@ -1293,10 +1293,9 @@ struct __work_item_info
     std::uint32_t __sg_base;
 };
 
-template <typename _Group>
 std::uint32_t
-__count_active_sub_groups(const _Group& __group, const __work_item_info& __wi, std::uint32_t __inputs_in_group,
-                          std::uint32_t __inputs_per_item)
+__count_active_sub_groups([[maybe_unused]] const sycl::group<1>& __group, const __work_item_info& __wi,
+                          std::uint32_t __inputs_in_group,std::uint32_t __inputs_per_item)
 {
 #if _ONEDPL_DETECT_SPIRV_COMPILATION
     // Optimized case when all subgroups are equal sized from the reqd_sub_group_size attribute,
