@@ -1831,10 +1831,13 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                     // for unique patterns, the first element is always copied to the output, so we need to skip it
                     __group_start_id += 1;
                 }
-                std::uint32_t __inputs_in_group =
-                    std::min(__n - __group_start_id, std::size_t{__inputs_per_work_group});
-                std::uint32_t __active_subgroups =
-                    __count_active_sub_groups(__ndi, __inputs_in_group, __inputs_per_item);
+                
+                std::uint32_t __active_subgroups = __sub_group.get_group_linear_range();
+                if (__n - __group_start_id < __inputs_per_work_group - __inputs_per_item)
+                {
+                    // If at least 1 work-item is inactive, a subgroup may be inactive.
+                    __active_subgroups = __count_active_sub_groups(__ndi, __n - __group_start_id, __inputs_per_item);
+                }
                 std::size_t __subgroup_start_id =
                     __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
 
@@ -2062,13 +2065,12 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     // for unique patterns, the first element is always copied to the output, so we need to skip it
                     __group_start_id += 1;
                 }
-
-                std::uint32_t __inputs_in_group =
-                    std::min(__n - __group_start_id, std::size_t{__inputs_per_work_group});
-                // Non-local under arbitrary sub-group sizes; the collective MUST be reached by every work-item, so it
-                // is computed before any sub-group-id guard below (mirrors the reduce kernel).
-                std::uint32_t __active_subgroups =
-                    __count_active_sub_groups(__ndi, __inputs_in_group, __inputs_per_item);
+                std::uint32_t __active_subgroups = __sub_group.get_group_linear_range();
+                if (__n - __group_start_id < __inputs_per_work_group - __inputs_per_item)
+                {
+                    // If at least 1 work-item is inactive, a subgroup may be inactive.
+                    __active_subgroups = __count_active_sub_groups(__ndi, __n - __group_start_id, __inputs_per_item);
+                }
                 oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __carry_last;
 
                 // propagate carry in from previous block
