@@ -317,7 +317,10 @@ template <typename _UnaryOp, typename _InitType>
 struct __gen_transform_input
 {
     template <typename _InRng>
-    auto
+    using __result_t = _InitType;
+
+    template <typename _InRng>
+    __result_t<_InRng>
     operator()(const _InRng& __in_rng, std::size_t __id) const
     {
         // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
@@ -364,7 +367,12 @@ template <typename _GenMask, typename _RetType, typename _RangeTransform = oneap
 struct __gen_expand_count_mask
 {
     template <typename _InRng>
-    auto
+    using __result_t = std::tuple<
+        _RetType, bool,
+        oneapi::dpl::__internal::__value_t<decltype(std::declval<const _RangeTransform&>()(std::declval<_InRng&>()))>>;
+
+    template <typename _InRng>
+    __result_t<_InRng>
     operator()(_InRng&& __in_rng, _RetType __id) const
     {
         auto __transformed_input = __rng_transform(__in_rng);
@@ -374,7 +382,7 @@ struct __gen_expand_count_mask
         using _ElementType = oneapi::dpl::__internal::__value_t<decltype(__transformed_input)>;
         _ElementType ele = __transformed_input[__id];
         bool mask = __gen_mask(std::forward<_InRng>(__in_rng), __id);
-        return std::tuple(mask ? _RetType{1} : _RetType{0}, mask, ele);
+        return __result_t<_InRng>(mask ? _RetType{1} : _RetType{0}, mask, ele);
     }
     _GenMask __gen_mask;
     _RangeTransform __rng_transform;
@@ -912,9 +920,12 @@ template <typename _SetOpCount, typename _TempData, typename _RetType, typename 
           typename _Proj2>
 struct __gen_set_op_from_known_balanced_path
 {
+    template <typename _InRng>
+    using __result_t = std::tuple<_RetType, _RetType>;
+
     using TempData = _TempData;
     template <typename _InRng, typename _IndexT>
-    std::tuple<_RetType, _RetType>
+    __result_t<_InRng>
     operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
     {
         // Get source tuple
@@ -932,7 +943,7 @@ struct __gen_set_op_from_known_balanced_path
             oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2), decltype(__rng1_temp_diag)>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
-            return std::make_tuple(_RetType{0}, _RetType{0});
+            return __result_t<_InRng>{_RetType{0}, _RetType{0}};
         auto [__rng1_idx, __rng2_idx, __star_offset] =
             oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__rng1_temp_diag, __id,
                                                                                 __diagonal_spacing);
@@ -945,7 +956,7 @@ struct __gen_set_op_from_known_balanced_path
         _RetType __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data,
                                           __comp, __proj1, __proj2);
 
-        return std::make_tuple(__count, __count);
+        return __result_t<_InRng>{__count, __count};
     }
     _SetOpCount __set_op_count;
     std::uint16_t __diagonal_spacing;
@@ -1041,6 +1052,13 @@ struct __gen_scan_by_seg_reduce_input
 template <typename _BinaryPred>
 struct __gen_red_by_seg_scan_input
 {
+    template <typename _InRng>
+    using __key_t = oneapi::dpl::__internal::__value_t<decltype(std::get<0>(std::declval<_InRng>().base()))>;
+    template <typename _InRng>
+    using __val_t = oneapi::dpl::__internal::__value_t<decltype(std::get<1>(std::declval<_InRng>().base()))>;
+    template <typename _InRng>
+    using __result_t = oneapi::dpl::__internal::tuple<oneapi::dpl::__internal::tuple<std::size_t, __val_t<_InRng>>,
+                                                      bool, __key_t<_InRng>, __key_t<_InRng>>;
     // Returns the following tuple:
     // ((new_seg_mask, value), output_value, next_key, current_key)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
@@ -1049,7 +1067,7 @@ struct __gen_red_by_seg_scan_input
     // KeyType next_key    : The key of the next segment to write if output_value is true
     // KeyType current_key : The current element's key. This is only ever used by work-item 0 to write the first key
     template <typename _InRng>
-    auto
+    __result_t<_InRng>
     operator()(const _InRng& __in_rng, std::size_t __id) const
     {
         // Get source tuple
@@ -1101,7 +1119,13 @@ struct __gen_scan_by_seg_scan_input
     // bool new_seg_mask : true for a start of a new segment, false otherwise
     // ValueType value   : Current element's value for reduction
     template <typename _InRng>
-    auto
+    using __val_t = oneapi::dpl::__internal::__value_t<decltype(std::get<1>(std::declval<_InRng>().base()))>;
+    template <typename _InRng>
+    using __result_t =
+        oneapi::dpl::__internal::tuple<oneapi::dpl::__internal::tuple<std::uint32_t, __val_t<_InRng>>, std::uint32_t>;
+
+    template <typename _InRng>
+    __result_t<_InRng>
     operator()(const _InRng& __in_rng, std::size_t __id) const
     {
         // Get source tuple
@@ -1116,8 +1140,8 @@ struct __gen_scan_by_seg_scan_input
         // is scanned over, and the third is a placeholder for exclusive_scan_by_segment to perform init
         // handling in the output write.
         const std::uint32_t __new_seg_mask = __id == 0 || !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
-        return oneapi::dpl::__internal::make_tuple(
-            oneapi::dpl::__internal::make_tuple(__new_seg_mask, _ValueType{__in_vals[__id]}), __new_seg_mask);
+        return __result_t<_InRng>{oneapi::dpl::__internal::make_tuple(__new_seg_mask, _ValueType{__in_vals[__id]}),
+                                  __new_seg_mask};
     }
     _BinaryPred __binary_pred;
 };
@@ -1599,22 +1623,6 @@ struct __temp_data_required<_T, std::void_t<typename _T::TempData>>
 {
     static constexpr bool value = true;
     using type = typename _T::TempData;
-};
-
-// Computes the result type of a scan-input generator, mirroring how the kernel invokes it
-// (see __gen_input_impl in __scan_through_elements_helper).
-template <typename _GenScanInput, typename _InRng, bool = __temp_data_required<_GenScanInput>::value>
-struct __gen_scan_input_result
-{
-    using type = std::invoke_result_t<_GenScanInput, _InRng&, std::size_t>;
-};
-
-// Generators advertising a TempData type alias take an extra TempData& argument.
-template <typename _GenScanInput, typename _InRng>
-struct __gen_scan_input_result<_GenScanInput, _InRng, true>
-{
-    using type =
-        std::invoke_result_t<_GenScanInput, _InRng&, std::size_t, typename __temp_data_required<_GenScanInput>::type&>;
 };
 
 template <bool _Bounded, bool __is_inclusive, bool __init_present, bool __capture_output, bool __is_unique_pattern_v,
@@ -2504,7 +2512,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     using _ValueType = typename _InitType::__value_type;
 
     // This static assert clarifies a cryptic error for "no matching function" due to mismatched type
-    using _GenScanInputResult = typename __gen_scan_input_result<_GenScanInput, std::decay_t<_InRng>>::type;
+    using _GenScanInputResult = typename _GenScanInput::template __result_t<std::decay_t<_InRng>>;
     using _ScannedValueType = std::decay_t<std::invoke_result_t<_ScanInputTransform, _GenScanInputResult&>>;
     static_assert(std::is_same_v<_ScannedValueType, _ValueType>,
                   "reduce-then-scan: the init value type must match the type produced by applying the scan input "
