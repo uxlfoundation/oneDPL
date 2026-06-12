@@ -484,8 +484,8 @@ template <typename _SetOpCount, typename _BoundsProvider, typename _RetType, typ
           typename _Proj2>
 struct __gen_set_balanced_path;
 
-template <typename _SetOpCount, typename _TempData, typename _RetType, typename _Compare, typename _Proj1,
-          typename _Proj2>
+template <typename _SetOpCount, typename _TempData, typename _TempDataCaptureIndexes, typename _RetType,
+          typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_op_from_known_balanced_path;
 
 template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag,
@@ -633,11 +633,11 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <typename _SetOpCount, typename _TempData, typename _RetType, typename _Compare, typename _Proj1,
-          typename _Proj2>
+template <typename _SetOpCount, typename _TempData, typename _TempDataCaptureIndexes, typename _RetType,
+          typename _Compare, typename _Proj1, typename _Proj2>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
-    oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path, _SetOpCount, _TempData, _RetType,
-    _Compare, _Proj1, _Proj2)>
+    oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path, _SetOpCount, _TempData,
+    _TempDataCaptureIndexes, _RetType, _Compare, _Proj1, _Proj2)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_SetOpCount, _Compare, _Proj1, _Proj2>
 {
 };
