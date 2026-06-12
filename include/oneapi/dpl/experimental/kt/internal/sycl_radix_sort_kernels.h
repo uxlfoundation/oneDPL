@@ -416,8 +416,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
             // 1.3. Partial scan across bins: Each participating sub-group independently scans its own
             // segment of __bin_process_width bins. These partial results are finalized in step 1.4.
-            const oneapi::dpl::__par_backend_hetero::__work_item_info __wi{__idx};
-            __inter_bin_scan_bin_width_totals<__bin_process_width>(__wi, __sub_group_id, __sub_group_local_id,
+            __inter_bin_scan_bin_width_totals<__bin_process_width>(__idx, __sub_group_id, __sub_group_local_id,
                                                                    __item_grf_hist_summary_arr, __slm_group_hist);
         }
         sycl::group_barrier(__group);
@@ -463,12 +462,11 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
     template <std::uint32_t __bin_process_width>
     inline void
-    __inter_bin_scan_bin_width_totals(const oneapi::dpl::__par_backend_hetero::__work_item_info& __wi,
-                                      std::uint32_t __sub_group_id, std::uint32_t __sub_group_local_id,
-                                      _LocOffsetT (&__item_grf_hist_summary_arr)[1],
+    __inter_bin_scan_bin_width_totals(const sycl::nd_item<1>& __idx, std::uint32_t __sub_group_id,
+                                      std::uint32_t __sub_group_local_id, _LocOffsetT (&__item_grf_hist_summary_arr)[1],
                                       _LocOffsetT* __slm_group_hist) const
     {
-        __sub_group_scan<__sub_group_size, 1>(__wi, __item_grf_hist_summary_arr, std::plus<>{}, __bin_process_width);
+        __sub_group_scan<__sub_group_size, 1>(__idx, __item_grf_hist_summary_arr, std::plus<>{}, __bin_process_width);
 
         _LocIdxT __write_idx = __sub_group_id * __bin_process_width + __sub_group_local_id;
         __slm_group_hist[__write_idx] = __item_grf_hist_summary_arr[0];

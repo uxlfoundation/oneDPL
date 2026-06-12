@@ -42,7 +42,6 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
 {
     sycl::group __group = __item.get_group();
     sycl::sub_group __sub_group = __item.get_sub_group();
-    const oneapi::dpl::__par_backend_hetero::__work_item_info __wi{__item};
     const std::uint8_t __sub_group_group_id = __sub_group.get_group_linear_id();
     const std::uint8_t __active_sub_groups =
         oneapi::dpl::__internal::__dpl_ceiling_div(__items_in_scan, __sub_group_size * __iters_per_item);
@@ -56,7 +55,7 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
     //
     // TODO: we should analyze why limiting the sub-group scan causes performance regressions.
     _InputType __sub_group_carry =
-        __sub_group_scan<__sub_group_size, __iters_per_item>(__wi, __input, __binary_op, __items_in_sub_group_scan);
+        __sub_group_scan<__sub_group_size, __iters_per_item>(__item, __input, __binary_op, __items_in_sub_group_scan);
     [[maybe_unused]] _InputType __wg_init = __input[0].__v;
     if (__sub_group.get_local_linear_id() == __sub_group_size - 1)
     {
@@ -76,13 +75,13 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
         {
             oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial</*__is_inclusive*/ true,
                                                                         /*__init_present*/ false>(
-                __wi, __val, __binary_op, __wg_carry, __active_sub_groups);
+                __item, __val, __binary_op, __wg_carry, __active_sub_groups);
             __local_acc[__idx] = __val;
         }
         else
         {
             oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
-                                                                /*__init_present*/ false>(__wi, __val, __binary_op,
+                                                                /*__init_present*/ false>(__item, __val, __binary_op,
                                                                                           __wg_carry);
             __local_acc[__idx] = __val;
             __idx += __sub_group_size;
@@ -90,7 +89,7 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
             {
                 __val = __local_acc[__idx];
                 oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
-                                                                    /*__init_present*/ true>(__wi, __val, __binary_op,
+                                                                    /*__init_present*/ true>(__item, __val, __binary_op,
                                                                                              __wg_carry);
                 __local_acc[__idx] = __val;
                 __idx += __sub_group_size;
@@ -98,12 +97,12 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
             __val = __local_acc[__idx];
             oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial</*__is_inclusive*/ true,
                                                                         /*__init_present*/ true>(
-                __wi, __val, __binary_op, __wg_carry, __active_sub_groups - (__num_iters - 1) * __sub_group_size);
+                __item, __val, __binary_op, __wg_carry, __active_sub_groups - (__num_iters - 1) * __sub_group_size);
             __local_acc[__idx] = __val;
         }
         // Init callback, most common case is expected to be a decoupled lookback to achieve a global scan between
         // work-groups.
-        __init_callback(__wg_init, __wi, __wg_carry.__v);
+        __init_callback(__wg_init, __item, __wg_carry.__v);
         __wg_carry.__destroy();
     }
     sycl::group_barrier(__group);
