@@ -1308,7 +1308,7 @@ __get_sub_group_base(const sycl::nd_item<1>& __ndi)
     return static_cast<std::uint32_t>(__ndi.get_local_linear_id()) - __ndi.get_sub_group().get_local_linear_id();
 }
 
-std::uint32_t
+inline std::uint32_t
 __count_active_sub_groups(const sycl::nd_item<1>& __ndi, std::uint32_t __inputs_in_group,
                           std::uint32_t __inputs_per_item)
 {
