@@ -373,13 +373,12 @@ std::ranges::borrowed_subrange_t<_R1>
 __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred,
                    _Proj1 __proj1, _Proj2 __proj2)
 {
+    auto [__first1, __last1] = oneapi::dpl::__ranges::__bounds(__r1);
+
     oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2> __bin_pred{__pred, __proj1, __proj2};
 
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_find_end(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r1), oneapi::dpl::__ranges::views::all_read(__r2), __bin_pred);
-
-    auto __first1 = std::ranges::begin(__r1);
-    auto __last1 = __first1 + oneapi::dpl::__ranges::__size(__r1);
 
     auto __it = __first1 + __idx;
 
@@ -968,8 +967,7 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&
 {
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
 
-    auto __beg = std::ranges::begin(__r);
-    auto __end = __beg + oneapi::dpl::__ranges::__size(__r);
+    auto [__beg, __end] = oneapi::dpl::__ranges::__bounds(__r);
 
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec),
                                                                      oneapi::dpl::__ranges::views::all(__r), __pred_2);
