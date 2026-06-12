@@ -1607,6 +1607,22 @@ struct __temp_data_required<_T, std::void_t<typename _T::TempData>>
     using type = typename _T::TempData;
 };
 
+// Computes the result type of a scan-input generator, mirroring how the kernel invokes it
+// (see __gen_input_impl in __scan_through_elements_helper).
+template <typename _GenScanInput, typename _InRng, bool = __temp_data_required<_GenScanInput>::value>
+struct __gen_scan_input_result
+{
+    using type = std::invoke_result_t<_GenScanInput, _InRng&, std::size_t>;
+};
+
+// Generators advertising a TempData type alias take an extra TempData& argument.
+template <typename _GenScanInput, typename _InRng>
+struct __gen_scan_input_result<_GenScanInput, _InRng, true>
+{
+    using type =
+        std::invoke_result_t<_GenScanInput, _InRng&, std::size_t, typename __temp_data_required<_GenScanInput>::type&>;
+};
+
 template <bool _Bounded, bool __is_inclusive, bool __init_present, bool __capture_output, bool __is_unique_pattern_v,
           typename _GenInput, typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp,
           typename _LazyValueType, typename _InRng, typename _OutRng, typename _CommTag,
@@ -2488,6 +2504,14 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                       sycl::event __prior_event = {})
 {
     using _ValueType = typename _InitType::__value_type;
+
+    // This static assert clarifies a cryptic error for "no matching function" due to mismatched type
+    using _GenScanInputResult = typename __gen_scan_input_result<_GenScanInput, std::decay_t<_InRng>>::type;
+    using _ScannedValueType = std::decay_t<std::invoke_result_t<_ScanInputTransform, _GenScanInputResult&>>;
+    static_assert(std::is_same_v<_ScannedValueType, _ValueType>,
+                  "reduce-then-scan: the init value type must match the type produced by applying the scan input "
+                  "transform to the scan input generator.");
+
     // Native sycl sub-group operations can only be used on trivially copyable types, for other types, use SLM variant
     if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {
