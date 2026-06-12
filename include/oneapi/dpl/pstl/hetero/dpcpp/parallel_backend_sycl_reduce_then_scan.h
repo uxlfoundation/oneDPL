@@ -2355,8 +2355,6 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     // Round down to nearest multiple of the max subgroup size to ensure compatibility with all sub-group sizes
     const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
 
-    // use work groups equal to the number of compute units.
-
     const std::uint32_t __max_compute_units =
         __q.get_device().template get_info<sycl::info::device::max_compute_units>();
     const std::uint32_t __num_work_groups =
