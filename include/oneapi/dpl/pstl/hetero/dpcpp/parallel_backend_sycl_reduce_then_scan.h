@@ -1432,6 +1432,8 @@ __get_reduce_then_scan_actual_sg_sz_device()
 
 struct __work_item_info
 {
+    using _linear_id_type = typename __dpl_sycl::__sub_group::linear_id_type;
+
     explicit __work_item_info(const sycl::nd_item<1>& __ndi)
         : __sub_group(__ndi.get_sub_group()), __sub_group_id(__sub_group.get_group_linear_id()),
           __sub_group_local_id(__sub_group.get_local_linear_id()),
@@ -1502,14 +1504,17 @@ __dispatch_comm_tag(__subgroup_only_tag, _Body&& __body)
 
 template <typename _ValueType>
 _ValueType
-__shift_group_right(const __work_item_info& __wi, _ValueType __value, std::uint32_t __shift, __subgroup_only_tag)
+__shift_group_right(const __work_item_info& __wi, _ValueType __value,
+                    typename __work_item_info::_linear_id_type __shift,
+                    __subgroup_only_tag)
 {
     return sycl::shift_group_right(__wi.__sub_group, __value, __shift);
 }
 
 template <typename _ValueType>
 _ValueType
-__shift_group_right(const __work_item_info& __wi, _ValueType __value, std::uint32_t __shift,
+__shift_group_right(const __work_item_info& __wi, _ValueType __value,
+                    typename __work_item_info::_linear_id_type __shift,
                     __slm_only_tag<_ValueType> __comm_slm)
 {
     // SLM-based fallback: used for non-trivially-copyable types or when SLM communication is
@@ -1605,11 +1610,12 @@ __inclusive_sub_group_masked_scan(const __work_item_info& __wi, _MaskOp __mask_f
                                   _ValueType& __value, _BinaryOp __binary_op, _LazyValueType& __init_and_carry,
                                   _CommTag __comm_tag)
 {
+    using _linear_id_type = typename __work_item_info::_linear_id_type;
     using _real_value_type = typename __select_real_type_from_comm_tag<_ValueType, _CommTag>::type;
 
     std::uint8_t __sub_group_local_id = __wi.__sub_group_local_id;
     const std::uint8_t __sub_group_size = _ONEDPL_RTS_SUB_GROUP_SIZE(__wi.__sub_group);
-    for (std::uint8_t __shift = 1; __shift < __sub_group_size; __shift <<= 1)
+    for (_linear_id_type __shift = 1; __shift < __sub_group_size; __shift <<= 1)
     {
         _ValueType __partial_carry_in = __shift_group_right(__wi, _real_value_type{__value}, __shift, __comm_tag);
         if (__mask_fn(__sub_group_local_id, __shift))
