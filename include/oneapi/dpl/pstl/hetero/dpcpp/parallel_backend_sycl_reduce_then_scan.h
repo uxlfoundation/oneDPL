@@ -367,9 +367,11 @@ template <typename _GenMask, typename _RetType, typename _RangeTransform = oneap
 struct __gen_expand_count_mask
 {
     template <typename _InRng>
-    using __result_t = std::tuple<
-        _RetType, bool,
-        oneapi::dpl::__internal::__value_t<decltype(std::declval<const _RangeTransform&>()(std::declval<_InRng&>()))>>;
+    using __element_t = oneapi::dpl::__internal::__value_t<decltype(std::declval<const _RangeTransform&>()(std::declval<_InRng&>()))>;
+
+    template <typename _InRng>
+    using __result_t = std::tuple<_RetType, bool, __element_t<_InRng>>;
+    
 
     template <typename _InRng>
     __result_t<_InRng>
@@ -379,8 +381,7 @@ struct __gen_expand_count_mask
         // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
         //  zip_iterator which will return a tuple of references when dereferenced. With this explicit type, we copy
         //  the values of zipped input types rather than their references.
-        using _ElementType = oneapi::dpl::__internal::__value_t<decltype(__transformed_input)>;
-        _ElementType ele = __transformed_input[__id];
+        __element_t<_InRng> ele = __transformed_input[__id];
         bool mask = __gen_mask(std::forward<_InRng>(__in_rng), __id);
         return __result_t<_InRng>(mask ? _RetType{1} : _RetType{0}, mask, ele);
     }
@@ -1076,15 +1077,13 @@ struct __gen_red_by_seg_scan_input
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
 
-        using _KeyType = oneapi::dpl::__internal::__value_t<decltype(__in_keys)>;
-        using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
-        const _KeyType& __current_key = __in_keys[__id];
-        const _ValueType& __current_val = __in_vals[__id];
+        const __key_t<_InRng>& __current_key = __in_keys[__id];
+        const __val_t<_InRng>& __current_val = __in_vals[__id];
         // Ordering the most common condition first has yielded the best results.
         if (__id > 0 && __id < __n - 1)
         {
-            const _KeyType& __prev_key = __in_keys[__id - 1];
-            const _KeyType& __next_key = __in_keys[__id + 1];
+            const __key_t<_InRng>& __prev_key = __in_keys[__id - 1];
+            const __key_t<_InRng>& __next_key = __in_keys[__id + 1];
             const std::size_t __new_seg_mask = !__binary_pred(__prev_key, __current_key);
             return oneapi::dpl::__internal::make_tuple(
                 oneapi::dpl::__internal::make_tuple(__new_seg_mask, __current_val),
@@ -1092,7 +1091,7 @@ struct __gen_red_by_seg_scan_input
         }
         else if (__id == __n - 1)
         {
-            const _KeyType& __prev_key = __in_keys[__id - 1];
+            const __key_t<_InRng>& __prev_key = __in_keys[__id - 1];
             const std::size_t __new_seg_mask = !__binary_pred(__prev_key, __current_key);
             return oneapi::dpl::__internal::make_tuple(
                 oneapi::dpl::__internal::make_tuple(__new_seg_mask, __current_val), true, __current_key,
@@ -1100,7 +1099,7 @@ struct __gen_red_by_seg_scan_input
         }
         else // __id == 0
         {
-            const _KeyType& __next_key = __in_keys[__id + 1];
+            const __key_t<_InRng>& __next_key = __in_keys[__id + 1];
             return oneapi::dpl::__internal::make_tuple(
                 oneapi::dpl::__internal::make_tuple(std::size_t{0}, __current_val),
                 !__binary_pred(__current_key, __next_key), __next_key, __current_key);
@@ -1134,13 +1133,12 @@ struct __gen_scan_by_seg_scan_input
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
 
-        using _ValueType = oneapi::dpl::__internal::__value_t<decltype(__in_vals)>;
         // Mark the first index as a new segment as well as an indexing corresponding to any key
         // that does not satisfy the binary predicate with the previous key. The first tuple mask element
         // is scanned over, and the third is a placeholder for exclusive_scan_by_segment to perform init
         // handling in the output write.
         const std::uint32_t __new_seg_mask = __id == 0 || !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
-        return __result_t<_InRng>{oneapi::dpl::__internal::make_tuple(__new_seg_mask, _ValueType{__in_vals[__id]}),
+        return __result_t<_InRng>{oneapi::dpl::__internal::make_tuple(__new_seg_mask, __val_t<_InRng>{__in_vals[__id]}),
                                   __new_seg_mask};
     }
     _BinaryPred __binary_pred;
