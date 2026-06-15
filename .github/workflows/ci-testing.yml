@@ -341,11 +341,20 @@ jobs:
           if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
             call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
           ) else (
-            for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set VS_PATH=%%i
+            if not exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" (
+              echo "Error: vswhere.exe not found."
+              exit /b 1
+            )
+            for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set VS_PATH=%%i
             if defined VS_PATH (
+              if not exist "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" (
+                echo "Error: vcvarsall.bat not found under !VS_PATH!\VC\Auxiliary\Build\"
+                exit /b 1
+              )
               call "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" amd64
+              if !errorlevel! neq 0 exit /b !errorlevel!
             ) else (
-              echo "Error: Could not find Visual Studio installation via vswhere.exe."
+              echo "Error: Could not find Visual Studio installation with MSVC tools via vswhere.exe."
               exit /b 1
             )
           )
