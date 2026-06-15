@@ -1377,8 +1377,9 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _SetTag __set_t
     sycl::queue __q_local = __exec.queue();
 
     return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(
-        __set_tag, __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-        std::forward<_Range3>(__result), __comp, __proj1, __proj2).get();
+               __set_tag, __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+               std::forward<_Range3>(__result), __comp, __proj1, __proj2)
+        .get();
 }
 
 //------------------------------------------------------------------------
