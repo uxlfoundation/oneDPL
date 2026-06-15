@@ -1806,10 +1806,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __get_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
             auto __oob_pos_acc = __get_oob_pos_accessor_opt<_Bounded>(__cgh, __oob_pos_storage);
-            __cgh.parallel_for<
-                _KernelName...>(__nd_range, [=, *this](
-                                                sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(
-                                                __get_reduce_then_scan_req_sg_sz_device())]] {
+            __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi)
+                    [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_req_sg_sz_device())]] {
                 const __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__sub_group);
 
@@ -2040,9 +2038,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                 __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
             auto __oob_pos_acc = __get_oob_pos_accessor_opt<_Bounded>(__cgh, __oob_pos_storage);
 
-            __cgh.parallel_for<_KernelName...>(
-                    __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(
-                        __get_reduce_then_scan_req_sg_sz_device())]] {
+            __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi)
+                    [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_req_sg_sz_device())]] {
                 _ScanOpsTag __comm_scan_tag = __comm_handler.__get_tag_with_workspace(__comm_acc_or_placeholder);
                 const __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__sub_group);
