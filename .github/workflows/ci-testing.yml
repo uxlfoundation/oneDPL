@@ -356,7 +356,7 @@ jobs:
               call "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" amd64
               if !errorlevel! neq 0 exit /b !errorlevel!
             ) else (
-              echo "Error: Could not find Visual Studio installation with MSVC tools via vswhere.exe."
+              echo "Error: Could not find oneAPI install nor Visual Studio installation with MSVC tools via vswhere.exe."
               exit /b 1
             )
           )
