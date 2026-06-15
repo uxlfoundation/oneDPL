@@ -367,11 +367,11 @@ template <typename _GenMask, typename _RetType, typename _RangeTransform = oneap
 struct __gen_expand_count_mask
 {
     template <typename _InRng>
-    using __element_t = oneapi::dpl::__internal::__value_t<decltype(std::declval<const _RangeTransform&>()(std::declval<_InRng&>()))>;
+    using __element_t = 
+        oneapi::dpl::__internal::__value_t<decltype(std::declval<const _RangeTransform&>()(std::declval<_InRng&>()))>;
 
     template <typename _InRng>
     using __result_t = std::tuple<_RetType, bool, __element_t<_InRng>>;
-    
 
     template <typename _InRng>
     __result_t<_InRng>
@@ -1360,7 +1360,7 @@ __shift_sub_group_right(const sycl::nd_item<1>& __ndi, _ValueType __value, std::
 template <typename _ValueType>
 _ValueType
 __shift_sub_group_right(const sycl::nd_item<1>& __ndi, _ValueType __value, std::uint32_t __shift,
-                    __slm_only_tag<_ValueType> __comm_slm)
+                        __slm_only_tag<_ValueType> __comm_slm)
 {
     // SLM-based fallback: used for non-trivially-copyable types or when SLM communication is
     // preferred (e.g., CPU targets where sub-group ops are slow).
@@ -1385,7 +1385,7 @@ __broadcast_sub_group(const sycl::nd_item<1>& __ndi, _ValueType __value, _IdType
 template <typename _ValueType, typename _IdType>
 _ValueType
 __broadcast_sub_group(const sycl::nd_item<1>& __ndi, _ValueType __value, _IdType __broadcast_id,
-                  __slm_only_tag<_ValueType> __comm_slm)
+                      __slm_only_tag<_ValueType> __comm_slm)
 {
     // SLM-based fallback: used for non-trivially-copyable types or when SLM communication is
     // preferred (e.g., CPU targets where sub-group ops are slow).
@@ -1819,7 +1819,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                     // for unique patterns, the first element is always copied to the output, so we need to skip it
                     __group_start_id += 1;
                 }
-                
+
                 std::uint32_t __active_subgroups = __sub_group.get_group_linear_range();
                 if (__n - __group_start_id <= __inputs_per_work_group - __inputs_per_item)
                 {
