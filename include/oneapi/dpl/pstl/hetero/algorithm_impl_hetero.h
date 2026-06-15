@@ -1677,10 +1677,12 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
 // rotate_copy
 //------------------------------------------------------------------------
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _BidirectionalIterator, typename _ForwardIterator>
-_ForwardIterator
-__pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _BidirectionalIterator __first,
-                      _BidirectionalIterator __new_first, _BidirectionalIterator __last, _ForwardIterator __result)
+template <typename _BackendTag, typename _ExecutionPolicy, typename _RandomAccessIterator1,
+          typename _RandomAccessIterator2>
+_RandomAccessIterator2
+__pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
+                      _RandomAccessIterator1 __new_first, _RandomAccessIterator1 __last,
+                      _RandomAccessIterator2 __result, std::size_t __n_out)
 {
     auto __n = __last - __first;
     if (__n <= 0)
@@ -1696,7 +1698,7 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bid
 
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::__rotate_copy<typename std::iterator_traits<_BidirectionalIterator>::difference_type>{__n,
+        unseq_backend::__rotate_copy<typename std::iterator_traits<_RandomAccessIterator1>::difference_type>{__n,
                                                                                                              __shift},
         __n, __buf1.all_view(), __buf2.all_view())
         .__checked_deferrable_wait();

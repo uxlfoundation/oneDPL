@@ -600,7 +600,7 @@ rotate_copy(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterat
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
     return oneapi::dpl::__internal::__pattern_rotate_copy(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
-                                                          __first, __middle, __last, __result);
+                                                          __first, __middle, __last, __result, __last - __first);
 }
 
 // [alg.partitions]
