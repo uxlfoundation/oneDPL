@@ -378,7 +378,7 @@ struct __gen_expand_count_mask
     operator()(_InRng&& __in_rng, _RetType __id) const
     {
         auto __transformed_input = __rng_transform(__in_rng);
-        // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
+        // Explicitly creating this element by value is necessary to avoid modifying the input data when _InRng is a
         //  zip_iterator which will return a tuple of references when dereferenced. With this explicit type, we copy
         //  the values of zipped input types rather than their references.
         __element_t<_InRng> ele = __transformed_input[__id];
