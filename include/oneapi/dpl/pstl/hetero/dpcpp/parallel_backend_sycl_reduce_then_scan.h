@@ -1310,14 +1310,7 @@ inline std::uint32_t
 __count_active_sub_groups(const sycl::nd_item<1>& __ndi, std::uint32_t __inputs_in_group,
                           std::uint32_t __inputs_per_item)
 {
-#if _ONEDPL_DETECT_SPIRV_COMPILATION
-    // Optimized case when all subgroups are equal sized from the reqd_sub_group_size attribute,
-    // just calculate with simple ceiling division, no communication required.
-    const std::uint32_t __inputs_per_sub_group =
-        __inputs_per_item * __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
-    return oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_in_group, __inputs_per_sub_group);
-#else
-    // When reqd_sub_group_size attribute is not available, calculate active subgroups with a broadcast.
+    // Calculate active subgroups with a broadcast.
     // With a possible arbitrary layout of differently sized subgroups (from sycl spec), the sub-group id of a
     // given work-item is not known, but the last active work item is known.
     const std::uint32_t __active_work_items =
@@ -1325,7 +1318,6 @@ __count_active_sub_groups(const sycl::nd_item<1>& __ndi, std::uint32_t __inputs_
     const std::uint32_t __last_active_sub_group_id = __dpl_sycl::__group_broadcast(
         __ndi.get_group(), __ndi.get_sub_group().get_group_linear_id(), __active_work_items - 1);
     return __last_active_sub_group_id + 1;
-#endif
 }
 
 // Layer of abstraction that hoists the runtime "sub-group ops vs SLM fallback" decision to a single branch point.
