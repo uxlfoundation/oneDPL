@@ -1910,7 +1910,16 @@ _OutputIterator
 __brick_rotate_copy(_ForwardIterator __first, _ForwardIterator __middle, _ForwardIterator __last,
                     _OutputIterator __result, std::size_t __n_out, /*is_vector=*/std::false_type) noexcept
 {
-    return std::rotate_copy(__first, __middle, __last, __result);
+    _ForwardIterator __from = __middle;
+    for (std::size_t __i = 0; __i < __n_out; ++__i)
+    {
+        if (__from == __last)
+            __from = __first;
+        *__result++ = *__from++;
+        if (__from == __middle)
+            break;
+    }
+    return __result;
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2>
@@ -1919,9 +1928,11 @@ __brick_rotate_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __mid
                     _RandomAccessIterator1 __last, _RandomAccessIterator2 __result, std::size_t __n_out,
                     /*is_vector=*/std::true_type) noexcept
 {
-    __internal::__brick_copy<__parallel_tag</*is_vector=*/std::true_type>> __copy{};
-    _RandomAccessIterator2 __res = __copy(__middle, __last, __result, /*is_vector=*/std::true_type);
-    return __copy(__first, __middle, __res, /*is_vector=*/std::true_type);
+    auto __assign = [](_RandomAccessIterator1 __first, _RandomAccessIterator2 __result) { *__result = *__first; };
+    std::size_t __len = std::min<std::size_t>(__n_out, __last - __middle);
+    __result = __unseq_backend::__simd_assign(__middle, __len, __result, __assign);
+    __len = std::min<std::size_t>(__n_out - __len, __middle - __first);
+    return __unseq_backend::__simd_assign(__first, __len, __result, __assign);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
