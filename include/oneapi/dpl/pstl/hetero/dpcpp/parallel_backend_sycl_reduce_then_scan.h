@@ -1308,8 +1308,11 @@ __get_sub_group_base(const sycl::nd_item<1>& __ndi)
 
 inline std::uint32_t
 __count_active_sub_groups(const sycl::nd_item<1>& __ndi, std::uint32_t __inputs_in_group,
-                          std::uint32_t __inputs_per_item)
+                          std::uint32_t __inputs_per_item, std::uint32_t __inputs_per_work_group)
 {
+    // If all work-items are active, all subgroups are active.
+    if (__inputs_in_group > __inputs_per_work_group - __inputs_per_item)
+        return __ndi.get_sub_group().get_group_linear_range();
     // Calculate active subgroups with a broadcast.
     // With a possible arbitrary layout of differently sized subgroups (from sycl spec), the sub-group id of a
     // given work-item is not known, but the last active work item is known.
@@ -1820,12 +1823,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                     __group_start_id += 1;
                 }
 
-                std::uint32_t __active_subgroups = __sub_group.get_group_linear_range();
-                if (__n - __group_start_id <= __inputs_per_work_group - __inputs_per_item)
-                {
-                    // If at least 1 work-item is inactive, a subgroup may be inactive.
-                    __active_subgroups = __count_active_sub_groups(__ndi, __n - __group_start_id, __inputs_per_item);
-                }
+                std::uint32_t __active_subgroups = __count_active_sub_groups(
+                    __ndi, __n - __group_start_id, __inputs_per_item, __inputs_per_work_group);
                 std::size_t __subgroup_start_id =
                     __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
 
@@ -2052,12 +2051,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     // for unique patterns, the first element is always copied to the output, so we need to skip it
                     __group_start_id += 1;
                 }
-                std::uint32_t __active_subgroups = __sub_group.get_group_linear_range();
-                if (__n - __group_start_id <= __inputs_per_work_group - __inputs_per_item)
-                {
-                    // If at least 1 work-item is inactive, a subgroup may be inactive.
-                    __active_subgroups = __count_active_sub_groups(__ndi, __n - __group_start_id, __inputs_per_item);
-                }
+                std::uint32_t __active_subgroups = __count_active_sub_groups(
+                    __ndi, __n - __group_start_id, __inputs_per_item, __inputs_per_work_group);
                 oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __carry_last;
 
                 // propagate carry in from previous block
