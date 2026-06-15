@@ -965,45 +965,6 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     return __ret;
 }
 
-// This function is currently unused, but may be utilized for small sizes sets at some point in the future.
-template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1, typename _Proj2>
-__future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
-__parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2,
-                                            _Range3&& __result, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-    // fill in reduce then scan impl
-    using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_SetTag, _Compare, _Proj1, _Proj2>;
-    using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
-    using _MaskPredicate = oneapi::dpl::identity;
-    using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicate, _MaskRangeTransform>;
-    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>;
-    using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
-    using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
-
-    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMaskReduce, _Size>;
-    using _ReduceOp = std::plus<_Size>;
-    using _GenScanInput =
-        oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _Size, _ScanRangeTransform>;
-    using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
-
-    const std::size_t __n = oneapi::dpl::__ranges::__size(__rng1);
-    oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__n);
-
-    auto&& [__event, __payload] = __parallel_transform_reduce_then_scan<
-        /*_Bounded*/ false, sizeof(oneapi::dpl::__internal::__value_t<_Range1>), _CustomName>(
-        __q, __n,
-        oneapi::dpl::__ranges::make_zip_view(
-            std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
-                __mask_buf.get_buffer())),
-        std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp, __proj1, __proj2}}, _ReduceOp{},
-        _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
-        _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-        /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
-    return __create_future(std::move(__event), std::move(__payload));
-}
-
 // balanced path
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
@@ -1306,41 +1267,6 @@ struct scan_then_propagate_wrapper;
 template <typename _CustomName>
 struct set_a_write_wrapper;
 
-struct __check_use_write_a_alg
-{
-    // Empirically determined threshold for when to switch between algorithms, scaled by the size of the value type.
-    static constexpr std::size_t __threshold_elements = 32768;
-
-    template <typename _SetTag, typename _Rng1, typename _Rng2>
-    bool
-    operator()(_SetTag, const _Rng1& __rng1, const _Rng2&) const
-    {
-        // For intersection and difference operations, we check if set A is under an empirically obtained threshold
-        // and if so, we use the set A write only algorithm, as that is most performant when set A is small.
-        using __value_t = oneapi::dpl::__internal::__value_t<_Rng1>;
-        return oneapi::dpl::__ranges::__size(__rng1) < __threshold_elements * sizeof(__value_t);
-    }
-
-    template <typename _Rng1, typename _Rng2>
-    bool
-    operator()(oneapi::dpl::unseq_backend::_UnionTag, const _Rng1&, const _Rng2& __rng2) const
-    {
-        // For union operations, we must use __rng2 as set A in a difference operation prior to a merge, so the
-        // threshold should be on __n2. The sets must be kept in this order because semantically elements must be copied
-        // from __rng1 when they are shared (important for algorithms where the key being compared is not the full
-        // element).
-        using __value_t = oneapi::dpl::__internal::__value_t<_Rng2>;
-        return oneapi::dpl::__ranges::__size(__rng2) < __threshold_elements * sizeof(__value_t);
-    }
-
-    template <typename _Rng1, typename _Rng2>
-    bool
-    operator()(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, const _Rng1&, const _Rng2&) const
-    {
-        // With complex compound alg, symmetric difference should always use single shot algorithm when available
-        return false;
-    }
-};
 
 // Selects the right implementation of set based on the size and platform
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
@@ -1349,20 +1275,10 @@ std::size_t
 __set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
               _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    if (__check_use_write_a_alg{}(__set_tag, __rng1, __rng2))
-    {
-        // use reduce then scan with set_a write
-        return __set_write_a_only_op<set_a_write_wrapper<_CustomName>>(
-            __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-            std::forward<_Range3>(__result), __comp, __proj1, __proj2);
-    }
-    else
-    {
-        return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(
-                   __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                   std::forward<_Range3>(__result), __comp, __proj1, __proj2)
-            .get();
-    }
+    return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(
+                __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                std::forward<_Range3>(__result), __comp, __proj1, __proj2)
+        .get();
 }
 
 template <typename _SetTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
