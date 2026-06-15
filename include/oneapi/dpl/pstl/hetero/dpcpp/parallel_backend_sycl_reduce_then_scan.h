@@ -367,7 +367,7 @@ template <typename _GenMask, typename _RetType, typename _RangeTransform = oneap
 struct __gen_expand_count_mask
 {
     template <typename _InRng>
-    using __element_t = 
+    using __element_t =
         oneapi::dpl::__internal::__value_t<decltype(std::declval<const _RangeTransform&>()(std::declval<_InRng&>()))>;
 
     template <typename _InRng>
