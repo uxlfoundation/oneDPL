@@ -335,18 +335,20 @@ jobs:
       - name: Run testing
         shell: cmd
         run: |
+          :: Set enable delayed expansion to allow proper resolution of errors in if statements and loops
+          SETLOCAL ENABLEDELAYEDEXPANSION
+
           if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
             call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
           ) else (
-            if exist "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" (
-              call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+            for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set VS_PATH=%%i
+            if defined VS_PATH (
+              call "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" amd64
             ) else (
-              echo "Warning: Neither %WINDOWS_ONEAPI_PATH%\setvars.bat nor %VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat were found."
+              echo "Error: Could not find Visual Studio installation via vswhere.exe."
+              exit /b 1
             )
           )
-
-          :: Set enable delayed expansion to allow proper resolution of errors in if statements and loops
-          SETLOCAL ENABLEDELAYEDEXPANSION
 
           set exit_code=0
           :: Preserve the code of an unsuccessful command if any.
