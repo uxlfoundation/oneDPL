@@ -965,6 +965,45 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     return __ret;
 }
 
+// This function is currently unused, but may be utilized for small sizes sets at some point in the future.
+template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
+          typename _Compare, typename _Proj1, typename _Proj2>
+__future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
+__parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2,
+                                            _Range3&& __result, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    // fill in reduce then scan impl
+    using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_SetTag, _Compare, _Proj1, _Proj2>;
+    using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
+    using _MaskPredicate = oneapi::dpl::identity;
+    using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicate, _MaskRangeTransform>;
+    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>;
+    using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
+    using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
+
+    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMaskReduce, _Size>;
+    using _ReduceOp = std::plus<_Size>;
+    using _GenScanInput =
+        oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _Size, _ScanRangeTransform>;
+    using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
+
+    const std::size_t __n = oneapi::dpl::__ranges::__size(__rng1);
+    oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__n);
+
+    auto&& [__event, __payload] = __parallel_transform_reduce_then_scan<
+        /*_Bounded*/ false, sizeof(oneapi::dpl::__internal::__value_t<_Range1>), _CustomName>(
+        __q, __n,
+        oneapi::dpl::__ranges::make_zip_view(
+            std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
+                __mask_buf.get_buffer())),
+        std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp, __proj1, __proj2}}, _ReduceOp{},
+        _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
+        _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
+        /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
+    return __create_future(std::move(__event), std::move(__payload));
+}
+
 // balanced path
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
