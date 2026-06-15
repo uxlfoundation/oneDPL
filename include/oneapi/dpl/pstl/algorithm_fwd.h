@@ -635,13 +635,13 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIte
 // rotate_copy
 //------------------------------------------------------------------------
 
-template <class _Tag, class _ForwardIterator, class _OutputIterator>
-_OutputIterator __brick_rotate_copy(_Tag, _ForwardIterator, _ForwardIterator, _ForwardIterator,
-                                    _OutputIterator) noexcept;
+template <class _ForwardIterator, class _OutputIterator>
+_OutputIterator __brick_rotate_copy(_ForwardIterator, _ForwardIterator, _ForwardIterator, _OutputIterator,
+                                    /*is_vector=*/std::false_type) noexcept;
 
-template <class _IsVector, class _RandomAccessIterator, class _OutputIterator>
-_OutputIterator __brick_rotate_copy(__parallel_tag<_IsVector>, _RandomAccessIterator, _RandomAccessIterator,
-                                    _RandomAccessIterator, _OutputIterator) noexcept;
+template <class _RandomAccessIterator, class _OutputIterator>
+_OutputIterator __brick_rotate_copy(_RandomAccessIterator, _RandomAccessIterator, _RandomAccessIterator,
+                                    _OutputIterator, /*is_vector=*/std::true_type) noexcept;
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
 _OutputIterator

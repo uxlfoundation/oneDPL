@@ -1905,24 +1905,23 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
 // rotate_copy
 //------------------------------------------------------------------------
 
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
+template <class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
 _OutputIterator
-__brick_rotate_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __middle,
-                    _ForwardIterator __last, _OutputIterator __result) noexcept
+__brick_rotate_copy(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __middle,
+                    _ForwardIterator __last, _OutputIterator __result, /*is_vector=*/std::false_type) noexcept
 {
-    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
-
-    return ::std::rotate_copy(__first, __middle, __last, __result);
+    return std::rotate_copy(__first, __middle, __last, __result);
 }
 
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
+template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
 _RandomAccessIterator2
-__brick_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1 __first,
-                    _RandomAccessIterator1 __middle, _RandomAccessIterator1 __last,
-                    _RandomAccessIterator2 __result) noexcept
+__brick_rotate_copy(_ExecutionPolicy&&, _RandomAccessIterator1 __first, _RandomAccessIterator1 __middle,
+                    _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
+                    /*is_vector=*/std::true_type) noexcept
 {
-    _RandomAccessIterator2 __res = __brick_copy<__parallel_tag<_IsVector>>{}(__middle, __last, __result);
-    return __internal::__brick_copy<__parallel_tag<_IsVector>>{}(__first, __middle, __res);
+    __internal::__brick_copy<__parallel_tag</*is_vector=*/std::true_type>> __copy{};
+    _RandomAccessIterator2 __res = __copy(__middle, __last, __result, /*is_vector=*/std::true_type);
+    return __copy(__first, __middle, __res, /*is_vector=*/std::true_type);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
@@ -1932,8 +1931,8 @@ __pattern_rotate_copy(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator __
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __internal::__brick_rotate_copy(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
-                                           __result);
+    return __internal::__brick_rotate_copy(std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last, __result,
+                                           typename_Tag::__is_vector);
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
@@ -1945,7 +1944,7 @@ __pattern_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
 
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __first, __last,
             [__first, __last, __middle, __result](_RandomAccessIterator1 __b, _RandomAccessIterator1 __e) {
                 __internal::__brick_copy<__parallel_tag<_IsVector>> __copy{};
                 if (__b > __middle)
