@@ -1829,7 +1829,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                 }
                 
                 std::uint32_t __active_subgroups = __sub_group.get_group_linear_range();
-                if (__n - __group_start_id < __inputs_per_work_group - __inputs_per_item)
+                if (__n - __group_start_id <= __inputs_per_work_group - __inputs_per_item)
                 {
                     // If at least 1 work-item is inactive, a subgroup may be inactive.
                     __active_subgroups = __count_active_sub_groups(__ndi, __n - __group_start_id, __inputs_per_item);
@@ -2061,7 +2061,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     __group_start_id += 1;
                 }
                 std::uint32_t __active_subgroups = __sub_group.get_group_linear_range();
-                if (__n - __group_start_id < __inputs_per_work_group - __inputs_per_item)
+                if (__n - __group_start_id <= __inputs_per_work_group - __inputs_per_item)
                 {
                     // If at least 1 work-item is inactive, a subgroup may be inactive.
                     __active_subgroups = __count_active_sub_groups(__ndi, __n - __group_start_id, __inputs_per_item);
