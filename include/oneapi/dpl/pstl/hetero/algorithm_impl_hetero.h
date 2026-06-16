@@ -1653,8 +1653,7 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     const auto __shift = __new_first - __first;
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__rotate_wrapper>(__exec),
-        unseq_backend::__rotate_copy<typename std::iterator_traits<_Iterator>::difference_type>{__n, __shift}, __n,
-        __buf.all_view(), __temp_rng_w);
+        unseq_backend::__rotate_copy{__n, __n, __shift}, __n, __buf.all_view(), __temp_rng_w);
 
     //An explicit wait isn't required here because we are working with a temporary sycl::buffer and sycl accessors and
     //SYCL runtime makes a dependency graph to prevent the races between two __parallel_for patterns.
@@ -1684,26 +1683,25 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
                       _RandomAccessIterator1 __new_first, _RandomAccessIterator1 __last,
                       _RandomAccessIterator2 __result, std::size_t __n_out)
 {
-    auto __n = __last - __first;
-    if (__n <= 0)
+    std::size_t __n = __last - __first;
+    if (__n == 0 || __n_out == 0)
         return __result;
 
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first, __last);
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write,
                                                            /*_IsNoInitRequested=*/true>();
-    auto __buf2 = __keep2(__result, __result + __n);
+    auto __buf2 = __keep2(__result, __result + __n_out);
 
-    const auto __shift = __new_first - __first;
+    if (__n_out > __n)
+        __n_out = __n;
 
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::__rotate_copy<typename std::iterator_traits<_RandomAccessIterator1>::difference_type>{__n,
-                                                                                                             __shift},
-        __n, __buf1.all_view(), __buf2.all_view())
+    oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                      unseq_backend::__rotate_copy{__n_out, __n, __new_first - __first},
+                                                      __n_out, __buf1.all_view(), __buf2.all_view())
         .__checked_deferrable_wait();
 
-    return __result + __n;
+    return __result + __n_out;
 }
 
 template <typename _BackendTag, typename _SetTag, typename _ExecutionPolicy, typename _ForwardIterator1,

@@ -1955,28 +1955,22 @@ __pattern_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
 
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            [__first, __last, __middle, __result](_RandomAccessIterator1 __b, _RandomAccessIterator1 __e) {
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), 0, __n_out,
+            [__first, __last, __middle, __result](std::size_t __b, std::size_t __e) {
                 __internal::__brick_copy<__parallel_tag<_IsVector>> __copy{};
-                if (__b > __middle)
+                std::size_t __split = __last - __middle;
+                _RandomAccessIterator2 __dest = __result + __b;
+                if (__b < __split)
                 {
-                    __copy(__b, __e, __result + (__b - __middle), _IsVector{});
+                    __dest = __copy(__middle + __b, (__e < __split)? __middle + __e : __last, __dest, _IsVector{});
                 }
-                else
+                if (__e >= __split)
                 {
-                    _RandomAccessIterator2 __new_result = __result + ((__last - __middle) + (__b - __first));
-                    if (__e < __middle)
-                    {
-                        __copy(__b, __e, __new_result, _IsVector{});
-                    }
-                    else
-                    {
-                        __copy(__b, __middle, __new_result, _IsVector{});
-                        __copy(__middle, __e, __result, _IsVector{});
-                    }
+                    __copy((__b < __split)? __first : __first + (__b - __split), __first + (__e - __split), __dest,
+                           _IsVector{});
                 }
             });
-        return __result + (__last - __first);
+        return __result + __n_out;
     });
 }
 
