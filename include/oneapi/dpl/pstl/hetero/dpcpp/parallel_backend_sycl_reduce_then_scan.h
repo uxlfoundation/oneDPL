@@ -153,7 +153,7 @@ void
 __write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __assign, _OnOOBReached __on_oob_reached)
 {
     if (__out_idx < __out_size)
-        __assign();
+        __assign(__out_idx);
     if (__out_idx == __out_size)
         __on_oob_reached();
 }
@@ -210,11 +210,11 @@ struct __write_to_id_if
 
         if (std::get<1>(__v))
         {
-            const auto __out_rng_idx = std::get<0>(__v) - 1 + __offset;
-
             __write_if_in_bounds(
-                __out_size, __out_rng_idx,
-                [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]); },
+                __out_size, std::get<0>(__v) - 1 + __offset,
+                [&](auto __idx_out) {
+                    __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__idx_out]);
+                },
                 [&]() { __on_oob_reached(__id); });
         }
     }
@@ -365,9 +365,8 @@ struct __write_multiple_to_id
         {
             __write_if_in_bounds(
                 __out_size, std::get<0>(__v) - std::get<1>(__v) + __i,
-                [&]() {
-                    __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
-                             __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
+                [&](auto __idx_out) {
+                    __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)), __out_rng[__idx_out]);
                 },
                 [&]() {
                     // Report the source id of the current diagonal together with the local element offset within the
