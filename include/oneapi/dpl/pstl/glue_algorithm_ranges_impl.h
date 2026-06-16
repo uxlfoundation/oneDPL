@@ -1218,8 +1218,8 @@ struct __internal::__rotate_copy_fn
         auto __first_out = std::ranges::begin(__out_r);
         const std::size_t __min_size = std::min<std::size_t>(__in_size, std::ranges::size(__out_r));
 
-        oneapi::dpl::__internal::__pattern_rotate_copy(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first_in, __middle, __last_in, __first_out, __min_size);
+        oneapi::dpl::__internal::__pattern_rotate_copy(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+                                                       __first_in, __middle, __last_in, __first_out, __min_size);
 
         if (__min_size < std::size_t(__last_in - __middle))
             return {__middle + __min_size, __first_in, __first_out + __min_size};
