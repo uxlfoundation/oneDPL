@@ -128,12 +128,12 @@ __order_preserving_cast_scalar(_Int __src)
 }
 
 // Order-preserving cast for 16-bit floats - scalar version
-template <bool __is_ascending, typename _Float, std::enable_if_t<std::is_same_v<_Float, sycl::half>, int> = 0>
+template <bool __is_ascending>
 std::uint16_t
-__order_preserving_cast_scalar(_Float __src)
+__order_preserving_cast_scalar(sycl::half __src)
 {
     // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
-    if (__src == _Float{0})
+    if (__src == sycl::half{0})
         return 0x8000u;
     std::uint16_t __uint16_src = sycl::bit_cast<std::uint16_t>(__src);
     std::uint16_t __mask;
