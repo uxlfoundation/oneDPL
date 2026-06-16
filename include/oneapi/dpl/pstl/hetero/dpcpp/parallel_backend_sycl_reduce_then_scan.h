@@ -1806,9 +1806,7 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                 // set operations and overrun __out_rng (corrupting memory and skipping OOB position detection).
                 const std::size_t __max_writes_this_sub_group =
                     std::size_t{__iters_per_item} * __sub_group_size * _TempData::__max_outputs_per_input;
-                const bool __needs_bounded_write =
-                    __carry_in + __max_writes_this_sub_group > __out_rng_size - __write_output_offset;
-                if (__needs_bounded_write)
+                if (__carry_in + __max_writes_this_sub_group > __out_rng_size - __write_output_offset)
                 {
                     auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
                         if constexpr (__is_temp_data_required)
