@@ -26,7 +26,7 @@
 #    include <concepts>  // for std::copy_constructible, std::indirectly_unary_invocable, std::indirectly_writable
 #endif
 
-#include "utils_ranges.h" // __difference_t
+#include "utils_ranges.h" // __difference_t, __bounds
 
 #include "execution_defs.h"
 #include "oneapi/dpl/pstl/ranges_defs.h"
@@ -1196,6 +1196,38 @@ struct __internal::__reverse_copy_fn
     }
 }; //__reverse_copy_fn
 inline constexpr __internal::__reverse_copy_fn reverse_copy;
+
+// [alg.rotate]
+
+struct __internal::__rotate_copy_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
+              std::ranges::random_access_range _OutRange>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange> &&
+                 std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
+
+    std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                  std::ranges::borrowed_iterator_t<_InRange>,
+                                  std::ranges::borrowed_iterator_t<_OutRange>>
+    operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, std::ranges::iterator_t<_InRange> __middle,
+               _OutRange&& __out_r) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        auto [__first_in, __last_in, __in_size] = oneapi::dpl::__ranges::__bounds_and_size(__in_r);
+        auto __first_out = std::ranges::begin(__out_r);
+        const std::size_t __min_size = std::min<std::size_t>(__in_size, std::ranges::size(__out_r));
+
+        oneapi::dpl::__internal::__pattern_rotate_copy(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first_in, __middle, __last_in, __first_out, __min_size);
+
+        if (__min_size < std::size_t(__last_in - __middle))
+            return {__middle + __min_size, __first_in, __first_out + __min_size};
+        else
+            return {__last_in, __middle - (__in_size - __min_size), __first_out + __min_size};
+    }
+}; //__rotate_copy_fn
+inline constexpr __internal::__rotate_copy_fn rotate_copy;
 
 // [alg.mismatch]
 
