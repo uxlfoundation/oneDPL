@@ -51,6 +51,11 @@ namespace __par_backend_hetero
 template <std::uint16_t elements, typename _ValueT>
 struct __temp_data_array
 {
+    // The maximum number of output elements a single scanned element may emit through this temporary data.
+    // For set operations a scanned element is a diagonal which can produce up to `elements` outputs, so the
+    // bounded-write estimate must account for this many writes per scanned element.
+    static constexpr std::uint16_t __max_outputs_per_input = elements;
+
     template <typename _ValueT2>
     void
     set(std::uint16_t __idx, const _ValueT2& __ele)
@@ -74,6 +79,9 @@ struct __temp_data_array
 // where no temporary register data is needed within reduce then scan kern
 struct __noop_temp_data
 {
+    // Patterns using this stand-in (e.g. copy_if/unique) emit at most one output per scanned element.
+    static constexpr std::uint16_t __max_outputs_per_input = 1;
+
     template <typename _ValueT>
     void
     set(std::uint16_t, const _ValueT&) const
@@ -1791,7 +1799,16 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                 const std::size_t __carry_in = __init_present ? __sub_group_carry.__v : 0;
                 const std::uint8_t __sub_group_size =
                     __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
-                if (__carry_in + __iters_per_item * __sub_group_size > __out_rng_size - __write_output_offset)
+                // A single scanned element may emit up to _TempData::__max_outputs_per_input output elements:
+                // one for copy_if/unique, but up to __diagonal_spacing for set operations, where each scanned
+                // element is a diagonal written through __write_multiple_to_id. The estimate must account for
+                // this many writes per scanned element, otherwise the unchecked write path could be selected for
+                // set operations and overrun __out_rng (corrupting memory and skipping OOB position detection).
+                const std::size_t __max_writes_this_sub_group =
+                    std::size_t{__iters_per_item} * __sub_group_size * _TempData::__max_outputs_per_input;
+                const bool __needs_bounded_write =
+                    __carry_in + __max_writes_this_sub_group > __out_rng_size - __write_output_offset;
+                if (__needs_bounded_write)
                 {
                     auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
                         if constexpr (__is_temp_data_required)
