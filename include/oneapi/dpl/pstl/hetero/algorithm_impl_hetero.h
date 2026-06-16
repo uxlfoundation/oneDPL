@@ -1637,11 +1637,11 @@ _Iterator
 __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __new_first,
                  _Iterator __last)
 {
-    auto __n = __last - __first;
-    if (__n <= 0)
+    const std::size_t __n = __last - __first;
+    if (__n == 0)
         return __first;
 
-    using _Tp = typename ::std::iterator_traits<_Iterator>::value_type;
+    using _Tp = typename std::iterator_traits<_Iterator>::value_type;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf = __keep(__first, __last);
@@ -1650,7 +1650,7 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     auto __temp_rng_w =
         oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::write>(__temp_buf.get_buffer());
 
-    const auto __shift = __new_first - __first;
+    const std::size_t __shift = __new_first - __first;
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__rotate_wrapper>(__exec),
         unseq_backend::__rotate_copy{__n, __n, __shift}, __n, __buf.all_view(), __temp_rng_w);
@@ -1661,7 +1661,7 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     using _Function = __brick_move<__hetero_tag<_BackendTag>>;
     auto __temp_rng_rw =
         oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::read_write>(__temp_buf.get_buffer());
-    auto __brick = unseq_backend::walk_n_vectors_or_scalars<_Function>{_Function{}, static_cast<std::size_t>(__n)};
+    auto __brick = unseq_backend::walk_n_vectors_or_scalars<_Function>{_Function{}, __n};
     oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __brick,
                                                       __n, __temp_rng_rw, __buf.all_view())
         .__checked_deferrable_wait();
@@ -1686,6 +1686,8 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     std::size_t __n = __last - __first;
     if (__n == 0 || __n_out == 0)
         return __result;
+    if (__n_out > __n)
+        __n_out = __n;
 
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first, __last);
@@ -1693,12 +1695,10 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__result, __result + __n_out);
 
-    if (__n_out > __n)
-        __n_out = __n;
-
+    const std::size_t __shift = __new_first - __first;
     oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                      unseq_backend::__rotate_copy{__n_out, __n, __new_first - __first},
-                                                      __n_out, __buf1.all_view(), __buf2.all_view())
+                                                      unseq_backend::__rotate_copy{__n_out, __n, __shift}, __n_out,
+                                                      __buf1.all_view(), __buf2.all_view())
         .__checked_deferrable_wait();
 
     return __result + __n_out;

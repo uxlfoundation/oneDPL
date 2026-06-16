@@ -636,17 +636,17 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIte
 //------------------------------------------------------------------------
 
 template <class _ForwardIterator, class _OutputIterator>
-_OutputIterator __brick_rotate_copy(_ForwardIterator, _ForwardIterator, _ForwardIterator, _OutputIterator,
-                                    std::size_t, /*is_vector=*/std::false_type) noexcept;
+_OutputIterator __brick_rotate_copy(_ForwardIterator, _ForwardIterator, _ForwardIterator, _OutputIterator, std::size_t,
+                                    /*is_vector=*/std::false_type) noexcept;
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2>
-_OutputIterator __brick_rotate_copy(_RandomAccessIterator1, _RandomAccessIterator1, _RandomAccessIterator1,
-                                    _RandomAccessIterator2, std::size_t, /*is_vector=*/std::true_type) noexcept;
+_RandomAccessIterator2 __brick_rotate_copy(_RandomAccessIterator1, _RandomAccessIterator1, _RandomAccessIterator1,
+                                           _RandomAccessIterator2, std::size_t, /*is_vector=*/std::true_type) noexcept;
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
 _OutputIterator
-__pattern_rotate_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator, _ForwardIterator,
-                      _OutputIterator, std::size_t) noexcept;
+__pattern_rotate_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator, _ForwardIterator, _OutputIterator,
+                      std::size_t) noexcept;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
 _RandomAccessIterator2

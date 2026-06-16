@@ -1924,9 +1924,8 @@ __brick_rotate_copy(_ForwardIterator __first, _ForwardIterator __middle, _Forwar
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2>
 _RandomAccessIterator2
-__brick_rotate_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __middle,
-                    _RandomAccessIterator1 __last, _RandomAccessIterator2 __result, std::size_t __n_out,
-                    /*is_vector=*/std::true_type) noexcept
+__brick_rotate_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __middle, _RandomAccessIterator1 __last,
+                    _RandomAccessIterator2 __result, std::size_t __n_out, /*is_vector=*/std::true_type) noexcept
 {
     auto __assign = [](_RandomAccessIterator1 __first, _RandomAccessIterator2 __result) { *__result = *__first; };
     std::size_t __len = std::min<std::size_t>(__n_out, __last - __middle);
@@ -1942,7 +1941,7 @@ __pattern_rotate_copy(_Tag __tag, _ExecutionPolicy&&, _ForwardIterator __first, 
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __internal::__brick_rotate_copy(__first, __middle, __last, __result, __n_out, typename_Tag::__is_vector);
+    return __internal::__brick_rotate_copy(__first, __middle, __last, __result, __n_out, typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
@@ -1953,9 +1952,12 @@ __pattern_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
+    if (__n_out > std::size_t(__last - __first))
+        __n_out = __last - __first;
+
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), 0, __n_out,
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), std::size_t(0), __n_out,
             [__first, __last, __middle, __result](std::size_t __b, std::size_t __e) {
                 __internal::__brick_copy<__parallel_tag<_IsVector>> __copy{};
                 std::size_t __split = __last - __middle;

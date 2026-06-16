@@ -1199,7 +1199,8 @@ struct __rotate_copy
     const std::size_t __shift;
 
   public:
-    __rotate_copy(std::size_t __sz, std::size_t __sh) : __size(__sz), __shift(__sh) {}
+    __rotate_copy(std::size_t __sz, std::size_t __sz_in, std::size_t __sh)
+        : __size(__sz), __size_in(__sz_in), __shift(__sh) {}
 
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
               std::enable_if_t<_Params::__can_vectorize, int> = 0>
@@ -1219,7 +1220,7 @@ struct __rotate_copy
         // Vectorize loads/stores only if we know the wrap around point is beyond the current vector elements to process
         if (__shifted_idx + _Params::__vector_size <= __size_in)
         {
-            __vec_load(std::true_type, __shifted_idx, __load_op, __rng1, __rng1_vector);
+            __vec_load(std::true_type{}, __shifted_idx, __load_op, __rng1, __rng1_vector);
             __vec_store(__is_full, __idx, __store_op, __rng1_vector, __rng2);
         }
         else
