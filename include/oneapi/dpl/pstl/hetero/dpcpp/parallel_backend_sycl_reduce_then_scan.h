@@ -2506,7 +2506,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {
         bool __use_subgroup_ops = __q.get_device().is_gpu();
-        return __parallel_transform_reduce_then_scan_impl<_Bounded, __slm_or_subgroup_tag<_ValueType>,
+        return __parallel_transform_reduce_then_scan_impl<_Bounded, __subgroup_only_tag,
                                                           __bytes_per_work_item_iter, _CustomName>(
             __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
             __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
