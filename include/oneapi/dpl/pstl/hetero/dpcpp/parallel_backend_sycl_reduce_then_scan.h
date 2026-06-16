@@ -1763,6 +1763,8 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                                std::uint32_t __active_subgroups, _CommTag __comm_tag,
                                _OnOOBReached __on_oob_reached = {}, const _FinalPosSaver __final_pos_saver = {})
 {
+    using _OutRngSize = oneapi::dpl::__internal::__difference_t<_OutRng>;
+
     using __temp_data_required_t = __temp_data_required<_GenInput>;
     constexpr bool __is_temp_data_required = __temp_data_required_t::value;
 
@@ -1775,65 +1777,53 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
         else
             return __gen_input(__rng, __id);
     };
-
-    using _OutRngSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
-
-    // Hoist the sub-group-ops vs SLM-fallback decision to here. The element-scan body below is instantiated
-    // once per available communication path; the branch is taken a single time per call to this helper.
-    __dispatch_comm_tag(__comm_tag, [&](auto __comm_tag_concrete) {
-        if constexpr (!__capture_output)
-        {
-            auto __noop_write_op = [&](std::size_t, const auto&) {};
+    
+    auto __call_dispatch_comm_tag = [&](auto __write_op_selected) {
+        __dispatch_comm_tag(__comm_tag, [&](auto __comm_tag_concrete) {
             __scan_through_elements_helper_impl<__is_inclusive, __init_present, __capture_output>(
-                __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __noop_write_op, __sub_group_carry,
+                __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __write_op_selected, __sub_group_carry,
                 __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
                 __comm_tag_concrete);
-        }
-        else
+        });
+    };
+
+    if constexpr (__capture_output)
+    {
+        if constexpr (_Bounded)
         {
-            if constexpr (_Bounded)
+            const _OutRngSize __out_rng_size = oneapi::dpl::__ranges::__size(__out_rng);
+
+            constexpr std::int32_t __write_output_offset = __is_unique_pattern_v ? 1 : 0;
+            const std::size_t __carry_in = __init_present ? __sub_group_carry.__v : 0;
+            const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
+            const std::size_t __max_writes_this_sub_group =
+                std::size_t{__iters_per_item} * __sub_group_size * _TempData::__max_outputs_per_input;
+            if (__carry_in + __max_writes_this_sub_group > __out_rng_size - __write_output_offset)
             {
-                _OutRngSize __out_rng_size = oneapi::dpl::__ranges::__size(__out_rng);
-
-                constexpr std::int32_t __write_output_offset = __is_unique_pattern_v ? 1 : 0;
-                const std::size_t __carry_in = __init_present ? __sub_group_carry.__v : 0;
-                const std::uint8_t __sub_group_size =
-                    __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
-                // A single scanned element may emit up to _TempData::__max_outputs_per_input output elements:
-                // one for copy_if/unique, but up to __diagonal_spacing for set operations, where each scanned
-                // element is a diagonal written through __write_multiple_to_id. The estimate must account for
-                // this many writes per scanned element, otherwise the unchecked write path could be selected for
-                // set operations and overrun __out_rng (corrupting memory and skipping OOB position detection).
-                const std::size_t __max_writes_this_sub_group =
-                    std::size_t{__iters_per_item} * __sub_group_size * _TempData::__max_outputs_per_input;
-                if (__carry_in + __max_writes_this_sub_group > __out_rng_size - __write_output_offset)
-                {
-                    auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
-                        if constexpr (__is_temp_data_required)
-                            __write_op(__out_rng, __out_rng_size, __id, __v, __temp_data, __on_oob_reached);
-                        else
-                            __write_op(__out_rng, __out_rng_size, __id, __v, __on_oob_reached);
-                    };
-                    __scan_through_elements_helper_impl<__is_inclusive, __init_present, __capture_output>(
-                        __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __bounded_write_op,
-                        __sub_group_carry, __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id,
-                        __sub_group_id, __active_subgroups, __comm_tag_concrete);
-                    return;
-                }
+                // pass bounded write op to the dispatch function
+                __call_dispatch_comm_tag([&](std::size_t __id, const auto& __v) {
+                    if constexpr (__is_temp_data_required)
+                        __write_op(__out_rng, __out_rng_size, __id, __v, __temp_data, __on_oob_reached);
+                    else
+                        __write_op(__out_rng, __out_rng_size, __id, __v, __on_oob_reached);
+                });
+                return;
             }
-
-            auto __unbounded_write_op = [&](std::size_t __id, const auto& __v) {
-                if constexpr (__is_temp_data_required)
-                    __write_op(__out_rng, __id, __v, __temp_data);
-                else
-                    __write_op(__out_rng, __id, __v);
-            };
-            __scan_through_elements_helper_impl<__is_inclusive, __init_present, __capture_output>(
-                __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __unbounded_write_op, __sub_group_carry,
-                __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
-                __comm_tag_concrete);
         }
-    });
+
+        // pass unbounded write op to the dispatch function
+        __call_dispatch_comm_tag([&](std::size_t __id, const auto& __v) {
+            if constexpr (__is_temp_data_required)
+                __write_op(__out_rng, __id, __v, __temp_data);
+            else
+                __write_op(__out_rng, __id, __v);
+        });
+    }
+    else
+    {
+        // pass noop write op to the dispatch function
+        __call_dispatch_comm_tag([&](std::size_t, const auto&) {});
+    }
 }
 
 template <typename _ScanOpsTag, typename _InitValueType>
