@@ -1242,9 +1242,11 @@ struct __scan_by_seg_op
 // Sub-group communication wrappers with SLM fallback.
 // The scan tag dictates what implementation paths are available in the kernel, and holds a slm pointer if applicable.
 
-// Selector value supplied at submit time (true => native sub-group ops, false => SLM fallback). A single shared
-// specialization_id is fine: each kernel receives its own copy of the constant.
-inline constexpr sycl::specialization_id<bool> __reduce_then_scan_use_subgroup_ops_spec_id;
+// Selector value (true => native sub-group ops, false => SLM fallback). A single shared specialization_id is fine:
+// each kernel receives its own copy of the constant. The default is the GPU value (sub-group ops) so the GPU path
+// never needs to call set_specialization_constant at submit time, minimizing per-launch overhead there; the CPU
+// (SLM) value is the less common case and is the only one that sets the constant explicitly.
+inline constexpr sycl::specialization_id<bool> __reduce_then_scan_use_subgroup_ops_spec_id{true};
 
 // For KT kernels, or after the runtime branch where only the subgroup operations are available
 struct __subgroup_only_tag
@@ -1721,17 +1723,24 @@ struct __comm_slm_handler
     }
 
     // Called on the device. The SLM workspace pointer is always supplied (the fallback path uses it). For the
-    // __slm_or_subgroup_tag case the selector bool is also set: sourced from the specialization constant (so the JIT
-    // can drop the dead path) on the spec-const build, or from the stored runtime value otherwise. For the
-    // __slm_only_tag case there is no selector (the path is fixed at compile time).
+    // __slm_or_subgroup_tag case the selector bool is also set. On SPIR-V targets it is read from the specialization
+    // constant, which is compile-time-known to the JIT so it can dead-code-eliminate the untaken communication path.
+    // On non-SPIR-V targets (e.g. CUDA/HIP back ends, where spec constants are emulated and would instead inhibit
+    // that elimination) it is read from the captured runtime value, so no spec-constant machinery is emitted. The
+    // kernel_handler parameter is kept on all targets to keep the kernel signature identical across the host and
+    // device compilation passes. For the __slm_only_tag case there is no selector (the path is fixed at compile time).
     template <typename _Acc>
     _ScanOpsTag
     __get_tag_with_workspace(const _Acc& __comm_slm_acc_opt, sycl::kernel_handler __comm_kh) const
     {
         if constexpr (std::is_same_v<_ScanOpsTag, __slm_or_subgroup_tag<_InitValueType>>)
         {
+#if _ONEDPL_DETECT_SPIRV_COMPILATION
             const bool __subgroup_ops =
                 __comm_kh.template get_specialization_constant<__reduce_then_scan_use_subgroup_ops_spec_id>();
+#else
+            const bool __subgroup_ops = __use_subgroup_ops;
+#endif
             return _ScanOpsTag{__dpl_sycl::__get_accessor_ptr(__comm_slm_acc_opt), __subgroup_ops};
         }
         else
@@ -1820,9 +1829,11 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
             __comm_slm_handler<_ScanOpsTag, _InitValueType> __comm_handler{__use_subgroup_ops};
             auto __comm_acc_or_placeholder = __comm_handler.__get_accessor_or_placeholder(__work_group_size, __cgh);
-            // Routes the sub-group-ops vs SLM selector through a spec constant on the spec-const build (no-op
-            // otherwise), so the JIT can dead-code-eliminate the unused communication path.
-            __cgh.set_specialization_constant<__reduce_then_scan_use_subgroup_ops_spec_id>(__use_subgroup_ops);
+            // Route the sub-group-ops vs SLM selector through a spec constant so the JIT can dead-code-eliminate the
+            // unused communication path. The constant defaults to the sub-group (GPU) value, so only the SLM case
+            // sets it explicitly; this keeps the GPU submit path free of any set_specialization_constant overhead.
+            if (!__use_subgroup_ops)
+                __cgh.set_specialization_constant<__reduce_then_scan_use_subgroup_ops_spec_id>(false);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __get_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
@@ -2050,9 +2061,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
             __comm_slm_handler<_ScanOpsTag, _InitValueType> __comm_handler{__use_subgroup_ops};
             auto __comm_acc_or_placeholder = __comm_handler.__get_accessor_or_placeholder(__work_group_size, __cgh);
-            // Routes the sub-group-ops vs SLM selector through a spec constant on the spec-const build (no-op
-            // otherwise), so the JIT can dead-code-eliminate the unused communication path.
-            __cgh.set_specialization_constant<__reduce_then_scan_use_subgroup_ops_spec_id>(__use_subgroup_ops);
+            // Route the sub-group-ops vs SLM selector through a spec constant so the JIT can dead-code-eliminate the
+            // unused communication path. The constant defaults to the sub-group (GPU) value, so only the SLM case
+            // sets it explicitly; this keeps the GPU submit path free of any set_specialization_constant overhead.
+            if (!__use_subgroup_ops)
+                __cgh.set_specialization_constant<__reduce_then_scan_use_subgroup_ops_spec_id>(false);
 
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
