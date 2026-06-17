@@ -1242,6 +1242,10 @@ struct __scan_by_seg_op
 // Sub-group communication wrappers with SLM fallback.
 // The scan tag dictates what implementation paths are available in the kernel, and holds a slm pointer if applicable.
 
+// Selector value supplied at submit time (true => native sub-group ops, false => SLM fallback). A single shared
+// specialization_id is fine: each kernel receives its own copy of the constant.
+inline constexpr sycl::specialization_id<bool> __reduce_then_scan_use_subgroup_ops_spec_id;
+
 // For KT kernels, or after the runtime branch where only the subgroup operations are available
 struct __subgroup_only_tag
 {
@@ -1254,12 +1258,15 @@ struct __slm_only_tag
     _ValueType* __value_ptr = nullptr;
 };
 
-// For trivially copyable types, both paths are available in the kernel, and a runtime parameter chooses between them.
+// For trivially copyable types, both paths are available in the kernel, and a selector chooses between them.
 // This enables CPU trivially copyable types to use the SLM-based path, which is considerably faster.
+// The selector (__use_subgroup_ops) is sourced either from a specialization constant or a runtime kernel argument;
+// __value_ptr holds the SLM workspace used by the fallback path.
 template <typename _ValueType>
 struct __slm_or_subgroup_tag
 {
     _ValueType* __value_ptr = nullptr;
+    bool __use_subgroup_ops = false;
 };
 
 // To workaround a hardware bug on certain Intel iGPUs with older driver versions and -O0 device compilation, use a
@@ -1323,17 +1330,21 @@ __count_active_sub_groups(const sycl::nd_item<1>& __ndi, std::uint32_t __inputs_
     return __last_active_sub_group_id + 1;
 }
 
-// Layer of abstraction that hoists the runtime "sub-group ops vs SLM fallback" decision to a single branch point.
+// Layer of abstraction that hoists the "sub-group ops vs SLM fallback" decision to a single branch point.
 // The communication tag passed in encodes which path(s) are available:
-//   - __slm_or_subgroup_tag: both paths are compiled in; the runtime pointer (null => sub-group ops, non-null =>
-//                            SLM) selects the concrete tag, so the body is instantiated once per path and the
-//                            branch happens a single time at each call.
+//   - __slm_or_subgroup_tag: both paths are compiled in; the __use_subgroup_ops selector (a specialization constant
+//                            on the spec-const build, else a runtime kernel argument) picks the concrete tag, so the
+//                            body is instantiated once per path and the branch happens a single time at each call.
+//                            On the spec-const build the selector is compile-time-known to the JIT, which can then
+//                            dead-code-eliminate the untaken path's native code.
 //   - __slm_only_tag / __subgroup_only_tag: only that single path is compiled; the body is invoked directly.
 template <typename _ValueType, typename _Body>
 void
 __dispatch_comm_tag(__slm_or_subgroup_tag<_ValueType> __comm_tag, _Body&& __body)
 {
-    if (!__comm_tag.__value_ptr)
+    // __use_subgroup_ops is a specialization constant on the spec-const path (so the JIT can drop the untaken
+    // branch) or a runtime kernel argument otherwise. Either way only one branch executes per call.
+    if (__comm_tag.__use_subgroup_ops)
         __body(__subgroup_only_tag{});
     else
         __body(__slm_only_tag<_ValueType>{__comm_tag.__value_ptr});
@@ -1709,14 +1720,25 @@ struct __comm_slm_handler
             return __dpl_sycl::__local_accessor<_InitValueType>(0, __cgh); // Dummy accessor, won't actually be used
     }
 
+    // Called on the device. The SLM workspace pointer is always supplied (the fallback path uses it). For the
+    // __slm_or_subgroup_tag case the selector bool is also set: sourced from the specialization constant (so the JIT
+    // can drop the dead path) on the spec-const build, or from the stored runtime value otherwise. For the
+    // __slm_only_tag case there is no selector (the path is fixed at compile time).
     template <typename _Acc>
     _ScanOpsTag
-    __get_tag_with_workspace(const _Acc& __comm_slm_acc_opt) const
+    __get_tag_with_workspace(const _Acc& __comm_slm_acc_opt, sycl::kernel_handler __comm_kh) const
     {
-        if (!__use_subgroup_ops)
-            return _ScanOpsTag{__dpl_sycl::__get_accessor_ptr(__comm_slm_acc_opt)};
+        if constexpr (std::is_same_v<_ScanOpsTag, __slm_or_subgroup_tag<_InitValueType>>)
+        {
+            const bool __subgroup_ops =
+                __comm_kh.template get_specialization_constant<__reduce_then_scan_use_subgroup_ops_spec_id>();
+            return _ScanOpsTag{__dpl_sycl::__get_accessor_ptr(__comm_slm_acc_opt), __subgroup_ops};
+        }
         else
-            return _ScanOpsTag{nullptr};
+        {
+            // __slm_only_tag: fixed SLM path, no selector field.
+            return _ScanOpsTag{__dpl_sycl::__get_accessor_ptr(__comm_slm_acc_opt)};
+        }
     }
     bool __use_subgroup_ops = false;
 };
@@ -1733,9 +1755,10 @@ struct __comm_slm_handler<__subgroup_only_tag, _InitValueType>
     }
 
     __subgroup_only_tag
-    __get_tag_with_workspace(__subgroup_only_tag) const
+    __get_tag_with_workspace(__subgroup_only_tag, sycl::kernel_handler __comm_kh) const
     {
-        // Noop, type carries dispatch info for broadcast and shift left subgroup ops
+        // Noop, type carries dispatch info for broadcast and shift left subgroup ops. The kernel_handler (present on
+        // the spec-const build) is unused here: this fixed-path kernel compiles only the sub-group ops.
         return __subgroup_only_tag{};
     }
 };
@@ -1797,19 +1820,25 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
             __comm_slm_handler<_ScanOpsTag, _InitValueType> __comm_handler{__use_subgroup_ops};
             auto __comm_acc_or_placeholder = __comm_handler.__get_accessor_or_placeholder(__work_group_size, __cgh);
+            // Routes the sub-group-ops vs SLM selector through a spec constant on the spec-const build (no-op
+            // otherwise), so the JIT can dead-code-eliminate the unused communication path.
+            __cgh.set_specialization_constant<__reduce_then_scan_use_subgroup_ops_spec_id>(__use_subgroup_ops);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __get_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
             auto __oob_pos_acc = __get_oob_pos_accessor_opt<_Bounded>(__cgh, __oob_pos_storage);
-            __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi)
-                    [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_req_sg_sz_device())]] {
+            __cgh.parallel_for<_KernelName...>(
+                __nd_range,
+                [=, *this](sycl::nd_item<1> __ndi, sycl::kernel_handler __comm_kh)
+                        [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_req_sg_sz_device())]] {
                 const __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__sub_group);
 
                 _InitValueType* __temp_ptr = __temp_acc.__data();
                 // The sub-group-ops vs SLM-fallback decision is dispatched at each sub-group-scan region
                 // (see __scan_through_elements_helper and the carry-computation block below).
-                const _ScanOpsTag __comm_scan_tag = __comm_handler.__get_tag_with_workspace(__comm_acc_or_placeholder);
+                const _ScanOpsTag __comm_scan_tag =
+                    __comm_handler.__get_tag_with_workspace(__comm_acc_or_placeholder, __comm_kh);
                 std::size_t __group_id = __ndi.get_group(0);
                 std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
                 std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
@@ -2021,6 +2050,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
             __comm_slm_handler<_ScanOpsTag, _InitValueType> __comm_handler{__use_subgroup_ops};
             auto __comm_acc_or_placeholder = __comm_handler.__get_accessor_or_placeholder(__work_group_size, __cgh);
+            // Routes the sub-group-ops vs SLM selector through a spec constant on the spec-const build (no-op
+            // otherwise), so the JIT can dead-code-eliminate the unused communication path.
+            __cgh.set_specialization_constant<__reduce_then_scan_use_subgroup_ops_spec_id>(__use_subgroup_ops);
 
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
@@ -2029,9 +2061,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                 __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
             auto __oob_pos_acc = __get_oob_pos_accessor_opt<_Bounded>(__cgh, __oob_pos_storage);
 
-            __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi)
+            __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi, sycl::kernel_handler __comm_kh)
                     [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_req_sg_sz_device())]] {
-                _ScanOpsTag __comm_scan_tag = __comm_handler.__get_tag_with_workspace(__comm_acc_or_placeholder);
+                _ScanOpsTag __comm_scan_tag =
+                    __comm_handler.__get_tag_with_workspace(__comm_acc_or_placeholder, __comm_kh);
                 const __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__sub_group);
 
