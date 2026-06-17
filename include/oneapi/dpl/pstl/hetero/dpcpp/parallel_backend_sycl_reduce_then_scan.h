@@ -112,7 +112,6 @@ struct __src_pos_capturing_temp_data
     }
 
   private:
-
     const std::uint16_t __idx_for_src_pos = 0;
     _SrcDataPosT __saved_src_pos = {};
 };
@@ -691,7 +690,8 @@ struct __set_generic_operation
     {
         if constexpr (oneapi::dpl::__internal::__is_no_callback_v<_FinalPosSaver>)
         {
-            return __check_bounds_and_run_loop(__in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __comp, __proj1, __proj2);
+            return __check_bounds_and_run_loop(__in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __comp,
+                                               __proj1, __proj2);
         }
         else
         {
@@ -1781,7 +1781,7 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
         else
             return __gen_input(__rng, __id);
     };
-    
+
     auto __call_dispatch_comm_tag = [&](auto __write_op_selected) {
         __dispatch_comm_tag(__comm_tag, [&](auto __comm_tag_concrete) {
             __scan_through_elements_helper_impl<__is_inclusive, __init_present, __capture_output>(
@@ -1936,8 +1936,10 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __get_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
             auto __stop_pos_acc = __get_stop_pos_accessor_opt<_Bounded>(__cgh, __stop_pos_storage);
-            __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi)
-                    [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_req_sg_sz_device())]] {
+            __cgh.parallel_for<
+                _KernelName...>(__nd_range, [=, *this](
+                                                sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(
+                                                __get_reduce_then_scan_req_sg_sz_device())]] {
                 const __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__sub_group);
 
@@ -2467,12 +2469,13 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                 if constexpr (_Bounded)
                 {
                     using _FinalPosStorageType = typename _StopPosStorage::type;
-                    using _FinalPosType = oneapi::dpl::__ranges::__internal::__final_pos_type_selector_t<_FinalPosStorageType>;
+                    using _FinalPosType =
+                        oneapi::dpl::__ranges::__internal::__final_pos_type_selector_t<_FinalPosStorageType>;
                     constexpr bool __has_final_pos =
                         oneapi::dpl::__ranges::__internal::__has_final_pos_type_v<_FinalPosStorageType>;
 
-                    using __oob_type = std::conditional_t<__detect_oob_in_two_steps_v<_GenScanInput>,
-                                                          std::uint16_t, _FinalPosType>;
+                    using __oob_type =
+                        std::conditional_t<__detect_oob_in_two_steps_v<_GenScanInput>, std::uint16_t, _FinalPosType>;
 
                     // Two pass processing: if the OOB position is reached in the first pass, then on the second
                     // pass we recover the source indexes for the diagonal where it happened and store the OOB
@@ -2491,11 +2494,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
                     std::size_t __start_id_reached_on_oob = __start_id;
                     __call_scan_through_elements_helper(
-                        [&](__oob_type __id) {          // __on_oob_reached
+                        [&](__oob_type __id) { // __on_oob_reached
                             __start_id_reached_on_oob = __start_id_reached;
                             __oob_detected = __id;
                         },
-                        __create_final_pos_saver());    // __final_pos_saver
+                        __create_final_pos_saver()); // __final_pos_saver
 
                     if constexpr (__has_final_pos)
                     {
@@ -2523,7 +2526,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                             else
                             {
                                 return __oob_detected_arg;
-                            }};
+                            }
+                        };
 
                         __update_oob_pos(__stop_pos_acc, __finalize_oob_detected(__oob_detected));
                     }
