@@ -68,6 +68,118 @@ __extract_scan_input(_T&& __value)
         return (__value);
 }
 
+template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType>
+void
+__exclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn,
+                                  _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
+                                  oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType>& __init_and_carry)
+{
+    std::uint8_t __sub_group_local_id = __ndi.get_sub_group().get_local_linear_id();
+    for (std::uint8_t __shift = 1; __shift < __sub_group_size; __shift <<= 1)
+    {
+        _ValueType __partial_carry_in = sycl::shift_group_right(__ndi.get_sub_group(), __value, __shift);
+        if (__mask_fn(__sub_group_local_id, __shift))
+        {
+            __value = __binary_op(__partial_carry_in, __value);
+        }
+    }
+    oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType> __old_init;
+    if constexpr (__init_present)
+    {
+        __value = __binary_op(__init_and_carry.__v, __value);
+        if (__sub_group_local_id == 0)
+            __old_init.__setup(__init_and_carry.__v);
+        __init_and_carry.__v = sycl::group_broadcast(__ndi.get_sub_group(), __value, __init_broadcast_id);
+    }
+    else
+    {
+        __init_and_carry.__setup(sycl::group_broadcast(__ndi.get_sub_group(), __value, __init_broadcast_id));
+    }
+
+    __value = sycl::shift_group_right(__ndi.get_sub_group(), __value, 1);
+    if constexpr (__init_present)
+    {
+        if (__sub_group_local_id == 0)
+        {
+            __value = __old_init.__v;
+            __old_init.__destroy();
+        }
+    }
+    //return by reference __value and __init_and_carry
+}
+
+template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType>
+void
+__inclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn,
+                                  _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
+                                  oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType>& __init_and_carry)
+{
+    std::uint8_t __sub_group_local_id = __ndi.get_sub_group().get_local_linear_id();
+    for (std::uint8_t __shift = 1; __shift < __sub_group_size; __shift <<= 1)
+    {
+        _ValueType __partial_carry_in = sycl::shift_group_right(__ndi.get_sub_group(), __value, __shift);
+        if (__mask_fn(__sub_group_local_id, __shift))
+        {
+            __value = __binary_op(__partial_carry_in, __value);
+        }
+    }
+    if constexpr (__init_present)
+    {
+        __value = __binary_op(__init_and_carry.__v, __value);
+        __init_and_carry.__v = sycl::group_broadcast(__ndi.get_sub_group(), __value, __init_broadcast_id);
+    }
+    else
+    {
+        __init_and_carry.__setup(sycl::group_broadcast(__ndi.get_sub_group(), __value, __init_broadcast_id));
+    }
+    //return by reference __value and __init_and_carry
+}
+
+template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp,
+          typename _ValueType>
+void
+__sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, _InitBroadcastId __init_broadcast_id,
+                        _ValueType& __value, _BinaryOp __binary_op, 
+                        oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType>& __init_and_carry)
+{
+    if constexpr (__is_inclusive)
+    {
+        __inclusive_sub_group_masked_scan<__sub_group_size, __init_present>(__ndi, __mask_fn, __init_broadcast_id, __value, __binary_op,
+                                                          __init_and_carry);
+    }
+    else
+    {
+        __exclusive_sub_group_masked_scan<__sub_group_size, __init_present>(__ndi, __mask_fn, __init_broadcast_id, __value, __binary_op,
+                                                          __init_and_carry);
+    }
+}
+
+template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp, typename _ValueType>
+void
+__single_sub_group_scan(const sycl::nd_item<1>& __ndi, _ValueType& __value, _BinaryOp __binary_op,
+                 oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType>& __init_and_carry)
+{
+    auto __mask_fn = [](auto __sub_group_local_id, auto __offset) { return __sub_group_local_id >= __offset; };
+    std::uint8_t __init_broadcast_id = __sub_group_size - 1;
+    __sub_group_masked_scan<__sub_group_size, __is_inclusive, __init_present>(__ndi, __mask_fn, __init_broadcast_id, __value, __binary_op,
+                                                            __init_and_carry);
+}
+
+template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp, typename _ValueType>
+void
+__single_sub_group_scan_partial(const sycl::nd_item<1>& __ndi, _ValueType& __value, _BinaryOp __binary_op,
+                         oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType>& __init_and_carry, 
+                         std::uint32_t __elements_to_process)
+{
+    auto __mask_fn = [__elements_to_process](auto __sub_group_local_id, auto __offset) {
+        return __sub_group_local_id >= __offset && __sub_group_local_id < __elements_to_process;
+    };
+    std::uint8_t __init_broadcast_id = __elements_to_process - 1;
+    __sub_group_masked_scan<__sub_group_size, __is_inclusive, __init_present>(__ndi, __mask_fn, __init_broadcast_id, __value, __binary_op,
+                                                            __init_and_carry);
+}
+
+
 //
 // An optimized scan in a sycl::sub_group performed in local registers.
 // Input is accepted in the form of an array in sub-group strided order. Formally, for some index i in __input,
@@ -89,14 +201,12 @@ __sub_group_scan(const sycl::nd_item<1>& __ndi, _InputTypeWrapped __input[__iter
     oneapi::dpl::__internal::__scoped_destroyer<_InputType> __destroy_when_leaving_scope{__carry};
     if (__is_full)
     {
-        oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
-                                                            /*__init_present*/ false>(
+        __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
             __ndi, __extract_scan_input(__input[0]), __binary_op, __carry);
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __i = 1; __i < __iters_per_item; ++__i)
         {
-            oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
-                                                                /*__init_present*/ true>(
+            __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
                 __ndi, __extract_scan_input(__input[__i]), __binary_op, __carry);
         }
     }
@@ -107,24 +217,20 @@ __sub_group_scan(const sycl::nd_item<1>& __ndi, _InputTypeWrapped __input[__iter
         std::uint16_t __i = 0;
         if (__limited_iters_per_item == 1)
         {
-            oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial</*__is_inclusive*/ true,
-                                                                        /*__init_present*/ false>(
+            __single_sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
                 __ndi, __extract_scan_input(__input[__i]), __binary_op, __carry,
                 __items_in_scan - __i * __sub_group_size);
         }
         else if (__limited_iters_per_item > 1)
         {
-            oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
-                                                                /*__init_present*/ false>(
+            __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
                 __ndi, __extract_scan_input(__input[__i++]), __binary_op, __carry);
             for (; __i < __limited_iters_per_item - 1; ++__i)
             {
-                oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
-                                                                    /*__init_present*/ true>(
+                __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
                     __ndi, __extract_scan_input(__input[__i]), __binary_op, __carry);
             }
-            oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial</*__is_inclusive*/ true,
-                                                                        /*__init_present*/ true>(
+            __single_sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
                 __ndi, __extract_scan_input(__input[__i]), __binary_op, __carry,
                 __items_in_scan - __i * __sub_group_size);
         }
