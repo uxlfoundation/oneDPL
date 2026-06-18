@@ -1217,24 +1217,23 @@ struct __rotate_copy
         if (__shifted_idx >= __size_in)
             __shifted_idx -= __size_in;
         _ValueType __rng1_vector[_Params::__vector_size];
-        // Vectorize loads/stores only if we know the wrap around point is beyond the current vector elements to process
+        // Vectorize loads only if we know the wraparound point is beyond the current vector elements to process
         if (__shifted_idx + _Params::__vector_size <= __size_in)
         {
             __vec_load(std::true_type{}, __shifted_idx, __load_op, __rng1, __rng1_vector);
-            __vec_store(__is_full, __idx, __store_op, __rng1_vector, __rng2);
         }
         else
         {
-            // For the single wraparound point within the rotation operation, use separate loops before and after
-            const std::uint8_t __elements_to_process = std::min<std::size_t>(_Params::__vector_size, __size - __idx);
-            const std::uint8_t __loop1_elements =
-                std::min<std::size_t>(__elements_to_process, __size_in - __shifted_idx);
+            // Around the single wraparound point within the rotation, load elements in separate loops before and after
+            const std::uint8_t __elements_to_load = std::min<std::size_t>(_Params::__vector_size, __size - __idx);
+            const std::uint8_t __loop1_bound = std::min<std::size_t>(__elements_to_load, __size_in - __shifted_idx);
             std::uint8_t __i = 0;
-            for (; __i < __loop1_elements; ++__i)
-                __rng2[__idx + __i] = __rng1[__shifted_idx + __i];
-            for (; __i < __elements_to_process; ++__i)
-                __rng2[__idx + __i] = __rng1[__shifted_idx + __i - __size_in];
+            for (; __i < __loop1_bound; ++__i)
+                __rng1_vector[__i] = __rng1[__shifted_idx + __i];
+            for (; __i < __elements_to_load; ++__i)
+                __rng1_vector[__i] = __rng1[__shifted_idx + __i - __size_in];
         }
+        __vec_store(__is_full, __idx, __store_op, __rng1_vector, __rng2);
     }
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
               std::enable_if_t<!_Params::__can_vectorize, int> = 0>
