@@ -341,14 +341,16 @@ struct __cooperative_lookback
             // recomputed the prefix using partial values
             if (__is_full_ballot_bits)
             {
-                __single_sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ decltype(__is_initialized)::value>(
+                __single_sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true,
+                                                /*__init_present*/ decltype(__is_initialized)::value>(
                     __ndi, __tile_value, __binary_op, __running, __lowest_item_with_full + 1);
                 return true;
             }
             else
             {
-                __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ decltype(__is_initialized)::value>(__ndi, __tile_value,
-                                                                                             __binary_op, __running);
+                __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
+                                        /*__init_present*/ decltype(__is_initialized)::value>(__ndi, __tile_value,
+                                                                                              __binary_op, __running);
                 return false;
             }
         };
