@@ -1528,73 +1528,34 @@ __scan_through_elements_helper_impl(
     using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t>;
 
     const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
-    bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
 
-    if (__is_full_thread)
+    // For partial thread, we need to handle the partial subgroup at the end of the range
+    if (__sub_group_id < __active_subgroups)
     {
+        const std::uint32_t __subgroup_n =
+            std::min<uint32_t>(__n - __subgroup_start_id, __iters_per_item * __sub_group_size);
+        std::uint32_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__subgroup_n, __sub_group_size);
 
-        _GenInputType __v = __gen_input(__in_rng, __start_id);
-        __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                         __comm_tag);
-        __write_op(__start_id, __v);
-
-        for (std::uint32_t __j = 1; __j < __iters_per_item; __j++)
+        for (std::uint32_t __j = 0; __j < __iters - 1; __j++)
         {
-            __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size);
+            std::size_t __local_id = __start_id + __j * __sub_group_size;
+            _GenInputType __v = __gen_input(__in_rng, __local_id);
             __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                                              __comm_tag);
-            __write_op(__start_id + __j * __sub_group_size, __v);
+            __write_op(__local_id, __v);
         }
-    }
-    else
-    {
-        // For partial thread, we need to handle the partial subgroup at the end of the range
-        if (__sub_group_id < __active_subgroups)
+
+        std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
+        std::size_t __local_id = (__offset < __n) ? __offset : __n - 1;
+        _GenInputType __v = __gen_input(__in_rng, __local_id);
+        std::uint32_t __elements_to_process =
+            static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
+        __sub_group_scan_partial<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
+                                                 __elements_to_process, __comm_tag);
+        if constexpr (!std::is_same_v<_WriteOp, __noop_write_op>)
         {
-            std::uint32_t __iters =
-                oneapi::dpl::__internal::__dpl_ceiling_div(__n - __subgroup_start_id, __sub_group_size);
-
-            if (__iters == 1)
-            {
-                std::size_t __local_id = (__start_id < __n) ? __start_id : __n - 1;
-                _GenInputType __v = __gen_input(__in_rng, __local_id);
-                __sub_group_scan_partial<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op,
-                                                         __sub_group_carry, __n - __subgroup_start_id, __comm_tag);
-                if constexpr (!std::is_same_v<_WriteOp, __noop_write_op>)
-                {
-                    if (__start_id < __n)
-                        __write_op(__start_id, __v);
-                }
-            }
-            else
-            {
-                _GenInputType __v = __gen_input(__in_rng, __start_id);
-                __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                                 __comm_tag);
-
-                __write_op(__start_id, __v);
-
-                for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
-                {
-                    std::size_t __local_id = __start_id + __j * __sub_group_size;
-                    __v = __gen_input(__in_rng, __local_id);
-                    __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                                     __comm_tag);
-                    __write_op(__local_id, __v);
-                }
-
-                std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
-                std::size_t __local_id = (__offset < __n) ? __offset : __n - 1;
-                __v = __gen_input(__in_rng, __local_id);
-                __sub_group_scan_partial<__is_inclusive>(
-                    __ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                    __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size), __comm_tag);
-                if constexpr (!std::is_same_v<_WriteOp, __noop_write_op>)
-                {
-                    if (__offset < __n)
-                        __write_op(__offset, __v);
-                }
-            }
+            if (__offset < __n)
+                __write_op(__offset, __v);
         }
     }
 }
