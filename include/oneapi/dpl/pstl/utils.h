@@ -1060,45 +1060,43 @@ struct __opt_lazy_ctor_storage
     __opt_lazy_ctor_storage() = default;
 
     template <typename _TArg>
-    __opt_lazy_ctor_storage(_TArg&& __arg) : __storage(std::forward<_TArg>(__arg)), __init_present(true)
+    __opt_lazy_ctor_storage(_TArg&& __arg) : __storage(std::forward<_TArg>(__arg)), __constructed(true)
     {
     }
 
     ~__opt_lazy_ctor_storage()
     {
-        __destroy();
+        if (__constructed)
+        {
+            __storage.__destroy();
+            __constructed = false;
+        }
     }
 
     bool
     __has_value() const
     {
-        return __init_present;
+        return __constructed;
     }
 
+    // assigns to the storage, constructing if it has not been constructed yet
     template <typename _TArg>
     void
     __assign(_TArg&& __new_value)
     {
-        if (__init_present)
+        if (__constructed)
             __storage.__v = std::forward<_TArg>(__new_value);
         else
             __setup(std::forward<_TArg>(__new_value));
     }
 
+    // for use to explicit construct without checks
     template <typename _TArg>
     void
     __setup(_TArg&& __arg)
     {
         __storage.__setup(std::forward<_TArg>(__arg));
-        __init_present = true;
-    }
-
-    void
-    __destroy()
-    {
-        if (__init_present)
-            __storage.__destroy();
-        __init_present = false;
+        __constructed = true;
     }
 
     _T
@@ -1109,7 +1107,7 @@ struct __opt_lazy_ctor_storage
 
   private:
     oneapi::dpl::__internal::__lazy_ctor_storage<_T> __storage;
-    bool __init_present = false;
+    bool __constructed = false;
 };
 
 // To implement __min_nested_type_size, a general utility with an internal tuple
