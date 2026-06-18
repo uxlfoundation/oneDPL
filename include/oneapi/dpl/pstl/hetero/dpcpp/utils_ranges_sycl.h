@@ -88,7 +88,7 @@ using _SetOpFinalAndOOBPosType = _SetOpFinalAndOOBPosTypeImpl<std::decay_t<_Rang
 template <typename _T, typename = void>
 struct __final_pos_type_selector : std::false_type
 {
-    // This mean we have deal with OOB position only
+    // This means we only deal with the OOB position here.
     using type = _T;
 };
 
@@ -97,7 +97,7 @@ struct __final_pos_type_selector<_SetOpFinalAndOOBPosTypeImpl<_Range1, _Range2>,
                                  std::void_t<typename _SetOpFinalAndOOBPosTypeImpl<_Range1, _Range2>::_PositionT>>
     : std::true_type
 {
-    // This mean we have deal with final + OOB positions together
+    // This means we deal with both final and OOB positions together here.
     using type = typename _SetOpFinalAndOOBPosType<_Range1, _Range2>::_PositionT;
 };
 
