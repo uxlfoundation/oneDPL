@@ -67,7 +67,7 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
     {
         const std::uint8_t __num_iters =
             oneapi::dpl::__internal::__dpl_ceiling_div(__active_sub_groups, __sub_group_size);
-        oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __wg_carry;
+        oneapi::dpl::__internal::__opt_lazy_ctor_storage<_InputType> __wg_carry;
         std::uint8_t __idx = __sub_group.get_local_linear_id();
         _InputType __val = __local_acc[__idx];
         if (__num_iters == 1)
@@ -80,25 +80,16 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
         {
             __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
                 __item, __val, __binary_op, __wg_carry);
-            __local_acc[__idx] = __val;
-            __idx += __sub_group_size;
-            for (std::uint8_t __i = 1; __i < __num_iters - 1; ++__i)
-            {
                 __val = __local_acc[__idx];
                 __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
                     __item, __val, __binary_op, __wg_carry);
-                __local_acc[__idx] = __val;
-                __idx += __sub_group_size;
-            }
-            __val = __local_acc[__idx];
             __single_sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
                 __item, __val, __binary_op, __wg_carry, __active_sub_groups - (__num_iters - 1) * __sub_group_size);
             __local_acc[__idx] = __val;
         }
         // Init callback, most common case is expected to be a decoupled lookback to achieve a global scan between
         // work-groups.
-        __init_callback(__wg_init, __item, __wg_carry.__v);
-        __wg_carry.__destroy();
+        __init_callback(__wg_init, __item, __wg_carry.__get_value());
     }
     sycl::group_barrier(__group);
     // Determine incoming prefix from previous sub-groups and / or work-groups, and update results in __input
