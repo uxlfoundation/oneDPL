@@ -48,6 +48,7 @@ namespace __par_backend_hetero
 // *** Utilities ***
 
 using __temp_data_array_idx_t = std::uint16_t;
+using __diagonal_spacing_t = std::uint16_t;
 
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
 template <__temp_data_array_idx_t elements, typename _ValueT>
@@ -556,18 +557,18 @@ struct __gen_set_mask
 
 // Returns by reference: iterations consumed, and the number of elements copied to temp output.
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds, typename _InRng1,
-          typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare, typename _Proj1,
+          typename _InRng2, typename _TempOutput, typename _Compare, typename _Proj1,
           typename _Proj2>
 void
 __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
-                                  std::size_t& __idx2, const _SizeType __num_eles_min, _TempOutput& __temp_out,
-                                  _SizeType& __idx, _SizeType& __count, const _Compare __comp, _Proj1 __proj1,
-                                  _Proj2 __proj2)
+                                  std::size_t& __idx2, const __diagonal_spacing_t __num_eles_min,
+                                  _TempOutput& __temp_out, __diagonal_spacing_t& __idx, __diagonal_spacing_t& __count,
+                                  const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
     using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
 
-    auto __temp_out_set = [&](const _SizeType __count_arg, const auto& __value) {
+    auto __temp_out_set = [&](const __temp_data_array_idx_t __count_arg, const auto& __value) {
         if constexpr (__temp_data_capture_indexes_flag_v<_TempOutput>)
             __temp_out.set(__count_arg, __value, {__idx1, __idx2});
         else
@@ -650,13 +651,12 @@ struct __set_generic_operation
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
               typename _Proj1, typename _Proj2>
     _SizeType
-    __check_bounds_and_run_loop(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
-                                std::size_t& __idx2, const _SizeType __num_eles_min, _TempOutput& __temp_out,
-                                const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2) const
+    __check_bounds_and_run_loop(const _InRng1& __in_rng1, const _InRng2& __in_rng2, _SizeType& __idx1,
+                                _SizeType& __idx2, const __diagonal_spacing_t __num_eles_min,
+                                _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2) const
     {
-
-        _SizeType __count = 0;
-        _SizeType __idx = 0;
+        __temp_data_array_idx_t __count = 0;
+        __temp_data_array_idx_t __idx = 0;
         bool __can_reach_rng1_end = __idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1);
         bool __can_reach_rng2_end = __idx2 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng2);
 
@@ -687,9 +687,9 @@ struct __set_generic_operation
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
               typename _Proj1, typename _Proj2, typename _FinalPosSaver>
     _SizeType
-    operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
-               _Proj2 __proj2, _FinalPosSaver __final_pos_saver) const
+    operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, _SizeType __idx1,
+               _SizeType __idx2, const __diagonal_spacing_t __num_eles_min, _TempOutput& __temp_out,
+               const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2, _FinalPosSaver __final_pos_saver) const
     {
         if constexpr (oneapi::dpl::__internal::__is_no_callback_v<_FinalPosSaver>)
         {
@@ -701,8 +701,8 @@ struct __set_generic_operation
             const auto __idx1_old = __idx1;
             const auto __idx2_old = __idx2;
 
-            const _SizeType result = __check_bounds_and_run_loop(__in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min,
-                                                                 __temp_out, __comp, __proj1, __proj2);
+            const _SizeType result = __check_bounds_and_run_loop(
+                __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __comp, __proj1, __proj2);
 
             if (__idx1_old != __idx1 || __idx2_old != __idx2)
                 __final_pos_saver({__idx1, __idx2});
@@ -742,7 +742,7 @@ struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag> 
 
 template <bool __return_star, typename _Rng, typename _IdxT>
 auto
-__decode_balanced_path_temp_data_impl(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
+__decode_balanced_path_temp_data_impl(const _Rng& __rng, const _IdxT __id, const __diagonal_spacing_t __diagonal_spacing)
 {
     using SizeT = decltype(oneapi::dpl::__ranges::__size(__rng));
     using SignedSizeT = std::make_signed_t<decltype(oneapi::dpl::__ranges::__size(__rng))>;
@@ -762,14 +762,14 @@ __decode_balanced_path_temp_data_impl(const _Rng& __rng, const _IdxT __id, const
 
 template <typename _Rng, typename _IdxT>
 std::tuple<_IdxT, _IdxT>
-__decode_balanced_path_temp_data_no_star(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
+__decode_balanced_path_temp_data_no_star(const _Rng& __rng, const _IdxT __id, const __diagonal_spacing_t __diagonal_spacing)
 {
     return __decode_balanced_path_temp_data_impl<false>(__rng, __id, __diagonal_spacing);
 }
 
 template <typename _Rng, typename _IdxT>
 std::tuple<_IdxT, _IdxT, decltype(oneapi::dpl::__ranges::__size(std::declval<_Rng>()))>
-__decode_balanced_path_temp_data(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
+__decode_balanced_path_temp_data(const _Rng& __rng, const _IdxT __id, const __diagonal_spacing_t __diagonal_spacing)
 {
     return __decode_balanced_path_temp_data_impl<true>(__rng, __id, __diagonal_spacing);
 }
@@ -817,7 +817,7 @@ struct __get_bounds_partitioned
             __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
         return std::make_tuple(_SizeType{begin_rng1}, _SizeType{end_rng1}, _SizeType{begin_rng2}, _SizeType{end_rng2});
     }
-    std::uint16_t __diagonal_spacing;
+    __diagonal_spacing_t __diagonal_spacing;
     std::size_t __tile_size;
     std::size_t __partition_threshold;
 };
@@ -1025,7 +1025,7 @@ struct __gen_set_balanced_path
                               __comp, __proj1, __proj2, __final_pos_saver);
     }
     _SetOpCount __set_op_count;
-    std::uint16_t __diagonal_spacing;
+    __diagonal_spacing_t __diagonal_spacing;
     _BoundsProvider __get_bounds;
     _Compare __comp;
     _Proj1 __proj1;
@@ -1079,7 +1079,7 @@ struct __gen_set_op_from_known_balanced_path
         return __result_t<_InRng>{__count, __count};
     }
     _SetOpCount __set_op_count;
-    std::uint16_t __diagonal_spacing;
+    __diagonal_spacing_t __diagonal_spacing;
     _Compare __comp;
     _Proj1 __proj1;
     _Proj2 __proj2;
@@ -2132,7 +2132,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
         // Describes OOB position type
         using __oob_pos_t =
-            std::conditional_t<__detect_oob_in_two_steps_v<_GenScanInput>, std::uint16_t, __src_final_pos_t>;
+            std::conditional_t<__detect_oob_in_two_steps_v<_GenScanInput>, __diagonal_spacing_t, __src_final_pos_t>;
 
         static __oob_pos_t
         __create_initial_oob_pos()
