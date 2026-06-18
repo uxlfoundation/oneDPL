@@ -1812,7 +1812,6 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                 std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
                 std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
 
-                oneapi::dpl::__internal::__opt_lazy_ctor_storage<_InitValueType> __sub_group_carry;
                 std::size_t __group_start_id =
                     (__block_num * __max_block_size) + (__group_id * __inputs_per_work_group);
                 if constexpr (__is_unique_pattern_v)
@@ -1830,6 +1829,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
 
                 if (__sub_group_id < __active_subgroups)
                 {
+                    oneapi::dpl::__internal::__opt_lazy_ctor_storage<_InitValueType> __sub_group_carry;
                     // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
                     __scan_through_elements_helper</*_Bounded*/ false, __is_inclusive,
@@ -1848,6 +1848,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                 // to compute a prefix sum on global carries
                 if (__sub_group_id == 0)
                 {
+                    oneapi::dpl::__internal::__opt_lazy_ctor_storage<_InitValueType> __summary_carry;
                     // Each group's region in the global temp is strided by __max_num_sub_groups_local (the allocated
                     // upper bound on sub-group count), not the actual count, so that regions of distinct groups never
                     // overlap regardless of how many sub-groups a given group actually has.
@@ -1863,7 +1864,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                                 std::min(std::uint32_t{__sub_group_local_id}, __active_subgroups - 1);
                             _InitValueType __v = __sub_group_partials[__load_id];
                             __sub_group_scan_partial</*__is_inclusive=*/true>(
-                                __ndi, __v, __reduce_op, __sub_group_carry, __active_subgroups, __comm_tag_concrete);
+                                __ndi, __v, __reduce_op, __summary_carry, __active_subgroups, __comm_tag_concrete);
                             if (__sub_group_local_id < __active_subgroups)
                                 __temp_ptr[__start_id + __sub_group_local_id] = __v;
                         }
@@ -1872,7 +1873,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                             std::uint32_t __reduction_scan_id = __sub_group_local_id;
                             // need to pull out first iteration tp avoid identity
                             _InitValueType __v = __sub_group_partials[__reduction_scan_id];
-                            __sub_group_scan</*__is_inclusive=*/true>(__ndi, __v, __reduce_op, __sub_group_carry,
+                            __sub_group_scan</*__is_inclusive=*/true>(__ndi, __v, __reduce_op, __summary_carry,
                                                                       __comm_tag_concrete);
                             __temp_ptr[__start_id + __reduction_scan_id] = __v;
                             __reduction_scan_id += __sub_group_size;
@@ -1880,7 +1881,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                             for (std::uint32_t __i = 1; __i < __iters - 1; __i++)
                             {
                                 __v = __sub_group_partials[__reduction_scan_id];
-                                __sub_group_scan</*__is_inclusive=*/true>(__ndi, __v, __reduce_op, __sub_group_carry,
+                                __sub_group_scan</*__is_inclusive=*/true>(__ndi, __v, __reduce_op, __summary_carry,
                                                                           __comm_tag_concrete);
                                 __temp_ptr[__start_id + __reduction_scan_id] = __v;
                                 __reduction_scan_id += __sub_group_size;
@@ -1893,7 +1894,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
 
                             __v = __sub_group_partials[__load_id];
                             __sub_group_scan_partial</*__is_inclusive=*/true>(
-                                __ndi, __v, __reduce_op, __sub_group_carry,
+                                __ndi, __v, __reduce_op, __summary_carry,
                                 __active_subgroups - ((__iters - 1) * __sub_group_size), __comm_tag_concrete);
                             if (__reduction_scan_id < __max_num_sub_groups_local)
                                 __temp_ptr[__start_id + __reduction_scan_id] = __v;
@@ -1902,11 +1903,11 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                     // Write this group's TOTAL carry-out to a CANONICAL slot -- the last slot of the group's
                     // max-strided region -- independent of the actual sub-group count. A later group's cross-group
                     // gather (scan kernel step 2) reads totals at stride=max, offset=max-1 without needing to know any
-                    // per-group count. __sub_group_carry.__v holds the inclusive total of all active partials,
+                    // per-group count. __summary_carry holds the inclusive total of all active partials,
                     // broadcast to every lane, so lane 0 may write it. When __active_subgroups == __max_num_sub_groups_local
                     // this slot already holds the same value from the per-sub-group writes above.
                     if (__sub_group_local_id == 0)
-                        __temp_ptr[__start_id + (__max_num_sub_groups_local - 1)] = __sub_group_carry.__get_value();
+                        __temp_ptr[__start_id + (__max_num_sub_groups_local - 1)] = __summary_carry.__get_value();
                 }
 
                 if constexpr (!__is_no_oob_pos_acc_v<decltype(__oob_pos_acc)>)
