@@ -2111,6 +2111,38 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
         __tmp_acc[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
     }
 
+    template <typename _StopPosStorage>
+    struct _StopAndOOBPosTypeTrait
+    {
+        using __storage_data_t = typename _StopPosStorage::type;
+
+        // Describes does we have final position type in the storage or not
+        static constexpr bool __has_src_final_pos =
+            oneapi::dpl::__ranges::__internal::__has_final_pos_type_v<__storage_data_t>;
+
+        // Describes final position type (if any) in the storage
+        using __src_final_pos_t = oneapi::dpl::__ranges::__internal::__final_pos_type_selector_t<__storage_data_t>;
+
+        // Describes OOB position type
+        using __oob_pos_t =
+            std::conditional_t<__detect_oob_in_two_steps_v<_GenScanInput>, std::uint16_t, __src_final_pos_t>;
+
+        static __oob_pos_t
+        __create_initial_oob_pos()
+        {
+            if constexpr (std::is_arithmetic_v<__oob_pos_t>)
+                return std::numeric_limits<__oob_pos_t>::max();
+            else
+                return {};
+        }
+
+        static bool
+        __is_eq_to_initial_oob_pos(const __oob_pos_t& __pos)
+        {
+            return __pos == __create_initial_oob_pos();
+        }
+    };
+
     template <typename _Group, typename _FinalPosType>
     _FinalPosType
     __reduce_max_final_pos_over_group(_Group __group, _FinalPosType& __last_idxs_in_this_wi) const
@@ -2178,6 +2210,64 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
             _StopPosFieldAtomicRefT<_FinalPosType0>(__final_pos_field0).fetch_max(std::get<0>(__final_pos));
             _StopPosFieldAtomicRefT<_FinalPosType1>(__final_pos_field1).fetch_max(std::get<1>(__final_pos));
+        }
+    }
+
+    template <typename __FinalAndOOBPosAcc, typename _FinalPosType>
+    void
+    __reduce_over_group_and_update_src_final_pos(const sycl::nd_item<1>& __ndi,
+                                                 __FinalAndOOBPosAcc& __final_and_oob_pos_acc,
+                                                 _FinalPosType& __final_src_pos_in_this_wi) const
+    {
+        // Evaluate final positions inside work-group
+        const _FinalPosType __max_final_src_pos_in_this_wg =
+            __reduce_max_final_pos_over_group(__ndi.get_group(), __final_src_pos_in_this_wi);
+
+        if (__ndi.get_local_id(0) == 0)
+        {
+            // Update global final position from the first item inside work-group
+            __update_final_pos(__final_and_oob_pos_acc, __max_final_src_pos_in_this_wg);
+        }
+    }
+
+    template <typename __oob_pos_t>
+    auto
+    __create_on_oob_reached(std::size_t& __start_id_reached, std::size_t& __start_id_reached_on_oob,
+                            __oob_pos_t& __oob_detected) const
+    {
+        return [&__start_id_reached, &__start_id_reached_on_oob, &__oob_detected](__oob_pos_t __id) {
+            __start_id_reached_on_oob = __start_id_reached;
+            __oob_detected = __id;
+        };
+    }
+
+    template <bool __has_final_pos, typename _FinalPosType>
+    auto
+    __create_final_pos_saver(_FinalPosType& __src_final_pos) const
+    {
+        if constexpr (__has_final_pos)
+            return [&__src_final_pos](_FinalPosType __final_pos) { __src_final_pos = __final_pos; };
+        else
+            return oneapi::dpl::__internal::__no_callback_tag{};
+    }
+
+    template <typename _FinalPosType, typename _OOBPositionT, typename _InRng>
+    auto
+    __finalize_oob_detected(_OOBPositionT __detected_oob_pos, const _InRng& __in_rng,
+                            const std::size_t __start_id_reached_on_oob) const
+    {
+        if constexpr (__detect_oob_in_two_steps_v<_GenScanInput>)
+        {
+            __src_pos_capturing_temp_data<_FinalPosType> __pos_catcher(__detected_oob_pos);
+
+            __gen_scan_input(__in_rng, __start_id_reached_on_oob, __pos_catcher,
+                             oneapi::dpl::__internal::__no_callback_tag{});
+
+            return __pos_catcher.__get_saved_src_pos();
+        }
+        else
+        {
+            return __detected_oob_pos;
         }
     }
 
@@ -2443,6 +2533,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                 std::size_t __subgroup_start_id =
                     __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
+
+                // Describes the current position in the input range that has been processed in __scan_through_elements_helper()
                 std::size_t __start_id_reached = __start_id;
 
                 auto __call_scan_through_elements_helper = [&](auto __on_oob_reached, auto __final_pos_saver) {
@@ -2468,68 +2560,31 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
                 if constexpr (_Bounded)
                 {
-                    using _FinalPosStorageType = typename _StopPosStorage::type;
-                    using _FinalPosType =
-                        oneapi::dpl::__ranges::__internal::__final_pos_type_selector_t<_FinalPosStorageType>;
-                    constexpr bool __has_final_pos =
-                        oneapi::dpl::__ranges::__internal::__has_final_pos_type_v<_FinalPosStorageType>;
-
-                    using __oob_type =
-                        std::conditional_t<__detect_oob_in_two_steps_v<_GenScanInput>, std::uint16_t, _FinalPosType>;
+                    using __oob_trait = _StopAndOOBPosTypeTrait<_StopPosStorage>;
 
                     // Two pass processing: if the OOB position is reached in the first pass, then on the second
                     // pass we recover the source indexes for the diagonal where it happened and store the OOB
                     // position from them. The OOB position may be reached only in one work-item, so no
                     // synchronization is needed to update the shared OOB position in the second pass.
-                    __oob_type __oob_detected = std::numeric_limits<__oob_type>::max();
+                    typename __oob_trait::__oob_pos_t __oob_detected = __oob_trait::__create_initial_oob_pos();
 
                     // Final pos on this work-item
-                    _FinalPosType __final_src_pos_in_this_wi{};
-                    auto __create_final_pos_saver = [&]() {
-                        if constexpr (__has_final_pos)
-                            return [&](_FinalPosType __final_pos) { __final_src_pos_in_this_wi = __final_pos; };
-                        else
-                            return oneapi::dpl::__internal::__no_callback_tag{};
-                    };
-
                     std::size_t __start_id_reached_on_oob = __start_id;
+                    typename __oob_trait::__src_final_pos_t __src_final_pos{};
                     __call_scan_through_elements_helper(
-                        [&](__oob_type __id) { // __on_oob_reached
-                            __start_id_reached_on_oob = __start_id_reached;
-                            __oob_detected = __id;
-                        },
-                        __create_final_pos_saver()); // __final_pos_saver
+                        __create_on_oob_reached(__start_id_reached, __start_id_reached_on_oob, __oob_detected),
+                        __create_final_pos_saver<__oob_trait::__has_src_final_pos>(__src_final_pos));
 
-                    if constexpr (__has_final_pos)
-                    {
-                        // Evaluate final positions inside work-group
-                        const _FinalPosType __max_final_src_pos_in_this_wg =
-                            __reduce_max_final_pos_over_group(__ndi.get_group(), __final_src_pos_in_this_wi);
-                        if (__ndi.get_local_id(0) == 0)
-                        {
-                            // Update global final position from the first item inside work-group
-                            __update_final_pos(__stop_pos_acc, __max_final_src_pos_in_this_wg);
-                        }
-                    }
+                    // Reduce over group and update final position atomically in global memory if needed
+                    if constexpr (__oob_trait::__has_src_final_pos)
+                        __reduce_over_group_and_update_src_final_pos(__ndi, __stop_pos_acc, __src_final_pos);
 
                     // OOB element detected in this work-item?
-                    if (__oob_detected != std::numeric_limits<decltype(__oob_detected)>::max())
+                    if (!__oob_trait::__is_eq_to_initial_oob_pos(__oob_detected))
                     {
-                        auto __finalize_oob_detected = [&](auto __oob_detected_arg) {
-                            if constexpr (__detect_oob_in_two_steps_v<_GenScanInput>)
-                            {
-                                __src_pos_capturing_temp_data<_FinalPosType> __src_pos_catcher(__oob_detected_arg);
-                                __gen_scan_input(__in_rng, __start_id_reached_on_oob, __src_pos_catcher,
-                                                 oneapi::dpl::__internal::__no_callback_tag{});
-                                return __src_pos_catcher.__get_saved_src_pos();
-                            }
-                            else
-                            {
-                                return __oob_detected_arg;
-                            }
-                        };
-
-                        __update_oob_pos(__stop_pos_acc, __finalize_oob_detected(__oob_detected));
+                        __update_oob_pos(__stop_pos_acc,
+                                         __finalize_oob_detected<typename __oob_trait::__src_final_pos_t>(
+                                             __oob_detected, __in_rng, __start_id_reached_on_oob));
                     }
                 }
                 else
