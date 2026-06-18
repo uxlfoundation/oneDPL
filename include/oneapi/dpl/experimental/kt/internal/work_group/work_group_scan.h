@@ -78,15 +78,15 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
         }
         else
         {
-            __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(__item, __val, __binary_op,
-                                                                                         __wg_carry);
+            __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
+                __item, __val, __binary_op, __wg_carry);
             __local_acc[__idx] = __val;
             __idx += __sub_group_size;
             for (std::uint8_t __i = 1; __i < __num_iters - 1; ++__i)
             {
                 __val = __local_acc[__idx];
-                __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(__item, __val, __binary_op,
-                                                                                             __wg_carry);
+                __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ true>(
+                    __item, __val, __binary_op, __wg_carry);
                 __local_acc[__idx] = __val;
                 __idx += __sub_group_size;
             }
