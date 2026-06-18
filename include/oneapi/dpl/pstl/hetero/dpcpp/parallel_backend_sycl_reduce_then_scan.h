@@ -308,6 +308,16 @@ struct __write_multiple_to_id
     _Assign __assign;
 };
 
+struct __noop_write_op
+{
+    template <typename _SizeType, typename _ValueType>
+    void
+    operator()(const _SizeType, const _ValueType&) const
+    {
+    }
+};
+
+
 // *** Algorithm Specific Helpers, Input Generators to Reduction and Scan Operations ***
 
 // __parallel_transform_scan
@@ -1505,7 +1515,7 @@ __sub_group_scan_partial(const sycl::nd_item<1>& __ndi, _ValueType& __value, _Bi
                                             __init_and_carry, __comm_tag);
 }
 
-template <bool __is_inclusive, bool __capture_output, typename _GenInput, typename _ScanInputTransform,
+template <bool __is_inclusive, typename _GenInput, typename _ScanInputTransform,
           typename _BinaryOp, typename _WriteOp, typename _LazyValueType, typename _InRng, typename _CommTag>
 void
 __scan_through_elements_helper_impl(
@@ -1551,7 +1561,7 @@ __scan_through_elements_helper_impl(
                 _GenInputType __v = __gen_input(__in_rng, __local_id);
                 __sub_group_scan_partial<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op,
                                                          __sub_group_carry, __n - __subgroup_start_id, __comm_tag);
-                if constexpr (__capture_output)
+                if constexpr (!std::is_same_v<_WriteOp, __noop_write_op>)
                 {
                     if (__start_id < __n)
                         __write_op(__start_id, __v);
@@ -1580,7 +1590,7 @@ __scan_through_elements_helper_impl(
                 __sub_group_scan_partial<__is_inclusive>(
                     __ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                     __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size), __comm_tag);
-                if constexpr (__capture_output)
+                if constexpr (!std::is_same_v<_WriteOp, __noop_write_op>)
                 {
                     if (__offset < __n)
                         __write_op(__offset, __v);
@@ -1605,7 +1615,7 @@ struct __temp_data_required<_T, std::void_t<typename _T::TempData>>
     using type = typename _T::TempData;
 };
 
-template <bool _Bounded, bool __is_inclusive, bool __capture_output, bool __is_unique_pattern_v, typename _GenInput,
+template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _GenInput,
           typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp, typename _LazyValueType, typename _InRng,
           typename _OutRng, typename _CommTag, typename _OnOOBReached = std::nullptr_t>
 void
@@ -1635,11 +1645,10 @@ __scan_through_elements_helper(
     // Hoist the sub-group-ops vs SLM-fallback decision to here. The element-scan body below is instantiated
     // once per available communication path; the branch is taken a single time per call to this helper.
     __dispatch_comm_tag(__comm_tag, [&](auto __comm_tag_concrete) {
-        if constexpr (!__capture_output)
+        if constexpr (std::is_same_v<_WriteOp, __noop_write_op>)
         {
-            auto __noop_write_op = [&](std::size_t, const auto&) {};
-            __scan_through_elements_helper_impl<__is_inclusive, __capture_output>(
-                __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __noop_write_op, __sub_group_carry,
+            __scan_through_elements_helper_impl<__is_inclusive>(
+                __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __noop_write_op{}, __sub_group_carry,
                 __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
                 __comm_tag_concrete);
         }
@@ -1661,7 +1670,7 @@ __scan_through_elements_helper(
                         else
                             __write_op(__out_rng, __out_rng_size, __id, __v, __on_oob_reached);
                     };
-                    __scan_through_elements_helper_impl<__is_inclusive, __capture_output>(
+                    __scan_through_elements_helper_impl<__is_inclusive>(
                         __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __bounded_write_op,
                         __sub_group_carry, __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id,
                         __sub_group_id, __active_subgroups, __comm_tag_concrete);
@@ -1675,7 +1684,7 @@ __scan_through_elements_helper(
                 else
                     __write_op(__out_rng, __id, __v);
             };
-            __scan_through_elements_helper_impl<__is_inclusive, __capture_output>(
+            __scan_through_elements_helper_impl<__is_inclusive>(
                 __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __unbounded_write_op, __sub_group_carry,
                 __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
                 __comm_tag_concrete);
@@ -1820,9 +1829,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                     oneapi::dpl::__internal::__opt_lazy_ctor_storage<_InitValueType> __sub_group_carry;
                     // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
-                    __scan_through_elements_helper</*_Bounded*/ false, __is_inclusive,
-                                                   /*__capture_output=*/false, __is_unique_pattern_v>(
-                        __ndi, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, nullptr, __sub_group_carry,
+                    __scan_through_elements_helper</*_Bounded*/ false, __is_inclusive, __is_unique_pattern_v>(
+                        __ndi, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, __noop_write_op{}, __sub_group_carry,
                         __in_rng, /*unused*/ __in_rng, __start_id, __n, __inputs_per_item, __subgroup_start_id,
                         __sub_group_id, __active_subgroups, __comm_scan_tag);
                     if (__sub_group_local_id == 0)
@@ -2234,8 +2242,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                __scan_through_elements_helper<_Bounded, __is_inclusive, /*__capture_output=*/true,
-                                               __is_unique_pattern_v>(
+                __scan_through_elements_helper<_Bounded, __is_inclusive, __is_unique_pattern_v>(
                     __ndi, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op, __sub_group_carry,
                     __in_rng, __out_rng, __start_id, __n, __inputs_per_item, __subgroup_start_id, __sub_group_id,
                     __active_subgroups, __comm_scan_tag, __create_on_oob_reached_callback(__oob_pos_acc));
