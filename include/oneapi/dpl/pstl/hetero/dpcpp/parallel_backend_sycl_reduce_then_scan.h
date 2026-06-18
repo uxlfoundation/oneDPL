@@ -47,24 +47,26 @@ namespace __par_backend_hetero
 // *** Reduce then scan functional building blocks ***
 // *** Utilities ***
 
+using __temp_data_array_idx_t = std::uint16_t;
+
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
-template <std::uint16_t elements, typename _ValueT>
+template <__temp_data_array_idx_t elements, typename _ValueT>
 struct __temp_data_array
 {
     // The maximum number of output elements a single scanned element may emit through this temporary data.
     // For set operations a scanned element is a diagonal which can produce up to `elements` outputs, so the
     // bounded-write estimate must account for this many writes per scanned element.
-    static constexpr std::uint16_t __max_outputs_per_input = elements;
+    static constexpr __temp_data_array_idx_t __max_outputs_per_input = elements;
 
     template <typename _ValueT2>
     void
-    set(std::uint16_t __idx, const _ValueT2& __ele)
+    set(__temp_data_array_idx_t __idx, const _ValueT2& __ele)
     {
         __data[__idx].__setup(__ele);
     }
 
     _ValueT
-    get_and_destroy(std::uint16_t __idx)
+    get_and_destroy(__temp_data_array_idx_t __idx)
     {
         // Setting up temporary value to be destroyed as this function exits. The __scoped_destroyer calls destroy when
         // it leaves scope.
@@ -80,11 +82,11 @@ struct __temp_data_array
 struct __noop_temp_data
 {
     // Patterns using this stand-in (e.g. copy_if/unique) emit at most one output per scanned element.
-    static constexpr std::uint16_t __max_outputs_per_input = 1;
+    static constexpr __temp_data_array_idx_t __max_outputs_per_input = 1;
 
     template <typename _ValueT>
     void
-    set(std::uint16_t, const _ValueT&) const
+    set(__temp_data_array_idx_t, const _ValueT&) const
     {
     }
 };
@@ -95,11 +97,11 @@ template <typename _SrcDataPosT>
 struct __src_pos_capturing_temp_data
 {
   public:
-    __src_pos_capturing_temp_data(std::uint16_t __idx_for_src_pos) : __idx_for_src_pos(__idx_for_src_pos) {}
+    __src_pos_capturing_temp_data(__temp_data_array_idx_t __idx_for_src_pos) : __idx_for_src_pos(__idx_for_src_pos) {}
 
     template <typename _ValueT2>
     void
-    set(std::uint16_t __idx, const _ValueT2&, _SrcDataPosT __src_idx)
+    set(__temp_data_array_idx_t __idx, const _ValueT2&, _SrcDataPosT __src_idx)
     {
         if (__idx == __idx_for_src_pos)
             __saved_src_pos = __src_idx;
@@ -112,7 +114,7 @@ struct __src_pos_capturing_temp_data
     }
 
   private:
-    const std::uint16_t __idx_for_src_pos = 0;
+    const __temp_data_array_idx_t __idx_for_src_pos = 0;
     _SrcDataPosT __saved_src_pos = {};
 };
 
@@ -348,8 +350,8 @@ struct __write_multiple_to_id
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
-        const std::size_t __n = std::get<1>(__v);
-        for (std::size_t __i = 0; __i < __n; ++__i)
+        const __temp_data_array_idx_t __n = std::get<1>(__v);
+        for (__temp_data_array_idx_t __i = 0; __i < __n; ++__i)
         {
             __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
                      __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
@@ -368,8 +370,8 @@ struct __write_multiple_to_id
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
-        const std::size_t __n = std::get<1>(__v);
-        for (std::size_t __i = 0; __i < __n; ++__i)
+        const __temp_data_array_idx_t __n = std::get<1>(__v);
+        for (__temp_data_array_idx_t __i = 0; __i < __n; ++__i)
         {
             __write_if_in_bounds(
                 __out_size, std::get<0>(__v) - std::get<1>(__v) + __i,
