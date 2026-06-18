@@ -85,18 +85,15 @@ __sub_group_scan(const sycl::nd_item<1>& __ndi, _InputTypeWrapped __input[__iter
 {
     using _InputType = __scan_input_t<_InputTypeWrapped>;
     const bool __is_full = __items_in_scan == __sub_group_size * __iters_per_item;
-    oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __carry;
-    oneapi::dpl::__internal::__scoped_destroyer<_InputType> __destroy_when_leaving_scope{__carry};
+    oneapi::dpl::__internal::__opt_lazy_ctor_storage<_InputType> __carry;
     if (__is_full)
     {
-        oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
-                                                            /*__init_present*/ false>(
+        oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true>(
             __ndi, __extract_scan_input(__input[0]), __binary_op, __carry);
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __i = 1; __i < __iters_per_item; ++__i)
         {
-            oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
-                                                                /*__init_present*/ true>(
+            oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true>(
                 __ndi, __extract_scan_input(__input[__i]), __binary_op, __carry);
         }
     }
@@ -107,29 +104,25 @@ __sub_group_scan(const sycl::nd_item<1>& __ndi, _InputTypeWrapped __input[__iter
         std::uint16_t __i = 0;
         if (__limited_iters_per_item == 1)
         {
-            oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial</*__is_inclusive*/ true,
-                                                                        /*__init_present*/ false>(
+            oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial</*__is_inclusive*/ true>(
                 __ndi, __extract_scan_input(__input[__i]), __binary_op, __carry,
                 __items_in_scan - __i * __sub_group_size);
         }
         else if (__limited_iters_per_item > 1)
         {
-            oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
-                                                                /*__init_present*/ false>(
+            oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true>(
                 __ndi, __extract_scan_input(__input[__i++]), __binary_op, __carry);
             for (; __i < __limited_iters_per_item - 1; ++__i)
             {
-                oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true,
-                                                                    /*__init_present*/ true>(
+                oneapi::dpl::__par_backend_hetero::__sub_group_scan</*__is_inclusive*/ true>(
                     __ndi, __extract_scan_input(__input[__i]), __binary_op, __carry);
             }
-            oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial</*__is_inclusive*/ true,
-                                                                        /*__init_present*/ true>(
+            oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial</*__is_inclusive*/ true>(
                 __ndi, __extract_scan_input(__input[__i]), __binary_op, __carry,
                 __items_in_scan - __i * __sub_group_size);
         }
     }
-    return __carry.__v;
+    return __carry.__get_value();
 }
 
 template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _BinaryOperation>
