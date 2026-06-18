@@ -1332,7 +1332,7 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _SetTag __set_t
     oneapi::dpl::__internal::__difference_t<_Range2> __stop_pos2 = {};
     if constexpr (_Bounded)
     {
-        // Workaround because std::tie() doesn't work with oneapi::dpl::__internal::tuple
+        // Workaround: std::tie() doesn't work with oneapi::dpl::__internal::tuple
         const auto __stop_pos_tuple = __load_result(std::get<2>(__res)).__compute_stop_pos();
         __stop_pos1 = std::get<0>(__stop_pos_tuple);
         __stop_pos2 = std::get<1>(__stop_pos_tuple);
