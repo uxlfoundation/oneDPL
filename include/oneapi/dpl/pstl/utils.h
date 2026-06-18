@@ -1079,7 +1079,7 @@ struct __opt_lazy_ctor_storage
         return __constructed;
     }
 
-    // assigns to the storage, constructing if it has not been constructed yet
+    // assigns to the storage, constructing if not yet constructed
     template <typename _TArg>
     void
     __assign(_TArg&& __new_value)
@@ -1090,7 +1090,7 @@ struct __opt_lazy_ctor_storage
             __setup(std::forward<_TArg>(__new_value));
     }
 
-    // for use to explicit construct without checks
+    // explicitly construct without checks
     template <typename _TArg>
     void
     __setup(_TArg&& __arg)
