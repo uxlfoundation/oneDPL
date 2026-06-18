@@ -68,7 +68,8 @@ __extract_scan_input(_T&& __value)
         return (__value);
 }
 
-template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType>
+template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId,
+          typename _BinaryOp, typename _ValueType>
 void
 __exclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn,
                                   _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
@@ -108,7 +109,8 @@ __exclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_
     //return by reference __value and __init_and_carry
 }
 
-template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType>
+template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId,
+          typename _BinaryOp, typename _ValueType>
 void
 __inclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn,
                                   _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
@@ -135,50 +137,51 @@ __inclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_
     //return by reference __value and __init_and_carry
 }
 
-template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp,
-          typename _ValueType>
+template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _MaskOp,
+          typename _InitBroadcastId, typename _BinaryOp, typename _ValueType>
 void
 __sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, _InitBroadcastId __init_broadcast_id,
-                        _ValueType& __value, _BinaryOp __binary_op, 
+                        _ValueType& __value, _BinaryOp __binary_op,
                         oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType>& __init_and_carry)
 {
     if constexpr (__is_inclusive)
     {
-        __inclusive_sub_group_masked_scan<__sub_group_size, __init_present>(__ndi, __mask_fn, __init_broadcast_id, __value, __binary_op,
-                                                          __init_and_carry);
+        __inclusive_sub_group_masked_scan<__sub_group_size, __init_present>(__ndi, __mask_fn, __init_broadcast_id,
+                                                                            __value, __binary_op, __init_and_carry);
     }
     else
     {
-        __exclusive_sub_group_masked_scan<__sub_group_size, __init_present>(__ndi, __mask_fn, __init_broadcast_id, __value, __binary_op,
-                                                          __init_and_carry);
+        __exclusive_sub_group_masked_scan<__sub_group_size, __init_present>(__ndi, __mask_fn, __init_broadcast_id,
+                                                                            __value, __binary_op, __init_and_carry);
     }
 }
 
-template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp, typename _ValueType>
+template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp,
+          typename _ValueType>
 void
 __single_sub_group_scan(const sycl::nd_item<1>& __ndi, _ValueType& __value, _BinaryOp __binary_op,
-                 oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType>& __init_and_carry)
+                        oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType>& __init_and_carry)
 {
     auto __mask_fn = [](auto __sub_group_local_id, auto __offset) { return __sub_group_local_id >= __offset; };
     std::uint8_t __init_broadcast_id = __sub_group_size - 1;
-    __sub_group_masked_scan<__sub_group_size, __is_inclusive, __init_present>(__ndi, __mask_fn, __init_broadcast_id, __value, __binary_op,
-                                                            __init_and_carry);
+    __sub_group_masked_scan<__sub_group_size, __is_inclusive, __init_present>(__ndi, __mask_fn, __init_broadcast_id,
+                                                                              __value, __binary_op, __init_and_carry);
 }
 
-template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp, typename _ValueType>
+template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp,
+          typename _ValueType>
 void
 __single_sub_group_scan_partial(const sycl::nd_item<1>& __ndi, _ValueType& __value, _BinaryOp __binary_op,
-                         oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType>& __init_and_carry, 
-                         std::uint32_t __elements_to_process)
+                                oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType>& __init_and_carry,
+                                std::uint32_t __elements_to_process)
 {
     auto __mask_fn = [__elements_to_process](auto __sub_group_local_id, auto __offset) {
         return __sub_group_local_id >= __offset && __sub_group_local_id < __elements_to_process;
     };
     std::uint8_t __init_broadcast_id = __elements_to_process - 1;
-    __sub_group_masked_scan<__sub_group_size, __is_inclusive, __init_present>(__ndi, __mask_fn, __init_broadcast_id, __value, __binary_op,
-                                                            __init_and_carry);
+    __sub_group_masked_scan<__sub_group_size, __is_inclusive, __init_present>(__ndi, __mask_fn, __init_broadcast_id,
+                                                                              __value, __binary_op, __init_and_carry);
 }
-
 
 //
 // An optimized scan in a sycl::sub_group performed in local registers.
