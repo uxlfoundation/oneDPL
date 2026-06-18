@@ -97,7 +97,7 @@ struct __final_pos_type_selector<_SetOpFinalAndOOBPosTypeImpl<_Range1, _Range2>,
                                  std::void_t<typename _SetOpFinalAndOOBPosTypeImpl<_Range1, _Range2>::_PositionT>>
     : std::true_type
 {
-    // This mean we have deal with final + OOB positions together
+    // This means we deal with both final and OOB positions together here.
     using type = typename _SetOpFinalAndOOBPosType<_Range1, _Range2>::_PositionT;
 };
 
