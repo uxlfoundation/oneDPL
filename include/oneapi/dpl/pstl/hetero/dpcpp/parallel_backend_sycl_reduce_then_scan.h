@@ -191,14 +191,15 @@ struct __write_to_id_if
 {
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, _SizeType, const _ValueType& __v) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
-        using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+        using _ConvertedTupleType = typename oneapi::dpl::__internal::__get_tuple_type<
+            std::decay_t<decltype(std::get<2>(__v))>,
+            std::decay_t<decltype(__out_rng[std::declval<_SizeType>()])>>::__type;
+
         if (std::get<1>(__v))
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
     }
@@ -211,9 +212,9 @@ struct __write_to_id_if
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
-        using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+        using _ConvertedTupleType = typename oneapi::dpl::__internal::__get_tuple_type<
+            std::decay_t<decltype(std::get<2>(__v))>,
+            std::decay_t<decltype(__out_rng[std::declval<_SizeType>()])>>::__type;
 
         if (std::get<1>(__v))
         {
