@@ -18,6 +18,7 @@
 
 #include <iterator>
 #include <type_traits>
+#include <algorithm> // std::min
 
 #include "../../utils_ranges.h"
 #include "../../iterator_impl.h"
