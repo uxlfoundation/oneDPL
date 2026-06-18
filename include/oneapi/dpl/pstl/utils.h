@@ -1053,6 +1053,65 @@ struct __scoped_destroyer
     }
 };
 
+template <typename _T>
+struct __opt_lazy_ctor_storage
+{
+  public:
+    __opt_lazy_ctor_storage() = default;
+
+    template <typename _TArg>
+    __opt_lazy_ctor_storage(_TArg&& __arg) : __storage(std::forward<_TArg>(__arg)), __init_present(true)
+    {
+    }
+
+    ~__opt_lazy_ctor_storage()
+    {
+        __destroy();
+    }
+
+    bool
+    __has_value() const
+    {
+        return __init_present;
+    }
+
+    template <typename _TArg>
+    void
+    __assign(_TArg&& __new_value)
+    {
+        if (__init_present)
+            __storage.__v = std::forward<_TArg>(__new_value);
+        else
+            __setup(std::forward<_TArg>(__new_value));
+    }
+
+    template <typename _TArg>
+    void
+    __setup(_TArg&& __arg)
+    {
+        __storage.__setup(std::forward<_TArg>(__arg));
+        __init_present = true;
+    }
+
+    void
+    __destroy()
+    {
+        if (__init_present)
+            __storage.__destroy();
+        __init_present = false;
+    }
+
+    _T
+    __get_value() const
+    {
+        return __storage.__v;
+    }
+
+  private:
+    oneapi::dpl::__internal::__lazy_ctor_storage<_T> __storage;
+    bool __init_present = false;
+};
+
 // To implement __min_nested_type_size, a general utility with an internal tuple
 // specialization, we need to forward declare our internal tuple first as tuple_impl.h
 // already includes this header.
