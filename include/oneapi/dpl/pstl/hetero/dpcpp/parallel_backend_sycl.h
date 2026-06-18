@@ -724,31 +724,27 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     return __create_future(std::move(__event), std::move(__payload));
 }
 
-template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _GenMask, typename _WriteOp,
-          typename _IsUniquePattern>
-__transform_reduce_then_scan_result_t<_Bounded, oneapi::dpl::__internal::__difference_t<_OutRng>,
-                                      oneapi::dpl::__internal::__difference_t<_InRng>>
-__parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _GenMask __generate_mask,
-                                 _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
+template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
+          typename _WriteOp, typename _IsUniquePattern>
+__transform_reduce_then_scan_result_t<_Bounded, _Size, _Size>
+__parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size,
+                                 _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
-    using _InRngSize = oneapi::dpl::__internal::__difference_t<_InRng>;
-    using _OutRngSize = oneapi::dpl::__internal::__difference_t<_OutRng>;
-
-    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask, _OutRngSize>;
-    using _ReduceOp = std::plus<_OutRngSize>;
-    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask, _OutRngSize>;
+    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask, _Size>;
+    using _ReduceOp = std::plus<_Size>;
+    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask, _Size>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     // Initial stop pos state is just input range size
-    const _InRngSize __stop_pos_initial_state = oneapi::dpl::__ranges::__size(__in_rng);
+    const _Size __stop_pos_initial_state = oneapi::dpl::__ranges::__size(__in_rng);
 
     // Create optional limiter for result by output range size
     auto __transform_result_op = oneapi::dpl::__ranges::__internal::__create_transform_result_op<_Bounded>(__out_rng);
 
-    return __parallel_transform_reduce_then_scan<_Bounded, sizeof(decltype(__stop_pos_initial_state)), _CustomName>(
+    return __parallel_transform_reduce_then_scan<_Bounded, sizeof(_Size), _CustomName>(
         __q, oneapi::dpl::__ranges::__size(__in_rng), std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
         _GenReduceInput{__generate_mask}, _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{},
-        __write_op, oneapi::dpl::unseq_backend::__no_init_value<_OutRngSize>{},
+        __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, __is_unique_pattern, __stop_pos_initial_state, __transform_result_op);
 }
 
@@ -842,7 +838,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
 
         std::tuple __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
-            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), _GenMask{__pred},
+            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
             _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
 
         std::get<0>(__res).wait_and_throw();
@@ -900,13 +896,16 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
                           _Range2&& __result, _UnaryPredicate __pred)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
 
     sycl::queue __q_local = __exec.queue();
 
+    _Size1 __n = oneapi::dpl::__ranges::__size(__rng);
+
     auto&& [__event, __payload] = __parallel_reduce_then_scan_copy</*_Bounded*/ false, _CustomName>(
-        __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), _GenMask{__pred}, _WriteOp{},
+        __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred}, _WriteOp{},
         /*_IsUniquePattern=*/std::false_type{});
     return __create_future(std::move(__event), std::move(__payload));
 }
@@ -941,7 +940,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
 
         std::tuple __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
-            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenMask{__pred},
+            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
             _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{});
 
         std::get<0>(__res).wait_and_throw();
