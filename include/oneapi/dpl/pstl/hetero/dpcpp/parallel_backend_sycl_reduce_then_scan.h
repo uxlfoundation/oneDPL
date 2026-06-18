@@ -2121,7 +2121,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
     {
         using __storage_data_t = typename _StopPosStorage::type;
 
-        // Describes does we have final position type in the storage or not
+        // Describes whether we have a final-position type in the storage or not
         static constexpr bool __has_src_final_pos =
             oneapi::dpl::__ranges::__internal::__has_final_pos_type_v<__storage_data_t>;
 
