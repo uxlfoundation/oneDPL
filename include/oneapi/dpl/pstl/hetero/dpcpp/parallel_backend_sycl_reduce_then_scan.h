@@ -1802,7 +1802,11 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
             const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
             const std::size_t __max_writes_this_sub_group =
                 std::size_t{__iters_per_item} * __sub_group_size * _TempData::__max_outputs_per_input;
-            if (__carry_in + __max_writes_this_sub_group > __out_rng_size - __write_output_offset)
+            // Keep __write_output_offset on the left-hand side instead of subtracting it from
+            // __out_rng_size: the subtraction would underflow (wrap to a huge unsigned value) when
+            // __out_rng_size < __write_output_offset (e.g. __out_rng_size == 0, or 1 for unique
+            // patterns) and incorrectly select the unbounded write path.
+            if (__carry_in + __max_writes_this_sub_group + __write_output_offset > __out_rng_size)
             {
                 // pass bounded write op to the dispatch function
                 __call_dispatch_comm_tag([&](std::size_t __id, const auto& __v) {
