@@ -24,7 +24,7 @@
 #include <utility>
 #include <cmath>
 #include <cassert>
-#include <limits> // for std::numeric_limits (accumulator initialization)
+#include <limits> // std::numeric_limits
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
