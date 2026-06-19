@@ -87,6 +87,8 @@ To use these algorithms, include both ``<oneapi/dpl/ranges>`` and ``<oneapi/dpl/
 * ``find_first_of``
 * ``for_each``
 * ``inclusive_scan``
+* ``is_heap``
+* ``is_heap_until``
 * ``is_sorted``
 * ``is_sorted_until``
 * ``min_element``
