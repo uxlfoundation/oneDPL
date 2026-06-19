@@ -1518,7 +1518,7 @@ template <bool __is_inclusive, typename _GenInput, typename _ScanInputTransform,
 void
 __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __gen_input,
                                     _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op,
-                                    _WriteOp __write_op, 
+                                    _WriteOp __write_op,
                                     oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueType>& __sub_group_carry,
                                     const _InRng& __in_rng, std::size_t __start_id, std::size_t __n,
                                     std::uint32_t __iters_per_item, std::size_t __subgroup_start_id,
