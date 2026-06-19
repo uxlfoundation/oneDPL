@@ -322,11 +322,10 @@ struct __cooperative_lookback
         {
             __local_flag.set_partial(__local_reduction);
         }
-        oneapi::dpl::__internal::__opt_lazy_ctor_storage<_T> __running;
+        oneapi::dpl::__internal::__lazy_ctor_storage<_T> __running;
+        oneapi::dpl::__internal::__scoped_destroyer<_T> __destroy_when_leaving_scope{__running};
         std::uint8_t __local_id = __subgroup.get_local_id();
-        // __init_present is now tracked at run-time by __running.__has_value(): the first iteration finds no
-        // value (and sets it up), while later iterations apply the accumulated carry.
-        auto __lookback_iter = [&](int __tile) {
+        auto __lookback_iter = [&](auto __is_initialized, int __tile) {
             __scan_status_flag<__sub_group_size, _T> __current_tile(__lookback_storage, __tile - __local_id);
             auto [__tile_flag, __tile_value] = __current_tile.spin_and_get(__subgroup);
 
@@ -357,17 +356,17 @@ struct __cooperative_lookback
         };
         int __tile = static_cast<int>(__tile_id) - 1;
         bool __full_tile_found = false;
-        __full_tile_found = __lookback_iter(__tile);
+        __full_tile_found = __lookback_iter(/*__is_initialized*/ std::false_type{}, __tile);
         __tile -= __sub_group_size;
         for (; __tile >= 0 && !__full_tile_found; __tile -= __sub_group_size)
         {
-            __full_tile_found = __lookback_iter(__tile);
+            __full_tile_found = __lookback_iter(/*__is_initialized*/ std::true_type{}, __tile);
         }
         if (__subgroup.get_local_id() == 0)
         {
-            __local_flag.set_full(__binary_op(__running.__get_value(), __local_reduction));
+            __local_flag.set_full(__binary_op(__running.__v, __local_reduction));
         }
-        __prefix_ref = __running.__get_value();
+        __prefix_ref = __running.__v;
     }
     // This callback is used for tiles after the first, so we should apply the tile prefix value.
     static constexpr bool __apply_prefix = true;
