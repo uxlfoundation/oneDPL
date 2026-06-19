@@ -486,6 +486,19 @@ __pattern_is_heap(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp,
 // pattern_is_heap_until
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_is_heap_until(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    oneapi::dpl::__internal::__binary_op<_Compare, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
+
+    return oneapi::dpl::__internal::__pattern_is_heap_until(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                            std::ranges::begin(__r),
+                                                            std::ranges::begin(__r) + std::ranges::size(__r), __comp_2);
+}
+
 //---------------------------------------------------------------------------------------------------------------------
 // pattern_min_element
 //---------------------------------------------------------------------------------------------------------------------
