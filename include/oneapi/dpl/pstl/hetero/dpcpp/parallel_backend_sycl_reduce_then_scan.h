@@ -1419,9 +1419,9 @@ __exclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_
     oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueT> __old_init;
     if (__init_and_carry.__has_value())
     {
-        __value = __binary_op(__init_and_carry.__get_value(), __value);
+        __value = __binary_op(__init_and_carry.__get_cref(), __value);
         if (__sub_group_local_id == 0)
-            __old_init.__setup(__init_and_carry.__get_value());
+            __old_init.__setup(__init_and_carry.__get_cref());
     }
     __init_and_carry.__assign(__broadcast_sub_group(__ndi, __value, __init_broadcast_id, __comm_tag));
 
@@ -1431,7 +1431,7 @@ __exclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_
     {
         if (__sub_group_local_id == 0)
         {
-            __value = __old_init.__get_value();
+            __value = __old_init.__get_cref();
         }
     }
     //return by reference __value and __init_and_carry
@@ -1458,7 +1458,7 @@ __inclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_
 
     if (__init_and_carry.__has_value())
     {
-        __value = __binary_op(__init_and_carry.__get_value(), __value);
+        __value = __binary_op(__init_and_carry.__get_cref(), __value);
     }
     __init_and_carry.__assign(__broadcast_sub_group(__ndi, __value, __init_broadcast_id, __comm_tag));
     //return by reference __value and __init_and_carry
@@ -1617,7 +1617,7 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                 _OutRngSize __out_rng_size = oneapi::dpl::__ranges::__size(__out_rng);
 
                 constexpr std::int32_t __write_output_offset = __is_unique_pattern_v ? 1 : 0;
-                const std::size_t __carry_in = __sub_group_carry.__has_value() ? __sub_group_carry.__get_value() : 0;
+                const std::size_t __carry_in = __sub_group_carry.__has_value() ? __sub_group_carry.__get_cref() : 0;
                 const std::uint8_t __sub_group_size =
                     __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
                 if (__carry_in + __iters_per_item * __sub_group_size > __out_rng_size - __write_output_offset)
@@ -1792,7 +1792,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                         __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __n, __inputs_per_item,
                         __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_scan_tag);
                     if (__sub_group_local_id == 0)
-                        __sub_group_partials[__sub_group_id] = __sub_group_carry.__get_value();
+                        __sub_group_partials[__sub_group_id] = __sub_group_carry.__get_cref();
                 }
                 sycl::group_barrier(__ndi.get_group());
 
@@ -1861,7 +1861,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                     // broadcast to every lane, so lane 0 may write it. When __active_subgroups == __max_num_sub_groups_local
                     // this slot already holds the same value from the per-sub-group writes above.
                     if (__sub_group_local_id == 0)
-                        __temp_ptr[__start_id + (__max_num_sub_groups_local - 1)] = __summary_carry.__get_value();
+                        __temp_ptr[__start_id + (__max_num_sub_groups_local - 1)] = __summary_carry.__get_cref();
                 }
 
                 if constexpr (!__is_no_oob_pos_acc_v<decltype(__oob_pos_acc)>)
@@ -2120,17 +2120,17 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         for (; __i < __iters - 1; ++__i)
                         {
                             __sub_group_partials[__carry_offset] =
-                                __reduce_op(__carry_last.__get_value(), __sub_group_partials[__carry_offset]);
+                                __reduce_op(__carry_last.__get_cref(), __sub_group_partials[__carry_offset]);
                             __carry_offset += __sub_group_size;
                         }
                         if (__i * __sub_group_size + __sub_group_local_id < __active_subgroups)
                         {
                             __sub_group_partials[__carry_offset] =
-                                __reduce_op(__carry_last.__get_value(), __sub_group_partials[__carry_offset]);
+                                __reduce_op(__carry_last.__get_cref(), __sub_group_partials[__carry_offset]);
                             __carry_offset += __sub_group_size;
                         }
                         if (__sub_group_local_id == 0)
-                            __sub_group_partials[__active_subgroups] = __carry_last.__get_value();
+                            __sub_group_partials[__active_subgroups] = __carry_last.__get_cref();
                     }
                 }
 
@@ -2214,17 +2214,17 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         if constexpr (__is_unique_pattern_v)
                         {
                             // unique patterns automatically copy the 0th element and scan starting at index 1
-                            __res_ptr[0] = __transform_result(__sub_group_carry.__get_value() + 1);
+                            __res_ptr[0] = __transform_result(__sub_group_carry.__get_cref() + 1);
                         }
                         else
                         {
-                            __res_ptr[0] = __transform_result(__sub_group_carry.__get_value());
+                            __res_ptr[0] = __transform_result(__sub_group_carry.__get_cref());
                         }
                     }
                     else
                     {
                         // capture the last carry out for the next block
-                        __set_block_carry_out(__block_num, __tmp_ptr, __sub_group_carry.__get_value(),
+                        __set_block_carry_out(__block_num, __tmp_ptr, __sub_group_carry.__get_cref(),
                                               __max_num_sub_groups_global);
                     }
                 }
