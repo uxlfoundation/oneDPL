@@ -581,7 +581,7 @@ struct __set_generic_operation
 
         while (__idx < __num_eles_min)
         {
-            // no bounds checking
+            // Bounds checks are enabled only when this diagonal can reach the end of either range.
             __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB>(
                 __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
                 __proj2, __can_reach_rng1_end || __can_reach_rng2_end);
