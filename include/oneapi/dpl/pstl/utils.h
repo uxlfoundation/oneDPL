@@ -1061,7 +1061,8 @@ struct __opt_lazy_ctor_storage
     // Delete copy constructor and copy assignment operator to prevent accidental copying
     // which may lead to double destruction.
     __opt_lazy_ctor_storage(const __opt_lazy_ctor_storage&) = delete;
-    __opt_lazy_ctor_storage& operator=(const __opt_lazy_ctor_storage&) = delete;
+    __opt_lazy_ctor_storage&
+    operator=(const __opt_lazy_ctor_storage&) = delete;
 
     ~__opt_lazy_ctor_storage()
     {
