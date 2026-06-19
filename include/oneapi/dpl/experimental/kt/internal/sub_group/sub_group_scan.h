@@ -203,7 +203,8 @@ __sub_group_scan(const sycl::nd_item<1>& __ndi, _InputTypeWrapped __input[__iter
 {
     using _InputType = __scan_input_t<_InputTypeWrapped>;
     const bool __is_full = __items_in_scan == __sub_group_size * __iters_per_item;
-    oneapi::dpl::__internal::__opt_lazy_ctor_storage<_InputType> __carry;
+    oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __carry;
+    oneapi::dpl::__internal::__scoped_destroyer<_InputType> __destroy_when_leaving_scope{__carry};
     if (__is_full)
     {
         __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true, /*__init_present*/ false>(
@@ -240,7 +241,7 @@ __sub_group_scan(const sycl::nd_item<1>& __ndi, _InputTypeWrapped __input[__iter
                 __items_in_scan - __i * __sub_group_size);
         }
     }
-    return __carry.__get_value();
+    return __carry.__v;
 }
 
 template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _BinaryOperation>
