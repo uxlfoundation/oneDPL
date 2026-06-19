@@ -1058,11 +1058,10 @@ struct __opt_lazy_ctor_storage
 {
   public:
     __opt_lazy_ctor_storage() = default;
-
-    template <typename _TArg>
-    __opt_lazy_ctor_storage(_TArg&& __arg) : __storage(std::forward<_TArg>(__arg)), __constructed(true)
-    {
-    }
+    // Delete copy constructor and copy assignment operator to prevent accidental copying
+    // which may lead to double destruction.
+    __opt_lazy_ctor_storage(const __opt_lazy_ctor_storage&) = delete;
+    __opt_lazy_ctor_storage& operator=(const __opt_lazy_ctor_storage&) = delete;
 
     ~__opt_lazy_ctor_storage()
     {
@@ -1099,8 +1098,8 @@ struct __opt_lazy_ctor_storage
         __constructed = true;
     }
 
-    _T
-    __get_value() const
+    const _T&
+    __get_cref() const
     {
         return __storage.__v;
     }
