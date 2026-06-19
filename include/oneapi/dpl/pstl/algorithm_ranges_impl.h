@@ -508,7 +508,8 @@ __pattern_is_heap_until(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp _
 
 template <typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
 std::ranges::borrowed_iterator_t<_R>
-__pattern_is_heap_until(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
+__pattern_is_heap_until(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp,
+                        _Proj __proj)
 {
     return std::ranges::is_heap_until(std::forward<_R>(__r), __comp, __proj);
 }

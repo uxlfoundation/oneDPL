@@ -1004,7 +1004,8 @@ __pattern_is_heap(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
 std::ranges::borrowed_iterator_t<_R>
-__pattern_is_heap_until(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+__pattern_is_heap_until(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp,
+                        _Proj __proj)
 {
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
 
