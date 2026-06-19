@@ -1544,7 +1544,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
         }
 
         std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
-        std::size_t __local_id = (__offset < __n) ? __offset : __n - 1;
+        std::size_t __local_id = std::min(__offset, __n - 1);
         _GenInputType __v = __gen_input(__in_rng, __local_id);
         std::uint32_t __elements_to_process =
             static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
