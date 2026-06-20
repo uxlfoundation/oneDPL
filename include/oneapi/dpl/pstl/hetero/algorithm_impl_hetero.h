@@ -1581,16 +1581,14 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator>
 void
 __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last)
 {
-    auto __n = __last - __first;
+    std::size_t __n = __last - __first;
     if (__n <= 1)
         return;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf = __keep(__first, __last);
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::__reverse_functor<typename std::iterator_traits<_Iterator>::difference_type>{__n}, __n / 2,
-        __buf.all_view())
+    oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                      unseq_backend::__reverse_functor{__n}, __n / 2, __buf.all_view())
         .__checked_deferrable_wait();
 }
 

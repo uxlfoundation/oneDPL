@@ -1074,21 +1074,19 @@ struct __brick_includes
 //------------------------------------------------------------------------
 // reverse
 //------------------------------------------------------------------------
-template <typename _Size>
 struct __reverse_functor
 {
   private:
-    _Size __size;
+    const std::size_t __size;
 
   public:
-    __reverse_functor(_Size __size) : __size(__size) {}
+    __reverse_functor(std::size_t __size) : __size(__size) {}
 
     template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull, const std::size_t __left_start_idx, _Params, _Range&& __rng) const
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
-        const std::size_t __n = __size;
 
         // In the below implementation, we see that _IsFull is ignored in favor of std::true_type{} in all cases.
         // This relaxation is due to the fact that in-place reverse launches work only over the first half of the
@@ -1102,9 +1100,9 @@ struct __reverse_functor
         _ValueType __rng_left_vector[_Params::__vector_size];
         _ValueType __rng_right_vector[_Params::__vector_size];
 
-        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__n};
+        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__size};
         oneapi::dpl::__par_backend_hetero::__vector_reverse<_Params::__vector_size> __vec_reverse;
-        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__n};
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__size};
         oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
         oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>
             __store_op;
@@ -1124,7 +1122,7 @@ struct __reverse_functor
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
-        using ::std::swap;
+        using std::swap;
         swap(__rng[__idx], __rng[__size - __idx - 1]);
     }
 };
