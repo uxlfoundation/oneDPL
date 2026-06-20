@@ -41,9 +41,6 @@ enum class search_algorithm
 template <typename Comp, typename T, search_algorithm func>
 struct __custom_brick
 {
-    constexpr static bool __can_vectorize = false;
-    constexpr static bool __can_process_multiple_iters = true;
-
     Comp comp;
     T size;
     bool use_32bit_indexing;

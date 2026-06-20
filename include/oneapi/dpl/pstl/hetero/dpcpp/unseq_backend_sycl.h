@@ -142,7 +142,7 @@ struct walk_n_vectors_or_scalars
     mutable _F __f;
     std::size_t __n;
     template <typename _IsFull, typename _Params, typename _InRng, typename _OutRng,
-              std::enable_if_t<_Params::__b_vectorize, int> = 0>
+              std::enable_if_t<_Params::__can_vectorize, int> = 0>
     void
     __vector_impl(_IsFull __is_full, const std::size_t __idx, _Params, _InRng&& __in_rng, _OutRng&& __out_rng) const
     {
@@ -158,7 +158,7 @@ struct walk_n_vectors_or_scalars
         __vec_store(__is_full, __idx, __store_op, __in_rng_vector, __out_rng);
     }
     template <typename _IsFull, typename _Params, typename _InRng1, typename _InRng2, typename _OutRng,
-              std::enable_if_t<_Params::__b_vectorize, int> = 0>
+              std::enable_if_t<_Params::__can_vectorize, int> = 0>
     void
     __vector_impl(_IsFull __is_full, const std::size_t __idx, _Params, _InRng1&& __in_rng1, _InRng2&& __in_rng2,
                   _OutRng&& __out_rng) const
@@ -182,12 +182,10 @@ struct walk_n_vectors_or_scalars
     }
 
   public:
-    constexpr static bool __can_vectorize = true;
-    constexpr static bool __can_process_multiple_iters = true;
     walk_n_vectors_or_scalars(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
 
     template <typename _IsFull, typename _Params, typename... _Ranges,
-              std::enable_if_t<_Params::__b_vectorize, int> = 0>
+              std::enable_if_t<_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Ranges&&... __rngs) const
     {
@@ -207,7 +205,7 @@ struct walk_n_vectors_or_scalars
 
     // _IsFull is ignored here. We assume that boundary checking has been already performed for this index.
     template <typename _IsFull, typename _Params, typename... _Ranges,
-              std::enable_if_t<!_Params::__b_vectorize, int> = 0>
+              std::enable_if_t<!_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Ranges&&... __rngs) const
     {
@@ -228,13 +226,10 @@ struct walk_adjacent_difference
     oneapi::dpl::__internal::__pstl_assign __assigner;
 
   public:
-    constexpr static bool __can_vectorize = true;
-    constexpr static bool __can_process_multiple_iters = true;
-
     walk_adjacent_difference(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
 
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
-              std::enable_if_t<!_Params::__b_vectorize, int> = 0>
+              std::enable_if_t<!_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
@@ -245,7 +240,7 @@ struct walk_adjacent_difference
             __f(__rng1[__idx + (-1)], __rng1[__idx], __rng2[__idx]);
     }
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
-              std::enable_if_t<_Params::__b_vectorize, int> = 0>
+              std::enable_if_t<_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
@@ -1087,11 +1082,9 @@ struct __reverse_functor
     _Size __size;
 
   public:
-    constexpr static bool __can_vectorize = true;
-    constexpr static bool __can_process_multiple_iters = true;
     __reverse_functor(_Size __size) : __size(__size) {}
 
-    template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<_Params::__b_vectorize, int> = 0>
+    template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull, const std::size_t __left_start_idx, _Params, _Range&& __rng) const
     {
@@ -1128,7 +1121,7 @@ struct __reverse_functor
         __vec_store(std::true_type{}, __right_start_idx, __store_op, __rng_left_vector, __rng);
         __vec_store(std::true_type{}, __left_start_idx, __store_op, __rng_right_vector, __rng);
     }
-    template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<!_Params::__b_vectorize, int> = 0>
+    template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<!_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
@@ -1148,19 +1141,17 @@ struct __reverse_copy
     oneapi::dpl::__internal::__pstl_assign __assigner;
 
   public:
-    constexpr static bool __can_vectorize = true;
-    constexpr static bool __can_process_multiple_iters = true;
     __reverse_copy(_Size __size) : __size(__size) {}
 
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
-              std::enable_if_t<!_Params::__b_vectorize, int> = 0>
+              std::enable_if_t<!_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
         __rng2[__idx] = __rng1[__size - __idx - 1];
     }
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
-              std::enable_if_t<_Params::__b_vectorize, int> = 0>
+              std::enable_if_t<_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
@@ -1210,12 +1201,10 @@ struct __rotate_copy
     oneapi::dpl::__internal::__pstl_assign __assigner;
 
   public:
-    constexpr static bool __can_vectorize = true;
-    constexpr static bool __can_process_multiple_iters = true;
     __rotate_copy(_Size __size, _Size __shift) : __size(__size), __shift(__shift) {}
 
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
-              std::enable_if_t<_Params::__b_vectorize, int> = 0>
+              std::enable_if_t<_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
@@ -1255,7 +1244,7 @@ struct __rotate_copy
         __vec_store(__is_full, __idx, __store_op, __rng1_vector, __rng2);
     }
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
-              std::enable_if_t<!_Params::__b_vectorize, int> = 0>
+              std::enable_if_t<!_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
@@ -1354,13 +1343,12 @@ template <typename _DiffType>
 struct __brick_shift_left
 {
     // Multiple iterations per item are manually processed in the brick with a nd-range strided approach.
-    constexpr static bool __can_vectorize = true;
-    constexpr static bool __can_process_multiple_iters = false;
+    constexpr static std::uint8_t __iters_per_item = 1;
 
     _DiffType __size;
     _DiffType __n;
 
-    template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<_Params::__b_vectorize, int> = 0>
+    template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
@@ -1405,7 +1393,7 @@ struct __brick_shift_left
         }
     }
 
-    template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<!_Params::__b_vectorize, int> = 0>
+    template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<!_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
@@ -1435,8 +1423,6 @@ struct __brick_assign_key_position
 template <typename _BinaryOperator, typename _Size>
 struct __brick_reduce_idx
 {
-    constexpr static bool __can_vectorize = false;
-    constexpr static bool __can_process_multiple_iters = true;
     __brick_reduce_idx(const _BinaryOperator& __b, const _Size __n_) : __binary_op(__b), __n(__n_) {}
 
     template <typename _Values>
@@ -1476,12 +1462,10 @@ struct __brick_swap
     std::size_t __n;
 
   public:
-    constexpr static bool __can_vectorize = true;
-    constexpr static bool __can_process_multiple_iters = true;
     __brick_swap(_F __f, std::size_t __n) : __f(std::move(__f)), __n(__n) {}
 
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
-              std::enable_if_t<_Params::__b_vectorize, int> = 0>
+              std::enable_if_t<_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
@@ -1504,7 +1488,7 @@ struct __brick_swap
     }
 
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
-              std::enable_if_t<!_Params::__b_vectorize, int> = 0>
+              std::enable_if_t<!_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
