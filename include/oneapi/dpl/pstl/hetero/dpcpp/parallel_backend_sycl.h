@@ -1311,6 +1311,21 @@ struct __check_use_write_a_alg
     // Empirically determined threshold for when to switch between algorithms, scaled by the size of the value type.
     static constexpr std::size_t __threshold_elements = 32768;
 
+    // Compile-time check of whether the write-a-only algorithm is ever applicable for a set tag. Symmetric difference
+    // is implemented as a compound algorithm on top of the single-shot balanced algorithm and never uses the
+    // write-a-only path, so we exclude it at compile time to avoid instantiating its unused kernels.
+    template <typename _SetTag>
+    static constexpr bool
+    __can_use_write_a(_SetTag)
+    {
+        return true;
+    }
+    static constexpr bool
+    __can_use_write_a(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag)
+    {
+        return false;
+    }
+
     template <typename _SetTag, typename _Rng1, typename _Rng2>
     bool
     operator()(_SetTag, const _Rng1& __rng1, const _Rng2&) const
@@ -1332,14 +1347,6 @@ struct __check_use_write_a_alg
         using __value_t = oneapi::dpl::__internal::__value_t<_Rng2>;
         return oneapi::dpl::__ranges::__size(__rng2) < __threshold_elements * sizeof(__value_t);
     }
-
-    template <typename _Rng1, typename _Rng2>
-    bool
-    operator()(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, const _Rng1&, const _Rng2&) const
-    {
-        // With complex compound alg, symmetric difference should always use single shot algorithm when available
-        return false;
-    }
 };
 
 // Selects the right implementation of set based on the size and platform
@@ -1349,20 +1356,22 @@ std::size_t
 __set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
               _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    if (__check_use_write_a_alg{}(__set_tag, __rng1, __rng2))
+    // Only instantiate the write-a-only path for set tags that can ever use it. For tags that never do (e.g. symmetric
+    // difference), this avoids compiling its unused kernels entirely.
+    if constexpr (__check_use_write_a_alg::__can_use_write_a(_SetTag{}))
     {
-        // use reduce then scan with set_a write
-        return __set_write_a_only_op<set_a_write_wrapper<_CustomName>>(
-            __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-            std::forward<_Range3>(__result), __comp, __proj1, __proj2);
+        if (__check_use_write_a_alg{}(__set_tag, __rng1, __rng2))
+        {
+            // use reduce then scan with set_a write
+            return __set_write_a_only_op<set_a_write_wrapper<_CustomName>>(
+                __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                std::forward<_Range3>(__result), __comp, __proj1, __proj2);
+        }
     }
-    else
-    {
-        return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(
-                   __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                   std::forward<_Range3>(__result), __comp, __proj1, __proj2)
-            .get();
-    }
+    return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(
+               __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+               std::forward<_Range3>(__result), __comp, __proj1, __proj2)
+        .get();
 }
 
 template <typename _SetTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
