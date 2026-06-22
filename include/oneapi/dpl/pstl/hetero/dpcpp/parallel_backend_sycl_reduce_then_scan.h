@@ -49,6 +49,7 @@ namespace __par_backend_hetero
 
 using __temp_data_array_idx_t = std::uint16_t;
 using __diagonal_spacing_t = std::uint16_t;
+using __inputs_per_item_t = std::uint16_t;
 
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
 template <__temp_data_array_idx_t elements, typename _ValueT>
@@ -1442,7 +1443,7 @@ __get_sub_group_base(const sycl::nd_item<1>& __ndi)
 
 inline std::uint32_t
 __count_active_sub_groups(const sycl::nd_item<1>& __ndi, std::uint32_t __inputs_in_group,
-                          std::uint32_t __inputs_per_item, std::uint32_t __inputs_per_work_group)
+                          __inputs_per_item_t __inputs_per_item, std::uint32_t __inputs_per_work_group)
 {
     // If all work-items are active, all subgroups are active.
     if (__inputs_in_group > __inputs_per_work_group - __inputs_per_item)
@@ -1659,7 +1660,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
                                     _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op,
                                     _WriteOp __write_op, _LazyValueType& __sub_group_carry, const _InRng& __in_rng,
                                     std::size_t __start_id, std::size_t& __start_id_reached, std::size_t __n,
-                                    std::uint32_t __iters_per_item, std::size_t __subgroup_start_id,
+                                    __inputs_per_item_t __iters_per_item, std::size_t __subgroup_start_id,
                                     std::uint32_t __sub_group_id, std::uint32_t __active_subgroups, _CommTag __comm_tag)
 {
     using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t>;
@@ -1679,7 +1680,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
                                                          __sub_group_carry, __comm_tag);
         __write_op(__start_id, __v);
 
-        for (std::uint32_t __j = 1; __j < __iters_per_item; __j++)
+        for (__inputs_per_item_t __j = 1; __j < __iters_per_item; __j++)
         {
             __v = __call_gen_input(__start_id + __j * __sub_group_size);
             __sub_group_scan<__is_inclusive, /*__init_present=*/true>(__ndi, __scan_input_transform(__v), __binary_op,
@@ -1766,7 +1767,7 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
                                _LazyValueType& __sub_group_carry, const _InRng& __in_rng, _OutRng& __out_rng,
                                std::size_t __start_id, std::size_t& __start_id_reached, std::size_t __n,
-                               std::uint32_t __iters_per_item, std::size_t __subgroup_start_id,
+                               __inputs_per_item_t __iters_per_item, std::size_t __subgroup_start_id,
                                std::uint32_t __sub_group_id, std::uint32_t __active_subgroups, _CommTag __comm_tag,
                                _OnOOBReached __on_oob_reached = {}, const _FinalPosSaver __final_pos_saver = {})
 {
@@ -1803,6 +1804,10 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
             constexpr std::int32_t __write_output_offset = __is_unique_pattern_v ? 1 : 0;
             const std::size_t __carry_in = __init_present ? __sub_group_carry.__v : 0;
             const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
+            // Cast __iters_per_item to std::size_t to promote the entire product: without it,
+            // uint16_t * uint8_t * uint16_t would be computed in int (via integer promotion)
+            // and could overflow with undefined behavior, causing the bounds check below to
+            // incorrectly select the unbounded write path.
             const std::size_t __max_writes_this_sub_group =
                 std::size_t{__iters_per_item} * __sub_group_size * _TempData::__max_outputs_per_input;
             // Keep __write_output_offset on the left-hand side instead of subtracting it from
@@ -1928,7 +1933,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
     sycl::event
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
-               const std::uint32_t __inputs_per_item, const std::size_t __block_num,
+               const __inputs_per_item_t __inputs_per_item, const std::size_t __block_num,
                _StopPosStorage& __stop_pos_storage, _StopPosInitState __stop_pos_initial_state) const
     {
         using _InitValueType = typename _InitType::__value_type;
@@ -2282,7 +2287,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
     sycl::event
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
-               const std::uint32_t __inputs_per_item, const std::size_t __block_num,
+               const __inputs_per_item_t __inputs_per_item, const std::size_t __block_num,
                _StopPosStorage& __stop_pos_storage) const
     {
         // Size-independent, host-computed inputs-per-work-item; see the reduce submitter for why it is passed in
@@ -2680,8 +2685,8 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     const std::uint8_t __max_sub_group_size = *__max_sg_it;
     // Empirically determined maximum. May be less for non-full blocks.
     const bool __target_is_gpu = __q.get_device().is_gpu();
-    const std::uint16_t __max_inputs_per_item =
-        std::max<uint16_t>(1, (__target_is_gpu ? 512 : 2048) / __bytes_per_work_item_iter);
+    const __inputs_per_item_t __max_inputs_per_item =
+        std::max<__inputs_per_item_t>(1, (__target_is_gpu ? 512 : 2048) / __bytes_per_work_item_iter);
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
     // empirical derived caps for workgroup size based upon target
@@ -2705,14 +2710,27 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
         // skip scan of zeroth element in unique patterns
         __inputs_remaining -= 1;
     }
-    // reduce_then_scan kernel is not built to handle "empty" scans which includes `__n == 1` for unique patterns.
-    // These trivial end cases should be handled at a higher level.
-    assert(__inputs_remaining > 0);
-    std::uint32_t __inputs_per_item =
-        __inputs_remaining >= __max_inputs_per_block
-            ? __max_inputs_per_item
-            : oneapi::dpl::__internal::__dpl_ceiling_div(oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
-                                                         __num_work_groups * __work_group_size);
+
+    auto __eval_inputs_per_item = [&]() {
+        // reduce_then_scan kernel is not built to handle "empty" scans which includes `__n == 1` for unique patterns.
+        // These trivial end cases should be handled at a higher level.
+        assert(__inputs_remaining > 0);
+
+        // The cast to __inputs_per_item_t makes an otherwise implicit narrowing explicit:
+        // __dpl_ceiling_div returns std::size_t when its numerator is std::size_t
+        // (__dpl_bit_ceil(__inputs_remaining)), so the ternary's common type is std::size_t.
+        // No data is lost: this branch is only reached when
+        // __inputs_remaining < __max_inputs_per_block == D * __max_inputs_per_item
+        // (where D = __num_work_groups * __work_group_size), and since bit_ceil(x) < 2x,
+        // the result is < 2 * __max_inputs_per_item <= 4096, well within uint16_t.
+        return static_cast<__inputs_per_item_t>(__inputs_remaining >= __max_inputs_per_block
+                                                    ? __max_inputs_per_item
+                                                    : oneapi::dpl::__internal::__dpl_ceiling_div(
+                                                          oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
+                                                          __num_work_groups * __work_group_size));
+    };
+
+    __inputs_per_item_t __inputs_per_item = __eval_inputs_per_item();
     const std::size_t __block_size = std::min(__inputs_remaining, std::size_t{__max_inputs_per_block});
     const std::size_t __num_blocks = __inputs_remaining / __block_size + (__inputs_remaining % __block_size != 0);
 
@@ -2782,11 +2800,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
         {
-            __inputs_per_item = __inputs_remaining >= __max_inputs_per_block
-                                    ? __max_inputs_per_item
-                                    : oneapi::dpl::__internal::__dpl_ceiling_div(
-                                          oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
-                                          __num_work_groups * __work_group_size);
+            __inputs_per_item = __eval_inputs_per_item();
         }
     }
 
