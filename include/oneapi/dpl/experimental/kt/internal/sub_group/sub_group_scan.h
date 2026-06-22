@@ -68,6 +68,9 @@ __extract_scan_input(_T&& __value)
         return (__value);
 }
 
+// Intentionally forked from versions in parallel_backend_sycl_reduce_then_scan.h
+// Kernel Templates require a different implementation of sub-group scan to take advantage of knowledge about
+// the target architecture and avoid runtime branching.
 template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId,
           typename _BinaryOp, typename _ValueType>
 void
