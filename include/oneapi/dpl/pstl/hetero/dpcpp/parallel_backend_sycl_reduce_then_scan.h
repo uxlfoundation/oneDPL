@@ -1693,7 +1693,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
         // For partial thread, we need to handle the partial subgroup at the end of the range
         if (__sub_group_id < __active_subgroups)
         {
-            std::uint32_t __iters =
+            __inputs_per_item_t __iters =
                 oneapi::dpl::__internal::__dpl_ceiling_div(__n - __subgroup_start_id, __sub_group_size);
 
             if (__iters == 1)
@@ -1717,7 +1717,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
 
                 __write_op(__start_id, __v);
 
-                for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
+                for (__inputs_per_item_t __j = 1; __j < __iters - 1; __j++)
                 {
                     std::size_t __local_id = __start_id + __j * __sub_group_size;
                     __v = __call_gen_input(__local_id);
