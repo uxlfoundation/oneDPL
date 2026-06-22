@@ -113,7 +113,6 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202605L`` or a greater value,
 
 * ``contains``, ``contains_subrange``
 * ``find_last``, ``find_last_if``, ``find_last_if_not``
-* ``is_heap``, ``is_heap_until``
 * ``lexicographical_compare``
 * ``remove_copy``, ``remove_copy_if``
 * ``replace_copy``, ``replace_copy_if``
