@@ -1532,15 +1532,15 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
     // For partial thread, we need to handle the partial subgroup at the end of the range
     if (__sub_group_id < __active_subgroups)
     {
-        const std::uint32_t __subgroup_n =
-            std::min<uint32_t>(__n - __subgroup_start_id, __iters_per_item * __sub_group_size);
+        const std::uint32_t __subgroup_n = static_cast<std::uint32_t>(
+            std::min<std::size_t>(__n - __subgroup_start_id, __iters_per_item * __sub_group_size));
         std::uint32_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__subgroup_n, __sub_group_size);
 
         if (__iters > 1)
         {
             _GenInputType __v = __gen_input(__in_rng, __start_id);
             __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                                __comm_tag);
+                                             __comm_tag);
             __write_op(__start_id, __v);
 
             for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
@@ -1548,7 +1548,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
                 std::size_t __local_id = __start_id + __j * __sub_group_size;
                 __v = __gen_input(__in_rng, __local_id);
                 __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                                    __comm_tag);
+                                                 __comm_tag);
                 __write_op(__local_id, __v);
             }
         }
