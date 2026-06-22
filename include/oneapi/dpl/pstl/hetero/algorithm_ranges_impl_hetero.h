@@ -990,7 +990,7 @@ __pattern_is_heap(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
 
     auto __beg = std::ranges::begin(__r);
-    auto __end = __beg + oneapi::dpl::__ranges::__size(__r);
+    auto __end = __beg + std::ranges::size(__r);
 
     return oneapi::dpl::__internal::__pattern_is_heap(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end,
                                                       __pred_2);
@@ -1010,7 +1010,7 @@ __pattern_is_heap_until(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __ex
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
 
     auto __beg = std::ranges::begin(__r);
-    auto __end = __beg + oneapi::dpl::__ranges::__size(__r);
+    auto __end = __beg + std::ranges::size(__r);
 
     return oneapi::dpl::__internal::__pattern_is_heap_until(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end,
                                                             __pred_2);
