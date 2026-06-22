@@ -72,9 +72,9 @@ __extract_scan_input(_T&& __value)
 // Kernel Templates require a different implementation of sub-group scan to take advantage of knowledge about
 // the target architecture and avoid runtime branching.
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _MaskOp,
-          typename _InitBroadcastId, typename _BinaryOp, typename _ValueType>
+          typename _BinaryOp, typename _ValueType>
 void
-__sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, _InitBroadcastId __init_broadcast_id,
+__sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, std::uint8_t __init_broadcast_id,
                         _ValueType& __value, _BinaryOp __binary_op,
                         oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType>& __init_and_carry)
 {
