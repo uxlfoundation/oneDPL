@@ -185,6 +185,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     static constexpr std::uint32_t __sub_group_size = 32;
     static constexpr std::uint32_t __num_sub_groups_per_work_group = __work_group_size / __sub_group_size;
     static constexpr std::uint32_t __data_per_sub_group = __data_per_work_item * __sub_group_size;
+    static constexpr std::uint32_t __data_per_work_group = __data_per_sub_group * __num_sub_groups_per_work_group;
 
     static constexpr std::uint32_t __bit_count = sizeof(_KeyT) * 8;
     static constexpr _LocOffsetT __mask = __bin_count - 1;
@@ -421,10 +422,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         }
 
         // Detect single-bin tiles: if all elements land in one bin, we can skip SLM reorder.
-        // any_of_group provides the same synchronization as group_barrier (SYCL 2020 spec 4.17.3).
-        constexpr _LocOffsetT __total_tile_elements = __work_group_size * __data_per_work_item;
-        bool __my_bin_is_full =
-            (__sub_group_id < __bin_summary_sub_group_size) && (__item_bin_count == __total_tile_elements);
+        bool __my_bin_is_full = (__item_bin_count == __data_per_work_group);
         bool __is_single_bin = sycl::any_of_group(__group, __my_bin_is_full);
 
         // 1.4. Finalize the partial scans from step 1.3 by connecting the independent sub-group segments
@@ -691,15 +689,9 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     template <typename _KVPack>
     void inline __direct_copy_to_output(const _KVPack& __pack, const _LocOffsetT (&__ranks)[__data_per_work_item],
                                         std::uint32_t __sub_group_id, std::uint32_t __tile_id,
-                                        _LocOffsetT* __slm_subgroup_hists, _GlobOffsetT* __slm_global_incoming,
-                                        _LocOffsetT __single_bin_id) const
+                                        _GlobOffsetT __global_base) const
     {
-        // Sub-group offset from the inclusive scan of this bin's count up to (sub_group_id - 1)
-        _LocOffsetT __sub_group_offset =
-            (__sub_group_id == 0) ? _LocOffsetT(0)
-                                  : __slm_subgroup_hists[(__sub_group_id - 1) * __bin_count + __single_bin_id];
-
-        _GlobOffsetT __global_base = __slm_global_incoming[__single_bin_id];
+        _LocOffsetT __sub_group_offset = __sub_group_id * __data_per_sub_group;
 
         const _GlobOffsetT __tile_start =
             static_cast<_GlobOffsetT>(__tile_id) * __work_group_size * __data_per_work_item;
@@ -784,8 +776,10 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
             if (__is_single_bin)
             {
-                __direct_copy_to_output(__values_pack, __ranks, __sg_id, __tile_id, __slm_subgroup_hists,
-                                        __slm_global_incoming, __bins[0]);
+                _GlobOffsetT __global_base =
+                    __idx.get_local_linear_id() == 0 ? __slm_global_incoming[__bins[0]] : _GlobOffsetT(0);
+                __global_base = sycl::group_broadcast(__group, __global_base, 0);
+                __direct_copy_to_output(__values_pack, __ranks, __sg_id, __tile_id, __global_base);
             }
             else
             {
