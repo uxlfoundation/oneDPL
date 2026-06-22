@@ -132,44 +132,32 @@ template <typename... _Name>
 struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name...>>
 {
     // Limit the work-group size to 512 which has empirically yielded the best results across different architectures.
-    static constexpr std::uint16_t __max_work_group_size = 512;
+    static constexpr std::uint16_t __work_group_size_limit = 512;
 
     // SPIR-V compilation targets show best performance with a stride of the sub-group size.
     // Other compilation targets perform best with a work-group size stride. This utility can only be called from the
     // device.
     static inline std::tuple<std::size_t, std::size_t, bool>
     __stride_recommender(const sycl::nd_item<1>& __item, std::size_t __count, std::size_t __iters_per_work_item,
-                         std::size_t __adj_elements_per_work_item, std::size_t __work_group_size)
+                         std::size_t __adj_elements_per_work_item, std::size_t __group_size)
     {
-        const std::size_t __work_group_id = __item.get_group().get_group_linear_id();
+        std::uint32_t __item_local_id;
         if constexpr (oneapi::dpl::__internal::__is_spirv_target_v)
         {
             const __dpl_sycl::__sub_group __sub_group = __item.get_sub_group();
-            const std::uint32_t __sub_group_size = __sub_group.get_local_linear_range();
-            const std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
-            const std::uint32_t __sub_group_local_id = __sub_group.get_local_linear_id();
-
-            const std::size_t __sub_group_start_idx =
-                __iters_per_work_item * __adj_elements_per_work_item *
-                (__work_group_id * __work_group_size + __sub_group_size * __sub_group_id);
-            const bool __is_full_sub_group =
-                __sub_group_start_idx + __iters_per_work_item * __adj_elements_per_work_item * __sub_group_size <=
-                __count;
-            const std::size_t __work_item_idx =
-                __sub_group_start_idx + __adj_elements_per_work_item * __sub_group_local_id;
-            return std::tuple(__work_item_idx, __adj_elements_per_work_item * __sub_group_size, __is_full_sub_group);
+            __group_size = __sub_group.get_local_linear_range();
+            __item_local_id = __sub_group.get_local_linear_id();
         }
         else
         {
-            const std::size_t __work_group_start_idx =
-                __work_group_id * __work_group_size * __iters_per_work_item * __adj_elements_per_work_item;
-            const std::size_t __work_item_idx =
-                __work_group_start_idx + __item.get_local_linear_id() * __adj_elements_per_work_item;
-            const bool __is_full_work_group =
-                __work_group_start_idx + __iters_per_work_item * __work_group_size * __adj_elements_per_work_item <=
-                __count;
-            return std::tuple(__work_item_idx, __work_group_size * __adj_elements_per_work_item, __is_full_work_group);
+            __item_local_id = __item.get_local_linear_id();
         }
+        const std::size_t __group_start_idx =
+            __iters_per_work_item * __adj_elements_per_work_item * (__item.get_global_linear_id() - __item_local_id);
+        const bool __is_full_group =
+            __group_start_idx + __iters_per_work_item * __adj_elements_per_work_item * __group_size <= __count;
+        const std::size_t __work_item_start_idx = __group_start_idx + __adj_elements_per_work_item * __item_local_id;
+        return std::tuple(__work_item_start_idx, __adj_elements_per_work_item * __group_size, __is_full_group);
     }
 
     // Once there is enough work to launch a group on each compute unit with our chosen __iters_per_item,
@@ -178,7 +166,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     __minimal_useful_size(const sycl::queue& __q, std::size_t __iters_per_work_item)
     {
         const std::size_t __work_group_size =
-            oneapi::dpl::__internal::__max_work_group_size(__q, __max_work_group_size);
+            oneapi::dpl::__internal::__max_work_group_size(__q, __work_group_size_limit);
         const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__q);
         return __work_group_size * __iters_per_work_item * __max_cu;
     }
@@ -188,9 +176,8 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         using __params_t = __pfor_params<_Ranges...>;
-        assert(oneapi::dpl::__ranges::__first_size_calc{}(__rngs...) > 0);
         const std::size_t __work_group_size =
-            oneapi::dpl::__internal::__max_work_group_size(__q, __max_work_group_size);
+            oneapi::dpl::__internal::__max_work_group_size(__q, __work_group_size_limit);
         _PRINT_INFO_IN_DEBUG_MODE(__q);
         auto __event = __q.submit([__rngs..., __brick, __work_group_size, __count](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
