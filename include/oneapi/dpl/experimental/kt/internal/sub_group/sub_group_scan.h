@@ -71,13 +71,14 @@ __extract_scan_input(_T&& __value)
 // Intentionally forked from versions in parallel_backend_sycl_reduce_then_scan.h
 // Kernel Templates require a different implementation of sub-group scan to take advantage of knowledge about
 // the target architecture and avoid runtime branching.
-template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _MaskOp,
-          typename _BinaryOp, typename _ValueType>
+template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _MaskOp, typename _BinaryOp,
+          typename _ValueType>
 void
 __sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, std::uint8_t __init_broadcast_id,
                         _ValueType& __value, _BinaryOp __binary_op,
                         oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType>& __init_and_carry)
 {
+    static_assert(__is_inclusive || __init_present, "Exclusive scan requires an init value to be present.");
     std::uint8_t __sub_group_local_id = __ndi.get_sub_group().get_local_linear_id();
     for (std::uint8_t __shift = 1; __shift < __sub_group_size; __shift <<= 1)
     {
@@ -109,13 +110,10 @@ __sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, std::u
         // Shift the inclusive result right by one lane to produce the exclusive scan, then restore the saved init on
         // lane 0.
         __value = sycl::shift_group_right(__ndi.get_sub_group(), __value, 1);
-        if constexpr (__init_present)
+        if (__sub_group_local_id == 0)
         {
-            if (__sub_group_local_id == 0)
-            {
-                __value = __old_init.__v;
-                __old_init.__destroy();
-            }
+            __value = __old_init.__v;
+            __old_init.__destroy();
         }
     }
     //return by reference __value and __init_and_carry
