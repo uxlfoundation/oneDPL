@@ -1081,8 +1081,8 @@ generate_arithmetic_data(sycl::half* input, std::size_t size, std::uint32_t seed
     std::size_t unique_threshold = 75 * size / 100;
     std::uniform_int_distribution<std::uint16_t> dist(0, 0xFFFFu);
 
-    std::generate(input, input + unique_threshold, [&]() { return sycl_half_convert(dist(gen)); });
     assert(unique_threshold >= size / 2 && unique_threshold < size);
+    std::generate(input, input + unique_threshold, [&]() { return sycl_half_convert(dist(gen)); });
     for (std::uint32_t i = 0, j = unique_threshold; j < size; ++i, ++j)
         input[j] = input[i];
 }
