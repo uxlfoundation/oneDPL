@@ -1053,6 +1053,8 @@ struct __scoped_destroyer
     }
 };
 
+// Optional-like wrapper around __lazy_ctor_storage which manages the construction state of the storage and provides
+// automatic destruction of the contained value when the wrapper goes out of scope.
 template <typename _T>
 struct __opt_lazy_ctor_storage
 {
