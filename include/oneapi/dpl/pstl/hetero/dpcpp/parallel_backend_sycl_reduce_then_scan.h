@@ -1666,7 +1666,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
     using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t>;
 
     const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
-    bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
+    const bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
 
     auto __call_gen_input = [&](std::size_t __id) {
         __start_id_reached = __id;
