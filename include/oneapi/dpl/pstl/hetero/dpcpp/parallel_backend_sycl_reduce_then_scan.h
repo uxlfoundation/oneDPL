@@ -51,6 +51,7 @@ using __temp_data_array_idx_t = std::uint16_t;
 using __diagonal_spacing_t = std::uint16_t;
 using __inputs_per_item_t = std::uint16_t;
 using __sub_group_count_t = std::uint16_t;
+using __work_group_size_t = std::uint16_t;
 
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
 template <__temp_data_array_idx_t elements, typename _ValueT>
@@ -2045,7 +2046,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                             // It does not affect the result as our sub_group_scan will use a mask to only process in-range elements.
 
                             // fill with unused dummy values to avoid overrunning input
-                            std::uint8_t __load_id = std::min(__reduction_scan_id, __max_num_sub_groups_local - 1);
+                            std::uint8_t __load_id = std::min<std::uint8_t>(__reduction_scan_id,
+                                                                              __max_num_sub_groups_local - 1);
 
                             __v = __sub_group_partials[__load_id];
                             __sub_group_scan_partial</*__is_inclusive=*/true, /*__init_present=*/true>(
@@ -2079,9 +2081,9 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
 
     // Constant parameters throughout all blocks
     const std::uint32_t __max_num_work_groups;
-    const std::uint32_t __work_group_size;
+    const __work_group_size_t __work_group_size;
     const std::uint32_t __max_block_size;
-    const std::uint32_t __max_num_sub_groups_local;
+    const __sub_group_count_t __max_num_sub_groups_local;
     const std::size_t __n;
 
     const _GenReduceInput __gen_reduce_input;
@@ -2392,7 +2394,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     // Each preceding group's TOTAL carry-out lives at the CANONICAL last slot of its max-strided
                     // region (g*max + max-1). Gathering at stride=max, offset=max-1 needs no knowledge of any
                     // group's actual sub-group count, which can vary under non-uniform sub-group sizes.
-                    std::uint32_t __offset = __max_num_sub_groups_local - 1;
+                    __sub_group_count_t __offset = __max_num_sub_groups_local - 1;
                     // only need 32 carries for WGs0..WG32, 64 for WGs32..WGs64, etc.
                     if (__group_id > 0)
                     {
@@ -2639,9 +2641,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
     }
 
     const std::uint32_t __max_num_work_groups;
-    const std::uint32_t __work_group_size;
+    const __work_group_size_t __work_group_size;
     const std::uint32_t __max_block_size;
-    const std::uint32_t __max_num_sub_groups_local;
+    const __sub_group_count_t __max_num_sub_groups_local;
     const std::uint32_t __max_num_sub_groups_global;
     const std::size_t __num_blocks;
     const std::size_t __n;
@@ -2696,14 +2698,16 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     const std::uint32_t __wg_size_cap = __target_is_gpu ? 1024 : 128;
     const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, __wg_size_cap);
     // Round down to nearest multiple of the max subgroup size to ensure compatibility with all sub-group sizes
-    const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
+    const __work_group_size_t __work_group_size =
+        static_cast<__work_group_size_t>((__max_work_group_size / __max_sub_group_size) * __max_sub_group_size);
 
     const std::uint32_t __max_compute_units =
         __q.get_device().template get_info<sycl::info::device::max_compute_units>();
     const std::uint32_t __num_work_groups =
         oneapi::dpl::__internal::__dpl_bit_ceil(__target_is_gpu ? (__max_compute_units / 4) : __max_compute_units * 64);
     // Allocate sufficient temporary storage for the worst case (smallest sub-group size = most sub-groups).
-    const std::uint32_t __max_num_sub_groups_local = __work_group_size / __min_sub_group_size;
+    const __sub_group_count_t __max_num_sub_groups_local =
+        static_cast<__sub_group_count_t>(__work_group_size / __min_sub_group_size);
     const std::uint32_t __max_num_sub_groups_global = __max_num_sub_groups_local * __num_work_groups;
     const std::uint32_t __max_inputs_per_work_group = __work_group_size * __max_inputs_per_item;
     const std::uint32_t __max_inputs_per_block = __max_inputs_per_work_group * __num_work_groups;
