@@ -1058,18 +1058,20 @@ struct __opt_lazy_ctor_storage
 {
   public:
     __opt_lazy_ctor_storage() = default;
-    // Delete copy constructor and copy assignment operator to prevent accidental copying
-    // which may lead to double destruction.
+    // Delete copy and move operations to prevent accidental copying or moving, which would
+    // duplicate the __constructed flag and may lead to double destruction because copying of the underlying union
+    // is a bitwise copy and does not call copy constructors of the members.
     __opt_lazy_ctor_storage(const __opt_lazy_ctor_storage&) = delete;
-    __opt_lazy_ctor_storage&
-    operator=(const __opt_lazy_ctor_storage&) = delete;
+    __opt_lazy_ctor_storage& operator=(const __opt_lazy_ctor_storage&) = delete;
+    __opt_lazy_ctor_storage(__opt_lazy_ctor_storage&&) = delete;
+    __opt_lazy_ctor_storage& operator=(__opt_lazy_ctor_storage&&) = delete;
 
     ~__opt_lazy_ctor_storage()
     {
         if (__constructed)
         {
-            __storage.__destroy();
             __constructed = false;
+            __storage.__destroy();
         }
     }
 
