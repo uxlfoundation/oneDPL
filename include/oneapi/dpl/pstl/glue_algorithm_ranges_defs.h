@@ -52,6 +52,7 @@ struct __equal_fn;
 struct __lex_compare_fn;
 struct __is_sorted_fn;
 struct __is_sorted_until_fn;
+struct __nth_element_fn;
 struct __stable_sort_leaf;
 struct __stable_sort_fn;
 struct __sort_leaf;
