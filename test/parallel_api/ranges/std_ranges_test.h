@@ -39,6 +39,8 @@ static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202605L);
 #include <algorithm>
 #include <memory>
 #include <array>
+#include <tuple>   // std::tuple_size_v
+#include <utility> // std::index_sequence, std::tuple_element_t, std::make_index_sequence
 
 namespace test_std_ranges
 {
@@ -1110,6 +1112,29 @@ eval_remaining_space_min(TSize1 size1, TIndex1 index1, TSize2 size2, TIndex2 ind
 
     return std::min<std::common_type_t<TSize1, TSize2>>(space1, space2);
 }
+
+// Helper class to iterate over types in a tuple and apply a functor to each type of tuple items
+template <typename Tuple>
+struct for_each_in_tuple
+{
+  public:
+    template <typename F>
+    constexpr void
+    operator()(F&& f)
+    {
+        constexpr std::size_t N = std::tuple_size_v<Tuple>;
+
+        for_each_in_tuple_impl(std::forward<F>(f), std::make_index_sequence<N>{});
+    }
+
+  private:
+    template <typename F, std::size_t... Is>
+    constexpr void
+    for_each_in_tuple_impl(F&& f, std::index_sequence<Is...>)
+    {
+        (f.template operator()<std::tuple_element_t<Is, Tuple>, Is>(), ...);
+    }
+};
 
 } //namespace test_std_ranges
 
