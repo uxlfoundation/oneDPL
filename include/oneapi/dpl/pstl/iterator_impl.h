@@ -855,6 +855,13 @@ namespace internal
 // Copyable implementation of ignore to allow creation of temporary buffers using the type.
 struct ignore_copyable
 {
+    constexpr ignore_copyable() = default;
+
+    template <typename T>
+    constexpr ignore_copyable(T&&)
+    {
+    }
+
     template <typename T>
     ignore_copyable&
     operator=(T&&)

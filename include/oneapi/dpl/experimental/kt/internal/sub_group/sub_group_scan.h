@@ -88,17 +88,13 @@ __sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, std::u
             __value = __binary_op(__partial_carry_in, __value);
         }
     }
-    oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType> __old_init;
+
+    // For an exclusive scan, lane 0's incoming init becomes its result after the final right-shift below,
+    // so it must be saved before being overwritten by the broadcast carry.
+    std::conditional_t<__is_inclusive, internal::ignore_copyable, _ValueType> __carry(__init_and_carry.__v);
     if constexpr (__init_present)
     {
         __value = __binary_op(__init_and_carry.__v, __value);
-        if constexpr (!__is_inclusive)
-        {
-            // For an exclusive scan, lane 0's incoming init becomes its result after the final right-shift below,
-            // so it must be saved before being overwritten by the broadcast carry.
-            if (__sub_group_local_id == 0)
-                __old_init.__setup(__init_and_carry.__v);
-        }
         __init_and_carry.__v = sycl::group_broadcast(__ndi.get_sub_group(), __value, __init_broadcast_id);
     }
     else
@@ -112,8 +108,7 @@ __sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, std::u
         __value = sycl::shift_group_right(__ndi.get_sub_group(), __value, 1);
         if (__sub_group_local_id == 0)
         {
-            __value = __old_init.__v;
-            __old_init.__destroy();
+            __value = __carry;
         }
     }
     //return by reference __value and __init_and_carry
