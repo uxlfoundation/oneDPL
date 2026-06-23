@@ -1522,6 +1522,35 @@ __pattern_mismatch(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// __pattern_nth_element
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_nth_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::ranges::iterator_t<_R> __nth, _Comp __comp,
+                      _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto __beg = std::ranges::begin(__r);
+    auto __end = __beg + std::ranges::size(__r);
+
+    oneapi::dpl::__internal::__pattern_nth_element(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __beg, __nth, __end,
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+
+    return __end;
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_nth_element(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r,
+                      std::ranges::iterator_t<_R> __nth, _Comp __comp, _Proj __proj)
+{
+    return std::ranges::nth_element(std::forward<_R>(__r), __nth, __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // __pattern_remove_if
 //---------------------------------------------------------------------------------------------------------------------
 
