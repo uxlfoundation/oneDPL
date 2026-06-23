@@ -378,6 +378,11 @@ test_device_copyable()
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__binary_op<noop_device_copyable,
                   noop_device_copyable, noop_device_copyable>>,
                   "__binary_op is not device copyable with device copyable types");
+
+    // ignore_copyable
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::internal::ignore_copyable>,
+                  "ignore_copyable is device copyable");
+
 }
 
 void
