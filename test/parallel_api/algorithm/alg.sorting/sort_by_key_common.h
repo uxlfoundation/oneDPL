@@ -298,10 +298,17 @@ test_device_policy(Policy&& exec, StabilityTag stability_tag)
     {
         test_negative_zero_stability<float, std::uint32_t, sycl::usm::alloc::shared, 6>(CLONE_TEST_POLICY(exec),
                                                                                         small_size);
-        test_negative_zero_stability<double, std::uint32_t, sycl::usm::alloc::shared, 7>(CLONE_TEST_POLICY(exec),
-                                                                                         small_size);
-        test_negative_zero_stability<sycl::half, std::uint32_t, sycl::usm::alloc::shared, 8>(CLONE_TEST_POLICY(exec),
+        sycl::device dev = exec.queue().get_device();
+        if (TestUtils::has_type_support<double>(dev))
+        {
+            test_negative_zero_stability<double, std::uint32_t, sycl::usm::alloc::shared, 7>(CLONE_TEST_POLICY(exec),
                                                                                              small_size);
+        }
+        if (TestUtils::has_type_support<sycl::half>(dev))
+        {
+            test_negative_zero_stability<sycl::half, std::uint32_t, sycl::usm::alloc::shared, 8>(
+                CLONE_TEST_POLICY(exec), small_size);
+        }
     }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
