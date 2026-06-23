@@ -91,7 +91,8 @@ __sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, std::u
 
     // For an exclusive scan, lane 0's incoming init becomes its result after the final right-shift below,
     // so it must be saved before being overwritten by the broadcast carry.
-    std::conditional_t<__is_inclusive, internal::ignore_copyable, _ValueType> __carry(__init_and_carry.__v);
+    using __excl_only_carry_t = std::conditional_t<__is_inclusive, oneapi::dpl::internal::ignore_copyable, _ValueType>;
+    __excl_only_carry_t __exclusive_carry(__init_and_carry.__v);
     if constexpr (__init_present)
     {
         __value = __binary_op(__init_and_carry.__v, __value);
@@ -108,7 +109,7 @@ __sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, std::u
         __value = sycl::shift_group_right(__ndi.get_sub_group(), __value, 1);
         if (__sub_group_local_id == 0)
         {
-            __value = __carry;
+            __value = __exclusive_carry;
         }
     }
     //return by reference __value and __init_and_carry
