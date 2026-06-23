@@ -733,6 +733,31 @@ __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
+// __pattern_nth_element
+//------------------------------------------------------------------------
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_Range>
+__pattern_nth_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range&& __r,
+                      std::ranges::iterator_t<_Range> __nth, _Comp __comp, _Proj __proj)
+{
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    if (__first != __last && __nth != __last)
+    {
+        // TODO: check partition-based implementation
+        // - try to avoid host dereference issue
+        // - measure performance of the issue-free implementation
+        __pattern_partial_sort(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __nth + 1, __last,
+                               oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+    }
+
+    return __last;
+}
+#endif // #if _ONEDPL_CPP20_RANGES_PRESENT
+
+//------------------------------------------------------------------------
 // remove_if
 //------------------------------------------------------------------------
 
