@@ -1419,6 +1419,26 @@ struct __internal::__unique_copy_fn
 }; //__unique_copy_fn
 inline constexpr __internal::__unique_copy_fn unique_copy;
 
+// [alg.nth.element]
+
+struct __internal::__nth_element_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>>
+                _Comp = std::ranges::less>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+             && std::ranges::sized_range<_R>
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, std::ranges::iterator_t<_R> __nth, _Comp __comp = {},
+               _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_nth_element(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __nth, __comp, __proj);
+    }
+}; //__nth_element_fn
+inline constexpr __internal::__nth_element_fn nth_element;
+
 } //ranges
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
