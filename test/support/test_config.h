@@ -335,7 +335,4 @@
 // std::input_iterator and std::output_iterator on the same pre-P2325R3 implementations.
 #define _ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 
-// TODO remove after implementation of range-based set operations with hetero policies
-#define STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
-
 #endif // _TEST_CONFIG_H

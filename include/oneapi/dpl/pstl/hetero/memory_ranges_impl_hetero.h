@@ -101,15 +101,15 @@ __pattern_uninitialized_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     using _OutRefType = std::ranges::range_reference_t<_OutRange>;
     using _InRefType = std::ranges::range_reference_t<_InRange>;
 
-    auto __first1 = std::ranges::begin(__in_r);
-    auto __first2 = std::ranges::begin(__out_r);
+    auto [__first1, __last1] = oneapi::dpl::__ranges::__bounds(__r);
+    auto [__first2, __last2] = oneapi::dpl::__ranges::__bounds(__out_r);
 
     const auto __n = oneapi::dpl::__ranges::__min_size_calc{}(__in_r, __out_r);
     if (__n == 0)
         return {__first1, __first2};
 
-    auto __last1 = __first1 + __n;
-    auto __last2 = __first2 + __n;
+    __last1 = __first1 + __n;
+    __last2 = __first2 + __n;
 
     if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_copy<_OutValueType, _OutRefType, _InRefType>)
     {
@@ -144,15 +144,15 @@ __pattern_uninitialized_move(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     using _OutRefType = std::ranges::range_reference_t<_OutRange>;
     using _InRefType = std::ranges::range_reference_t<_InRange>;
 
-    auto __first1 = std::ranges::begin(__in_r);
-    auto __first2 = std::ranges::begin(__out_r);
+    auto [__first1, __last1] = oneapi::dpl::__ranges::__bounds(__r);
+    auto [__first2, __last2] = oneapi::dpl::__ranges::__bounds(__out_r);
 
     const auto __n = oneapi::dpl::__ranges::__min_size_calc{}(__in_r, __out_r);
     if (__n == 0)
         return {__first1, __first2};
 
-    auto __last1 = __first1 + __n;
-    auto __last2 = __first2 + __n;
+    __last1 = __first1 + __n;
+    __last2 = __first2 + __n;
 
     if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_move<_OutValueType, _OutRefType, _InRefType>)
     {
@@ -183,8 +183,7 @@ __pattern_uninitialized_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
 {
     using _ValueType = std::ranges::range_value_t<_R>;
 
-    auto __first = std::ranges::begin(__r);
-    auto __last = __first + std::ranges::size(__r);
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_fill<_ValueType, _T>)
     {

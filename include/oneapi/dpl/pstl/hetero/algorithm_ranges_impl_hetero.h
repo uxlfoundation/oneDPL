@@ -373,13 +373,12 @@ std::ranges::borrowed_subrange_t<_R1>
 __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred,
                    _Proj1 __proj1, _Proj2 __proj2)
 {
+    auto [__first1, __last1] = oneapi::dpl::__ranges::__bounds(__r1);
+
     oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2> __bin_pred{__pred, __proj1, __proj2};
 
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_find_end(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r1), oneapi::dpl::__ranges::views::all_read(__r2), __bin_pred);
-
-    auto __first1 = std::ranges::begin(__r1);
-    auto __last1 = __first1 + oneapi::dpl::__ranges::__size(__r1);
 
     auto __it = __first1 + __idx;
 
@@ -968,8 +967,7 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&
 {
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
 
-    auto __beg = std::ranges::begin(__r);
-    auto __end = __beg + oneapi::dpl::__ranges::__size(__r);
+    auto [__beg, __end] = oneapi::dpl::__ranges::__bounds(__r);
 
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec),
                                                                      oneapi::dpl::__ranges::views::all(__r), __pred_2);
@@ -1108,17 +1106,9 @@ std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges
 __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                     _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-#    if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
-    static_assert(oneapi::dpl::__internal::__always_false_v<_ExecutionPolicy>,
-                  "std::ranges::set_union is not implemented for hetero backend in C++26 compatibility mode.");
-#    endif
-
-    const auto __first1 = std::ranges::begin(__r1);
-    const auto __first2 = std::ranges::begin(__r2);
-    const auto __result = std::ranges::begin(__out_r);
-
-    const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
-    const auto __n2 = oneapi::dpl::__ranges::__size(__r2);
+    auto [__first1, __n1] = oneapi::dpl::__ranges::__begin_and_size(__r1);
+    auto [__first2, __n2] = oneapi::dpl::__ranges::__begin_and_size(__r2);
+    auto __result = oneapi::dpl::__ranges::__begin(__out_r);
 
     if (__n1 == 0 && __n2 == 0)
         return {__first1, __first2, __result};
@@ -1134,7 +1124,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__ranges::__get_subscription_view(__r2),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
-        return {__first1, __first2 + __n2, __result + __idx};
+        return {__first1, __first2 + __idx, __result + __idx};
     }
 
     //{2} is empty
@@ -1148,15 +1138,16 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__ranges::__get_subscription_view(__r1),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
-        return {__first1 + __n1, __first2, __result + __idx};
+        return {__first1 + __idx, __first2, __result + __idx};
     }
 
-    const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_UnionTag>(
-        _BackendTag{}, unseq_backend::_UnionTag{}, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
-        oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
+    const auto [__stop1, __stop2, __stop3] =
+        __par_backend_hetero::__parallel_set_op</*_Bounded*/ true, unseq_backend::_UnionTag>(
+            _BackendTag{}, unseq_backend::_UnionTag{}, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
+            oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
-    return {__first1 + __n1, __first2 + __n2, __result + __result_size};
+    return {__first1 + __stop1, __first2 + __stop2, __result + __stop3};
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
@@ -1166,28 +1157,21 @@ std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std:
 __pattern_set_intersection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                            _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-#    if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
-    static_assert(oneapi::dpl::__internal::__always_false_v<_ExecutionPolicy>,
-                  "std::ranges::set_intersection is not implemented for hetero backend in C++26 compatibility mode.");
-#    endif
-
-    const auto __first1 = std::ranges::begin(__r1);
-    const auto __first2 = std::ranges::begin(__r2);
+    auto [__first1, __n1] = oneapi::dpl::__ranges::__begin_and_size(__r1);
+    auto [__first2, __n2] = oneapi::dpl::__ranges::__begin_and_size(__r2);
     const auto __result = std::ranges::begin(__out_r);
-
-    const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
-    const auto __n2 = oneapi::dpl::__ranges::__size(__r2);
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
-        return {__first1 + __n1, __first2 + __n2, __result};
+        return {__first1, __first2, __result};
 
-    const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_IntersectionTag>(
-        _BackendTag{}, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
-        oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
+    const auto [__stop1, __stop2, __stop3] =
+        __par_backend_hetero::__parallel_set_op</*_Bounded*/ true, unseq_backend::_IntersectionTag>(
+            _BackendTag{}, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
+            oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
-    return {__first1 + __n1, __first2 + __n2, __result + __result_size};
+    return {__first1 + __stop1, __first2 + __stop2, __result + __stop3};
 }
 
 //Dummy names to avoid kernel problems
@@ -1200,21 +1184,13 @@ oneapi::dpl::__utils::__set_difference_return_t<_R1, _R2, _OutRange>
 __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                          _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-#    if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
-    static_assert(oneapi::dpl::__internal::__always_false_v<_ExecutionPolicy>,
-                  "std::ranges::set_difference is not implemented for hetero backend in C++26 compatibility mode.");
-#    endif
-
-    const auto __first1 = std::ranges::begin(__r1);
-    const auto __first2 = std::ranges::begin(__r2);
+    auto [__first1, __n1] = oneapi::dpl::__ranges::__begin_and_size(__r1);
+    auto [__first2, __n2] = oneapi::dpl::__ranges::__begin_and_size(__r2);
     const auto __result = std::ranges::begin(__out_r);
-
-    const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
 
     // {} \ {2}: the difference is empty
     if (__n1 == 0)
-        return oneapi::dpl::__utils::__create_set_difference_result(
-            __first1, /*not used in result for now*/ __first2, __result);
+        return oneapi::dpl::__utils::__create_set_difference_result(__first1, __first2, __result);
 
     // {1} \ {}: the difference is {1}
     if (oneapi::dpl::__ranges::__empty(__r2))
@@ -1227,17 +1203,17 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             oneapi::dpl::__ranges::__get_subscription_view(__r1),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
-        return oneapi::dpl::__utils::__create_set_difference_result(
-            __first1 + __n1, /*not used in result for now*/ __first2, __result + __idx);
+        return oneapi::dpl::__utils::__create_set_difference_result(__first1 + __idx, __first2, __result + __idx);
     }
 
-    const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_DifferenceTag>(
-        _BackendTag{}, unseq_backend::_DifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
-        oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
+    const auto [__stop1, __stop2, __stop3] =
+        __par_backend_hetero::__parallel_set_op</*_Bounded*/ true, unseq_backend::_DifferenceTag>(
+            _BackendTag{}, unseq_backend::_DifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
+            oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
     return oneapi::dpl::__utils::__create_set_difference_result(
-        __first1 + __n1, /*not used in result for now*/ __first2, __result + __result_size);
+        __first1 + __stop1, __first2 + __stop2, __result + __stop3);
 }
 
 //Dummy names to avoid kernel problems
@@ -1255,18 +1231,9 @@ std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R
 __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-#    if ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
-    static_assert(
-        oneapi::dpl::__internal::__always_false_v<_ExecutionPolicy>,
-        "std::ranges::set_symmetric_difference is not implemented for hetero backend in C++26 compatibility mode.");
-#    endif
-
-    const auto __first1 = std::ranges::begin(__r1);
-    const auto __first2 = std::ranges::begin(__r2);
+    auto [__first1, __n1] = oneapi::dpl::__ranges::__begin_and_size(__r1);
+    auto [__first2, __n2] = oneapi::dpl::__ranges::__begin_and_size(__r2);
     const auto __result = std::ranges::begin(__out_r);
-
-    const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
-    const auto __n2 = oneapi::dpl::__ranges::__size(__r2);
 
     if (__n1 == 0 && __n2 == 0)
         return {__first1, __first2, __result};
@@ -1282,7 +1249,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
             oneapi::dpl::__ranges::__get_subscription_view(__r2),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
-        return {__first1, __first2 + __n2, __result + __idx};
+        return {__first1, __first2 + __idx, __result + __idx};
     }
 
     //{2} is empty
@@ -1296,15 +1263,16 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
             oneapi::dpl::__ranges::__get_subscription_view(__r1),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
-        return {__first1 + __n1, __first2, __result + __idx};
+        return {__first1 + __idx, __first2, __result + __idx};
     }
 
-    const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_SymmetricDifferenceTag>(
-        _BackendTag{}, unseq_backend::_SymmetricDifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
-        oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
+    const auto [__stop1, __stop2, __stop3] =
+        __par_backend_hetero::__parallel_set_op</*_Bounded*/ true, unseq_backend::_SymmetricDifferenceTag>(
+            _BackendTag{}, unseq_backend::_SymmetricDifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
+            oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
-    return {__first1 + __n1, __first2 + __n2, __result + __result_size};
+    return {__first1 + __stop1, __first2 + __stop2, __result + __stop3};
 }
 
 //------------------------------------------------------------------------

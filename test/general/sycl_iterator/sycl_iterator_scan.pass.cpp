@@ -595,37 +595,43 @@ test_usm_and_buffer()
 {
     using ValueType = ::std::int32_t;
 
+    // Shrink the n walk for scan-based algorithms on CPU targets, where the
+    // default sizes are too slow. On non-CPU targets the helpers return
+    // max_n, leaving the scale at 1.0.
+    const float scan_scale = float(TestUtils::get_scan_test_max_n()) / float(TestUtils::max_n);
+    const float set_scale = float(TestUtils::get_scan_test_set_max_n()) / float(TestUtils::max_n);
+
     // test1buffer
     PRINT_DEBUG("test_partition");
-    test1buffer<alloc_type, test_partition<ValueType>>();
+    test1buffer<alloc_type, ValueType, test_partition<ValueType>>(1.0f, scan_scale);
     PRINT_DEBUG("test_remove");
-    test1buffer<alloc_type, test_remove<ValueType>>();
+    test1buffer<alloc_type, ValueType, test_remove<ValueType>>(1.0f, scan_scale);
     PRINT_DEBUG("test_remove_if");
-    test1buffer<alloc_type, test_remove_if<ValueType>>();
+    test1buffer<alloc_type, ValueType, test_remove_if<ValueType>>(1.0f, scan_scale);
     PRINT_DEBUG("test_unique");
-    test1buffer<alloc_type, test_unique<ValueType>>();
+    test1buffer<alloc_type, ValueType, test_unique<ValueType>>(1.0f, scan_scale);
 
     //test2buffers
     PRINT_DEBUG("test_transform_inclusive_scan");
-    test2buffers<alloc_type, test_transform_inclusive_scan<ValueType>>();
+    test2buffers<alloc_type, ValueType, test_transform_inclusive_scan<ValueType>>(1.0f, scan_scale);
     PRINT_DEBUG("test_transform_exclusive_scan");
-    test2buffers<alloc_type, test_transform_exclusive_scan<ValueType>>();
+    test2buffers<alloc_type, ValueType, test_transform_exclusive_scan<ValueType>>(1.0f, scan_scale);
     PRINT_DEBUG("test_copy_if");
-    test2buffers<alloc_type, test_copy_if<ValueType>>();
+    test2buffers<alloc_type, ValueType, test_copy_if<ValueType>>(1.0f, scan_scale);
     PRINT_DEBUG("test_unique_copy");
-    test2buffers<alloc_type, test_unique_copy<ValueType>>();
+    test2buffers<alloc_type, ValueType, test_unique_copy<ValueType>>(1.0f, scan_scale);
 
     //test3buffers
     PRINT_DEBUG("test_partition_copy");
-    test3buffers<alloc_type, test_partition_copy<ValueType>>();
+    test3buffers<alloc_type, ValueType, test_partition_copy<ValueType>>(kDefaultMultValue, 1.0f, scan_scale);
     PRINT_DEBUG("test_set_symmetric_difference");
-    test3buffers<alloc_type, test_set_symmetric_difference<ValueType>>();
+    test3buffers<alloc_type, ValueType, test_set_symmetric_difference<ValueType>>(kDefaultMultValue, 1.0f, set_scale);
     PRINT_DEBUG("test_set_union");
-    test3buffers<alloc_type, test_set_union<ValueType>>();
+    test3buffers<alloc_type, ValueType, test_set_union<ValueType>>(kDefaultMultValue, 1.0f, set_scale);
     PRINT_DEBUG("test_set_difference");
-    test3buffers<alloc_type, test_set_difference<ValueType>>();
+    test3buffers<alloc_type, ValueType, test_set_difference<ValueType>>(kDefaultMultValue, 1.0f, set_scale);
     PRINT_DEBUG("test_set_intersection");
-    test3buffers<alloc_type, test_set_intersection<ValueType>>();
+    test3buffers<alloc_type, ValueType, test_set_intersection<ValueType>>(kDefaultMultValue, 1.0f, set_scale);
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
