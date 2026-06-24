@@ -43,6 +43,10 @@ main()
         return late_violation_test_sz - val > 41 ? late_violation_test_sz - val : -val;
     };
 
+    // Valid min-heap w.r.t. greater but not sorted: element i has value i, except every 17th element
+    // (i % 17 == 1) drops to its parent's value (i - 1) / 2, adding parent == child ties along heap paths.
+    auto non_desc_heap_gen = [](auto i) { return (i % 17 == 1) ? (i - 1) / 2 : i; };
+
     // --- returns true ---
 
     // big_sz: exercises the multi-work-group device path on the true (full-scan) case
@@ -55,6 +59,11 @@ main()
 
     // ascending default data is a valid min-heap w.r.t. greater; member-function projection
     test_range_algo<2, P2>{}(dpl_ranges::is_heap, is_heap_checker, std::ranges::greater{}, &P2::proj);
+
+    // valid min-heap w.r.t. greater, not just sorted data: every 17th element (i % 17 == 1) drops to its
+    // parent's value (i - 1) / 2, creating parent == child ties that is_heap must accept (returns true)
+    test_range_algo<21, int, data_in, decltype(non_desc_heap_gen)>{}(dpl_ranges::is_heap, is_heap_checker,
+                                                                     std::ranges::greater{});
 
     // --- returns false ---
 
