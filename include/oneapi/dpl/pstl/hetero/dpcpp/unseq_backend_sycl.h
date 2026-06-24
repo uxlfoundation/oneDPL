@@ -1438,13 +1438,24 @@ struct __brick_reduce_idx
     }
     template <typename _IsFull, typename _Params, typename _ReduceIdx, typename _Values, typename _OutValues>
     void
-    operator()(_IsFull, const std::size_t __idx, _Params, const _ReduceIdx& __segment_starts, const _Values& __values,
+    operator()(_IsFull, std::size_t __idx, _Params, const _ReduceIdx& __segment_starts, const _Values& __values,
                _OutValues& __out_values) const
     {
         using __value_type = decltype(__segment_starts[__idx]);
-        __value_type __segment_end =
-            (__idx == __segment_starts.size() - 1) ? __value_type(__n) : __segment_starts[__idx + 1];
+        const std::size_t __end = __segment_starts.size();
+        __value_type __segment_end = (__idx == __end - 1) ? __value_type(__n) : __segment_starts[__idx + 1];
         __out_values[__idx] = reduce(__segment_starts[__idx], __segment_end, __values);
+
+        if constexpr (_Params::__vector_size > 1)
+        {
+            // repeat for adjacent elements
+            std::size_t __rest = std::min<std::size_t>(_Params::__vector_size, __end - __idx) - 1;
+            for(++__idx; __rest > 0; ++__idx, --__rest)
+            {
+                __segment_end = (__idx == __end - 1) ? __value_type(__n) : __segment_starts[__idx + 1];
+                __out_values[__idx] = reduce(__segment_starts[__idx], __segment_end, __values);
+            }
+        }
     }
 
   private:
