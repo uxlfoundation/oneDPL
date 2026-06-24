@@ -62,21 +62,21 @@ main()
 
     // valid min-heap w.r.t. greater, not just sorted data: every 17th element (i % 17 == 1) drops to its
     // parent's value (i - 1) / 2, creating parent == child ties that is_heap must accept (returns true)
-    test_range_algo<21, int, data_in, decltype(non_desc_heap_gen)>{}(dpl_ranges::is_heap, is_heap_checker,
+    test_range_algo<3, int, data_in, decltype(non_desc_heap_gen)>{}(dpl_ranges::is_heap, is_heap_checker,
                                                                      std::ranges::greater{});
 
     // --- returns false ---
 
     // large valid max-heap: data stays descending to the very end, so is_heap scans the whole range and returns true
-    test_range_algo<3, int, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
+    test_range_algo<4, int, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
         dpl_ranges::is_heap, is_heap_checker, std::ranges::less{}, proj);
 
     // same full-range valid max-heap with custom comp and P2::x projection
-    test_range_algo<4, P2, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
+    test_range_algo<5, P2, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
         dpl_ranges::is_heap, is_heap_checker, CustomLess{}, &P2::x);
 
     // default overload (comp = less, proj = identity): ascending data violates max-heap property
-    test_range_algo<5>{}(dpl_ranges::is_heap, is_heap_checker);
+    test_range_algo<6>{}(dpl_ranges::is_heap, is_heap_checker);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
