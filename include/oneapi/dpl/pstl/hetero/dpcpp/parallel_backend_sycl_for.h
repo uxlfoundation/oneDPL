@@ -55,7 +55,8 @@ class __pfor_params
     // Vectorize for small types, so we generate 128-byte load / stores in a sub-group
     constexpr static std::uint8_t __vector_size =
         __can_vectorize ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, __min_type_size) : 1;
-    constexpr static std::uint8_t __iters_per_item = __bytes_per_item / (__min_type_size * __vector_size);
+    constexpr static std::uint8_t __iters_per_item =
+        std::max<std::uint8_t>(1, __bytes_per_item / (__min_type_size * __vector_size));
 };
 
 struct __pfor_params_simple
