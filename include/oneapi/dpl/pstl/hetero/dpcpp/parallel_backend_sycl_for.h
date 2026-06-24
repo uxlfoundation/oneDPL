@@ -71,18 +71,18 @@ struct __dual_brick
 {
     _Brick1 __brick1;
     _Brick2 __brick2;
-    std::size_t __pivot;  // the number of iterations for the first brick
-    std::size_t __offset; // the starting data index for the second brick
+    std::size_t __pivot; // the number of iterations for the first brick
 
     // When called by __parallel_for_small_submitter, dispatch to the proper brick based on __idx
     template <typename... _Ranges>
     void
-    operator()(std::true_type __full, const std::size_t __global_id, __pfor_params_simple __params, _Ranges&&... __rngs) const
+    operator()(std::true_type __full, const std::size_t __idx, __pfor_params_simple __params, _Ranges&&... __rngs) const
     {
+        // Adjust the index so that bricks work with zero-based indexes
         if (__idx < __pivot)
-            __brick1(__full, __global_id, __params, std::forward<_Ranges>(__rngs)...);
+            __brick1(__full, __idx, __params, std::forward<_Ranges>(__rngs)...);
         else
-            __brick2(__full, __global_id - __pivot + __offset, __params, std::forward<_Ranges>(__rngs)...);
+            __brick2(__full, __idx - __pivot, __params, std::forward<_Ranges>(__rngs)...);
     }
 };
 
@@ -172,31 +172,30 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     }
 
     template <typename _Fp>
-    static std::tuple<std::size_t, std::size_t, std::size_t>
+    static std::tuple<std::size_t, std::size_t>
     __global_space(const sycl::nd_item<1>& __item, std::size_t __count, std::uint16_t, std::uint16_t, const _Fp&)
     {
-        return {0, __count, __item.get_global_linear_id()};
+        return {__count, __item.get_global_linear_id()};
     }
 
     template <typename _Brick1, typename _Brick2>
-    static std::tuple<std::size_t, std::size_t, std::size_t>
+    static std::tuple<std::size_t, std::size_t>
     __global_space(const sycl::nd_item<1>& __item, std::size_t __count, std::uint16_t __work_group_size,
                    std::uint16_t __data_per_work_item, const __dual_brick<_Brick1, _Brick2>& __dbrick)
     {
         const std::size_t __groups_before_pivot =
             oneapi::dpl::__internal::__dpl_ceiling_div(__dbrick.__pivot, __work_group_size * __data_per_work_item);
         std::size_t __item_global_id = __item.get_global_linear_id();
-        std::size_t __offset = 0;
         if (__item.get_group_linear_id() < __groups_before_pivot)
         {
             __count = __dbrick.__pivot;
         }
         else
         {
-            __offset = __dbrick.__offset;
+            // Adjust the global ID so that the second brick also works with zero-based indexes
             __item_global_id -= __work_group_size * __groups_before_pivot;
         }
-        return {__offset, __count, __item_global_id};
+        return {__count, __item_global_id};
     }
 
     // SPIR-V compilation targets show best performance with a stride of the sub-group size.
@@ -218,26 +217,27 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
         return {__group_size, __item_local_id};
     }
 
-    template <typename _Executor, typename _Fp, typename... _Args>
+    template <std::uint8_t __num_strides, typename _Fp, typename... _Args>
     static void
-    __execute(_Executor&& __loop, bool __is_full, std::size_t __idx, std::uint16_t __stride, const _Fp& __brick,
+    __execute(std::size_t __bound, bool __is_full, std::size_t __idx, std::uint16_t __stride, const _Fp& __brick,
               _Args&&... __args)
     {
+        __strided_loop<__num_strides> __loop{__bound};
         if (__is_full)
             __loop(std::true_type{}, __idx, __stride, __brick, __args...);
         else
             __loop(std::false_type{}, __idx, __stride, __brick, __args...);
     }
 
-    template <typename _Executor, typename _Brick1, typename _Brick2, typename... _Args>
+    template <std::uint8_t __num_strides, typename _Brick1, typename _Brick2, typename... _Args>
     static void
-    __execute(_Executor&& __loop, bool __is_full, std::size_t __idx, std::uint16_t __stride,
+    __execute(std::size_t __bound, bool __is_full, std::size_t __idx, std::uint16_t __stride,
               const __dual_brick<_Brick1, _Brick2>& __dbrick, _Args&&... __args)
     {
-        if (__idx < __dbrick.__offset)
-            __execute(__loop, __is_full, __idx, __stride, __dbrick.__brick1, __args...);
+        if (__bound <= __dbrick.__pivot)
+            __execute<__num_strides>(__bound, __is_full, __idx, __stride, __dbrick.__brick1, __args...);
         else
-            __execute(__loop, __is_full, __idx, __stride, __dbrick.__brick2, __args...);
+            __execute<__num_strides>(__bound, __is_full, __idx, __stride, __dbrick.__brick2, __args...);
     }
 
     // Once there is enough work to launch a group on each compute unit with our chosen __iters_per_item,
@@ -270,18 +270,17 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
             __cgh.parallel_for<_Name...>(
                 sycl::nd_range(sycl::range<1>(__num_groups * __work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item</*dim=*/1> __item) {
-                    const auto /*size_t*/ [__offset, __bound, __adjusted_global_id] =
+                    const auto /*size_t*/ [__bound, __adjusted_global_id] =
                         __global_space(__item, __count, __work_group_size, __data_per_work_item, __brick);
                     const auto /*uint16_t*/ [__number_of_peers, __local_id] = __local_space(__item, __work_group_size);
 
-                    const std::size_t __group_start_idx =
-                        __offset + __data_per_work_item * (__adjusted_global_id - __local_id);
+                    const std::size_t __group_start_idx = __data_per_work_item * (__adjusted_global_id - __local_id);
                     const bool __is_full = __group_start_idx + __data_per_work_item * __number_of_peers <= __bound;
                     const std::size_t __idx = __group_start_idx + __vector_size * __local_id;
                     const std::uint16_t __stride = __vector_size * __number_of_peers;
 
-                    __execute(__strided_loop<__iters_per_work_item>{__bound}, __is_full, __idx, __stride, __brick,
-                              __params_t{}, __rngs...);
+                    __execute<__iters_per_work_item>(__bound, __is_full, __idx, __stride, __brick, __params_t{},
+                                                     __rngs...);
                 });
         });
 
