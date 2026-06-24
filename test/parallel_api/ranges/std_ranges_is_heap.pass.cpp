@@ -33,10 +33,15 @@ main()
     // Descending values form a max-heap w.r.t. less: element i has value -i,
     // so parent >= child for all nodes.
     auto desc_gen = [](auto i) { return -static_cast<int>(i); };
-    // Nearly a valid max-heap, but element at index 2000 is corrupted (value 0 > its parent -999).
-    // The violation is only detectable near the end of small_size (2025), forcing nearly the full
-    // range to be scanned before reporting false.
-    auto late_violation_gen = [](auto i) -> int { return i == 2000 ? 0 : -static_cast<int>(i); };
+
+    constexpr int late_violation_test_sz = 63 * 1024 + 347;
+    // Strictly descending data (a valid max-heap w.r.t. less): element i gets
+    // late_violation_test_sz - i until that would fall to 41 or below, then the
+    // final 41 elements switch to -i, pushing the smallest values to the tail.
+    auto late_violation_gen = [](auto i) {
+        int val = static_cast<int>(i);
+        return late_violation_test_sz - val > 41 ? late_violation_test_sz - val : -val;
+    };
 
     // --- returns true ---
 
@@ -53,12 +58,12 @@ main()
 
     // --- returns false ---
 
-    // heap violation at index 2000 (near the end); forces nearly the full range to be checked
-    test_range_algo<3, int, data_in, decltype(late_violation_gen)>{}(
+    // large valid max-heap: data stays descending to the very end, so is_heap scans the whole range and returns true
+    test_range_algo<3, int, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
         dpl_ranges::is_heap, is_heap_checker, std::ranges::less{}, proj);
 
-    // same late violation with custom comp and P2::x projection
-    test_range_algo<4, P2, data_in, decltype(late_violation_gen)>{}(
+    // same full-range valid max-heap with custom comp and P2::x projection
+    test_range_algo<4, P2, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
         dpl_ranges::is_heap, is_heap_checker, CustomLess{}, &P2::x);
 
     // default overload (comp = less, proj = identity): ascending data violates max-heap property
