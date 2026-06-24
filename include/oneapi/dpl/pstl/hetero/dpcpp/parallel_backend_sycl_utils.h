@@ -1204,15 +1204,15 @@ struct __vector_reverse
     }
 };
 
-// Processes a loop with a given stride. Intended to be used with sub-group / work-group strides for good memory access patterns
-// (potentially with vectorization)
+// Processes a loop with a given stride. Intended to be used with sub-group / work-group strides
+// for good memory access patterns (potentially with vectorization)
 template <std::uint8_t __num_strides>
 struct __strided_loop
 {
     std::size_t __full_range_size;
-    template <typename _IdxType, typename _LoopBodyOp, typename... _Args>
+    template <typename _LoopBodyOp, typename... _Args>
     void
-    operator()(/*__is_full*/ std::true_type, _IdxType __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
+    operator()(/*__is_full*/ std::true_type, std::size_t __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
                _Args&&... __args) const
     {
         _ONEDPL_PRAGMA_UNROLL
@@ -1222,9 +1222,9 @@ struct __strided_loop
             __idx += __stride;
         }
     }
-    template <typename _IdxType, typename _LoopBodyOp, typename... _Args>
+    template <typename _LoopBodyOp, typename... _Args>
     void
-    operator()(/*__is_full*/ std::false_type, _IdxType __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
+    operator()(/*__is_full*/ std::false_type, std::size_t __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
                _Args&&... __args) const
     {
         for (; __idx < __full_range_size; __idx += __stride)
