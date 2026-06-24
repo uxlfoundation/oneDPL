@@ -2131,7 +2131,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     // use work groups to match the number of compute units
     const std::uint32_t __max_compute_units =
         __q.get_device().template get_info<sycl::info::device::max_compute_units>();
-    const std::uint32_t __num_work_groups = oneapi::dpl::__internal::__dpl_bit_ceil(__max_compute_units) / 4;
+    const std::uint32_t __num_work_groups = oneapi::dpl::__internal::__dpl_bit_ceil(__max_compute_units) / 2;
     // We may use a sub-group size of 16 or 32 depending on the compiler optimization level. Allocate sufficient
     // temporary storage to handle both cases.
     const std::uint32_t __max_num_sub_groups_local = __work_group_size / __min_sub_group_size;
