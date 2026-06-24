@@ -211,7 +211,8 @@ main()
                 test_general_cases<TEST_KEY_TYPE, Descending, TestRadixBits>(
                     q, size, TestUtils::create_new_kernel_param_idx<1>(params));
             }
-            test_small_sizes<TEST_KEY_TYPE, Ascending, TestRadixBits>(q, TestUtils::create_new_kernel_param_idx<3>(params));
+            test_small_sizes<TEST_KEY_TYPE, Ascending, TestRadixBits>(
+                q, TestUtils::create_new_kernel_param_idx<3>(params));
         }
         catch (const ::std::exception& exc)
         {
