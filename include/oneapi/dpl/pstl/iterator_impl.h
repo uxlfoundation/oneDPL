@@ -863,26 +863,26 @@ struct ignore_copyable
     }
 
     template <typename T>
-    ignore_copyable&
+    constexpr ignore_copyable&
     operator=(T&&)
     {
         return *this;
     }
 
     template <typename T>
-    const ignore_copyable&
+    constexpr const ignore_copyable&
     operator=(T&&) const
     {
         return *this;
     }
 
-    bool
+    constexpr bool
     operator==(const ignore_copyable&) const
     {
         return true;
     }
 
-    bool
+    constexpr bool
     operator!=(const ignore_copyable& other) const
     {
         return !(*this == other);
