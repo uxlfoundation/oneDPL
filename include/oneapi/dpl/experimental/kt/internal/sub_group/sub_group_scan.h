@@ -79,10 +79,11 @@ __sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, std::u
                         oneapi::dpl::__internal::__lazy_ctor_storage<_ValueType>& __init_and_carry)
 {
     static_assert(__is_inclusive || __init_present, "Exclusive scan requires an init value to be present.");
-    std::uint8_t __sub_group_local_id = __ndi.get_sub_group().get_local_linear_id();
+    const sycl::sub_group __sg = __ndi.get_sub_group();
+    std::uint8_t __sub_group_local_id = __sg.get_local_linear_id();
     for (std::uint8_t __shift = 1; __shift < __sub_group_size; __shift <<= 1)
     {
-        _ValueType __partial_carry_in = sycl::shift_group_right(__ndi.get_sub_group(), __value, __shift);
+        _ValueType __partial_carry_in = sycl::shift_group_right(__sg, __value, __shift);
         if (__mask_fn(__sub_group_local_id, __shift))
         {
             __value = __binary_op(__partial_carry_in, __value);
@@ -96,17 +97,17 @@ __sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, std::u
     if constexpr (__init_present)
     {
         __value = __binary_op(__init_and_carry.__v, __value);
-        __init_and_carry.__v = sycl::group_broadcast(__ndi.get_sub_group(), __value, __init_broadcast_id);
+        __init_and_carry.__v = sycl::group_broadcast(__sg, __value, __init_broadcast_id);
     }
     else
     {
-        __init_and_carry.__setup(sycl::group_broadcast(__ndi.get_sub_group(), __value, __init_broadcast_id));
+        __init_and_carry.__setup(sycl::group_broadcast(__sg, __value, __init_broadcast_id));
     }
     if constexpr (!__is_inclusive)
     {
         // Shift the inclusive result right by one lane to produce the exclusive scan, then restore the saved init on
         // lane 0.
-        __value = sycl::shift_group_right(__ndi.get_sub_group(), __value, 1);
+        __value = sycl::shift_group_right(__sg, __value, 1);
         if (__sub_group_local_id == 0)
         {
             __value = __exclusive_carry;
