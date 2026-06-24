@@ -2361,8 +2361,6 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     const std::uint8_t __max_sub_group_size = *__max_sg_it;
     // Empirically determined maximum. May be less for non-full blocks.
     const bool __target_is_gpu = __q.get_device().is_gpu();
-    const std::uint16_t __max_inputs_per_item =
-        std::max<uint16_t>(1, (__target_is_gpu ? 512 : 2048) / __bytes_per_work_item_iter);
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
     // empirical derived caps for workgroup size based upon target
@@ -2371,10 +2369,40 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     // Round down to nearest multiple of the max subgroup size to ensure compatibility with all sub-group sizes
     const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
 
-    const std::uint32_t __max_compute_units =
-        __q.get_device().template get_info<sycl::info::device::max_compute_units>();
-    const std::uint32_t __num_work_groups =
-        oneapi::dpl::__internal::__dpl_bit_ceil(__target_is_gpu ? (__max_compute_units / 4) : __max_compute_units * 64);
+    // use work groups to match the number of compute units
+    const std::uint32_t __max_compute_units = __q.get_device().template get_info<sycl::info::device::max_compute_units>();
+
+    std::uint32_t __num_work_groups = 0;
+    std::uint16_t __max_inputs_per_item = 0;
+
+    if (__target_is_gpu)
+    {
+        // for intel hardware there are 8 compute units per Xe core
+        const std::uint32_t __num_xe_cores = __max_compute_units / 8;
+
+        const std::size_t __last_level_cache_size_bytes = __q.get_device().template get_info<sycl::info::device::global_mem_cache_size>();
+
+        // start with some multiple of the number of Xe cores, and reduce until the input fits in the last level cache
+        __num_work_groups = __num_xe_cores * 8;
+        while (__last_level_cache_size_bytes < __bytes_per_work_item_iter * __work_group_size * __num_work_groups
+            && __num_work_groups > __num_xe_cores)
+        {
+            __num_work_groups -= __num_xe_cores;
+        }
+
+        // maximize the number of inputs per work item while still fitting in the last level cache
+        __max_inputs_per_item =
+            std::max(std::uint16_t{1},
+                    std::uint16_t(__last_level_cache_size_bytes / (__bytes_per_work_item_iter * __work_group_size * __num_work_groups)));
+    }
+    else // target is cpu
+    {
+        // use a large multiple of the number of cores  (each WG is a thread)
+        __num_work_groups = oneapi::dpl::__internal::__dpl_bit_ceil(__max_compute_units * 64);
+        // use a large number of inputs per item to amortize the overhead
+        __max_inputs_per_item = std::max<uint16_t>(1, 2048 / __bytes_per_work_item_iter);
+    }
+
     // Allocate sufficient temporary storage for the worst case (smallest sub-group size = most sub-groups).
     const std::uint32_t __max_num_sub_groups_local = __work_group_size / __min_sub_group_size;
     const std::uint32_t __max_num_sub_groups_global = __max_num_sub_groups_local * __num_work_groups;
