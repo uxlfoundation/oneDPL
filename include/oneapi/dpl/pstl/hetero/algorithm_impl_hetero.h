@@ -1622,11 +1622,6 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bi
 //------------------------------------------------------------------------
 // rotate
 //------------------------------------------------------------------------
-//Advantages over "3x reverse" version of algorithm:
-//1:Not sensitive to size of shift
-//  (With 3x reverse was large variance)
-//2:The average time is better until ~10e8 elements
-//Wrapper needed to avoid kernel problems
 template <typename Name>
 struct __rotate_wrapper;
 
@@ -1635,38 +1630,26 @@ _Iterator
 __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __new_first,
                  _Iterator __last)
 {
-    auto __n = __last - __first;
-    if (__n <= 0)
+    const std::size_t __n = __last - __first;
+    if (__n == 0)
         return __first;
-
-    using _Tp = typename ::std::iterator_traits<_Iterator>::value_type;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf = __keep(__first, __last);
-    auto __temp_buf = oneapi::dpl::__par_backend_hetero::__buffer<_Tp>(__n);
+    const std::size_t __shift = __new_first - __first;
 
-    auto __temp_rng_w =
-        oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::write>(__temp_buf.get_buffer());
-
-    const auto __shift = __new_first - __first;
+    // 1. In-place reverse of the ranges before and after the shift point, done in one kernel
+    auto __dbrick = oneapi::dpl::__par_backend_hetero::__dual_brick{
+        unseq_backend::__reverse_functor{__shift}, unseq_backend::__reverse_functor{__n - __shift, __shift}, __shift};
     oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__rotate_wrapper>(__exec),
-        unseq_backend::__rotate_copy<typename std::iterator_traits<_Iterator>::difference_type>{__n, __shift}, __n,
-        __buf.all_view(), __temp_rng_w);
+        _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__rotate_wrapper>(__exec), __dbrick,
+        __n / 2, __buf.all_view())
+        .wait(); // TODO: need a non-blocking dependency between the kernels
 
-    //An explicit wait isn't required here because we are working with a temporary sycl::buffer and sycl accessors and
-    //SYCL runtime makes a dependency graph to prevent the races between two __parallel_for patterns.
-
-    using _Function = __brick_move<__hetero_tag<_BackendTag>>;
-    auto __temp_rng_rw =
-        oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::read_write>(__temp_buf.get_buffer());
-    auto __brick = unseq_backend::walk_n_vectors_or_scalars<_Function>{_Function{}, static_cast<std::size_t>(__n)};
-    oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __brick,
-                                                      __n, __temp_rng_rw, __buf.all_view())
+    // 2. In-place reverse of the whole range
+    oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                      unseq_backend::__reverse_functor{__n}, __n / 2, __buf.all_view())
         .__checked_deferrable_wait();
-
-    // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
-    // we must call __parallel_for with wait() to provide the blocking synchronization for this pattern.
 
     return __first + (__last - __new_first);
 }
