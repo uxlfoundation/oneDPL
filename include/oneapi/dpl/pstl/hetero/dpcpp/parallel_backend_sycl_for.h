@@ -85,6 +85,9 @@ struct __dual_brick
             __brick2(__full, __idx - __pivot, __params, std::forward<_Ranges>(__rngs)...);
     }
 };
+// C++17 needs an explicit deduction guide for structured initialization
+template <typename _Brick1, typename _Brick2>
+__dual_brick(_Brick1, _Brick2, std::size_t) -> __dual_brick<_Brick1, _Brick2>;
 
 template <typename _Brick, typename... _Ranges>
 class __iterations_per_item
