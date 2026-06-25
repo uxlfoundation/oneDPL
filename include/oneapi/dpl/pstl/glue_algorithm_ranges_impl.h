@@ -644,7 +644,6 @@ struct __internal::__is_heap_until_fn
         return oneapi::dpl::__internal::__ranges::__pattern_is_heap_until(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
     }
-
 }; //__is_heap_until_fn
 inline constexpr __internal::__is_heap_until_fn is_heap_until;
 
