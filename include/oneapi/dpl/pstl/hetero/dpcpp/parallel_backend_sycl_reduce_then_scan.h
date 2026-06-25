@@ -2364,7 +2364,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
     // empirical derived caps for workgroup size based upon target
-    const std::uint32_t __wg_size_cap = __target_is_gpu ? 1024 : 128;
+    const std::uint32_t __wg_size_cap = __target_is_gpu ? 512 : 128;
     const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, __wg_size_cap);
     // Round down to nearest multiple of the max subgroup size to ensure compatibility with all sub-group sizes
     const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
