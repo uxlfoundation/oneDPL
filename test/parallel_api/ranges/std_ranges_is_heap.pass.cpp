@@ -60,8 +60,7 @@ main()
     // ascending default data is a valid min-heap w.r.t. greater; member-function projection
     test_range_algo<2, P2>{}(dpl_ranges::is_heap, is_heap_checker, std::ranges::greater{}, &P2::proj);
 
-    // valid min-heap w.r.t. greater, not just sorted data: every 17th element (i % 17 == 1) drops to its
-    // parent's value (i - 1) / 2, creating parent == child ties that is_heap must accept (returns true)
+    // non_desc_heap_gen: valid min-heap w.r.t. greater with parent == child ties; is_heap returns true
     test_range_algo<3, int, data_in, decltype(non_desc_heap_gen)>{}(dpl_ranges::is_heap, is_heap_checker,
                                                                      std::ranges::greater{});
 

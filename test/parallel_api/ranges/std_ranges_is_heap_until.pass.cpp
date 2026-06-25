@@ -71,8 +71,7 @@ main()
     // ascending default data is a valid min-heap w.r.t. greater; is_heap_until returns end()
     test_range_algo<4, P2>{}(dpl_ranges::is_heap_until, is_heap_until_checker, std::ranges::greater{}, &P2::proj);
 
-    // valid min-heap w.r.t. greater, not just sorted data: every 17th element (i % 17 == 1) drops to its
-    // parent's value (i - 1) / 2, creating parent == child ties that is_heap_until accepts (returns end())
+    // non_desc_heap_gen: valid min-heap w.r.t. greater with parent == child ties; is_heap_until returns end()
     test_range_algo<5, int, data_in, decltype(non_desc_heap_gen)>{}(
         dpl_ranges::is_heap_until, is_heap_until_checker, std::ranges::greater{});
 
