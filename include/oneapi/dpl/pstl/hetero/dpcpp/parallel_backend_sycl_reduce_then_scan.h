@@ -2392,8 +2392,12 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 
         if (__last_level_cache_size_bytes > __bytes_per_work_item_iter * __work_group_size * __num_work_groups)
         {
-            // maximize the number of inputs per work item while still fitting in the last level cache if possible
-            __max_inputs_per_item = std::max<std::uint16_t>(1, __last_level_cache_size_bytes / (__bytes_per_work_item_iter * __work_group_size * __num_work_groups));
+            // Maximize the number of inputs per work item while still fitting in half the last level cache if possible.
+            // This allows breathing room, while at the same time still making max_inputs_per_item large enough to
+            // amortize overheads and have good bandwidth. A medium sized block makes for fewer use cases which are
+            // served by unbalanced blocks (1 full, 1 almost empty).
+            const std::size_t __half_last_level_cache_size_bytes = __last_level_cache_size_bytes / 2;
+            __max_inputs_per_item = std::max<std::uint16_t>(1, __half_last_level_cache_size_bytes  / (__bytes_per_work_item_iter * __work_group_size * __num_work_groups));
         }
         else
         {
