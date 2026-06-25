@@ -2382,20 +2382,12 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 
         const std::size_t __last_level_cache_size_bytes = __q.get_device().template get_info<sycl::info::device::global_mem_cache_size>();
 
-        if (__temp_data_required<_GenScanInput>::value)
+        // try to use 2x number of cores as they can be scheduled concurrently on an xe-core. If that does not fit in
+        // last level cache, check 1x
+        __num_work_groups = __num_xe_cores * 2;
+        if (__last_level_cache_size_bytes < __bytes_per_work_item_iter * __work_group_size * __num_work_groups)
         {
-            // kernels with temp data required are heavy in registers and only can schedule a single wg per core
-            __num_work_groups = __num_xe_cores;
-        }
-        else
-        {
-            // try to use 2x number of cores as they can be scheduled concurrently on an xe-core. If that does not fit in
-            // last level cache, check 1x
-            __num_work_groups = __num_xe_cores * 2;
-            if (__last_level_cache_size_bytes < __bytes_per_work_item_iter * __work_group_size * __num_work_groups)
-            {
-                __num_work_groups -= __num_xe_cores;
-            }
+            __num_work_groups -= __num_xe_cores;
         }
 
         // maximize the number of inputs per work item while still fitting in the last level cache if possible
