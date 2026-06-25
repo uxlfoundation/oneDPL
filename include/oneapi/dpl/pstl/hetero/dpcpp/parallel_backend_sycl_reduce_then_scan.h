@@ -2400,7 +2400,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
             // If it still doesn't fit in last level cache, just use a single block and maximize the number of inputs
             // per work item
             __num_work_groups = __num_xe_cores * 2;
-            __max_inputs_per_item = oneapi::dpl::__internal::__dpl_ceil_div(__n, (__work_group_size * __num_work_groups));
+            __max_inputs_per_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n, (__work_group_size * __num_work_groups));
         }
 
     }
