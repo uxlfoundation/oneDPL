@@ -1209,7 +1209,7 @@ struct __vector_reverse
 template <std::uint8_t __num_strides>
 struct __strided_loop
 {
-    std::size_t __full_range_size;
+    std::size_t __full_range_size = 0;
     template <typename _LoopBodyOp, typename... _Args>
     void
     operator()(/*__is_full*/ std::true_type, std::size_t __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,

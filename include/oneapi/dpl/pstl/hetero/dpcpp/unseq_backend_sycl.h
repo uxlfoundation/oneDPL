@@ -1450,7 +1450,7 @@ struct __brick_reduce_idx
         {
             // repeat for adjacent elements
             std::size_t __rest = std::min<std::size_t>(_Params::__vector_size, __end - __idx) - 1;
-            for(++__idx; __rest > 0; ++__idx, --__rest)
+            for (++__idx; __rest > 0; ++__idx, --__rest)
             {
                 __segment_end = (__idx == __end - 1) ? __value_type(__n) : __segment_starts[__idx + 1];
                 __out_values[__idx] = reduce(__segment_starts[__idx], __segment_end, __values);
