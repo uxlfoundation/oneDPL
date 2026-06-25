@@ -2382,26 +2382,24 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 
         const std::size_t __last_level_cache_size_bytes = __q.get_device().template get_info<sycl::info::device::global_mem_cache_size>();
 
-        // try to use 2x number of cores as they can be scheduled concurrently on an xe-core. If that does not fit in
-        // last level cache, check 1x
-        __num_work_groups = __num_xe_cores * 2;
-        if (__last_level_cache_size_bytes < __bytes_per_work_item_iter * __work_group_size * __num_work_groups)
+        if (__temp_data_required<_GenScanInput>::value)
         {
-            __num_work_groups -= __num_xe_cores;
-        }
-
-        if (__last_level_cache_size_bytes < __bytes_per_work_item_iter * __work_group_size * __num_work_groups)
-        {
-            // maximize the number of inputs per work item while still fitting in the last level cache
-            __max_inputs_per_item = std::uint16_t(__last_level_cache_size_bytes / (__bytes_per_work_item_iter * __work_group_size * __num_work_groups));
+            // kernels with temp data required are heavy in registers and only can schedule a single wg per core
+            __num_work_groups = __num_xe_cores;
         }
         else
         {
-            // If it still doesn't fit in last level cache, just use a single block and maximize the number of inputs
-            // per work item
+            // try to use 2x number of cores as they can be scheduled concurrently on an xe-core. If that does not fit in
+            // last level cache, check 1x
             __num_work_groups = __num_xe_cores * 2;
-            __max_inputs_per_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n, (__work_group_size * __num_work_groups));
+            if (__last_level_cache_size_bytes < __bytes_per_work_item_iter * __work_group_size * __num_work_groups)
+            {
+                __num_work_groups -= __num_xe_cores;
+            }
         }
+
+        // maximize the number of inputs per work item while still fitting in the last level cache if possible
+        __max_inputs_per_item = std::max<std::uint16_t>(1, __last_level_cache_size_bytes / (__bytes_per_work_item_iter * __work_group_size * __num_work_groups));
 
     }
     else // target is cpu
