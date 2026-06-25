@@ -35,9 +35,9 @@ main()
     auto desc_gen = [](auto i) { return -static_cast<int>(i); };
 
     constexpr int late_violation_test_sz = 63 * 1024 + 347;
-    // Most elements get -i (descending, forming a valid max-heap prefix), but the final 41
-    // elements switch to (late_violation_test_sz - i), inserting small positive values
-    // whose parents hold large-negative values, breaking the max-heap property near the leaves.
+    // Element i gets -i (valid max-heap w.r.t. less), except the last 41 elements switch to
+    // (late_violation_test_sz - i), giving small positive values [1..41] while their parents
+    // hold large-negative values near -late_violation_test_sz/2, breaking the heap property.
     auto late_violation_gen = [](auto i) {
         int val = static_cast<int>(i);
         return late_violation_test_sz - val > 41 ? -val : late_violation_test_sz - val;
