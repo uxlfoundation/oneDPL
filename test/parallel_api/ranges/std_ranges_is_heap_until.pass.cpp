@@ -39,12 +39,12 @@ main()
     auto spike_gen = [](auto i) { return i == 42 ? 1 : -static_cast<int>(i); };
 
     constexpr int late_violation_test_sz = 63 * 1024 + 347;
-    // Strictly descending data (a valid max-heap w.r.t. less): element i gets
-    // late_violation_test_sz - i until that would fall to 41 or below, then the
-    // final 41 elements switch to -i, pushing the smallest values to the tail.
+    // Most elements get -i (descending, forming a valid max-heap prefix), but the final 41
+    // elements switch to (late_violation_test_sz - i), inserting small positive values
+    // whose parents hold large-negative values, breaking the max-heap property near the leaves.
     auto late_violation_gen = [](auto i) {
         int val = static_cast<int>(i);
-        return late_violation_test_sz - val > 41 ? late_violation_test_sz - val : -val;
+        return late_violation_test_sz - val > 41 ? -val : late_violation_test_sz - val;
     };
 
     // Valid min-heap w.r.t. greater but not sorted: element i has value i, except every 17th element
@@ -60,12 +60,11 @@ main()
     test_range_algo<1, int, data_in, decltype(desc_gen)>{big_sz}(
         dpl_ranges::is_heap_until, is_heap_until_checker, std::ranges::less{});
 
-    // large valid max-heap: data stays descending to the very end, so is_heap_until scans the whole
-    // range and returns end()
+    // large range with heap violation near the end: is_heap_until stops before end()
     test_range_algo<2, int, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
         dpl_ranges::is_heap_until, is_heap_until_checker, std::ranges::less{}, proj);
 
-    // same full-range valid max-heap with custom comp and P2::x projection
+    // same late-violation data with custom comp and P2::x projection; is_heap_until stops before end()
     test_range_algo<3, P2, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
         dpl_ranges::is_heap_until, is_heap_until_checker, CustomLess{}, &P2::x);
 
