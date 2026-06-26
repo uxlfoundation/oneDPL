@@ -2374,41 +2374,40 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
         __q.get_device().template get_info<sycl::info::device::max_compute_units>();
 
     std::uint32_t __num_work_groups = 0;
-    std::uint16_t __max_inputs_per_item = 0;
+    std::uint32_t __max_inputs_per_item = 0;
 
     if (__target_is_gpu)
     {
-        // for intel hardware there are 8 compute units per Xe core
-        const std::uint32_t __num_xe_cores = __max_compute_units / 8;
-
         const std::size_t __last_level_cache_size_bytes =
             __q.get_device().template get_info<sycl::info::device::global_mem_cache_size>();
 
-        // try to use 2x number of cores as they can be scheduled concurrently on an xe-core. If that does not fit in
-        // last level cache, check 1x
-        __num_work_groups = __num_xe_cores * 2;
-        if (__last_level_cache_size_bytes < __bytes_per_work_item_iter * __work_group_size * __num_work_groups)
-        {
-            __num_work_groups -= __num_xe_cores;
-        }
+        // for intel hardware there are 8 compute units per Xe core
+        const std::uint32_t __num_xe_cores = std::max(1u, __max_compute_units / 8);
 
-        if (__last_level_cache_size_bytes > __bytes_per_work_item_iter * __work_group_size * __num_work_groups)
+        std::size_t __bytes_per_work_group_iter = __bytes_per_work_item_iter * __work_group_size;
+        std::size_t __llc_work_group_iters =
+            oneapi::dpl::__internal::__dpl_ceiling_div(__last_level_cache_size_bytes, __bytes_per_work_group_iter);
+
+        if (__llc_work_group_iters < __num_xe_cores)
         {
+            // if we can't avoid spilling from LLC, use a single block and 2 work groups per core
+            __num_work_groups = __num_xe_cores * 2;
+            __max_inputs_per_item = std::max<std::uint32_t>(
+                1, oneapi::dpl::__internal::__dpl_ceiling_div(__n, __num_work_groups * __work_group_size));
+        }
+        else
+        {
+            // Use 2 work groups per core if possible, otherwise use 1 work group per core.
+            constexpr std::uint32_t __wgs_per_core_cap = 2u;
+            __num_work_groups =
+                std::min<std::uint32_t>(__wgs_per_core_cap, __llc_work_group_iters / __num_xe_cores) * __num_xe_cores;
             // Maximize the number of inputs per work item while still fitting in half the last level cache if possible.
             // This allows breathing room, while at the same time still making max_inputs_per_item large enough to
             // amortize overheads and have good bandwidth. A medium sized block makes for fewer use cases which are
             // served by unbalanced blocks (1 full, 1 almost empty).
             const std::size_t __half_last_level_cache_size_bytes = __last_level_cache_size_bytes / 2;
-            __max_inputs_per_item =
-                std::max<std::uint16_t>(1, __half_last_level_cache_size_bytes /
-                                               (__bytes_per_work_item_iter * __work_group_size * __num_work_groups));
-        }
-        else
-        {
-            __num_work_groups = __num_xe_cores * 2;
-            // use a single block if we are already spilling from LLC
-            __max_inputs_per_item = std::max<std::uint16_t>(
-                1, oneapi::dpl::__internal::__dpl_ceiling_div(__n, __num_work_groups * __work_group_size));
+            __max_inputs_per_item = std::max<std::uint32_t>(1, __half_last_level_cache_size_bytes /
+                                                                   (__bytes_per_work_group_iter * __num_work_groups));
         }
     }
     else // target is cpu
@@ -2416,7 +2415,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
         // use a large multiple of the number of cores  (each WG is a thread)
         __num_work_groups = oneapi::dpl::__internal::__dpl_bit_ceil(__max_compute_units * 64);
         // use a large number of inputs per item to amortize the overhead
-        __max_inputs_per_item = std::max<uint16_t>(1, 2048 / __bytes_per_work_item_iter);
+        __max_inputs_per_item = std::max<std::uint32_t>(1, 2048u / __bytes_per_work_item_iter);
     }
 
     // Allocate sufficient temporary storage for the worst case (smallest sub-group size = most sub-groups).
