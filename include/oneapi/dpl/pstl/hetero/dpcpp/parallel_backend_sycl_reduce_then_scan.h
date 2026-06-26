@@ -346,9 +346,9 @@ struct __write_multiple_to_id
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
-        using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
+        using _ConvertedTupleType = typename oneapi::dpl::__internal::__get_tuple_type<
+            std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
+            std::decay_t<decltype(__out_rng[std::declval<_SizeType>()])>>::__type;
         const std::size_t __n = std::get<1>(__v);
         for (std::size_t __i = 0; __i < __n; ++__i)
         {
@@ -366,9 +366,9 @@ struct __write_multiple_to_id
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
-        using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
+        using _ConvertedTupleType = typename oneapi::dpl::__internal::__get_tuple_type<
+            std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
+            std::decay_t<decltype(__out_rng[std::declval<_SizeType>()])>>::__type;
         const std::size_t __n = std::get<1>(__v);
         for (std::size_t __i = 0; __i < __n; ++__i)
         {
