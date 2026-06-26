@@ -1399,73 +1399,6 @@ __broadcast_sub_group(const sycl::nd_item<1>& __ndi, _ValueType __value, _IdType
     return __result;
 }
 
-template <typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType, typename _LazyValueT,
-          typename _CommTag>
-void
-__exclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn,
-                                  _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
-                                  oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueT>& __init_and_carry,
-                                  _CommTag __comm_tag)
-{
-    std::uint8_t __sub_group_local_id = __ndi.get_sub_group().get_local_linear_id();
-    const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
-    for (std::uint8_t __shift = 1; __shift < __sub_group_size; __shift <<= 1)
-    {
-        _ValueType __partial_carry_in = __shift_sub_group_right(__ndi, __value, __shift, __comm_tag);
-        if (__mask_fn(__sub_group_local_id, __shift))
-        {
-            __value = __binary_op(__partial_carry_in, __value);
-        }
-    }
-
-    oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueT> __old_init;
-    if (__init_and_carry.__has_value())
-    {
-        __value = __binary_op(__init_and_carry.__get_cref(), __value);
-        if (__sub_group_local_id == 0)
-            __old_init.__setup(__init_and_carry.__get_cref());
-    }
-    __init_and_carry.__assign(__broadcast_sub_group(__ndi, __value, __init_broadcast_id, __comm_tag));
-
-    __value = __shift_sub_group_right(__ndi, __value, 1, __comm_tag);
-
-    if (__old_init.__has_value())
-    {
-        if (__sub_group_local_id == 0)
-        {
-            __value = __old_init.__get_cref();
-        }
-    }
-    //return by reference __value and __init_and_carry
-}
-
-template <typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType, typename _LazyValueType,
-          typename _CommTag>
-void
-__inclusive_sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn,
-                                  _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
-                                  oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueType>& __init_and_carry,
-                                  _CommTag __comm_tag)
-{
-    std::uint8_t __sub_group_local_id = __ndi.get_sub_group().get_local_linear_id();
-    const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
-    for (std::uint8_t __shift = 1; __shift < __sub_group_size; __shift <<= 1)
-    {
-        _ValueType __partial_carry_in = __shift_sub_group_right(__ndi, __value, __shift, __comm_tag);
-        if (__mask_fn(__sub_group_local_id, __shift))
-        {
-            __value = __binary_op(__partial_carry_in, __value);
-        }
-    }
-
-    if (__init_and_carry.__has_value())
-    {
-        __value = __binary_op(__init_and_carry.__get_cref(), __value);
-    }
-    __init_and_carry.__assign(__broadcast_sub_group(__ndi, __value, __init_broadcast_id, __comm_tag));
-    //return by reference __value and __init_and_carry
-}
-
 template <bool __is_inclusive, typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType,
           typename _LazyValueType, typename _CommTag>
 void
@@ -1474,16 +1407,50 @@ __sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, _InitB
                         oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueType>& __init_and_carry,
                         _CommTag __comm_tag)
 {
-    if constexpr (__is_inclusive)
+    std::uint8_t __sub_group_local_id = __ndi.get_sub_group().get_local_linear_id();
+    const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
+    for (std::uint8_t __shift = 1; __shift < __sub_group_size; __shift <<= 1)
     {
-        __inclusive_sub_group_masked_scan(__ndi, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry,
-                                          __comm_tag);
+        _ValueType __partial_carry_in = __shift_sub_group_right(__ndi, __value, __shift, __comm_tag);
+        if (__mask_fn(__sub_group_local_id, __shift))
+        {
+            __value = __binary_op(__partial_carry_in, __value);
+        }
     }
-    else
+
+    // For an inclusive scan __old_init is never used, so avoid instantiating storage for it.
+    // exclusive scan does have one instance of an invocation without an init, in scan_by_segment, so we must use
+    // lazy storage to avoid default constructing in that case.
+    std::conditional_t<__is_inclusive, oneapi::dpl::internal::ignore_copyable,
+                       oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueType>>
+        __old_init;
+    if (__init_and_carry.__has_value())
     {
-        __exclusive_sub_group_masked_scan(__ndi, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry,
-                                          __comm_tag);
+        __value = __binary_op(__init_and_carry.__get_cref(), __value);
+        if constexpr (!__is_inclusive)
+        {
+            // For an exclusive scan, lane 0's incoming init becomes its result after the final right-shift below,
+            // so it must be saved before being overwritten by the broadcast carry.
+            if (__sub_group_local_id == 0)
+                __old_init.__setup(__init_and_carry.__get_cref());
+        }
     }
+    __init_and_carry.__assign(__broadcast_sub_group(__ndi, __value, __init_broadcast_id, __comm_tag));
+
+    if constexpr (!__is_inclusive)
+    {
+        // Shift the inclusive result right by one lane to produce the exclusive scan, then restore the saved init on
+        // lane 0.
+        __value = __shift_sub_group_right(__ndi, __value, 1, __comm_tag);
+        if (__old_init.__has_value())
+        {
+            if (__sub_group_local_id == 0)
+            {
+                __value = __old_init.__get_cref();
+            }
+        }
+    }
+    //return by reference __value and __init_and_carry
 }
 
 template <bool __is_inclusive, typename _BinaryOp, typename _ValueType, typename _LazyValueType,
