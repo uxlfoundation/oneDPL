@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <vector>
 #include <type_traits>
+#include <algorithm>
 
 #if __has_include(<sycl/sycl.hpp>)
 #    include <sycl/sycl.hpp>
@@ -132,6 +133,54 @@ struct CompareKey<false>
 constexpr bool Ascending = true;
 constexpr bool Descending = false;
 constexpr std::uint8_t TestRadixBits = 8;
+
+// Fill `data` with distinct values from a narrow range so that the upper radix stages observe a single
+// bin and exercise the single-bin direct-copy optimization, while the lower stages still reorder (forcing
+// the optimization to scatter distinct keys to distinct output positions). Integral types use [0, 1000].
+//
+// Floating-point types use [1.0, 1.2). The IEEE-754 layout is [sign | exponent | mantissa]:
+//   - sign     = 0           (all values positive)
+//   - exponent = bias        (encodes 2^0, since 1.0 <= x < 2.0)
+//   - mantissa: 1.0 <= x < 1.2 means the fraction is in [0, 0.2), so the top two mantissa bits are 00
+//               and only the lower mantissa bits vary.
+// This fixes the sign, the entire exponent, and the top two mantissa bits, so the most-significant byte is
+// constant across all three IEEE formats:
+//   - float64: 1 sign + 11 exp bits -> MSB holds sign + 7 exp bits (all fixed); next byte holds 4 exp + top
+//              4 mantissa bits (top 2 fixed as 00). Top stage (top byte) is single-bin.
+//   - float32: 1 sign + 8 exp bits  -> MSB holds sign + 7 exp bits (all fixed). Top stage is single-bin.
+//   - sycl::half (float16): 1 sign + 5 exp bits + 10 mantissa bits -> MSB holds sign + 5 exp + top 2
+//              mantissa bits (top 2 fixed as 00). Top stage is single-bin.
+// The upper bound is 1.2 rather than 1.25 because values are generated in float and narrowed to T: with
+// sycl::half's 10-bit mantissa, floats just under 1.25 round up to exactly 1.25, whose top two mantissa
+// bits are 01, spilling into a second top-stage bin. 1.2 stays below that rounding cliff for all three types.
+// All generated values are finite (no NaN/inf).
+template <typename T>
+void
+generate_constrained_range_data(T* data, std::size_t size, std::uint32_t seed)
+{
+    std::default_random_engine gen{seed};
+    if constexpr (std::is_integral_v<T>)
+    {
+        // For single byte type, just use a constant value and only vart first stage bits for other
+        // types.
+        std::uniform_int_distribution<std::uint32_t> dist;
+        if constexpr (sizeof(T) == 8)
+        {
+            dist = std::uniform_int_distribution<std::uint32_t>{0, 42};
+        }
+        else
+        {
+            dist = std::uniform_int_distribution<std::uint32_t>{0, 256};
+        }
+        std::generate(data, data + size, [&] { return static_cast<T>(dist(gen)); });
+    }
+    else
+    {
+        // sycl::half is not directly usable with std::uniform_real_distribution; generate in float and cast.
+        std::uniform_real_distribution<float> dist(1.0f, 1.2f);
+        std::generate(data, data + size, [&] { return static_cast<T>(dist(gen)); });
+    }
+}
 
 #if LOG_TEST_INFO
 struct TypeInfo

@@ -205,6 +205,40 @@ test_small_sizes(sycl::queue q, KernelParam param)
     EXPECT_EQ_RANGES(output_ref, output, "output data modified when size == 0");
 }
 
+// Test with constrained-range data to exercise the single-bin direct-copy optimization on the upper
+// radix stages while the lower stages still reorder. See generate_constrained_range_data for details.
+template <typename T, bool IsAscending, std::uint8_t RadixBits, typename KernelParam>
+void
+test_constrained_range(sycl::queue q, std::size_t size, KernelParam param)
+{
+#if LOG_TEST_INFO
+    std::cout << "\t\ttest_constrained_range<" << TypeInfo().name<T>() << ", " << IsAscending << ">(" << size << ");"
+              << std::endl;
+#endif
+    std::vector<T> input(size);
+    generate_constrained_range_data(input.data(), size, 73);
+    std::vector<T> input_ref(input);
+    std::vector<T> output_ref(input);
+    std::vector<T> output(size, T{9});
+    std::stable_sort(output_ref.begin(), output_ref.end(), Compare<T, IsAscending>{});
+
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, T> dt_input(q, input.begin(), input.end());
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, T> dt_output(q, output.begin(), output.end());
+
+    kt_ns::radix_sort<IsAscending, RadixBits>(q, dt_input.get_data(), dt_input.get_data() + size, dt_output.get_data(),
+                                              param)
+        .wait();
+
+    std::vector<T> input_actual(size);
+    std::vector<T> output_actual(size);
+    dt_input.retrieve_data(input_actual.begin());
+    dt_output.retrieve_data(output_actual.begin());
+
+    std::string msg = "constrained range, n: " + std::to_string(size);
+    EXPECT_EQ_N(input_ref.begin(), input_actual.begin(), size, ("input modified, " + msg).c_str());
+    EXPECT_EQ_N(output_ref.begin(), output_actual.begin(), size, ("wrong results, " + msg).c_str());
+}
+
 template <typename T, bool IsAscending, std::uint8_t RadixBits, typename KernelParam>
 void
 test_general_cases(sycl::queue q, std::size_t size, KernelParam param)
@@ -239,6 +273,15 @@ main()
                     q, size, TestUtils::create_new_kernel_param_idx<1>(params));
             }
             test_small_sizes<TEST_KEY_TYPE, Ascending, TestRadixBits>(q, TestUtils::create_new_kernel_param_idx<3>(params));
+
+            // Constrained-range tests to exercise the single-bin direct-copy optimization, for all key types.
+            for (auto size : {std::size_t(1000), std::size_t(67543), std::size_t(100'000)})
+            {
+                test_constrained_range<TEST_KEY_TYPE, Ascending, TestRadixBits>(
+                    q, size, TestUtils::create_new_kernel_param_idx<4>(params));
+                test_constrained_range<TEST_KEY_TYPE, Descending, TestRadixBits>(
+                    q, size, TestUtils::create_new_kernel_param_idx<5>(params));
+            }
         }
         catch (const ::std::exception& exc)
         {

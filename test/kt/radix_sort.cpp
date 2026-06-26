@@ -192,8 +192,8 @@ test_general_cases(sycl::queue q, std::size_t size, KernelParam param)
 #endif // _ENABLE_RANGES_TESTING
 }
 
-// Test with constrained-range data to exercise single-bin direct copy optimization.
-// Keys in [0, 1000] guarantee that upper radix stages (bits 16+) produce single-bin tiles.
+// Test with constrained-range data to exercise the single-bin direct-copy optimization on the upper
+// radix stages while the lower stages still reorder. See generate_constrained_range_data for details.
 template <typename T, bool IsAscending, std::uint8_t RadixBits, typename KernelParam>
 void
 test_constrained_range(sycl::queue q, std::size_t size, KernelParam param)
@@ -203,9 +203,7 @@ test_constrained_range(sycl::queue q, std::size_t size, KernelParam param)
               << std::endl;
 #endif
     std::vector<T> expected(size);
-    std::default_random_engine gen{73};
-    std::uniform_int_distribution<std::uint32_t> dist(0, 1000);
-    std::generate(expected.begin(), expected.end(), [&] { return static_cast<T>(dist(gen)); });
+    generate_constrained_range_data(expected.data(), size, 73);
 
     TestUtils::usm_data_transfer<sycl::usm::alloc::device, T> dt_input(q, expected.begin(), expected.end());
     std::stable_sort(expected.begin(), expected.end(), Compare<T, IsAscending>{});
@@ -215,7 +213,7 @@ test_constrained_range(sycl::queue q, std::size_t size, KernelParam param)
     std::vector<T> actual(size);
     dt_input.retrieve_data(actual.begin());
 
-    std::string msg = "wrong results with constrained range [0,1000], n: " + std::to_string(size);
+    std::string msg = "wrong results with constrained range, n: " + std::to_string(size);
     EXPECT_EQ_N(expected.begin(), actual.begin(), size, msg.c_str());
 }
 
@@ -241,16 +239,13 @@ main()
             test_small_sizes<TEST_KEY_TYPE, Ascending, TestRadixBits>(
                 q, TestUtils::create_new_kernel_param_idx<3>(params));
 
-            // Constrained-range tests to exercise single-bin optimization (only for types >= 32 bits)
-            if constexpr (std::is_integral_v<TEST_KEY_TYPE> && sizeof(TEST_KEY_TYPE) >= 4)
+            // Constrained-range tests to exercise the single-bin direct-copy optimization, for all key types.
+            for (auto size : {std::size_t(1000), std::size_t(67543), std::size_t(100'000)})
             {
-                for (auto size : {std::size_t(1000), std::size_t(67543), std::size_t(100'000)})
-                {
-                    test_constrained_range<TEST_KEY_TYPE, Ascending, TestRadixBits>(
-                        q, size, TestUtils::create_new_kernel_param_idx<4>(params));
-                    test_constrained_range<TEST_KEY_TYPE, Descending, TestRadixBits>(
-                        q, size, TestUtils::create_new_kernel_param_idx<5>(params));
-                }
+                test_constrained_range<TEST_KEY_TYPE, Ascending, TestRadixBits>(
+                    q, size, TestUtils::create_new_kernel_param_idx<4>(params));
+                test_constrained_range<TEST_KEY_TYPE, Descending, TestRadixBits>(
+                    q, size, TestUtils::create_new_kernel_param_idx<5>(params));
             }
         }
         catch (const ::std::exception& exc)
