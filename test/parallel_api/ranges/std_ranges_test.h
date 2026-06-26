@@ -40,6 +40,16 @@ static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202605L);
 #include <memory>
 #include <array>
 
+// Controls how many range/view permutations each test builds. When set to 1
+// (the default), every view-type permutation is built and run, giving full
+// coverage. When set to 0, only a single representative permutation is built
+// per call, which substantially reduces compile time. Per-commit CI defines
+// this to 0 for the bulk of the std_ranges tests; a couple of representative
+// tests force it back to 1 so full permutation coverage is retained there.
+#    ifndef ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
+#        define ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS 1
+#    endif
+
 namespace test_std_ranges
 {
 
@@ -1024,18 +1034,21 @@ struct test_range_algo
     test_range_algo_impl_host(auto algo, auto& checker, auto... args)
     {
         auto subrange_view = subrange_view_fo{};
-#if TEST_CPP20_SPAN_PRESENT
+#    if TEST_CPP20_SPAN_PRESENT && ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
         auto span_view = span_view_fo{};
 #endif
 
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{},  std::identity{}, args...);
         test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, subrange_view,    std::identity{}, args...);
+#    if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
+        test<T, host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker,
+                                                                          std::identity{}, std::identity{}, args...);
         test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
         test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
         test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, span_view,        std::identity{}, args...);
         test<T, host_span<T>,     mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #endif
+#    endif // ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -1043,7 +1056,7 @@ struct test_range_algo
     void test_range_algo_impl_hetero(Policy&& exec, auto algo, auto& checker, auto... args)
     {
         auto subrange_view = subrange_view_fo{};
-#if TEST_CPP20_SPAN_PRESENT
+#        if TEST_CPP20_SPAN_PRESENT && ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
         auto span_view = span_view_fo{};
 #endif
 
@@ -1058,11 +1071,13 @@ struct test_range_algo
                 constexpr TestDataMode resHeteroMode = ResolveTestDataModeForHeteroPolicy<mode>::res_mode;
 
                 test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
+#        if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
                 test<T, usm_subrange<T>, resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
                 test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
                 test<T, usm_span<T>,     resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
+#        endif // ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
             }
         }
     }
