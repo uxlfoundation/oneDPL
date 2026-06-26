@@ -2370,7 +2370,8 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
 
     // use work groups to match the number of compute units
-    const std::uint32_t __max_compute_units = __q.get_device().template get_info<sycl::info::device::max_compute_units>();
+    const std::uint32_t __max_compute_units =
+        __q.get_device().template get_info<sycl::info::device::max_compute_units>();
 
     std::uint32_t __num_work_groups = 0;
     std::uint16_t __max_inputs_per_item = 0;
@@ -2380,7 +2381,8 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
         // for intel hardware there are 8 compute units per Xe core
         const std::uint32_t __num_xe_cores = __max_compute_units / 8;
 
-        const std::size_t __last_level_cache_size_bytes = __q.get_device().template get_info<sycl::info::device::global_mem_cache_size>();
+        const std::size_t __last_level_cache_size_bytes =
+            __q.get_device().template get_info<sycl::info::device::global_mem_cache_size>();
 
         // try to use 2x number of cores as they can be scheduled concurrently on an xe-core. If that does not fit in
         // last level cache, check 1x
@@ -2397,13 +2399,16 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
             // amortize overheads and have good bandwidth. A medium sized block makes for fewer use cases which are
             // served by unbalanced blocks (1 full, 1 almost empty).
             const std::size_t __half_last_level_cache_size_bytes = __last_level_cache_size_bytes / 2;
-            __max_inputs_per_item = std::max<std::uint16_t>(1, __half_last_level_cache_size_bytes  / (__bytes_per_work_item_iter * __work_group_size * __num_work_groups));
+            __max_inputs_per_item =
+                std::max<std::uint16_t>(1, __half_last_level_cache_size_bytes /
+                                               (__bytes_per_work_item_iter * __work_group_size * __num_work_groups));
         }
         else
         {
             __num_work_groups = __num_xe_cores * 2;
             // use a single block if we are already spilling from LLC
-            __max_inputs_per_item = std::max<std::uint16_t>(1, oneapi::dpl::__internal::__dpl_ceiling_div(__n, __num_work_groups * __work_group_size));
+            __max_inputs_per_item = std::max<std::uint16_t>(
+                1, oneapi::dpl::__internal::__dpl_ceiling_div(__n, __num_work_groups * __work_group_size));
         }
     }
     else // target is cpu
