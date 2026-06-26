@@ -44,8 +44,9 @@ static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202605L);
 // (the default), every view-type permutation is built and run, giving full
 // coverage. When set to 0, only a single representative permutation is built
 // per call, which substantially reduces compile time. Per-commit CI defines
-// this to 0 for the bulk of the std_ranges tests; a couple of representative
-// tests force it back to 1 so full permutation coverage is retained there.
+// this to 0 for the bulk of the std_ranges tests when building with the dpcpp
+// backend; a couple of representative tests force it back to 1 so full
+// permutation coverage is still exercised in that CI.
 #    ifndef ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
 #        define ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS 1
 #    endif
