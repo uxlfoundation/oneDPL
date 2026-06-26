@@ -788,26 +788,6 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 }
 
-template <typename _T>
-std::enable_if_t<std::is_default_constructible_v<_T>, _T>
-__load_result(__result_storage<_T>& __storage)
-{
-    _T __result{};
-    __storage.__copy_result(&__result, 1);
-
-    return __result;
-}
-
-template <typename _T>
-std::enable_if_t<std::is_default_constructible_v<_T>, _T>
-__load_result(__combined_storage<_T>& __storage)
-{
-    _T __result{};
-    __storage.__copy_result(&__result, 1);
-
-    return __result;
-}
-
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size,
           typename _BinaryPredicate>
 std::array<_Size, 2>
@@ -843,9 +823,9 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
 
         std::get<0>(__res).wait_and_throw();
 
-        __ret[0] = __load_result(std::get<1>(__res));
+        __ret[0] = std::get<1>(__res).__load_result();
         if constexpr (_Bounded)
-            __ret[1] = __load_result(std::get<2>(__res));
+            __ret[1] = std::get<2>(__res).__load_result();
         else
             __ret[1] = __n;
     }
@@ -945,9 +925,9 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
         std::get<0>(__res).wait_and_throw();
 
-        __ret[0] = __load_result(std::get<1>(__res));
+        __ret[0] = std::get<1>(__res).__load_result();
         if constexpr (_Bounded)
-            __ret[1] = __load_result(std::get<2>(__res));
+            __ret[1] = std::get<2>(__res).__load_result();
         else
             __ret[1] = __n;
     }
@@ -1324,7 +1304,7 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _SetTag __set_t
     std::get<0>(__res).wait_and_throw();
 
     // Load stop position in the output range
-    const oneapi::dpl::__internal::__difference_t<_Range3> __stop_pos3 = __load_result(std::get<1>(__res));
+    const oneapi::dpl::__internal::__difference_t<_Range3> __stop_pos3 = std::get<1>(__res).__load_result();
 
     // Load OOB and final positions in input ranges and compute stop positions in input ranges based on them
     oneapi::dpl::__internal::__difference_t<_Range1> __stop_pos1 = {};
@@ -1332,7 +1312,7 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _SetTag __set_t
     if constexpr (_Bounded)
     {
         // Workaround: std::tie() doesn't work with oneapi::dpl::__internal::tuple
-        const auto __stop_pos_tuple = __load_result(std::get<2>(__res)).__compute_stop_pos();
+        const auto __stop_pos_tuple = std::get<2>(__res).__load_result().__compute_stop_pos();
         __stop_pos1 = std::get<0>(__stop_pos_tuple);
         __stop_pos2 = std::get<1>(__stop_pos_tuple);
     }

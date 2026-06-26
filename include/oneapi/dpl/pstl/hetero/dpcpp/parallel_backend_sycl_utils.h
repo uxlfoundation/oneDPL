@@ -883,6 +883,15 @@ struct __result_storage : public __device_storage<_T>
         this->__copy_n(__dst, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr,
                        __result_sz < __n ? __result_sz : __n, /*offset*/ 0);
     }
+
+    std::enable_if_t<std::is_default_constructible_v<_T>, _T>
+    __load_result()
+    {
+        _T __result{};
+        __copy_result(&__result, 1);
+
+        return __result;
+    }
 };
 
 template <typename _T>
@@ -919,6 +928,15 @@ struct __combined_storage : public __device_storage<_T>
     {
         this->__copy_n(__dst, __kind == sycl::usm::alloc::host ? __result_buf.get() : nullptr,
                        __result_sz < __n ? __result_sz : __n, /*offset*/ __sz);
+    }
+
+    std::enable_if_t<std::is_default_constructible_v<_T>, _T>
+    __load_result()
+    {
+        _T __result{};
+        __copy_result(&__result, 1);
+
+        return __result;
     }
 
     template <typename _ModeTagT>
