@@ -1638,19 +1638,23 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
     auto __buf = __keep(__first, __last);
     const std::size_t __shift = __new_first - __first;
 
-    // 1. In-place reverse of the ranges before and after the shift point, done in one kernel
-    auto __dbrick = oneapi::dpl::__par_backend_hetero::__dual_brick{
-        unseq_backend::__reverse_functor{__shift}, unseq_backend::__reverse_functor{__n - __shift, __shift}, __shift};
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__rotate_wrapper>(__exec), __dbrick,
-        __n / 2, __buf.all_view())
-        .wait(); // TODO: need a non-blocking dependency between the kernels
+    if (__shift > 0 && __shift < __n)
+    {
+        // 1. In-place reverse of the ranges before and after the shift point, done in one kernel
+        auto __dbrick = oneapi::dpl::__par_backend_hetero::__dual_brick{
+            unseq_backend::__reverse_functor{__shift}, unseq_backend::__reverse_functor{__n - __shift, __shift},
+            __shift};
+        oneapi::dpl::__par_backend_hetero::__parallel_for(
+            _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__rotate_wrapper>(__exec), __dbrick,
+            __n / 2, __buf.all_view())
+            .wait(); // TODO: need a non-blocking dependency between the kernels
 
-    // 2. In-place reverse of the whole range
-    oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                      unseq_backend::__reverse_functor{__n}, __n / 2, __buf.all_view())
-        .__checked_deferrable_wait();
-
+        // 2. In-place reverse of the whole range
+        oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                          unseq_backend::__reverse_functor{__n}, __n / 2,
+                                                          __buf.all_view())
+            .__checked_deferrable_wait();
+    }
     return __first + (__last - __new_first);
 }
 
