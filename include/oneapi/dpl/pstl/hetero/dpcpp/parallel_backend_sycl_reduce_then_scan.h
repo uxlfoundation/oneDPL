@@ -648,12 +648,11 @@ struct __set_generic_operation
                                 std::size_t& __idx2, const _SizeType __num_eles_min, _TempOutput& __temp_out,
                                 const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2) const
     {
-
         _SizeType __count = 0;
         _SizeType __idx = 0;
-        const bool __can_reach_rng1_end = __idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1);
-        const bool __can_reach_rng2_end = __idx2 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng2);
-        const bool __check_bounds = __can_reach_rng1_end || __can_reach_rng2_end;
+
+        const bool __check_bounds = (__idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1)) ||
+                                    (__idx2 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng2));
 
         while (__idx < __num_eles_min)
         {
