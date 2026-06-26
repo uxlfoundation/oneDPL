@@ -1624,11 +1624,10 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
             {
                 _OutRngSize __out_rng_size = oneapi::dpl::__ranges::__size(__out_rng);
 
-                constexpr std::int32_t __write_output_offset = __is_unique_pattern_v ? 1 : 0;
                 const std::size_t __carry_in = __sub_group_carry.__has_value() ? __sub_group_carry.__get_cref() : 0;
                 const std::uint8_t __sub_group_size =
                     __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
-                if (__carry_in + __iters_per_item * __sub_group_size > __out_rng_size - __write_output_offset)
+                if (__carry_in + __iters_per_item * __sub_group_size + __is_unique_pattern_v > __out_rng_size)
                 {
                     auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
                         if constexpr (__is_temp_data_required)
