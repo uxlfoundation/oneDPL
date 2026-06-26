@@ -1308,8 +1308,8 @@ __get_sub_group_base(const sycl::nd_item<1>& __ndi)
 }
 
 inline std::uint32_t
-__count_active_sub_groups(const sycl::nd_item<1>& __ndi, std::size_t __inputs_remaining, std::uint32_t __inputs_per_item,
-                          std::uint32_t __inputs_per_work_group)
+__count_active_sub_groups(const sycl::nd_item<1>& __ndi, std::size_t __inputs_remaining,
+                          std::uint32_t __inputs_per_item, std::uint32_t __inputs_per_work_group)
 {
     // If all work-items are active, all subgroups are active.
     if (__inputs_remaining > __inputs_per_work_group - __inputs_per_item)
@@ -2410,9 +2410,10 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
             // amortize overheads and have good bandwidth. A medium sized block makes for fewer use cases which are
             // served by unbalanced blocks (1 full, 1 almost empty).
             const std::size_t __half_last_level_cache_size_bytes = __last_level_cache_size_bytes / 2;
-            __max_inputs_per_item = std::max<std::uint32_t>(1, std::min<std::uint32_t>(__inputs_per_item_limit,
-                                                                                      __half_last_level_cache_size_bytes /
-                                                                                          (__bytes_per_work_group_iter * __num_work_groups)));
+            __max_inputs_per_item = std::max<std::uint32_t>(
+                1, std::min<std::uint32_t>(__inputs_per_item_limit,
+                                           __half_last_level_cache_size_bytes /
+                                               (__bytes_per_work_group_iter * __num_work_groups)));
         }
     }
     else // target is cpu
