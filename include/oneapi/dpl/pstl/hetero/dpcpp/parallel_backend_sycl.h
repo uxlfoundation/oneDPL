@@ -1049,7 +1049,8 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     }
 
     // Initial stop pos state
-    const auto __stop_pos_initial_state = oneapi::dpl::__ranges::__internal::__create_initial_final_and_oob_pos_state<_Bounded>(__rng1, __rng2);
+    const auto __stop_pos_initial_state =
+        oneapi::dpl::__ranges::__internal::__create_initial_final_and_oob_pos_state<_Bounded>(__rng1, __rng2);
 
     // Create optional limiter for result by output range size
     auto __transform_result_op = oneapi::dpl::__ranges::__internal::__create_transform_result_op<_Bounded>(__result);
@@ -1286,8 +1287,8 @@ struct scan_then_propagate_wrapper;
 template <typename _CustomName>
 struct set_a_write_wrapper;
 
-template <bool _Bounded, typename _SetTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1, typename _Proj2>
+template <bool _Bounded, typename _SetTag, typename _ExecutionPolicy, typename _Range1, typename _Range2,
+          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
 oneapi::dpl::__ranges::__internal::__set_op_impl_return_t<_Bounded, _Range1, _Range2, _Range3>
 __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _SetTag __set_tag, _ExecutionPolicy&& __exec,
                   _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1,

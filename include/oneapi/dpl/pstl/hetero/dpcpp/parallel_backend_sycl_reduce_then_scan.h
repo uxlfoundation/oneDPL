@@ -112,7 +112,6 @@ struct __src_pos_capturing_temp_data
     }
 
   private:
-
     const std::uint16_t __idx_for_src_pos = 0;
     _SrcDataPosT __saved_src_pos = {};
 };
@@ -675,7 +674,8 @@ struct __set_generic_operation
     {
         if constexpr (oneapi::dpl::__internal::__is_no_callback_v<_FinalPosSaver>)
         {
-            return __check_bounds_and_run_loop(__in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __comp, __proj1, __proj2);
+            return __check_bounds_and_run_loop(__in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __comp,
+                                               __proj1, __proj2);
         }
         else
         {
@@ -1740,8 +1740,8 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
         {
             __scan_through_elements_helper_impl<__is_inclusive>(
                 __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __noop_write_op{}, __sub_group_carry,
-                __in_rng, __start_id, __start_id_reached, __n, __iters_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
-                __comm_tag_concrete);
+                __in_rng, __start_id, __start_id_reached, __n, __iters_per_item, __subgroup_start_id, __sub_group_id,
+                __active_subgroups, __comm_tag_concrete);
         }
         else
         {
@@ -1769,8 +1769,8 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                     };
                     __scan_through_elements_helper_impl<__is_inclusive>(
                         __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __bounded_write_op,
-                        __sub_group_carry, __in_rng, __start_id, __start_id_reached, __n, __iters_per_item, __subgroup_start_id,
-                        __sub_group_id, __active_subgroups, __comm_tag_concrete);
+                        __sub_group_carry, __in_rng, __start_id, __start_id_reached, __n, __iters_per_item,
+                        __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_tag_concrete);
                     return;
                 }
             }
@@ -1783,8 +1783,8 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
             };
             __scan_through_elements_helper_impl<__is_inclusive>(
                 __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __unbounded_write_op, __sub_group_carry,
-                __in_rng, __start_id, __start_id_reached, __n, __iters_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
-                __comm_tag_concrete);
+                __in_rng, __start_id, __start_id_reached, __n, __iters_per_item, __subgroup_start_id, __sub_group_id,
+                __active_subgroups, __comm_tag_concrete);
         }
     });
 }
@@ -1931,8 +1931,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
                     __scan_through_elements_helper</*_Bounded*/ false, __is_inclusive, __is_unique_pattern_v>(
                         __ndi, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, __noop_write_op{},
-                        __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __start_id_reached, __n, __inputs_per_item,
-                        __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_scan_tag);
+                        __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __start_id_reached, __n,
+                        __inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_scan_tag);
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__get_cref();
                 }
@@ -2487,8 +2487,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                 auto __call_scan_through_elements_helper = [&](auto __on_oob_reached, auto __final_pos_saver) {
                     __scan_through_elements_helper<_Bounded, __is_inclusive, __is_unique_pattern_v>(
                         __ndi, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op, __sub_group_carry,
-                        __in_rng, __out_rng, __start_id, __start_id_reached, __n, __inputs_per_item, __subgroup_start_id, __sub_group_id,
-                        __active_subgroups, __comm_scan_tag, __on_oob_reached, __final_pos_saver);
+                        __in_rng, __out_rng, __start_id, __start_id_reached, __n, __inputs_per_item,
+                        __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_scan_tag, __on_oob_reached,
+                        __final_pos_saver);
                 };
 
                 if constexpr (_Bounded)
