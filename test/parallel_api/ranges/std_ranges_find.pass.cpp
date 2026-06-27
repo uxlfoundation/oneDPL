@@ -13,6 +13,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Force the full set of range/view permutations regardless of any external
+// build-time reduction (e.g. per-commit CI). This test is kept as a
+// full-coverage representative of the read/search-style std_ranges algorithms.
+#ifdef ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
+#    undef ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
+#endif
+#define ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS 1
+
 #include "std_ranges_test.h"
 
 std::int32_t

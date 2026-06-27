@@ -239,6 +239,12 @@ jobs:
 
           # TODO: fix or justify the excluded warnings
           EXTRA_CXX_FLAGS="-Wall -Wextra-semi -Werror -Wno-error=sign-compare"
+          if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
+            # Reduce std_ranges view-type permutations in per-commit CI to keep
+            # build time under the job limit. A couple of representative tests
+            # force full coverage back on regardless of this flag.
+            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -DONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS=0"
+          fi
           if [[ "${{ matrix.cxx_compiler }}" != "g++" ]]; then
             EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=pass-failed"
           fi
@@ -404,6 +410,13 @@ jobs:
             set warning_flags=/W4 /WX /wd4018 /wd4100 /wd4146 /wd4244 /wd4245 /wd4267 /wd4310 /wd4389 /wd4805 /wd4996
           ) else (
             set warning_flags=-Wall -Werror -Wno-error=sign-compare -Wno-error=pass-failed
+          )
+
+          :: Reduce std_ranges view-type permutations in per-commit CI to keep
+          :: build time under the job limit. A couple of representative tests
+          :: force full coverage back on regardless of this flag.
+          if "${{ matrix.backend }}" == "dpcpp" (
+            set warning_flags=!warning_flags! -DONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS=0
           )
 
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..
