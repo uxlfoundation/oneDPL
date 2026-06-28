@@ -693,8 +693,6 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     {
         const _LocOffsetT __sub_group_offset = __sub_group_id * __data_per_sub_group;
 
-        // Determine fullness per sub-group (mirroring __load) rather than per work-group: only the
-        // boundary sub-group needs the masked store path.
         const _GlobOffsetT __sg_input_offset =
             __data_per_sub_group * (__tile_id * __num_sub_groups_per_work_group + __sub_group_id);
         bool __is_full_block = (__sg_input_offset + __data_per_sub_group) <= __n;
@@ -781,11 +779,11 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                 _GlobOffsetT __global_base =
                     __idx.get_local_linear_id() == 0 ? __slm_global_incoming[__bins[0]] : _GlobOffsetT(0);
                 __global_base = sycl::group_broadcast(__group, __global_base, 0);
+                // All work-items execute a coalesced store of key / values as all keys map to the same bin.
                 __direct_copy_to_output(__values_pack, __ranks, __sg_id, __tile_id, __global_base);
             }
             else
             {
-                // Standard SLM reorder path
                 _KeyT* __slm_keys = reinterpret_cast<_KeyT*>(__slm_raw);
                 _ValT* __slm_vals = nullptr;
                 if constexpr (__has_values)
