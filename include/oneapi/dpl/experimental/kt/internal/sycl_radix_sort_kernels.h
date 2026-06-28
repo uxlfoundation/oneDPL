@@ -691,13 +691,15 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                                         std::uint32_t __sub_group_id, std::uint32_t __tile_id,
                                         _GlobOffsetT __global_base) const
     {
-        _LocOffsetT __sub_group_offset = __sub_group_id * __data_per_sub_group;
+        const _LocOffsetT __sub_group_offset = __sub_group_id * __data_per_sub_group;
 
-        const _GlobOffsetT __tile_start =
-            static_cast<_GlobOffsetT>(__tile_id) * __work_group_size * __data_per_work_item;
-        bool __is_full_tile = (__tile_start + __work_group_size * __data_per_work_item) <= __n;
+        // Determine fullness per sub-group (mirroring __load) rather than per work-group: only the
+        // boundary sub-group needs the masked store path.
+        const _GlobOffsetT __sg_input_offset =
+            __data_per_sub_group * (__tile_id * __num_sub_groups_per_work_group + __sub_group_id);
+        bool __is_full_block = (__sg_input_offset + __data_per_sub_group) <= __n;
 
-        if (__is_full_tile)
+        if (__is_full_block)
         {
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
