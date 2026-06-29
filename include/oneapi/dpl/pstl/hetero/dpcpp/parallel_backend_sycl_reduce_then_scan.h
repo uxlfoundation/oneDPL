@@ -2405,14 +2405,11 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
             constexpr std::uint32_t __wgs_per_core_cap = 2u;
             __num_work_groups =
                 std::min<std::uint32_t>(__wgs_per_core_cap, __llc_work_group_iters / __num_xe_cores) * __num_xe_cores;
-            // Maximize the number of inputs per work item while still fitting in half the last level cache if possible.
-            // This allows breathing room, while at the same time still making max_inputs_per_item large enough to
-            // amortize overheads and have good bandwidth. A medium sized block makes for fewer use cases which are
-            // served by unbalanced blocks (1 full, 1 almost empty).
-            const std::size_t __half_last_level_cache_size_bytes = __last_level_cache_size_bytes / 2;
+            // Maximize the number of inputs per work item while fitting in 80% of the last level cache if possible.
+            const std::size_t __target_last_level_cache_size_bytes = __last_level_cache_size_bytes * 4 / 5;
             __max_inputs_per_item = std::max<std::uint32_t>(
                 1, std::min<std::uint32_t>(__inputs_per_item_limit,
-                                           __half_last_level_cache_size_bytes /
+                                           __target_last_level_cache_size_bytes /
                                                (__bytes_per_work_group_iter * __num_work_groups)));
         }
     }
@@ -2427,8 +2424,6 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     // Allocate sufficient temporary storage for the worst case (smallest sub-group size = most sub-groups).
     const std::uint32_t __max_num_sub_groups_local = __work_group_size / __min_sub_group_size;
     const std::uint32_t __max_num_sub_groups_global = __max_num_sub_groups_local * __num_work_groups;
-    const std::uint32_t __max_inputs_per_work_group = __work_group_size * __max_inputs_per_item;
-    const std::size_t __max_inputs_per_block = std::size_t{__max_inputs_per_work_group} * __num_work_groups;
     std::size_t __inputs_remaining = __n;
     if constexpr (__is_unique_pattern_v)
     {
@@ -2438,13 +2433,21 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     // reduce_then_scan kernel is not built to handle "empty" scans which includes `__n == 1` for unique patterns.
     // These trivial end cases should be handled at a higher level.
     assert(__inputs_remaining > 0);
+    const std::size_t __work_items_per_block = std::size_t{__num_work_groups} * __work_group_size;
+    const std::size_t __max_inputs_per_block = __work_items_per_block * __max_inputs_per_item;
+    // Determine the fewest blocks that keep every block within the hardware maximum, then balance the inputs evenly
+    // across them. Avoids the last block being much smaller than the others, resulting in a loss of performance.
+    const std::size_t __num_blocks =
+        oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_remaining, __max_inputs_per_block);
+    const std::size_t __balanced_max_inputs_per_item =
+        oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_remaining, __num_blocks * __work_items_per_block);
+    const std::size_t __balanced_max_inputs_per_block = __balanced_max_inputs_per_item * __work_items_per_block;
     std::uint32_t __inputs_per_item =
-        __inputs_remaining >= __max_inputs_per_block
-            ? __max_inputs_per_item
+        __inputs_remaining >= __balanced_max_inputs_per_block
+            ? __balanced_max_inputs_per_item
             : oneapi::dpl::__internal::__dpl_ceiling_div(oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
-                                                         __num_work_groups * __work_group_size);
-    const std::size_t __block_size = std::min(__inputs_remaining, __max_inputs_per_block);
-    const std::size_t __num_blocks = __inputs_remaining / __block_size + (__inputs_remaining % __block_size != 0);
+                                                         __work_items_per_block);
+    const std::size_t __block_size = std::min(__inputs_remaining, __balanced_max_inputs_per_block);
 
     // We need temporary storage for reductions of each sub-group (__num_sub_groups_global).
     // Additionally, we need two elements for the block carry-out to prevent a race condition
@@ -2461,7 +2464,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
                                                    _TransformResult, _ScanKernel>;
     _ReduceSubmitter __reduce_submitter{__num_work_groups,
                                         __work_group_size,
-                                        __max_inputs_per_block,
+                                        __balanced_max_inputs_per_block,
                                         __max_num_sub_groups_local,
                                         __n,
                                         __gen_reduce_input,
@@ -2470,7 +2473,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
                                         __use_subgroup_ops};
     _ScanSubmitter __scan_submitter{__num_work_groups,
                                     __work_group_size,
-                                    __max_inputs_per_block,
+                                    __balanced_max_inputs_per_block,
                                     __max_num_sub_groups_local,
                                     __max_num_sub_groups_global,
                                     __num_blocks,
@@ -2491,7 +2494,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
     {
         std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(
-            std::min(__inputs_remaining, std::size_t{__max_inputs_per_block}), __inputs_per_item);
+            std::min(__inputs_remaining, std::size_t{__balanced_max_inputs_per_block}), __inputs_per_item);
         std::uint32_t __workitems_in_block_round_up_workgroup =
             oneapi::dpl::__internal::__dpl_ceiling_div(__workitems_in_block, __work_group_size) * __work_group_size;
         auto __global_range = sycl::range<1>(__workitems_in_block_round_up_workgroup);
@@ -2506,11 +2509,11 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
         {
-            __inputs_per_item = __inputs_remaining >= __max_inputs_per_block
-                                    ? __max_inputs_per_item
-                                    : oneapi::dpl::__internal::__dpl_ceiling_div(
-                                          oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
-                                          __num_work_groups * __work_group_size);
+            __inputs_per_item =
+                __inputs_remaining >= __balanced_max_inputs_per_block
+                    ? __balanced_max_inputs_per_item
+                    : oneapi::dpl::__internal::__dpl_ceiling_div(
+                          oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining), __work_items_per_block);
         }
     }
 
