@@ -424,6 +424,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         // Detect single-bin tiles: if all elements land in one bin, we can skip SLM reorder.
         bool __my_bin_is_full = (__item_bin_count == __data_per_work_group);
         bool __is_single_bin = sycl::any_of_group(__group, __my_bin_is_full);
+        sycl::group_barrier(__group);
 
         // 1.4. Finalize the partial scans from step 1.3 by connecting the independent sub-group segments
         // together, propagating prefixes across the "__bin_process_width"-sized segments and converting
