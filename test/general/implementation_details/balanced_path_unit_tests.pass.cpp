@@ -56,7 +56,7 @@ test_serial_set_op_count(SetTag set_tag)
     std::vector<int> v2 = {3, 4, 5, 6, 7};
     std::vector<int> v3(v1.size() + v2.size());
 
-    oneapi::dpl::__par_backend_hetero::__noop_temp_data __temp_data{};
+    oneapi::dpl::unseq_backend::__scan_ignore __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
 

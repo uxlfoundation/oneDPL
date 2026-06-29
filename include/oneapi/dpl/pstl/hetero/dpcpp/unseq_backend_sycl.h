@@ -679,6 +679,12 @@ struct __scan_ignore
     operator()(_Params&&...) const
     {
     }
+
+    template <typename... _Params>
+    void
+    set(_Params&&...) const
+    {
+    }
 };
 
 // create mask
