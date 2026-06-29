@@ -1499,14 +1499,23 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
     const std::uint32_t __subgroup_n = static_cast<std::uint32_t>(
         std::min<std::size_t>(__n - __subgroup_start_id, __iters_per_item * __sub_group_size));
     std::uint32_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__subgroup_n, __sub_group_size);
+
     std::size_t __local_id = __start_id;
-    for (std::uint32_t __j = 0; __j + 1 < __iters; __j++)
+    if (__iters > 1)
     {
         _GenInputType __v = __gen_input(__in_rng, __local_id);
-        __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                         __comm_tag);
+        __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry, __comm_tag);
         __write_op(__local_id, __v);
         __local_id += __sub_group_size;
+
+        for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
+        {
+            __v = __gen_input(__in_rng, __local_id);
+            __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
+                                                __comm_tag);
+            __write_op(__local_id, __v);
+            __local_id += __sub_group_size;
+        }
     }
 
     std::size_t __clipped_local_id = std::min(__local_id, __n - 1);
