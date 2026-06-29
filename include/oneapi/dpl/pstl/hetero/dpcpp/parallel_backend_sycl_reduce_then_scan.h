@@ -2296,8 +2296,8 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
             constexpr std::uint32_t __wgs_per_core_cap = 2u;
             __num_work_groups =
                 std::min<std::uint32_t>(__wgs_per_core_cap, __llc_work_group_iters / __num_xe_cores) * __num_xe_cores;
-            // Maximize the number of inputs per work item while fitting in 80% of the last level cache if possible.
-            const std::size_t __target_last_level_cache_size_bytes = __last_level_cache_size_bytes * 4 / 5;
+            // Maximize the number of inputs per work item while fitting in 50% of the last level cache if possible.
+            const std::size_t __target_last_level_cache_size_bytes = __last_level_cache_size_bytes / 2;
             __max_inputs_per_item = std::max<std::uint32_t>(
                 1, std::min<std::uint32_t>(__inputs_per_item_limit,
                                            __target_last_level_cache_size_bytes /
