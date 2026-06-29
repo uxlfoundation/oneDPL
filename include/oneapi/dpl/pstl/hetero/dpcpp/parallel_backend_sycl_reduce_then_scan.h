@@ -1400,11 +1400,11 @@ __broadcast_sub_group(const sycl::nd_item<1>& __ndi, _ValueType __value, _IdType
 }
 
 template <bool __is_inclusive, typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType,
-          typename _LazyValueType, typename _CommTag>
+          typename _CommTag>
 void
 __sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, _InitBroadcastId __init_broadcast_id,
                         _ValueType& __value, _BinaryOp __binary_op,
-                        oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueType>& __init_and_carry,
+                        oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __init_and_carry,
                         _CommTag __comm_tag)
 {
     std::uint8_t __sub_group_local_id = __ndi.get_sub_group().get_local_linear_id();
@@ -1422,7 +1422,7 @@ __sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, _InitB
     // exclusive scan does have one instance of an invocation without an init, in scan_by_segment, so we must use
     // lazy storage to avoid default constructing in that case.
     std::conditional_t<__is_inclusive, oneapi::dpl::internal::ignore_copyable,
-                       oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueType>>
+                       oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>>
         __old_init;
     if (__init_and_carry.__has_value())
     {
@@ -1453,11 +1453,10 @@ __sub_group_masked_scan(const sycl::nd_item<1>& __ndi, _MaskOp __mask_fn, _InitB
     //return by reference __value and __init_and_carry
 }
 
-template <bool __is_inclusive, typename _BinaryOp, typename _ValueType, typename _LazyValueType,
-          typename _ScanOpsTag = __subgroup_only_tag>
+template <bool __is_inclusive, typename _BinaryOp, typename _ValueType, typename _ScanOpsTag = __subgroup_only_tag>
 void
 __sub_group_scan(const sycl::nd_item<1>& __ndi, _ValueType& __value, _BinaryOp __binary_op,
-                 oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueType>& __init_and_carry,
+                 oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __init_and_carry,
                  _ScanOpsTag __comm_tag = {})
 {
     auto __mask_fn = [](auto __sub_group_local_id, auto __offset) { return __sub_group_local_id >= __offset; };
@@ -1466,11 +1465,11 @@ __sub_group_scan(const sycl::nd_item<1>& __ndi, _ValueType& __value, _BinaryOp _
                                             __init_and_carry, __comm_tag);
 }
 
-template <bool __is_inclusive, typename _BinaryOp, typename _ValueType, typename _LazyValueType, typename _SizeType,
+template <bool __is_inclusive, typename _BinaryOp, typename _ValueType, typename _SizeType,
           typename _ScanOpsTag = __subgroup_only_tag>
 void
 __sub_group_scan_partial(const sycl::nd_item<1>& __ndi, _ValueType& __value, _BinaryOp __binary_op,
-                         oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueType>& __init_and_carry,
+                         oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __init_and_carry,
                          _SizeType __elements_to_process, _ScanOpsTag __comm_tag = {})
 {
     auto __mask_fn = [__elements_to_process](auto __sub_group_local_id, auto __offset) {
@@ -1482,12 +1481,12 @@ __sub_group_scan_partial(const sycl::nd_item<1>& __ndi, _ValueType& __value, _Bi
 }
 
 template <bool __is_inclusive, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp,
-          typename _LazyValueType, typename _InRng, typename _CommTag>
+          typename _ValueType, typename _InRng, typename _CommTag>
 void
 __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __gen_input,
                                     _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op,
                                     _WriteOp __write_op,
-                                    oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueType>& __sub_group_carry,
+                                    oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __sub_group_carry,
                                     const _InRng& __in_rng, std::size_t __start_id, std::size_t __n,
                                     std::uint32_t __iters_per_item, std::size_t __subgroup_start_id,
                                     _CommTag __comm_tag)
@@ -1537,12 +1536,12 @@ struct __temp_data_required<_T, std::void_t<typename _T::TempData>>
 };
 
 template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _GenInput,
-          typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp, typename _LazyValueType, typename _InRng,
+          typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp, typename _ValueType, typename _InRng,
           typename _OutRng, typename _CommTag, typename _OnOOBReached = std::nullptr_t>
 void
 __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
-                               oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueType>& __sub_group_carry,
+                               oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __sub_group_carry,
                                const _InRng& __in_rng, _OutRng& __out_rng, std::size_t __start_id, std::size_t __n,
                                std::uint32_t __iters_per_item, std::size_t __subgroup_start_id, _CommTag __comm_tag,
                                _OnOOBReached __on_oob_reached = {})
