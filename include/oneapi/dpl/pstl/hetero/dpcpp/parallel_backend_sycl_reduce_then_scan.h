@@ -1490,47 +1490,34 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
                                     oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueType>& __sub_group_carry,
                                     const _InRng& __in_rng, std::size_t __start_id, std::size_t __n,
                                     std::uint32_t __iters_per_item, std::size_t __subgroup_start_id,
-                                    std::uint32_t __sub_group_id, std::uint32_t __active_subgroups, _CommTag __comm_tag)
+                                    _CommTag __comm_tag)
 {
     using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t>;
 
     const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
 
-    // For partial thread, we need to handle the partial subgroup at the end of the range
-    if (__sub_group_id < __active_subgroups)
+    const std::uint32_t __subgroup_n = static_cast<std::uint32_t>(
+        std::min<std::size_t>(__n - __subgroup_start_id, __iters_per_item * __sub_group_size));
+    std::uint32_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__subgroup_n, __sub_group_size);
+    std::size_t __local_id = __start_id;
+    for (std::uint32_t __j = 0; __j < __iters - 1; __j++)
     {
-        const std::uint32_t __subgroup_n = static_cast<std::uint32_t>(
-            std::min<std::size_t>(__n - __subgroup_start_id, __iters_per_item * __sub_group_size));
-        std::uint32_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__subgroup_n, __sub_group_size);
-
-        if (__iters > 1)
-        {
-            _GenInputType __v = __gen_input(__in_rng, __start_id);
-            __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                             __comm_tag);
-            __write_op(__start_id, __v);
-
-            for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
-            {
-                std::size_t __local_id = __start_id + __j * __sub_group_size;
-                __v = __gen_input(__in_rng, __local_id);
-                __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                                 __comm_tag);
-                __write_op(__local_id, __v);
-            }
-        }
-        std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
-        std::size_t __local_id = std::min(__offset, __n - 1);
         _GenInputType __v = __gen_input(__in_rng, __local_id);
-        std::uint32_t __elements_to_process =
-            static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
-        __sub_group_scan_partial<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                                 __elements_to_process, __comm_tag);
-        if constexpr (!std::is_same_v<_WriteOp, __noop_write_op>)
-        {
-            if (__offset < __n)
-                __write_op(__offset, __v);
-        }
+        __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
+                                         __comm_tag);
+        __write_op(__local_id, __v);
+        __local_id += __sub_group_size;
+    }
+
+    std::size_t __clipped_local_id = std::min(__local_id, __n - 1);
+    _GenInputType __v = __gen_input(__in_rng, __clipped_local_id);
+    std::uint32_t __elements_to_process = static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
+    __sub_group_scan_partial<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
+                                             __elements_to_process, __comm_tag);
+    if constexpr (!std::is_same_v<_WriteOp, __noop_write_op>)
+    {
+        if (__local_id < __n)
+            __write_op(__local_id, __v);
     }
 }
 
@@ -1557,8 +1544,7 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
                                oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueType>& __sub_group_carry,
                                const _InRng& __in_rng, _OutRng& __out_rng, std::size_t __start_id, std::size_t __n,
-                               std::uint32_t __iters_per_item, std::size_t __subgroup_start_id,
-                               std::uint32_t __sub_group_id, std::uint32_t __active_subgroups, _CommTag __comm_tag,
+                               std::uint32_t __iters_per_item, std::size_t __subgroup_start_id, _CommTag __comm_tag,
                                _OnOOBReached __on_oob_reached = {})
 {
     using __temp_data_required_t = __temp_data_required<_GenInput>;
@@ -1583,8 +1569,7 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
         {
             __scan_through_elements_helper_impl<__is_inclusive>(
                 __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __noop_write_op{}, __sub_group_carry,
-                __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
-                __comm_tag_concrete);
+                __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __comm_tag_concrete);
         }
         else
         {
@@ -1606,7 +1591,7 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                     __scan_through_elements_helper_impl<__is_inclusive>(
                         __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __bounded_write_op,
                         __sub_group_carry, __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id,
-                        __sub_group_id, __active_subgroups, __comm_tag_concrete);
+                        __comm_tag_concrete);
                     return;
                 }
             }
@@ -1619,8 +1604,7 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
             };
             __scan_through_elements_helper_impl<__is_inclusive>(
                 __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __unbounded_write_op, __sub_group_carry,
-                __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
-                __comm_tag_concrete);
+                __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __comm_tag_concrete);
         }
     });
 }
@@ -1765,7 +1749,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                     __scan_through_elements_helper</*_Bounded*/ false, __is_inclusive, __is_unique_pattern_v>(
                         __ndi, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, __noop_write_op{},
                         __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __n, __inputs_per_item,
-                        __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_scan_tag);
+                        __subgroup_start_id, __comm_scan_tag);
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__get_cref();
                 }
@@ -2175,10 +2159,13 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                __scan_through_elements_helper<_Bounded, __is_inclusive, __is_unique_pattern_v>(
-                    __ndi, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op, __sub_group_carry,
-                    __in_rng, __out_rng, __start_id, __n, __inputs_per_item, __subgroup_start_id, __sub_group_id,
-                    __active_subgroups, __comm_scan_tag, __create_on_oob_reached_callback(__oob_pos_acc));
+                if (__sub_group_id < __active_subgroups)
+                {
+                    __scan_through_elements_helper<_Bounded, __is_inclusive, __is_unique_pattern_v>(
+                        __ndi, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op, __sub_group_carry,
+                        __in_rng, __out_rng, __start_id, __n, __inputs_per_item, __subgroup_start_id, __comm_scan_tag,
+                        __create_on_oob_reached_callback(__oob_pos_acc));
+                }
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block
                 if (__sub_group_local_id == 0 && (__active_groups == __group_id + 1) &&
