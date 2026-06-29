@@ -1599,18 +1599,16 @@ __sub_group_scan_partial(const sycl::nd_item<1>& __ndi, _ValueType& __value, _Bi
 }
 
 template <bool __is_inclusive, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp,
-          typename _LazyValueType, typename _InRng, typename _CommTag>
+          typename _LazyValueType, typename _CommTag>
 void
 __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __gen_input,
                                     _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op,
                                     _WriteOp __write_op,
                                     oneapi::dpl::__internal::__opt_lazy_ctor_storage<_LazyValueType>& __sub_group_carry,
-                                    const _InRng& __in_rng, std::size_t __start_id, std::size_t& __start_id_reached,
-                                    std::size_t __n, std::uint32_t __iters_per_item, std::size_t __subgroup_start_id,
+                                    std::size_t __start_id, std::size_t& __start_id_reached, std::size_t __n,
+                                    std::uint32_t __iters_per_item, std::size_t __subgroup_start_id,
                                     std::uint32_t __sub_group_id, std::uint32_t __active_subgroups, _CommTag __comm_tag)
 {
-    using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t>;
-
     // For partial thread, we need to handle the partial subgroup at the end of the range
     if (__sub_group_id < __active_subgroups)
     {
@@ -1618,7 +1616,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
 
         auto __call_gen_input = [&](std::size_t __id) {
             __start_id_reached = __id;
-            return __gen_input(__in_rng, __id);
+            return __gen_input(__id);
         };
 
         const std::uint32_t __subgroup_n = static_cast<std::uint32_t>(
@@ -1627,7 +1625,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
 
         if (__iters > 1)
         {
-            _GenInputType __v = __call_gen_input(__start_id);
+            auto __v = __call_gen_input(__start_id);
             __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                                              __comm_tag);
             __write_op(__start_id, __v);
@@ -1643,7 +1641,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
         }
         std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
         std::size_t __local_id = std::min(__offset, __n - 1);
-        _GenInputType __v = __call_gen_input(__local_id);
+        auto __v = __call_gen_input(__local_id);
         std::uint32_t __elements_to_process =
             static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
         __sub_group_scan_partial<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
@@ -1691,11 +1689,11 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
     using _TempData = typename __temp_data_required_t::type;
     _TempData __temp_data{};
 
-    auto __gen_input_impl = [&](const _InRng& __rng, std::size_t __id) {
+    auto __call_gen_input = [&](std::size_t __id) {
         if constexpr (__is_temp_data_required)
-            return __gen_input(__rng, __id, __temp_data, __final_pos_saver);
+            return __gen_input(__in_rng, __id, __temp_data, __final_pos_saver);
         else
-            return __gen_input(__rng, __id);
+            return __gen_input(__in_rng, __id);
     };
 
     using _OutRngSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
@@ -1706,8 +1704,8 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
         if constexpr (std::is_same_v<_WriteOp, __noop_write_op>)
         {
             __scan_through_elements_helper_impl<__is_inclusive>(
-                __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __noop_write_op{}, __sub_group_carry,
-                __in_rng, __start_id, __start_id_reached, __n, __iters_per_item, __subgroup_start_id, __sub_group_id,
+                __ndi, __call_gen_input, __scan_input_transform, __binary_op, __noop_write_op{}, __sub_group_carry,
+                __start_id, __start_id_reached, __n, __iters_per_item, __subgroup_start_id, __sub_group_id,
                 __active_subgroups, __comm_tag_concrete);
         }
         else
@@ -1735,9 +1733,9 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                             __write_op(__out_rng, __out_rng_size, __id, __v, __on_oob_reached);
                     };
                     __scan_through_elements_helper_impl<__is_inclusive>(
-                        __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __bounded_write_op,
-                        __sub_group_carry, __in_rng, __start_id, __start_id_reached, __n, __iters_per_item,
-                        __subgroup_start_id, __sub_group_id, __active_subgroups, __comm_tag_concrete);
+                        __ndi, __call_gen_input, __scan_input_transform, __binary_op, __bounded_write_op,
+                        __sub_group_carry, __start_id, __start_id_reached, __n, __iters_per_item, __subgroup_start_id,
+                        __sub_group_id, __active_subgroups, __comm_tag_concrete);
                     return;
                 }
             }
@@ -1749,8 +1747,8 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                     __write_op(__out_rng, __id, __v);
             };
             __scan_through_elements_helper_impl<__is_inclusive>(
-                __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __unbounded_write_op, __sub_group_carry,
-                __in_rng, __start_id, __start_id_reached, __n, __iters_per_item, __subgroup_start_id, __sub_group_id,
+                __ndi, __call_gen_input, __scan_input_transform, __binary_op, __unbounded_write_op, __sub_group_carry,
+                __start_id, __start_id_reached, __n, __iters_per_item, __subgroup_start_id, __sub_group_id,
                 __active_subgroups, __comm_tag_concrete);
         }
     });
