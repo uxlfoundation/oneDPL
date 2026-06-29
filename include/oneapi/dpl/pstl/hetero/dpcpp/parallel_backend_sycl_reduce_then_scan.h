@@ -2418,7 +2418,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     }
     else // target is cpu
     {
-        // use a large multiple of the number of cores  (each WG is a thread)
+        // use a large multiple of the number of cores (each WG is executed by a single thread)
         __num_work_groups = oneapi::dpl::__internal::__dpl_bit_ceil(__max_compute_units * 64);
         // use a large number of inputs per item to amortize the overhead
         __max_inputs_per_item = std::max<std::uint32_t>(1, 2048u / __bytes_per_work_item_iter);
