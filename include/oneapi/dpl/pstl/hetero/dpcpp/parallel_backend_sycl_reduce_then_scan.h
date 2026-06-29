@@ -1500,7 +1500,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
         std::min<std::size_t>(__n - __subgroup_start_id, __iters_per_item * __sub_group_size));
     std::uint32_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__subgroup_n, __sub_group_size);
     std::size_t __local_id = __start_id;
-    for (std::uint32_t __j = 0; __j < __iters - 1; __j++)
+    for (std::uint32_t __j = 0; __j + 1 < __iters; __j++)
     {
         _GenInputType __v = __gen_input(__in_rng, __local_id);
         __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
