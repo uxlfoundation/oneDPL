@@ -70,17 +70,6 @@ struct __temp_data_array
     oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
 };
 
-// This is a stand-in for a temporary data structure which is used to turn set() into a no-op. This is used in the case
-// where no temporary register data is needed within reduce then scan kern
-struct __noop_temp_data
-{
-    template <typename _ValueT>
-    void
-    set(std::uint16_t, const _ValueT&) const
-    {
-    }
-};
-
 // Extracts a range from a zip iterator based on the element ID
 template <std::size_t _EleId>
 struct __extract_range_from_zip
@@ -728,7 +717,7 @@ template <typename _SetOpCount, typename _BoundsProvider, typename _RetType, typ
           typename _Proj2>
 struct __gen_set_balanced_path
 {
-    using TempData = __noop_temp_data;
+    using TempData = oneapi::dpl::unseq_backend::__scan_ignore;
 
     // Locates and returns the "intersection" of a diagonal on the balanced path, based on merge path coordinates.
     // It returns coordinates in each set of the intersection with a boolean representing if the diagonal is "starred",
@@ -1513,7 +1502,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
     std::uint32_t __elements_to_process = static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
     __sub_group_scan_partial<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                                              __elements_to_process, __comm_tag);
-    if constexpr (!std::is_same_v<_WriteOp, __noop_write_op>)
+    if constexpr (!std::is_same_v<_WriteOp, oneapi::dpl::unseq_backend::__scan_ignore>)
     {
         if (__local_id < __n)
             __write_op(__local_id, __v);
@@ -1525,7 +1514,7 @@ template <typename, typename = void>
 struct __temp_data_required
 {
     static constexpr bool value = false;
-    using type = __noop_temp_data;
+    using type = oneapi::dpl::unseq_backend::__scan_ignore;
 };
 
 template <typename _T>
@@ -1564,11 +1553,12 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
     // Hoist the sub-group-ops vs SLM-fallback decision to here. The element-scan body below is instantiated
     // once per available communication path; the branch is taken a single time per call to this helper.
     __dispatch_comm_tag(__comm_tag, [&](auto __comm_tag_concrete) {
-        if constexpr (std::is_same_v<_WriteOp, __noop_write_op>)
+        if constexpr (std::is_same_v<_WriteOp, oneapi::dpl::unseq_backend::__scan_ignore>)
         {
             __scan_through_elements_helper_impl<__is_inclusive>(
-                __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __noop_write_op{}, __sub_group_carry,
-                __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __comm_tag_concrete);
+                __ndi, __gen_input_impl, __scan_input_transform, __binary_op,
+                oneapi::dpl::unseq_backend::__scan_ignore{}, __sub_group_carry, __in_rng,
+                __start_id, __n, __iters_per_item, __subgroup_start_id, __comm_tag_concrete);
         }
         else
         {
@@ -1746,7 +1736,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                     // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
                     __scan_through_elements_helper</*_Bounded*/ false, __is_inclusive, __is_unique_pattern_v>(
-                        __ndi, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, __noop_write_op{},
+                        __ndi, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op,
+                        oneapi::dpl::unseq_backend::__scan_ignore{},
                         __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __n, __inputs_per_item,
                         __subgroup_start_id, __comm_scan_tag);
                     if (__sub_group_local_id == 0)
