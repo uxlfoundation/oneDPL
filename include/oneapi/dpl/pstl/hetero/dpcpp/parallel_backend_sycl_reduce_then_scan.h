@@ -1737,9 +1737,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
                     __scan_through_elements_helper</*_Bounded*/ false, __is_inclusive, __is_unique_pattern_v>(
                         __ndi, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op,
-                        oneapi::dpl::unseq_backend::__scan_ignore{},
-                        __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __n, __inputs_per_item,
-                        __subgroup_start_id, __comm_scan_tag);
+                        oneapi::dpl::unseq_backend::__scan_ignore{}, __sub_group_carry, __in_rng, /*unused*/ __in_rng,
+                        __start_id, __n, __inputs_per_item, __subgroup_start_id, __comm_scan_tag);
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__get_cref();
                 }
