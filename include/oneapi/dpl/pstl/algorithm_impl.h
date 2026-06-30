@@ -768,7 +768,7 @@ __find_subrange(_RandomAccessIterator __first, _RandomAccessIterator __last, _Ra
 
     auto __unary_pred =
         [__pred, &__value](auto&& __val) mutable { return __pred(std::forward<decltype(__val)>(__val), __value); };
-    while (__first != __last && (static_cast<_Size>(__global_last - __first) >= __count))
+    while (__first != __last && static_cast<_CommonType>(__global_last - __first) >= static_cast<_CommonType>(__count))
     {
         __first = __internal::__brick_find_if(__first, __last, __unary_pred, __is_vector);
 
