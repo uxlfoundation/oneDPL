@@ -1514,7 +1514,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
         static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
     __sub_group_scan_partial<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                                                 __elements_to_process, __comm_tag);
-    if constexpr (!std::is_same_v<_WriteOp, __noop_write_op>)
+    if constexpr (!std::is_same_v<_WriteOp,  oneapi::dpl::__internal::__ignore_call_op>)
     {
         if (__offset < __n)
             __write_op(__offset, __v);
