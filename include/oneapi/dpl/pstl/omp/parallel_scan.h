@@ -16,6 +16,8 @@
 #ifndef _ONEDPL_INTERNAL_OMP_PARALLEL_SCAN_H
 #define _ONEDPL_INTERNAL_OMP_PARALLEL_SCAN_H
 
+#include <type_traits> // std::common_type_t
+
 #include "parallel_invoke.h"
 
 namespace oneapi
@@ -110,7 +112,8 @@ void
 __parallel_strict_scan(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
                        _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
 {
-    if (__n <= __default_chunk_size)
+    using _CommonType = std::common_type_t<_Index, decltype(__default_chunk_size)>;
+    if (static_cast<_CommonType>(__n) <= static_cast<_CommonType>(__default_chunk_size))
     {
         _Tp __sum = __initial;
         if (__n)
