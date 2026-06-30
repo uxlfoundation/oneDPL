@@ -1498,13 +1498,12 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
                                             __comm_tag);
         __write_op(__start_id, __v);
 
-        for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
+        for (std::uint32_t __j = 1; __j + 1 < __iters; __j++)
         {
-            std::size_t __local_id = __start_id + __j * __sub_group_size;
-            __v = __gen_input(__in_rng, __local_id);
+            __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size);
             __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                                                 __comm_tag);
-            __write_op(__local_id, __v);
+            __write_op(__start_id + __j * __sub_group_size, __v);
         }
     }
     std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
