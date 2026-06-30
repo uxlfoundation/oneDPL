@@ -13,6 +13,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef _XPU_STD_RANGES_TEST_H
+#define _XPU_STD_RANGES_TEST_H
+
 #include "support/utils_sycl.h"
 
 template<typename KernelName, typename Test>
@@ -32,3 +35,5 @@ kernel_test(Test test)
 
     return buffer1.get_host_access(sycl::read_only)[0];
 }
+
+#endif // _XPU_STD_RANGES_TEST_H
