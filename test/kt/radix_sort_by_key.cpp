@@ -91,6 +91,36 @@ void test_usm(sycl::queue q, std::size_t size, KernelParam param)
     EXPECT_EQ_N(expected_values.begin(), actual_values.begin(), size, msg.c_str());
 }
 
+// Test that -0 and +0 keys are treated as equal.
+template <typename KeyT, typename ValueT, bool isAscending, std::uint32_t RadixBits, typename KernelParam>
+void
+test_negative_zero_stability(sycl::queue q, std::size_t size, KernelParam param)
+{
+    std::vector<KeyT> expected_keys(size);
+    std::vector<ValueT> expected_values(size);
+    for (std::size_t i = 0; i < size; ++i)
+    {
+        expected_keys[i] = (i % 2 == 0) ? -KeyT(0.0) : KeyT(0.0);
+        expected_values[i] = static_cast<ValueT>(i);
+    }
+
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, KeyT> dt_keys(q, expected_keys.begin(), expected_keys.end());
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, ValueT> dt_values(q, expected_values.begin(),
+                                                                             expected_values.end());
+    kt_ns::radix_sort_by_key<isAscending, RadixBits>(q, dt_keys.get_data(), dt_keys.get_data() + size,
+                                                     dt_values.get_data(), param)
+        .wait();
+
+    std::vector<KeyT> actual_keys(size);
+    std::vector<ValueT> actual_values(size);
+    dt_keys.retrieve_data(actual_keys.begin());
+    dt_values.retrieve_data(actual_values.begin());
+
+    std::string msg = "negative zero stability broken, n: " + std::to_string(size);
+    EXPECT_EQ_N(expected_keys.begin(), actual_keys.begin(), size, msg.c_str());
+    EXPECT_EQ_N(expected_values.begin(), actual_values.begin(), size, msg.c_str());
+}
+
 int main()
 {
     bool run_test = false;
@@ -113,6 +143,15 @@ int main()
                     q, size, TestUtils::create_new_kernel_param_idx<2>(params));
                 test_sycl_buffer<TEST_KEY_TYPE, TEST_VALUE_TYPE, Descending, TestRadixBits>(
                     q, size, TestUtils::create_new_kernel_param_idx<3>(params));
+            }
+            if constexpr (std::is_floating_point_v<TEST_KEY_TYPE> || std::is_same_v<TEST_KEY_TYPE, sycl::half>)
+            {
+                test_negative_zero_stability<TEST_KEY_TYPE, TEST_VALUE_TYPE, Ascending, TestRadixBits>(
+                    q, 64, TestUtils::create_new_kernel_param_idx<4>(params));
+                test_negative_zero_stability<TEST_KEY_TYPE, TEST_VALUE_TYPE, Descending, TestRadixBits>(
+                    q, 64, TestUtils::create_new_kernel_param_idx<5>(params));
+                test_negative_zero_stability<TEST_KEY_TYPE, TEST_VALUE_TYPE, Ascending, TestRadixBits>(
+                    q, 10000, TestUtils::create_new_kernel_param_idx<6>(params));
             }
         }
         catch (const ::std::exception& exc)

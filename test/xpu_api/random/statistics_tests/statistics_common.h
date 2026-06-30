@@ -7,6 +7,9 @@
 //
 //===----------------------------------------------------------===//
 
+#ifndef _STATISTICS_COMMON_H
+#define _STATISTICS_COMMON_H
+
 #include <iostream>
 #include <vector>
 
@@ -42,3 +45,5 @@ compare_moments(int nsamples, const std::vector<ScalarIntType>& samples, double 
 
     return 0;
 }
+
+#endif // _STATISTICS_COMMON_H

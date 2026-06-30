@@ -613,6 +613,40 @@ struct __internal::__sort_fn
 }; //__sort_fn
 inline constexpr __internal::__sort_fn sort;
 
+// [is.heap]
+
+struct __internal::__is_heap_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+        std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp = std::ranges::less>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+             && std::ranges::sized_range<_R>
+    bool
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_is_heap(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
+    }
+}; //__is_heap_fn
+inline constexpr __internal::__is_heap_fn is_heap;
+
+struct __internal::__is_heap_until_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+        std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp = std::ranges::less>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+             && std::ranges::sized_range<_R>
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_is_heap_until(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
+    }
+}; //__is_heap_until_fn
+inline constexpr __internal::__is_heap_until_fn is_heap_until;
+
 // [alg.min.max]
 
 struct __internal::__min_element_fn

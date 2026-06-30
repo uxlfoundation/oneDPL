@@ -13,6 +13,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef _STD_RANGES_MEMORY_TEST_H
+#define _STD_RANGES_MEMORY_TEST_H
+
 #if _ENABLE_STD_RANGES_TESTING
 
 #include <oneapi/dpl/memory>
@@ -144,4 +147,5 @@ private:
 
 } //namespace test_std_ranges
 
-#endif //_ENABLE_STD_RANGES_TESTING
+#endif // _ENABLE_STD_RANGES_TESTING
+#endif // _STD_RANGES_MEMORY_TEST_H
