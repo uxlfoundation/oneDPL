@@ -25,7 +25,6 @@
 #include <tuple>
 #include <optional> // for std::optional
 #include <vector>
-#include <type_traits> // for std::common_type_t
 
 #include "algorithm_fwd.h"
 
