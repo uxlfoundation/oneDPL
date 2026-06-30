@@ -1486,28 +1486,39 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
 
     const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
 
+    // For partial thread, we need to handle the partial subgroup at the end of the range
     const std::uint32_t __subgroup_n = static_cast<std::uint32_t>(
         std::min<std::size_t>(__n - __subgroup_start_id, __iters_per_item * __sub_group_size));
     std::uint32_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__subgroup_n, __sub_group_size);
-    std::size_t __local_id = __start_id;
-    for (std::uint32_t __j = 0; __j + 1 < __iters; __j++)
-    {
-        _GenInputType __v = __gen_input(__in_rng, __local_id);
-        __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                         __comm_tag);
-        __write_op(__local_id, __v);
-        __local_id += __sub_group_size;
-    }
 
-    std::size_t __clipped_local_id = std::min(__local_id, __n - 1);
-    _GenInputType __v = __gen_input(__in_rng, __clipped_local_id);
-    std::uint32_t __elements_to_process = static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
-    __sub_group_scan_partial<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                             __elements_to_process, __comm_tag);
-    if constexpr (!std::is_same_v<_WriteOp, oneapi::dpl::__internal::__ignore_call_op>)
+    if (__iters > 1)
     {
-        if (__local_id < __n)
-            __write_op(__local_id, __v);
+        // peel first iteration out as workaround for issue set_union.pass and reduce_by_segment.pass
+        // with some compilers and environments
+        _GenInputType __v = __gen_input(__in_rng, __start_id);
+        __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
+                                            __comm_tag);
+        __write_op(__start_id, __v);
+
+        for (std::uint32_t __j = 1; __j + 1 < __iters; __j++)
+        {
+            __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size);
+            __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
+                                                __comm_tag);
+            __write_op(__start_id + __j * __sub_group_size, __v);
+        }
+    }
+    std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
+    std::size_t __local_id = std::min(__offset, __n - 1);
+    _GenInputType __v = __gen_input(__in_rng, __local_id);
+    std::uint32_t __elements_to_process =
+        static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
+    __sub_group_scan_partial<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
+                                                __elements_to_process, __comm_tag);
+    if constexpr (!std::is_same_v<_WriteOp,  oneapi::dpl::__internal::__ignore_call_op>)
+    {
+        if (__offset < __n)
+            __write_op(__offset, __v);
     }
 }
 
@@ -1761,21 +1772,11 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                         oneapi::dpl::__internal::__dpl_ceiling_div(__active_subgroups, __sub_group_size);
                     // Dispatch the sub-group-ops vs SLM-fallback decision once for this carry-computation region.
                     __dispatch_comm_tag(__comm_scan_tag, [&](auto __comm_tag_concrete) {
-                        if (__iters == 1)
+                        std::uint32_t __reduction_scan_id = __sub_group_local_id;
+                        if (__iters > 1)
                         {
-                            // fill with unused dummy values to avoid overrunning input
-                            std::uint32_t __load_id =
-                                std::min(std::uint32_t{__sub_group_local_id}, __active_subgroups - 1);
-                            _InitValueType __v = __sub_group_partials[__load_id];
-                            __sub_group_scan_partial</*__is_inclusive=*/true>(__ndi, __v, __reduce_op, __summary_carry,
-                                                                              __active_subgroups, __comm_tag_concrete);
-                            if (__sub_group_local_id < __active_subgroups)
-                                __temp_ptr[__start_id + __sub_group_local_id] = __v;
-                        }
-                        else
-                        {
-                            std::uint32_t __reduction_scan_id = __sub_group_local_id;
-                            // need to pull out first iteration tp avoid identity
+                            // peel first iteration out as workaround for issue set_union.pass and
+                            // reduce_by_segment.pass with some compilers and environments
                             _InitValueType __v = __sub_group_partials[__reduction_scan_id];
                             __sub_group_scan</*__is_inclusive=*/true>(__ndi, __v, __reduce_op, __summary_carry,
                                                                       __comm_tag_concrete);
@@ -1790,19 +1791,20 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                                 __temp_ptr[__start_id + __reduction_scan_id] = __v;
                                 __reduction_scan_id += __sub_group_size;
                             }
-                            // If we are past the input range, then the previous value of v is passed to the sub-group scan.
-                            // It does not affect the result as our sub_group_scan will use a mask to only process in-range elements.
-
-                            // fill with unused dummy values to avoid overrunning input
-                            std::uint32_t __load_id = std::min(__reduction_scan_id, __max_num_sub_groups_local - 1);
-
-                            __v = __sub_group_partials[__load_id];
-                            __sub_group_scan_partial</*__is_inclusive=*/true>(
-                                __ndi, __v, __reduce_op, __summary_carry,
-                                __active_subgroups - ((__iters - 1) * __sub_group_size), __comm_tag_concrete);
-                            if (__reduction_scan_id < __max_num_sub_groups_local)
-                                __temp_ptr[__start_id + __reduction_scan_id] = __v;
                         }
+                        // If we are past the input range, then the previous value of v is passed to the sub-group scan.
+                        // It does not affect the result as our sub_group_scan will use a mask to only process in-range elements.
+
+                        // fill with unused dummy values to avoid overrunning input
+                        std::uint32_t __load_id = std::min(__reduction_scan_id, __max_num_sub_groups_local - 1);
+
+                        _InitValueType __v = __sub_group_partials[__load_id];
+                        __sub_group_scan_partial</*__is_inclusive=*/true>(
+                            __ndi, __v, __reduce_op, __summary_carry,
+                            __active_subgroups - ((__iters - 1) * __sub_group_size), __comm_tag_concrete);
+                        if (__reduction_scan_id < __max_num_sub_groups_local)
+                            __temp_ptr[__start_id + __reduction_scan_id] = __v;
+
                     });
                     // Write this group's TOTAL carry-out to a CANONICAL slot -- the last slot of the group's
                     // max-strided region -- independent of the actual sub-group count. A later group's cross-group
@@ -2011,26 +2013,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                             oneapi::dpl::__internal::__dpl_ceiling_div(__elements_to_process, __sub_group_size);
                         // Dispatch the sub-group-ops vs SLM-fallback decision once for this carry-computation region.
                         __dispatch_comm_tag(__comm_scan_tag, [&](auto __comm_tag_concrete) {
-                            if (__pre_carry_iters == 1)
+                            std::uint32_t __reduction_id = __max_num_sub_groups_local * __sub_group_local_id + __offset;
+                            if (__pre_carry_iters > 1)
                             {
-                                // single partial scan
-                                std::size_t __proposed_id =
-                                    std::size_t{__max_num_sub_groups_local} * __sub_group_local_id + __offset;
-                                std::size_t __remaining_elements = __elements_to_process;
-                                std::size_t __reduction_id = (__proposed_id < __subgroups_before_my_group)
-                                                                 ? __proposed_id
-                                                                 : __subgroups_before_my_group - 1;
-                                _InitValueType __value = __tmp_ptr[__reduction_id];
-                                __sub_group_scan_partial</*__is_inclusive=*/true>(__ndi, __value, __reduce_op,
-                                                                                  __carry_last, __remaining_elements,
-                                                                                  __comm_tag_concrete);
-                            }
-                            else
-                            {
-                                // multiple iterations
-                                // first 1 full
-                                std::uint32_t __reduction_id =
-                                    __max_num_sub_groups_local * __sub_group_local_id + __offset;
+                                // peel first iteration out as workaround for issue set_union.pass and
+                                // reduce_by_segment.pass with some compilers and environments
                                 std::uint32_t __reduction_id_increment = __max_num_sub_groups_local * __sub_group_size;
                                 _InitValueType __value = __tmp_ptr[__reduction_id];
                                 __sub_group_scan</*__is_inclusive=*/true>(__ndi, __value, __reduce_op, __carry_last,
@@ -2044,19 +2031,18 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                                                                               __comm_tag_concrete);
                                     __reduction_id += __reduction_id_increment;
                                 }
-
-                                // final partial iteration
-
-                                std::size_t __remaining_elements =
-                                    __elements_to_process - ((__pre_carry_iters - 1) * __sub_group_size);
-                                // fill with unused dummy values to avoid overrunning input
-                                std::size_t __final_reduction_id =
-                                    std::min(std::size_t{__reduction_id}, __subgroups_before_my_group - 1);
-                                __value = __tmp_ptr[__final_reduction_id];
-                                __sub_group_scan_partial</*__is_inclusive=*/true>(__ndi, __value, __reduce_op,
-                                                                                  __carry_last, __remaining_elements,
-                                                                                  __comm_tag_concrete);
                             }
+                            // final partial iteration
+
+                            std::size_t __remaining_elements =
+                                __elements_to_process - ((__pre_carry_iters - 1) * __sub_group_size);
+                            // fill with unused dummy values to avoid overrunning input
+                            std::size_t __final_reduction_id =
+                                std::min(std::size_t{__reduction_id}, __subgroups_before_my_group - 1);
+                            _InitValueType __value = __tmp_ptr[__final_reduction_id];
+                            __sub_group_scan_partial</*__is_inclusive=*/true>(__ndi, __value, __reduce_op, __carry_last,
+                                                                              __remaining_elements,
+                                                                              __comm_tag_concrete);
                         });
 
                         // steps 3+4) load global carry in from neighbor work-group
