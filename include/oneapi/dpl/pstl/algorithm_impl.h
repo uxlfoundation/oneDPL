@@ -25,6 +25,7 @@
 #include <tuple>
 #include <optional> // for std::optional
 #include <vector>
+#include <type_traits> // for std::common_type_t
 
 #include "algorithm_fwd.h"
 
@@ -764,6 +765,8 @@ __find_subrange(_RandomAccessIterator __first, _RandomAccessIterator __last, _Ra
         return __last;
     }
 
+    using _CommonType = std::common_type_t<_Size, decltype(__global_last - __first)>;
+
     auto __unary_pred =
         [__pred, &__value](auto&& __val) mutable { return __pred(std::forward<decltype(__val)>(__val), __value); };
     while (__first != __last && (static_cast<_Size>(__global_last - __first) >= __count))
@@ -771,7 +774,8 @@ __find_subrange(_RandomAccessIterator __first, _RandomAccessIterator __last, _Ra
         __first = __internal::__brick_find_if(__first, __last, __unary_pred, __is_vector);
 
         // check that all of elements in [first+1, first+count) equal to value
-        if (__first != __last && (__global_last - __first >= __count) &&
+        if (__first != __last &&
+            static_cast<_CommonType>(__global_last - __first) >= static_cast<_CommonType>(__count) &&
             !__internal::__brick_any_of(__first + 1, __first + __count,
                                         __not_pred<decltype(__unary_pred)&>(__unary_pred), __is_vector))
         {
