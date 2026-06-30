@@ -36,6 +36,7 @@
 #include "../../utils_ranges.h"
 #include "../../ranges_defs.h"
 #include "../../tuple_impl.h"
+#include "../../utils.h"
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
@@ -774,7 +775,7 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
 {
     using _ReduceOp = std::plus<_Size>;
     using _Assigner = unseq_backend::__scan_assigner;
-    using _NoAssign = unseq_backend::__scan_ignore;
+    using _NoAssign = oneapi::dpl::__internal::__ignore_call_op;
     using _MaskAssigner = unseq_backend::__mask_assigner<1>;
     using _Unchanged = unseq_backend::__unchanged;
     using _InitType = unseq_backend::__no_init_value<_Size>;
@@ -1098,7 +1099,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
     //Algo is based on the recommended approach of set_intersection algo for GPU: binary search + scan (copying by mask).
     using _ReduceOp = std::plus<_Size1>;
     using _Assigner = unseq_backend::__scan_assigner;
-    using _NoAssign = unseq_backend::__scan_ignore;
+    using _NoAssign = oneapi::dpl::__internal::__ignore_call_op;
     using _MaskAssigner = unseq_backend::__mask_assigner<2>;
     using _InitType = unseq_backend::__no_init_value<_Size1>;
     using _Unchanged = unseq_backend::__unchanged;
