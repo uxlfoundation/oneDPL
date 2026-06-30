@@ -297,15 +297,6 @@ struct __write_multiple_to_id
     _Assign __assign;
 };
 
-struct __noop_write_op
-{
-    template <typename _SizeType, typename _ValueType>
-    void
-    operator()(const _SizeType, const _ValueType&) const
-    {
-    }
-};
-
 // *** Algorithm Specific Helpers, Input Generators to Reduction and Scan Operations ***
 
 // __parallel_transform_scan
