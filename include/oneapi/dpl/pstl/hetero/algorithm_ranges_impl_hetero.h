@@ -969,7 +969,7 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
 
     auto __beg = std::ranges::begin(__r);
-    auto __end = __beg + oneapi::dpl::__ranges::__size(__r);
+    auto __end = __beg + std::ranges::size(__r);
 
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique(__tag, std::forward<_ExecutionPolicy>(__exec),
                                                                      oneapi::dpl::__ranges::views::all(__r), __pred_2);
@@ -977,6 +977,45 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&
     return {__beg + __idx, __end};
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
+
+//------------------------------------------------------------------------
+// is_heap
+//------------------------------------------------------------------------
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+bool
+__pattern_is_heap(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
+
+    auto __beg = std::ranges::begin(__r);
+    auto __end = __beg + std::ranges::size(__r);
+
+    return oneapi::dpl::__internal::__pattern_is_heap(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end,
+                                                      __pred_2);
+}
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
+
+//------------------------------------------------------------------------
+// is_heap_until
+//------------------------------------------------------------------------
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_is_heap_until(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp,
+                        _Proj __proj)
+{
+    oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
+
+    auto __beg = std::ranges::begin(__r);
+    auto __end = __beg + std::ranges::size(__r);
+
+    return oneapi::dpl::__internal::__pattern_is_heap_until(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end,
+                                                            __pred_2);
+}
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
 // merge

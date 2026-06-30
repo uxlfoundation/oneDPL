@@ -239,6 +239,12 @@ jobs:
 
           # TODO: fix or justify the excluded warnings
           EXTRA_CXX_FLAGS="-Wall -Wextra-semi -Werror -Wno-error=sign-compare"
+          if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
+            # Reduce std_ranges view-type permutations in per-commit CI to keep
+            # build time under the job limit. A couple of representative tests
+            # force full coverage back on regardless of this flag.
+            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -DONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS=0"
+          fi
           if [[ "${{ matrix.cxx_compiler }}" != "g++" ]]; then
             EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=pass-failed"
           fi
@@ -335,18 +341,31 @@ jobs:
       - name: Run testing
         shell: cmd
         run: |
-          if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
-            call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
-          ) else (
-            if exist "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" (
-              call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" amd64
-            ) else (
-              echo "Warning: Neither %WINDOWS_ONEAPI_PATH%\setvars.bat nor %VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat were found."
-            )
-          )
-
           :: Set enable delayed expansion to allow proper resolution of errors in if statements and loops
           SETLOCAL ENABLEDELAYEDEXPANSION
+
+          if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
+            call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
+            if !errorlevel! neq 0 exit /b !errorlevel!
+          ) else (
+            if not exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" (
+              echo "Error: vswhere.exe not found."
+              exit /b 1
+            )
+            set "VS_PATH="
+            for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VS_PATH=%%i"
+            if defined VS_PATH (
+              if not exist "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" (
+                echo "Error: vcvarsall.bat not found under !VS_PATH!\VC\Auxiliary\Build\"
+                exit /b 1
+              )
+              call "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" amd64
+              if !errorlevel! neq 0 exit /b !errorlevel!
+            ) else (
+              echo "Error: Could not find oneAPI install nor Visual Studio installation with MSVC tools via vswhere.exe."
+              exit /b 1
+            )
+          )
 
           set exit_code=0
           :: Preserve the code of an unsuccessful command if any.
@@ -391,6 +410,13 @@ jobs:
             set warning_flags=/W4 /WX /wd4018 /wd4100 /wd4146 /wd4244 /wd4245 /wd4267 /wd4310 /wd4389 /wd4805 /wd4996
           ) else (
             set warning_flags=-Wall -Werror -Wno-error=sign-compare -Wno-error=pass-failed
+          )
+
+          :: Reduce std_ranges view-type permutations in per-commit CI to keep
+          :: build time under the job limit. A couple of representative tests
+          :: force full coverage back on regardless of this flag.
+          if "${{ matrix.backend }}" == "dpcpp" (
+            set warning_flags=!warning_flags! -DONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS=0
           )
 
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..

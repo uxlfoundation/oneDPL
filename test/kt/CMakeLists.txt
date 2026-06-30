@@ -53,8 +53,10 @@ function(_generate_sort_test _variant _base_file _data_per_work_item _work_group
     endif()
 
     string(REPLACE "_t" "" _key_type_short ${_key_type})
+    string(REPLACE "::" "_" _key_type_short ${_key_type_short})
     if (NOT "${_val_type}" STREQUAL "")
         string(REPLACE "_t" "" _val_type_short ${_val_type})
+        string(REPLACE "::" "_" _val_type_short ${_val_type_short})
         set(_target_name "${_variant}_${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}_${_val_type_short}.pass")
     else()
         set(_target_name "${_variant}_${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}.pass")
@@ -113,7 +115,7 @@ function(_generate_sort_tests _variant _key_value_pairs)
         set(_work_group_size_all "64")
     endif()
 
-    set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double")
+    set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double" "sycl::half")
 
     foreach (_data_per_work_item ${_data_per_work_item_all})
         foreach (_work_group_size ${_work_group_size_all})
@@ -142,6 +144,7 @@ if (ONEDPL_TEST_ENABLE_KT_ESIMD)
 
     # Pin some cases to track them
     _generate_sort_test("kt_esimd" "radix_sort_by_key_out_of_place" "96" "64" "uint32_t" "uint32_t" 1000)
+    _generate_sort_test("kt_esimd" "radix_sort_by_key" "96" "64" "sycl::half" "uint32_t" 1000)
     _generate_sort_test("kt_esimd" "radix_sort" "384" "64" "int32_t" "" 1000)
 endif()
 
@@ -151,6 +154,7 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
 
     # Pin some cases to track them
     _generate_sort_test("kt_sycl" "radix_sort_by_key_out_of_place" "3" "1024" "uint32_t" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_by_key" "5" "512" "float" "uint32_t" 1000)
     _generate_sort_test("kt_sycl" "radix_sort" "12" "1024" "int32_t" "" 1000)
 endif()
 

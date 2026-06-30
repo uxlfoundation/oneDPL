@@ -75,7 +75,10 @@ template <bool __is_ascending>
 ::std::uint16_t
 __order_preserving_cast(sycl::half __val)
 {
-    ::std::uint16_t __uint16_val = oneapi::dpl::__internal::__dpl_bit_cast<::std::uint16_t>(__val);
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
+    if (__val == sycl::half{0})
+        return 0x8000u;
+    std::uint16_t __uint16_val = oneapi::dpl::__internal::__dpl_bit_cast<std::uint16_t>(__val);
     ::std::uint16_t __mask;
     // __uint16_val >> 15 takes the sign bit of the original value
     if constexpr (__is_ascending)
@@ -90,7 +93,10 @@ template <bool __is_ascending, typename _Float,
 ::std::uint32_t
 __order_preserving_cast(_Float __val)
 {
-    ::std::uint32_t __uint32_val = oneapi::dpl::__internal::__dpl_bit_cast<::std::uint32_t>(__val);
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
+    if (__val == _Float{0})
+        return 0x80000000u;
+    std::uint32_t __uint32_val = oneapi::dpl::__internal::__dpl_bit_cast<std::uint32_t>(__val);
     ::std::uint32_t __mask;
     // __uint32_val >> 31 takes the sign bit of the original value
     if constexpr (__is_ascending)
@@ -105,7 +111,10 @@ template <bool __is_ascending, typename _Float,
 ::std::uint64_t
 __order_preserving_cast(_Float __val)
 {
-    ::std::uint64_t __uint64_val = oneapi::dpl::__internal::__dpl_bit_cast<::std::uint64_t>(__val);
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
+    if (__val == _Float{0})
+        return 0x8000000000000000u;
+    std::uint64_t __uint64_val = oneapi::dpl::__internal::__dpl_bit_cast<std::uint64_t>(__val);
     ::std::uint64_t __mask;
     // __uint64_val >> 63 takes the sign bit of the original value
     if constexpr (__is_ascending)

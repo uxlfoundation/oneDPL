@@ -127,12 +127,37 @@ __order_preserving_cast_scalar(_Int __src)
     return sycl::bit_cast<_UInt>(__src) ^ __mask;
 }
 
+// Order-preserving cast for 16-bit floats - scalar version
+template <bool __is_ascending>
+std::uint16_t
+__order_preserving_cast_scalar(sycl::half __src)
+{
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
+    if (__src == sycl::half{0})
+        return 0x8000u;
+    std::uint16_t __uint16_src = sycl::bit_cast<std::uint16_t>(__src);
+    std::uint16_t __mask;
+    bool __sign_bit_is_zero = (__uint16_src >> 15 == 0);
+    if constexpr (__is_ascending)
+    {
+        __mask = __sign_bit_is_zero ? 0x8000u : 0xFFFFu;
+    }
+    else
+    {
+        __mask = __sign_bit_is_zero ? 0x7FFFu : std::uint16_t(0);
+    }
+    return __uint16_src ^ __mask;
+}
+
 // Order-preserving cast for 32-bit floats - scalar version
 template <bool __is_ascending, typename _Float,
           std::enable_if_t<std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(std::uint32_t), int> = 0>
 std::uint32_t
 __order_preserving_cast_scalar(_Float __src)
 {
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
+    if (__src == _Float{0})
+        return 0x80000000u;
     std::uint32_t __uint32_src = sycl::bit_cast<std::uint32_t>(__src);
     std::uint32_t __mask;
     bool __sign_bit_is_zero = (__uint32_src >> 31 == 0);
@@ -153,6 +178,9 @@ template <bool __is_ascending, typename _Float,
 std::uint64_t
 __order_preserving_cast_scalar(_Float __src)
 {
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
+    if (__src == _Float{0})
+        return 0x8000000000000000u;
     std::uint64_t __uint64_src = sycl::bit_cast<std::uint64_t>(__src);
     std::uint64_t __mask;
     bool __sign_bit_is_zero = (__uint64_src >> 63 == 0);
@@ -185,6 +213,16 @@ __sort_identity()
 // They do not set the smallest exponent bit (i.e. the max is 7F7FFFFF for 32bit float),
 // thus such an identity is not guaranteed to be put at the end of the sorted sequence after each radix sort stage,
 // e.g. 00FF0000 numbers will be pushed out by 7F7FFFFF identities when sorting 16-23 bits.
+template <typename _T, bool __is_ascending, std::enable_if_t<std::is_same_v<_T, sycl::half>, int> = 0>
+constexpr _T
+__sort_identity()
+{
+    if constexpr (__is_ascending)
+        return sycl::bit_cast<_T>(std::uint16_t(0x7FFFu));
+    else
+        return sycl::bit_cast<_T>(std::uint16_t(0xFFFFu));
+}
+
 template <typename _T, bool __is_ascending,
           std::enable_if_t<std::is_floating_point_v<_T> && sizeof(_T) == sizeof(std::uint32_t), int> = 0>
 constexpr _T
