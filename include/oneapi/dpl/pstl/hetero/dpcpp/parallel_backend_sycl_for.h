@@ -176,7 +176,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
 
     template <typename _Fp>
     static std::tuple<std::size_t, std::size_t>
-    __global_space(const sycl::nd_item<1>& __item, std::size_t __count, std::uint16_t, std::uint16_t, const _Fp&)
+    __global_space(const sycl::nd_item<1>& __item, std::size_t __count, std::uint16_t, std::size_t, const _Fp&)
     {
         return {__count, __item.get_global_linear_id()};
     }
@@ -184,7 +184,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     template <typename _Brick1, typename _Brick2>
     static std::tuple<std::size_t, std::size_t>
     __global_space(const sycl::nd_item<1>& __item, std::size_t __count, std::uint16_t __work_group_size,
-                   std::uint16_t __data_per_work_item, const __dual_brick<_Brick1, _Brick2>& __dbrick)
+                   std::size_t __data_per_work_item, const __dual_brick<_Brick1, _Brick2>& __dbrick)
     {
         const std::size_t __groups_before_pivot =
             oneapi::dpl::__internal::__dpl_ceiling_div(__dbrick.__pivot, __work_group_size * __data_per_work_item);
@@ -203,10 +203,10 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
 
     // SPIR-V compilation targets show best performance with a stride of the sub-group size.
     // Other compilation targets perform best with a work-group size stride.
-    static inline std::tuple<std::uint16_t, std::uint16_t>
+    static inline std::tuple<std::size_t, std::size_t>
     __local_space(const sycl::nd_item<1>& __item, std::uint16_t __group_size)
     {
-        std::uint16_t __item_local_id;
+        std::size_t __item_local_id;
         if constexpr (oneapi::dpl::__internal::__is_spirv_target_v)
         {
             const __dpl_sycl::__sub_group __sub_group = __item.get_sub_group();
@@ -267,7 +267,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             constexpr std::uint8_t __iters_per_work_item = __iterations_per_item_v<_Fp, _Ranges...>;
             constexpr std::uint8_t __vector_size = __params_t::__vector_size;
-            const std::uint16_t __data_per_work_item = __iters_per_work_item * __vector_size;
+            const std::size_t __data_per_work_item = __iters_per_work_item * __vector_size;
             const std::size_t __num_groups =
                 __number_of_groups(__count, __work_group_size * __data_per_work_item, __brick);
             __cgh.parallel_for<_Name...>(
@@ -275,7 +275,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
                 [=](sycl::nd_item</*dim=*/1> __item) {
                     const auto /*size_t*/ [__bound, __adjusted_global_id] =
                         __global_space(__item, __count, __work_group_size, __data_per_work_item, __brick);
-                    const auto /*uint16_t*/ [__number_of_peers, __local_id] = __local_space(__item, __work_group_size);
+                    const auto /*size_t*/ [__number_of_peers, __local_id] = __local_space(__item, __work_group_size);
 
                     const std::size_t __group_start_idx = __data_per_work_item * (__adjusted_global_id - __local_id);
                     const bool __is_full = __group_start_idx + __data_per_work_item * __number_of_peers <= __bound;
