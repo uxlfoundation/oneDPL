@@ -466,7 +466,8 @@ struct transform_reduce
 
 // Reduce local reductions of each work item to a single reduced element per work group. The local reductions are held
 // in local memory. sycl::reduce_over_group is used for supported data types and operations. All other operations are
-// processed in order and without a known identity.
+// processed in order and without a known identity. For the local-memory path, only work-item 0 returns the reduced
+// value.
 template <typename _BinaryOperation1, typename _Tp>
 struct reduce_over_group
 {
@@ -475,39 +476,46 @@ struct reduce_over_group
     // Reduce on local memory with subgroups
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    reduce_impl(const _NDItemId __item, const _Size __n, const _Tp& __val, const _AccLocal& /*__local_mem*/,
-                std::true_type /*has_known_identity*/) const
+    reduce_impl(const _NDItemId __item, const _Size __n, oneapi::dpl::__internal::__lazy_ctor_storage<_Tp>& __val,
+                const _AccLocal& /*__local_mem*/, std::true_type /*has_known_identity*/) const
     {
         const _Size __global_idx = __item.get_global_id(0);
         return __dpl_sycl::__reduce_over_group(
-            __item.get_group(), __global_idx >= __n ? __known_identity<_BinaryOperation1, _Tp> : __val, __bin_op1);
+            __item.get_group(), __global_idx >= __n ? __known_identity<_BinaryOperation1, _Tp> : __val.__v, __bin_op1);
     }
 
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    reduce_impl(const _NDItemId __item, const _Size __n, const _Tp& __val, const _AccLocal& __local_mem,
-                std::false_type /*has_known_identity*/) const
+    reduce_impl(const _NDItemId __item, const _Size __n, oneapi::dpl::__internal::__lazy_ctor_storage<_Tp>& __val,
+                const _AccLocal& __local_mem, std::false_type /*has_known_identity*/) const
     {
         auto __local_idx = __item.get_local_id(0);
-        const _Size __global_idx = __item.get_global_id(0);
         auto __group_size = __item.get_local_range().size();
 
-        __local_mem[__local_idx] = __val;
+        const _Size __global_idx = __item.get_global_id(0);
+        if (__global_idx < __n)
+            __local_mem[__local_idx] = __val.__v;
+
+        const _Size __group_start = __item.get_group(0) * __group_size;
+        _Size __active_count = __n > __group_start ? __n - __group_start : 0;
+        if (__active_count > __group_size)
+            __active_count = __group_size;
+
         for (std::uint32_t __power_2 = 1; __power_2 < __group_size; __power_2 *= 2)
         {
             sycl::group_barrier(__item.get_group());
-            if ((__local_idx & (2 * __power_2 - 1)) == 0 && __local_idx + __power_2 < __group_size &&
-                __global_idx + __power_2 < __n)
+            if ((__local_idx & (2 * __power_2 - 1)) == 0 && __local_idx + __power_2 < __active_count)
             {
                 __local_mem[__local_idx] = __bin_op1(__local_mem[__local_idx], __local_mem[__local_idx + __power_2]);
             }
         }
-        return __local_mem[__local_idx];
+        return __local_mem[0];
     }
 
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    operator()(const _NDItemId __item, const _Size __n, const _Tp& __val, const _AccLocal& __local_mem) const
+    operator()(const _NDItemId __item, const _Size __n, oneapi::dpl::__internal::__lazy_ctor_storage<_Tp>& __val,
+               const _AccLocal& __local_mem) const
     {
         return reduce_impl(__item, __n, __val, __local_mem, __has_known_identity<_BinaryOperation1, _Tp>{});
     }
@@ -669,15 +677,6 @@ struct __scan_assigner
     {
         if (__out_idx < __out_sz)
             __out_acc[__out_idx] = __in_acc[__in_idx];
-    }
-};
-
-struct __scan_ignore
-{
-    template <typename... _Params>
-    void
-    operator()(_Params&&...) const
-    {
     }
 };
 

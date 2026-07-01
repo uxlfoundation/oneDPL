@@ -466,6 +466,53 @@ __pattern_sort_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPoli
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// pattern_is_heap
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+bool
+__pattern_is_heap(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    return oneapi::dpl::__internal::__pattern_is_heap(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+        std::ranges::begin(__r) + std::ranges::size(__r),
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+bool
+__pattern_is_heap(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    return std::ranges::is_heap(std::forward<_R>(__r), __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// pattern_is_heap_until
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_is_heap_until(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    return oneapi::dpl::__internal::__pattern_is_heap_until(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+        std::ranges::begin(__r) + std::ranges::size(__r),
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_is_heap_until(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp,
+                        _Proj __proj)
+{
+    return std::ranges::is_heap_until(std::forward<_R>(__r), __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // pattern_min_element
 //---------------------------------------------------------------------------------------------------------------------
 

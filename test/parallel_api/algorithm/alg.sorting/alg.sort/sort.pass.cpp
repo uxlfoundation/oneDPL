@@ -34,19 +34,8 @@ int main()
     test_sort<TestUtils::float32_t>(SortTestConfig{cfg, "float, device"}, sizes, Device<0>{},
                                     Converter<TestUtils::float32_t>{});
 
-    auto sycl_half_convert = [](size_t /*index*/, size_t val) {
-        constexpr std::uint16_t mask = 0xFFFFu;
-        std::uint16_t raw = std::uint16_t(val & mask);
-        // Avoid NaN values, because they need a custom comparator due to: (x < NaN = false) and (NaN < x = false).
-        constexpr std::uint16_t exp_mask = 0x7C00u;
-        constexpr std::uint16_t frac_mask = 0x03FFu;
-        bool is_nan = ((raw & exp_mask) == exp_mask) && ((raw & frac_mask) > 0);
-        if (is_nan)
-        {
-            constexpr std::uint16_t smallest_exp_bit = 0x0400u;
-            raw = raw & (~smallest_exp_bit); // flip the smallest exponent bit
-        }
-        return sycl::bit_cast<sycl::half>(raw);
+    auto half_converter = [](size_t /*index*/, size_t val) {
+        return TestUtils::sycl_half_convert(std::uint16_t(val & 0xFFFFu));
     };
 
     // Test radix-sort bit conversions
@@ -60,7 +49,7 @@ int main()
                             Converter<std::int64_t>{});
     test_sort<TestUtils::float64_t>(SortTestConfig{cfg, "float64_t, device"}, small_sizes, Device<5>{},
                                     Converter<TestUtils::float64_t>{});
-    test_sort<sycl::half>(SortTestConfig{cfg, "sycl::half, device"}, small_sizes, Device<6>{}, sycl_half_convert);
+    test_sort<sycl::half>(SortTestConfig{cfg, "sycl::half, device"}, small_sizes, Device<6>{}, half_converter);
     // TODO: add a test for a MoveConstructible only type
 #endif
 

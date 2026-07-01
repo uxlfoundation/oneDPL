@@ -1114,6 +1114,15 @@ struct __opt_lazy_ctor_storage
     bool __constructed = false;
 };
 
+struct __ignore_call_op
+{
+    template <typename... _Params>
+    void
+    operator()(_Params&&...) const
+    {
+    }
+};
+
 // To implement __min_nested_type_size, a general utility with an internal tuple
 // specialization, we need to forward declare our internal tuple first as tuple_impl.h
 // already includes this header.
