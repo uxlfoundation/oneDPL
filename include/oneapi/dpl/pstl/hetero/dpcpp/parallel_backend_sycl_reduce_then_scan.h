@@ -2597,7 +2597,8 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     }
 
     // Allocate sufficient temporary storage for the worst case (smallest sub-group size = most sub-groups).
-    const std::uint32_t __max_num_sub_groups_local = __work_group_size / __min_sub_group_size;
+    const std::uint32_t __max_num_sub_groups_local =
+        oneapi::dpl::__internal::__dpl_ceiling_div(__work_group_size, __min_sub_group_size);
     const std::uint32_t __max_num_sub_groups_global = __max_num_sub_groups_local * __num_work_groups;
     std::size_t __inputs_remaining = __n;
     if constexpr (__is_unique_pattern_v)
