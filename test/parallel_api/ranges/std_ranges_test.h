@@ -164,6 +164,41 @@ struct B
 auto proj_a = [](const A& a) { return a.a; };
 auto proj_b = [](const B& b) { return b.b; };
 
+class A_PM
+{
+  protected:
+    int a = {};
+
+  public:
+    A_PM() = default;
+    A_PM(int v): a(v) {}
+
+    int
+    get() const
+    {
+        return a;
+    }
+};
+
+class B_PM
+{
+  protected:
+    int b = {};
+
+  public:
+    B_PM() = default;
+    B_PM(int v): b(v) {}
+
+    int
+    get() const
+    {
+        return b;
+    }
+};
+
+auto proj_apm = [](const A_PM& a) { return a.get(); };
+auto proj_bpm = [](const B_PM& b) { return b.get(); };
+
 // These are copies of __range_size and __range_size_t utilities from oneDPL
 // to get a size type of a range be it sized or not
 template <typename R>
