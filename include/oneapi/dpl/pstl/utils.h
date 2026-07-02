@@ -1064,9 +1064,11 @@ struct __opt_lazy_ctor_storage
     // duplicate the __constructed flag and may lead to double destruction because copying of the underlying union
     // is a bitwise copy and does not call copy constructors of the members.
     __opt_lazy_ctor_storage(const __opt_lazy_ctor_storage&) = delete;
-    __opt_lazy_ctor_storage& operator=(const __opt_lazy_ctor_storage&) = delete;
+    __opt_lazy_ctor_storage&
+    operator=(const __opt_lazy_ctor_storage&) = delete;
     __opt_lazy_ctor_storage(__opt_lazy_ctor_storage&&) = delete;
-    __opt_lazy_ctor_storage& operator=(__opt_lazy_ctor_storage&&) = delete;
+    __opt_lazy_ctor_storage&
+    operator=(__opt_lazy_ctor_storage&&) = delete;
 
     ~__opt_lazy_ctor_storage()
     {

@@ -1497,25 +1497,24 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
         // with some compilers and environments
         _GenInputType __v = __gen_input(__in_rng, __start_id);
         __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                            __comm_tag);
+                                         __comm_tag);
         __write_op(__start_id, __v);
 
         for (std::uint32_t __j = 1; __j + 1 < __iters; __j++)
         {
             __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size);
             __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                                __comm_tag);
+                                             __comm_tag);
             __write_op(__start_id + __j * __sub_group_size, __v);
         }
     }
     std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
     std::size_t __local_id = std::min(__offset, __n - 1);
     _GenInputType __v = __gen_input(__in_rng, __local_id);
-    std::uint32_t __elements_to_process =
-        static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
+    std::uint32_t __elements_to_process = static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
     __sub_group_scan_partial<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                                __elements_to_process, __comm_tag);
-    if constexpr (!std::is_same_v<_WriteOp,  oneapi::dpl::__internal::__ignore_call_op>)
+                                             __elements_to_process, __comm_tag);
+    if constexpr (!std::is_same_v<_WriteOp, oneapi::dpl::__internal::__ignore_call_op>)
     {
         if (__offset < __n)
             __write_op(__offset, __v);
@@ -1804,7 +1803,6 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                             __active_subgroups - ((__iters - 1) * __sub_group_size), __comm_tag_concrete);
                         if (__reduction_scan_id < __max_num_sub_groups_local)
                             __temp_ptr[__start_id + __reduction_scan_id] = __v;
-
                     });
                     // Write this group's TOTAL carry-out to a CANONICAL slot -- the last slot of the group's
                     // max-strided region -- independent of the actual sub-group count. A later group's cross-group
@@ -2040,9 +2038,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                             std::size_t __final_reduction_id =
                                 std::min(std::size_t{__reduction_id}, __subgroups_before_my_group - 1);
                             _InitValueType __value = __tmp_ptr[__final_reduction_id];
-                            __sub_group_scan_partial</*__is_inclusive=*/true>(__ndi, __value, __reduce_op, __carry_last,
-                                                                              __remaining_elements,
-                                                                              __comm_tag_concrete);
+                            __sub_group_scan_partial</*__is_inclusive=*/true>(
+                                __ndi, __value, __reduce_op, __carry_last, __remaining_elements, __comm_tag_concrete);
                         });
 
                         // steps 3+4) load global carry in from neighbor work-group
