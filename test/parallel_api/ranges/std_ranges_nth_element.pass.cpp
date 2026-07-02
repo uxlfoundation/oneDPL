@@ -179,6 +179,9 @@ main()
     // Member-function projection (P2::proj): host only (skipped inside device kernels).
     test_nth_element<6, P2>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::greater{}, &P2::proj);
 
+    // External projection proj_apm: exercised on host and device.
+    test_nth_element<7, A_PM>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::greater{}, proj_apm);
+
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
