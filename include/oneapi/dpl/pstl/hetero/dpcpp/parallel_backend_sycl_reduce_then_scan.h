@@ -2383,7 +2383,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 
     std::uint32_t __num_work_groups = 0;
     std::uint32_t __max_inputs_per_item = 0;
-    
+
     std::size_t __last_level_cache_size_bytes =
         __q.get_device().template get_info<sycl::info::device::global_mem_cache_size>();
     if (__last_level_cache_size_bytes == 0)
@@ -2425,9 +2425,9 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 
         __max_inputs_per_item = std::max<std::uint32_t>(
             1, std::min<std::uint32_t>(
-                    __inputs_per_item_limit,
-                    oneapi::dpl::__internal::__dpl_ceiling_div(
-                        __inputs_remaining, __cache_target_num_blocks * __num_work_groups * __work_group_size)));
+                   __inputs_per_item_limit,
+                   oneapi::dpl::__internal::__dpl_ceiling_div(
+                       __inputs_remaining, __cache_target_num_blocks * __num_work_groups * __work_group_size)));
     }
     else // target is cpu
     {
@@ -2436,7 +2436,6 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
         // use a large number of inputs per item to amortize the overhead
         __max_inputs_per_item = std::max<std::uint32_t>(1, 2048u / __bytes_per_work_item_iter);
     }
-
 
     // Need to calculate actual number of blocks to avoid empty blocks due to floor calculations
     const std::size_t __num_blocks = oneapi::dpl::__internal::__dpl_ceiling_div(
