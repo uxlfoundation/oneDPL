@@ -680,15 +680,6 @@ struct __scan_assigner
     }
 };
 
-struct __scan_ignore
-{
-    template <typename... _Params>
-    void
-    operator()(_Params&&...) const
-    {
-    }
-};
-
 // create mask
 template <typename _IndexPred, typename _ValueType>
 struct __create_mask

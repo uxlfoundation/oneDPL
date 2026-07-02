@@ -1053,6 +1053,78 @@ struct __scoped_destroyer
     }
 };
 
+// Optional-like wrapper around __lazy_ctor_storage which manages the construction state of the storage and provides
+// automatic destruction of the contained value when the wrapper goes out of scope.
+template <typename _T>
+struct __opt_lazy_ctor_storage
+{
+  public:
+    __opt_lazy_ctor_storage() = default;
+    // Delete copy and move operations to prevent accidental copying or moving, which would
+    // duplicate the __constructed flag and may lead to double destruction because copying of the underlying union
+    // is a bitwise copy and does not call copy constructors of the members.
+    __opt_lazy_ctor_storage(const __opt_lazy_ctor_storage&) = delete;
+    __opt_lazy_ctor_storage&
+    operator=(const __opt_lazy_ctor_storage&) = delete;
+    __opt_lazy_ctor_storage(__opt_lazy_ctor_storage&&) = delete;
+    __opt_lazy_ctor_storage&
+    operator=(__opt_lazy_ctor_storage&&) = delete;
+
+    ~__opt_lazy_ctor_storage()
+    {
+        if (__constructed)
+        {
+            __constructed = false;
+            __storage.__destroy();
+        }
+    }
+
+    bool
+    __has_value() const
+    {
+        return __constructed;
+    }
+
+    // assigns to the storage, constructing if not yet constructed
+    template <typename _TArg>
+    void
+    __assign(_TArg&& __new_value)
+    {
+        if (__constructed)
+            __storage.__v = std::forward<_TArg>(__new_value);
+        else
+            __setup(std::forward<_TArg>(__new_value));
+    }
+
+    // explicitly construct without checks
+    template <typename _TArg>
+    void
+    __setup(_TArg&& __arg)
+    {
+        __storage.__setup(std::forward<_TArg>(__arg));
+        __constructed = true;
+    }
+
+    const _T&
+    __get_cref() const
+    {
+        return __storage.__v;
+    }
+
+  private:
+    oneapi::dpl::__internal::__lazy_ctor_storage<_T> __storage;
+    bool __constructed = false;
+};
+
+struct __ignore_call_op
+{
+    template <typename... _Params>
+    void
+    operator()(_Params&&...) const
+    {
+    }
+};
+
 // To implement __min_nested_type_size, a general utility with an internal tuple
 // specialization, we need to forward declare our internal tuple first as tuple_impl.h
 // already includes this header.
