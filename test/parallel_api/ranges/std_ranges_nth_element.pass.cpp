@@ -17,6 +17,17 @@
 using namespace test_std_ranges;
 namespace dpl_ranges = oneapi::dpl::ranges;
 
+// Custom comparator to exercise a user-defined function object in addition to std::ranges::less/greater.
+struct CustomLess
+{
+    template <typename T>
+    bool
+    operator()(const T& lhs, const T& rhs) const
+    {
+        return lhs < rhs;
+    }
+};
+
 // nth_element does not produce a fully deterministic order: only the element at 'nth' is placed
 // in its final sorted position, and the range is partitioned around it. The parallel and device
 // specializations rearrange the rest of the elements differently from std::ranges::nth_element,
@@ -53,62 +64,97 @@ nth_positions(int n)
     return res;
 }
 
-template <typename T, typename Checker, typename Comp, typename Proj, typename Gen>
-void
-test_nth_element_host(int n, Checker checker, Comp comp, Proj proj, Gen gen, const char* msg)
+// Default data generator: values in [-48, 48] with duplicates to exercise partition ties.
+inline auto nth_element_gen = [](int i) { return (i * 7 + 3) % 97 - 48; };
+
+// A single declarative test case, in the spirit of test_range_algo: one instantiation runs the
+// tested algorithm against std::ranges::nth_element for every policy (serial/parallel and, when
+// available, device), across a set of sizes and 'nth' positions, for a fixed comparator/projection.
+template <int CallId, typename T, typename Gen = decltype(nth_element_gen)>
+struct test_nth_element
 {
-    for (int nth : nth_positions(n))
+    template <typename Algo, typename Checker, typename Comp, typename Proj = std::identity>
+    void
+    operator()(Algo algo, Checker checker, Comp comp, Proj proj = {}) const
     {
-        std::vector<T> reference(n);
-        for (int i = 0; i < n; ++i)
-            reference[i] = gen(i);
-        checker(reference, reference.begin() + nth, comp, proj);
-
-        auto run = [&](auto&& policy)
-        {
-            std::vector<T> data(n);
-            for (int i = 0; i < n; ++i)
-                data[i] = gen(i);
-
-            auto res = dpl_ranges::nth_element(policy, data, data.begin() + nth, comp, proj);
-            EXPECT_TRUE(res == data.end(), (std::string("wrong return value: ") + msg).c_str());
-            check_nth_element_effect(data, reference, n, nth, comp, proj, msg);
-        };
-
-        run(oneapi::dpl::execution::seq);
-        run(oneapi::dpl::execution::unseq);
-        run(oneapi::dpl::execution::par);
-        run(oneapi::dpl::execution::par_unseq);
-    }
-}
+        for (int n : {0, 1, 2, 3, 7, 20, small_size})
+            host_case(algo, checker, n, comp, proj);
 
 #if TEST_DPCPP_BACKEND_PRESENT
-template <int CallId, typename T, typename Checker, typename Comp, typename Proj, typename Gen>
-void
-test_nth_element_device(int n, Checker checker, Comp comp, Proj proj, Gen gen, const char* msg)
-{
-    auto policy = TestUtils::get_dpcpp_test_policy();
-    for (int nth : nth_positions(n))
-    {
-        std::vector<T> reference(n);
-        for (int i = 0; i < n; ++i)
-            reference[i] = gen(i);
-        checker(reference, reference.begin() + nth, comp, proj);
-
-        std::vector<T> host(n);
-        for (int i = 0; i < n; ++i)
-            host[i] = gen(i);
-
-        usm_vector<T> usm(policy, host.data(), n);
-        auto& vec = usm();
-
-        auto res =
-            dpl_ranges::nth_element(CLONE_TEST_POLICY_IDX(policy, CallId), vec, vec.begin() + nth, comp, proj);
-        EXPECT_TRUE(res == vec.end(), (std::string("wrong return value: ") + msg).c_str());
-        check_nth_element_effect(vec, reference, n, nth, comp, proj, msg);
-    }
-}
+        // Pointer-to-member-function comparators/projections are not supported inside device kernels.
+        if constexpr (!std::disjunction_v<std::is_member_function_pointer<Comp>,
+                                          std::is_member_function_pointer<Proj>>)
+        {
+#if _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN
+            if constexpr (!std::disjunction_v<std::is_member_pointer<Comp>, std::is_member_pointer<Proj>>)
+#endif
+            {
+                for (int n : {0, 1, small_size, medium_size})
+                    device_case(algo, checker, n, comp, proj);
+            }
+        }
 #endif // TEST_DPCPP_BACKEND_PRESENT
+    }
+
+  private:
+    static std::vector<T>
+    make_data(int n)
+    {
+        Gen gen{};
+        std::vector<T> data(n);
+        for (int i = 0; i < n; ++i)
+            data[i] = T(gen(i));
+        return data;
+    }
+
+    template <typename Algo, typename Checker, typename Comp, typename Proj>
+    void
+    host_case(Algo algo, Checker checker, int n, Comp comp, Proj proj) const
+    {
+        const std::string msg = "host, nth_element<" + std::to_string(CallId) + ">";
+        for (int nth : nth_positions(n))
+        {
+            std::vector<T> reference = make_data(n);
+            checker(reference, reference.begin() + nth, comp, proj);
+
+            auto run = [&](auto&& policy)
+            {
+                std::vector<T> data = make_data(n);
+                auto res = algo(policy, data, data.begin() + nth, comp, proj);
+                EXPECT_TRUE(res == data.end(), (std::string("wrong return value: ") + msg).c_str());
+                check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+            };
+
+            run(oneapi::dpl::execution::seq);
+            run(oneapi::dpl::execution::unseq);
+            run(oneapi::dpl::execution::par);
+            run(oneapi::dpl::execution::par_unseq);
+        }
+    }
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    template <typename Algo, typename Checker, typename Comp, typename Proj>
+    void
+    device_case(Algo algo, Checker checker, int n, Comp comp, Proj proj) const
+    {
+        const std::string msg = "device, nth_element<" + std::to_string(CallId) + ">";
+        auto policy = TestUtils::get_dpcpp_test_policy();
+        for (int nth : nth_positions(n))
+        {
+            std::vector<T> reference = make_data(n);
+            checker(reference, reference.begin() + nth, comp, proj);
+
+            std::vector<T> host = make_data(n);
+            usm_vector<T> usm(policy, host.data(), n);
+            auto& vec = usm();
+
+            auto res = algo(CLONE_TEST_POLICY_IDX(policy, CallId), vec, vec.begin() + nth, comp, proj);
+            EXPECT_TRUE(res == vec.end(), (std::string("wrong return value: ") + msg).c_str());
+            check_nth_element_effect(vec, reference, n, nth, comp, proj, msg.c_str());
+        }
+    }
+#endif // TEST_DPCPP_BACKEND_PRESENT
+};
 
 #endif // _ENABLE_STD_RANGES_TESTING
 
@@ -118,26 +164,20 @@ main()
 #if _ENABLE_STD_RANGES_TESTING
     auto nth_element_checker = TEST_PREPARE_CALLABLE(std::ranges::nth_element);
 
-    auto gen_int = [](int i) { return (i * 7 + 3) % 97 - 48; };
-    auto gen_p2 = [](int i) { return P2((i * 7 + 3) % 97 - 48); };
+    // comp = less/greater/CustomLess, proj = identity: plain integer keys.
+    test_nth_element<0, int>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{});
+    test_nth_element<1, int>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::greater{});
+    test_nth_element<2, int>{}(dpl_ranges::nth_element, nth_element_checker, CustomLess{});
 
-    for (int n : {0, 1, 2, 3, 7, 20, small_size})
-    {
-        test_nth_element_host<int>(n, nth_element_checker, std::ranges::less{},    std::identity{}, gen_int, "host, less");
-        test_nth_element_host<int>(n, nth_element_checker, std::ranges::greater{}, std::identity{}, gen_int, "host, greater");
-        test_nth_element_host<int>(n, nth_element_checker, std::ranges::less{},    proj,            gen_int, "host, less, proj");
-        test_nth_element_host<P2> (n, nth_element_checker, std::ranges::less{},    &P2::x,           gen_p2, "host, less, &P2::x");
-        test_nth_element_host<P2> (n, nth_element_checker, std::ranges::greater{}, &P2::proj,        gen_p2, "host, greater, &P2::proj");
-    }
+    // Projection applied to integer keys.
+    test_nth_element<3, int>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{}, proj);
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    for (int n : {0, 1, small_size, medium_size})
-    {
-        test_nth_element_device<0, int>(n, nth_element_checker, std::ranges::less{},    std::identity{}, gen_int, "device, less");
-        test_nth_element_device<1, int>(n, nth_element_checker, std::ranges::greater{}, std::identity{}, gen_int, "device, greater");
-        test_nth_element_device<2, int>(n, nth_element_checker, std::ranges::less{},    proj,            gen_int, "device, less, proj");
-    }
-#endif // TEST_DPCPP_BACKEND_PRESENT
+    // Member-data projection (P2::x): exercised on host and device.
+    test_nth_element<4, P2>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{}, &P2::x);
+    test_nth_element<5, P2>{}(dpl_ranges::nth_element, nth_element_checker, CustomLess{}, &P2::x);
+
+    // Member-function projection (P2::proj): host only (skipped inside device kernels).
+    test_nth_element<6, P2>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::greater{}, &P2::proj);
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
