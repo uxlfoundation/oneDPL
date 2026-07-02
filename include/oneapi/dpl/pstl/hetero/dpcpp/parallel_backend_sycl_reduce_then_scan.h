@@ -2399,8 +2399,6 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
         const std::uint32_t __num_xe_cores = std::max(1u, __max_compute_units / 8);
 
         std::size_t __bytes_per_work_group_iter = __bytes_per_work_item_iter * __work_group_size;
-        std::size_t __llc_work_group_iters =
-            oneapi::dpl::__internal::__dpl_ceiling_div(__last_level_cache_size_bytes, __bytes_per_work_group_iter);
 
         if (__num_xe_cores * __work_group_size * __bytes_per_work_item_iter > __last_level_cache_size_bytes)
         {
