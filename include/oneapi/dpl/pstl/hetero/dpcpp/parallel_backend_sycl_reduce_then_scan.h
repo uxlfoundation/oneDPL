@@ -2064,7 +2064,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
     template <typename _Group, typename _FinalPosType>
     _FinalPosType
-    __reduce_max_final_pos_over_group(_Group __group, _FinalPosType& __last_idxs_in_this_wi) const
+    __reduce_max_final_pos(_Group __group, _FinalPosType& __last_idxs_in_this_wi) const
     {
         if constexpr (std::is_arithmetic_v<std::decay_t<_FinalPosType>>)
         {
@@ -2135,23 +2135,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
         }
     }
 
-    template <typename __FinalAndOOBPosAcc, typename _FinalPosType>
-    void
-    __reduce_over_group_and_update_src_final_pos(const sycl::nd_item<1>& __ndi,
-                                                 __FinalAndOOBPosAcc& __final_and_oob_pos_acc,
-                                                 _FinalPosType& __final_src_pos_in_this_wi) const
-    {
-        // Evaluate final positions inside work-group
-        const _FinalPosType __max_final_src_pos_in_this_wg =
-            __reduce_max_final_pos_over_group(__ndi.get_group(), __final_src_pos_in_this_wi);
-
-        if (__ndi.get_local_id(0) == 0)
-        {
-            // Update global final position from the first item inside work-group
-            __update_final_pos(__final_and_oob_pos_acc, __max_final_src_pos_in_this_wg);
-        }
-    }
-
     template <typename __oob_pos_t>
     auto
     __create_on_oob_reached(std::size_t& __start_id_reached, std::size_t& __start_id_reached_on_oob,
@@ -2190,6 +2173,23 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
         else
         {
             return __detected_oob_pos;
+        }
+    }
+
+    template <typename __oob_trait>
+    auto
+    __create_src_final_pos_sg_container() const
+    {
+        if constexpr (_Bounded)
+        {
+            if constexpr (__oob_trait::__has_src_final_pos)
+                return typename __oob_trait::__src_final_pos_t{};
+            else
+                return 0;
+        }
+        else
+        {
+            return 0;
         }
     }
 
@@ -2431,6 +2431,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
+                using __oob_trait = std::conditional_t<_Bounded, _StopAndOOBPosTypeTrait<_StopPosStorage>, /*any dummy type*/int>;
+                auto __src_final_pos_sg = __create_src_final_pos_sg_container<__oob_trait>();
+
                 if (__sub_group_id < __active_subgroups)
                 {
                     // Describes the current position in the input range that has been processed in __scan_through_elements_helper()
@@ -2445,7 +2448,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
                     if constexpr (_Bounded)
                     {
-                        using __oob_trait = _StopAndOOBPosTypeTrait<_StopPosStorage>;
+                        using __src_final_pos_t = typename __oob_trait::__src_final_pos_t;
 
                         // Two pass processing: if the OOB position is reached in the first pass, then on the second
                         // pass we recover the source indexes for the diagonal where it happened and store the OOB
@@ -2455,21 +2458,23 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
                         // Final pos on this work-item
                         std::size_t __start_id_reached_on_oob = __start_id;
-                        typename __oob_trait::__src_final_pos_t __src_final_pos{};
+                        __src_final_pos_t __src_final_pos_wi{};
                         __call_scan_through_elements_helper(
                             __create_on_oob_reached(__start_id_reached, __start_id_reached_on_oob, __oob_detected),
-                            __create_final_pos_saver<__oob_trait::__has_src_final_pos>(__src_final_pos));
+                            __create_final_pos_saver<__oob_trait::__has_src_final_pos>(__src_final_pos_wi));
 
-                        // Reduce over group and update final position atomically in global memory if needed
+                        // Reduce over sub-group
                         if constexpr (__oob_trait::__has_src_final_pos)
-                            __reduce_over_group_and_update_src_final_pos(__ndi, __stop_pos_acc, __src_final_pos);
+                        {
+                            // Reduce final position over sub-group
+                            __src_final_pos_sg = __reduce_max_final_pos(__ndi.get_sub_group(), __src_final_pos_wi);
+                        }
 
                         // OOB element detected in this work-item?
                         if (!__oob_trait::__is_eq_to_initial_oob_pos(__oob_detected))
                         {
-                            __update_oob_pos(__stop_pos_acc,
-                                             __finalize_oob_detected<typename __oob_trait::__src_final_pos_t>(
-                                                 __oob_detected, __in_rng, __start_id_reached_on_oob));
+                            __update_oob_pos(__stop_pos_acc, __finalize_oob_detected<__src_final_pos_t>(
+                                                                 __oob_detected, __in_rng, __start_id_reached_on_oob));
                         }
                     }
                     else
@@ -2479,6 +2484,23 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                             oneapi::dpl::__internal::__no_callback_tag{}); // __final_pos_saver
                     }
                 }
+
+                if constexpr (_Bounded)
+                {
+                    if constexpr (__oob_trait::__has_src_final_pos)
+                    {
+                        using __src_final_pos_t = typename __oob_trait::__src_final_pos_t;
+
+                        // Reduce final position over group
+                        const __src_final_pos_t __src_final_pos_group =
+                            __reduce_max_final_pos(__ndi.get_group(), __src_final_pos_sg);
+
+                        // Update global final position from the first work-item inside work-group
+                        if (__ndi.get_local_id(0) == 0)
+                            __update_final_pos(__stop_pos_acc, __src_final_pos_group);
+                    }
+                }
+
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block
                 if (__sub_group_local_id == 0 && (__active_groups == __group_id + 1) &&
