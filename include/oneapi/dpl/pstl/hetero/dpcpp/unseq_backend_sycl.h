@@ -1088,32 +1088,43 @@ struct __reverse_functor
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
 
-        // In the below implementation, we see that _IsFull is ignored in favor of std::true_type{} in all cases.
-        // This relaxation is due to the fact that in-place reverse launches work only over the first half of the
-        // buffer. As long as __size >= __vec_size there is no risk of an OOB accesses or a race condition. There may
-        // exist a  single point of double processing between left and right vectors in the last work-item which
-        // reverses middle elements. This extra processing of elements <= __vec_size is more performant than applying
-        // additional branching (such as in reverse_copy).
-
-        const std::size_t __right_start_idx = __size - __left_start_idx - _Params::__vector_size;
-
         _ValueType __rng_left_vector[_Params::__vector_size];
         _ValueType __rng_right_vector[_Params::__vector_size];
 
         oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__size};
         oneapi::dpl::__par_backend_hetero::__vector_reverse<_Params::__vector_size> __vec_reverse;
-        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__size};
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__size / 2};
         oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
         oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>
             __store_op;
 
-        // 1. Load two vectors that we want to swap: one from the left half of the buffer and one from the right
+        if constexpr (_IsFull::value == false)
+        {
+            if (__left_start_idx + _Params::__vector_size >= __size - __left_start_idx)
+            {
+                // The remaining data to reverse fits into a single vector
+                __vec_load(std::false_type{}, __left_start_idx, __load_op, __rng, __rng_left_vector);
+                __vec_reverse(std::false_type{}, __size - __left_start_idx, __rng_left_vector);
+                __vec_store(std::false_type{}, __left_start_idx, __store_op, __rng_left_vector, __rng);
+                return;
+            }
+        }
+
+        // In the below implementation, _IsFull is ignored in favor of std::true_type{} in all cases.
+        // This relaxation is due to the fact that in-place reverse iterates only over the first half of the buffer,
+        // Since there is more than a single vector of data to reverse, there is no OOB accesses or race condition.
+        // There may exist a single point of double processing between left and right vectors in the last work-item
+        // which reverses middle elements.
+
+        const std::size_t __right_start_idx = __size - __left_start_idx - _Params::__vector_size;
+
+        // 1. Load two vectors that we want to swap: one from the left half of the buffer and one from the right.
+        // Note that due to indices we have chosen, there will always be a full vector of elements to load.
         __vec_load(std::true_type{}, __left_start_idx, __load_op, __rng, __rng_left_vector);
         __vec_load(std::true_type{}, __right_start_idx, __load_op, __rng, __rng_right_vector);
-        // 2. Reverse vectors in registers. Note that due to indices we have chosen, there will always be a full
-        // vector of elements to load
-        __vec_reverse(std::true_type{}, __left_start_idx, __rng_left_vector);
-        __vec_reverse(std::true_type{}, __right_start_idx, __rng_right_vector);
+        // 2. Reverse vectors in registers.
+        __vec_reverse(std::true_type{}, _Params::__vector_size, __rng_left_vector);
+        __vec_reverse(std::true_type{}, _Params::__vector_size, __rng_right_vector);
         // 3. Store the left-half vector to the corresponding right-half indices and vice versa
         __vec_store(std::true_type{}, __right_start_idx, __store_op, __rng_left_vector, __rng);
         __vec_store(std::true_type{}, __left_start_idx, __store_op, __rng_right_vector, __rng);
