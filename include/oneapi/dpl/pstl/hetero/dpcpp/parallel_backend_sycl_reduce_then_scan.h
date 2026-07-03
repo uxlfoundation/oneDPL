@@ -2407,57 +2407,57 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                 // Cumulative element offset of all preceding sub-groups, valid for any (even non-uniform) sub-group
                 // layout: __sg_base (work-group-local id of this sub-group's first work-item) times the
                 // size-independent __inputs_per_item. See the reduce kernel for the same derivation.
-                const std::size_t __subgroup_start_id =
-                    __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
-                const std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
-
-                // Describes the current position in the input range that has been processed in __scan_through_elements_helper()
-                std::size_t __start_id_reached = __start_id;
-
-                auto __call_scan_through_elements_helper = [&](auto __on_oob_reached, auto __final_pos_saver) {
-                    if (__sub_group_id < __active_subgroups)
-                    {
-                        __scan_through_elements_helper<_Bounded, __is_inclusive, __is_unique_pattern_v>(
-                            __ndi, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op, __sub_group_carry,
-                            __in_rng, __out_rng, __start_id, __start_id_reached, __n, __inputs_per_item,
-                            __subgroup_start_id, __comm_scan_tag, __on_oob_reached, __final_pos_saver);
-                    }
-                };
-
-                if constexpr (_Bounded)
+                if (__sub_group_id < __active_subgroups)
                 {
-                    using __oob_trait = _StopAndOOBPosTypeTrait<_StopPosStorage>;
+                    const std::size_t __subgroup_start_id =
+                        __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
+                    const std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                    // Two pass processing: if the OOB position is reached in the first pass, then on the second
-                    // pass we recover the source indexes for the diagonal where it happened and store the OOB
-                    // position from them. The OOB position may be reached only in one work-item, so no
-                    // synchronization is needed to update the shared OOB position in the second pass.
-                    typename __oob_trait::__oob_pos_t __oob_detected = __oob_trait::__create_initial_oob_pos();
+                    // Describes the current position in the input range that has been processed in __scan_through_elements_helper()
+                    std::size_t __start_id_reached = __start_id;
 
-                    // Final pos on this work-item
-                    std::size_t __start_id_reached_on_oob = __start_id;
-                    typename __oob_trait::__src_final_pos_t __src_final_pos{};
-                    __call_scan_through_elements_helper(
-                        __create_on_oob_reached(__start_id_reached, __start_id_reached_on_oob, __oob_detected),
-                        __create_final_pos_saver<__oob_trait::__has_src_final_pos>(__src_final_pos));
+                    auto __call_scan_through_elements_helper = [&](auto __on_oob_reached, auto __final_pos_saver) {
+                            __scan_through_elements_helper<_Bounded, __is_inclusive, __is_unique_pattern_v>(
+                                __ndi, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op, __sub_group_carry,
+                                __in_rng, __out_rng, __start_id, __start_id_reached, __n, __inputs_per_item,
+                                __subgroup_start_id, __comm_scan_tag, __on_oob_reached, __final_pos_saver);
+                    };
 
-                    // Reduce over group and update final position atomically in global memory if needed
-                    if constexpr (__oob_trait::__has_src_final_pos)
-                        __reduce_over_group_and_update_src_final_pos(__ndi, __stop_pos_acc, __src_final_pos);
-
-                    // OOB element detected in this work-item?
-                    if (!__oob_trait::__is_eq_to_initial_oob_pos(__oob_detected))
+                    if constexpr (_Bounded)
                     {
-                        __update_oob_pos(__stop_pos_acc,
-                                         __finalize_oob_detected<typename __oob_trait::__src_final_pos_t>(
-                                             __oob_detected, __in_rng, __start_id_reached_on_oob));
+                        using __oob_trait = _StopAndOOBPosTypeTrait<_StopPosStorage>;
+
+                        // Two pass processing: if the OOB position is reached in the first pass, then on the second
+                        // pass we recover the source indexes for the diagonal where it happened and store the OOB
+                        // position from them. The OOB position may be reached only in one work-item, so no
+                        // synchronization is needed to update the shared OOB position in the second pass.
+                        typename __oob_trait::__oob_pos_t __oob_detected = __oob_trait::__create_initial_oob_pos();
+
+                        // Final pos on this work-item
+                        std::size_t __start_id_reached_on_oob = __start_id;
+                        typename __oob_trait::__src_final_pos_t __src_final_pos{};
+                        __call_scan_through_elements_helper(
+                            __create_on_oob_reached(__start_id_reached, __start_id_reached_on_oob, __oob_detected),
+                            __create_final_pos_saver<__oob_trait::__has_src_final_pos>(__src_final_pos));
+
+                        // Reduce over group and update final position atomically in global memory if needed
+                        if constexpr (__oob_trait::__has_src_final_pos)
+                            __reduce_over_group_and_update_src_final_pos(__ndi, __stop_pos_acc, __src_final_pos);
+
+                        // OOB element detected in this work-item?
+                        if (!__oob_trait::__is_eq_to_initial_oob_pos(__oob_detected))
+                        {
+                            __update_oob_pos(__stop_pos_acc,
+                                             __finalize_oob_detected<typename __oob_trait::__src_final_pos_t>(
+                                                 __oob_detected, __in_rng, __start_id_reached_on_oob));
+                        }
                     }
-                }
-                else
-                {
-                    __call_scan_through_elements_helper(
-                        oneapi::dpl::__internal::__no_callback_tag{},  // __on_oob_reached
-                        oneapi::dpl::__internal::__no_callback_tag{}); // __final_pos_saver
+                    else
+                    {
+                        __call_scan_through_elements_helper(
+                            oneapi::dpl::__internal::__no_callback_tag{},  // __on_oob_reached
+                            oneapi::dpl::__internal::__no_callback_tag{}); // __final_pos_saver
+                    }
                 }
 
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
