@@ -850,7 +850,7 @@ __get_accessor(_ModeTagT, __device_storage<_T>& __st, sycl::handler& __cgh, cons
     return __st.template __get_accessor<__access_mode_resolver_v<_ModeTagT>>(__cgh, __prop_list);
 }
 
-template <typename _T>
+template <typename _T, sycl::usm::alloc _Alloc = sycl::usm::alloc::host>
 struct __result_storage : public __device_storage<_T>
 {
     using type = _T;
@@ -863,11 +863,11 @@ struct __result_storage : public __device_storage<_T>
     __result_storage(const sycl::queue& __q, std::size_t __n) : __result_sz(__n)
     {
         assert(__result_sz > 0);
-        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
+        _T* __ptr = __internal::__allocate_usm<_T, _Alloc>(__q, __result_sz);
         if (__ptr)
         {
             this->__usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-            __kind = sycl::usm::alloc::host;
+            __kind = _Alloc;
         }
         else
         {
