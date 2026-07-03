@@ -61,8 +61,14 @@ __create_accessor(_BufferType& __buf, _DiffType __offset, _DiffType __n)
 template <typename _Range1, typename _Range2>
 struct _SetOpFinalAndOOBPosTypeImpl
 {
+// FPGA devices don't support 64-bit atomics
+#if _ONEDPL_FPGA_DEVICE
+    using _Size1 = uint32_t;
+    using _Size2 = uint32_t;
+#else
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
+#endif
 
     using _PositionT = oneapi::dpl::__internal::tuple<_Size1, _Size2>;
 
