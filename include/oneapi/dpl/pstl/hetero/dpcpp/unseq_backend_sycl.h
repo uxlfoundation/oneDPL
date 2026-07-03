@@ -1093,7 +1093,8 @@ struct __reverse_functor
 
         oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__size};
         oneapi::dpl::__par_backend_hetero::__vector_reverse<_Params::__vector_size> __vec_reverse;
-        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__size / 2};
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size>
+            __vec_store{__size - __left_start_idx};
         oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
         oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>
             __store_op;
@@ -1104,7 +1105,7 @@ struct __reverse_functor
             {
                 // The remaining data to reverse fits into a single vector
                 __vec_load(std::false_type{}, __left_start_idx, __load_op, __rng, __rng_left_vector);
-                __vec_reverse(std::false_type{}, __size - __left_start_idx, __rng_left_vector);
+                __vec_reverse(std::false_type{}, __size - 2 * __left_start_idx, __rng_left_vector);
                 __vec_store(std::false_type{}, __left_start_idx, __store_op, __rng_left_vector, __rng);
                 return;
             }
