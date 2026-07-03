@@ -2407,9 +2407,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                 // Cumulative element offset of all preceding sub-groups, valid for any (even non-uniform) sub-group
                 // layout: __sg_base (work-group-local id of this sub-group's first work-item) times the
                 // size-independent __inputs_per_item. See the reduce kernel for the same derivation.
-                std::size_t __subgroup_start_id =
+                const std::size_t __subgroup_start_id =
                     __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
-                std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
+                const std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
                 // Describes the current position in the input range that has been processed in __scan_through_elements_helper()
                 std::size_t __start_id_reached = __start_id;
