@@ -63,8 +63,8 @@ struct _SetOpFinalAndOOBPosTypeImpl
 {
 // FPGA devices don't support 64-bit atomics
 #if _ONEDPL_FPGA_DEVICE
-    using _Size1 = uint32_t;
-    using _Size2 = uint32_t;
+    using _Size1 = std::uint32_t;
+    using _Size2 = std::uint32_t;
 #else
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
