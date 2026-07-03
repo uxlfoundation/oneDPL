@@ -29,14 +29,14 @@ struct test_one_policy
 {
 #if _PSTL_ICC_18_VC141_TEST_SIMD_LAMBDA_RELEASE_BROKEN // dummy specialization by policy type, in case of broken configuration
     template <typename Iterator1, typename Iterator2>
-    ::std::enable_if_t<is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator1>>
+    std::enable_if_t<is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator1>>
     operator()(oneapi::dpl::execution::unsequenced_policy, Iterator1 data_b, Iterator1 data_e, Iterator2 actual_b,
                Iterator2 actual_e)
     {
     }
 
     template <typename Iterator1, typename Iterator2>
-    ::std::enable_if_t<is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator1>>
+    std::enable_if_t<is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator1>>
     operator()(oneapi::dpl::execution::parallel_unsequenced_policy, Iterator1 data_b, Iterator1 data_e, Iterator2 actual_b,
                Iterator2 actual_e)
     {
@@ -44,7 +44,7 @@ struct test_one_policy
 #endif
 
     template <typename ExecutionPolicy, typename Iterator1, typename Iterator2>
-    ::std::enable_if_t<is_base_of_iterator_category_v<::std::bidirectional_iterator_tag, Iterator1>>
+    std::enable_if_t<is_base_of_iterator_category_v<std::bidirectional_iterator_tag, Iterator1>>
     operator()(ExecutionPolicy&& exec, Iterator1 data_b, Iterator1 data_e, Iterator2 actual_b, Iterator2 actual_e)
     {
         using namespace std;
@@ -59,7 +59,7 @@ struct test_one_policy
     }
 
     template <typename ExecutionPolicy, typename Iterator1, typename Iterator2>
-    ::std::enable_if_t<!is_base_of_iterator_category_v<::std::bidirectional_iterator_tag, Iterator1>>
+    std::enable_if_t<!is_base_of_iterator_category_v<std::bidirectional_iterator_tag, Iterator1>>
     operator()(ExecutionPolicy&& /* exec */, Iterator1 /* data_b */, Iterator1 /* data_e */, Iterator2 /* actual_b */, Iterator2 /* actual_e */)
     {
     }
@@ -75,7 +75,7 @@ test()
     test_sizes.insert(test_sizes.end(), (max_len / 8) * 8 - 5);
 
     Sequence<T> actual(max_len);
-    Sequence<T> data(max_len, [](::std::size_t i) { return T(i); });
+    Sequence<T> data(max_len, [](std::size_t i) { return T(i); });
 
     for (std::size_t len : test_sizes)
     {
