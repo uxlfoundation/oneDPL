@@ -75,13 +75,25 @@ struct __temp_data_array
     oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
 };
 
+template <typename, typename = void>
+struct __select_max_outputs_per_input : std::integral_constant<std::uint16_t, 1>
+{
+    // By default, each work-item emit at most one output per scanned element.
+};
+
+template <typename _T>
+struct __select_max_outputs_per_input<_T, std::void_t<decltype(_T::__max_outputs_per_input)>>
+    : std::integral_constant<std::uint16_t, _T::__max_outputs_per_input>
+{
+};
+
+template <typename _T>
+constexpr std::uint16_t __select_max_outputs_per_input_v = __select_max_outputs_per_input<std::decay_t<_T>>::value;
+
 // This is a stand-in for a temporary data structure which is used to turn set() into a no-op. This is used in the case
 // where no temporary register data is needed within reduce then scan kern
 struct __noop_temp_data
 {
-    // Patterns using this stand-in (e.g. copy_if/unique) emit at most one output per scanned element.
-    static constexpr std::uint16_t __max_outputs_per_input = 1;
-
     template <typename _ValueT>
     void
     set(std::uint16_t, const _ValueT&) const
@@ -1721,7 +1733,7 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
             // this many writes per scanned element, otherwise the unchecked write path could be selected for
             // set operations and overrun __out_rng (corrupting memory and skipping OOB position detection).
             const std::size_t __max_writes_this_sub_group =
-                std::size_t{__iters_per_item} * __sub_group_size * _TempData::__max_outputs_per_input;
+                std::size_t{__iters_per_item} * __sub_group_size * __select_max_outputs_per_input_v<_TempData>;
             if (__carry_in + __max_writes_this_sub_group + __is_unique_pattern_v > __out_rng_size)
                 return true;
         }
