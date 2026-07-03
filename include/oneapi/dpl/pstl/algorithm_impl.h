@@ -1910,14 +1910,14 @@ _OutputIterator
 __brick_rotate_copy(_ForwardIterator __first, _ForwardIterator __middle, _ForwardIterator __last,
                     _OutputIterator __result, std::size_t __n_out, /*is_vector=*/std::false_type) noexcept
 {
-    _ForwardIterator __from = __middle;
-    for (std::size_t __i = 0; __i < __n_out; ++__i)
+    std::size_t __i = 0;
+    for (_ForwardIterator __from = __middle; __from != __last && __i < __n_out; ++__i)
     {
-        if (__from == __last)
-            __from = __first;
         *__result++ = *__from++;
-        if (__from == __middle)
-            break;
+    }
+    for (_ForwardIterator __from = __first; __from != __middle && __i < __n_out; ++__i)
+    {
+        *__result++ = *__from++;
     }
     return __result;
 }
