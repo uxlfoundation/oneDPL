@@ -1986,10 +1986,18 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
     const bool __use_subgroup_ops;
 };
 
+// Storage for the stop position(s) of a bounded operation: the final and/or the first out-of-bounds
+// position in the source ranges. Allocated only when _Bounded=true.
+// Must be device USM because the kernel updates it with device-scope atomics (fetch_max); such
+// atomics require device-resident memory (host USM triggers an atomic access violation on device).
+template <typename _StopPosType>
+using __transform_reduce_then_scan_stop_pos_storage_t = __result_storage<_StopPosType, sycl::usm::alloc::device>;
+
 template <bool _Bounded, typename _ValueType, typename _StopPosType>
 using __transform_reduce_then_scan_result_t =
     std::conditional_t<_Bounded,
-                       std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<_StopPosType>>,
+                       std::tuple<sycl::event, __combined_storage<_ValueType>,
+                                  __transform_reduce_then_scan_stop_pos_storage_t<_StopPosType>>,
                        std::tuple<sycl::event, __combined_storage<_ValueType>>>;
 
 template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _ReduceOp,
@@ -2094,6 +2102,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
         }
     }
 
+    // Device-scope atomic over global memory. The target must live in device USM
+    // (see __transform_reduce_then_scan_stop_pos_storage_t); a device-scope atomic on host USM
+    // triggers an atomic access violation on device.
     template <typename _FieldT>
     using _StopPosFieldAtomicRefT =
         sycl::atomic_ref<std::decay_t<_FieldT>, sycl::memory_order::relaxed, sycl::memory_scope::device,
@@ -2683,7 +2694,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     // Allocate storage for stop pos and out-of-bounds position if needed
     auto __create_stop_pos_storage_opt = [](sycl::queue& __q) {
         if constexpr (_Bounded)
-            return __result_storage<_StopPosInitState>(__q, 1);
+            return __transform_reduce_then_scan_stop_pos_storage_t<_StopPosInitState>(__q, 1);
         else
             return __no_stop_pos_acc_tag{};
     };
