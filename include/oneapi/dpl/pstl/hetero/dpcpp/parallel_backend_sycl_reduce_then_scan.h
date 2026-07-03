@@ -2431,7 +2431,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                using __oob_trait = std::conditional_t<_Bounded, _StopAndOOBPosTypeTrait<_StopPosStorage>, /*any dummy type*/int>;
+                using __oob_trait =
+                    std::conditional_t<_Bounded, _StopAndOOBPosTypeTrait<_StopPosStorage>, /*any dummy type*/ int>;
                 auto __src_final_pos_sg = __create_src_final_pos_sg_container<__oob_trait>();
 
                 if (__sub_group_id < __active_subgroups)
