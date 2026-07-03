@@ -1698,7 +1698,13 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
 
     oneapi::dpl::__internal::__ignore_call_op __ignore_call_op;
 
-    const auto __out_rng_size = oneapi::dpl::__ranges::__size(__out_rng);
+    const auto __out_rng_size = [&]() {
+        if constexpr (_Bounded)
+            return oneapi::dpl::__ranges::__size(__out_rng);
+        else
+            return decltype(oneapi::dpl::__ranges::__size(__out_rng)){};
+    }();
+
     auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
         if constexpr (__is_temp_data_required)
             __write_op(__out_rng, __out_rng_size, __id, __v, __temp_data, __on_oob_reached);
