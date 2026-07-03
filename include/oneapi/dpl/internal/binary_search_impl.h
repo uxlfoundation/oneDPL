@@ -41,9 +41,6 @@ enum class search_algorithm
 template <typename Comp, typename T, search_algorithm func>
 struct __custom_brick
 {
-    constexpr static bool __can_vectorize = false;
-    constexpr static bool __can_process_multiple_iters = true;
-
     Comp comp;
     T size;
     bool use_32bit_indexing;
@@ -81,6 +78,8 @@ struct __custom_brick
     void
     operator()(_IsFull, const std::size_t idx, _Params, _Acc acc) const
     {
+        static_assert(_Params::__vector_size == 1,
+                      "The brick operates with tuples which must be excluded from vectorizable types");
         if (use_32bit_indexing)
             search_impl<std::uint32_t>(idx, acc);
         else

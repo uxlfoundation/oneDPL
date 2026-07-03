@@ -386,14 +386,15 @@ main()
     run_test</*use_device_alloc=*/true, MatrixPoint<float>, UserBinaryPredicate<MatrixPoint<float>>, MaxFunctor<MatrixPoint<float>>>();
 #endif
 
-    run_test</*use_device_alloc=*/false, int, ::std::equal_to<int>, ::std::plus<int>>();
-    run_test</*use_device_alloc=*/true, float, ::std::equal_to<float>, ::std::plus<float>>();
-    run_test</*use_device_alloc=*/false, double, ::std::equal_to<double>, ::std::plus<double>>();
+    run_test</*use_device_alloc=*/true, std::uint16_t, std::equal_to<std::uint16_t>, std::plus<std::uint16_t>>();
+    run_test</*use_device_alloc=*/false, int, std::equal_to<int>, std::plus<int>>();
+    run_test</*use_device_alloc=*/true, float, std::equal_to<float>, std::plus<float>>();
+    run_test</*use_device_alloc=*/false, double, std::equal_to<double>, std::plus<double>>();
 
     // TODO investigate possible overflow: see issue #1416
-    run_test_on_device</*use_device_alloc=*/true, int, ::std::equal_to<int>, ::std::multiplies<int>>();
-    run_test_on_device</*use_device_alloc=*/false, float, ::std::equal_to<float>, ::std::multiplies<float>>();
-    run_test_on_device</*use_device_alloc=*/true, double, ::std::equal_to<double>, ::std::multiplies<double>>();
+    run_test_on_device</*use_device_alloc=*/true, int, std::equal_to<int>, std::multiplies<int>>();
+    run_test_on_device</*use_device_alloc=*/false, float, std::equal_to<float>, std::multiplies<float>>();
+    run_test_on_device</*use_device_alloc=*/true, double, std::equal_to<double>, std::multiplies<double>>();
 
     return TestUtils::done();
 }
