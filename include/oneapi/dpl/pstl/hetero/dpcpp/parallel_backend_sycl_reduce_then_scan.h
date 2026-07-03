@@ -78,7 +78,7 @@ struct __temp_data_array
 template <typename, typename = void>
 struct __select_max_outputs_per_input : std::integral_constant<std::uint16_t, 1>
 {
-    // By default, each work-item emit at most one output per scanned element.
+    // By default, each work-item emits at most one output per scanned element.
 };
 
 template <typename _T>
