@@ -69,11 +69,12 @@ template <typename T>
 void
 test()
 {
-    const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
+    std::vector<std::size_t> test_sizes = TestUtils::get_pattern_for_test_sizes();
     const std::size_t max_len = test_sizes.back();
+    // Add a value to cover the case of len modulo 8 == 3
+    test_sizes.insert(test_sizes.end(), (max_len / 8) * 8 - 5);
 
     Sequence<T> actual(max_len);
-
     Sequence<T> data(max_len, [](::std::size_t i) { return T(i); });
 
     for (std::size_t len : test_sizes)
