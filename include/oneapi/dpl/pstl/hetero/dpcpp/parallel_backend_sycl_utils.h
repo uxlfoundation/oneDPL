@@ -1226,15 +1226,15 @@ struct __vector_reverse
     }
 };
 
-// Processes a loop with a given stride. Intended to be used with sub-group / work-group strides for good memory access patterns
-// (potentially with vectorization)
+// Processes a loop with a given stride. Intended to be used with sub-group / work-group strides
+// for good memory access patterns (potentially with vectorization)
 template <std::uint8_t __num_strides>
 struct __strided_loop
 {
-    std::size_t __full_range_size;
-    template <typename _IdxType, typename _LoopBodyOp, typename... _Args>
+    std::size_t __full_range_size = 0;
+    template <typename _LoopBodyOp, typename... _Args>
     void
-    operator()(/*__is_full*/ std::true_type, _IdxType __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
+    operator()(/*__is_full*/ std::true_type, std::size_t __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
                _Args&&... __args) const
     {
         _ONEDPL_PRAGMA_UNROLL
@@ -1244,21 +1244,14 @@ struct __strided_loop
             __idx += __stride;
         }
     }
-    template <typename _IdxType, typename _LoopBodyOp, typename... _Args>
+    template <typename _LoopBodyOp, typename... _Args>
     void
-    operator()(/*__is_full*/ std::false_type, _IdxType __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
+    operator()(/*__is_full*/ std::false_type, std::size_t __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
                _Args&&... __args) const
     {
-        // This operation improves safety by preventing underflow for unsigned types which would otherwise require a
-        // check outside of the __strided_loop body.
-        __idx = std::min<std::size_t>(__idx, __full_range_size);
-        // Constrain the number of iterations as much as possible and then pass the knowledge that we are not a full loop to the body operation
-        const std::uint8_t __adjusted_iters_per_work_item =
-            oneapi::dpl::__internal::__dpl_ceiling_div(__full_range_size - __idx, __stride);
-        for (std::uint8_t __i = 0; __i < __adjusted_iters_per_work_item; ++__i)
+        for (; __idx < __full_range_size; __idx += __stride)
         {
             __loop_body_op(std::false_type{}, __idx, __args...);
-            __idx += __stride;
         }
     }
 };

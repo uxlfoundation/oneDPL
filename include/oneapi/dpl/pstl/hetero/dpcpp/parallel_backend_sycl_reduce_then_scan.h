@@ -1942,7 +1942,6 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                             __active_subgroups - ((__iters - 1) * __sub_group_size), __comm_tag_concrete);
                         if (__reduction_scan_id < __max_num_sub_groups_local)
                             __temp_ptr[__start_id + __reduction_scan_id] = __v;
-
                     });
                     // Write this group's TOTAL carry-out to a CANONICAL slot -- the last slot of the group's
                     // max-strided region -- independent of the actual sub-group count. A later group's cross-group
@@ -2317,9 +2316,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                             std::size_t __final_reduction_id =
                                 std::min(std::size_t{__reduction_id}, __subgroups_before_my_group - 1);
                             _InitValueType __value = __tmp_ptr[__final_reduction_id];
-                            __sub_group_scan_partial</*__is_inclusive=*/true>(__ndi, __value, __reduce_op, __carry_last,
-                                                                              __remaining_elements,
-                                                                              __comm_tag_concrete);
+                            __sub_group_scan_partial</*__is_inclusive=*/true>(
+                                __ndi, __value, __reduce_op, __carry_last, __remaining_elements, __comm_tag_concrete);
                         });
 
                         // steps 3+4) load global carry in from neighbor work-group
@@ -2417,10 +2415,13 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                 std::size_t __start_id_reached = __start_id;
 
                 auto __call_scan_through_elements_helper = [&](auto __on_oob_reached, auto __final_pos_saver) {
-                    __scan_through_elements_helper<_Bounded, __is_inclusive, __is_unique_pattern_v>(
-                        __ndi, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op, __sub_group_carry,
-                        __in_rng, __out_rng, __start_id, __start_id_reached, __n, __inputs_per_item,
-                        __subgroup_start_id, __comm_scan_tag, __on_oob_reached, __final_pos_saver);
+                    if (__sub_group_id < __active_subgroups)
+                    {
+                        __scan_through_elements_helper<_Bounded, __is_inclusive, __is_unique_pattern_v>(
+                            __ndi, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op, __sub_group_carry,
+                            __in_rng, __out_rng, __start_id, __start_id_reached, __n, __inputs_per_item,
+                            __subgroup_start_id, __comm_scan_tag, __on_oob_reached, __final_pos_saver);
+                    }
                 };
 
                 if constexpr (_Bounded)
