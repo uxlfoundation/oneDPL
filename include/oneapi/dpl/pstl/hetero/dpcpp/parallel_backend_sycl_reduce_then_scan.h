@@ -1618,7 +1618,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
     auto __call_gen_input = [&](std::size_t __id) {
         __start_id_reached = __id;
         return __gen_input(__id);
-    };    
+    };
 
     // For partial thread, we need to handle the partial subgroup at the end of the range
     const std::uint32_t __subgroup_n = static_cast<std::uint32_t>(
@@ -1631,7 +1631,7 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
         // with some compilers and environments
         _GenInputType __v = __call_gen_input(__start_id);
         __sub_group_scan<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                            __comm_tag);
+                                         __comm_tag);
         __write_op(__start_id, __v);
 
         for (std::uint32_t __j = 1; __j + 1 < __iters; __j++)
@@ -1645,10 +1645,9 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
     std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
     std::size_t __local_id = std::min(__offset, __n - 1);
     _GenInputType __v = __call_gen_input(__local_id);
-    std::uint32_t __elements_to_process =
-        static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
+    std::uint32_t __elements_to_process = static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
     __sub_group_scan_partial<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                                                __elements_to_process, __comm_tag);
+                                             __elements_to_process, __comm_tag);
     if constexpr (!std::is_same_v<_WriteOp, oneapi::dpl::__internal::__ignore_call_op>)
     {
         if (__offset < __n)
@@ -1679,8 +1678,9 @@ void
 __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
                                oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __sub_group_carry,
-                               const _InRng& __in_rng, _OutRng& __out_rng, std::size_t __start_id, std::size_t& __start_id_reached, std::size_t __n,
-                               std::uint32_t __iters_per_item, std::size_t __subgroup_start_id, _CommTag __comm_tag,
+                               const _InRng& __in_rng, _OutRng& __out_rng, std::size_t __start_id,
+                               std::size_t& __start_id_reached, std::size_t __n, std::uint32_t __iters_per_item,
+                               std::size_t __subgroup_start_id, _CommTag __comm_tag,
                                _OnOOBReached __on_oob_reached = {}, _FinalPosSaver __final_pos_saver = {})
 {
     using __temp_data_required_t = __temp_data_required<_GenInput>;
@@ -2420,10 +2420,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     std::size_t __start_id_reached = __start_id;
 
                     auto __call_scan_through_elements_helper = [&](auto __on_oob_reached, auto __final_pos_saver) {
-                            __scan_through_elements_helper<_Bounded, __is_inclusive, __is_unique_pattern_v>(
-                                __ndi, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op, __sub_group_carry,
-                                __in_rng, __out_rng, __start_id, __start_id_reached, __n, __inputs_per_item,
-                                __subgroup_start_id, __comm_scan_tag, __on_oob_reached, __final_pos_saver);
+                        __scan_through_elements_helper<_Bounded, __is_inclusive, __is_unique_pattern_v>(
+                            __ndi, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op, __sub_group_carry,
+                            __in_rng, __out_rng, __start_id, __start_id_reached, __n, __inputs_per_item,
+                            __subgroup_start_id, __comm_scan_tag, __on_oob_reached, __final_pos_saver);
                     };
 
                     if constexpr (_Bounded)
