@@ -80,7 +80,7 @@ struct _SetOpFinalAndOOBPosTypeImpl
     // The effective stop position is the smaller of:
     //   - the final position produced by the set operation (without output range size limitations), and
     //   - the out-of-bounds (OOB) position marking the end of the available output range.
-    oneapi::dpl::__internal::tuple<_Size1, _Size2>
+    std::tuple<_Size1, _Size2>
     __compute_stop_pos() const
     {
         return {std::min(std::get<0>(__final_pos), std::get<0>(__oob_pos)),

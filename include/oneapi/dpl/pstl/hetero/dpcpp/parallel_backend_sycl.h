@@ -1308,16 +1308,11 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _SetTag __set_t
     // Load stop position in the output range
     const oneapi::dpl::__internal::__difference_t<_Range3> __stop_pos3 = std::get<1>(__res).__load_result();
 
-    // Load OOB and final positions in input ranges and compute stop positions in input ranges based on them
+    // Load stop positions in the input ranges
     oneapi::dpl::__internal::__difference_t<_Range1> __stop_pos1 = {};
     oneapi::dpl::__internal::__difference_t<_Range2> __stop_pos2 = {};
     if constexpr (_Bounded)
-    {
-        // Workaround: std::tie() doesn't work with oneapi::dpl::__internal::tuple
-        const auto __stop_pos_tuple = std::get<2>(__res).__load_result().__compute_stop_pos();
-        __stop_pos1 = std::get<0>(__stop_pos_tuple);
-        __stop_pos2 = std::get<1>(__stop_pos_tuple);
-    }
+        std::tie(__stop_pos1, __stop_pos2) = std::get<2>(__res).__load_result().__compute_stop_pos();
 
     return oneapi::dpl::__ranges::__internal::__create_set_op_impl_result<_Bounded, _Range1, _Range2, _Range3>(
         __stop_pos1, __stop_pos2, __stop_pos3);
