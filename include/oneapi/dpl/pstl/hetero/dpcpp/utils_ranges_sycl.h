@@ -16,6 +16,7 @@
 #ifndef _ONEDPL_UTILS_RANGES_SYCL_H
 #define _ONEDPL_UTILS_RANGES_SYCL_H
 
+#include <cstdint>   // std::uint32_t
 #include <iterator>
 #include <type_traits>
 #include <algorithm> // std::min
