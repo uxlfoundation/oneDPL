@@ -16,10 +16,10 @@
 #ifndef _ONEDPL_UTILS_RANGES_SYCL_H
 #define _ONEDPL_UTILS_RANGES_SYCL_H
 
+#include <algorithm> // std::min
 #include <cstdint>   // std::uint32_t
 #include <iterator>
 #include <type_traits>
-#include <algorithm> // std::min
 
 #include "../../utils_ranges.h"
 #include "../../iterator_impl.h"
