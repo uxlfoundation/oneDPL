@@ -823,8 +823,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
             _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
 
         std::get<0>(__res).wait_and_throw();
-
-        __ret[0] = std::get<1>(__res).__load_result();
+        std::get<1>(__res).__copy_result(__ret.data(), 1);
         if constexpr (_Bounded)
             __ret[1] = std::get<2>(__res).__load_result();
         else
@@ -925,8 +924,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{});
 
         std::get<0>(__res).wait_and_throw();
-
-        __ret[0] = std::get<1>(__res).__load_result();
+        std::get<1>(__res).__copy_result(__ret.data(), 1);
         if constexpr (_Bounded)
             __ret[1] = std::get<2>(__res).__load_result();
         else
