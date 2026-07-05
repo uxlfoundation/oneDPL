@@ -2183,17 +2183,10 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
     static auto
     __create_src_final_pos_sg_container()
     {
-        if constexpr (_Bounded)
-        {
-            if constexpr (__has_src_final_pos)
-                return __src_final_pos_t{};
-            else
-                return 0;
-        }
+        if constexpr (_Bounded && __has_src_final_pos)
+            return __src_final_pos_t{};
         else
-        {
             return 0;
-        }
     }
 };
 
