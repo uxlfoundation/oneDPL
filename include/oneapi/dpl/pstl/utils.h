@@ -1261,15 +1261,6 @@ inline constexpr bool __trivial_uninitialized_value_construct =
 template <typename...>
 inline constexpr bool __always_false_v = false;
 
-// Tag type to indicate that no callback is provided
-struct __no_callback_tag
-{
-};
-
-// Helper variable template to check if a callback is provided or not
-template <typename _TCallback>
-inline constexpr bool __is_no_callback_v = std::is_same_v<std::decay_t<_TCallback>, __no_callback_tag>;
-
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi

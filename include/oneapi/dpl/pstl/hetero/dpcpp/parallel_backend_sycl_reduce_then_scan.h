@@ -636,6 +636,15 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     }
 }
 
+// Tag type to indicate that no callback is provided
+struct __no_callback_tag
+{
+};
+
+// Helper variable template to check if a callback is provided or not
+template <typename _TCallback>
+inline constexpr bool __is_no_callback_v = std::is_same_v<std::decay_t<_TCallback>, __no_callback_tag>;
+
 // Set operation generic implementation, used for serial set operation of intersection, difference, union, and
 // symmetric difference.
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
@@ -674,7 +683,7 @@ struct __set_generic_operation
                const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
                _Proj2 __proj2, _FinalPosSaver __final_pos_saver) const
     {
-        if constexpr (oneapi::dpl::__internal::__is_no_callback_v<_FinalPosSaver>)
+        if constexpr (__is_no_callback_v<_FinalPosSaver>)
         {
             return __check_bounds_and_run_loop(__in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __comp,
                                                __proj1, __proj2);
@@ -1671,8 +1680,8 @@ struct __temp_data_required<_T, std::void_t<typename _T::TempData>>
 
 template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _GenInput,
           typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp, typename _ValueType, typename _InRng,
-          typename _OutRng, typename _CommTag, typename _OnOOBReached = oneapi::dpl::__internal::__no_callback_tag,
-          typename _FinalPosSaver = oneapi::dpl::__internal::__no_callback_tag>
+          typename _OutRng, typename _CommTag, typename _OnOOBReached = __no_callback_tag,
+          typename _FinalPosSaver = __no_callback_tag>
 void
 __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
@@ -2150,7 +2159,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
         if constexpr (__has_final_pos)
             return [&__src_final_pos](_FinalPosType __final_pos) { __src_final_pos = __final_pos; };
         else
-            return oneapi::dpl::__internal::__no_callback_tag{};
+            return __no_callback_tag{};
     }
 
     template <typename _FinalPosType, typename _OOBPositionT, typename _InRng>
@@ -2161,10 +2170,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
         if constexpr (__detect_oob_in_two_steps_v<_GenScanInput>)
         {
             __src_pos_capturing_temp_data<_FinalPosType> __pos_catcher(__detected_oob_pos);
-
-            __gen_scan_input(__in_rng, __start_id_reached_on_oob, __pos_catcher,
-                             oneapi::dpl::__internal::__no_callback_tag{});
-
+            __gen_scan_input(__in_rng, __start_id_reached_on_oob, __pos_catcher, __no_callback_tag{});
             return __pos_catcher.__get_saved_src_pos();
         }
         else
@@ -2477,9 +2483,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     }
                     else
                     {
-                        __call_scan_through_elements_helper(
-                            oneapi::dpl::__internal::__no_callback_tag{},  // __on_oob_reached
-                            oneapi::dpl::__internal::__no_callback_tag{}); // __final_pos_saver
+                        __call_scan_through_elements_helper(__no_callback_tag{}, __no_callback_tag{});
                     }
                 }
 
