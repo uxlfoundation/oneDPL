@@ -2009,6 +2009,21 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
     const bool __use_subgroup_ops;
 };
 
+template <typename _StopPosStorage, typename = void>
+struct __stop_pos_storage_type_selector
+{
+    using type = std::size_t;
+};
+
+template <typename _StopPosStorage>
+struct __stop_pos_storage_type_selector<_StopPosStorage, std::void_t<typename _StopPosStorage::type>>
+{
+    using type = typename _StopPosStorage::type;
+};
+
+template <typename _StopPosStorage>
+using __stop_pos_storage_type_selector_t = typename __stop_pos_storage_type_selector<_StopPosStorage>::type;
+
 // Storage for the stop position(s) of a bounded operation: the final and/or the first out-of-bounds
 // position in the source ranges. Allocated only when _Bounded=true.
 // Must be device USM because the kernel updates it with device-scope atomics (fetch_max); such
@@ -2022,6 +2037,165 @@ using __transform_reduce_then_scan_result_t =
                        std::tuple<sycl::event, __combined_storage<_ValueType>,
                                   __transform_reduce_then_scan_stop_pos_storage_t<_StopPosType>>,
                        std::tuple<sycl::event, __combined_storage<_ValueType>>>;
+
+template <bool _Bounded, typename _GenScanInput, typename _StopPosStorage>
+struct __parallel_reduce_then_scan_stop_oob_pos_tools
+{
+    using __storage_data_t = __stop_pos_storage_type_selector_t<_StopPosStorage>;
+
+    // Describes whether we have a final-position type in the storage or not
+    static constexpr bool __has_src_final_pos =
+        oneapi::dpl::__ranges::__internal::__has_final_pos_type_v<__storage_data_t>;
+
+    // Describes final position type (if any) in the storage
+    using __src_final_pos_t = oneapi::dpl::__ranges::__internal::__final_pos_type_selector_t<__storage_data_t>;
+
+    // Describes OOB position type
+    using __oob_pos_t =
+        std::conditional_t<__detect_oob_in_two_steps_v<_GenScanInput>, std::uint16_t, __src_final_pos_t>;
+
+    static __oob_pos_t
+    __create_initial_oob_pos()
+    {
+        if constexpr (std::is_arithmetic_v<__oob_pos_t>)
+            return std::numeric_limits<__oob_pos_t>::max();
+        else
+            return {};
+    }
+
+    static bool
+    __is_eq_to_initial_oob_pos(const __oob_pos_t& __pos)
+    {
+        return __pos == __create_initial_oob_pos();
+    }
+
+    template <typename _Group, typename _FinalPosType>
+    static _FinalPosType
+    __reduce_max_final_pos(_Group __group, _FinalPosType& __last_idxs_in_this_wi)
+    {
+        if constexpr (std::is_arithmetic_v<std::decay_t<_FinalPosType>>)
+        {
+            return __dpl_sycl::__reduce_over_group(__group, __last_idxs_in_this_wi,
+                                                   __dpl_sycl::__maximum<_FinalPosType>());
+        }
+        else
+        {
+            using TField0 = std::decay_t<decltype(std::get<0>(__last_idxs_in_this_wi))>;
+            using TField1 = std::decay_t<decltype(std::get<1>(__last_idxs_in_this_wi))>;
+
+            return {__dpl_sycl::__reduce_over_group(__group, std::get<0>(__last_idxs_in_this_wi),
+                                                    __dpl_sycl::__maximum<TField0>()),
+                    __dpl_sycl::__reduce_over_group(__group, std::get<1>(__last_idxs_in_this_wi),
+                                                    __dpl_sycl::__maximum<TField1>())};
+        }
+    }
+
+    template <typename __FinalAndOOBPosAcc, typename _OOBPosType>
+    static void
+    __update_oob_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _OOBPosType& __oob_pos)
+    {
+        auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
+
+        // No synchronization needed because OOB position may be reached only in a single work-item
+        if constexpr (std::is_arithmetic_v<std::decay_t<_OOBPosType>>)
+        {
+            // The __final_and_oob_pos really is simple position value
+            __final_and_oob_pos = __oob_pos;
+        }
+        else
+        {
+            // The __final_and_oob_pos really is _SetOpFinalAndOOBPosType
+            __final_and_oob_pos.__oob_pos = __oob_pos;
+        }
+    }
+
+    // Device-scope atomic over global memory. The target must live in device USM
+    // (see __transform_reduce_then_scan_stop_pos_storage_t); a device-scope atomic on host USM
+    // triggers an atomic access violation on device.
+    template <typename _FieldT>
+    using _StopPosFieldAtomicRefT =
+        sycl::atomic_ref<std::decay_t<_FieldT>, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                         sycl::access::address_space::global_space>;
+
+    template <typename __FinalAndOOBPosAcc, typename _FinalPosType>
+    static void
+    __update_final_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _FinalPosType& __final_pos)
+    {
+        // The __final_and_oob_pos really is _SetOpFinalAndOOBPosType
+        auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
+
+        // We need atomic access here as multiple work-items can setup reached final position and update it concurrently.
+        if constexpr (std::is_arithmetic_v<std::decay_t<decltype(__final_and_oob_pos)>>)
+        {
+            _StopPosFieldAtomicRefT<_FinalPosType>(__final_and_oob_pos).fetch_max(__final_pos);
+        }
+        else
+        {
+            auto& __final_pos_field0 = std::get<0>(__final_and_oob_pos.__final_pos);
+            auto& __final_pos_field1 = std::get<1>(__final_and_oob_pos.__final_pos);
+
+            using _FinalPosType0 = std::decay_t<decltype(__final_pos_field0)>;
+            using _FinalPosType1 = std::decay_t<decltype(__final_pos_field1)>;
+
+            _StopPosFieldAtomicRefT<_FinalPosType0>(__final_pos_field0).fetch_max(std::get<0>(__final_pos));
+            _StopPosFieldAtomicRefT<_FinalPosType1>(__final_pos_field1).fetch_max(std::get<1>(__final_pos));
+        }
+    }
+
+    template <typename __oob_pos_t>
+    static auto
+    __create_on_oob_reached(std::size_t& __start_id_reached, std::size_t& __start_id_reached_on_oob,
+                            __oob_pos_t& __oob_detected)
+    {
+        return [&__start_id_reached, &__start_id_reached_on_oob, &__oob_detected](__oob_pos_t __id) {
+            __start_id_reached_on_oob = __start_id_reached;
+            __oob_detected = __id;
+        };
+    }
+
+    template <typename _FinalPosType>
+    static auto
+    __create_final_pos_saver(_FinalPosType& __src_final_pos)
+    {
+        if constexpr (__has_src_final_pos)
+            return [&__src_final_pos](_FinalPosType __final_pos) { __src_final_pos = __final_pos; };
+        else
+            return __no_callback_tag{};
+    }
+
+    template <typename _OOBPositionT, typename _GenScanInputArg>
+    static std::conditional_t<__detect_oob_in_two_steps_v<_GenScanInput>, __src_final_pos_t, _OOBPositionT>
+    __finalize_oob_detected(_OOBPositionT __detected_oob_pos, const std::size_t __start_id_reached_on_oob,
+                            _GenScanInputArg __gen_scan_input)
+    {
+        if constexpr (__detect_oob_in_two_steps_v<_GenScanInput>)
+        {
+            __src_pos_capturing_temp_data<__src_final_pos_t> __pos_catcher(__detected_oob_pos);
+            __gen_scan_input(__start_id_reached_on_oob, __pos_catcher, __no_callback_tag{});
+            return __pos_catcher.__get_saved_src_pos();
+        }
+        else
+        {
+            return __detected_oob_pos;
+        }
+    }
+
+    static auto
+    __create_src_final_pos_sg_container()
+    {
+        if constexpr (_Bounded)
+        {
+            if constexpr (__has_src_final_pos)
+                return __src_final_pos_t{};
+            else
+                return 0;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+};
 
 template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
@@ -2051,166 +2225,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                           const std::size_t __num_sub_groups_global) const
     {
         __tmp_acc[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
-    }
-
-    template <typename _StopPosStorage>
-    struct _StopAndOOBPosTypeTrait
-    {
-        using __storage_data_t = typename _StopPosStorage::type;
-
-        // Describes whether we have a final-position type in the storage or not
-        static constexpr bool __has_src_final_pos =
-            oneapi::dpl::__ranges::__internal::__has_final_pos_type_v<__storage_data_t>;
-
-        // Describes final position type (if any) in the storage
-        using __src_final_pos_t = oneapi::dpl::__ranges::__internal::__final_pos_type_selector_t<__storage_data_t>;
-
-        // Describes OOB position type
-        using __oob_pos_t =
-            std::conditional_t<__detect_oob_in_two_steps_v<_GenScanInput>, std::uint16_t, __src_final_pos_t>;
-
-        static __oob_pos_t
-        __create_initial_oob_pos()
-        {
-            if constexpr (std::is_arithmetic_v<__oob_pos_t>)
-                return std::numeric_limits<__oob_pos_t>::max();
-            else
-                return {};
-        }
-
-        static bool
-        __is_eq_to_initial_oob_pos(const __oob_pos_t& __pos)
-        {
-            return __pos == __create_initial_oob_pos();
-        }
-    };
-
-    template <typename _Group, typename _FinalPosType>
-    _FinalPosType
-    __reduce_max_final_pos(_Group __group, _FinalPosType& __last_idxs_in_this_wi) const
-    {
-        if constexpr (std::is_arithmetic_v<std::decay_t<_FinalPosType>>)
-        {
-            return __dpl_sycl::__reduce_over_group(__group, __last_idxs_in_this_wi,
-                                                   __dpl_sycl::__maximum<_FinalPosType>());
-        }
-        else
-        {
-            using TField0 = std::decay_t<decltype(std::get<0>(__last_idxs_in_this_wi))>;
-            using TField1 = std::decay_t<decltype(std::get<1>(__last_idxs_in_this_wi))>;
-
-            return {__dpl_sycl::__reduce_over_group(__group, std::get<0>(__last_idxs_in_this_wi),
-                                                    __dpl_sycl::__maximum<TField0>()),
-                    __dpl_sycl::__reduce_over_group(__group, std::get<1>(__last_idxs_in_this_wi),
-                                                    __dpl_sycl::__maximum<TField1>())};
-        }
-    }
-
-    template <typename __FinalAndOOBPosAcc, typename _OOBPosType>
-    void
-    __update_oob_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _OOBPosType& __oob_pos) const
-    {
-        auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
-
-        // No synchronization needed because OOB position may be reached only in a single work-item
-        if constexpr (std::is_arithmetic_v<std::decay_t<_OOBPosType>>)
-        {
-            // The __final_and_oob_pos really is simple position value
-            __final_and_oob_pos = __oob_pos;
-        }
-        else
-        {
-            // The __final_and_oob_pos really is _SetOpFinalAndOOBPosType
-            __final_and_oob_pos.__oob_pos = __oob_pos;
-        }
-    }
-
-    // Device-scope atomic over global memory. The target must live in device USM
-    // (see __transform_reduce_then_scan_stop_pos_storage_t); a device-scope atomic on host USM
-    // triggers an atomic access violation on device.
-    template <typename _FieldT>
-    using _StopPosFieldAtomicRefT =
-        sycl::atomic_ref<std::decay_t<_FieldT>, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                         sycl::access::address_space::global_space>;
-
-    template <typename __FinalAndOOBPosAcc, typename _FinalPosType>
-    void
-    __update_final_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _FinalPosType& __final_pos) const
-    {
-        // The __final_and_oob_pos really is _SetOpFinalAndOOBPosType
-        auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
-
-        // We need atomic access here as multiple work-items can setup reached final position and update it concurrently.
-        if constexpr (std::is_arithmetic_v<std::decay_t<decltype(__final_and_oob_pos)>>)
-        {
-            _StopPosFieldAtomicRefT<_FinalPosType>(__final_and_oob_pos).fetch_max(__final_pos);
-        }
-        else
-        {
-            auto& __final_pos_field0 = std::get<0>(__final_and_oob_pos.__final_pos);
-            auto& __final_pos_field1 = std::get<1>(__final_and_oob_pos.__final_pos);
-
-            using _FinalPosType0 = std::decay_t<decltype(__final_pos_field0)>;
-            using _FinalPosType1 = std::decay_t<decltype(__final_pos_field1)>;
-
-            _StopPosFieldAtomicRefT<_FinalPosType0>(__final_pos_field0).fetch_max(std::get<0>(__final_pos));
-            _StopPosFieldAtomicRefT<_FinalPosType1>(__final_pos_field1).fetch_max(std::get<1>(__final_pos));
-        }
-    }
-
-    template <typename __oob_pos_t>
-    auto
-    __create_on_oob_reached(std::size_t& __start_id_reached, std::size_t& __start_id_reached_on_oob,
-                            __oob_pos_t& __oob_detected) const
-    {
-        return [&__start_id_reached, &__start_id_reached_on_oob, &__oob_detected](__oob_pos_t __id) {
-            __start_id_reached_on_oob = __start_id_reached;
-            __oob_detected = __id;
-        };
-    }
-
-    template <bool __has_final_pos, typename _FinalPosType>
-    auto
-    __create_final_pos_saver(_FinalPosType& __src_final_pos) const
-    {
-        if constexpr (__has_final_pos)
-            return [&__src_final_pos](_FinalPosType __final_pos) { __src_final_pos = __final_pos; };
-        else
-            return __no_callback_tag{};
-    }
-
-    template <typename _FinalPosType, typename _OOBPositionT, typename _InRng>
-    auto
-    __finalize_oob_detected(_OOBPositionT __detected_oob_pos, const _InRng& __in_rng,
-                            const std::size_t __start_id_reached_on_oob) const
-    {
-        if constexpr (__detect_oob_in_two_steps_v<_GenScanInput>)
-        {
-            __src_pos_capturing_temp_data<_FinalPosType> __pos_catcher(__detected_oob_pos);
-            __gen_scan_input(__in_rng, __start_id_reached_on_oob, __pos_catcher, __no_callback_tag{});
-            return __pos_catcher.__get_saved_src_pos();
-        }
-        else
-        {
-            return __detected_oob_pos;
-        }
-    }
-
-    template <typename __oob_trait>
-    auto
-    __create_src_final_pos_sg_container() const
-    {
-        if constexpr (_Bounded)
-        {
-            if constexpr (__oob_trait::__has_src_final_pos)
-                return typename __oob_trait::__src_final_pos_t{};
-            else
-                return 0;
-        }
-        else
-        {
-            return 0;
-        }
     }
 
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc, typename _StopPosStorage>
@@ -2451,9 +2465,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                using __oob_trait =
-                    std::conditional_t<_Bounded, _StopAndOOBPosTypeTrait<_StopPosStorage>, /*any dummy type*/ int>;
-                auto __src_final_pos_sg = __create_src_final_pos_sg_container<__oob_trait>();
+                using _PosTools = __parallel_reduce_then_scan_stop_oob_pos_tools<_Bounded, _GenScanInput, _StopPosStorage>;
+                auto __src_final_pos_sg = _PosTools::__create_src_final_pos_sg_container();
 
                 if (__sub_group_id < __active_subgroups)
                 {
@@ -2469,33 +2482,39 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
                     if constexpr (_Bounded)
                     {
-                        using __src_final_pos_t = typename __oob_trait::__src_final_pos_t;
+                        using __src_final_pos_t = typename _PosTools::__src_final_pos_t;
 
                         // Two pass processing: if the OOB position is reached in the first pass, then on the second
                         // pass we recover the source indexes for the diagonal where it happened and store the OOB
                         // position from them. The OOB position may be reached only in one work-item, so no
                         // synchronization is needed to update the shared OOB position in the second pass.
-                        typename __oob_trait::__oob_pos_t __oob_detected = __oob_trait::__create_initial_oob_pos();
+                        typename _PosTools::__oob_pos_t __oob_detected = _PosTools::__create_initial_oob_pos();
 
                         // Final pos on this work-item
                         std::size_t __start_id_reached_on_oob = __start_id;
                         __src_final_pos_t __src_final_pos_wi{};
                         __call_scan_through_elements_helper(
-                            __create_on_oob_reached(__start_id_reached, __start_id_reached_on_oob, __oob_detected),
-                            __create_final_pos_saver<__oob_trait::__has_src_final_pos>(__src_final_pos_wi));
+                            _PosTools::__create_on_oob_reached(__start_id_reached, __start_id_reached_on_oob, __oob_detected),
+                            _PosTools::__create_final_pos_saver(__src_final_pos_wi));
 
                         // Reduce over sub-group
-                        if constexpr (__oob_trait::__has_src_final_pos)
+                        if constexpr (_PosTools::__has_src_final_pos)
                         {
                             // Reduce final position over sub-group
-                            __src_final_pos_sg = __reduce_max_final_pos(__ndi.get_sub_group(), __src_final_pos_wi);
+                            __src_final_pos_sg =
+                                _PosTools::__reduce_max_final_pos(__ndi.get_sub_group(), __src_final_pos_wi);
                         }
 
                         // OOB element detected in this work-item?
-                        if (!__oob_trait::__is_eq_to_initial_oob_pos(__oob_detected))
+                        if (!_PosTools::__is_eq_to_initial_oob_pos(__oob_detected))
                         {
-                            __update_oob_pos(__stop_pos_acc, __finalize_oob_detected<__src_final_pos_t>(
-                                                                 __oob_detected, __in_rng, __start_id_reached_on_oob));
+                            auto __call_gen_scan_input = [&](auto&&... __args) {
+                                return __gen_scan_input(__in_rng, std::forward<decltype(__args)>(__args)...);
+                            };
+
+                            _PosTools::__update_oob_pos(
+                                __stop_pos_acc, _PosTools::__finalize_oob_detected(
+                                                    __oob_detected, __start_id_reached_on_oob, __call_gen_scan_input));
                         }
                     }
                     else
@@ -2506,17 +2525,15 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
                 if constexpr (_Bounded)
                 {
-                    if constexpr (__oob_trait::__has_src_final_pos)
+                    if constexpr (_PosTools::__has_src_final_pos)
                     {
-                        using __src_final_pos_t = typename __oob_trait::__src_final_pos_t;
-
                         // Reduce final position over group
-                        const __src_final_pos_t __src_final_pos_group =
-                            __reduce_max_final_pos(__ndi.get_group(), __src_final_pos_sg);
+                        const typename _PosTools::__src_final_pos_t __src_final_pos_group =
+                            _PosTools::__reduce_max_final_pos(__ndi.get_group(), __src_final_pos_sg);
 
                         // Update global final position from the first work-item inside work-group
                         if (__ndi.get_local_id(0) == 0)
-                            __update_final_pos(__stop_pos_acc, __src_final_pos_group);
+                            _PosTools::__update_final_pos(__stop_pos_acc, __src_final_pos_group);
                     }
                 }
 
