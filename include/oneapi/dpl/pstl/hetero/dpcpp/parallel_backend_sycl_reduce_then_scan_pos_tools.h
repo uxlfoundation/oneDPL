@@ -22,6 +22,7 @@
 #include <tuple>       // std::get
 #include <type_traits> // std::integral_constant
 
+#include "../../onedpl_config.h"
 #include "parallel_backend_sycl_utils.h"
 #include "utils_ranges_sycl.h"
 
@@ -31,8 +32,66 @@ namespace dpl
 {
 namespace __par_backend_hetero
 {
+
+// Describe final and OOB positions in source ranges together for bounded set operations
+// (where tracking of OOB position is needed to determine the effective final position
+// in source ranges based on output range size).
+template <typename _Range1, typename _Range2>
+struct _SetOpFinalAndOOBPosTypeImpl
+{
+// FPGA devices don't support 64-bit atomics
+#if _ONEDPL_FPGA_DEVICE
+    using _Size1 = std::uint32_t;
+    using _Size2 = std::uint32_t;
+#else
+    using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
+    using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
+#endif
+
+    using _PositionT = oneapi::dpl::__internal::tuple<_Size1, _Size2>;
+
+    _PositionT __final_pos = {}; // Describes final position after set operation in source ranges
+    _PositionT __oob_pos = {};   // Describes OOB position during set operation in source ranges
+
+    // Compute the stop (end) position of the set operation result in the source ranges.
+    // The effective stop position is the smaller of:
+    //   - the final position produced by the set operation (without output range size limitations), and
+    //   - the out-of-bounds (OOB) position marking the end of the available output range.
+    std::tuple<_Size1, _Size2>
+    __compute_stop_pos() const
+    {
+        return {std::min(std::get<0>(__final_pos), std::get<0>(__oob_pos)),
+                std::min(std::get<1>(__final_pos), std::get<1>(__oob_pos))};
+    }
+};
+
+template <typename _Range1, typename _Range2>
+using _SetOpFinalAndOOBPosType = _SetOpFinalAndOOBPosTypeImpl<std::decay_t<_Range1>, std::decay_t<_Range2>>;
+
 namespace __internal
 {
+// Detecting _PositionT type alias in the specified structure
+template <typename _T, typename = void>
+struct __final_pos_type_selector : std::false_type
+{
+    // This means we only deal with the OOB position here.
+    using type = _T;
+};
+
+template <typename _Range1, typename _Range2>
+struct __final_pos_type_selector<_SetOpFinalAndOOBPosTypeImpl<_Range1, _Range2>,
+                                 std::void_t<typename _SetOpFinalAndOOBPosTypeImpl<_Range1, _Range2>::_PositionT>>
+    : std::true_type
+{
+    // This means we deal with both final and OOB positions together here.
+    using type = typename _SetOpFinalAndOOBPosType<_Range1, _Range2>::_PositionT;
+};
+
+template <typename _T>
+using __final_pos_type_selector_t = typename __final_pos_type_selector<std::decay_t<_T>>::type;
+
+template <typename _T>
+constexpr bool __has_final_pos_type_v = __final_pos_type_selector<std::decay_t<_T>>::value;
 
 template <typename, typename = void>
 struct __select_max_outputs_per_input : std::integral_constant<std::uint16_t, 1>
@@ -150,11 +209,10 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
     using __storage_data_t = __stop_pos_storage_type_selector_t<_StopPosStorage>;
 
     // Describes whether we have a final-position type in the storage or not
-    static constexpr bool __has_src_final_pos =
-        oneapi::dpl::__ranges::__internal::__has_final_pos_type_v<__storage_data_t>;
+    static constexpr bool __has_src_final_pos = __has_final_pos_type_v<__storage_data_t>;
 
     // Describes final position type (if any) in the storage
-    using __src_final_pos_t = oneapi::dpl::__ranges::__internal::__final_pos_type_selector_t<__storage_data_t>;
+    using __src_final_pos_t = __final_pos_type_selector_t<__storage_data_t>;
 
     // Describes OOB position type
     using __oob_pos_t =
@@ -297,6 +355,84 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
 };
 
 } // namespace __internal
+
+template <typename _TResult, typename = std::enable_if_t<std::is_trivially_copyable_v<_TResult>>>
+struct __clamp_max
+{
+    template <typename _TArg>
+    _TArg
+    operator()(_TArg __arg) const
+    {
+        return std::min<_TArg>(__arg, __max_value);
+    }
+
+    _TResult __max_value{};
+};
+
+template <bool _Bounded, typename _OutRng>
+auto
+__create_transform_result_op(_OutRng& __out_rng)
+{
+    if constexpr (_Bounded)
+    {
+        // In C++17 we can't deduce template parameter in aggregate initialization.
+        using _SizeT = decltype(oneapi::dpl::__ranges::__size(__out_rng));
+        return __clamp_max<_SizeT>{oneapi::dpl::__ranges::__size(__out_rng)};
+    }
+    else
+    {
+        return oneapi::dpl::identity{};
+    }
+}
+
+// The return type of set operation implementation for bounded and unbounded cases.
+// For bounded case we need to return final and OOB positions in source ranges,
+// for unbounded case we need to return only the size of the result.
+template <bool _Bounded, typename _Range1, typename _Range2, typename _Range3>
+using __set_op_impl_return_t =
+    std::conditional_t<_Bounded,
+                       oneapi::dpl::__internal::tuple<oneapi::dpl::__internal::__difference_t<_Range1>,
+                                                      oneapi::dpl::__internal::__difference_t<_Range2>,
+                                                      oneapi::dpl::__internal::__difference_t<_Range3>>,
+                       oneapi::dpl::__internal::__difference_t<_Range3>>;
+
+// Create the result of set operation implementation for bounded and unbounded cases
+// based on the final and OOB positions in source ranges or the size of the result respectively.
+template <bool _Bounded, typename _Range1, typename _Range2, typename _Range3>
+__set_op_impl_return_t<_Bounded, _Range1, _Range2, _Range3>
+__create_set_op_impl_result(oneapi::dpl::__internal::__difference_t<_Range1> __idx1,
+                            oneapi::dpl::__internal::__difference_t<_Range2> __idx2,
+                            oneapi::dpl::__internal::__difference_t<_Range3> __idx3)
+{
+    if constexpr (_Bounded)
+        return {__idx1, __idx2, __idx3};
+    else
+        return __idx3;
+}
+
+template <bool _Bounded, typename _Range1, typename _Range2>
+std::conditional_t<_Bounded, _SetOpFinalAndOOBPosType<_Range1, _Range2>, std::size_t>
+__create_initial_final_and_oob_pos_state(const _Range1& __range1, const _Range2& __range2)
+{
+    if constexpr (_Bounded)
+    {
+        using _PositionT = typename _SetOpFinalAndOOBPosType<_Range1, _Range2>::_PositionT;
+
+        // Initial final state initialized by 0 because we will use fetch_max() call from Kernel's code
+        _PositionT __initial_final_pos{0, 0};
+
+        // Initial OOB state initialized by the size of the ranges because we will use std::min() for their state
+        // and final positions on host side after finish Kernel's code.
+        _PositionT __initial_oob_pos{oneapi::dpl::__ranges::__size(__range1), oneapi::dpl::__ranges::__size(__range2)};
+
+        return _SetOpFinalAndOOBPosType<_Range1, _Range2>{__initial_final_pos, __initial_oob_pos};
+    }
+    else
+    {
+        return std::size_t{0};
+    }
+}
+
 } // namespace __par_backend_hetero
 } // namespace dpl
 } // namespace oneapi
