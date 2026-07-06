@@ -10,6 +10,7 @@
 #ifndef _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_THEN_SCAN_POS_TOOLS_H
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_THEN_SCAN_POS_TOOLS_H
 
+#include <algorithm>   // std::min
 #include <cstddef>     // std::size_t
 #include <cstdint>     // std::uint16_t
 #include <limits>      // std::numeric_limits
