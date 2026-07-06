@@ -327,10 +327,18 @@ struct __write_multiple_to_id
         const std::size_t __n = std::get<1>(__v);
         for (std::size_t __i = 0; __i < __n; ++__i)
         {
+            // Retrieve and destroy the temporary slot unconditionally, before the bounds check. Each slot was
+            // constructed by the generator via placement-new (__temp_data_array::set) and requires an explicit
+            // matching destruction. Since __temp_data is reused for the next scanned element, destroying only on the
+            // in-bounds path would leak slots whose output index falls outside __out_size (the bounded/overflow case)
+            // and let the next set() placement-new over a still-live object.
+            auto&& __val = __temp_data.get_and_destroy(__i);
+
             __write_if_in_bounds(
                 __out_size, std::get<0>(__v) - std::get<1>(__v) + __i,
                 [&](auto __idx_out) {
-                    __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)), __out_rng[__idx_out]);
+                    __assign(static_cast<_ConvertedTupleType>(std::forward<decltype(__val)>(__val)),
+                             __out_rng[__idx_out]);
                 },
                 [&]() {
                     // Report the source id of the current diagonal together with the local element offset within the
