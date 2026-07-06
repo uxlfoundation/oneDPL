@@ -115,14 +115,13 @@ struct __no_stop_pos_acc_tag
 template <typename _T>
 inline constexpr bool __is_no_stop_pos_acc_v = std::is_same_v<std::remove_cv_t<_T>, __no_stop_pos_acc_tag>;
 
-template <bool _Bounded, typename _StopPosStorage>
+template <bool _Bounded, typename _Mode, typename _StopPosStorage>
 auto
-__get_stop_pos_accessor_opt(sycl::handler& __cgh, _StopPosStorage& __stop_pos_storage)
+__get_stop_pos_accessor_opt(_Mode __mode, sycl::handler& __cgh, _StopPosStorage& __stop_pos_storage)
 {
     if constexpr (_Bounded)
     {
-        // By using this sycl::read_write option we implement source data initialization under this accessor
-        return __get_accessor(sycl::read_write, __stop_pos_storage, __cgh, __dpl_sycl::__no_init{});
+        return __get_accessor(__mode, __stop_pos_storage, __cgh, __dpl_sycl::__no_init{});
     }
     else
     {
