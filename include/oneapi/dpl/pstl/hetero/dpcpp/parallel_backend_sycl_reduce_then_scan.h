@@ -2254,7 +2254,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         }
 
                         // OOB element detected in this work-item?
-                        if (!_PosTools::__is_eq_to_initial_oob_pos(__oob_detected))
+                        if (_PosTools::__create_initial_oob_pos() != __oob_detected)
                         {
                             auto __call_gen_scan_input = [&](auto&&... __args) {
                                 return __gen_scan_input(__in_rng, std::forward<decltype(__args)>(__args)...);

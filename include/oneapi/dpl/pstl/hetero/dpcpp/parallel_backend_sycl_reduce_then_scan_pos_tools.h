@@ -199,12 +199,6 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
             return {};
     }
 
-    static bool
-    __is_eq_to_initial_oob_pos(const __oob_pos_t& __pos)
-    {
-        return __pos == __create_initial_oob_pos();
-    }
-
     template <typename _Group, typename _FinalPosType>
     static _FinalPosType
     __reduce_max_final_pos(_Group __group, _FinalPosType& __last_idxs_in_this_wi)
