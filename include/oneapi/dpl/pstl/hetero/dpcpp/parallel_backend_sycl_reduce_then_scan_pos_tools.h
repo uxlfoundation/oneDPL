@@ -169,9 +169,9 @@ struct __no_stop_pos_acc_tag
 template <typename _T>
 inline constexpr bool __is_no_stop_pos_acc_v = std::is_same_v<std::remove_cv_t<_T>, __no_stop_pos_acc_tag>;
 
-template <bool _Bounded, typename _Mode, typename _StopPosStorage>
+template <bool _Bounded, typename _ModeTagT, typename _StopPosStorage>
 auto
-__get_stop_pos_accessor_opt(_Mode __mode, sycl::handler& __cgh, _StopPosStorage& __stop_pos_storage)
+__get_stop_pos_accessor_opt(_ModeTagT __mode, sycl::handler& __cgh, _StopPosStorage& __stop_pos_storage)
 {
     if constexpr (_Bounded)
     {
