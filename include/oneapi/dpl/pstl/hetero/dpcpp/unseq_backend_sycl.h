@@ -1112,7 +1112,7 @@ struct __reverse_functor
         }
 
         // In the below implementation, _IsFull is ignored in favor of std::true_type{} in all cases.
-        // This relaxation is due to the fact that in-place reverse iterates only over the first half of the buffer,
+        // This relaxation is due to the fact that in-place reverse iterates only over the first half of the buffer.
         // Since there is more than a single vector of data to reverse, there is no OOB accesses or race condition.
         // There may exist a single point of double processing between left and right vectors in the last work-item
         // which reverses middle elements.

@@ -1581,7 +1581,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator>
 void
 __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last)
 {
-    std::size_t __n = __last - __first;
+    const std::size_t __n = __last - __first;
     if (__n <= 1)
         return;
 
