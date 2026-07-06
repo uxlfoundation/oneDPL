@@ -94,6 +94,10 @@ template <typename _SrcDataPosT>
 struct __src_pos_capturing_temp_data
 {
   public:
+
+    // We should capture source data indexes in this structure
+    static constexpr bool __capture_indexes_flag = true;
+
     __src_pos_capturing_temp_data(std::uint16_t __idx_for_src_pos) : __idx_for_src_pos(__idx_for_src_pos) {}
 
     template <typename _ValueT2>
@@ -114,20 +118,6 @@ struct __src_pos_capturing_temp_data
     const std::uint16_t __idx_for_src_pos = 0;
     _SrcDataPosT __saved_src_pos = {};
 };
-
-template <typename = void>
-struct __temp_data_capture_indexes_flag : std::false_type
-{
-};
-
-template <typename _SrcDataPosT>
-struct __temp_data_capture_indexes_flag<__src_pos_capturing_temp_data<_SrcDataPosT>> : std::true_type
-{
-};
-
-template <typename _TempData>
-inline constexpr bool __temp_data_capture_indexes_flag_v =
-    __temp_data_capture_indexes_flag<std::decay_t<_TempData>>::value;
 
 // Tag type to indicate that no callback is provided
 struct __no_callback_tag

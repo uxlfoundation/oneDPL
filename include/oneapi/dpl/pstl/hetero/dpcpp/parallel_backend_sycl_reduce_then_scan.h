@@ -57,6 +57,9 @@ struct __temp_data_array
     // bounded-write estimate must account for this many writes per scanned element.
     static constexpr std::uint16_t __max_outputs_per_input = elements;
 
+    // We don't capture source data indexes in this structure
+    static constexpr bool __capture_indexes_flag = false;
+
     template <typename _ValueT2>
     void
     set(std::uint16_t __idx, const _ValueT2& __ele)
@@ -81,6 +84,9 @@ struct __temp_data_array
 struct __noop_temp_data
 {
     static constexpr std::uint16_t __max_outputs_per_input = 1;
+
+    // We don't capture source data indexes in this structure
+    static constexpr bool __capture_indexes_flag = false;
 
     template <typename _ValueT>
     void
@@ -531,7 +537,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
 
     auto __write_temp_element = [&](const _SizeType __count_arg, const auto& __value) {
-        if constexpr (__internal::__temp_data_capture_indexes_flag_v<_TempOutput>)
+        if constexpr (_TempOutput::__capture_indexes_flag)
             __temp_out.set(__count_arg, __value, {__idx1, __idx2});
         else
             __temp_out.set(__count_arg, __value);
