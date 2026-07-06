@@ -149,10 +149,6 @@ struct __no_callback_tag
 {
 };
 
-// Helper variable template to check if a callback is provided or not
-template <typename _TCallback>
-inline constexpr bool __is_no_callback_v = std::is_same_v<std::decay_t<_TCallback>, __no_callback_tag>;
-
 template <typename, typename = void>
 struct __detect_oob_in_two_steps_selector : std::false_type
 {

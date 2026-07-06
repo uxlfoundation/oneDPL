@@ -637,6 +637,18 @@ struct __set_generic_operation
     }
 
   public:
+
+    template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
+              typename _Proj1, typename _Proj2>
+    _SizeType
+    operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
+               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
+               _Proj2 __proj2, __internal::__no_callback_tag) const
+    {
+        return __check_bounds_and_run_loop(__in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __comp,
+                                           __proj1, __proj2);
+    }
+
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
               typename _Proj1, typename _Proj2, typename _FinalPosSaver>
     _SizeType
@@ -644,24 +656,16 @@ struct __set_generic_operation
                const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
                _Proj2 __proj2, _FinalPosSaver __final_pos_saver) const
     {
-        if constexpr (__internal::__is_no_callback_v<_FinalPosSaver>)
-        {
-            return __check_bounds_and_run_loop(__in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __comp,
-                                               __proj1, __proj2);
-        }
-        else
-        {
-            const auto __idx1_old = __idx1;
-            const auto __idx2_old = __idx2;
+        const auto __idx1_old = __idx1;
+        const auto __idx2_old = __idx2;
 
-            const _SizeType result = __check_bounds_and_run_loop(__in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min,
-                                                                 __temp_out, __comp, __proj1, __proj2);
+        const _SizeType result = __check_bounds_and_run_loop(__in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min,
+                                                             __temp_out, __comp, __proj1, __proj2);
 
-            if (__idx1_old != __idx1 || __idx2_old != __idx2)
-                __final_pos_saver({__idx1, __idx2});
+        if (__idx1_old != __idx1 || __idx2_old != __idx2)
+            __final_pos_saver({__idx1, __idx2});
 
-            return result;
-        }
+        return result;
     }
 };
 
