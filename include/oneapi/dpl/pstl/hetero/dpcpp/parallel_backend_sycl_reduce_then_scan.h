@@ -2000,7 +2000,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
             auto __temp_acc = __get_accessor(sycl::read_write, __scratch_container, __cgh);
             auto __res_acc =
                 __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
-            auto __stop_pos_acc = __internal::__get_stop_pos_accessor_opt<_Bounded>(sycl::read_write, __cgh, __stop_pos_storage);
+            auto __stop_pos_acc =
+                __internal::__get_stop_pos_accessor_opt<_Bounded>(sycl::read_write, __cgh, __stop_pos_storage);
 
             __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi)
                     [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_req_sg_sz_device())]] {
