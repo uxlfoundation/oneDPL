@@ -82,12 +82,6 @@ struct __final_pos_type_selector<_SetOpFinalAndOOBPosTypeImpl<_Range1, _Range2>,
     using type = typename _SetOpFinalAndOOBPosType<_Range1, _Range2>::_PositionT;
 };
 
-template <typename _T>
-using __final_pos_type_selector_t = typename __final_pos_type_selector<std::decay_t<_T>>::type;
-
-template <typename _T>
-constexpr bool __has_final_pos_type_v = __final_pos_type_selector<std::decay_t<_T>>::value;
-
 // Temporary data stand-in which discards the stored values and instead captures
 // the source position of the element at a specific index during a reduce then scan operation.
 template <typename _SrcDataPosT>
@@ -168,10 +162,10 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
     using __storage_data_t = __stop_pos_storage_type_selector_t<_StopPosStorage>;
 
     // Describes whether we have a final-position type in the storage or not
-    static constexpr bool __has_src_final_pos = __has_final_pos_type_v<__storage_data_t>;
+    static constexpr bool __has_src_final_pos = __final_pos_type_selector<std::decay_t<__storage_data_t>>::value;
 
     // Describes final position type (if any) in the storage
-    using __src_final_pos_t = __final_pos_type_selector_t<__storage_data_t>;
+    using __src_final_pos_t = typename __final_pos_type_selector<std::decay_t<__storage_data_t>>::type;
 
     // Describes OOB position type
     using __oob_pos_t =
