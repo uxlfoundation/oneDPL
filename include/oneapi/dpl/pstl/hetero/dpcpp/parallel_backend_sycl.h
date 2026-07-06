@@ -1111,11 +1111,6 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
     return __create_future(std::move(__event), std::move(__payload));
 }
 
-template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1, typename _Proj2>
-__set_op_impl_return_t<_Bounded, _Range1, _Range2, _Range3>
-__set_op_impl(_SetTag __set_tag, sycl::queue&, _Range1&&, _Range2&&, _Range3&&, _Compare, _Proj1, _Proj2);
-
 template <typename _CustomName>
 struct reduce_then_scan_wrapper;
 
