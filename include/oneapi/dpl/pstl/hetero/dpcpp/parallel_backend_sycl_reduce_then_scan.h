@@ -80,6 +80,8 @@ struct __temp_data_array
 // where no temporary register data is needed within reduce then scan kern
 struct __noop_temp_data
 {
+    static constexpr std::uint16_t __max_outputs_per_input = 1;
+
     template <typename _ValueT>
     void
     set(std::uint16_t, const _ValueT&) const
@@ -1686,8 +1688,8 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                 // element is a diagonal written through __write_multiple_to_id. The estimate must account for
                 // this many writes per scanned element, otherwise the unchecked write path could be selected for
                 // set operations and overrun __out_rng (corrupting memory and skipping OOB position detection).
-                const std::size_t __max_writes_this_sub_group = std::size_t{__iters_per_item} * __sub_group_size *
-                                                                __internal::__select_max_outputs_per_input_v<_TempData>;
+                const std::size_t __max_writes_this_sub_group =
+                    std::size_t{__iters_per_item} * __sub_group_size * _TempData::__max_outputs_per_input;
                 if (__carry_in + __max_writes_this_sub_group + __is_unique_pattern_v > __out_rng_size)
                 {
                     auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {

@@ -88,21 +88,6 @@ using __final_pos_type_selector_t = typename __final_pos_type_selector<std::deca
 template <typename _T>
 constexpr bool __has_final_pos_type_v = __final_pos_type_selector<std::decay_t<_T>>::value;
 
-template <typename, typename = void>
-struct __select_max_outputs_per_input : std::integral_constant<std::uint16_t, 1>
-{
-    // By default, each work-item emits at most one output per scanned element.
-};
-
-template <typename _T>
-struct __select_max_outputs_per_input<_T, std::void_t<decltype(_T::__max_outputs_per_input)>>
-    : std::integral_constant<std::uint16_t, _T::__max_outputs_per_input>
-{
-};
-
-template <typename _T>
-constexpr std::uint16_t __select_max_outputs_per_input_v = __select_max_outputs_per_input<std::decay_t<_T>>::value;
-
 // Temporary data stand-in which discards the stored values and instead captures
 // the source position of the element at a specific index during a reduce then scan operation.
 template <typename _SrcDataPosT>
