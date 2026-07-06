@@ -75,15 +75,15 @@ namespace __par_backend_hetero
 // Return Vals : 0 2 5 6 9 0 5 2
 // -----------------------------
 // __wg_segmented_scan is a derivative work and the reason for the additional copyright notice.
-template <typename _NdItem, typename _LocalAcc, typename _IdxType, typename _ValueType, typename _BinaryOp>
+template <typename _Group, typename _LocalAcc, typename _IdxType, typename _ValueType, typename _BinaryOp>
 _ValueType
-__wg_segmented_scan(_NdItem __item, _LocalAcc __local_acc, _IdxType __local_id, _IdxType __delta_local_id,
+__wg_segmented_scan(_Group __group, _LocalAcc __local_acc, _IdxType __local_id, _IdxType __delta_local_id,
                     _ValueType __accumulator, _ValueType __identity, _BinaryOp __binary_op, std::size_t __wgroup_size)
 {
     _IdxType __first = 0;
     __local_acc[__local_id] = __accumulator;
 
-    __dpl_sycl::__group_barrier(__item);
+    sycl::group_barrier(__group);
 
     for (std::size_t __i = 1; __i < __wgroup_size; __i *= 2)
     {
@@ -92,12 +92,11 @@ __wg_segmented_scan(_NdItem __item, _LocalAcc __local_acc, _IdxType __local_id, 
 
         __first = __wgroup_size - __first;
         __local_acc[__first + __local_id] = __accumulator;
-        __dpl_sycl::__group_barrier(__item);
+        sycl::group_barrier(__group);
     }
 
     return (__local_id ? __local_acc[__first + __local_id - 1] : __identity);
 }
-
 
 template <typename... Name>
 class __seg_reduce_count_kernel;
