@@ -637,7 +637,6 @@ struct __set_generic_operation
     }
 
   public:
-
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
               typename _Proj1, typename _Proj2>
     _SizeType
