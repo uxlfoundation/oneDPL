@@ -72,7 +72,7 @@ test()
     std::vector<std::size_t> test_sizes = TestUtils::get_pattern_for_test_sizes();
     const std::size_t max_len = test_sizes.back();
     // Add a value to cover the case of len modulo 8 == 3
-    test_sizes.insert(test_sizes.end(), (max_len / 8) * 8 - 5);
+    test_sizes.push_back((max_len / 8) * 8 - 5);
 
     Sequence<T> actual(max_len);
     Sequence<T> data(max_len, [](std::size_t i) { return T(i); });
