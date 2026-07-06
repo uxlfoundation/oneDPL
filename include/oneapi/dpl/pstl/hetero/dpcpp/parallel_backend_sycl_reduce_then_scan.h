@@ -1675,8 +1675,8 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                 // element is a diagonal written through __write_multiple_to_id. The estimate must account for
                 // this many writes per scanned element, otherwise the unchecked write path could be selected for
                 // set operations and overrun __out_rng (corrupting memory and skipping OOB position detection).
-                const std::size_t __max_writes_this_sub_group =
-                    std::size_t{__iters_per_item} * __sub_group_size * __internal::__select_max_outputs_per_input_v<_TempData>;
+                const std::size_t __max_writes_this_sub_group = std::size_t{__iters_per_item} * __sub_group_size *
+                                                                __internal::__select_max_outputs_per_input_v<_TempData>;
                 if (__carry_in + __max_writes_this_sub_group + __is_unique_pattern_v > __out_rng_size)
                 {
                     auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
@@ -2196,7 +2196,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                using _PosTools = __internal::__parallel_reduce_then_scan_stop_oob_pos_tools<_Bounded, _GenScanInput, _StopPosStorage>;
+                using _PosTools = __internal::__parallel_reduce_then_scan_stop_oob_pos_tools<_Bounded, _GenScanInput,
+                                                                                             _StopPosStorage>;
                 auto __src_final_pos_sg = _PosTools::__create_src_final_pos_sg_container();
 
                 if (__sub_group_id < __active_subgroups)
@@ -2225,7 +2226,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         std::size_t __start_id_reached_on_oob = __start_id;
                         __src_final_pos_t __src_final_pos_wi{};
                         __call_scan_through_elements_helper(
-                            _PosTools::__create_on_oob_reached(__start_id_reached, __start_id_reached_on_oob, __oob_detected),
+                            _PosTools::__create_on_oob_reached(__start_id_reached, __start_id_reached_on_oob,
+                                                               __oob_detected),
                             _PosTools::__create_final_pos_saver(__src_final_pos_wi));
 
                         // Reduce over sub-group
