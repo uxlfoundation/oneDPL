@@ -174,13 +174,9 @@ auto
 __get_stop_pos_accessor_opt(_ModeTagT __mode, sycl::handler& __cgh, _StopPosStorage& __stop_pos_storage)
 {
     if constexpr (_Bounded)
-    {
         return __get_accessor(__mode, __stop_pos_storage, __cgh, __dpl_sycl::__no_init{});
-    }
     else
-    {
         return __no_stop_pos_acc_tag{};
-    }
 }
 
 template <typename _StopPosStorage, typename = void>
