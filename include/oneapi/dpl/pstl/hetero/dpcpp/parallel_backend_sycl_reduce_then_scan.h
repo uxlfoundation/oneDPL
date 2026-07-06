@@ -1910,7 +1910,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                         __temp_ptr[__start_id + (__max_num_sub_groups_local - 1)] = __summary_carry.__get_cref();
                 }
 
-                if constexpr (!__internal::__is_no_stop_pos_acc_v<decltype(__stop_pos_acc)>)
+                if constexpr (!std::is_same_v<std::remove_cv_t<decltype(__stop_pos_acc)>, __internal::__no_stop_pos_acc_tag>)
                 {
                     if (__block_num == 0 && __ndi.get_global_linear_id() == 0)
                     {
