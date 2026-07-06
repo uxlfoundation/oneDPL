@@ -59,7 +59,7 @@ test_serial_set_op_count(SetTag set_tag)
     oneapi::dpl::__par_backend_hetero::__noop_temp_data __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{},
-                                   oneapi::dpl::__par_backend_hetero::__no_callback_tag{});
+                                   oneapi::dpl::__par_backend_hetero::__internal::__no_callback_tag{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -84,7 +84,7 @@ test_serial_set_op_count_and_write(SetTag set_tag)
     oneapi::dpl::__par_backend_hetero::__temp_data_array<10, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{},
-                                   oneapi::dpl::__par_backend_hetero::__no_callback_tag{});
+                                   oneapi::dpl::__par_backend_hetero::__internal::__no_callback_tag{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -117,7 +117,7 @@ test_serial_set_op_count_and_write2(SetTag set_tag)
     oneapi::dpl::__par_backend_hetero::__temp_data_array<10, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{},
-                                   oneapi::dpl::__par_backend_hetero::__no_callback_tag{});
+                                   oneapi::dpl::__par_backend_hetero::__internal::__no_callback_tag{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -150,7 +150,7 @@ test_serial_set_op_count_and_write_limited(SetTag set_tag)
     oneapi::dpl::__par_backend_hetero::__temp_data_array<11, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 4, 2, 10, __temp_data, std::less<int>(), oneapi::dpl::identity{},
-                                   oneapi::dpl::identity{}, oneapi::dpl::__par_backend_hetero::__no_callback_tag{});
+                                   oneapi::dpl::identity{}, oneapi::dpl::__par_backend_hetero::__internal::__no_callback_tag{});
 
     auto res = std_set(set_tag, v1.begin() + 4, v1.begin() + 4 + 5, v2.begin() + 2, v2.begin() + 2 + 5, v3.begin(),
                        std::less<int>());
@@ -185,7 +185,7 @@ test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
     oneapi::dpl::__par_backend_hetero::__temp_data_array<15, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{},
-                                   oneapi::dpl::__par_backend_hetero::__no_callback_tag{});
+                                   oneapi::dpl::__par_backend_hetero::__internal::__no_callback_tag{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -219,7 +219,7 @@ test_serial_set_op_count_and_write2_large_setB(SetTag set_tag)
     oneapi::dpl::__par_backend_hetero::__temp_data_array<15, int> __temp_data{};
     oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
     std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{},
-                                   oneapi::dpl::__par_backend_hetero::__no_callback_tag{});
+                                   oneapi::dpl::__par_backend_hetero::__internal::__no_callback_tag{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
