@@ -2105,9 +2105,6 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
 }
 
 template <typename _CustomName>
-struct __scan_by_seg_fallback;
-
-template <typename _CustomName>
 struct __scan_by_seg_transform_wrapper1;
 
 template <typename _CustomName>
