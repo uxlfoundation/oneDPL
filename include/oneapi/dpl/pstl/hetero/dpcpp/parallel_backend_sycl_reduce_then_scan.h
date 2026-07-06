@@ -1266,12 +1266,13 @@ __get_reduce_then_scan_req_sg_sz_device()
 
 #if _ONEDPL_DETECT_SPIRV_COMPILATION
 
-// On SPIR-V, the reqd_sub_group_size attribute is honored, and we ensure the workgroup size is a multiple of the
-// subgroup size, so the sub-group size is a known fixed compile time constant for all subgroups.
-constexpr inline std::uint8_t
-__get_reduce_then_scan_actual_sub_group_size(const sycl::sub_group&)
+// On SPIR-V, the reqd_sub_group_size attribute is should be honored, and we ensure the workgroup size is a multiple of
+// the subgroup size in this case, using the max local range should be safe, and the compiler treats it as a constexpr.
+// In rare cases, it seems the requested subgroup size may not be honored, but this value should be correct.
+inline std::uint8_t
+__get_reduce_then_scan_actual_sub_group_size(const sycl::sub_group&  __sg)
 {
-    return __get_reduce_then_scan_req_sg_sz_device();
+    return __sg.get_max_local_range()[0];
 }
 #else
 // When not compiling for SPIR-V, we must use the real subgroup size obtained at runtime, which may be
