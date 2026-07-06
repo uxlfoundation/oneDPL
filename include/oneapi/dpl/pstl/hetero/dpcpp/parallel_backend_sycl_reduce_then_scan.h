@@ -81,18 +81,6 @@ struct __noop_temp_data
     }
 };
 
-// Extracts a range from a zip iterator based on the element ID
-template <std::size_t _EleId>
-struct __extract_range_from_zip
-{
-    template <typename _InRng>
-    auto
-    operator()(const _InRng& __in_rng) const
-    {
-        return std::get<_EleId>(__in_rng.base());
-    }
-};
-
 // Extracts the zeroth element from a tuple or pair
 struct __get_zeroth_element
 {
