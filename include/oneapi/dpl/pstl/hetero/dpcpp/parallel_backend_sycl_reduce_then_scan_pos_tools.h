@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- parallel_backend_sycl_reduce_then_scan.h ---------------------------------===//
+//===-- parallel_backend_sycl_reduce_then_scan_pos_tools.h ----------------===//
 //
 // Copyright (C) Intel Corporation
 //
