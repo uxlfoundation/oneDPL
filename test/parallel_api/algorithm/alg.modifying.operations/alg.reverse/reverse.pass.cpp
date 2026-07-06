@@ -53,9 +53,9 @@ struct test_one_policy
 
         reverse(std::forward<ExecutionPolicy>(exec), actual_b, actual_e);
 
-        bool check = equal(data_b, data_e, reverse_iterator<Iterator2>(actual_e));
-
-        EXPECT_TRUE(check, "wrong result of reverse");
+        auto mismatch =
+            std::distance(actual_b, std::mismatch(actual_b, actual_e, reverse_iterator<Iterator1>(data_e)).first);
+        EXPECT_EQ(std::distance(actual_b, actual_e), mismatch, "wrong effect of reverse: mismatch at position");
     }
 
     template <typename ExecutionPolicy, typename Iterator1, typename Iterator2>
