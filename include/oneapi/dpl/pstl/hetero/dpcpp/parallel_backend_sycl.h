@@ -1117,31 +1117,7 @@ __set_op_impl_return_t<_Bounded, _Range1, _Range2, _Range3>
 __set_op_impl(_SetTag __set_tag, sycl::queue&, _Range1&&, _Range2&&, _Range3&&, _Compare, _Proj1, _Proj2);
 
 template <typename _CustomName>
-struct __set_union_merge_wrapper;
-
-template <typename _CustomName>
-struct __set_union_copy_wrapper;
-
-template <typename _CustomName>
-struct __set_symmetric_difference_diff_wrapper;
-
-template <typename _CustomName>
-struct __set_symmetric_difference_merge_wrapper;
-
-template <typename _CustomName>
-struct __set_symmetric_difference_copy1_wrapper;
-
-template <typename _CustomName>
-struct __set_symmetric_difference_copy2_wrapper;
-
-template <typename _CustomName>
 struct reduce_then_scan_wrapper;
-
-template <typename _CustomName>
-struct scan_then_propagate_wrapper;
-
-template <typename _CustomName>
-struct set_a_write_wrapper;
 
 template <bool _Bounded, typename _SetTag, typename _ExecutionPolicy, typename _Range1, typename _Range2,
           typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
