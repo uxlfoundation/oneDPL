@@ -805,8 +805,8 @@ __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r
         return;
 
     oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_functor<decltype(__n)>{__n},
-        __n / 2, oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r)))
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_functor{__n}, __n / 2,
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r)))
         .__checked_deferrable_wait();
 }
 
