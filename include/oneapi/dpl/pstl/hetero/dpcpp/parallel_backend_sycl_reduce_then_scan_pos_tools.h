@@ -81,7 +81,6 @@ template <typename _SrcDataPosT>
 struct __src_pos_capturing_temp_data
 {
   public:
-
     // We should capture source data indexes in this structure
     static constexpr bool __capture_indexes_flag = true;
 
