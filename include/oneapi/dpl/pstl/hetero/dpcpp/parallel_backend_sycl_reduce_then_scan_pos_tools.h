@@ -34,15 +34,8 @@ namespace __par_backend_hetero
 template <typename _Range1, typename _Range2>
 struct _SetOpFinalAndOOBPosTypeImpl
 {
-// FPGA devices don't support 64-bit atomics
-#if _ONEDPL_FPGA_DEVICE
-    using _Size1 = std::uint32_t;
-    using _Size2 = std::uint32_t;
-#else
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
-#endif
-
     using _PositionT = oneapi::dpl::__internal::tuple<_Size1, _Size2>;
 
     _PositionT __final_pos = {}; // Describes final position after set operation in source ranges
@@ -167,77 +160,30 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
             return {};
     }
 
-    template <typename _Group, typename _FinalPosType>
-    static _FinalPosType
-    __reduce_max_final_pos(_Group __group, _FinalPosType& __last_idxs_in_this_wi)
-    {
-        if constexpr (std::is_arithmetic_v<std::decay_t<_FinalPosType>>)
-        {
-            return __dpl_sycl::__reduce_over_group(__group, __last_idxs_in_this_wi,
-                                                   __dpl_sycl::__maximum<_FinalPosType>());
-        }
-        else
-        {
-            using TField0 = std::decay_t<decltype(std::get<0>(__last_idxs_in_this_wi))>;
-            using TField1 = std::decay_t<decltype(std::get<1>(__last_idxs_in_this_wi))>;
-
-            return {__dpl_sycl::__reduce_over_group(__group, std::get<0>(__last_idxs_in_this_wi),
-                                                    __dpl_sycl::__maximum<TField0>()),
-                    __dpl_sycl::__reduce_over_group(__group, std::get<1>(__last_idxs_in_this_wi),
-                                                    __dpl_sycl::__maximum<TField1>())};
-        }
-    }
-
     template <typename __FinalAndOOBPosAcc, typename _OOBPosType>
     static void
-    __update_oob_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _OOBPosType& __oob_pos)
+    __store_oob_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _OOBPosType& __oob_pos)
     {
         auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
 
         // No synchronization needed because OOB position may be reached only in a single work-item
         if constexpr (std::is_arithmetic_v<std::decay_t<_OOBPosType>>)
-        {
-            // The __final_and_oob_pos really is simple position value
             __final_and_oob_pos = __oob_pos;
-        }
         else
-        {
-            // The __final_and_oob_pos really is _SetOpFinalAndOOBPosType
             __final_and_oob_pos.__oob_pos = __oob_pos;
-        }
     }
-
-    // Device-scope atomic over global memory. The target must live in device USM
-    // (see __transform_reduce_then_scan_stop_pos_storage_t); a device-scope atomic on host USM
-    // triggers an atomic access violation on device.
-    template <typename _FieldT>
-    using _StopPosFieldAtomicRefT =
-        sycl::atomic_ref<std::decay_t<_FieldT>, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                         sycl::access::address_space::global_space>;
 
     template <typename __FinalAndOOBPosAcc, typename _FinalPosType>
     static void
-    __update_final_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _FinalPosType& __final_pos)
+    __store_final_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _FinalPosType& __final_pos)
     {
-        // The __final_and_oob_pos really is _SetOpFinalAndOOBPosType
         auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
 
-        // We need atomic access here as multiple work-items can setup reached final position and update it concurrently.
+        // No synchronization needed because final position may be reached only in a single work-item
         if constexpr (std::is_arithmetic_v<std::decay_t<decltype(__final_and_oob_pos)>>)
-        {
-            _StopPosFieldAtomicRefT<_FinalPosType>(__final_and_oob_pos).fetch_max(__final_pos);
-        }
+            __final_and_oob_pos = __final_pos;
         else
-        {
-            auto& __final_pos_field0 = std::get<0>(__final_and_oob_pos.__final_pos);
-            auto& __final_pos_field1 = std::get<1>(__final_and_oob_pos.__final_pos);
-
-            using _FinalPosType0 = std::decay_t<decltype(__final_pos_field0)>;
-            using _FinalPosType1 = std::decay_t<decltype(__final_pos_field1)>;
-
-            _StopPosFieldAtomicRefT<_FinalPosType0>(__final_pos_field0).fetch_max(std::get<0>(__final_pos));
-            _StopPosFieldAtomicRefT<_FinalPosType1>(__final_pos_field1).fetch_max(std::get<1>(__final_pos));
-        }
+            __final_and_oob_pos.__final_pos = __final_pos;
     }
 
     template <typename __oob_pos_t>
@@ -249,16 +195,6 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
             __start_id_reached_on_oob = __start_id_reached;
             __oob_detected = __id;
         };
-    }
-
-    template <typename _FinalPosType>
-    static auto
-    __create_final_pos_saver(_FinalPosType& __src_final_pos)
-    {
-        if constexpr (__has_src_final_pos)
-            return [&__src_final_pos](_FinalPosType __final_pos) { __src_final_pos = __final_pos; };
-        else
-            return __no_callback_tag{};
     }
 
     template <typename _OOBPositionT, typename _GenScanInputArg>
@@ -276,15 +212,6 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
         {
             return __detected_oob_pos;
         }
-    }
-
-    static auto
-    __create_src_final_pos_sg_container()
-    {
-        if constexpr (_Bounded && __has_src_final_pos)
-            return __src_final_pos_t{};
-        else
-            return 0;
     }
 };
 

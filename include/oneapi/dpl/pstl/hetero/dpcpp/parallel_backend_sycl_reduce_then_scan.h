@@ -526,13 +526,25 @@ struct __gen_set_mask
 
 // Returns by reference: iterations consumed, and the number of elements copied to temp output.
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, typename _InRng1, typename _InRng2,
-          typename _SizeType, typename _TempOutput, typename _Compare, typename _Proj1, typename _Proj2>
+          typename _SizeType, typename _TempOutput, typename _Compare, typename _Proj1, typename _Proj2,
+          typename _FinalPosSaver>
 void
-__set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
-                                  std::size_t& __idx2, const _SizeType __num_eles_min, _TempOutput& __temp_out,
-                                  _SizeType& __idx, _SizeType& __count, const _Compare __comp, _Proj1 __proj1,
-                                  _Proj2 __proj2, bool __check_bounds)
+__set_generic_operation_iteration(const _InRng1& __in_rng1, const auto __size1, const _InRng2& __in_rng2,
+                                  const auto __size2, std::size_t& __idx1, std::size_t& __idx2,
+                                  const _SizeType __num_eles_min, _TempOutput& __temp_out, _SizeType& __idx,
+                                  _SizeType& __count, const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
+                                  bool __check_bounds, _FinalPosSaver __final_pos_saver)
 {
+    constexpr bool __is_set_intersection = _CopyMatch && !_CopyDiffSetA && !_CopyDiffSetB;
+    constexpr bool __is_set_difference = !_CopyMatch && _CopyDiffSetA && !_CopyDiffSetB;
+
+    // Make sense to calculate final positions only for set_intersection and set_difference operations,
+    // and only if the user provided a callback to save the final positions.
+    // Stop positions for set_union and set_symmetric_difference are not needed, because they are known in advance.
+    constexpr bool __need_call_process_final_pos =
+        !std::is_same_v<std::decay_t<_FinalPosSaver>, __internal::__no_callback_tag> &&
+        (__is_set_intersection || __is_set_difference);
+
     using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
     using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
 
@@ -544,11 +556,37 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
             __temp_out.set(__count_arg, __value);
     };
 
+    // Merge-path indices captured at iteration entry. The global merge path is partitioned across
+    // work-items and walked exactly once, so the single step that first reaches the operation's natural
+    // termination boundary occurs in exactly one work-item at exactly one iteration. Comparing the entry
+    // indices against the post-step indices detects precisely that transition (the edge crossing), which
+    // lets a single work-item write the final source position directly, with no reduction and no atomics.
+    [[maybe_unused]] const std::size_t __idx1_at_entry = __idx1;
+    [[maybe_unused]] const std::size_t __idx2_at_entry = __idx2;
+
+    auto __process_final_pos = [&](std::size_t __idx1, std::size_t __idx2) {
+        if constexpr (__need_call_process_final_pos)
+        {
+            // For set_intersection the operation terminates once either input is exhausted: the edge crossing
+            // is the step that moves from "strictly inside both inputs" to "at least one input exhausted".
+            if constexpr (__is_set_intersection)
+            {
+                if (__idx1_at_entry < __size1 && __idx2_at_entry < __size2 && (__idx1 == __size1 || __idx2 == __size2))
+                    __final_pos_saver({__idx1, __idx2});
+            }
+            // For set_difference the operation terminates once the first input (set A) is exhausted: the edge
+            // crossing is the step that moves idx1 to the end of set A. This also covers the tail-drain of set
+            // A performed after set B is exhausted.
+            else if constexpr (__is_set_difference)
+            {
+                if (__idx1_at_entry < __size1 && __idx1 == __size1)
+                    __final_pos_saver({__idx1, __idx2});
+            }
+        }
+    };
+
     if (__check_bounds)
     {
-        const auto __size1 = oneapi::dpl::__ranges::__size(__in_rng1);
-        const auto __size2 = oneapi::dpl::__ranges::__size(__in_rng2);
-
         if (__idx1 == __size1)
         {
             if constexpr (_CopyDiffSetB)
@@ -561,6 +599,8 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                 }
             }
             __idx = __num_eles_min;
+            if constexpr (__need_call_process_final_pos)
+                __process_final_pos(__idx1, __idx2);
             return;
         }
 
@@ -576,6 +616,8 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                 }
             }
             __idx = __num_eles_min;
+            if constexpr (__need_call_process_final_pos)
+                __process_final_pos(__idx1, __idx2);
             return;
         }
     }
@@ -613,6 +655,13 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
         ++__idx2;
         __idx += 2;
     }
+    // The edge crossing can only occur on a diagonal that can reach a range end, i.e. when bounds are
+    // checked. Keep the interior hot path free of the extra comparisons.
+    if constexpr (__need_call_process_final_pos)
+    {
+        if (__check_bounds)
+            __process_final_pos(__idx1, __idx2);
+    }
 }
 
 // Set operation generic implementation, used for serial set operation of intersection, difference, union, and
@@ -620,43 +669,6 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
 struct __set_generic_operation
 {
-  protected:
-    template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
-              typename _Proj1, typename _Proj2>
-    _SizeType
-    __check_bounds_and_run_loop(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
-                                std::size_t& __idx2, const _SizeType __num_eles_min, _TempOutput& __temp_out,
-                                const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2) const
-    {
-        _SizeType __count = 0;
-        _SizeType __idx = 0;
-
-        const bool __check_bounds = (__idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1)) ||
-                                    (__idx2 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng2));
-
-        while (__idx < __num_eles_min)
-        {
-            // Bounds checks are enabled only when this diagonal can reach the end of either range.
-            __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB>(
-                __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
-                __proj2, __check_bounds);
-        }
-
-        return __count;
-    }
-
-  public:
-    template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
-              typename _Proj1, typename _Proj2>
-    _SizeType
-    operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
-               _Proj2 __proj2, __internal::__no_callback_tag) const
-    {
-        return __check_bounds_and_run_loop(__in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __comp,
-                                           __proj1, __proj2);
-    }
-
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
               typename _Proj1, typename _Proj2, typename _FinalPosSaver>
     _SizeType
@@ -664,16 +676,23 @@ struct __set_generic_operation
                const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
                _Proj2 __proj2, _FinalPosSaver __final_pos_saver) const
     {
-        const auto __idx1_old = __idx1;
-        const auto __idx2_old = __idx2;
+        _SizeType __count = 0;
+        _SizeType __idx = 0;
 
-        const _SizeType result = __check_bounds_and_run_loop(__in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min,
-                                                             __temp_out, __comp, __proj1, __proj2);
+        const auto __size1 = oneapi::dpl::__ranges::__size(__in_rng1);
+        const auto __size2 = oneapi::dpl::__ranges::__size(__in_rng2);
 
-        if (__idx1_old != __idx1 || __idx2_old != __idx2)
-            __final_pos_saver({__idx1, __idx2});
+        const bool __check_bounds = (__idx1 + __num_eles_min >= __size1) || (__idx2 + __num_eles_min >= __size2);
 
-        return result;
+        while (__idx < __num_eles_min)
+        {
+            // Bounds checks are enabled only when this diagonal can reach the end of either range.
+            __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB>(
+                __in_rng1, __size1, __in_rng2, __size2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count,
+                __comp, __proj1, __proj2, __check_bounds, __final_pos_saver);
+        }
+
+        return __count;
     }
 };
 
@@ -1942,18 +1961,10 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
     const bool __use_subgroup_ops;
 };
 
-// Storage for the stop position(s) of a bounded operation: the final and/or the first out-of-bounds
-// position in the source ranges. Allocated only when _Bounded=true.
-// Must be device USM because the kernel updates it with device-scope atomics (fetch_max); such
-// atomics require device-resident memory (host USM triggers an atomic access violation on device).
-template <typename _StopPosType>
-using __transform_reduce_then_scan_stop_pos_storage_t = __result_storage<_StopPosType, sycl::usm::alloc::device>;
-
 template <bool _Bounded, typename _ValueType, typename _StopPosType>
 using __transform_reduce_then_scan_result_t =
     std::conditional_t<_Bounded,
-                       std::tuple<sycl::event, __combined_storage<_ValueType>,
-                                  __transform_reduce_then_scan_stop_pos_storage_t<_StopPosType>>,
+                       std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<_StopPosType>>,
                        std::tuple<sycl::event, __combined_storage<_ValueType>>>;
 
 template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _ReduceOp,
@@ -2227,7 +2238,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
                 using _PosTools = __internal::__parallel_reduce_then_scan_stop_oob_pos_tools<_Bounded, _GenScanInput,
                                                                                              _StopPosStorage>;
-                auto __src_final_pos_sg = _PosTools::__create_src_final_pos_sg_container();
 
                 if (__sub_group_id < __active_subgroups)
                 {
@@ -2251,23 +2261,30 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         // synchronization is needed to update the shared OOB position in the second pass.
                         typename _PosTools::__oob_pos_t __oob_detected = _PosTools::__create_initial_oob_pos();
 
-                        // Final pos on this work-item
                         std::size_t __start_id_reached_on_oob = __start_id;
-                        __src_final_pos_t __src_final_pos_wi{};
+
+                        // Single-writer final position: the merge-path walk detects the natural termination
+                        // (edge crossing) in exactly one work-item, so the source position can be captured
+                        // locally here and stored directly, with no sub-group/work-group reduction and no atomics.
+                        __src_final_pos_t __src_final_pos_global{};
+                        auto __final_pos_saver = [&](__src_final_pos_t __final_pos) {
+                            __src_final_pos_global = __final_pos;
+                        };
+
                         __call_scan_through_elements_helper(
                             _PosTools::__create_on_oob_reached(__start_id_reached, __start_id_reached_on_oob,
                                                                __oob_detected),
-                            _PosTools::__create_final_pos_saver(__src_final_pos_wi));
+                            __final_pos_saver);
 
-                        // Reduce over sub-group
-#if 0
                         if constexpr (_PosTools::__has_src_final_pos)
                         {
-                            // Reduce final position over sub-group
-                            __src_final_pos_sg =
-                                _PosTools::__reduce_max_final_pos(__ndi.get_sub_group(), __src_final_pos_wi);
+                            if (__src_final_pos_global != __src_final_pos_t{})
+                            {
+                                // Exactly one work-item reaches the edge crossing, so no synchronization is
+                                // needed to store the shared final position.
+                                _PosTools::__store_final_pos(__stop_pos_acc, __src_final_pos_global);
+                            }
                         }
-#endif
 
                         // OOB element detected in this work-item?
                         if (_PosTools::__create_initial_oob_pos() != __oob_detected)
@@ -2276,7 +2293,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                                 return __gen_scan_input(__in_rng, std::forward<decltype(__args)>(__args)...);
                             };
 
-                            _PosTools::__update_oob_pos(
+                            _PosTools::__store_oob_pos(
                                 __stop_pos_acc, _PosTools::__finalize_oob_detected(
                                                     __oob_detected, __start_id_reached_on_oob, __call_gen_scan_input));
                         }
@@ -2287,22 +2304,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                                                             __internal::__no_callback_tag{});
                     }
                 }
-
-#if 0
-                if constexpr (_Bounded)
-                {
-                    if constexpr (_PosTools::__has_src_final_pos)
-                    {
-                        // Reduce final position over group
-                        const typename _PosTools::__src_final_pos_t __src_final_pos_group =
-                            _PosTools::__reduce_max_final_pos(__ndi.get_group(), __src_final_pos_sg);
-
-                        // Update global final position from the first work-item inside work-group
-                        if (__ndi.get_local_id(0) == 0)
-                            _PosTools::__update_final_pos(__stop_pos_acc, __src_final_pos_group);
-                    }
-                }
-#endif
 
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block
@@ -2519,7 +2520,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     // Allocate storage for stop pos and out-of-bounds position if needed
     auto __create_stop_pos_storage_opt = [](sycl::queue& __q) {
         if constexpr (_Bounded)
-            return __transform_reduce_then_scan_stop_pos_storage_t<_StopPosInitState>(__q, 1);
+            return __result_storage<_StopPosInitState>(__q, 1);
         else
             return __internal::__no_stop_pos_acc_tag{};
     };
