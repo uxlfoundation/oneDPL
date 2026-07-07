@@ -529,19 +529,14 @@ struct __set_operation
         const bool __check_bounds = (__idx1 + __num_eles_min >= __size1) || (__idx2 + __num_eles_min >= __size2);
         while (__idx < __num_eles_min)
         {
-            if constexpr (__need_call_final_pos_saver)
+            if (__check_bounds)
             {
-                // The edge crossing can only occur on a diagonal that can reach a range end (i.e. when bounds
-                // are checked), so keep the interior hot path free of these captures.
-                if (__check_bounds)
+                if constexpr (__need_call_final_pos_saver)
                 {
                     __idx1_at_entry = __idx1;
                     __idx2_at_entry = __idx2;
                 }
-            }
 
-            if (__check_bounds)
-            {
                 if (__idx1 == __size1)
                 {
                     if constexpr (_CopyDiffSetB)
