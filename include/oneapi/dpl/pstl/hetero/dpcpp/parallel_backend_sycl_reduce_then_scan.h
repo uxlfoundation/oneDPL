@@ -1865,15 +1865,9 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                     // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
                     __scan_through_elements_helper</*_Bounded*/ false, __is_inclusive, __is_unique_pattern_v>(
-                        __ndi,
-                        /* _GenInput __gen_input                      */ __gen_reduce_input,
-                        /* _ScanInputTransform __scan_input_transform */ oneapi::dpl::identity{},
-                        /* _BinaryOp __binary_op                      */ __reduce_op,
-                        /* _WriteOp __write_op                        */ oneapi::dpl::__internal::__ignore_call_op{},
-                        __sub_group_carry,
-                        /* const _InRng& __in_rng                     */ __in_rng,
-                        /* _OutRng& __out_rng                         */ __in_rng,
-                        __start_id, __start_id_reached, __n, __inputs_per_item, __subgroup_start_id, __comm_scan_tag);
+                        __ndi, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op,
+                        oneapi::dpl::__internal::__ignore_call_op{}, __sub_group_carry, __in_rng, __in_rng, __start_id,
+                        __start_id_reached, __n, __inputs_per_item, __subgroup_start_id, __comm_scan_tag);
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__get_cref();
                 }
