@@ -185,12 +185,7 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
     __store_final_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _FinalPosType& __final_pos)
     {
         auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
-
-        // No synchronization needed because final position may be reached only in a single work-item
-        if constexpr (std::is_arithmetic_v<std::decay_t<decltype(__final_and_oob_pos)>>)
-            __final_and_oob_pos = __final_pos;
-        else
-            __final_and_oob_pos.__final_pos = __final_pos;
+        __final_and_oob_pos.__final_pos = __final_pos;
     }
 
     template <typename _InRng, typename _OOBPositionT, typename _GenScanInputArg, typename __FinalAndOOBPosAcc>
