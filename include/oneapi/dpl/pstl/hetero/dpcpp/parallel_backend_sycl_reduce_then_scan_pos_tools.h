@@ -181,9 +181,9 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
             return {};
     }
 
-    template <typename __FinalAndOOBPosAcc, typename _FinalPosType>
+    template <typename __FinalAndOOBPosAcc>
     static void
-    __store_final_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _FinalPosType& __final_pos)
+    __store_final_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const __src_final_pos_t& __final_pos)
     {
         auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
         __final_and_oob_pos.__final_pos = __final_pos;
