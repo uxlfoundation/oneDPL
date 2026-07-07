@@ -2156,19 +2156,23 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         std::size_t __start_id_reached_on_oob = __start_id;
                         typename _PosTools::__oob_pos_t __oob_position = _PosTools::__initial_oob_pos();
 
-                        __call_scan_through_elements_helper(
-                            [&](typename _PosTools::__oob_pos_t __id) {
-                                __start_id_reached_on_oob = __start_id_reached;
-                                __oob_position = __id;
-                            },
-                            [&](__src_final_pos_t __final_pos) {
-                                if constexpr (_PosTools::__has_src_final_pos)
-                                {
-                                    // Exactly one work-item reaches the edge crossing, so no synchronization
-                                    // is needed to store the shared final position.
-                                    _PosTools::__store_final_pos(__stop_pos_acc, __final_pos);
-                                }
+                        auto __on_oob_reached = [&](typename _PosTools::__oob_pos_t __id) {
+                            __start_id_reached_on_oob = __start_id_reached;
+                            __oob_position = __id;
+                        };
+
+                        if constexpr (_PosTools::__has_src_final_pos)
+                        {
+                            __call_scan_through_elements_helper(__on_oob_reached, [&](__src_final_pos_t __final_pos) {
+                                // Exactly one work-item reaches the edge crossing, so no synchronization
+                                // is needed to store the shared final position.
+                                _PosTools::__store_final_pos(__stop_pos_acc, __final_pos);
                             });
+                        }
+                        else
+                        {
+                            __call_scan_through_elements_helper(__on_oob_reached, __internal::__no_callback_tag{});
+                        }
 
                         _PosTools::__finalize_and_store_oob_pos(__in_rng, __oob_position, __start_id_reached_on_oob,
                                                                 __gen_scan_input, __stop_pos_acc);
