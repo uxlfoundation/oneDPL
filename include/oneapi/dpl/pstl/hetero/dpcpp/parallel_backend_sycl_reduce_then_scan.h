@@ -529,8 +529,11 @@ struct __set_operation
         const bool __check_bounds = (__idx1 + __num_eles_min >= __size1) || (__idx2 + __num_eles_min >= __size2);
         while (__idx < __num_eles_min)
         {
-            __idx1_at_entry = __idx1;
-            __idx2_at_entry = __idx2;
+            if constexpr (__need_call_final_pos_saver)
+            {
+                __idx1_at_entry = __idx1;
+                __idx2_at_entry = __idx2;
+            }
 
             if (__check_bounds)
             {
