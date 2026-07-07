@@ -461,54 +461,16 @@ struct __set_operation
                const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
                _Proj2 __proj2, _FinalPosSaver __final_pos_saver) const
     {
-        _SizeType __count = 0;
-        _SizeType __idx = 0;
-
-        const auto __size1 = oneapi::dpl::__ranges::__size(__in_rng1);
-        const auto __size2 = oneapi::dpl::__ranges::__size(__in_rng2);
-
-        const bool __check_bounds = (__idx1 + __num_eles_min >= __size1) || (__idx2 + __num_eles_min >= __size2);
-
-        while (__idx < __num_eles_min)
-        {
-            // Bounds checks are enabled only when this diagonal can reach the end of either range.
-            __set_operation_iteration(__in_rng1, __size1, __in_rng2, __size2, __idx1, __idx2, __num_eles_min,
-                                      __temp_out, __idx, __count, __comp, __proj1, __proj2, __check_bounds,
-                                      __final_pos_saver);
-        }
-
-        return __count;
-    }
-
-  protected:
-    // Returns by reference: iterations consumed, and the number of elements copied to temp output.
-    template <typename _InRng1, typename _Size1, typename _InRng2, typename _Size2, typename _SizeType,
-              typename _TempOutput, typename _Compare, typename _Proj1, typename _Proj2, typename _FinalPosSaver>
-    void
-    __set_operation_iteration(const _InRng1& __in_rng1, const _Size1 __size1, const _InRng2& __in_rng2,
-                              const _Size2 __size2, std::size_t& __idx1, std::size_t& __idx2,
-                              const _SizeType __num_eles_min, _TempOutput& __temp_out, _SizeType& __idx,
-                              _SizeType& __count, const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
-                              bool __check_bounds, _FinalPosSaver __final_pos_saver) const
-    {
         constexpr bool __is_set_difference = std::is_same_v<_SetTag, unseq_backend::_DifferenceTag>;
         constexpr bool __is_set_intersection = std::is_same_v<_SetTag, unseq_backend::_IntersectionTag>;
         constexpr bool __is_set_union = std::is_same_v<_SetTag, unseq_backend::_UnionTag>;
         constexpr bool __is_set_symmetric_difference = std::is_same_v<_SetTag, unseq_backend::_SymmetricDifferenceTag>;
 
-        constexpr bool _CopyMatch = __is_set_intersection || __is_set_union;
-        constexpr bool _CopyDiffSetA = !__is_set_intersection;
-        constexpr bool _CopyDiffSetB = __is_set_union || __is_set_symmetric_difference;
-
-        // Make sense to calculate final positions only for set_intersection and set_difference operations,
-        // and only if the user provided a callback to save the final positions.
-        // Stop positions for set_union and set_symmetric_difference are not needed, because they are known in advance.
-        constexpr bool __need_call_final_pos_saver =
-            !std::is_same_v<std::decay_t<_FinalPosSaver>, __internal::__no_callback_tag> &&
-            (__is_set_intersection || __is_set_difference);
-
         using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
         using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
+
+        const auto __size1 = oneapi::dpl::__ranges::__size(__in_rng1);
+        const auto __size2 = oneapi::dpl::__ranges::__size(__in_rng2);
 
         auto __write_temp_element = [&](const _SizeType __count_arg, const auto& __value, std::size_t __idx1,
                                         std::size_t __idx2) {
@@ -518,13 +480,21 @@ struct __set_operation
                 __temp_out.set(__count_arg, __value);
         };
 
+        // Make sense to calculate final positions only for set_intersection and set_difference operations,
+        // and only if the user provided a callback to save the final positions.
+        // Stop positions for set_union and set_symmetric_difference are not needed, because they are known in advance.
+        constexpr bool __need_call_final_pos_saver =
+            !std::is_same_v<std::decay_t<_FinalPosSaver>, __internal::__no_callback_tag> &&
+            (__is_set_intersection || __is_set_difference);
+
         // Merge-path indices captured at iteration entry. The global merge path is partitioned across
         // work-items and walked exactly once, so the single step that first reaches the operation's natural
         // termination boundary occurs in exactly one work-item at exactly one iteration. Comparing the entry
         // indices against the post-step indices detects precisely that transition (the edge crossing), which
         // lets a single work-item write the final source position directly, with no reduction and no atomics.
-        [[maybe_unused]] const std::size_t __idx1_at_entry = __idx1;
-        [[maybe_unused]] const std::size_t __idx2_at_entry = __idx2;
+        // These are refreshed at the top of every iteration below.
+        std::size_t __idx1_at_entry = __idx1;
+        std::size_t __idx2_at_entry = __idx2;
 
         auto __process_final_pos = [&](std::size_t __idx1, std::size_t __idx2) {
             if constexpr (__need_call_final_pos_saver)
@@ -548,83 +518,100 @@ struct __set_operation
             }
         };
 
-        if (__check_bounds)
+        _SizeType __count = 0;
+        _SizeType __idx = 0;
+
+        constexpr bool _CopyMatch = __is_set_intersection || __is_set_union;
+        constexpr bool _CopyDiffSetA = !__is_set_intersection;
+        constexpr bool _CopyDiffSetB = __is_set_union || __is_set_symmetric_difference;
+
+        // Bounds checks are enabled only when this diagonal can reach the end of either range.
+        const bool __check_bounds = (__idx1 + __num_eles_min >= __size1) || (__idx2 + __num_eles_min >= __size2);
+        while (__idx < __num_eles_min)
         {
-            if (__idx1 == __size1)
+            __idx1_at_entry = __idx1;
+            __idx2_at_entry = __idx2;
+
+            if (__check_bounds)
             {
-                if constexpr (_CopyDiffSetB)
+                if (__idx1 == __size1)
                 {
-                    // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
-                    for (; __idx2 < __size2 && __idx < __num_eles_min; ++__idx2, ++__idx)
+                    if constexpr (_CopyDiffSetB)
                     {
-                        __write_temp_element(__count, __in_rng2[__idx2], __idx1, __idx2);
-                        ++__count;
+                        // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
+                        for (; __idx2 < __size2 && __idx < __num_eles_min; ++__idx2, ++__idx)
+                        {
+                            __write_temp_element(__count, __in_rng2[__idx2], __idx1, __idx2);
+                            ++__count;
+                        }
                     }
+                    __idx = __num_eles_min;
+                    if constexpr (__need_call_final_pos_saver)
+                        __process_final_pos(__idx1, __idx2);
+                    continue;
                 }
-                __idx = __num_eles_min;
-                if constexpr (__need_call_final_pos_saver)
-                    __process_final_pos(__idx1, __idx2);
-                return;
+
+                if (__idx2 == __size2)
+                {
+                    if constexpr (_CopyDiffSetA)
+                    {
+                        // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
+                        for (; __idx1 < __size1 && __idx < __num_eles_min; ++__idx1, ++__idx)
+                        {
+                            __write_temp_element(__count, __in_rng1[__idx1], __idx1, __idx2);
+                            ++__count;
+                        }
+                    }
+                    __idx = __num_eles_min;
+                    if constexpr (__need_call_final_pos_saver)
+                        __process_final_pos(__idx1, __idx2);
+                    continue;
+                }
             }
 
-            if (__idx2 == __size2)
+            const _ValueTypeRng1& __ele_rng1 = __in_rng1[__idx1];
+            const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
+            if (std::invoke(__comp, std::invoke(__proj1, __ele_rng1), std::invoke(__proj2, __ele_rng2)))
             {
                 if constexpr (_CopyDiffSetA)
                 {
-                    // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
-                    for (; __idx1 < __size1 && __idx < __num_eles_min; ++__idx1, ++__idx)
-                    {
-                        __write_temp_element(__count, __in_rng1[__idx1], __idx1, __idx2);
-                        ++__count;
-                    }
+                    __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
+                    ++__count;
                 }
-                __idx = __num_eles_min;
-                if constexpr (__need_call_final_pos_saver)
+                ++__idx1;
+                ++__idx;
+            }
+            else if (std::invoke(__comp, std::invoke(__proj2, __ele_rng2), std::invoke(__proj1, __ele_rng1)))
+            {
+                if constexpr (_CopyDiffSetB)
+                {
+                    __write_temp_element(__count, __ele_rng2, __idx1, __idx2);
+                    ++__count;
+                }
+                ++__idx2;
+                ++__idx;
+            }
+            else // if neither element is less than the other, they are equal
+            {
+                if constexpr (_CopyMatch)
+                {
+                    __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
+                    ++__count;
+                }
+                ++__idx1;
+                ++__idx2;
+                __idx += 2;
+            }
+            // The edge crossing can only occur on a diagonal that can reach a range end, i.e. when bounds are
+            // checked. Keep the interior hot path free of the extra comparisons.
+            if constexpr (__need_call_final_pos_saver)
+            {
+                if (__check_bounds)
                     __process_final_pos(__idx1, __idx2);
-                return;
             }
         }
 
-        const _ValueTypeRng1& __ele_rng1 = __in_rng1[__idx1];
-        const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
-        if (std::invoke(__comp, std::invoke(__proj1, __ele_rng1), std::invoke(__proj2, __ele_rng2)))
-        {
-            if constexpr (_CopyDiffSetA)
-            {
-                __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
-                ++__count;
-            }
-            ++__idx1;
-            ++__idx;
-        }
-        else if (std::invoke(__comp, std::invoke(__proj2, __ele_rng2), std::invoke(__proj1, __ele_rng1)))
-        {
-            if constexpr (_CopyDiffSetB)
-            {
-                __write_temp_element(__count, __ele_rng2, __idx1, __idx2);
-                ++__count;
-            }
-            ++__idx2;
-            ++__idx;
-        }
-        else // if neither element is less than the other, they are equal
-        {
-            if constexpr (_CopyMatch)
-            {
-                __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
-                ++__count;
-            }
-            ++__idx1;
-            ++__idx2;
-            __idx += 2;
-        }
-        // The edge crossing can only occur on a diagonal that can reach a range end, i.e. when bounds are
-        // checked. Keep the interior hot path free of the extra comparisons.
-        if constexpr (__need_call_final_pos_saver)
-        {
-            if (__check_bounds)
-                __process_final_pos(__idx1, __idx2);
-        }
+        return __count;
     }
 };
 
