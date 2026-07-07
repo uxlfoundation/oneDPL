@@ -449,149 +449,9 @@ struct __gen_unique_mask
 
 // __parallel_set_write_a_b_op
 
-// Returns by reference: iterations consumed, and the number of elements copied to temp output.
-template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, typename _InRng1, typename _Size1, typename _InRng2,
-          typename _Size2, typename _SizeType, typename _TempOutput, typename _Compare, typename _Proj1,
-          typename _Proj2, typename _FinalPosSaver>
-void
-__set_generic_operation_iteration(const _InRng1& __in_rng1, const _Size1 __size1, const _InRng2& __in_rng2,
-                                  const _Size2 __size2, std::size_t& __idx1, std::size_t& __idx2,
-                                  const _SizeType __num_eles_min, _TempOutput& __temp_out, _SizeType& __idx,
-                                  _SizeType& __count, const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
-                                  bool __check_bounds, _FinalPosSaver __final_pos_saver)
-{
-    constexpr bool __is_set_intersection = _CopyMatch && !_CopyDiffSetA && !_CopyDiffSetB;
-    constexpr bool __is_set_difference = !_CopyMatch && _CopyDiffSetA && !_CopyDiffSetB;
-
-    // Make sense to calculate final positions only for set_intersection and set_difference operations,
-    // and only if the user provided a callback to save the final positions.
-    // Stop positions for set_union and set_symmetric_difference are not needed, because they are known in advance.
-    constexpr bool __need_call_final_pos_saver =
-        !std::is_same_v<std::decay_t<_FinalPosSaver>, __internal::__no_callback_tag> &&
-        (__is_set_intersection || __is_set_difference);
-
-    using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
-    using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
-
-    auto __write_temp_element = [&](const _SizeType __count_arg, const auto& __value, std::size_t __idx1,
-                                    std::size_t __idx2) {
-        if constexpr (_TempOutput::__capture_indexes_flag)
-            __temp_out.set(__count_arg, __value, {__idx1, __idx2});
-        else
-            __temp_out.set(__count_arg, __value);
-    };
-
-    // Merge-path indices captured at iteration entry. The global merge path is partitioned across
-    // work-items and walked exactly once, so the single step that first reaches the operation's natural
-    // termination boundary occurs in exactly one work-item at exactly one iteration. Comparing the entry
-    // indices against the post-step indices detects precisely that transition (the edge crossing), which
-    // lets a single work-item write the final source position directly, with no reduction and no atomics.
-    [[maybe_unused]] const std::size_t __idx1_at_entry = __idx1;
-    [[maybe_unused]] const std::size_t __idx2_at_entry = __idx2;
-
-    auto __process_final_pos = [&](std::size_t __idx1, std::size_t __idx2) {
-        if constexpr (__need_call_final_pos_saver)
-        {
-            // For set_intersection the operation terminates once either input is exhausted: the edge crossing
-            // is the step that moves from "strictly inside both inputs" to "at least one input exhausted".
-            if constexpr (__is_set_intersection)
-            {
-                if (__idx1_at_entry < __size1 && __idx2_at_entry < __size2 && (__idx1 == __size1 || __idx2 == __size2))
-                    __final_pos_saver({__idx1, __idx2});
-            }
-            // For set_difference the operation terminates once the first input (set A) is exhausted: the edge
-            // crossing is the step that moves idx1 to the end of set A. This also covers the tail-drain of set
-            // A performed after set B is exhausted.
-            else if constexpr (__is_set_difference)
-            {
-                if (__idx1_at_entry < __size1 && __idx1 == __size1)
-                    __final_pos_saver({__idx1, __idx2});
-            }
-        }
-    };
-
-    if (__check_bounds)
-    {
-        if (__idx1 == __size1)
-        {
-            if constexpr (_CopyDiffSetB)
-            {
-                // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
-                for (; __idx2 < __size2 && __idx < __num_eles_min; ++__idx2, ++__idx)
-                {
-                    __write_temp_element(__count, __in_rng2[__idx2], __idx1, __idx2);
-                    ++__count;
-                }
-            }
-            __idx = __num_eles_min;
-            if constexpr (__need_call_final_pos_saver)
-                __process_final_pos(__idx1, __idx2);
-            return;
-        }
-
-        if (__idx2 == __size2)
-        {
-            if constexpr (_CopyDiffSetA)
-            {
-                // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
-                for (; __idx1 < __size1 && __idx < __num_eles_min; ++__idx1, ++__idx)
-                {
-                    __write_temp_element(__count, __in_rng1[__idx1], __idx1, __idx2);
-                    ++__count;
-                }
-            }
-            __idx = __num_eles_min;
-            if constexpr (__need_call_final_pos_saver)
-                __process_final_pos(__idx1, __idx2);
-            return;
-        }
-    }
-
-    const _ValueTypeRng1& __ele_rng1 = __in_rng1[__idx1];
-    const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
-    if (std::invoke(__comp, std::invoke(__proj1, __ele_rng1), std::invoke(__proj2, __ele_rng2)))
-    {
-        if constexpr (_CopyDiffSetA)
-        {
-            __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
-            ++__count;
-        }
-        ++__idx1;
-        ++__idx;
-    }
-    else if (std::invoke(__comp, std::invoke(__proj2, __ele_rng2), std::invoke(__proj1, __ele_rng1)))
-    {
-        if constexpr (_CopyDiffSetB)
-        {
-            __write_temp_element(__count, __ele_rng2, __idx1, __idx2);
-            ++__count;
-        }
-        ++__idx2;
-        ++__idx;
-    }
-    else // if neither element is less than the other, they are equal
-    {
-        if constexpr (_CopyMatch)
-        {
-            __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
-            ++__count;
-        }
-        ++__idx1;
-        ++__idx2;
-        __idx += 2;
-    }
-    // The edge crossing can only occur on a diagonal that can reach a range end, i.e. when bounds are
-    // checked. Keep the interior hot path free of the extra comparisons.
-    if constexpr (__need_call_final_pos_saver)
-    {
-        if (__check_bounds)
-            __process_final_pos(__idx1, __idx2);
-    }
-}
-
 // Set operation generic implementation, used for serial set operation of intersection, difference, union, and
 // symmetric difference.
-template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
+template <typename _SetTag>
 struct __set_generic_operation
 {
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
@@ -612,41 +472,156 @@ struct __set_generic_operation
         while (__idx < __num_eles_min)
         {
             // Bounds checks are enabled only when this diagonal can reach the end of either range.
-            __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB>(
-                __in_rng1, __size1, __in_rng2, __size2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count,
-                __comp, __proj1, __proj2, __check_bounds, __final_pos_saver);
+            __set_generic_operation_iteration(__in_rng1, __size1, __in_rng2, __size2, __idx1, __idx2, __num_eles_min,
+                                              __temp_out, __idx, __count, __comp, __proj1, __proj2, __check_bounds,
+                                              __final_pos_saver);
         }
 
         return __count;
     }
-};
 
-// Set operation implementations using the generic implementation
-using __set_intersection = __set_generic_operation<true, false, false>;
-using __set_difference = __set_generic_operation<false, true, false>;
-using __set_union = __set_generic_operation<true, true, true>;
-using __set_symmetric_difference = __set_generic_operation<false, true, true>;
+  protected:
+    // Returns by reference: iterations consumed, and the number of elements copied to temp output.
+    template <typename _InRng1, typename _Size1, typename _InRng2, typename _Size2, typename _SizeType,
+              typename _TempOutput, typename _Compare, typename _Proj1, typename _Proj2, typename _FinalPosSaver>
+    void
+    __set_generic_operation_iteration(const _InRng1& __in_rng1, const _Size1 __size1, const _InRng2& __in_rng2,
+                                      const _Size2 __size2, std::size_t& __idx1, std::size_t& __idx2,
+                                      const _SizeType __num_eles_min, _TempOutput& __temp_out, _SizeType& __idx,
+                                      _SizeType& __count, const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
+                                      bool __check_bounds, _FinalPosSaver __final_pos_saver) const
+    {
+        constexpr bool __is_set_difference = std::is_same_v<_SetTag, unseq_backend::_DifferenceTag>;
+        constexpr bool __is_set_intersection = std::is_same_v<_SetTag, unseq_backend::_IntersectionTag>;
+        constexpr bool __is_set_union = std::is_same_v<_SetTag, unseq_backend::_UnionTag>;
+        constexpr bool __is_set_symmetric_difference = std::is_same_v<_SetTag, unseq_backend::_SymmetricDifferenceTag>;
 
-template <typename _SetTag>
-struct __get_set_operation;
+        // Make sense to calculate final positions only for set_intersection and set_difference operations,
+        // and only if the user provided a callback to save the final positions.
+        // Stop positions for set_union and set_symmetric_difference are not needed, because they are known in advance.
+        constexpr bool __need_call_final_pos_saver =
+            !std::is_same_v<std::decay_t<_FinalPosSaver>, __internal::__no_callback_tag> &&
+            (__is_set_intersection || __is_set_difference);
 
-template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag> : __set_intersection
-{
-};
+        using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
+        using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
 
-template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_DifferenceTag> : __set_difference
-{
-};
-template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag> : __set_union
-{
-};
+        auto __write_temp_element = [&](const _SizeType __count_arg, const auto& __value, std::size_t __idx1,
+                                        std::size_t __idx2) {
+            if constexpr (_TempOutput::__capture_indexes_flag)
+                __temp_out.set(__count_arg, __value, {__idx1, __idx2});
+            else
+                __temp_out.set(__count_arg, __value);
+        };
 
-template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag> : __set_symmetric_difference
-{
+        // Merge-path indices captured at iteration entry. The global merge path is partitioned across
+        // work-items and walked exactly once, so the single step that first reaches the operation's natural
+        // termination boundary occurs in exactly one work-item at exactly one iteration. Comparing the entry
+        // indices against the post-step indices detects precisely that transition (the edge crossing), which
+        // lets a single work-item write the final source position directly, with no reduction and no atomics.
+        [[maybe_unused]] const std::size_t __idx1_at_entry = __idx1;
+        [[maybe_unused]] const std::size_t __idx2_at_entry = __idx2;
+
+        auto __process_final_pos = [&](std::size_t __idx1, std::size_t __idx2) {
+            if constexpr (__need_call_final_pos_saver)
+            {
+                // For set_intersection the operation terminates once either input is exhausted: the edge crossing
+                // is the step that moves from "strictly inside both inputs" to "at least one input exhausted".
+                if constexpr (__is_set_intersection)
+                {
+                    if (__idx1_at_entry < __size1 && __idx2_at_entry < __size2 &&
+                        (__idx1 == __size1 || __idx2 == __size2))
+                        __final_pos_saver({__idx1, __idx2});
+                }
+                // For set_difference the operation terminates once the first input (set A) is exhausted: the edge
+                // crossing is the step that moves idx1 to the end of set A. This also covers the tail-drain of set
+                // A performed after set B is exhausted.
+                else if constexpr (__is_set_difference)
+                {
+                    if (__idx1_at_entry < __size1 && __idx1 == __size1)
+                        __final_pos_saver({__idx1, __idx2});
+                }
+            }
+        };
+
+        if (__check_bounds)
+        {
+            if (__idx1 == __size1)
+            {
+                if constexpr (__is_set_union || __is_set_symmetric_difference)
+                {
+                    // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
+                    for (; __idx2 < __size2 && __idx < __num_eles_min; ++__idx2, ++__idx)
+                    {
+                        __write_temp_element(__count, __in_rng2[__idx2], __idx1, __idx2);
+                        ++__count;
+                    }
+                }
+                __idx = __num_eles_min;
+                if constexpr (__need_call_final_pos_saver)
+                    __process_final_pos(__idx1, __idx2);
+                return;
+            }
+
+            if (__idx2 == __size2)
+            {
+                if constexpr (!__is_set_intersection)
+                {
+                    // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
+                    for (; __idx1 < __size1 && __idx < __num_eles_min; ++__idx1, ++__idx)
+                    {
+                        __write_temp_element(__count, __in_rng1[__idx1], __idx1, __idx2);
+                        ++__count;
+                    }
+                }
+                __idx = __num_eles_min;
+                if constexpr (__need_call_final_pos_saver)
+                    __process_final_pos(__idx1, __idx2);
+                return;
+            }
+        }
+
+        const _ValueTypeRng1& __ele_rng1 = __in_rng1[__idx1];
+        const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
+        if (std::invoke(__comp, std::invoke(__proj1, __ele_rng1), std::invoke(__proj2, __ele_rng2)))
+        {
+            if constexpr (!__is_set_intersection)
+            {
+                __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
+                ++__count;
+            }
+            ++__idx1;
+            ++__idx;
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, __ele_rng2), std::invoke(__proj1, __ele_rng1)))
+        {
+            if constexpr (__is_set_union || __is_set_symmetric_difference)
+            {
+                __write_temp_element(__count, __ele_rng2, __idx1, __idx2);
+                ++__count;
+            }
+            ++__idx2;
+            ++__idx;
+        }
+        else // if neither element is less than the other, they are equal
+        {
+            if constexpr (__is_set_intersection || __is_set_union)
+            {
+                __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
+                ++__count;
+            }
+            ++__idx1;
+            ++__idx2;
+            __idx += 2;
+        }
+        // The edge crossing can only occur on a diagonal that can reach a range end, i.e. when bounds are
+        // checked. Keep the interior hot path free of the extra comparisons.
+        if constexpr (__need_call_final_pos_saver)
+        {
+            if (__check_bounds)
+                __process_final_pos(__idx1, __idx2);
+        }
+    }
 };
 
 template <bool __return_star, typename _Rng, typename _IdxT>
