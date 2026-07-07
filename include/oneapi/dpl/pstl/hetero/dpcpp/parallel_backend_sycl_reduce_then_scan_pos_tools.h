@@ -186,17 +186,6 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
             __final_and_oob_pos.__final_pos = __final_pos;
     }
 
-    template <typename __oob_pos_t>
-    static auto
-    __create_on_oob_reached(std::size_t& __start_id_reached, std::size_t& __start_id_reached_on_oob,
-                            __oob_pos_t& __oob_detected)
-    {
-        return [&__start_id_reached, &__start_id_reached_on_oob, &__oob_detected](__oob_pos_t __id) {
-            __start_id_reached_on_oob = __start_id_reached;
-            __oob_detected = __id;
-        };
-    }
-
     template <typename _OOBPositionT, typename _GenScanInputArg>
     static std::conditional_t<__detect_oob_in_two_steps_v<_GenScanInput>, __src_final_pos_t, _OOBPositionT>
     __finalize_oob_detected(_OOBPositionT __detected_oob_pos, const std::size_t __start_id_reached_on_oob,

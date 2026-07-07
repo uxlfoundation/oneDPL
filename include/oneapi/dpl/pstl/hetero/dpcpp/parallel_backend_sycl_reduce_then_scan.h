@@ -2272,8 +2272,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         };
 
                         __call_scan_through_elements_helper(
-                            _PosTools::__create_on_oob_reached(__start_id_reached, __start_id_reached_on_oob,
-                                                               __oob_detected),
+                            [&](typename _PosTools::__oob_pos_t __id) {
+                                __start_id_reached_on_oob = __start_id_reached;
+                                __oob_detected = __id;
+                            },
                             __final_pos_saver);
 
                         if constexpr (_PosTools::__has_src_final_pos)
