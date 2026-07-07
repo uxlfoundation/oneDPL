@@ -496,6 +496,10 @@ struct __set_operation
         constexpr bool __is_set_union = std::is_same_v<_SetTag, unseq_backend::_UnionTag>;
         constexpr bool __is_set_symmetric_difference = std::is_same_v<_SetTag, unseq_backend::_SymmetricDifferenceTag>;
 
+        constexpr bool _CopyMatch = __is_set_intersection || __is_set_union;
+        constexpr bool _CopyDiffSetA = !__is_set_intersection;
+        constexpr bool _CopyDiffSetB = __is_set_union || __is_set_symmetric_difference;
+
         // Make sense to calculate final positions only for set_intersection and set_difference operations,
         // and only if the user provided a callback to save the final positions.
         // Stop positions for set_union and set_symmetric_difference are not needed, because they are known in advance.
@@ -548,7 +552,7 @@ struct __set_operation
         {
             if (__idx1 == __size1)
             {
-                if constexpr (__is_set_union || __is_set_symmetric_difference)
+                if constexpr (_CopyDiffSetB)
                 {
                     // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
                     for (; __idx2 < __size2 && __idx < __num_eles_min; ++__idx2, ++__idx)
@@ -565,7 +569,7 @@ struct __set_operation
 
             if (__idx2 == __size2)
             {
-                if constexpr (!__is_set_intersection)
+                if constexpr (_CopyDiffSetA)
                 {
                     // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
                     for (; __idx1 < __size1 && __idx < __num_eles_min; ++__idx1, ++__idx)
@@ -585,7 +589,7 @@ struct __set_operation
         const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
         if (std::invoke(__comp, std::invoke(__proj1, __ele_rng1), std::invoke(__proj2, __ele_rng2)))
         {
-            if constexpr (!__is_set_intersection)
+            if constexpr (_CopyDiffSetA)
             {
                 __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
                 ++__count;
@@ -595,7 +599,7 @@ struct __set_operation
         }
         else if (std::invoke(__comp, std::invoke(__proj2, __ele_rng2), std::invoke(__proj1, __ele_rng1)))
         {
-            if constexpr (__is_set_union || __is_set_symmetric_difference)
+            if constexpr (_CopyDiffSetB)
             {
                 __write_temp_element(__count, __ele_rng2, __idx1, __idx2);
                 ++__count;
@@ -605,7 +609,7 @@ struct __set_operation
         }
         else // if neither element is less than the other, they are equal
         {
-            if constexpr (__is_set_intersection || __is_set_union)
+            if constexpr (_CopyMatch)
             {
                 __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
                 ++__count;
