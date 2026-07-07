@@ -1234,7 +1234,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
         return oneapi::dpl::__utils::__create_set_difference_result(__first1, __first2, __result);
 
     // {1} \ {}: the difference is {1}
-    if (oneapi::dpl::__ranges::__empty(__r2))
+    if (__n2 == 0)
     {
         const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag,
