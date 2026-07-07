@@ -536,7 +536,8 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
     using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
 
-    auto __write_temp_element = [&](const _SizeType __count_arg, const auto& __value) {
+    auto __write_temp_element = [&](const _SizeType __count_arg, const auto& __value, std::size_t __idx1,
+                                    std::size_t __idx2) {
         if constexpr (_TempOutput::__capture_indexes_flag)
             __temp_out.set(__count_arg, __value, {__idx1, __idx2});
         else
@@ -555,7 +556,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                 // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
                 for (; __idx2 < __size2 && __idx < __num_eles_min; ++__idx2, ++__idx)
                 {
-                    __write_temp_element(__count, __in_rng2[__idx2]);
+                    __write_temp_element(__count, __in_rng2[__idx2], __idx1, __idx2);
                     ++__count;
                 }
             }
@@ -570,7 +571,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                 // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
                 for (; __idx1 < __size1 && __idx < __num_eles_min; ++__idx1, ++__idx)
                 {
-                    __write_temp_element(__count, __in_rng1[__idx1]);
+                    __write_temp_element(__count, __in_rng1[__idx1], __idx1, __idx2);
                     ++__count;
                 }
             }
@@ -585,7 +586,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyDiffSetA)
         {
-            __write_temp_element(__count, __ele_rng1);
+            __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
             ++__count;
         }
         ++__idx1;
@@ -595,7 +596,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyDiffSetB)
         {
-            __write_temp_element(__count, __ele_rng2);
+            __write_temp_element(__count, __ele_rng2, __idx1, __idx2);
             ++__count;
         }
         ++__idx2;
@@ -605,7 +606,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyMatch)
         {
-            __write_temp_element(__count, __ele_rng1);
+            __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
             ++__count;
         }
         ++__idx1;
