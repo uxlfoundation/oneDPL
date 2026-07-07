@@ -2186,27 +2186,19 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         // Single-writer final position: the merge-path walk detects the natural termination
                         // (edge crossing) in exactly one work-item, so the source position can be captured
                         // locally here and stored directly, with no sub-group/work-group reduction and no atomics.
-                        __src_final_pos_t __src_final_pos_global{};
-                        auto __final_pos_saver = [&](__src_final_pos_t __final_pos) {
-                            __src_final_pos_global = __final_pos;
-                        };
-
                         __call_scan_through_elements_helper(
                             [&](typename _PosTools::__oob_pos_t __id) {
                                 __start_id_reached_on_oob = __start_id_reached;
                                 __oob_detected = __id;
                             },
-                            __final_pos_saver);
-
-                        if constexpr (_PosTools::__has_src_final_pos)
-                        {
-                            if (__src_final_pos_global != __src_final_pos_t{})
-                            {
-                                // Exactly one work-item reaches the edge crossing, so no synchronization is
-                                // needed to store the shared final position.
-                                _PosTools::__store_final_pos(__stop_pos_acc, __src_final_pos_global);
-                            }
-                        }
+                            [&](__src_final_pos_t __final_pos) {
+                                if constexpr (_PosTools::__has_src_final_pos)
+                                {
+                                    // Exactly one work-item reaches the edge crossing, so no synchronization
+                                    // is needed to store the shared final position.
+                                    _PosTools::__store_final_pos(__stop_pos_acc, __final_pos);
+                                }
+                            });
 
                         // OOB element detected in this work-item?
                         if (_PosTools::__create_initial_oob_pos() != __oob_detected)
