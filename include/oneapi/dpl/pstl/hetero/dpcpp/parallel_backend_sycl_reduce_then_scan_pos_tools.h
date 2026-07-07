@@ -16,6 +16,7 @@
 #include <limits>      // std::numeric_limits
 #include <tuple>       // std::get
 #include <type_traits> // std::integral_constant
+#include <utility>     // std::forward
 
 #include "../../onedpl_config.h"
 #include "parallel_backend_sycl_utils.h"
