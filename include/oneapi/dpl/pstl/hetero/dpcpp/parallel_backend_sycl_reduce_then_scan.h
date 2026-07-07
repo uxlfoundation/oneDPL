@@ -1846,8 +1846,14 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                     // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
                     __scan_through_elements_helper</*_Bounded*/ false, __is_inclusive, __is_unique_pattern_v>(
-                        __ndi, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op,
-                        oneapi::dpl::__internal::__ignore_call_op{}, __sub_group_carry, __in_rng, /*unused*/ __in_rng,
+                        __ndi,
+                        /* _GenInput __gen_input                      */ __gen_reduce_input,
+                        /* _ScanInputTransform __scan_input_transform */ oneapi::dpl::identity{},
+                        /* _BinaryOp __binary_op                      */ __reduce_op,
+                        /* _WriteOp __write_op                        */ oneapi::dpl::__internal::__ignore_call_op{},
+                        __sub_group_carry,
+                        /* const _InRng& __in_rng                     */ __in_rng,
+                        /* _OutRng& __out_rng                         */ __in_rng,
                         __start_id, __start_id_reached, __n, __inputs_per_item, __subgroup_start_id, __comm_scan_tag);
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__get_cref();
@@ -2254,12 +2260,14 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                             _PosTools::__create_final_pos_saver(__src_final_pos_wi));
 
                         // Reduce over sub-group
+#if 0
                         if constexpr (_PosTools::__has_src_final_pos)
                         {
                             // Reduce final position over sub-group
                             __src_final_pos_sg =
                                 _PosTools::__reduce_max_final_pos(__ndi.get_sub_group(), __src_final_pos_wi);
                         }
+#endif
 
                         // OOB element detected in this work-item?
                         if (_PosTools::__create_initial_oob_pos() != __oob_detected)
@@ -2280,6 +2288,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     }
                 }
 
+#if 0
                 if constexpr (_Bounded)
                 {
                     if constexpr (_PosTools::__has_src_final_pos)
@@ -2293,6 +2302,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                             _PosTools::__update_final_pos(__stop_pos_acc, __src_final_pos_group);
                     }
                 }
+#endif
 
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block

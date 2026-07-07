@@ -344,20 +344,57 @@ __create_set_op_impl_result(oneapi::dpl::__internal::__difference_t<_Range1> __i
         return __idx3;
 }
 
-template <bool _Bounded, typename _Range1, typename _Range2>
+template <typename _PositionT, typename _Size1, typename _Size2>
+_PositionT
+__create_bounded_initial_final_pos(unseq_backend::_IntersectionTag, _PositionT, const _Size1 /*__size1*/,
+                                   const _Size2 /*__size2*/)
+{
+    // std::ranges::set_intersection positions evaluated later
+    return {0, 0};
+}
+
+template <typename _PositionT, typename _Size1, typename _Size2>
+_PositionT
+__create_bounded_initial_final_pos(unseq_backend::_UnionTag, _PositionT, const _Size1 __size1, const _Size2 __size2)
+{
+    // std::ranges::set_union : we know stop position
+    return {__size1, __size2};
+}
+
+template <typename _PositionT, typename _Size1, typename _Size2>
+_PositionT
+__create_bounded_initial_final_pos(unseq_backend::_DifferenceTag, _PositionT, const _Size1 __size1,
+                                   const _Size2 /*__size2*/)
+{
+    // std::ranges::set_difference : position in the second range evaluated later
+    return {__size1, 0};
+}
+
+template <typename _PositionT, typename _Size1, typename _Size2>
+_PositionT
+__create_bounded_initial_final_pos(unseq_backend::_SymmetricDifferenceTag, _PositionT, const _Size1 __size1,
+                                   const _Size2 __size2)
+{
+    // std::ranges::set_symmetric_difference : we know stop position
+    return {__size1, __size2};
+}
+
+template <bool _Bounded, typename _SetTag, typename _Range1, typename _Range2>
 std::conditional_t<_Bounded, _SetOpFinalAndOOBPosType<_Range1, _Range2>, std::size_t>
-__create_initial_final_and_oob_pos_state(const _Range1& __range1, const _Range2& __range2)
+__create_initial_final_and_oob_pos_state(_SetTag __set_tag, const _Range1& __range1, const _Range2& __range2)
 {
     if constexpr (_Bounded)
     {
         using _PositionT = typename _SetOpFinalAndOOBPosType<_Range1, _Range2>::_PositionT;
 
-        // Initial final state initialized by 0 because we will use fetch_max() call from Kernel's code
-        _PositionT __initial_final_pos{0, 0};
+        const auto __n1 = oneapi::dpl::__ranges::__size(__range1);
+        const auto __n2 = oneapi::dpl::__ranges::__size(__range2);
+
+        _PositionT __initial_final_pos = __create_bounded_initial_final_pos(__set_tag, _PositionT{}, __n1, __n2);
 
         // Initial OOB state initialized by the size of the ranges because we will use std::min() for their state
         // and final positions on host side after finish Kernel's code.
-        _PositionT __initial_oob_pos{oneapi::dpl::__ranges::__size(__range1), oneapi::dpl::__ranges::__size(__range2)};
+        _PositionT __initial_oob_pos{__n1, __n2};
 
         return _SetOpFinalAndOOBPosType<_Range1, _Range2>{__initial_final_pos, __initial_oob_pos};
     }
