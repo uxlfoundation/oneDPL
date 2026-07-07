@@ -888,6 +888,8 @@ struct __result_storage : public __device_storage<_T>
 template <typename _T>
 struct __combined_storage : public __device_storage<_T>
 {
+    using type = _T;
+
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __combined_storage.");
 
     std::unique_ptr<_T, __internal::__sycl_usm_free> __result_buf = nullptr;
