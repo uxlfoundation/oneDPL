@@ -2159,12 +2159,12 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         // position from them. The OOB position may be reached only in one work-item, so no
                         // synchronization is needed to update the shared OOB position in the second pass.
                         std::size_t __start_id_reached_on_oob = __start_id;
-                        typename _PosTools::__oob_pos_t __oob_detected = _PosTools::__create_initial_oob_pos();
+                        typename _PosTools::__oob_pos_t __oob_position = _PosTools::__initial_oob_pos();
 
                         __call_scan_through_elements_helper(
                             [&](typename _PosTools::__oob_pos_t __id) {
                                 __start_id_reached_on_oob = __start_id_reached;
-                                __oob_detected = __id;
+                                __oob_position = __id;
                             },
                             [&](__src_final_pos_t __final_pos) {
                                 if constexpr (_PosTools::__has_src_final_pos)
@@ -2175,13 +2175,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                                 }
                             });
 
-                        // OOB element detected in this work-item?
-                        if (_PosTools::__create_initial_oob_pos() != __oob_detected)
-                        {
-                            const auto __finalized_oob_pos = _PosTools::__finalize_oob_detected(
-                                __in_rng, __oob_detected, __start_id_reached_on_oob, __gen_scan_input);
-                            _PosTools::__store_oob_pos(__stop_pos_acc, __finalized_oob_pos);
-                        }
+                        _PosTools::__finalize_and_store_oob_pos(__in_rng, __oob_position, __start_id_reached_on_oob,
+                                                                __gen_scan_input, __stop_pos_acc);
                     }
                     else
                     {

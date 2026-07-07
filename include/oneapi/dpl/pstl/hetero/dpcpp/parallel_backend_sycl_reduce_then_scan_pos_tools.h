@@ -172,25 +172,12 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
         std::conditional_t<__detect_oob_in_two_steps_v<_GenScanInput>, std::uint16_t, __src_final_pos_t>;
 
     static __oob_pos_t
-    __create_initial_oob_pos()
+    __initial_oob_pos()
     {
         if constexpr (std::is_arithmetic_v<__oob_pos_t>)
             return std::numeric_limits<__oob_pos_t>::max();
         else
             return {};
-    }
-
-    template <typename __FinalAndOOBPosAcc, typename _OOBPosType>
-    static void
-    __store_oob_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _OOBPosType& __oob_pos)
-    {
-        auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
-
-        // No synchronization needed because OOB position may be reached only in a single work-item
-        if constexpr (std::is_arithmetic_v<std::decay_t<_OOBPosType>>)
-            __final_and_oob_pos = __oob_pos;
-        else
-            __final_and_oob_pos.__oob_pos = __oob_pos;
     }
 
     template <typename __FinalAndOOBPosAcc, typename _FinalPosType>
@@ -206,21 +193,29 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
             __final_and_oob_pos.__final_pos = __final_pos;
     }
 
-    template <typename _InRng, typename _OOBPositionT, typename _GenScanInputArg>
-    static std::conditional_t<__detect_oob_in_two_steps_v<_GenScanInput>, __src_final_pos_t, _OOBPositionT>
-    __finalize_oob_detected(_InRng&& __in_rng, _OOBPositionT __detected_oob_pos, const std::size_t __start_id_reached_on_oob,
-                            _GenScanInputArg __gen_scan_input)
+    template <typename _InRng, typename _OOBPositionT, typename _GenScanInputArg, typename __FinalAndOOBPosAcc>
+    static void
+    __finalize_and_store_oob_pos(_InRng&& __in_rng, _OOBPositionT __detected_oob_pos,
+                                 const std::size_t __start_id_reached_on_oob, _GenScanInputArg __gen_scan_input,
+                                 __FinalAndOOBPosAcc& __final_and_oob_pos_acc)
     {
-        if constexpr (__detect_oob_in_two_steps_v<_GenScanInput>)
+        // Was the OOB element detected in this work-item?
+        if (__detected_oob_pos != __initial_oob_pos())
         {
-            __src_pos_capturing_temp_data<__src_final_pos_t> __pos_catcher(__detected_oob_pos);
-            __gen_scan_input(std::forward<_InRng>(__in_rng), __start_id_reached_on_oob, __pos_catcher,
-                             __no_callback_tag{});
-            return __pos_catcher.__get_saved_src_pos();
-        }
-        else
-        {
-            return __detected_oob_pos;
+            auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
+
+            // No synchronization needed because OOB may be detected only in a single work-item
+            if constexpr (__detect_oob_in_two_steps_v<_GenScanInput>)
+            {
+                __src_pos_capturing_temp_data<__src_final_pos_t> __pos_catcher(__detected_oob_pos);
+                __gen_scan_input(std::forward<_InRng>(__in_rng), __start_id_reached_on_oob, __pos_catcher,
+                                 __no_callback_tag{});
+                __final_and_oob_pos.__oob_pos = __pos_catcher.__get_saved_src_pos();
+            }
+            else
+            {
+                __final_and_oob_pos = __detected_oob_pos;
+            }
         }
     }
 };
