@@ -129,6 +129,7 @@ inline constexpr bool __detect_oob_in_two_steps_v = __detect_oob_in_two_steps_se
 // Sentinel type used as a stand-in for the stop-position accessor when _Bounded=false.
 struct __no_stop_pos_acc_tag
 {
+    using type = std::size_t;
 };
 
 template <bool _Bounded, typename _ModeTagT, typename _StopPosStorage>
@@ -141,25 +142,10 @@ __get_stop_pos_accessor_opt(_ModeTagT __mode, sycl::handler& __cgh, _StopPosStor
         return __no_stop_pos_acc_tag{};
 }
 
-template <typename _StopPosStorage, typename = void>
-struct __stop_pos_storage_type_selector
-{
-    using type = std::size_t;
-};
-
-template <typename _StopPosStorage>
-struct __stop_pos_storage_type_selector<_StopPosStorage, std::void_t<typename _StopPosStorage::type>>
-{
-    using type = typename _StopPosStorage::type;
-};
-
-template <typename _StopPosStorage>
-using __stop_pos_storage_type_selector_t = typename __stop_pos_storage_type_selector<_StopPosStorage>::type;
-
 template <bool _Bounded, typename _GenScanInput, typename _StopPosStorage>
 struct __parallel_reduce_then_scan_stop_oob_pos_tools
 {
-    using __storage_data_t = __stop_pos_storage_type_selector_t<_StopPosStorage>;
+    using __storage_data_t = typename _StopPosStorage::type;
 
     // Describes whether we have a final-position type in the storage or not
     static constexpr bool __has_src_final_pos = __final_pos_type_selector<std::decay_t<__storage_data_t>>::value;
