@@ -175,7 +175,7 @@ test_device_copyable()
 
     //__gen_set_balanced_path
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
-                      oneapi::dpl::__par_backend_hetero::__set_generic_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
+                      oneapi::dpl::__par_backend_hetero::__set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
                       oneapi::dpl::__par_backend_hetero::__get_bounds_simple, int, binary_op_device_copyable,
                       binary_op_device_copyable, binary_op_device_copyable>>,
                   "__gen_set_balanced_path is not device copyable with device copyable types");
@@ -184,7 +184,7 @@ test_device_copyable()
     //__partition_set_balanced_path_submitter
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter<
                       oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
-                          oneapi::dpl::__par_backend_hetero::__set_generic_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
+                          oneapi::dpl::__par_backend_hetero::__set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
                           oneapi::dpl::__par_backend_hetero::__get_bounds_simple, int, binary_op_device_copyable,
                           binary_op_device_copyable, binary_op_device_copyable>,
                       oneapi::dpl::execution::DefaultKernelName>>,
@@ -194,7 +194,7 @@ test_device_copyable()
     //__gen_set_op_from_known_balanced_path
     static_assert(
         sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<
-            oneapi::dpl::__par_backend_hetero::__set_generic_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
+            oneapi::dpl::__par_backend_hetero::__set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
             oneapi::dpl::__internal::__ignore_call_op, int, binary_op_device_copyable,
             binary_op_device_copyable, binary_op_device_copyable>>,
         "__gen_set_op_from_known_balanced_path is not device copyable with device copyable types");
@@ -493,7 +493,7 @@ test_non_device_copyable()
 
     //__gen_set_balanced_path
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
-                      oneapi::dpl::__par_backend_hetero::__set_generic_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
+                      oneapi::dpl::__par_backend_hetero::__set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
                       oneapi::dpl::__par_backend_hetero::__get_bounds_simple, int, binary_op_non_device_copyable,
                       binary_op_non_device_copyable, binary_op_non_device_copyable>>,
                   "__gen_set_balanced_path is device copyable with non device copyable types");
@@ -503,7 +503,7 @@ test_non_device_copyable()
     static_assert(
         !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter<
             oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
-                oneapi::dpl::__par_backend_hetero::__set_generic_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
+                oneapi::dpl::__par_backend_hetero::__set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
                 oneapi::dpl::__par_backend_hetero::__get_bounds_simple, int, binary_op_non_device_copyable,
                 binary_op_non_device_copyable, binary_op_non_device_copyable>,
             oneapi::dpl::execution::DefaultKernelName>>,
@@ -513,7 +513,7 @@ test_non_device_copyable()
     //__gen_set_op_from_known_balanced_path
     static_assert(
         !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<
-            oneapi::dpl::__par_backend_hetero::__set_generic_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
+            oneapi::dpl::__par_backend_hetero::__set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
             oneapi::dpl::__internal::__ignore_call_op, int, binary_op_non_device_copyable,
             binary_op_non_device_copyable, binary_op_non_device_copyable>>,
         "__gen_set_op_from_known_balanced_path is device copyable with non device copyable types");
