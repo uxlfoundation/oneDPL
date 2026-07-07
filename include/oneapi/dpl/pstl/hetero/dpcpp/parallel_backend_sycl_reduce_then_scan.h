@@ -541,7 +541,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const auto __size1, 
     // Make sense to calculate final positions only for set_intersection and set_difference operations,
     // and only if the user provided a callback to save the final positions.
     // Stop positions for set_union and set_symmetric_difference are not needed, because they are known in advance.
-    constexpr bool __need_call_process_final_pos =
+    constexpr bool __need_call_final_pos_saver =
         !std::is_same_v<std::decay_t<_FinalPosSaver>, __internal::__no_callback_tag> &&
         (__is_set_intersection || __is_set_difference);
 
@@ -565,7 +565,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const auto __size1, 
     [[maybe_unused]] const std::size_t __idx2_at_entry = __idx2;
 
     auto __process_final_pos = [&](std::size_t __idx1, std::size_t __idx2) {
-        if constexpr (__need_call_process_final_pos)
+        if constexpr (__need_call_final_pos_saver)
         {
             // For set_intersection the operation terminates once either input is exhausted: the edge crossing
             // is the step that moves from "strictly inside both inputs" to "at least one input exhausted".
@@ -599,7 +599,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const auto __size1, 
                 }
             }
             __idx = __num_eles_min;
-            if constexpr (__need_call_process_final_pos)
+            if constexpr (__need_call_final_pos_saver)
                 __process_final_pos(__idx1, __idx2);
             return;
         }
@@ -616,7 +616,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const auto __size1, 
                 }
             }
             __idx = __num_eles_min;
-            if constexpr (__need_call_process_final_pos)
+            if constexpr (__need_call_final_pos_saver)
                 __process_final_pos(__idx1, __idx2);
             return;
         }
@@ -657,7 +657,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const auto __size1, 
     }
     // The edge crossing can only occur on a diagonal that can reach a range end, i.e. when bounds are
     // checked. Keep the interior hot path free of the extra comparisons.
-    if constexpr (__need_call_process_final_pos)
+    if constexpr (__need_call_final_pos_saver)
     {
         if (__check_bounds)
             __process_final_pos(__idx1, __idx2);
