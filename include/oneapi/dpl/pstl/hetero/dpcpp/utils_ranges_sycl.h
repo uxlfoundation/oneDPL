@@ -612,7 +612,8 @@ struct __get_sycl_range
 
     // for raw pointers and direct pass objects (for example, counting_iterator, iterator of USM-containers)
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
-    std::enable_if_t<oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>,
+    std::enable_if_t<!oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> &&
+                         oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>,
                      __range_holder<oneapi::dpl::__ranges::guard_view<_Iter>>>
     __process_input_iter(_Iter __first, _Iter __last)
     {

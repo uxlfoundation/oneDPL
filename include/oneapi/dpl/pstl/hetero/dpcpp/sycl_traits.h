@@ -798,6 +798,24 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
+namespace oneapi::dpl::__internal
+{
+
+template <sycl::access_mode Mode, typename T, typename Allocator>
+struct sycl_iterator;
+
+} // namespace oneapi::dpl::__internal
+
+// sycl_iterator is not device_copyable: it wraps a sycl::buffer and is only usable on the host. This
+// specialization is more specialized than any user-provided template <class T> struct is_device_copyable<T>
+// specialization, so it takes precedence and keeps sycl_iterator from being mistaken for a directly-passable,
+// device-ready iterator.
+template <sycl::access_mode Mode, typename T, typename Allocator>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::sycl_iterator, Mode, T, Allocator)>
+    : std::false_type
+{
+};
+
 namespace oneapi::dpl::internal
 {
 
