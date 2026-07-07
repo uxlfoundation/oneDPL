@@ -206,15 +206,16 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
             __final_and_oob_pos.__final_pos = __final_pos;
     }
 
-    template <typename _OOBPositionT, typename _GenScanInputArg>
+    template <typename _InRng, typename _OOBPositionT, typename _GenScanInputArg>
     static std::conditional_t<__detect_oob_in_two_steps_v<_GenScanInput>, __src_final_pos_t, _OOBPositionT>
-    __finalize_oob_detected(_OOBPositionT __detected_oob_pos, const std::size_t __start_id_reached_on_oob,
+    __finalize_oob_detected(_InRng&& __in_rng, _OOBPositionT __detected_oob_pos, const std::size_t __start_id_reached_on_oob,
                             _GenScanInputArg __gen_scan_input)
     {
         if constexpr (__detect_oob_in_two_steps_v<_GenScanInput>)
         {
             __src_pos_capturing_temp_data<__src_final_pos_t> __pos_catcher(__detected_oob_pos);
-            __gen_scan_input(__start_id_reached_on_oob, __pos_catcher, __no_callback_tag{});
+            __gen_scan_input(std::forward<_InRng>(__in_rng), __start_id_reached_on_oob, __pos_catcher,
+                             __no_callback_tag{});
             return __pos_catcher.__get_saved_src_pos();
         }
         else

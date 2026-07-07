@@ -2199,13 +2199,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         // OOB element detected in this work-item?
                         if (_PosTools::__create_initial_oob_pos() != __oob_detected)
                         {
-                            auto __call_gen_scan_input = [&](auto&&... __args) {
-                                return __gen_scan_input(__in_rng, std::forward<decltype(__args)>(__args)...);
-                            };
-
-                            _PosTools::__store_oob_pos(
-                                __stop_pos_acc, _PosTools::__finalize_oob_detected(
-                                                    __oob_detected, __start_id_reached_on_oob, __call_gen_scan_input));
+                            const auto __finalized_oob_pos = _PosTools::__finalize_oob_detected(
+                                __in_rng, __oob_detected, __start_id_reached_on_oob, __gen_scan_input);
+                            _PosTools::__store_oob_pos(__stop_pos_acc, __finalized_oob_pos);
                         }
                     }
                     else
