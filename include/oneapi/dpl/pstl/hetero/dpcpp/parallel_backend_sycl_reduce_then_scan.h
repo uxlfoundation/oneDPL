@@ -492,9 +492,9 @@ struct __set_operation
         // termination boundary occurs in exactly one work-item at exactly one iteration. Comparing the entry
         // indices against the post-step indices detects precisely that transition (the edge crossing), which
         // lets a single work-item write the final source position directly, with no reduction and no atomics.
-        // These are refreshed at the top of every iteration below.
-        std::size_t __idx1_at_entry = __idx1;
-        std::size_t __idx2_at_entry = __idx2;
+        // These are refreshed at the top of every bounds-checked iteration below.
+        [[maybe_unused]] std::size_t __idx1_at_entry = __idx1;
+        [[maybe_unused]] std::size_t __idx2_at_entry = __idx2;
 
         auto __process_final_pos = [&](std::size_t __idx1, std::size_t __idx2) {
             if constexpr (__need_call_final_pos_saver)
@@ -531,8 +531,13 @@ struct __set_operation
         {
             if constexpr (__need_call_final_pos_saver)
             {
-                __idx1_at_entry = __idx1;
-                __idx2_at_entry = __idx2;
+                // The edge crossing can only occur on a diagonal that can reach a range end (i.e. when bounds
+                // are checked), so keep the interior hot path free of these captures.
+                if (__check_bounds)
+                {
+                    __idx1_at_entry = __idx1;
+                    __idx2_at_entry = __idx2;
+                }
             }
 
             if (__check_bounds)
