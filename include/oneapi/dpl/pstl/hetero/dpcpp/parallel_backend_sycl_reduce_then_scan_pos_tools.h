@@ -129,6 +129,7 @@ inline constexpr bool __detect_oob_in_two_steps_v = __detect_oob_in_two_steps_se
 // Sentinel type used as a stand-in for the stop-position accessor when _Bounded=false.
 struct __no_stop_pos_acc_tag
 {
+    // No stop position is tracked when _Bounded=false, so std::size_t is just a harmless default.
     using type = std::size_t;
 };
 
