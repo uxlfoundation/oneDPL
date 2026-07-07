@@ -2179,13 +2179,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         // pass we recover the source indexes for the diagonal where it happened and store the OOB
                         // position from them. The OOB position may be reached only in one work-item, so no
                         // synchronization is needed to update the shared OOB position in the second pass.
+                        std::size_t __start_id_reached_on_oob = __start_id;
                         typename _PosTools::__oob_pos_t __oob_detected = _PosTools::__create_initial_oob_pos();
 
-                        std::size_t __start_id_reached_on_oob = __start_id;
-
-                        // Single-writer final position: the merge-path walk detects the natural termination
-                        // (edge crossing) in exactly one work-item, so the source position can be captured
-                        // locally here and stored directly, with no sub-group/work-group reduction and no atomics.
                         __call_scan_through_elements_helper(
                             [&](typename _PosTools::__oob_pos_t __id) {
                                 __start_id_reached_on_oob = __start_id_reached;
