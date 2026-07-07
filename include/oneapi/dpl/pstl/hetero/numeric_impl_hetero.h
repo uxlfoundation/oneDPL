@@ -95,8 +95,6 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
 //------------------------------------------------------------------------
 // transform_scan
 //------------------------------------------------------------------------
-template <typename T>
-struct ExecutionPolicyWrapper;
 
 #if _ONEDPL_BACKEND_SYCL
 template <sycl::access::mode _Mode1, sycl::access::mode _Mode2, typename _T, typename _Allocator>
