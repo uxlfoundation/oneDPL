@@ -850,7 +850,7 @@ __get_accessor(_ModeTagT, __device_storage<_T>& __st, sycl::handler& __cgh, cons
     return __st.template __get_accessor<__access_mode_resolver_v<_ModeTagT>>(__cgh, __prop_list);
 }
 
-template <typename _T, sycl::usm::alloc __alloc_t = sycl::usm::alloc::host>
+template <typename _T>
 struct __result_storage : public __device_storage<_T>
 {
     using type = _T;
@@ -863,11 +863,11 @@ struct __result_storage : public __device_storage<_T>
     __result_storage(const sycl::queue& __q, std::size_t __n) : __result_sz(__n)
     {
         assert(__result_sz > 0);
-        _T* __ptr = __internal::__allocate_usm<_T, __alloc_t>(__q, __result_sz);
+        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
         if (__ptr)
         {
             this->__usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-            __kind = __alloc_t;
+            __kind = sycl::usm::alloc::host;
         }
         else
         {
@@ -882,15 +882,6 @@ struct __result_storage : public __device_storage<_T>
     {
         this->__copy_n(__dst, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr,
                        __result_sz < __n ? __result_sz : __n, /*offset*/ 0);
-    }
-
-    std::enable_if_t<std::is_default_constructible_v<_T>, _T>
-    __load_result()
-    {
-        _T __result{};
-        __copy_result(&__result, 1);
-
-        return __result;
     }
 };
 
@@ -930,15 +921,6 @@ struct __combined_storage : public __device_storage<_T>
                        __result_sz < __n ? __result_sz : __n, /*offset*/ __sz);
     }
 
-    std::enable_if_t<std::is_default_constructible_v<_T>, _T>
-    __load_result()
-    {
-        _T __result{};
-        __copy_result(&__result, 1);
-
-        return __result;
-    }
-
     template <typename _ModeTagT>
     friend auto
     __get_result_accessor(_ModeTagT, __combined_storage& __st, sycl::handler& __cgh,
@@ -962,6 +944,15 @@ struct __combined_storage : public __device_storage<_T>
         return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf), __sz, __kind};
     }
 };
+
+template <typename _T, template <typename> typename _Storage>
+std::enable_if_t<std::is_default_constructible_v<_T>, _T>
+__load_result(_Storage<_T>& __storage)
+{
+    _T __result{};
+    __storage.__copy_result(&__result, 1);
+    return __result;
+}
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode

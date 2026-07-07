@@ -34,15 +34,8 @@ namespace __par_backend_hetero
 template <typename _Range1, typename _Range2>
 struct _SetOpFinalAndOOBPosTypeImpl
 {
-// FPGA devices don't support 64-bit atomics
-#if _ONEDPL_FPGA_DEVICE
-    using _Size1 = std::uint32_t;
-    using _Size2 = std::uint32_t;
-#else
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
-#endif
-
     using _PositionT = oneapi::dpl::__internal::tuple<_Size1, _Size2>;
 
     _PositionT __final_pos = {}; // Describes final position after set operation in source ranges
@@ -167,98 +160,30 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
             return {};
     }
 
-    template <typename _Group, typename _FinalPosType>
-    static _FinalPosType
-    __reduce_max_final_pos(_Group __group, _FinalPosType& __last_idxs_in_this_wi)
-    {
-        if constexpr (std::is_arithmetic_v<std::decay_t<_FinalPosType>>)
-        {
-            return __dpl_sycl::__reduce_over_group(__group, __last_idxs_in_this_wi,
-                                                   __dpl_sycl::__maximum<_FinalPosType>());
-        }
-        else
-        {
-            using TField0 = std::decay_t<decltype(std::get<0>(__last_idxs_in_this_wi))>;
-            using TField1 = std::decay_t<decltype(std::get<1>(__last_idxs_in_this_wi))>;
-
-            return {__dpl_sycl::__reduce_over_group(__group, std::get<0>(__last_idxs_in_this_wi),
-                                                    __dpl_sycl::__maximum<TField0>()),
-                    __dpl_sycl::__reduce_over_group(__group, std::get<1>(__last_idxs_in_this_wi),
-                                                    __dpl_sycl::__maximum<TField1>())};
-        }
-    }
-
     template <typename __FinalAndOOBPosAcc, typename _OOBPosType>
     static void
-    __update_oob_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _OOBPosType& __oob_pos)
+    __store_oob_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _OOBPosType& __oob_pos)
     {
         auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
 
         // No synchronization needed because OOB position may be reached only in a single work-item
         if constexpr (std::is_arithmetic_v<std::decay_t<_OOBPosType>>)
-        {
-            // The __final_and_oob_pos really is simple position value
             __final_and_oob_pos = __oob_pos;
-        }
         else
-        {
-            // The __final_and_oob_pos really is _SetOpFinalAndOOBPosType
             __final_and_oob_pos.__oob_pos = __oob_pos;
-        }
     }
-
-    // Device-scope atomic over global memory. The target must live in device USM
-    // (see __transform_reduce_then_scan_stop_pos_storage_t); a device-scope atomic on host USM
-    // triggers an atomic access violation on device.
-    template <typename _FieldT>
-    using _StopPosFieldAtomicRefT =
-        sycl::atomic_ref<std::decay_t<_FieldT>, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                         sycl::access::address_space::global_space>;
 
     template <typename __FinalAndOOBPosAcc, typename _FinalPosType>
     static void
-    __update_final_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _FinalPosType& __final_pos)
+    __store_final_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const _FinalPosType& __final_pos)
     {
-        // The __final_and_oob_pos really is _SetOpFinalAndOOBPosType
         auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
 
-        // We need atomic access here as multiple work-items can setup reached final position and update it concurrently.
+        // No synchronization needed because final position may be reached only in a single work-item
         if constexpr (std::is_arithmetic_v<std::decay_t<decltype(__final_and_oob_pos)>>)
-        {
-            _StopPosFieldAtomicRefT<_FinalPosType>(__final_and_oob_pos).fetch_max(__final_pos);
-        }
+            __final_and_oob_pos = __final_pos;
         else
-        {
-            auto& __final_pos_field0 = std::get<0>(__final_and_oob_pos.__final_pos);
-            auto& __final_pos_field1 = std::get<1>(__final_and_oob_pos.__final_pos);
-
-            using _FinalPosType0 = std::decay_t<decltype(__final_pos_field0)>;
-            using _FinalPosType1 = std::decay_t<decltype(__final_pos_field1)>;
-
-            _StopPosFieldAtomicRefT<_FinalPosType0>(__final_pos_field0).fetch_max(std::get<0>(__final_pos));
-            _StopPosFieldAtomicRefT<_FinalPosType1>(__final_pos_field1).fetch_max(std::get<1>(__final_pos));
-        }
-    }
-
-    template <typename __oob_pos_t>
-    static auto
-    __create_on_oob_reached(std::size_t& __start_id_reached, std::size_t& __start_id_reached_on_oob,
-                            __oob_pos_t& __oob_detected)
-    {
-        return [&__start_id_reached, &__start_id_reached_on_oob, &__oob_detected](__oob_pos_t __id) {
-            __start_id_reached_on_oob = __start_id_reached;
-            __oob_detected = __id;
-        };
-    }
-
-    template <typename _FinalPosType>
-    static auto
-    __create_final_pos_saver(_FinalPosType& __src_final_pos)
-    {
-        if constexpr (__has_src_final_pos)
-            return [&__src_final_pos](_FinalPosType __final_pos) { __src_final_pos = __final_pos; };
-        else
-            return __no_callback_tag{};
+            __final_and_oob_pos.__final_pos = __final_pos;
     }
 
     template <typename _OOBPositionT, typename _GenScanInputArg>
@@ -276,15 +201,6 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
         {
             return __detected_oob_pos;
         }
-    }
-
-    static auto
-    __create_src_final_pos_sg_container()
-    {
-        if constexpr (_Bounded && __has_src_final_pos)
-            return __src_final_pos_t{};
-        else
-            return 0;
     }
 };
 
@@ -344,20 +260,57 @@ __create_set_op_impl_result(oneapi::dpl::__internal::__difference_t<_Range1> __i
         return __idx3;
 }
 
-template <bool _Bounded, typename _Range1, typename _Range2>
+template <typename _PositionT, typename _Size1, typename _Size2>
+_PositionT
+__create_bounded_initial_final_pos(unseq_backend::_IntersectionTag, _PositionT, const _Size1 /*__size1*/,
+                                   const _Size2 /*__size2*/)
+{
+    // std::ranges::set_intersection positions evaluated later
+    return {0, 0};
+}
+
+template <typename _PositionT, typename _Size1, typename _Size2>
+_PositionT
+__create_bounded_initial_final_pos(unseq_backend::_UnionTag, _PositionT, const _Size1 __size1, const _Size2 __size2)
+{
+    // std::ranges::set_union : we know stop position
+    return {__size1, __size2};
+}
+
+template <typename _PositionT, typename _Size1, typename _Size2>
+_PositionT
+__create_bounded_initial_final_pos(unseq_backend::_DifferenceTag, _PositionT, const _Size1 __size1,
+                                   const _Size2 /*__size2*/)
+{
+    // std::ranges::set_difference : position in the second range evaluated later
+    return {__size1, 0};
+}
+
+template <typename _PositionT, typename _Size1, typename _Size2>
+_PositionT
+__create_bounded_initial_final_pos(unseq_backend::_SymmetricDifferenceTag, _PositionT, const _Size1 __size1,
+                                   const _Size2 __size2)
+{
+    // std::ranges::set_symmetric_difference : we know stop position
+    return {__size1, __size2};
+}
+
+template <bool _Bounded, typename _SetTag, typename _Range1, typename _Range2>
 std::conditional_t<_Bounded, _SetOpFinalAndOOBPosType<_Range1, _Range2>, std::size_t>
-__create_initial_final_and_oob_pos_state(const _Range1& __range1, const _Range2& __range2)
+__create_initial_final_and_oob_pos_state(_SetTag __set_tag, const _Range1& __range1, const _Range2& __range2)
 {
     if constexpr (_Bounded)
     {
         using _PositionT = typename _SetOpFinalAndOOBPosType<_Range1, _Range2>::_PositionT;
 
-        // Initial final state initialized by 0 because we will use fetch_max() call from Kernel's code
-        _PositionT __initial_final_pos{0, 0};
+        const auto __n1 = oneapi::dpl::__ranges::__size(__range1);
+        const auto __n2 = oneapi::dpl::__ranges::__size(__range2);
+
+        _PositionT __initial_final_pos = __create_bounded_initial_final_pos(__set_tag, _PositionT{}, __n1, __n2);
 
         // Initial OOB state initialized by the size of the ranges because we will use std::min() for their state
         // and final positions on host side after finish Kernel's code.
-        _PositionT __initial_oob_pos{oneapi::dpl::__ranges::__size(__range1), oneapi::dpl::__ranges::__size(__range2)};
+        _PositionT __initial_oob_pos{__n1, __n2};
 
         return _SetOpFinalAndOOBPosType<_Range1, _Range2>{__initial_final_pos, __initial_oob_pos};
     }
