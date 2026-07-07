@@ -119,6 +119,7 @@ test_device_copyable()
     static_assert(sycl::is_device_copyable_v<
                       oneapi::dpl::unseq_backend::first_match_pred<noop_device_copyable>>,
                   "first_match_pred is not device copyable with device copyable types");
+    // __brick_includes
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__brick_includes<
                       noop_device_copyable, int_device_copyable, int_device_copyable, int_device_copyable, int_device_copyable>>,
                   "__brick_includes is not device copyable with device copyable types");
