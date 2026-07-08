@@ -53,24 +53,14 @@ struct _SetOpFinalAndOOBPosTypeImpl
                 std::min(std::get<1>(__final_pos), std::get<1>(__oob_pos))};
     }
 
-    template <typename _SetTag>
     static _SetOpFinalAndOOBPosTypeImpl
-    __create_initial_state(_SetTag __set_tag, const _Range1& __range1, const _Range2& __range2)
+    __create_initial_state(const _Range1& __range1, const _Range2& __range2)
     {
         const _Size1 __n1 = oneapi::dpl::__ranges::__size(__range1);
         const _Size2 __n2 = oneapi::dpl::__ranges::__size(__range2);
 
-        _PositionT __initial_final_pos = {__n1, __n2}; // set_union and set_symmetric_difference stop at the ends
-        if constexpr (std::is_same_v<_SetTag, unseq_backend::_DifferenceTag>)
-            __initial_final_pos = {__n1, 0}; // for set_difference, position in the second range is obtained later
-        else if constexpr (std::is_same_v<_SetTag, unseq_backend::_IntersectionTag>)
-            __initial_final_pos = {0, 0}; // for set_intersection, both positions are obtained later
-
-        // Initial OOB state initialized by the size of the ranges because we will use std::min() for their state
-        // and final positions on host side after finish Kernel's code.
-        _PositionT __initial_oob_pos{__n1, __n2};
-
-        return _SetOpFinalAndOOBPosTypeImpl{__initial_final_pos, __initial_oob_pos};
+        // Setup initial final and OOB positions to the end of the source ranges for the set operation
+        return _SetOpFinalAndOOBPosTypeImpl{{__n1, __n2}, {__n1, __n2}};
     }
 };
 
@@ -180,12 +170,13 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
             return {};
     }
 
-    template <typename __FinalAndOOBPosAcc>
-    static void
-    __store_final_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const __src_final_pos_t& __final_pos)
+    template <typename __FinalAndOOBPosAcc, std::size_t _Idx, typename _T>
+    static std::enable_if_t<!std::is_arithmetic_v<decltype(std::declval<__FinalAndOOBPosAcc>().__data()[0])>, void>
+    __store_final_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc,
+                      oneapi::dpl::__internal::__indexed_t<_Idx, _T> __final_pos_part)
     {
         auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
-        __final_and_oob_pos.__final_pos = __final_pos;
+        std::get<_Idx>(__final_and_oob_pos.__final_pos) = __final_pos_part.__value;
     }
 
     template <typename _InRng, typename _OOBPositionT, typename _GenScanInputArg, typename __FinalAndOOBPosAcc>
@@ -271,12 +262,12 @@ __create_set_op_impl_result(oneapi::dpl::__internal::__difference_t<_Range1> __i
         return __idx3;
 }
 
-template <bool _Bounded, typename _SetTag, typename _Range1, typename _Range2>
+template <bool _Bounded, typename _Range1, typename _Range2>
 std::conditional_t<_Bounded, _SetOpFinalAndOOBPosType<_Range1, _Range2>, std::size_t>
-__create_initial_final_and_oob_pos_state(_SetTag __set_tag, const _Range1& __range1, const _Range2& __range2)
+__create_initial_final_and_oob_pos_state(const _Range1& __range1, const _Range2& __range2)
 {
     if constexpr (_Bounded)
-        return _SetOpFinalAndOOBPosType<_Range1, _Range2>::__create_initial_state(__set_tag, __range1, __range2);
+        return _SetOpFinalAndOOBPosType<_Range1, _Range2>::__create_initial_state(__range1, __range2);
     else
         return std::size_t{0};
 }

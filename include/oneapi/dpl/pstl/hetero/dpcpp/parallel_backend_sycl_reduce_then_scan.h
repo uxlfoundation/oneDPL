@@ -479,28 +479,17 @@ struct __set_operation
         // indices against the post-step indices detects precisely that transition (the edge crossing), which
         // lets a single work-item write the final source position directly, with no reduction and no atomics.
         // These are refreshed at the top of every bounds-checked iteration below.
-        [[maybe_unused]] std::size_t __idx1_at_entry = __idx1;
-        [[maybe_unused]] std::size_t __idx2_at_entry = __idx2;
+        bool __idx1_at_entry_inside = false;
+        bool __idx2_at_entry_inside = false;
 
-        auto __process_final_pos = [&](std::size_t __idx1, std::size_t __idx2) {
+        auto __process_final_pos = [&](std::size_t __i1, std::size_t __i2) {
             if constexpr (__need_call_final_pos_saver)
             {
-                // For set_intersection the operation terminates once either input is exhausted: the edge crossing
-                // is the step that moves from "strictly inside both inputs" to "at least one input exhausted".
-                if constexpr (__is_set_intersection)
-                {
-                    if (__idx1_at_entry < __size1 && __idx2_at_entry < __size2 &&
-                        (__idx1 == __size1 || __idx2 == __size2))
-                        __final_pos_saver({__idx1, __idx2});
-                }
-                // For set_difference the operation terminates once the first input (set A) is exhausted: the edge
-                // crossing is the step that moves idx1 to the end of set A. This also covers the tail-drain of set
-                // A performed after set B is exhausted.
-                else if constexpr (__is_set_difference)
-                {
-                    if (__idx1_at_entry < __size1 && __idx1 == __size1)
-                        __final_pos_saver({__idx1, __idx2});
-                }
+                if (__idx1_at_entry_inside && __i1 == __size1)
+                    __final_pos_saver(oneapi::dpl::__internal::template __indexed_t</*dim*/ 0, std::size_t>{__i1});
+
+                if (__idx2_at_entry_inside && __i2 == __size2)
+                    __final_pos_saver(oneapi::dpl::__internal::template __indexed_t</*dim*/ 1, std::size_t>{__i2});
             }
         };
 
@@ -519,8 +508,8 @@ struct __set_operation
             {
                 if constexpr (__need_call_final_pos_saver)
                 {
-                    __idx1_at_entry = __idx1;
-                    __idx2_at_entry = __idx2;
+                    __idx1_at_entry_inside = __idx1 < __size1;
+                    __idx2_at_entry_inside = __idx2 < __size2;
                 }
 
                 if (__idx1 == __size1)
@@ -2118,8 +2107,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
                     if constexpr (_Bounded)
                     {
-                        using __src_final_pos_t = typename _PosTools::__src_final_pos_t;
-
                         // Two pass processing: if the OOB position is reached in the first pass, then on the second
                         // pass we recover the source indexes for the diagonal where it happened and store the OOB
                         // position from them. The OOB position may be reached only in one work-item, so no
@@ -2134,10 +2121,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
                         if constexpr (_PosTools::__has_src_final_pos)
                         {
-                            __call_scan_through_elements_helper(__on_oob_reached, [&](__src_final_pos_t __final_pos) {
-                                // Exactly one work-item reaches the edge crossing, so no synchronization
-                                // is needed to store the shared final position.
-                                _PosTools::__store_final_pos(__stop_pos_acc, __final_pos);
+                            __call_scan_through_elements_helper(__on_oob_reached, [&](auto __final_pos_part) {
+                                // Exactly one work-item reaches each edge crossing for a given dimension.
+                                // Since we only update distinct components of the shared final position here,
+                                // no synchronization is needed to store it.
+                                _PosTools::__store_final_pos(__stop_pos_acc, __final_pos_part);
                             });
                         }
                         else
