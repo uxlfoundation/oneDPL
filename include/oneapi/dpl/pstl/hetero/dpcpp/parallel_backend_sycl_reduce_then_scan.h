@@ -108,16 +108,6 @@ struct __get_zeroth_element
 
 // *** Write Operations ***
 
-template <typename _OutSize, typename _OutIndex, typename _Assigner, typename _OnOOBReached>
-void
-__write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __assign, _OnOOBReached __on_oob_reached)
-{
-    if (__out_idx < __out_size)
-        __assign(__out_idx);
-    if (__out_idx == __out_size)
-        __on_oob_reached();
-}
-
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
 // Used in __parallel_transform_scan.
 struct __simple_write_to_id
@@ -166,15 +156,14 @@ struct __write_to_id_if
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
-
         if (std::get<1>(__v))
         {
-            __write_if_in_bounds(
-                __out_size, std::get<0>(__v) - 1 + __offset,
-                [&](auto __idx_out) {
-                    __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__idx_out]);
-                },
-                [&]() { __on_oob_reached(__id); });
+            const auto __out_idx = std::get<0>(__v) - 1 + __offset;
+
+            if (__out_idx < __out_size)
+                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
+            if (__out_idx == __out_size)
+                __on_oob_reached(__id);
         }
     }
     _Assign __assign;
@@ -329,18 +318,15 @@ struct __write_multiple_to_id
             // and let the next set() placement-new over a still-live object.
             auto&& __val = __temp_data.get_and_destroy(__i);
 
-            __write_if_in_bounds(
-                __out_size, std::get<0>(__v) - std::get<1>(__v) + __i,
-                [&](auto __idx_out) {
-                    __assign(static_cast<_ConvertedTupleType>(std::forward<decltype(__val)>(__val)),
-                             __out_rng[__idx_out]);
-                },
-                [&]() {
-                    // Report the source id of the current diagonal together with the local element offset within the
-                    // temporary data. This is enough to recover the source index pair later (by re-running the serial
-                    // generator for this diagonal) without re-running any sub-group collective operation.
-                    __on_oob_reached(__i);
-                });
+            const auto __out_idx = std::get<0>(__v) - std::get<1>(__v) + __i;
+            if (__out_idx < __out_size)
+                __assign(static_cast<_ConvertedTupleType>(std::forward<decltype(__val)>(__val)), __out_rng[__out_idx]);
+
+            // Report the source id of the current diagonal together with the local element offset within the
+            // temporary data. This is enough to recover the source index pair later (by re-running the serial
+            // generator for this diagonal) without re-running any sub-group collective operation.
+            if (__out_idx == __out_size)
+                __on_oob_reached(__i);
         }
     }
     _Assign __assign;
