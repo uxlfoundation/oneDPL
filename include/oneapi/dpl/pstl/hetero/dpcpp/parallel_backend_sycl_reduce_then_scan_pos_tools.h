@@ -57,7 +57,6 @@ struct _SetOpFinalAndOOBPosTypeImpl
     static _SetOpFinalAndOOBPosTypeImpl
     __create_initial_state(_SetTag __set_tag, const _Range1& __range1, const _Range2& __range2)
     {
-
         const _Size1 __n1 = oneapi::dpl::__ranges::__size(__range1);
         const _Size2 __n2 = oneapi::dpl::__ranges::__size(__range2);
 
