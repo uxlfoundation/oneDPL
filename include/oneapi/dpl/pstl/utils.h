@@ -1228,6 +1228,13 @@ struct __replace_if_fun
     const _T __new_value;
 };
 
+// Attach an index to a type, producing a distinct type per index.
+template <std::size_t, typename _T>
+struct __indexed_t
+{
+    _T __value;
+};
+
 template <typename _OutValueType, typename _OutRefType, typename _InRefType>
 inline constexpr bool __trivial_uninitialized_copy =
     // Required operation is trivial
