@@ -1182,11 +1182,10 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         return {__first1 + __idx, __first2, __result + __idx};
     }
 
-    const auto [__stop1, __stop2, __stop3] =
-        __par_backend_hetero::__parallel_set_op</*_Bounded*/ true, unseq_backend::_UnionTag>(
-            _BackendTag{}, unseq_backend::_UnionTag{}, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
-            oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
+    const auto [__stop1, __stop2, __stop3] = __par_backend_hetero::__parallel_set_op</*_Bounded*/ true>(
+        _BackendTag{}, unseq_backend::_UnionTag{}, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
+        oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
     return {__first1 + __stop1, __first2 + __stop2, __result + __stop3};
 }
@@ -1206,11 +1205,10 @@ __pattern_set_intersection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     if (__n1 == 0 || __n2 == 0)
         return {__first1, __first2, __result};
 
-    const auto [__stop1, __stop2, __stop3] =
-        __par_backend_hetero::__parallel_set_op</*_Bounded*/ true, unseq_backend::_IntersectionTag>(
-            _BackendTag{}, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
-            oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
+    const auto [__stop1, __stop2, __stop3] = __par_backend_hetero::__parallel_set_op</*_Bounded*/ true>(
+        _BackendTag{}, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
+        oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
     return {__first1 + __stop1, __first2 + __stop2, __result + __stop3};
 }
@@ -1247,11 +1245,10 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
         return oneapi::dpl::__utils::__create_set_difference_result(__first1 + __idx, __first2, __result + __idx);
     }
 
-    const auto [__stop1, __stop2, __stop3] =
-        __par_backend_hetero::__parallel_set_op</*_Bounded*/ true, unseq_backend::_DifferenceTag>(
-            _BackendTag{}, unseq_backend::_DifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
-            oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
+    const auto [__stop1, __stop2, __stop3] = __par_backend_hetero::__parallel_set_op</*_Bounded*/ true>(
+        _BackendTag{}, unseq_backend::_DifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
+        oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
     return oneapi::dpl::__utils::__create_set_difference_result(__first1 + __stop1, __first2 + __stop2,
                                                                 __result + __stop3);
@@ -1307,11 +1304,10 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
         return {__first1 + __idx, __first2, __result + __idx};
     }
 
-    const auto [__stop1, __stop2, __stop3] =
-        __par_backend_hetero::__parallel_set_op</*_Bounded*/ true, unseq_backend::_SymmetricDifferenceTag>(
-            _BackendTag{}, unseq_backend::_SymmetricDifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
-            oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
+    const auto [__stop1, __stop2, __stop3] = __par_backend_hetero::__parallel_set_op</*_Bounded*/ true>(
+        _BackendTag{}, unseq_backend::_SymmetricDifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
+        oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
     return {__first1 + __stop1, __first2 + __stop2, __result + __stop3};
 }
