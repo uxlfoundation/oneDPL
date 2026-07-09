@@ -435,9 +435,44 @@ struct __gen_unique_mask
 
 // __parallel_set_write_a_b_op
 
+template <bool _Bounded, typename=void>
+struct __indexes_at_entry;
+
+template <>
+struct __indexes_at_entry</*_Bounded*/ false>
+{
+    __indexes_at_entry(std::size_t, std::size_t)
+    {
+    }
+
+    void
+    __setup(std::size_t, std::size_t)
+    {
+    }
+};
+
+template <>
+struct __indexes_at_entry</*_Bounded*/ true>
+{
+    __indexes_at_entry(std::size_t __idx1, std::size_t __idx2)
+        : __idx1_at_entry(__idx1), __idx2_at_entry(__idx2)
+    {
+    }
+
+    void
+    __setup(std::size_t __idx1, std::size_t __idx2)
+    {
+        __idx1_at_entry = __idx1;
+        __idx2_at_entry = __idx2;
+    }
+
+    std::size_t __idx1_at_entry = {};
+    std::size_t __idx2_at_entry = {};
+};
+
 // Set operation generic implementation, used for serial set operation of intersection, difference, union, and
 // symmetric difference.
-template <typename _SetTag>
+template <bool _Bounded, typename _SetTag>
 struct __set_operation
 {
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
@@ -470,7 +505,7 @@ struct __set_operation
         // and only if the user provided a callback to save the final positions.
         // Stop positions for set_union and set_symmetric_difference are not needed, because they are known in advance.
         constexpr bool __need_call_final_pos_saver =
-            !std::is_same_v<std::decay_t<_FinalPosSaver>, __internal::__no_callback_tag> &&
+            _Bounded && !std::is_same_v<std::decay_t<_FinalPosSaver>, __internal::__no_callback_tag> &&
             (__is_set_intersection || __is_set_difference);
 
         // Merge-path indices captured at iteration entry. The global merge path is partitioned across
@@ -479,8 +514,7 @@ struct __set_operation
         // indices against the post-step indices detects precisely that transition (the edge crossing), which
         // lets a single work-item write the final source position directly, with no reduction and no atomics.
         // These are refreshed at the top of every bounds-checked iteration below.
-        [[maybe_unused]] std::size_t __idx1_at_entry = __idx1;
-        [[maybe_unused]] std::size_t __idx2_at_entry = __idx2;
+        [[maybe_unused]] __indexes_at_entry<_Bounded> __idxs_at_entry(__idx1, __idx2);
 
         auto __process_final_pos = [&](std::size_t __idx1, std::size_t __idx2) {
             if constexpr (__need_call_final_pos_saver)
@@ -489,7 +523,7 @@ struct __set_operation
                 // is the step that moves from "strictly inside both inputs" to "at least one input exhausted".
                 if constexpr (__is_set_intersection)
                 {
-                    if (__idx1_at_entry < __size1 && __idx2_at_entry < __size2 &&
+                    if (__idxs_at_entry.__idx1_at_entry < __size1 && __idxs_at_entry.__idx2_at_entry < __size2 &&
                         (__idx1 == __size1 || __idx2 == __size2))
                         __final_pos_saver({__idx1, __idx2});
                 }
@@ -498,7 +532,7 @@ struct __set_operation
                 // A performed after set B is exhausted.
                 else if constexpr (__is_set_difference)
                 {
-                    if (__idx1_at_entry < __size1 && __idx1 == __size1)
+                    if (__idxs_at_entry.__idx1_at_entry < __size1 && __idx1 == __size1)
                         __final_pos_saver({__idx1, __idx2});
                 }
             }
@@ -518,10 +552,7 @@ struct __set_operation
             if (__check_bounds)
             {
                 if constexpr (__need_call_final_pos_saver)
-                {
-                    __idx1_at_entry = __idx1;
-                    __idx2_at_entry = __idx2;
-                }
+                    __idxs_at_entry.__setup(__idx1, __idx2);
 
                 if (__idx1 == __size1)
                 {
