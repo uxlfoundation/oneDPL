@@ -482,26 +482,27 @@ struct __set_operation
         [[maybe_unused]] std::size_t __idx1_at_entry = __idx1;
         [[maybe_unused]] std::size_t __idx2_at_entry = __idx2;
 
-        auto __process_final_pos = [&, __size1 = __size1, __size2 = __size2](std::size_t __idx1, std::size_t __idx2) {
+        auto __need_setup_final_pos = [](auto __size1, auto __size2, std::size_t __idx1_at_entry,
+                                         std::size_t __idx2_at_entry, std::size_t __idx1, std::size_t __idx2) -> bool {
             if constexpr (__need_call_final_pos_saver)
             {
                 // For set_intersection the operation terminates once either input is exhausted: the edge crossing
                 // is the step that moves from "strictly inside both inputs" to "at least one input exhausted".
                 if constexpr (__is_set_intersection)
                 {
-                    if (__idx1_at_entry < __size1 && __idx2_at_entry < __size2 &&
-                        (__idx1 == __size1 || __idx2 == __size2))
-                        __final_pos_saver({__idx1, __idx2});
+                    return __idx1_at_entry < __size1 && __idx2_at_entry < __size2 &&
+                           (__idx1 == __size1 || __idx2 == __size2);
                 }
                 // For set_difference the operation terminates once the first input (set A) is exhausted: the edge
                 // crossing is the step that moves idx1 to the end of set A. This also covers the tail-drain of set
                 // A performed after set B is exhausted.
                 else if constexpr (__is_set_difference)
                 {
-                    if (__idx1_at_entry < __size1 && __idx1 == __size1)
-                        __final_pos_saver({__idx1, __idx2});
+                    return __idx1_at_entry < __size1 && __idx1 == __size1;
                 }
             }
+
+            return false;
         };
 
         _SizeType __count = 0;
@@ -536,7 +537,8 @@ struct __set_operation
                     }
                     __idx = __num_eles_min;
                     if constexpr (__need_call_final_pos_saver)
-                        __process_final_pos(__idx1, __idx2);
+                        if (__need_setup_final_pos(__size1, __size2, __idx1_at_entry, __idx2_at_entry, __idx1, __idx2))
+                            __final_pos_saver({__idx1, __idx2});
                     continue;
                 }
 
@@ -553,7 +555,8 @@ struct __set_operation
                     }
                     __idx = __num_eles_min;
                     if constexpr (__need_call_final_pos_saver)
-                        __process_final_pos(__idx1, __idx2);
+                        if (__need_setup_final_pos(__size1, __size2, __idx1_at_entry, __idx2_at_entry, __idx1, __idx2))
+                            __final_pos_saver({__idx1, __idx2});
                     continue;
                 }
             }
@@ -600,7 +603,11 @@ struct __set_operation
             if constexpr (__need_call_final_pos_saver)
             {
                 if (__check_bounds)
-                    __process_final_pos(__idx1, __idx2);
+                {
+                    if constexpr (__need_call_final_pos_saver)
+                        if (__need_setup_final_pos(__size1, __size2, __idx1_at_entry, __idx2_at_entry, __idx1, __idx2))
+                            __final_pos_saver({__idx1, __idx2});
+                }
             }
         }
 
