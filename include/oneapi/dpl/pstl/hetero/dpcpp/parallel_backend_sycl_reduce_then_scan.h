@@ -558,23 +558,27 @@ struct __set_operation
                 }
             }
 
-            const _ValueTypeRng1& __ele_rng1 = __in_rng1[__idx1];
-            const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
-            if (std::invoke(__comp, std::invoke(__proj1, __ele_rng1), std::invoke(__proj2, __ele_rng2)))
+            _ValueTypeRng1&& __ele_rng1 = __in_rng1[__idx1];
+            _ValueTypeRng2&& __ele_rng2 = __in_rng2[__idx2];
+
+            auto&& __ele_rng1_proj = std::invoke(__proj1, __ele_rng1);
+            auto&& __ele_rng2_proj = std::invoke(__proj2, __ele_rng2);
+
+            if (std::invoke(__comp, __ele_rng1_proj, __ele_rng2_proj))
             {
                 if constexpr (_CopyDiffSetA)
                 {
-                    __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
+                    __write_temp_element(__count, std::forward<decltype(__ele_rng1)>(__ele_rng1), __idx1, __idx2);
                     ++__count;
                 }
                 ++__idx1;
                 ++__idx;
             }
-            else if (std::invoke(__comp, std::invoke(__proj2, __ele_rng2), std::invoke(__proj1, __ele_rng1)))
+            else if (std::invoke(__comp, __ele_rng2_proj, __ele_rng1_proj))
             {
                 if constexpr (_CopyDiffSetB)
                 {
-                    __write_temp_element(__count, __ele_rng2, __idx1, __idx2);
+                    __write_temp_element(__count, std::forward<decltype(__ele_rng2)>(__ele_rng2), __idx1, __idx2);
                     ++__count;
                 }
                 ++__idx2;
@@ -584,7 +588,7 @@ struct __set_operation
             {
                 if constexpr (_CopyMatch)
                 {
-                    __write_temp_element(__count, __ele_rng1, __idx1, __idx2);
+                    __write_temp_element(__count, std::forward<decltype(__ele_rng1)>(__ele_rng1), __idx1, __idx2);
                     ++__count;
                 }
                 ++__idx1;
