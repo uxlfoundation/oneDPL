@@ -114,6 +114,17 @@ __bounds(_Range&& __rng)
     return std::make_tuple(__first, __first + __n);
 }
 
+// Return std::tuple with begin and size of the range
+template <typename _Range>
+auto
+__begin_and_size(_Range&& __rng)
+{
+    const auto __n = __size(__rng);
+    auto __first = __begin(__rng);
+
+    return std::make_tuple(__first, __n);
+}
+
 // Returns std::tuple with begin, end and size of the range
 template <typename _Range>
 auto

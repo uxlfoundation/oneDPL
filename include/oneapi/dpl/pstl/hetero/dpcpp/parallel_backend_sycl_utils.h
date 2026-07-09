@@ -787,6 +787,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 template <typename _T>
 struct __device_storage
 {
+    using type = _T;
+
     std::unique_ptr<_T, __internal::__sycl_usm_free> __usm_buf = nullptr;
     sycl::buffer<_T, 1> __sycl_buf =
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
@@ -851,6 +853,8 @@ __get_accessor(_ModeTagT, __device_storage<_T>& __st, sycl::handler& __cgh, cons
 template <typename _T>
 struct __result_storage : public __device_storage<_T>
 {
+    using type = _T;
+
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __result_storage.");
 
     std::size_t __result_sz = 0;
@@ -884,6 +888,8 @@ struct __result_storage : public __device_storage<_T>
 template <typename _T>
 struct __combined_storage : public __device_storage<_T>
 {
+    using type = _T;
+
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __combined_storage.");
 
     std::unique_ptr<_T, __internal::__sycl_usm_free> __result_buf = nullptr;
@@ -940,6 +946,15 @@ struct __combined_storage : public __device_storage<_T>
         return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf), __sz, __kind};
     }
 };
+
+template <typename _T, template <typename> typename _Storage>
+std::enable_if_t<std::is_default_constructible_v<_T>, _T>
+__load_result(_Storage<_T>& __storage)
+{
+    _T __result{};
+    __storage.__copy_result(&__result, 1);
+    return __result;
+}
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
