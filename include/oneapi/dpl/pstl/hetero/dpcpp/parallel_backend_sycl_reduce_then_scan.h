@@ -570,13 +570,9 @@ struct __set_operation
             // checked. Keep the interior hot path free of the extra comparisons.
             if constexpr (__need_call_final_pos_saver)
             {
-                if (__check_bounds)
-                {
-                    if constexpr (__need_call_final_pos_saver)
-                        if (__need_setup_final_pos(__size1, __size2, __idx1_at_entry, __idx2_at_entry, __idx1, __idx2))
-                            __final_pos_saver({__idx1, __idx2});
-                }
-            }
+                if (__check_bounds &&
+                    __need_setup_final_pos(__size1, __size2, __idx1_at_entry, __idx2_at_entry, __idx1, __idx2))
+                        __final_pos_saver({__idx1, __idx2});
         }
 
         return __count;
