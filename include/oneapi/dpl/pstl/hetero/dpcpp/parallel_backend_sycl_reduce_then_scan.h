@@ -440,6 +440,17 @@ struct __gen_unique_mask
 template <typename _SetTag>
 struct __set_operation
 {
+  protected:
+    static constexpr bool __is_set_difference           = std::is_same_v<_SetTag, unseq_backend::_DifferenceTag>;
+    static constexpr bool __is_set_intersection         = std::is_same_v<_SetTag, unseq_backend::_IntersectionTag>;
+    static constexpr bool __is_set_symmetric_difference = std::is_same_v<_SetTag, unseq_backend::_SymmetricDifferenceTag>;
+    static constexpr bool __is_set_union                = std::is_same_v<_SetTag, unseq_backend::_UnionTag>;
+
+    static constexpr bool _CopyMatch = __is_set_intersection || __is_set_union;
+    static constexpr bool _CopyDiffSetA = !__is_set_intersection;
+    static constexpr bool _CopyDiffSetB = __is_set_union || __is_set_symmetric_difference;
+
+  public:
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
               typename _Proj1, typename _Proj2, typename _FinalPosSaver>
     _SizeType
@@ -447,24 +458,8 @@ struct __set_operation
                const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
                _Proj2 __proj2, _FinalPosSaver __final_pos_saver) const
     {
-        constexpr bool __is_set_difference = std::is_same_v<_SetTag, unseq_backend::_DifferenceTag>;
-        constexpr bool __is_set_intersection = std::is_same_v<_SetTag, unseq_backend::_IntersectionTag>;
-        constexpr bool __is_set_union = std::is_same_v<_SetTag, unseq_backend::_UnionTag>;
-        constexpr bool __is_set_symmetric_difference = std::is_same_v<_SetTag, unseq_backend::_SymmetricDifferenceTag>;
-
-        using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
-        using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
-
         const auto __size1 = oneapi::dpl::__ranges::__size(__in_rng1);
         const auto __size2 = oneapi::dpl::__ranges::__size(__in_rng2);
-
-        auto __write_temp_element = [](_TempOutput& __temp_out, const _SizeType __idx_tmp, const auto& __value,
-                                       std::size_t __idx1, std::size_t __idx2) {
-            if constexpr (_TempOutput::__capture_indexes_flag)
-                __temp_out.set(__idx_tmp, __value, {__idx1, __idx2});
-            else
-                __temp_out.set(__idx_tmp, __value);
-        };
 
         // Make sense to calculate final positions only for set_intersection and set_difference operations,
         // and only if the user provided a callback to save the final positions.
@@ -482,35 +477,8 @@ struct __set_operation
         [[maybe_unused]] std::size_t __idx1_at_entry = __idx1;
         [[maybe_unused]] std::size_t __idx2_at_entry = __idx2;
 
-        auto __need_setup_final_pos = [](auto __size1, auto __size2, std::size_t __idx1_at_entry,
-                                         std::size_t __idx2_at_entry, std::size_t __idx1, std::size_t __idx2) -> bool {
-            if constexpr (__need_call_final_pos_saver)
-            {
-                // For set_intersection the operation terminates once either input is exhausted: the edge crossing
-                // is the step that moves from "strictly inside both inputs" to "at least one input exhausted".
-                if constexpr (__is_set_intersection)
-                {
-                    return __idx1_at_entry < __size1 && __idx2_at_entry < __size2 &&
-                           (__idx1 == __size1 || __idx2 == __size2);
-                }
-                // For set_difference the operation terminates once the first input (set A) is exhausted: the edge
-                // crossing is the step that moves idx1 to the end of set A. This also covers the tail-drain of set
-                // A performed after set B is exhausted.
-                else if constexpr (__is_set_difference)
-                {
-                    return __idx1_at_entry < __size1 && __idx1 == __size1;
-                }
-            }
-
-            return false;
-        };
-
         _SizeType __count = 0;
         _SizeType __idx = 0;
-
-        constexpr bool _CopyMatch = __is_set_intersection || __is_set_union;
-        constexpr bool _CopyDiffSetA = !__is_set_intersection;
-        constexpr bool _CopyDiffSetB = __is_set_union || __is_set_symmetric_difference;
 
         // Bounds checks are enabled only when this diagonal can reach the end of either range.
         const bool __check_bounds = (__idx1 + __num_eles_min >= __size1) || (__idx2 + __num_eles_min >= __size2);
@@ -561,8 +529,8 @@ struct __set_operation
                 }
             }
 
-            _ValueTypeRng1&& __ele_rng1 = __in_rng1[__idx1];
-            _ValueTypeRng2&& __ele_rng2 = __in_rng2[__idx2];
+            auto&& __ele_rng1 = __in_rng1[__idx1];
+            auto&& __ele_rng2 = __in_rng2[__idx2];
 
             auto&& __ele_rng1_proj = std::invoke(__proj1, __ele_rng1);
             auto&& __ele_rng2_proj = std::invoke(__proj2, __ele_rng2);
@@ -612,6 +580,41 @@ struct __set_operation
         }
 
         return __count;
+    }
+
+  protected:
+
+    template <typename _TempOutput, typename _SizeType>
+    void
+    __write_temp_element(_TempOutput& __temp_out, const _SizeType __idx_tmp, const auto& __value,
+                         const std::size_t __idx1, const std::size_t __idx2) const
+    {
+        if constexpr (_TempOutput::__capture_indexes_flag)
+            __temp_out.set(__idx_tmp, __value, {__idx1, __idx2});
+        else
+            __temp_out.set(__idx_tmp, __value);
+    }
+
+    bool
+    __need_setup_final_pos(const auto __size1, const auto __size2, const std::size_t __idx1_at_entry,
+                           const std::size_t __idx2_at_entry, const std::size_t __idx1, const std::size_t __idx2) const
+    {
+        // For set_intersection the operation terminates once either input is exhausted: the edge crossing
+        // is the step that moves from "strictly inside both inputs" to "at least one input exhausted".
+        if constexpr (__is_set_intersection)
+        {
+            return __idx1_at_entry < __size1 && __idx2_at_entry < __size2 &&
+                    (__idx1 == __size1 || __idx2 == __size2);
+        }
+        // For set_difference the operation terminates once the first input (set A) is exhausted: the edge
+        // crossing is the step that moves idx1 to the end of set A. This also covers the tail-drain of set
+        // A performed after set B is exhausted.
+        else if constexpr (__is_set_difference)
+        {
+            return __idx1_at_entry < __size1 && __idx1 == __size1;
+        }
+
+        return false;
     }
 };
 
