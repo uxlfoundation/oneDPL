@@ -458,12 +458,12 @@ struct __set_operation
         const auto __size1 = oneapi::dpl::__ranges::__size(__in_rng1);
         const auto __size2 = oneapi::dpl::__ranges::__size(__in_rng2);
 
-        auto __write_temp_element = [&](const _SizeType __count_arg, const auto& __value, std::size_t __idx1,
-                                        std::size_t __idx2) {
+        auto __write_temp_element = [](_TempOutput& __temp_out, const _SizeType __idx_tmp, const auto& __value,
+                                       std::size_t __idx1, std::size_t __idx2) {
             if constexpr (_TempOutput::__capture_indexes_flag)
-                __temp_out.set(__count_arg, __value, {__idx1, __idx2});
+                __temp_out.set(__idx_tmp, __value, {__idx1, __idx2});
             else
-                __temp_out.set(__count_arg, __value);
+                __temp_out.set(__idx_tmp, __value);
         };
 
         // Make sense to calculate final positions only for set_intersection and set_difference operations,
@@ -482,7 +482,7 @@ struct __set_operation
         [[maybe_unused]] std::size_t __idx1_at_entry = __idx1;
         [[maybe_unused]] std::size_t __idx2_at_entry = __idx2;
 
-        auto __process_final_pos = [&](std::size_t __idx1, std::size_t __idx2) {
+        auto __process_final_pos = [&, __size1 = __size1, __size2 = __size2](std::size_t __idx1, std::size_t __idx2) {
             if constexpr (__need_call_final_pos_saver)
             {
                 // For set_intersection the operation terminates once either input is exhausted: the edge crossing
@@ -530,7 +530,7 @@ struct __set_operation
                         // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
                         for (; __idx2 < __size2 && __idx < __num_eles_min; ++__idx2, ++__idx)
                         {
-                            __write_temp_element(__count, __in_rng2[__idx2], __idx1, __idx2);
+                            __write_temp_element(__temp_out, __count, __in_rng2[__idx2], __idx1, __idx2);
                             ++__count;
                         }
                     }
@@ -547,7 +547,7 @@ struct __set_operation
                         // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
                         for (; __idx1 < __size1 && __idx < __num_eles_min; ++__idx1, ++__idx)
                         {
-                            __write_temp_element(__count, __in_rng1[__idx1], __idx1, __idx2);
+                            __write_temp_element(__temp_out, __count, __in_rng1[__idx1], __idx1, __idx2);
                             ++__count;
                         }
                     }
@@ -568,7 +568,7 @@ struct __set_operation
             {
                 if constexpr (_CopyDiffSetA)
                 {
-                    __write_temp_element(__count, std::forward<decltype(__ele_rng1)>(__ele_rng1), __idx1, __idx2);
+                    __write_temp_element(__temp_out, __count, std::forward<decltype(__ele_rng1)>(__ele_rng1), __idx1, __idx2);
                     ++__count;
                 }
                 ++__idx1;
@@ -578,7 +578,7 @@ struct __set_operation
             {
                 if constexpr (_CopyDiffSetB)
                 {
-                    __write_temp_element(__count, std::forward<decltype(__ele_rng2)>(__ele_rng2), __idx1, __idx2);
+                    __write_temp_element(__temp_out, __count, std::forward<decltype(__ele_rng2)>(__ele_rng2), __idx1, __idx2);
                     ++__count;
                 }
                 ++__idx2;
@@ -588,7 +588,7 @@ struct __set_operation
             {
                 if constexpr (_CopyMatch)
                 {
-                    __write_temp_element(__count, std::forward<decltype(__ele_rng1)>(__ele_rng1), __idx1, __idx2);
+                    __write_temp_element(__temp_out, __count, std::forward<decltype(__ele_rng1)>(__ele_rng1), __idx1, __idx2);
                     ++__count;
                 }
                 ++__idx1;
