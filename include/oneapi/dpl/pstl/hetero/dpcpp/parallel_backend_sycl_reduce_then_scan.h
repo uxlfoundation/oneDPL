@@ -437,7 +437,7 @@ struct __gen_unique_mask
 
 // Set operation generic implementation, used for serial set operation of intersection, difference, union, and
 // symmetric difference.
-template <typename _SetTag>
+template <bool _Bounded, typename _SetTag>
 struct __set_operation
 {
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
@@ -470,7 +470,7 @@ struct __set_operation
         // and only if the user provided a callback to save the final positions.
         // Stop positions for set_union and set_symmetric_difference are not needed, because they are known in advance.
         constexpr bool __need_call_final_pos_saver =
-            !std::is_same_v<std::decay_t<_FinalPosSaver>, __internal::__no_callback_tag> &&
+            _Bounded && !std::is_same_v<std::decay_t<_FinalPosSaver>, __internal::__no_callback_tag> &&
             (__is_set_intersection || __is_set_difference);
 
         // Merge-path indices captured at iteration entry. The global merge path is partitioned across
