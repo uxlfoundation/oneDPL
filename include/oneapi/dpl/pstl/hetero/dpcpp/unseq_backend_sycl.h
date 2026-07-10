@@ -693,19 +693,20 @@ struct __brick_includes
 struct __reverse_functor
 {
   private:
-    const std::size_t __end;
     const std::size_t __begin;
+    const std::size_t __end;
 
   public:
     // Construction parameters: the number of elements to reverse, the index of the first element (0 by default)
-    __reverse_functor(std::size_t __n, std::size_t __shift = 0) : __end(__n + __shift), __begin(__shift) {}
+    __reverse_functor(std::size_t __n, std::size_t __shift = 0) : __begin(__shift), __end(__n + __shift) {}
 
     template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<_Params::__can_vectorize, int> = 0>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
-        using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
+        assert(__idx < (__end - __begin)/ 2);
 
+        using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
         _ValueType __rng_left_vector[_Params::__vector_size];
         _ValueType __rng_right_vector[_Params::__vector_size];
 
@@ -753,6 +754,7 @@ struct __reverse_functor
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
+        assert(__idx < (__end - __begin)/ 2);
         using std::swap;
         swap(__rng[__begin + __idx], __rng[__end - __idx - 1]);
     }
