@@ -141,6 +141,7 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
             __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__count), [=](sycl::item</*dim=*/1> __item) {
                 // Simple loop and no vectorization within the brick, to evenly spread work across compute units.
                 const std::size_t __idx = __item.get_linear_id();
+                assert(__idx < __count);
                 __brick(std::true_type{}, __idx, __pfor_params_simple{}, __rngs...);
             });
         });
