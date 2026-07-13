@@ -119,24 +119,42 @@ __pattern_transform(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&
 //---------------------------------------------------------------------------------------------------------------------
 // pattern_find_if
 //---------------------------------------------------------------------------------------------------------------------
-
-template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
+template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 std::ranges::borrowed_iterator_t<_R>
-__pattern_find_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
+__brick_find_if(_R&& __r, _Pred __pred, _Proj __proj, /*is_vector=*/::std::false_type) noexcept
 {
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
-    return oneapi::dpl::__internal::__pattern_find_if(
-        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
-        std::ranges::begin(__r) + std::ranges::size(__r),
-        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+    return std::ranges::find_if(std::forward<_R>(__r), __pred, __proj);
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 std::ranges::borrowed_iterator_t<_R>
-__pattern_find_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred, _Proj __proj)
+__brick_find_if(_R&& __r, _Pred __pred, _Proj __proj, /*is_vector=*/::std::true_type) noexcept
 {
-    return std::ranges::find_if(std::forward<_R>(__r), __pred, __proj);
+    using _SizeType = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
+    return __unseq_backend::__simd_first(std::ranges::begin(__r), _SizeType(0), std::ranges::size(__r),
+        __internal::__pred_at_index{oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj}});
+}
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_find_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
+{
+    return __except_handler([&]() {
+        return __parallel_find(
+            __tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+            std::ranges::begin(__r) + std::ranges::size(__r),
+            [__pred](auto __i, auto __j) {
+                return __brick_find_if(std::subrange(__i, __j), __pred, __proj, _IsVector{});
+            },
+            ::std::true_type{});
+    });    
+}
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_find_if(__serial_tag<_IsVector>, _ExecutionPolicy&&, _R&& __r, _Pred __pred, _Proj __proj)
+{
+    return __brick_find_if(std::forward<_R>(__r), __pred, __proj, _IsVector{});
 }
 
 //---------------------------------------------------------------------------------------------------------------------
