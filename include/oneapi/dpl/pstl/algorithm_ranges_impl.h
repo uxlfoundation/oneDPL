@@ -130,7 +130,7 @@ template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred
 std::ranges::borrowed_iterator_t<_R>
 __brick_find_if(_R&& __r, _Pred __pred, _Proj __proj, /*is_vector=*/::std::true_type) noexcept
 {
-    using _SizeType = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
+    using _SizeType = std::ranges::range_difference_t<_R>;
     return __unseq_backend::__simd_first(std::ranges::begin(__r), _SizeType(0), std::ranges::size(__r),
         __internal::__pred_at_index{oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj}});
 }
