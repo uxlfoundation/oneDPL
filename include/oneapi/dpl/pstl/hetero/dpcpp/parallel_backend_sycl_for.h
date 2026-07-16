@@ -245,9 +245,9 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     template <std::uint8_t __num_strides, typename _Brick1, typename _Brick2, typename... _Args>
     static void
     __execute(std::size_t __bound, bool __is_full, std::size_t __idx, std::uint16_t __stride,
-             const __dual_brick<_Brick1, _Brick2>& __dbrick, bool __use_first_brick, _Args&&... __args)
+              const __dual_brick<_Brick1, _Brick2>& __dbrick, bool __before_pivot, _Args&&... __args)
     {
-        if (__use_first_brick)
+        if (__before_pivot)
             __execute<__num_strides>(__bound, __is_full, __idx, __stride, __dbrick.__brick1, true, __args...);
         else
             __execute<__num_strides>(__bound, __is_full, __idx, __stride, __dbrick.__brick2, true, __args...);
@@ -283,7 +283,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
             __cgh.parallel_for<_Name...>(
                 sycl::nd_range(sycl::range<1>(__num_groups * __work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item</*dim=*/1> __item) {
-                    const auto /*size_t, size_t, bool, bool*/[__bound, __adjusted_global_id, __is_full, __brick_hint] =
+                    const auto /*size_t, size_t, bool, bool*/ [__bound, __adjusted_global_id, __is_full, __brick_hint] =
                         __global_space(__item, __count, __work_group_size, __data_per_work_item, __brick);
                     const auto /*size_t*/ [__number_of_peers, __local_id] = __local_space(__item, __work_group_size);
 
