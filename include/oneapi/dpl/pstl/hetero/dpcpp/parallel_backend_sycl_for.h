@@ -176,22 +176,27 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     }
 
     template <typename _Fp>
-    static std::tuple<std::size_t, std::size_t, bool>
-    __global_space(const sycl::nd_item<1>& __item, std::size_t __count, std::uint16_t, std::size_t, const _Fp&)
+    static std::tuple<std::size_t, std::size_t, bool, bool>
+    __global_space(const sycl::nd_item<1>& __item, std::size_t __count, std::uint16_t __work_group_size,
+                   std::size_t __data_per_work_item, const _Fp&)
     {
-        return {__count, __item.get_global_linear_id(), true};
+        const bool __is_full_group =
+            (__item.get_group_linear_id() + 1) * __work_group_size * __data_per_work_item <= __count;
+        return {__count, __item.get_global_linear_id(), __is_full_group, true};
     }
 
     template <typename _Brick1, typename _Brick2>
-    static std::tuple<std::size_t, std::size_t, bool>
+    static std::tuple<std::size_t, std::size_t, bool, bool>
     __global_space(const sycl::nd_item<1>& __item, std::size_t __count, std::uint16_t __work_group_size,
                    std::size_t __data_per_work_item, const __dual_brick<_Brick1, _Brick2>& __dbrick)
     {
+        std::size_t __group_id = __item.get_group_linear_id();
+        std::size_t __item_global_id = __item.get_global_linear_id();
         const std::size_t __groups_before_pivot =
             oneapi::dpl::__internal::__dpl_ceiling_div(__dbrick.__pivot, __work_group_size * __data_per_work_item);
-        const bool __use_first_brick = __item.get_group_linear_id() < __groups_before_pivot;
-        std::size_t __item_global_id = __item.get_global_linear_id();
-        if (__use_first_brick)
+
+        const bool __before_pivot = __group_id < __groups_before_pivot;
+        if (__before_pivot)
         {
             __count = __dbrick.__pivot;
         }
@@ -200,8 +205,10 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
             // Adjust the global ID so that the second brick also works with zero-based indexes
             __item_global_id -= __work_group_size * __groups_before_pivot;
             __count -= __dbrick.__pivot;
+            __group_id -= __groups_before_pivot;
         }
-        return {__count, __item_global_id, __use_first_brick};
+        const bool __is_full_group = (__group_id + 1) * __work_group_size * __data_per_work_item <= __count;
+        return {__count, __item_global_id, __is_full_group, __before_pivot};
     }
 
     // SPIR-V compilation targets show best performance with a stride of the sub-group size.
@@ -276,12 +283,11 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
             __cgh.parallel_for<_Name...>(
                 sycl::nd_range(sycl::range<1>(__num_groups * __work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item</*dim=*/1> __item) {
-                    const auto /*size_t, size_t, bool*/ [__bound, __adjusted_global_id, __brick_hint] =
+                    const auto /*size_t, size_t, bool, bool*/[__bound, __adjusted_global_id, __is_full, __brick_hint] =
                         __global_space(__item, __count, __work_group_size, __data_per_work_item, __brick);
                     const auto /*size_t*/ [__number_of_peers, __local_id] = __local_space(__item, __work_group_size);
 
                     const std::size_t __group_start_idx = __data_per_work_item * (__adjusted_global_id - __local_id);
-                    const bool __is_full = __group_start_idx + __data_per_work_item * __number_of_peers <= __bound;
                     const std::size_t __idx = __group_start_idx + __vector_size * __local_id;
                     const std::uint16_t __stride = __vector_size * __number_of_peers;
 
