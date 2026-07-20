@@ -361,7 +361,8 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
         {
             _Index __p = tbb::this_task_arena::max_concurrency();
             const _Index __slack = 4;
-            _Index __tilesize = (__n - 1) / (__slack * __p) + 1;
+            constexpr _Index __min_tilesize = 1000;
+            _Index __tilesize = std::max(__min_tilesize, (__n - 1) / (__slack * __p) + 1);
             _Index __m = (__n - 1) / __tilesize;
             __tbb_backend::__buffer<_Tp> __buf(__m + 1);
             _Tp* __r = __buf.get();

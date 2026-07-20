@@ -85,7 +85,8 @@ __parallel_strict_scan_body(_Index __n, _Tp __initial, _Rp __reduce, _Cp __combi
 {
     _Index __p = omp_get_num_threads();
     const _Index __slack = 4;
-    _Index __tilesize = (__n - 1) / (__slack * __p) + 1;
+    constexpr _Index __min_tilesize = 1000;
+    _Index __tilesize = std::max(__min_tilesize, (__n - 1) / (__slack * __p) + 1);
     _Index __m = (__n - 1) / __tilesize;
     __buffer<_Tp> __buf(__m + 1);
     _Tp* __r = __buf.get();
