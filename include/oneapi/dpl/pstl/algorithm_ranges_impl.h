@@ -1792,14 +1792,11 @@ std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
 __pattern_partition_copy(__serial_tag<_IsVector /*TODO: std::false_type*/>, _ExecutionPolicy&&, _InRange&& __in_r,
                          _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
 {
-    auto [__it_in, __it_out1, __it_out2] =
-        __brick_bounded_partition_copy(std::ranges::begin(__in_r), std::ranges::end(__in_r),
-                                       std::ranges::begin(__out_true_r),  std::ranges::end(__out_true_r),
-                                       std::ranges::begin(__out_false_r), std::ranges::end(__out_false_r),
-                                       [=](auto __it, std::size_t /*__i*/) -> bool
-                                       {
-                                           return std::invoke(__pred, std::invoke(__proj, *__it));
-                                       }, _IsVector{});
+    auto [__it_in, __it_out1, __it_out2] = __brick_bounded_partition_copy(
+        std::ranges::begin(__in_r), std::ranges::end(__in_r), std::ranges::begin(__out_true_r),
+        std::ranges::end(__out_true_r), std::ranges::begin(__out_false_r), std::ranges::end(__out_false_r),
+        [=](auto __it, std::size_t /*__i*/) -> bool { return std::invoke(__pred, std::invoke(__proj, *__it)); },
+        _IsVector{});
     return {__it_in, __it_out1, __it_out2};
 }
 
@@ -1839,7 +1836,7 @@ __pattern_partition_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                 },
                 [](const _OutputPos& __x, const _OutputPos& __y) -> _OutputPos { // Combine
                     return std::make_pair(__x.first + __y.first, __x.second + __y.second);
-                },                                                                      
+                },
                 [=, &__stop_in, &__stop_out1, &__stop_out2](std::intptr_t __i, std::intptr_t __len,
                                                             _OutputPos __initial) { // Scan
                     if (__initial.first > __n_out1 && __initial.second > __n_out2) // no place to write for the chunk
