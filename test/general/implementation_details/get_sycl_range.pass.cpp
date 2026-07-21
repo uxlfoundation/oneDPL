@@ -19,6 +19,7 @@
 
 #if TEST_DPCPP_BACKEND_PRESENT
 
+#include <utility>
 #include <vector>
 
 #include <oneapi/dpl/iterator>
@@ -178,14 +179,15 @@ test_extracted_access_mode()
                   "discard_read_write should request no_init");
 
     // Composed with a sycl_iterator's embedded mode: this is exactly how for_each recovers the user's
-    // hint (e.g. begin(buf, sycl::write_only) yields a write iterator; begin(buf, sycl::read_only, no_init)
+    // hint (e.g. begin(buf, sycl::write_only) yields a write iterator; begin(buf, sycl::write_only, no_init)
     // yields a discard_write iterator that unpacks back to write + no_init).
-    using __write_iter = __internal::sycl_iterator<sycl::access::mode::write, int>;
+    using __write_iter = decltype(oneapi::dpl::begin(std::declval<sycl::buffer<int>&>(), sycl::write_only));
     static_assert(__internal::__extracted_access_mode<__write_iter::mode>::__value == sycl::access::mode::write &&
                       __internal::__extracted_access_mode<__write_iter::mode>::__no_init == false,
                   "write iterator hint should resolve to write without no_init");
 
-    using __discard_write_iter = __internal::sycl_iterator<sycl::access::mode::discard_write, int>;
+    using __discard_write_iter =
+        decltype(oneapi::dpl::begin(std::declval<sycl::buffer<int>&>(), sycl::write_only, sycl::no_init));
     static_assert(__internal::__extracted_access_mode<__discard_write_iter::mode>::__value ==
                           sycl::access::mode::write &&
                       __internal::__extracted_access_mode<__discard_write_iter::mode>::__no_init == true,
