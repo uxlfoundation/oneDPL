@@ -19,6 +19,9 @@
 
 #if TEST_DPCPP_BACKEND_PRESENT
 
+#include <vector>
+
+#include <oneapi/dpl/iterator>
 #include <oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h>
 
 // Test the compile-time traits __is_copy_direct_v and __is_copy_back_v
@@ -137,6 +140,77 @@ test_traits_use_local_parameters()
 }
 
 void
+test_extracted_access_mode()
+{
+    // __extracted_access_mode is the inverse of __access_mode_resolver: it unpacks an access mode
+    // (as carried by a sycl_iterator's embedded user hint) back into a {mode, no_init} pair. This is
+    // the machinery that lets for_each defer to a user-provided begin/end access hint.
+    namespace __internal = oneapi::dpl::__internal;
+
+    // Non-discard modes: mode passes through unchanged, no_init is false.
+    static_assert(__internal::__extracted_access_mode<sycl::access::mode::read>::__value == sycl::access::mode::read,
+                  "read should map to read");
+    static_assert(__internal::__extracted_access_mode<sycl::access::mode::read>::__no_init == false,
+                  "read should not request no_init");
+
+    static_assert(__internal::__extracted_access_mode<sycl::access::mode::write>::__value == sycl::access::mode::write,
+                  "write should map to write");
+    static_assert(__internal::__extracted_access_mode<sycl::access::mode::write>::__no_init == false,
+                  "write should not request no_init");
+
+    static_assert(__internal::__extracted_access_mode<sycl::access::mode::read_write>::__value ==
+                      sycl::access::mode::read_write,
+                  "read_write should map to read_write");
+    static_assert(__internal::__extracted_access_mode<sycl::access::mode::read_write>::__no_init == false,
+                  "read_write should not request no_init");
+
+    // Discard modes: map to the non-discard counterpart with no_init = true.
+    static_assert(__internal::__extracted_access_mode<sycl::access::mode::discard_write>::__value ==
+                      sycl::access::mode::write,
+                  "discard_write should map to write");
+    static_assert(__internal::__extracted_access_mode<sycl::access::mode::discard_write>::__no_init == true,
+                  "discard_write should request no_init");
+
+    static_assert(__internal::__extracted_access_mode<sycl::access::mode::discard_read_write>::__value ==
+                      sycl::access::mode::read_write,
+                  "discard_read_write should map to read_write");
+    static_assert(__internal::__extracted_access_mode<sycl::access::mode::discard_read_write>::__no_init == true,
+                  "discard_read_write should request no_init");
+
+    // Composed with a sycl_iterator's embedded mode: this is exactly how for_each recovers the user's
+    // hint (e.g. begin(buf, sycl::write_only) yields a write iterator; begin(buf, sycl::read_only, no_init)
+    // yields a discard_write iterator that unpacks back to write + no_init).
+    using __write_iter = __internal::sycl_iterator<sycl::access::mode::write, int>;
+    static_assert(__internal::__extracted_access_mode<__write_iter::mode>::__value == sycl::access::mode::write &&
+                      __internal::__extracted_access_mode<__write_iter::mode>::__no_init == false,
+                  "write iterator hint should resolve to write without no_init");
+
+    using __discard_write_iter = __internal::sycl_iterator<sycl::access::mode::discard_write, int>;
+    static_assert(__internal::__extracted_access_mode<__discard_write_iter::mode>::__value ==
+                          sycl::access::mode::write &&
+                      __internal::__extracted_access_mode<__discard_write_iter::mode>::__no_init == true,
+                  "discard_write iterator hint should resolve to write with no_init");
+}
+
+void
+test_non_sycl_iterator_passthrough()
+{
+    static_assert(oneapi::dpl::__ranges::is_sycl_iterator<int*>::value == false,
+                  "a raw pointer is not a sycl_iterator");
+    static_assert(oneapi::dpl::__ranges::is_sycl_iterator<const int*>::value == false,
+                  "a const raw pointer is not a sycl_iterator");
+    static_assert(oneapi::dpl::__ranges::is_sycl_iterator<std::vector<int>::iterator>::value == false,
+                  "a std::vector iterator is not a sycl_iterator");
+    static_assert(oneapi::dpl::__ranges::is_sycl_iterator<oneapi::dpl::counting_iterator<int>>::value == false,
+                  "a counting_iterator is not a sycl_iterator");
+
+    // And true for a sycl_iterator, for contrast.
+    static_assert(oneapi::dpl::__ranges::is_sycl_iterator<
+                      oneapi::dpl::__internal::sycl_iterator<sycl::access::mode::read_write, int>>::value == true,
+                  "a sycl_iterator is a sycl_iterator");
+}
+
+void
 test_default_template_parameter()
 {
     // Verify that _IsNoInitRequested defaults to false
@@ -158,6 +232,8 @@ main()
     test_is_copy_direct_v();
     test_is_copy_back_v();
     test_traits_use_local_parameters();
+    test_extracted_access_mode();
+    test_non_sycl_iterator_passthrough();
     test_default_template_parameter();
 #endif
 
