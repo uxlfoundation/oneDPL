@@ -213,38 +213,6 @@ struct is_sycl_iterator<oneapi::dpl::__internal::sycl_iterator<Mode, Types...>> 
 {
 };
 
-template <sycl::access_mode _UserHint>
-struct __extract_user_hint_data_impl
-{
-    static constexpr sycl::access_mode __value = _UserHint;
-    static constexpr bool __no_init = false;
-};
-
-template <>
-struct __extract_user_hint_data_impl<sycl::access_mode::discard_write>
-{
-    static constexpr sycl::access_mode __value = sycl::access_mode::write;
-    static constexpr bool __no_init = true;
-};
-
-template <>
-struct __extract_user_hint_data_impl<sycl::access_mode::discard_read_write>
-{
-    static constexpr sycl::access_mode __value = sycl::access_mode::read_write;
-    static constexpr bool __no_init = true;
-};
-
-template <typename ForwardIterator>
-struct __extract_user_hint_data : public __extract_user_hint_data_impl<sycl::access_mode::read_write>
-{
-};
-
-template <sycl::access_mode _AccessMode, typename T, typename Allocator>
-struct __extract_user_hint_data<oneapi::dpl::__internal::sycl_iterator<_AccessMode, T, Allocator>>
-    : public __extract_user_hint_data_impl<_AccessMode>
-{
-};
-
 template <typename Iter, typename Void = void>
 struct is_hetero_legacy_trait : ::std::false_type
 {
@@ -459,19 +427,20 @@ struct __get_sycl_range
         _LocalAccMode == sycl::access::mode::read_write || _LocalAccMode == sycl::access::mode::write;
 
   private:
-    // When _DeferToUserHint is true and _Iter is a sycl_iterator, resolve the access mode and no_init
-    // from the iterator's embedded user hint. Otherwise, pass through the provided mode.
-    template <sycl::access::mode _Mode, bool _NoInit>
-    struct __passthrough_access_mode
+    // Pass through the provided {mode, no_init}. When _DeferToUserHint is true and _Iter is a sycl_iterator,
+    // the specialization below instead resolves them from the iterator's embedded user hint (the inverse of
+    // __access_mode_resolver).
+    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename /*_Iter*/, typename = void>
+    struct __resolve_access_mode
     {
-        static constexpr sycl::access::mode __value = _Mode;
-        static constexpr bool __no_init = _NoInit;
+        static constexpr sycl::access::mode __value = _LocalAccMode;
+        static constexpr bool __no_init = _LocalNoInit;
     };
 
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
-    struct __resolve_access_mode
-        : std::conditional_t<_DeferToUserHint && is_sycl_iterator<_Iter>::value, __extract_user_hint_data<_Iter>,
-                             __passthrough_access_mode<_LocalAccMode, _LocalNoInit>>
+    struct __resolve_access_mode<_LocalAccMode, _LocalNoInit, _Iter,
+                                 std::enable_if_t<_DeferToUserHint && is_sycl_iterator<_Iter>::value>>
+        : oneapi::dpl::__internal::__extracted_access_mode<_Iter::mode>
     {
     };
 
