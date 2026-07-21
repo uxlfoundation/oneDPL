@@ -135,8 +135,8 @@ public:
     void swap(device_array& other);
 
     // Views
-    device_span<T>       span();
-    device_span<const T> span() const;
+    sycl::span<T>       span();
+    sycl::span<const T> span() const;
 
     // Allocator access
     allocator_type get_allocator() const;
@@ -198,77 +198,13 @@ concept DeviceAllocator = requires(Alloc a, T* p, std::size_t n,
 };
 ```
 
-## `device_span<T>`
+## Use within kernels
 
 `device_array` is not device-copyable (it owns memory). For kernel capture,
-non-owning views, and range composition, use `device_span<T>` via `.span()`.
+non-owning views, and range composition, use `sycl::span<T>` via `.span()`.
 
-`device_span` is guaranteed trivially copyable (and therefore device copyable),
-has `enable_borrowed_range = true` and `enable_view = true`, and models
-`contiguous_range` + `sized_range`.
-
-### Definition
-
-**C++23 and later:** `std::span` is guaranteed trivially copyable (per P2251R1),
-so `device_span` is simply an alias:
-
-```cpp
-#if __cplusplus >= 202302L  // C++23
-
-template <typename T>
-using device_span = std::span<T>;
-
-#else  // C++20
-
-template <typename T>
-class device_span {
-    T* __ptr = nullptr;
-    std::size_t __size = 0;
-public:
-    using element_type    = T;
-    using value_type      = std::remove_cv_t<T>;
-    using size_type       = std::size_t;
-    using difference_type = std::ptrdiff_t;
-    using pointer         = T*;
-    using reference       = T&;
-    using iterator        = T*;
-
-    device_span() = default;
-    device_span(T* ptr, std::size_t size) : __ptr(ptr), __size(size) {}
-
-    template <std::size_t N>
-    device_span(T (&arr)[N]) : __ptr(arr), __size(N) {}
-
-    // Implicit conversion from device_array
-    device_span(device_array<T>& arr);
-
-    T*          begin() const { return __ptr; }
-    T*          end()   const { return __ptr + __size; }
-    T*          data()  const { return __ptr; }
-    std::size_t size()  const { return __size; }
-    bool        empty() const { return __size == 0; }
-
-    T& operator[](std::size_t i) const { return __ptr[i]; }
-    T& front() const { return __ptr[0]; }
-    T& back()  const { return __ptr[__size - 1]; }
-
-    device_span first(std::size_t count) const { return {__ptr, count}; }
-    device_span last(std::size_t count) const { return {__ptr + __size - count, count}; }
-    device_span subspan(std::size_t offset, std::size_t count) const {
-        return {__ptr + offset, count};
-    }
-};
-
-template <typename T>
-inline constexpr bool std::ranges::enable_borrowed_range<
-    oneapi::dpl::experimental::device_span<T>> = true;
-
-template <typename T>
-inline constexpr bool std::ranges::enable_view<
-    oneapi::dpl::experimental::device_span<T>> = true;
-
-#endif
-```
+`sycl::span` is guaranteed to be present with sycl 2020 and device copyable,
+conforming to c++20 `std::span` even when compiled with c++17.
 
 ## Usage Examples
 
@@ -316,12 +252,12 @@ std::transform(policy, d.begin(), d.end(), output.begin(),
 // --- Zero-initialized allocation (opt-in) ---
 dpl::device_array<float> zeroed(1024, 0.0f, q);
 
-// For kernel capture or composition with range adaptors, use device_span:
-auto s = d.span();  // returns device_span<float>
+// For kernel capture or composition with range adaptors, use sycl::span:
+auto s = d.span();  // returns sycl::span<float>
 auto pipeline = s | std::views::take(100);
 oneapi::dpl::ranges::for_each(policy, pipeline, [](float& x) { x += 1.0f; });
 
-// Capture a device_span into a kernel:
+// Capture a sycl::span into a kernel:
 auto s2 = d.span();
 q.parallel_for(sycl::range<1>(s2.size()), [=](sycl::id<1> i) {
     s2[i] *= 2.0f;

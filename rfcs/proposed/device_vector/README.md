@@ -61,7 +61,7 @@ implementation:
 1. **[`device_array<T, Alloc>`](device_array.md)** — the primary API.
    A clean, explicit container for device memory with no proxy types. Raw `T*`
    iterators, explicit `read()`/`write()` for host access, uninitialized by
-   default, and range support via `device_span`.
+   default, and range support via `sycl::span`.
 
 2. **[`compat::device_vector<T, Alloc>`](device_vector_compat.md)** — a
    Thrust compatibility layer built on `device_array`. Adds `device_pointer`,
@@ -79,11 +79,6 @@ classDiagram
             iterators: T*
             host access: read() / write()
         }
-
-        class device_span~T~ {
-            non-owning view
-            trivially copyable
-        }
     }
 
     namespace experimental_compat {
@@ -100,7 +95,7 @@ classDiagram
         }
     }
 
-    device_array --> device_span : .span()
+    device_array --> sycl::span : .span()
     device_vector *-- device_array : contains
     device_vector --> device_pointer : begin()/end()
     device_pointer --> device_reference : operator*() / operator[]()
