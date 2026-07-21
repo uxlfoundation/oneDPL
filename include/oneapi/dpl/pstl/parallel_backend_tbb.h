@@ -351,6 +351,9 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
 // apex is called exactly once, after all calls to reduce and before all calls to scan.
 // For example, it's useful for allocating a __buffer used by scan but whose size is the sum of all reduction values.
 // T must have a trivial constructor and destructor.
+#if !defined(_ONEDPL_STRICT_SCAN_MIN_TILESIZE)
+#    define _ONEDPL_STRICT_SCAN_MIN_TILESIZE 2000
+#endif
 template <class _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
 __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
@@ -361,8 +364,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
         {
             _Index __p = tbb::this_task_arena::max_concurrency();
             const _Index __slack = 4;
-            constexpr _Index __min_tilesize = 1000;
-            _Index __tilesize = std::max(__min_tilesize, (__n - 1) / (__slack * __p) + 1);
+            _Index __tilesize = std::max(_ONEDPL_STRICT_SCAN_MIN_TILESIZE, (__n - 1) / (__slack * __p) + 1);
             _Index __m = (__n - 1) / __tilesize;
             __tbb_backend::__buffer<_Tp> __buf(__m + 1);
             _Tp* __r = __buf.get();
