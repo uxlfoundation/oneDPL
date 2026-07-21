@@ -1419,6 +1419,34 @@ struct __internal::__unique_copy_fn
 }; //__unique_copy_fn
 inline constexpr __internal::__unique_copy_fn unique_copy;
 
+// [alg.partitions]
+
+struct __internal::__partition_copy_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
+              std::ranges::random_access_range _OutRange1, std::ranges::random_access_range _OutRange2,
+              typename _Proj = std::identity,
+              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_InRange>, _Proj>> _Pred>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange1> &&
+                 std::ranges::sized_range<_OutRange2> &&
+                 std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange1>> &&
+                 std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange2>>
+
+    std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                       std::ranges::borrowed_iterator_t<_OutRange1>,
+                                       std::ranges::borrowed_iterator_t<_OutRange2>>
+    operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange1&& __out_true_r, _OutRange2&& __out_false_r,
+               _Pred __pred, _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_partition_copy(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r),
+            std::forward<_OutRange1>(__out_true_r), std::forward<_OutRange2>(__out_false_r), __pred, __proj);
+    }
+}; //__partition_copy_fn
+inline constexpr __internal::__partition_copy_fn partition_copy;
+
 } //ranges
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
