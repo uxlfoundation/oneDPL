@@ -665,7 +665,7 @@ struct __get_sycl_range
         //  "get_idx()" to return the buffer offset
 
         //  __first is not guaranteed to be a sycl_iterator, it may be another type which sets the trait
-        //   is_hetero = ::std::true_type. We use get_idx() to get the buffer offset, use get_buffer() to get the
+        //   is_hetero = std::true_type. We use get_idx() to get the buffer offset, use get_buffer() to get the
         //   buffer and use those to create the range.
         const std::size_t __offset = __first.get_idx();
         const std::size_t __size = __dpl_sycl::__get_buffer_size(__first.get_buffer());
