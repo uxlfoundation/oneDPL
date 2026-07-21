@@ -87,28 +87,12 @@ public:
     void assign(const std::vector<T>& src, sycl::queue q);
 
     // Single-element host access (blocking, creates queue from context & device)
-    T read(size_type pos) const;
-    void write(size_type pos, const T& value);
+    T host_read(size_type pos) const;
+    void host_write(size_type pos, const T& value);
 
     // Single-element host access (blocking, provided queue is used for copy submissions)
-    T read(size_type pos, sycl::queue q) const;
-    void write(size_type pos, const T& value, sycl::queue q);
-
-    // Asynchronous single-element access, events allow synchronization with event driven workloads
-    sycl::event async_read(size_type pos, T& out,
-                     sycl::queue q,
-                     const std::vector<sycl::event>& depends_on = {}) const;
-    sycl::event async_write(size_type pos, const T& value,
-                      sycl::queue q,
-                      const std::vector<sycl::event>& depends_on = {});
-
-    // Asynchronous bulk transfer
-    sycl::event async_to_vector(std::vector<T>& out,
-                          sycl::queue q,
-                          const std::vector<sycl::event>& depends_on = {}) const;
-    sycl::event async_assign(const T* first, const T* last,
-                       sycl::queue q,
-                       const std::vector<sycl::event>& depends_on = {});
+    T host_read(size_type pos, sycl::queue q) const;
+    void host_write(size_type pos, const T& value, sycl::queue q);
 
     // Device iteration — raw USM pointers
     iterator       begin();
