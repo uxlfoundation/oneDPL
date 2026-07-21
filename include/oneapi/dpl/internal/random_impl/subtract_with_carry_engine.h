@@ -12,13 +12,12 @@
 // See https://llvm.org/LICENSE.txt for license information.
 //
 //===----------------------------------------------------------------------===//
-//
-// Abstract:
-//
-// Public header file provides implementation for Subtract with Carry Engine
 
 #ifndef _ONEDPL_SUBTRACT_WITH_CARRY_ENGINE_H
 #define _ONEDPL_SUBTRACT_WITH_CARRY_ENGINE_H
+
+#include "random_common.h"
+#include "linear_congruential_engine.h"
 
 namespace oneapi
 {

@@ -16,7 +16,6 @@
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
-#include <span>
 #include <initializer_list>
 
 struct
@@ -45,6 +44,7 @@ struct
     
     void test_self()
     {
+#if TEST_CPP20_SPAN_PRESENT
         int input[10] = {0,0, 1, 2,2, 8, 1,1,1, 8};
         int output[9] = {-9, -8, -7, -6, -5, -4, -3, -2, -1};
 
@@ -92,6 +92,7 @@ struct
                 }
             }
         }
+#endif // TEST_CPP20_SPAN_PRESENT
     }
 } unique_copy_checker;
 #endif // _ENABLE_STD_RANGES_TESTING
@@ -124,7 +125,7 @@ main()
     test_range_algo<3, int, data_in_out_lim, repeating_gen>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
     test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens, &P2::x);
     test_range_algo<5, P2, data_in_out_lim>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, &P2::proj);
-    test_range_algo<6, int, data_in_out_lim, repeating_gen>{big_sz}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{});
+    test_range_algo<6, int, data_in_out_lim, repeating_gen>{get_scan_big_sz()}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{});
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

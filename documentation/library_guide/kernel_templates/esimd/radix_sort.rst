@@ -6,7 +6,7 @@ radix_sort Function Templates
 -----------------------------
 
 The ``radix_sort`` function sorts data using the radix sort algorithm.
-The sorting is stable, preserving the relative order of elements with equal keys.
+The sorting is stable, preserving the relative order of equal elements.
 Both in-place and out-of-place overloads are provided. Out-of-place overloads do not alter the input sequence.
 
 The functions implement a Onesweep* [#fnote1]_ algorithm variant.
@@ -24,12 +24,12 @@ A synopsis of the ``radix_sort`` function is provided below:
              typename KernelParam, typename Iterator>
    sycl::event
    radix_sort (sycl::queue q, Iterator first, Iterator last,
-               KernelParam param); // (1)
+               KernelParam param = {}); // (1)
 
    template <bool IsAscending = true, std::uint8_t RadixBits = 8,
              typename KernelParam, typename Range>
    sycl::event
-   radix_sort (sycl::queue q, Range&& r, KernelParam param); // (2)
+   radix_sort (sycl::queue q, Range&& r, KernelParam param = {}); // (2)
 
 
    // Sort out-of-place
@@ -38,18 +38,22 @@ A synopsis of the ``radix_sort`` function is provided below:
              typename Iterator2>
    sycl::event
    radix_sort (sycl::queue q, Iterator1 first, Iterator1 last,
-               Iterator2 first_out, KernelParam param); // (3)
+               Iterator2 first_out, KernelParam param = {}); // (3)
 
    template <bool IsAscending = true, std::uint8_t RadixBits = 8,
              typename KernelParam, typename Range1, typename Range2>
    sycl::event
    radix_sort (sycl::queue q, Range1&& r, Range2&& r_out,
-               KernelParam param); // (4)
+               KernelParam param = {}); // (4)
    }
 
 .. note::
    The ``radix_sort`` is currently available only for Intel® Data Center GPU Max Series,
    and requires Intel® oneAPI DPC++/C++ Compiler 2023.2 or newer.
+
+.. note::
+   For broader platform support and similar performance,
+   consider using the :doc:`SYCL radix sort KT <../sycl/radix_sort>`.
 
 Template Parameters
 --------------------
@@ -227,7 +231,7 @@ Global Memory Requirements
 --------------------------
 
 Global memory is used for copying the input sequence(s) and storing internal data such as radix value counters.
-The used amount depends on many parameters; below is an upper bound approximation:
+The amount used depends on many parameters; below is an upper bound approximation:
 
    N\ :sub:`keys` + C * N\ :sub:`keys`
 
@@ -236,8 +240,7 @@ where the sequence with keys takes N\ :sub:`keys` space, and the additional spac
 The value of `C` depends on ``param.data_per_workitem``, ``param.workgroup_size``, and ``RadixBits``.
 For ``param.data_per_workitem`` set to `32`, ``param.workgroup_size`` to `64`, and ``RadixBits`` to `8`,
 `C` approximately equals to `1`.
-Incrementing ``RadixBits`` increases `C` up to twice, while doubling either
-``param.data_per_workitem`` or ``param.workgroup_size`` leads to a halving of `C`.
+Doubling either ``param.data_per_workitem`` or ``param.workgroup_size`` leads to a halving of `C`.
 
 .. note::
 
@@ -255,7 +258,7 @@ Local Memory Requirements
 
 Local memory is used for reordering keys within a work-group,
 and for storing internal data such as radix value counters.
-The used amount depends on many parameters; below is an upper bound approximation:
+The amount used depends on many parameters; below is an upper bound approximation:
 
    N\ :sub:`keys_per_workgroup` + C
 
@@ -302,19 +305,21 @@ The initial configuration may be selected according to these high-level guidelin
   processed by a work-group, which equals to ``param.data_per_workitem * param.workgroup_size``,
   reduces synchronization overheads between work-groups and usually benefits the overall performance.
 
-.. warning::
-
-   Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values.
-   Make sure that :ref:`Memory requirements <radix-sort-memory-requirements>` are satisfied.
-
 .. note::
 
-   ``param.data_per_workitem`` is the only available parameter to tune the performance,
-   since ``param.workgroup_size`` currently supports only one value (`64`).
+  ``param.data_per_workitem`` is the only available parameter to tune performance since ``param.workgroup_size`` currently
+  supports only one value (`64`).
 
+.. tip::
+
+   - Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values
+     by ensuring that :ref:`Memory requirements <radix-sort-memory-requirements>` are satisfied.
+
+   - Large performance drops with an increase to ``param.data_per_workitem`` are indicative of excessive register spillage.
+     `Ahead-of-Time (AOT) Compilation <https://www.intel.com/content/www/us/en/developer/articles/technical/ahead-of-time-compilation.html>`_
+     may be used to emit warnings when this occurs.
 
 .. [#fnote1] Andy Adinets and Duane Merrill (2022). Onesweep: A Faster Least Significant Digit Radix Sort for GPUs. https://arxiv.org/abs/2206.01784.
-.. [#fnote2] The X\ :sup:`e`-core term is described in the `oneAPI GPU Optimization Guide
-   <https://www.intel.com/content/www/us/en/docs/oneapi/optimization-guide-gpu/2024-0/intel-xe-gpu-architecture.html#XE-CORE>`_.
+.. [#fnote2] The X\ :sup:`e`-core term is described in the |xe_gpu_architecture|_.
    Check the number of cores in the device specification, such as `Intel® Data Center GPU Max specification
    <https://www.intel.com/content/www/us/en/products/details/discrete-gpus/data-center-gpu/max-series/products.html>`_.

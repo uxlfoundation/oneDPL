@@ -25,6 +25,13 @@
 #include "sycl_defs.h"
 #include "execution_sycl_defs.h"
 
+// TODO: Explore extracting SYCL-specific range/view definitions into their own
+//       file or forward declaring them, to allow inclusion of ranges_defs.h
+//       here instead of zip_view_impl.h
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#include "../../zip_view_impl.h"
+#endif
+
 namespace oneapi
 {
 namespace dpl
@@ -256,6 +263,12 @@ using val_t = typename ::std::iterator_traits<_Iter>::value_type;
 
 //range/zip_view/all_view/ variadic utilities
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+namespace _dpl_ranges_zip = oneapi::dpl::ranges::__internal;
+#else
+namespace _dpl_ranges_zip = oneapi::dpl::__ranges;
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
 //forward declaration required for _require_access_args
 template <typename _Range, typename... _Ranges>
 void
@@ -275,10 +288,10 @@ struct _require_access_args
 
 template <typename... _Ranges>
 void
-__require_access_zip(sycl::handler& __cgh, oneapi::dpl::__ranges::zip_view<_Ranges...>& __zip)
+__require_access_zip(sycl::handler& __cgh, _dpl_ranges_zip::zip_view<_Ranges...>& __zip)
 {
     const ::std::size_t __num_ranges = sizeof...(_Ranges);
-    oneapi::dpl::__ranges::invoke(__zip.tuple(), _require_access_args<decltype(__cgh)>{__cgh},
+    oneapi::dpl::__ranges::invoke(__zip.base(), _require_access_args<decltype(__cgh)>{__cgh},
                                   ::std::make_index_sequence<__num_ranges>());
 }
 
@@ -298,7 +311,7 @@ __require_access_range(sycl::handler& __cgh, oneapi::dpl::__ranges::all_view<T, 
 
 template <typename... _Ranges>
 void
-__require_access_range(sycl::handler& __cgh, zip_view<_Ranges...>& zip_rng)
+__require_access_range(sycl::handler& __cgh, _dpl_ranges_zip::zip_view<_Ranges...>& zip_rng)
 {
     __require_access_zip(__cgh, zip_rng);
 }
@@ -619,7 +632,8 @@ struct __get_sycl_range
 
     // for raw pointers and direct pass objects (for example, counting_iterator, iterator of USM-containers)
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
-    std::enable_if_t<oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>,
+    std::enable_if_t<!oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> &&
+                         oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>,
                      __range_holder<oneapi::dpl::__ranges::guard_view<_Iter>>>
     __process_input_iter(_Iter __first, _Iter __last)
     {
@@ -775,6 +789,8 @@ __select_backend(const execution::device_policy<_KernelName>&, _Ranges&&...)
 }
 
 #if _ONEDPL_FPGA_DEVICE
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 //TODO required correct implementation of this __ranges::__select_backend()
 // 1. There is still not RA ranges checks
 // 2. Obviously, a return tag is not necessarily oneapi::dpl::__internal::__hetero_tag
@@ -784,6 +800,7 @@ __select_backend(const execution::fpga_policy<_Factor, _KernelName>&, _Ranges&&.
 {
     return {};
 }
+#pragma GCC diagnostic pop
 #endif
 
 } // namespace __ranges

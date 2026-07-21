@@ -39,15 +39,11 @@ Static Member Constants
 |                                                      |                     | a work-group.                          |
 +------------------------------------------------------+---------------------+----------------------------------------+
 
-
 .. note::
 
-   The ``data_per_workitem`` parameter has a special meaning in :doc:`ESIMD-based kernel templates <esimd_main>`.
-   Usually, each work-item processes ``data_per_workitem`` input elements sequentially.
-   However, work-items in ESIMD-based kernel templates perform vectorization,
-   so the sequential work is ``data_per_workitem / vector_length`` elements, where ``vector_length``
-   is an implementation-defined vectorization factor.
-
+   The interpretation of ``data_per_workitem`` and ``workgroup_size`` depends on the underlying hardware
+   and kernel template API. For details on how these parameters are interpreted, refer to :doc:`ESIMD-based <esimd_main>`
+   and :doc:`SYCL-based <sycl_main>` kernel template documentation.
 
 Member Types
 ------------

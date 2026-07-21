@@ -22,6 +22,7 @@
 #include <type_traits>
 #include <tuple>
 #include <algorithm>
+#include <functional>
 #include <optional>
 #include <cassert>
 
@@ -174,6 +175,8 @@ make_wrapped_policy(_Policy&& __policy)
 }
 
 #if _ONEDPL_FPGA_DEVICE
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 template <template <typename> class _NewKernelName, typename _Policy,
           oneapi::dpl::__internal::__enable_if_fpga_execution_policy<_Policy, int> = 0>
 auto
@@ -183,6 +186,7 @@ make_wrapped_policy(_Policy&& __policy)
         oneapi::dpl::__internal::__policy_unroll_factor<_Policy>,
         _NewKernelName<oneapi::dpl::__internal::__policy_kernel_name<_Policy>>>(::std::forward<_Policy>(__policy));
 }
+#pragma GCC diagnostic pop
 #endif
 
 namespace __internal
@@ -335,15 +339,24 @@ struct __is_comp_ascending
     static constexpr bool value = false;
 };
 template <typename _T>
-struct __is_comp_ascending<::std::less<_T>>
+struct __is_comp_ascending<std::less<_T>>
 {
     static constexpr bool value = true;
 };
+
 template <>
 struct __is_comp_ascending<oneapi::dpl::__internal::__pstl_less>
 {
     static constexpr bool value = true;
 };
+
+#if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201911L
+template <>
+struct __is_comp_ascending<std::ranges::less>
+{
+    static constexpr bool value = true;
+};
+#endif
 
 // traits for descending functors
 template <typename _Comp>
@@ -352,7 +365,7 @@ struct __is_comp_descending
     static constexpr bool value = false;
 };
 template <typename _T>
-struct __is_comp_descending<::std::greater<_T>>
+struct __is_comp_descending<std::greater<_T>>
 {
     static constexpr bool value = true;
 };
@@ -361,6 +374,14 @@ struct __is_comp_descending<oneapi::dpl::__internal::__pstl_greater>
 {
     static constexpr bool value = true;
 };
+
+#if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201911L
+template <>
+struct __is_comp_descending<std::ranges::greater>
+{
+    static constexpr bool value = true;
+};
+#endif
 
 //-----------------------------------------------------------------------
 // temporary "buffer" constructed over specified container type
@@ -766,6 +787,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 template <typename _T>
 struct __device_storage
 {
+    using type = _T;
+
     std::unique_ptr<_T, __internal::__sycl_usm_free> __usm_buf = nullptr;
     sycl::buffer<_T, 1> __sycl_buf =
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
@@ -830,6 +853,8 @@ __get_accessor(_ModeTagT, __device_storage<_T>& __st, sycl::handler& __cgh, cons
 template <typename _T>
 struct __result_storage : public __device_storage<_T>
 {
+    using type = _T;
+
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __result_storage.");
 
     std::size_t __result_sz = 0;
@@ -863,6 +888,8 @@ struct __result_storage : public __device_storage<_T>
 template <typename _T>
 struct __combined_storage : public __device_storage<_T>
 {
+    using type = _T;
+
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __combined_storage.");
 
     std::unique_ptr<_T, __internal::__sycl_usm_free> __result_buf = nullptr;
@@ -913,15 +940,21 @@ struct __combined_storage : public __device_storage<_T>
         }
     }
 
-    template <typename _Forwarding>
-    friend
-    std::enable_if_t<std::is_same_v<std::decay_t<_Forwarding>, __combined_storage<_T>>, __copyable_storage_state<_T>>
-    __move_state_from(_Forwarding&& __src)
+    __copyable_storage_state<_T>
+    __move_state() &&
     {
-        return {std::move(__src.__result_buf), std::move(__src.__usm_buf), std::move(__src.__sycl_buf),
-                __src.__sz, __src.__kind};
+        return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf), __sz, __kind};
     }
 };
+
+template <typename _T, template <typename> typename _Storage>
+std::enable_if_t<std::is_default_constructible_v<_T>, _T>
+__load_result(_Storage<_T>& __storage)
+{
+    _T __result{};
+    __storage.__copy_result(&__result, 1);
+    return __result;
+}
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
@@ -1039,6 +1072,13 @@ class __future : private std::tuple<_Args...>
         return __future<_Event, _T, _Args...>(__my_event, new_tuple);
     }
 };
+
+template <typename _ValueType>
+auto
+__create_future(sycl::event&& __event, __combined_storage<_ValueType>&& __payload)
+{
+    return __future(std::move(__event), __result_and_scratch_storage<_ValueType>(std::move(__payload).__move_state()));
+}
 
 struct __scalar_load_op
 {
@@ -1179,15 +1219,15 @@ struct __vector_reverse
     }
 };
 
-// Processes a loop with a given stride. Intended to be used with sub-group / work-group strides for good memory access patterns
-// (potentially with vectorization)
+// Processes a loop with a given stride. Intended to be used with sub-group / work-group strides
+// for good memory access patterns (potentially with vectorization)
 template <std::uint8_t __num_strides>
 struct __strided_loop
 {
-    std::size_t __full_range_size;
-    template <typename _IdxType, typename _LoopBodyOp, typename... _Args>
+    std::size_t __full_range_size = 0;
+    template <typename _LoopBodyOp, typename... _Args>
     void
-    operator()(/*__is_full*/ std::true_type, _IdxType __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
+    operator()(/*__is_full*/ std::true_type, std::size_t __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
                _Args&&... __args) const
     {
         _ONEDPL_PRAGMA_UNROLL
@@ -1197,21 +1237,14 @@ struct __strided_loop
             __idx += __stride;
         }
     }
-    template <typename _IdxType, typename _LoopBodyOp, typename... _Args>
+    template <typename _LoopBodyOp, typename... _Args>
     void
-    operator()(/*__is_full*/ std::false_type, _IdxType __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
+    operator()(/*__is_full*/ std::false_type, std::size_t __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
                _Args&&... __args) const
     {
-        // This operation improves safety by preventing underflow for unsigned types which would otherwise require a
-        // check outside of the __strided_loop body.
-        __idx = std::min<std::size_t>(__idx, __full_range_size);
-        // Constrain the number of iterations as much as possible and then pass the knowledge that we are not a full loop to the body operation
-        const std::uint8_t __adjusted_iters_per_work_item =
-            oneapi::dpl::__internal::__dpl_ceiling_div(__full_range_size - __idx, __stride);
-        for (std::uint8_t __i = 0; __i < __adjusted_iters_per_work_item; ++__i)
+        for (; __idx < __full_range_size; __idx += __stride)
         {
             __loop_body_op(std::false_type{}, __idx, __args...);
-            __idx += __stride;
         }
     }
 };

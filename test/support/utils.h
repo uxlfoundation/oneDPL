@@ -86,11 +86,10 @@ const_size(const T (&)[N]) noexcept
 // Issue error message from outstr, adding a newline.
 // Real purpose of this routine is to have a place to hang a breakpoint.
 inline void
-issue_error_message(::std::stringstream& outstr)
+issue_error_message(const std::stringstream& outstr)
 {
-    outstr << ::std::endl;
-    ::std::cerr << outstr.str();
-    ::std::exit(EXIT_FAILURE);
+    std::cerr << outstr.str() << std::endl;
+    std::exit(EXIT_FAILURE);
 }
 
 template <typename TStream>
@@ -1057,6 +1056,37 @@ generate_arithmetic_data(T* input, std::size_t size, std::uint32_t seed)
         input[j] = input[i];
     }
 }
+
+#if TEST_DPCPP_BACKEND_PRESENT
+// Convert raw uint16 bits to a valid sycl::half, avoiding NaN values which
+// need a custom comparator due to: (x < NaN = false) and (NaN < x = false).
+inline sycl::half
+sycl_half_convert(std::uint16_t raw)
+{
+    constexpr std::uint16_t exp_mask = 0x7C00u;
+    constexpr std::uint16_t frac_mask = 0x03FFu;
+    bool is_nan = ((raw & exp_mask) == exp_mask) && ((raw & frac_mask) > 0);
+    if (is_nan)
+    {
+        constexpr std::uint16_t smallest_exp_bit = 0x0400u;
+        raw = raw & (~smallest_exp_bit);
+    }
+    return sycl::bit_cast<sycl::half>(raw);
+}
+
+inline void
+generate_arithmetic_data(sycl::half* input, std::size_t size, std::uint32_t seed)
+{
+    std::default_random_engine gen{seed};
+    std::size_t unique_threshold = 75 * size / 100;
+    std::uniform_int_distribution<std::uint16_t> dist(0, 0xFFFFu);
+
+    assert(unique_threshold >= size / 2 && unique_threshold < size);
+    std::generate(input, input + unique_threshold, [&]() { return sycl_half_convert(dist(gen)); });
+    for (std::uint32_t i = 0, j = unique_threshold; j < size; ++i, ++j)
+        input[j] = input[i];
+}
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 // Utility that models __estimate_best_start_size in the SYCL backend parallel_for to ensure large enough inputs are
 // used to test the large submitter path. A multiplier to the max size is added to ensure we get a few separate test inputs

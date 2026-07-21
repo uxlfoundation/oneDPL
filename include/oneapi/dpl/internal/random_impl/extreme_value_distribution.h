@@ -12,13 +12,13 @@
 // See https://llvm.org/LICENSE.txt for license information.
 //
 //===----------------------------------------------------------------------===//
-//
-// Abstract:
-//
-// Public header file provides implementation for Extreme Value Distribution
 
 #ifndef _ONEDPL_EXTREME_VALUE_DISTRIBUTION_H
 #define _ONEDPL_EXTREME_VALUE_DISTRIBUTION_H
+
+#include "random_common.h"
+#include "exponential_distribution.h"
+#include "normal_distribution.h"
 
 namespace oneapi
 {
@@ -206,14 +206,10 @@ class extreme_value_distribution
     inline scalar_type
     callback()
     {
-        return ((scalar_type*)(internal::gaussian_sp_table))[1];
-    }
-
-    template <>
-    inline scalar_type
-    callback<double>()
-    {
-        return ((scalar_type*)(internal::gaussian_dp_table))[1];
+        if constexpr (std::is_same_v<_Type, double>)
+            return ((scalar_type*)(internal::gaussian_dp_table))[1];
+        else
+            return ((scalar_type*)(internal::gaussian_sp_table))[1];
     }
 
     // Implementation for generate function

@@ -12,13 +12,12 @@
 // See https://llvm.org/LICENSE.txt for license information.
 //
 //===----------------------------------------------------------------------===//
-//
-// Abstract:
-//
-// Public header file provides implementation for Weibull Distribution
 
 #ifndef _ONEDPL_WEIBULL_DISTRIBUTION_H
 #define _ONEDPL_WEIBULL_DISTRIBUTION_H
+
+#include "random_common.h"
+#include "uniform_real_distribution.h"
 
 namespace oneapi
 {

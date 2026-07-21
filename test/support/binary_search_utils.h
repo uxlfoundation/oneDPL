@@ -13,6 +13,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef _BINARY_SEARCH_UTILS_H
+#define _BINARY_SEARCH_UTILS_H
+
 using namespace TestUtils;
 
 // TODO: replace data generation with random data and update check to compare result to
@@ -38,3 +41,5 @@ initialize_data(Accessor1 data, Accessor2 value, Accessor3 result, Size n)
         result[i / 2] = 0;
     }
 }
+
+#endif // _BINARY_SEARCH_UTILS_H

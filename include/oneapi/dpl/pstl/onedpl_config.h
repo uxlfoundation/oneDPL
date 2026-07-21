@@ -292,6 +292,25 @@
 #    define _ONEDPL_CPP26_DEFAULT_VALUE_TYPE_PRESENT 0
 #endif
 
+// std::views::all on rvalue non-view ranges requires P2415R2 owning_view.
+// __cpp_lib_ranges >= 202110L
+// - libstdc++ (GCC or Clang+libstdc++): available since GCC 12
+// - libc++    (Clang+libc++):           available since LLVM 16
+// - MSVC STL:                           available since C++23
+#if defined(__cpp_lib_ranges)
+#    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (__cpp_lib_ranges >= 202110L)
+#elif defined(__GLIBCXX__)
+#    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (__GLIBCXX__ >= 20220728)
+#elif defined(_LIBCPP_VERSION)
+#    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (_LIBCPP_VERSION >= 16000)
+#else
+#    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (_ONEDPL___cplusplus >= 202302L)
+#endif
+
+// The implementation of std::ranges::advance in libstdc++ 10 uses throw expressions.
+// That prevents its use in SYCL kernels, as well as the use of std::ranges::next, std::views::drop, etc.
+#define _ONEDPL_CPP20_RANGES_ADVANCE_SYCL_INCOMPATIBLE (_ONEDPL_BACKEND_SYCL && _GLIBCXX_RELEASE == 10)
+
 // When C++20 concepts are available, we must use std::tuple as a proxy reference to satisfy iterator concepts, which
 // requires the changes to std::tuple in P2321R2 and the tuple-like basic_common_reference specialization in P2165R4.
 #define _ONEDPL_CAN_USE_STD_TUPLE_PROXY_ITERATOR                                                                       \
@@ -331,6 +350,14 @@
 #    define _ONEDPL_STD_RANGES_ALGO_CPP_FUN 0
 #endif
 
+// Hidden friend functions defined in a sibling nested class are given access to the enclosing friend class's
+// other nested classes' private members for most compilers(CWG1699). GCC < 13 and MSVC do not grant this access.
+#if defined(_MSC_VER) || (defined(__GNUC__) && !defined(__clang__) && _ONEDPL_GCC_VERSION < 130100)
+#    define _ONEDPL_HIDDEN_FRIENDS_SIBLING_ACCESS_BROKEN 1
+#else
+#    define _ONEDPL_HIDDEN_FRIENDS_SIBLING_ACCESS_BROKEN 0
+#endif
+
 // -- Configure heterogeneous backends --
 
 #if !defined(ONEDPL_ALLOW_DEFERRED_WAITING)
@@ -347,6 +374,8 @@
 #if defined(ONEDPL_FPGA_DEVICE)
 #    undef _ONEDPL_FPGA_DEVICE
 #    define _ONEDPL_FPGA_DEVICE ONEDPL_FPGA_DEVICE
+    _ONEDPL_PRAGMA(
+        message("Support for FPGA devices in oneDPL algorithms is deprecated and will be removed in a future release"))
 #endif
 #if defined(ONEDPL_FPGA_EMULATOR)
 #    undef _ONEDPL_FPGA_EMU

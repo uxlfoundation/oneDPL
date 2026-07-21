@@ -24,7 +24,6 @@
 
 #include "../../../pstl/utils.h"
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
-#include "../../../pstl/hetero/dpcpp/parallel_backend_sycl_reduce_then_scan.h"
 #include "sub_group/sub_group_scan.h"
 
 namespace oneapi::dpl::experimental::kt
@@ -315,8 +314,9 @@ template <std::uint8_t __sub_group_size, typename _T, typename _BinaryOp>
 struct __cooperative_lookback
 {
     void
-    operator()(_T& __prefix_ref, const __dpl_sycl::__sub_group& __subgroup, _T __local_reduction) const
+    operator()(_T& __prefix_ref, const sycl::nd_item<1>& __ndi, _T __local_reduction) const
     {
+        const __dpl_sycl::__sub_group __subgroup = __ndi.get_sub_group();
         __scan_status_flag<__sub_group_size, _T> __local_flag(__lookback_storage, __tile_id);
         if (__subgroup.get_local_id() == 0)
         {
@@ -341,18 +341,16 @@ struct __cooperative_lookback
             // recomputed the prefix using partial values
             if (__is_full_ballot_bits)
             {
-                oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial<
-                    __sub_group_size, /*__is_inclusive*/ true,
-                    /*__init_present*/ decltype(__is_initialized)::value>(__subgroup, __tile_value, __binary_op,
-                                                                          __running, __lowest_item_with_full + 1);
+                __single_sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true,
+                                                /*__init_present*/ decltype(__is_initialized)::value>(
+                    __ndi, __tile_value, __binary_op, __running, __lowest_item_with_full + 1);
                 return true;
             }
             else
             {
-                oneapi::dpl::__par_backend_hetero::__sub_group_scan<
-                    __sub_group_size, /*__is_inclusive*/ true,
-                    /*__init_present*/ decltype(__is_initialized)::value>(__subgroup, __tile_value, __binary_op,
-                                                                          __running);
+                __single_sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
+                                        /*__init_present*/ decltype(__is_initialized)::value>(__ndi, __tile_value,
+                                                                                              __binary_op, __running);
                 return false;
             }
         };
@@ -381,9 +379,9 @@ template <std::uint8_t __sub_group_size, typename _T>
 struct __cooperative_lookback_first_tile
 {
     void
-    operator()(const _T& /*__dummy_prefix_ref*/, const __dpl_sycl::__sub_group& __subgroup, _T __local_reduction) const
+    operator()(const _T& /*__dummy_prefix_ref*/, const sycl::nd_item<1>& __ndi, _T __local_reduction) const
     {
-        if (__num_tiles > 1 && __subgroup.get_local_id() == 0)
+        if (__num_tiles > 1 && __ndi.get_sub_group().get_local_id() == 0)
         {
             __scan_status_flag<__sub_group_size, _T> __local_flag(__lookback_storage, __tile_id);
             __local_flag.set_full(__local_reduction);

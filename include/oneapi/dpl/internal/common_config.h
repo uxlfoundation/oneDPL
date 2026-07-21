@@ -68,4 +68,8 @@
 #    endif
 #endif // __cplusplus >= 201703L
 
+#ifndef ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
+#    define ONEDPL_SET_RANGE_ALGS_CPP26_LIKE 0
+#endif
+
 #endif // _ONEDPL_COMMON_CONFIG_H

@@ -16,7 +16,7 @@
 #ifndef _ONEDPL_UTILS_RANGES_H
 #define _ONEDPL_UTILS_RANGES_H
 
-#include <tuple>       // std::get
+#include <tuple>       // std::get, make_tuple
 #include <cstdint>     // std::uint8_t
 #include <cstddef>     // std::size_t, std::ptrdiff_t
 #include <utility>     // std::declval
@@ -102,6 +102,39 @@ __size(_Range&& __rng)
     return __end(__rng) - __begin(__rng);
 }
 #endif
+
+// Returns std::tuple with begin and end of the range
+template <typename _Range>
+auto
+__bounds(_Range&& __rng)
+{
+    const auto __n = __size(__rng);
+    auto __first = __begin(__rng);
+
+    return std::make_tuple(__first, __first + __n);
+}
+
+// Return std::tuple with begin and size of the range
+template <typename _Range>
+auto
+__begin_and_size(_Range&& __rng)
+{
+    const auto __n = __size(__rng);
+    auto __first = __begin(__rng);
+
+    return std::make_tuple(__first, __n);
+}
+
+// Returns std::tuple with begin, end and size of the range
+template <typename _Range>
+auto
+__bounds_and_size(_Range&& __rng)
+{
+    const auto __n = __size(__rng);
+    auto __first = __begin(__rng);
+
+    return std::make_tuple(__first, __first + __n, __n);
+}
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _Range>
@@ -381,7 +414,7 @@ class zip_view
     }
 
     _tuple_ranges_t
-    tuple() const
+    base() const
     {
         return __m_ranges;
     }
@@ -535,6 +568,20 @@ struct drop_view_simple
     drop_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size)
     {
         assert(__n >= 0 && __n <= oneapi::dpl::__ranges::__size(__r));
+    }
+
+    template <typename _Rng = _R>
+    auto
+    begin() const -> decltype(__begin(std::declval<const _Rng&>()) + std::declval<_Size>())
+    {
+        return __begin(__r) + __n;
+    }
+
+    template <typename _Rng = _R>
+    auto
+    end() const -> decltype(__end(std::declval<const _Rng&>()))
+    {
+        return __end(__r);
     }
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
@@ -837,5 +884,10 @@ __get_subscription_view(_View&& __view)
 } // namespace __ranges
 } // namespace dpl
 } // namespace oneapi
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _R, typename _Size>
+constexpr bool std::ranges::enable_view<oneapi::dpl::__ranges::drop_view_simple<_R, _Size>> = true;
+#endif
 
 #endif // _ONEDPL_UTILS_RANGES_H

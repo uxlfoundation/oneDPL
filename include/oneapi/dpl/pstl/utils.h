@@ -204,6 +204,16 @@ struct __binary_op
     }
 };
 
+//! Specialization of __reorder_pred over __binary_op should change the order of calls
+template <typename _Pred, typename _Proj1, typename _Proj2>
+class __reorder_pred<__binary_op<_Pred, _Proj1, _Proj2>> : public __binary_op<__reorder_pred<_Pred>, _Proj1, _Proj2>
+{
+  public:
+    using __base = __binary_op<__reorder_pred<_Pred>, _Proj1, _Proj2>;
+    explicit __reorder_pred(__binary_op<_Pred, _Proj1, _Proj2> __op)
+        : __base(__reorder_pred<_Pred>{__op.__f}, __op.__proj1, __op.__proj2) {}
+};
+
 //! "==" comparison.
 /** Not called "equal" to avoid (possibly unfounded) concerns about accidental invocation via
     argument-dependent name lookup by code expecting to find the usual ::std::equal. */
@@ -335,7 +345,7 @@ class __set_value
 };
 
 //TODO: to do the same fix  for output type (by re-using __transform_functor if applicable) for the other functor below:
-// __transform_if_unary_functor, __transform_if_binary_functor, __replace_functor, __replace_copy_functor
+// __transform_if_unary_functor, __transform_if_binary_functor, __replace_functor
 template <typename _F, typename _RevTag = std::false_type>
 class __transform_functor
 {
@@ -445,9 +455,12 @@ class __replace_copy_functor
 
     template <typename _InputType, typename _OutputType>
     void
-    operator()(const _InputType& __x, _OutputType& __y) const
+    operator()(_InputType&& __x, _OutputType&& __y) const
     {
-        __y = _M_pred(__x) ? _M_value : __x;
+        if (_M_pred(__x))
+            std::forward<_OutputType>(__y) = _M_value;
+        else
+            std::forward<_OutputType>(__y) = std::forward<_InputType>(__x);
     }
 };
 
@@ -1037,6 +1050,78 @@ struct __scoped_destroyer
     {
         // Explicitly call destructor of __lazy_ctor_storage
         ___lazy_ctor_storage_ref.__destroy();
+    }
+};
+
+// Optional-like wrapper around __lazy_ctor_storage which manages the construction state of the storage and provides
+// automatic destruction of the contained value when the wrapper goes out of scope.
+template <typename _T>
+struct __opt_lazy_ctor_storage
+{
+  public:
+    __opt_lazy_ctor_storage() = default;
+    // Delete copy and move operations to prevent accidental copying or moving, which would
+    // duplicate the __constructed flag and may lead to double destruction because copying of the underlying union
+    // is a bitwise copy and does not call copy constructors of the members.
+    __opt_lazy_ctor_storage(const __opt_lazy_ctor_storage&) = delete;
+    __opt_lazy_ctor_storage&
+    operator=(const __opt_lazy_ctor_storage&) = delete;
+    __opt_lazy_ctor_storage(__opt_lazy_ctor_storage&&) = delete;
+    __opt_lazy_ctor_storage&
+    operator=(__opt_lazy_ctor_storage&&) = delete;
+
+    ~__opt_lazy_ctor_storage()
+    {
+        if (__constructed)
+        {
+            __constructed = false;
+            __storage.__destroy();
+        }
+    }
+
+    bool
+    __has_value() const
+    {
+        return __constructed;
+    }
+
+    // assigns to the storage, constructing if not yet constructed
+    template <typename _TArg>
+    void
+    __assign(_TArg&& __new_value)
+    {
+        if (__constructed)
+            __storage.__v = std::forward<_TArg>(__new_value);
+        else
+            __setup(std::forward<_TArg>(__new_value));
+    }
+
+    // explicitly construct without checks
+    template <typename _TArg>
+    void
+    __setup(_TArg&& __arg)
+    {
+        __storage.__setup(std::forward<_TArg>(__arg));
+        __constructed = true;
+    }
+
+    const _T&
+    __get_cref() const
+    {
+        return __storage.__v;
+    }
+
+  private:
+    oneapi::dpl::__internal::__lazy_ctor_storage<_T> __storage;
+    bool __constructed = false;
+};
+
+struct __ignore_call_op
+{
+    template <typename... _Params>
+    void
+    operator()(_Params&&...) const
+    {
     }
 };
 

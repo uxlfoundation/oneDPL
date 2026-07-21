@@ -90,7 +90,7 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
             }
         }
 
-        __dpl_sycl::__group_barrier(__idx);
+        sycl::group_barrier(__idx.get_group());
 
         for (_GlobOffsetT __wi_offset = __sub_group_start + __sub_group_local_id; __wi_offset < __n;
              __wi_offset += __device_wide_step)
@@ -140,7 +140,7 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
             }
         }
 
-        __dpl_sycl::__group_barrier(__idx);
+        sycl::group_barrier(__idx.get_group());
 
         // 4. Reduce group-local histograms from SLM into global histograms in global memory
         for (_LocIdxT __i = __local_id; __i < __hist_buffer_size; __i += __hist_work_group_size)
@@ -374,7 +374,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             }
             __ranks[__i] = __rank_after;
         }
-        __dpl_sycl::__group_barrier(__idx);
+        sycl::group_barrier(__idx.get_group());
     }
 
     inline void
@@ -382,6 +382,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                   std::uint32_t __sub_group_id, std::uint32_t __sub_group_local_id, _LocOffsetT* __slm_subgroup_hists,
                   _LocOffsetT* __slm_group_hist, _GlobOffsetT* __slm_global_incoming) const
     {
+        auto __group = __idx.get_group();
         _GlobOffsetT* __p_this_group_hist = __p_group_hists + __bin_count * __tile_id;
         _GlobOffsetT* __p_prev_group_hist = __p_this_group_hist - __bin_count;
 
@@ -415,10 +416,10 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
             // 1.3. Partial scan across bins: Each participating sub-group independently scans its own
             // segment of __bin_process_width bins. These partial results are finalized in step 1.4.
-            __inter_bin_scan_bin_width_totals<__bin_process_width>(__sub_group, __sub_group_id, __sub_group_local_id,
+            __inter_bin_scan_bin_width_totals<__bin_process_width>(__idx, __sub_group_id, __sub_group_local_id,
                                                                    __item_grf_hist_summary_arr, __slm_group_hist);
         }
-        __dpl_sycl::__group_barrier(__idx);
+        sycl::group_barrier(__group);
 
         // 1.4. Finalize the partial scans from step 1.3 by connecting the independent sub-group segments
         // together, propagating prefixes across the "__bin_process_width"-sized segments and converting
@@ -429,7 +430,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                 __sub_group, __sub_group_local_id, __slm_group_hist);
         }
 
-        __dpl_sycl::__group_barrier(__idx);
+        sycl::group_barrier(__group);
 
         // 2. Chained scan. Synchronization between work-groups.
         if (__sub_group_id < __bin_summary_sub_group_size && __tile_id != 0)
@@ -439,7 +440,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                 __slm_global_incoming);
         }
 
-        __dpl_sycl::__group_barrier(__idx);
+        sycl::group_barrier(__group);
     }
 
     template <std::uint32_t __bin_process_width>
@@ -461,12 +462,11 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
     template <std::uint32_t __bin_process_width>
     inline void
-    __inter_bin_scan_bin_width_totals(sycl::sub_group __sub_group, std::uint32_t __sub_group_id,
+    __inter_bin_scan_bin_width_totals(const sycl::nd_item<1>& __idx, std::uint32_t __sub_group_id,
                                       std::uint32_t __sub_group_local_id, _LocOffsetT (&__item_grf_hist_summary_arr)[1],
                                       _LocOffsetT* __slm_group_hist) const
     {
-        __sub_group_scan<__sub_group_size, 1>(__sub_group, __item_grf_hist_summary_arr, std::plus<>{},
-                                              __bin_process_width);
+        __sub_group_scan<__sub_group_size, 1>(__idx, __item_grf_hist_summary_arr, std::plus<>{}, __bin_process_width);
 
         _LocIdxT __write_idx = __sub_group_id * __bin_process_width + __sub_group_local_id;
         __slm_group_hist[__write_idx] = __item_grf_hist_summary_arr[0];
@@ -620,7 +620,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         {
             __slm_global_incoming[__i] -= __slm_group_hist[__i];
         }
-        __dpl_sycl::__group_barrier(__idx);
+        sycl::group_barrier(__idx.get_group());
     }
 
     template <typename _KVPack>
@@ -646,7 +646,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                 __slm_vals[__ranks[__i]] = __pack.__vals[__i];
             }
         }
-        __dpl_sycl::__group_barrier(__idx);
+        sycl::group_barrier(__idx.get_group());
     }
 
     template <typename _KVPack>
@@ -691,12 +691,13 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     void
     operator()(sycl::nd_item<1> __idx) const
     {
+        sycl::group __group = __idx.get_group();
         sycl::sub_group __sub_group = __idx.get_sub_group();
         const std::uint32_t __sg_id = __sub_group.get_group_linear_id();
         const std::uint32_t __sg_local_id = __sub_group.get_local_id();
 
         const std::uint32_t __sub_group_slm_offset = __sg_id * __bin_count;
-        std::uint32_t __tile_id = __idx.get_group().get_group_linear_id();
+        std::uint32_t __tile_id = __group.get_group_linear_id();
         std::uint32_t __num_wgs = __idx.get_group_range(0);
         for (; __tile_id < __num_tiles; __tile_id += __num_wgs)
         {
@@ -741,7 +742,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             __reorder_slm_to_glob(__idx, __values_pack, __sg_id, __sg_local_id, __slm_global_incoming, __slm_keys,
                                   __slm_vals);
 
-            sycl::group_barrier(__idx.get_group());
+            sycl::group_barrier(__group);
             // Make sure our atomic updates are pushed to other groups
             sycl::atomic_fence(sycl::memory_order::release, sycl::memory_scope::device);
         }

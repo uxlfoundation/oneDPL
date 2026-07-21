@@ -1,8 +1,9 @@
 |onedpl_long| Introduction
 #######################################
 
-The |onedpl_long| (|onedpl_short|) is implemented in accordance with the `oneDPL
-Specification <https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/index.html>`_.
+The |onedpl_long| (|onedpl_short|) is implemented in accordance with the |onedpl_specification|_.
+The current implementation supports the version 1.4-rev1 in full, as well as most of the functionality
+added to the version 1.5-rev1.
 
 To support heterogeneity, |onedpl_short| uses `SYCL <https://registry.khronos.org/SYCL/>`_.
 More information about SYCL can be found in the `SYCL Specification`_.
@@ -24,6 +25,8 @@ page for:
 
 Install the `Intel® oneAPI Base Toolkit (Base Kit) <https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html>`_
 to use |onedpl_short|.
+
+.. _library-requirements:
 
 System Requirements
 ===================
@@ -64,7 +67,7 @@ include the corresponding C++ standard header files and use the ``std`` namespac
 
 Follow the steps below to build your code with |onedpl_short|:
 
-#. To build with the |dpcpp_cpp|, see the |dpcpp_gsg|_ for details.
+#. To build with the |dpcpp_compiler|, see the |dpcpp_gsg|_ for details.
 #. Set the environment variables for |onedpl_short| and |onetbb_short|.
 
 Here is an example of a command line used to compile code that contains |onedpl_short| parallel algorithms
@@ -72,7 +75,7 @@ on Linux* (depending on the code, parameters within [] could be unnecessary)::
 
   icpx [-fsycl] [-fiopenmp] program.cpp [-ltbb] -o program
 
-You may also use the |pstl_offload_option|_ of |dpcpp_cpp| powered by |onedpl_short|
+You may also use the |pstl_offload_option|_ of |dpcpp_compiler| powered by |onedpl_short|
 to build the standard C++ code for execution on a SYCL device::
 
   icpx -fsycl -fsycl-pstl-offload=gpu program.cpp -o program
@@ -104,13 +107,15 @@ Difference with Standard C++ Parallel Algorithms
   ``set_symmetric_difference``, ``set_union``, ``stable_partition``, ``unique``.
 * The following algorithms require additional O(n) memory space for parallel execution:
   ``copy_if``, ``inplace_merge``, ``partial_sort``, ``partial_sort_copy``, ``partition_copy``,
-  ``remove``, ``remove_if``, ``rotate``, ``sort``, ``stable_sort``, ``unique``, ``unique_copy``.
+  ``remove``, ``remove_if``, ``rotate``, ``sort``, ``stable_sort``,
+  ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union``,
+  ``unique``, ``unique_copy``.
 
 Restrictions
 ************
 
 When called with device execution policies, |onedpl_short| algorithms apply the same restrictions as
-|dpcpp_short| does (see the |dpcpp_cpp| documentation and the SYCL specification for details), such as:
+SYCL does (see the DPC++ documentation and the SYCL specification for details), such as:
 
 * Adding buffers to a lambda capture list is not allowed for lambdas passed to an algorithm, as buffers are not
   `SYCL device-copyable`_.
@@ -129,7 +134,7 @@ restrictions on the data types that can be passed to algorithms executed with de
 Known Limitations
 *****************
 
-* The ``oneapi::dpl::execution::par_unseq`` policy is affected by ``-fsycl-pstl-offload`` option of |dpcpp_cpp|
+* The ``oneapi::dpl::execution::par_unseq`` policy is affected by ``-fsycl-pstl-offload`` option of |dpcpp_compiler|
   when |onedpl_short| substitutes this policy for the ``std::execution::par_unseq`` policy
   missing in a standard C++ library, particularly in libstdc++ version 8 and in libc++.
 * For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
@@ -144,8 +149,8 @@ Known Limitations
   provided.
 * ``exclusive_scan`` and ``transform_exclusive_scan`` algorithms may provide wrong results with
   unsequenced execution policies when building a program with GCC 10 and using ``-O0`` option.
-* Compiling ``reduce`` and ``transform_reduce`` algorithms with |dpcpp_cpp| versions 2021 and older
-  may result in a runtime error. To fix this issue, use |dpcpp_cpp| version 2022 or newer.
+* Compiling ``reduce`` and ``transform_reduce`` algorithms with |dpcpp_compiler| versions 2021 and older
+  may result in a runtime error. To fix this issue, use |dpcpp_compiler| version 2022 or newer.
 * When compiling on Windows, add the option ``/EHsc`` to the compilation command to avoid errors with oneDPL's experimental
   ranges API that uses exceptions.
 * The ``using namespace oneapi;`` directive in a |onedpl_short| program code may result in compilation errors
@@ -159,9 +164,11 @@ Known Limitations
   ``std::sqrt`` require device support for double precision.
 * STL algorithm functions (such as ``std::for_each``) used in DPC++ kernels do not compile with the debug version of
   the Microsoft Visual C++ standard library.
-- ``std::array`` cannot be swapped in DPC++ kernels with ``std::swap`` function or ``swap`` member function
-  in the Microsoft Visual C++ standard library. For a workaround, define the
-  ``_USE_STD_VECTOR_ALGORITHMS`` macro to `` 0`` to the source file before including any headers.
+* Some Microsoft* Visual C++ standard library functions use manual vectorization,
+  which may cause a "SYCL kernel cannot call undefined functions without the SYCL_EXTERNAL attribute" compilation error.
+  To disable it, define ``_USE_STD_VECTOR_ALGORITHMS`` as ``0`` before including any headers.
+  This affects ``std::swap``, the ``swap`` member function, comparison operators for ``std::array`` objects,
+  and the `Vectorized MSVC STL Algorithms <https://learn.microsoft.com/en-us/cpp/standard-library/vectorized-stl-algorithms?view=msvc-180>`_.
 * ``exclusive_scan``, ``inclusive_scan``, ``exclusive_scan_by_segment``,
   ``inclusive_scan_by_segment``, ``transform_exclusive_scan``, ``transform_inclusive_scan``,
   when used with C++ standard aligned policies, impose limitations on the initial value type if an
@@ -175,7 +182,7 @@ Known Limitations
 * The initial value type for ``reduce_by_segment``, ``exclusive_scan_by_segment``, and ``inclusive_scan_by_segment``
   should satisfy the ``MoveAssignable`` and the ``CopyConstructible`` requirements.
 * The initial value type for ``reduce``, ``transform_reduce``, should satisfy the ``CopyConstructible`` and the
-``CopyAssignable`` requirements when used with device execution policies.
+  ``CopyAssignable`` requirements when used with device execution policies.
 * The initial value type for ``exclusive_scan``, ``inclusive_scan``,  ``transform_exclusive_scan``,
   ``transform_inclusive_scan`` should satisfy the ``CopyConstructible`` and the ``CopyAssignable`` requirements.
 * For ``max_element``, ``min_element``, ``minmax_element``, ``partial_sort``, ``partial_sort_copy``, ``sort``, ``stable_sort``
@@ -187,17 +194,19 @@ Known Limitations
   or cause a segmentation fault when used with a device execution policy on a CPU device. To avoid this issue, pass the
   ``-fsycl-device-code-split=per_kernel`` option to the compiler or use Intel® oneAPI DPC++/C++ Compiler version 2025.1
   or newer.
-* ``esimd::radix_sort`` and ``esimd::radix_sort_by_key`` kernel templates fail to compile when a program
-  is built with ``-g``, ``-O0``, ``-O1`` compiler options and a Linux General Purpose Intel GPUs Driver version older
-  than ``2423.32`` (Rolling) and ``2350.61`` (LTS) is used.
-  See the `Release Types <https://dgpu-docs.intel.com/releases/releases.html>`_
-  to find information about the relevant Rolling and LTS releases.
 * ``std::ranges::drop_view`` from libstdc++ version 10 may throw exceptions.
   This can lead to a "SYCL kernel cannot use exceptions" compilation error
   when it is used to pass data to a range-based algorithm with a device policy.
 * Range-based ``sort`` and ``stable_sort`` algorithms called with device execution policies
   use ``std::swap`` instead of ``std::ranges::iter_swap``.
   As a result, customizations targeting ``std::ranges::iter_swap`` will not be respected.
+* Passing rvalue views to ``ranges::zip_view`` requires standard library support for views with ownership (P2415R2).
+  This can be detected using the ``__cpp_lib_ranges`` feature macro (value ``202110L`` or higher).
+* Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
+  ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``
+  with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler 2024.1 or earlier
+  with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
+  To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
 
 .. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html
 .. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable

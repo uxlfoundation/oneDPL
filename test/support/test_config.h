@@ -34,7 +34,7 @@
 // When such an issue is fixed, we must replace the usage of these "Latest" macros with the appropriate version number
 // before updating to the newest version in this section.
 
-#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20260000
+#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20260200
 
 #define _PSTL_TEST_LATEST_MSVC_STL_VERSION 145
 
@@ -312,21 +312,10 @@
 #   define _PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN 0
 #endif
 
-// There is a bug in the libc++ at the time of writing this comment with 21 being the latest major release
-// 23 is set to avoid frequent bump-ups.
-// See: https://github.com/llvm/llvm-project/blob/6096d35ea93c75f648a253a00775b4d74915c819/libcxx/include/__algorithm/ranges_set_union.h#L94
-// This line does not take into account that the iterator-based implementation may arbitrary call comp(a, b) or comp(b, a)
-// TODO: report it or contribute.
-#if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION <= 230000
-#    define _PSTL_LIBCPP_RANGE_SET_BROKEN 1
-#else
-#    define _PSTL_LIBCPP_RANGE_SET_BROKEN 0
-#endif
-
 // Drop view throws exceptions in libstdc++ 10
 #define _PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN (_GLIBCXX_RELEASE == 10)
 
-// std::ranges::view concept requires default_initializable:
+// std::ranges::view concept requires default_initializable (pre P2325R3):
 // 1. GNU libstdc++ (GCC)  - prior to GCC 11.4
 // 2. LLVM libc++          - prior to LLVM 13.0
 // 3. Microsoft STL (MSVC) - prior to VS 2022 17.0
@@ -341,5 +330,9 @@
 #else
 #    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE 0
 #endif
+
+// P2325R3 also removed default_initializable from weakly_incrementable, which breaks
+// std::input_iterator and std::output_iterator on the same pre-P2325R3 implementations.
+#define _ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 
 #endif // _TEST_CONFIG_H

@@ -57,8 +57,9 @@ test_serial_set_op_count(SetTag set_tag)
     std::vector<int> v3(v1.size() + v2.size());
 
     oneapi::dpl::__par_backend_hetero::__noop_temp_data __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    oneapi::dpl::__par_backend_hetero::__set_operation<SetTag> __set_op;
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{},
+                                   oneapi::dpl::__par_backend_hetero::__internal::__no_callback_tag{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -81,8 +82,9 @@ test_serial_set_op_count_and_write(SetTag set_tag)
     std::vector<int> v3(v1.size() + v2.size());
 
     oneapi::dpl::__par_backend_hetero::__temp_data_array<10, int> __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    oneapi::dpl::__par_backend_hetero::__set_operation<SetTag> __set_op;
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{},
+                                   oneapi::dpl::__par_backend_hetero::__internal::__no_callback_tag{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -113,8 +115,9 @@ test_serial_set_op_count_and_write2(SetTag set_tag)
     std::vector<int> v3(v1.size() + v2.size());
 
     oneapi::dpl::__par_backend_hetero::__temp_data_array<10, int> __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    oneapi::dpl::__par_backend_hetero::__set_operation<SetTag> __set_op;
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{},
+                                   oneapi::dpl::__par_backend_hetero::__internal::__no_callback_tag{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -145,8 +148,9 @@ test_serial_set_op_count_and_write_limited(SetTag set_tag)
     std::vector<int> v3(v1.size() + v2.size());
 
     oneapi::dpl::__par_backend_hetero::__temp_data_array<11, int> __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 4, 2, 10, __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    oneapi::dpl::__par_backend_hetero::__set_operation<SetTag> __set_op;
+    std::uint16_t count = __set_op(v1, v2, 4, 2, 10, __temp_data, std::less<int>(), oneapi::dpl::identity{},
+                                   oneapi::dpl::identity{}, oneapi::dpl::__par_backend_hetero::__internal::__no_callback_tag{});
 
     auto res = std_set(set_tag, v1.begin() + 4, v1.begin() + 4 + 5, v2.begin() + 2, v2.begin() + 2 + 5, v3.begin(),
                        std::less<int>());
@@ -179,8 +183,9 @@ test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
     std::vector<int> v3(v1.size() + v2.size());
 
     oneapi::dpl::__par_backend_hetero::__temp_data_array<15, int> __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    oneapi::dpl::__par_backend_hetero::__set_operation<SetTag> __set_op;
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{},
+                                   oneapi::dpl::__par_backend_hetero::__internal::__no_callback_tag{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -212,8 +217,9 @@ test_serial_set_op_count_and_write2_large_setB(SetTag set_tag)
     std::vector<int> v3(v1.size() + v2.size());
 
     oneapi::dpl::__par_backend_hetero::__temp_data_array<15, int> __temp_data{};
-    oneapi::dpl::__par_backend_hetero::__get_set_operation<SetTag> __set_op;
-    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    oneapi::dpl::__par_backend_hetero::__set_operation<SetTag> __set_op;
+    std::uint16_t count = __set_op(v1, v2, 0, 0, v1.size() + v2.size(), __temp_data, std::less<int>(), oneapi::dpl::identity{}, oneapi::dpl::identity{},
+                                   oneapi::dpl::__par_backend_hetero::__internal::__no_callback_tag{});
 
     auto res = std_set(set_tag, v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin(), std::less<int>());
 
@@ -357,11 +363,12 @@ template <typename _Rng1, typename _Rng2, typename _Comp>
 bool
 test_find_balanced_path_impl(_Rng1 __rng1, _Rng2 __rng2, _Comp __comp)
 {
-    using _SetOperation = oneapi::dpl::__par_backend_hetero::__get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>;
+    using _SetOperation = oneapi::dpl::__par_backend_hetero::__set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>;
     using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_simple;
 
     using _GenReduceInput =
-        oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider, _Comp, oneapi::dpl::identity, oneapi::dpl::identity>;
+        oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider, std::size_t, _Comp,
+                                                                   oneapi::dpl::identity, oneapi::dpl::identity>;
 
     std::uint16_t __diagonal_spacing = 16; // arbitrary value, should not matter for the test
 

@@ -4,10 +4,7 @@ on:
   issue_comment:
     types: [created]
 
-permissions:
-  contents: write
-  pull-requests: write
-  issues: write
+permissions: read-all
 
 jobs:
   apply-clang-format:
@@ -19,6 +16,10 @@ jobs:
         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) ||
         github.event.comment.user.login == github.event.issue.user.login
       )
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: write
     runs-on: ubuntu-latest
     concurrency:
       group: clang-format-pr-${{ github.event.issue.number }}
@@ -26,7 +27,7 @@ jobs:
     steps:
       - name: Get PR details
         id: pr
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const pr = await github.rest.pulls.get({
@@ -46,7 +47,7 @@ jobs:
             core.setOutput('base_sha', pr.data.base.sha);
 
       - name: React with eyes to acknowledge
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.reactions.createForIssueComment({
@@ -55,12 +56,12 @@ jobs:
               comment_id: context.payload.comment.id,
               content: 'eyes'
             });
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ steps.pr.outputs.head_ref }}
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
@@ -86,7 +87,7 @@ jobs:
 
       - name: Add result reaction
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const hasChanges = '${{ steps.result.outputs.has_changes }}';

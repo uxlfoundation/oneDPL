@@ -910,8 +910,9 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
-    std::size_t __num_copied = __par_backend_hetero::__parallel_copy_if(_BackendTag{},
-        std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __n, __pred)[0];
+    std::size_t __num_copied = __par_backend_hetero::__parallel_copy_if</*_Bounded*/ false>(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __n,
+        __pred)[0];
 
     return __result_first + __num_copied;
 }
@@ -981,8 +982,9 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
-    std::size_t __num_copied = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(_BackendTag{},
-        std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __n, __pred)[0];
+    std::size_t __num_copied = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy</*_Bounded*/ false>(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __n,
+        __pred)[0];
 
     return __result_first + __num_copied;
 }
@@ -1366,37 +1368,6 @@ __pattern_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 // lexicographical_compare
 //------------------------------------------------------------------------
 
-template <typename _ReduceValueType>
-struct __pattern_lexicographical_compare_reduce_fn
-{
-    auto
-    operator()(_ReduceValueType __a, _ReduceValueType __b) const
-    {
-        bool __is_mismatched = __a != 0;
-        return __a * __is_mismatched + __b * !__is_mismatched;
-    }
-};
-
-template <typename _Compare, typename _ReduceValueType>
-struct __pattern_lexicographical_compare_transform_fn
-{
-    _Compare __comp;
-
-    template <typename _TGroupIdx, typename _TAcc1, typename _TAcc2>
-    _ReduceValueType
-    operator()(_TGroupIdx __gidx, _TAcc1 __acc1, _TAcc2 __acc2) const
-    {
-        auto const& __s1_val = __acc1[__gidx];
-        auto const& __s2_val = __acc2[__gidx];
-
-        std::int32_t __is_s1_val_less = std::invoke(__comp, __s1_val, __s2_val);
-        std::int32_t __is_s1_val_greater = std::invoke(__comp, __s2_val, __s1_val);
-
-        // 1 if __s1_val <  __s2_val, -1 if __s1_val <  __s2_val, 0 if __s1_val == __s2_val
-        return _ReduceValueType{1 * __is_s1_val_less - 1 * __is_s1_val_greater};
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Compare>
 bool
 __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first1,
@@ -1615,16 +1586,14 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator>
 void
 __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last)
 {
-    auto __n = __last - __first;
+    const std::size_t __n = __last - __first;
     if (__n <= 1)
         return;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf = __keep(__first, __last);
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        unseq_backend::__reverse_functor<typename std::iterator_traits<_Iterator>::difference_type>{__n}, __n / 2,
-        __buf.all_view())
+    oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                      unseq_backend::__reverse_functor{__n}, __n / 2, __buf.all_view())
         .__checked_deferrable_wait();
 }
 
@@ -1770,7 +1739,7 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf3 = __keep3(__result, __result + __output_size);
 
-    _SizeType __result_size = __par_backend_hetero::__parallel_set_op<_SetTag>(
+    _SizeType __result_size = __par_backend_hetero::__parallel_set_op</*_Bounded*/ false>(
         _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
         __buf3.all_view(), __comp, __proj1, __proj2);
 

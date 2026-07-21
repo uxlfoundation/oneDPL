@@ -188,7 +188,8 @@ class device_policy
 struct DefaultKernelNameFPGA;
 
 template <unsigned int factor = 1, typename KernelName = DefaultKernelNameFPGA>
-class fpga_policy : public device_policy<KernelName>
+class [[deprecated("oneDPL execution policies for FPGA are deprecated and will be removed in a future release.")]]
+fpga_policy : public device_policy<KernelName>
 {
     using base = device_policy<KernelName>;
 
@@ -218,7 +219,12 @@ class fpga_policy : public device_policy<KernelName>
 
 inline const device_policy<> dpcpp_default{__internal::__global_instance_tag{}};
 #        if _ONEDPL_FPGA_DEVICE
-inline const fpga_policy<> dpcpp_fpga{__internal::__global_instance_tag{}};
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+inline const fpga_policy<> dpcpp_fpga
+    [[deprecated("oneDPL execution policies for FPGA are deprecated and will be removed in a future release.")]]
+    {__internal::__global_instance_tag{}};
+#pragma GCC diagnostic pop
 #        endif // _ONEDPL_FPGA_DEVICE
 
 #    endif // _ONEDPL___cplusplus >= 201703L
@@ -259,7 +265,10 @@ make_hetero_policy(const device_policy<OldKernelName>& policy)
 }
 
 #if _ONEDPL_FPGA_DEVICE
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 template <unsigned int unroll_factor = 1, typename KernelName = DefaultKernelNameFPGA>
+[[deprecated("oneDPL execution policies for FPGA are deprecated and will be removed in a future release.")]]
 fpga_policy<unroll_factor, KernelName>
 make_fpga_policy(sycl::queue q)
 {
@@ -267,6 +276,7 @@ make_fpga_policy(sycl::queue q)
 }
 
 template <unsigned int unroll_factor = 1, typename KernelName = DefaultKernelNameFPGA>
+[[deprecated("oneDPL execution policies for FPGA are deprecated and will be removed in a future release.")]]
 fpga_policy<unroll_factor, KernelName>
 make_fpga_policy(sycl::device d)
 {
@@ -275,6 +285,7 @@ make_fpga_policy(sycl::device d)
 
 template <unsigned int new_unroll_factor, typename NewKernelName, unsigned int old_unroll_factor = 1,
           typename OldKernelName = DefaultKernelNameFPGA>
+[[deprecated("oneDPL execution policies for FPGA are deprecated and will be removed in a future release.")]]
 fpga_policy<new_unroll_factor, NewKernelName>
 make_fpga_policy(const fpga_policy<old_unroll_factor, OldKernelName>& policy
 #    if _ONEDPL_PREDEFINED_POLICIES
@@ -287,11 +298,13 @@ make_fpga_policy(const fpga_policy<old_unroll_factor, OldKernelName>& policy
 
 template <unsigned int new_unroll_factor, typename NewKernelName, unsigned int old_unroll_factor = 1,
           typename OldKernelName = DefaultKernelNameFPGA>
+[[deprecated("oneDPL execution policies for FPGA are deprecated and will be removed in a future release.")]]
 fpga_policy<new_unroll_factor, NewKernelName>
 make_hetero_policy(const fpga_policy<old_unroll_factor, OldKernelName>& policy)
 {
     return fpga_policy<new_unroll_factor, NewKernelName>(policy);
 }
+#pragma GCC diagnostic pop
 #endif // _ONEDPL_FPGA_DEVICE
 
 } // namespace __dpl
@@ -306,10 +319,13 @@ struct is_execution_policy<device_policy<PolicyParams...>> : ::std::true_type
 };
 
 #if _ONEDPL_FPGA_DEVICE
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 template <unsigned int unroll_factor, typename... PolicyParams>
 struct is_execution_policy<fpga_policy<unroll_factor, PolicyParams...>> : ::std::true_type
 {
 };
+#pragma GCC diagnostic pop
 #endif
 
 } // namespace v1
@@ -342,6 +358,8 @@ struct __is_fpga_execution_policy : ::std::false_type
 };
 
 #if _ONEDPL_FPGA_DEVICE
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 template <unsigned int unroll_factor, typename... PolicyParams>
 struct __is_fpga_execution_policy<execution::fpga_policy<unroll_factor, PolicyParams...>> : ::std::true_type
 {
@@ -352,6 +370,7 @@ struct __ref_or_copy_impl<execution::fpga_policy<unroll_factor, PolicyParams...>
 {
     using type = _T;
 };
+#pragma GCC diagnostic pop
 #endif
 
 template <typename _T, typename... PolicyParams>
@@ -424,6 +443,8 @@ __select_backend(const execution::device_policy<_KernelName>&, _IteratorTypes&&.
 }
 
 #if _ONEDPL_FPGA_DEVICE
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 struct __fpga_backend_tag : __device_backend_tag
 {
 };
@@ -435,6 +456,7 @@ __select_backend(const execution::fpga_policy<_Factor, _KernelName>&, _IteratorT
     static_assert(__is_random_access_iterator_v<_IteratorTypes...>);
     return {};
 }
+#pragma GCC diagnostic pop
 #endif
 
 //----------------------------------------------------------

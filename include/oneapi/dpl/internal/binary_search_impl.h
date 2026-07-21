@@ -41,9 +41,6 @@ enum class search_algorithm
 template <typename Comp, typename T, search_algorithm func>
 struct __custom_brick
 {
-    constexpr static bool __can_vectorize = false;
-    constexpr static bool __can_process_multiple_iters = true;
-
     Comp comp;
     T size;
     bool use_32bit_indexing;
@@ -62,17 +59,17 @@ struct __custom_brick
         using std::get;
         if constexpr (func == search_algorithm::lower_bound)
         {
-            get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_lower_bound(get<0>(acc.tuple()), start_orig, end_orig,
+            get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_lower_bound(get<0>(acc.base()), start_orig, end_orig,
                                                                             get<1>(acc[idx]), comp);
         }
         else if constexpr (func == search_algorithm::upper_bound)
         {
-            get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_upper_bound(get<0>(acc.tuple()), start_orig, end_orig,
+            get<2>(acc[idx]) = oneapi::dpl::__internal::__shars_upper_bound(get<0>(acc.base()), start_orig, end_orig,
                                                                             get<1>(acc[idx]), comp);
         }
         else
         {
-            auto value = oneapi::dpl::__internal::__shars_lower_bound(get<0>(acc.tuple()), start_orig, end_orig,
+            auto value = oneapi::dpl::__internal::__shars_lower_bound(get<0>(acc.base()), start_orig, end_orig,
                                                                       get<1>(acc[idx]), comp);
             get<2>(acc[idx]) = (value != end_orig) && (get<1>(acc[idx]) == get<0>(acc[value]));
         }
@@ -81,6 +78,8 @@ struct __custom_brick
     void
     operator()(_IsFull, const std::size_t idx, _Params, _Acc acc) const
     {
+        static_assert(_Params::__vector_size == 1,
+                      "The brick operates with tuples which must be excluded from vectorizable types");
         if (use_32bit_indexing)
             search_impl<std::uint32_t>(idx, acc);
         else

@@ -75,7 +75,10 @@ template <bool __is_ascending>
 ::std::uint16_t
 __order_preserving_cast(sycl::half __val)
 {
-    ::std::uint16_t __uint16_val = oneapi::dpl::__internal::__dpl_bit_cast<::std::uint16_t>(__val);
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
+    if (__val == sycl::half{0})
+        return 0x8000u;
+    std::uint16_t __uint16_val = oneapi::dpl::__internal::__dpl_bit_cast<std::uint16_t>(__val);
     ::std::uint16_t __mask;
     // __uint16_val >> 15 takes the sign bit of the original value
     if constexpr (__is_ascending)
@@ -90,7 +93,10 @@ template <bool __is_ascending, typename _Float,
 ::std::uint32_t
 __order_preserving_cast(_Float __val)
 {
-    ::std::uint32_t __uint32_val = oneapi::dpl::__internal::__dpl_bit_cast<::std::uint32_t>(__val);
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
+    if (__val == _Float{0})
+        return 0x80000000u;
+    std::uint32_t __uint32_val = oneapi::dpl::__internal::__dpl_bit_cast<std::uint32_t>(__val);
     ::std::uint32_t __mask;
     // __uint32_val >> 31 takes the sign bit of the original value
     if constexpr (__is_ascending)
@@ -105,7 +111,10 @@ template <bool __is_ascending, typename _Float,
 ::std::uint64_t
 __order_preserving_cast(_Float __val)
 {
-    ::std::uint64_t __uint64_val = oneapi::dpl::__internal::__dpl_bit_cast<::std::uint64_t>(__val);
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
+    if (__val == _Float{0})
+        return 0x8000000000000000u;
+    std::uint64_t __uint64_val = oneapi::dpl::__internal::__dpl_bit_cast<std::uint64_t>(__val);
     ::std::uint64_t __mask;
     // __uint64_val >> 63 takes the sign bit of the original value
     if constexpr (__is_ascending)
@@ -197,8 +206,8 @@ template <std::uint32_t __radix_bits, bool __is_ascending, typename _InputRange,
 void
 __radix_sort_count_impl(_InputRange& __input, _Proj __proj, std::uint32_t __radix_offset, std::size_t __sg_chunk_start,
                         std::size_t __sg_chunk_end, std::size_t __full_end, std::uint32_t __sg_size,
-                        std::uint32_t __sg_local_id, std::size_t __wg_size, std::size_t __self_lidx,
-                        std::uint8_t* __slm_buckets, _IndexViews __views)
+                        std::uint32_t __sg_local_id, std::size_t __self_lidx, std::uint8_t* __slm_buckets,
+                        _IndexViews __views)
 {
     constexpr std::uint32_t __unroll_elements = 8;
 
@@ -280,6 +289,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 const std::size_t __self_lidx = __self_item.get_local_id(0);
                 const std::size_t __wgroup_idx = __self_item.get_group(0);
                 const std::size_t __seg_start = __elem_per_segment * __wgroup_idx;
+                sycl::group __group = __self_item.get_group();
 
                 // Subgroup info for SG-strided memory access pattern
                 __dpl_sycl::__sub_group __sub_group = __self_item.get_sub_group();
@@ -332,13 +342,13 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 if (__input_is_first)
                     __radix_sort_count_impl<__radix_bits, __is_ascending>(
                         __val_rng1, __proj, __radix_offset, __sg_chunk_start, __sg_chunk_end, __full_end, __sg_size,
-                        __sg_local_id, __wg_size, __self_lidx, __slm_buckets, __views);
+                        __sg_local_id, __self_lidx, __slm_buckets, __views);
                 else
                     __radix_sort_count_impl<__radix_bits, __is_ascending>(
                         __val_rng2, __proj, __radix_offset, __sg_chunk_start, __sg_chunk_end, __full_end, __sg_size,
-                        __sg_local_id, __wg_size, __self_lidx, __slm_buckets, __views);
+                        __sg_local_id, __self_lidx, __slm_buckets, __views);
 
-                __dpl_sycl::__group_barrier(__self_item);
+                sycl::group_barrier(__group);
 
                 // 2. ACCUMULATION PHASE: Read uint8_t columns into _CountT Registers (__count_arr)
                 //    WIs are grouped to prevent uint8_t overflow. Example: __reduction_factor = 4.
@@ -372,7 +382,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                             __slm_buckets[__views.__get_bucket_idx(__radix_base + __r, __col_base + __c)]);
                     }
                 }
-                __dpl_sycl::__group_barrier(__self_item);
+                sycl::group_barrier(__group);
 
                 // 3. REDUCTION PHASE: Write to SLM accessed as _CountT array (__slm_counts)
                 //    The same N bytes of SLM are now viewed as (N / __packing_ratio) _CountT elements.
@@ -395,7 +405,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                     __slm_counts[__views.__get_count_idx(__wg_size, __radix_base + __r, __wi_in_group)] =
                         __count_arr[__r];
                 }
-                __dpl_sycl::__group_barrier(__self_item);
+                sycl::group_barrier(__group);
 
                 // Tree reduction: reduce partial sums down to 1 per radix state
                 std::uint32_t __num_partial_sums = __wis_per_radix_group;
@@ -412,7 +422,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                                                                      __wi_in_group + __stride)];
                         }
                     }
-                    __dpl_sycl::__group_barrier(__self_item);
+                    sycl::group_barrier(__group);
                 }
 
                 // Write final count to global memory (only first 16 WIs, one per radix state)
@@ -541,10 +551,10 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
 {
     constexpr std::uint32_t __radix_states = 1 << __radix_bits;
 
-    std::uint16_t __wi_prefix[__radix_states];
+    std::uint32_t __wi_prefix[__radix_states];
     {
         // Phase 1: Count pass - each work-item counts its contiguous elements
-        std::uint16_t __local_counts[__radix_states] = {0};
+        std::uint32_t __local_counts[__radix_states] = {0};
         for (std::size_t __idx = __wi_start; __idx < __wi_end; ++__idx)
         {
             auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__idx]));
@@ -562,7 +572,8 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
         }
     }
 
-    __dpl_sycl::__group_barrier(__self_item);
+    sycl::group __group = __self_item.get_group();
+    sycl::group_barrier(__group);
 
     // Phase 2: Compute subgroup prefix (subgroups loop through radix states)
     // Reuses the same SLM region: reads totals, computes prefix, writes back in-place
@@ -595,7 +606,7 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
         }
     }
 
-    __dpl_sycl::__group_barrier(__self_item);
+    sycl::group_barrier(__group);
 
     // Phase 3: Compute final offsets = global_base + sg_prefix + wi_prefix
     _OffsetT __offsets[__radix_states];
@@ -900,31 +911,65 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
                                           static_cast<std::size_t>(16)) != __subgroup_sizes.end();
 
     using _RadixSortKernel = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    using _ValueT = oneapi::dpl::__internal::__value_t<_Range>;
 
-    // Select block size based on input size (block_size = elements per work-item)
-    // Larger block sizes reduce register spills but require more registers per work-item
-    if (__n <= std::min<std::size_t>(1024, __max_wg_size * 4))
-        __event = __subgroup_radix_sort<_RadixSortKernel, 4, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-    else if (__n <= std::min<std::size_t>(2048, __max_wg_size * 8))
-        __event = __subgroup_radix_sort<_RadixSortKernel, 8, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-    else if (__n <= std::min<std::size_t>(4096, __max_wg_size * 16))
-        __event = __subgroup_radix_sort<_RadixSortKernel, 16, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
+    // Select block size (elements per work-item) for the one-workgroup radix sort kernel.
+    // The base block sizes (4, 8, 16, 32) were tuned for 4-byte value types. For larger value types
+    // (e.g., sort_by_key tuples), we scale block sizes down proportionally to maintain similar
+    // register pressure per work-item. Kernels whose scaled block size falls below 4 are not
+    // instantiated, as they would provide too little work per work-item to be worthwhile.
+    constexpr std::size_t __val_scale =
+        std::max<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(sizeof(_ValueT), 4u), 1u);
+    constexpr std::uint16_t __bs0 = 4u / __val_scale;
+    constexpr std::uint16_t __bs1 = 8u / __val_scale;
+    constexpr std::uint16_t __bs2 = 16u / __val_scale;
+    constexpr std::uint16_t __bs3 = 32u / __val_scale;
+    constexpr std::uint16_t __absolute_min_block_size = 4u;
+
+    if constexpr (__bs0 >= __absolute_min_block_size)
+    {
+        if (__n <= std::min<std::size_t>(std::size_t(__bs0) * 256u, __max_wg_size * __bs0))
+        {
+            __event = __subgroup_radix_sort<_RadixSortKernel, __bs0, __radix_bits, __is_ascending>{}(
+                __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
+            return __future{std::move(__event)};
+        }
+    }
+    if constexpr (__bs1 >= __absolute_min_block_size)
+    {
+        if (__n <= std::min<std::size_t>(std::size_t(__bs1) * 256u, __max_wg_size * __bs1))
+        {
+            __event = __subgroup_radix_sort<_RadixSortKernel, __bs1, __radix_bits, __is_ascending>{}(
+                __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
+            return __future{std::move(__event)};
+        }
+    }
+    if constexpr (__bs2 >= __absolute_min_block_size)
+    {
+        if (__n <= std::min<std::size_t>(std::size_t(__bs2) * 256u, __max_wg_size * __bs2))
+        {
+            __event = __subgroup_radix_sort<_RadixSortKernel, __bs2, __radix_bits, __is_ascending>{}(
+                __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
+            return __future{std::move(__event)};
+        }
+    }
     // In __subgroup_radix_sort, we request a sub-group size of 16 via _ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED
     // for compilation targets that support this option. For the below cases, register spills that result in
     // runtime exceptions have been observed on accelerators that do not support the requested sub-group size of 16.
     // For the above cases that request but may not receive a sub-group size of 16, inputs are small enough to avoid
     // register spills on assessed hardware.
-    else if (__n <= std::min<std::size_t>(16384, __max_wg_size * 32) && __dev_has_sg16)
-        __event = __subgroup_radix_sort<_RadixSortKernel, 32, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-    else
+    if constexpr (__bs3 >= __absolute_min_block_size)
     {
-        __event = __parallel_multi_group_radix_sort<_RadixSortKernel, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj);
+        if (__n <= std::min<std::size_t>(std::size_t(__bs3) * 512u, __max_wg_size * __bs3) && __dev_has_sg16)
+        {
+            __event = __subgroup_radix_sort<_RadixSortKernel, __bs3, __radix_bits, __is_ascending>{}(
+                __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
+            return __future{std::move(__event)};
+        }
     }
+    // Fall through to multi-group sort
+    __event = __parallel_multi_group_radix_sort<_RadixSortKernel, __radix_bits, __is_ascending>{}(
+        __q_local, std::forward<_Range>(__in_rng), __proj);
 
     return __future{std::move(__event)};
 }

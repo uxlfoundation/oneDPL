@@ -24,8 +24,8 @@ env:
   BUILD_CONCURRENCY: 4
   MACOS_BUILD_CONCURRENCY: 3
   TEST_TIMEOUT: 360
-  WINDOWS_TBB_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/93ecf608-2a54-423e-a706-6a427d7dc8a5/intel-onetbb-2022.3.0.382_offline.exe
-  WINDOWS_ICPX_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/0f85f30e-7b8b-4ad6-8465-8cbc6048525d/intel-dpcpp-cpp-compiler-2025.3.1.15_offline.exe
+  WINDOWS_TBB_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/e45876b2-24fc-48cb-9d42-a1431747dd03/intel-onetbb-2023.0.0.718_offline.exe
+  WINDOWS_ICPX_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/baec913e-84a0-439d-becc-6fb62f2d0c83/intel-dpcpp-cpp-compiler-2026.0.0.560_offline.exe
   WINDOWS_ONEAPI_PATH: C:\Program Files (x86)\Intel\oneAPI
   LINUX_ONEAPI_PATH: /opt/intel/oneapi
   VS2022_PATH: C:\Program Files\Microsoft Visual Studio\2022\Enterprise
@@ -39,11 +39,11 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref:  ${{ github.event.pull_request.head.sha }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
       - name: Get clang-format
@@ -56,7 +56,7 @@ jobs:
         run: if [ -s clang-format.diff ]; then cat clang-format.diff; exit 1; fi
       - if: failure()
         name: Save artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: clang-format-diff
           path: clang-format.diff
@@ -149,7 +149,7 @@ jobs:
             backend: serial
             device_type: HOST
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up Intel APT repository
         if: (matrix.backend == 'tbb' || matrix.backend == 'dpcpp' || matrix.cxx_compiler == 'icpx' || matrix.cxx_compiler == 'icx' || matrix.cxx_compiler == 'icx-cl' || matrix.cxx_compiler == 'dpcpp' || matrix.cxx_compiler == 'dpcpp-cl')
         run: |
@@ -238,15 +238,26 @@ jobs:
           lscpu
 
           # TODO: fix or justify the excluded warnings
-          warning_flags="-Wall -Wextra-semi -Werror -Wno-error=sign-compare"
+          EXTRA_CXX_FLAGS="-Wall -Wextra-semi -Werror -Wno-error=sign-compare"
+          if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
+            # Reduce std_ranges view-type permutations in per-commit CI to keep
+            # build time under the job limit. A couple of representative tests
+            # force full coverage back on regardless of this flag.
+            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -DONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS=0"
+          fi
           if [[ "${{ matrix.cxx_compiler }}" != "g++" ]]; then
-            warning_flags="${warning_flags} -Wno-error=pass-failed"
+            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=pass-failed"
           fi
           if [[ "${{ matrix.cxx_compiler }}" == "icpx" ]]; then
-            warning_flags="${warning_flags} -Wno-error=recommended-option"
+            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=recommended-option"
           fi
+
+          if [[ "${{ matrix.device_type }}" == "FPGA_EMU" ]]; then
+            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=deprecated-declarations -DONEDPL_FPGA_DEVICE -DONEDPL_FPGA_EMULATOR"
+          fi
+
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_CXX_FLAGS="${warning_flags}" ..
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_CXX_FLAGS="${EXTRA_CXX_FLAGS}" ..
           make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
           ONEAPI_DEVICE_SELECTOR=*:${{ matrix.device_type }}
           ctest --timeout ${TEST_TIMEOUT} --output-on-failure ${ctest_flags} |& tee ctest.log
@@ -310,7 +321,7 @@ jobs:
             backend: dpcpp
             device_type: CPU
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Intel® oneAPI Threading Building Blocks
         if: (matrix.backend == 'tbb' || matrix.backend == 'dpcpp')
         shell: cmd
@@ -330,18 +341,31 @@ jobs:
       - name: Run testing
         shell: cmd
         run: |
-          if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
-            call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
-          ) else (
-            if exist "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" (
-              call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" amd64
-            ) else (
-              echo "Warning: Neither %WINDOWS_ONEAPI_PATH%\setvars.bat nor %VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat were found."
-            )
-          )
-
           :: Set enable delayed expansion to allow proper resolution of errors in if statements and loops
           SETLOCAL ENABLEDELAYEDEXPANSION
+
+          if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
+            call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
+            if !errorlevel! neq 0 exit /b !errorlevel!
+          ) else (
+            if not exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" (
+              echo "Error: vswhere.exe not found."
+              exit /b 1
+            )
+            set "VS_PATH="
+            for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VS_PATH=%%i"
+            if defined VS_PATH (
+              if not exist "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" (
+                echo "Error: vcvarsall.bat not found under !VS_PATH!\VC\Auxiliary\Build\"
+                exit /b 1
+              )
+              call "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" amd64
+              if !errorlevel! neq 0 exit /b !errorlevel!
+            ) else (
+              echo "Error: Could not find oneAPI install nor Visual Studio installation with MSVC tools via vswhere.exe."
+              exit /b 1
+            )
+          )
 
           set exit_code=0
           :: Preserve the code of an unsuccessful command if any.
@@ -386,6 +410,13 @@ jobs:
             set warning_flags=/W4 /WX /wd4018 /wd4100 /wd4146 /wd4244 /wd4245 /wd4267 /wd4310 /wd4389 /wd4805 /wd4996
           ) else (
             set warning_flags=-Wall -Werror -Wno-error=sign-compare -Wno-error=pass-failed
+          )
+
+          :: Reduce std_ranges view-type permutations in per-commit CI to keep
+          :: build time under the job limit. A couple of representative tests
+          :: force full coverage back on regardless of this flag.
+          if "${{ matrix.backend }}" == "dpcpp" (
+            set warning_flags=!warning_flags! -DONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS=0
           )
 
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..
@@ -436,7 +467,7 @@ jobs:
             build_type: release
             backend: omp
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install OpenMP for Clang++
         run: |
           brew install libomp

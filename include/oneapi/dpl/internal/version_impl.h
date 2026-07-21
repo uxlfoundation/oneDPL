@@ -12,7 +12,7 @@
 
 // The library version
 #define ONEDPL_VERSION_MAJOR 2022
-#define ONEDPL_VERSION_MINOR 11
+#define ONEDPL_VERSION_MINOR 13
 #define ONEDPL_VERSION_PATCH 0
 
 // The oneAPI Specification version this implementation is compliant with
@@ -26,6 +26,14 @@
 #else
 #    define _ONEDPL_STD_FEATURE_MACROS_PRESENT 0
 #    define _ONEDPL_CPP20_CONCEPTS_PRESENT 0
+#endif
+
+// -- Check for C++20 requires-clause support --
+// This is the concepts language feature (a requires-clause, e.g. on a constrained partial specialization)
+#if __cpp_concepts >= 201907L
+#    define _ONEDPL_CPP20_REQUIRES_CLAUSE_PRESENT 1
+#else
+#    define _ONEDPL_CPP20_REQUIRES_CLAUSE_PRESENT 0
 #endif
 
 // -- Check for C++20 Ranges support --
@@ -45,9 +53,9 @@
 #endif
 
 // -- Define oneDPL feature macros --
-#define ONEDPL_HAS_RANDOM_NUMBERS         202409L
+#define ONEDPL_HAS_RANDOM_NUMBERS         202603L
 #if _ONEDPL_CPP20_RANGES_PRESENT
-#    define ONEDPL_HAS_RANGE_ALGORITHMS   202509L
+#    define ONEDPL_HAS_RANGE_ALGORITHMS   202605L
 #endif
 
 #endif // _ONEDPL_VERSION_IMPL_H

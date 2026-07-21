@@ -51,11 +51,11 @@
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
+#include "unseq_backend_sycl.h"
 #include "utils_ranges_sycl.h"
 #include "sycl_traits.h"
 
 #include "../../utils.h"
-#include "parallel_backend_sycl_scan_by_segment.h"
 
 namespace oneapi
 {
@@ -63,6 +63,41 @@ namespace dpl
 {
 namespace __par_backend_hetero
 {
+
+// This function is responsible for performing an exclusive segmented scan between work items in shared local memory.
+// Each work item passes __delta_local_id which is the distance to the closest lower indexed work item that
+// processes a segment end. A SLM accessor that is twice the work-group size must be provided.
+// Example across eight work items with addition as the binary operation :
+// -----------------------------
+// Local ID    : 0 1 2 3 4 5 6 7
+// Accumulator : 2 3 1 3 0 5 2 1
+// Delta       : 0 1 2 3 0 1 0 0
+// -----------------------------
+// Return Vals : 0 2 5 6 9 0 5 2
+// -----------------------------
+// __wg_segmented_scan is a derivative work and the reason for the additional copyright notice.
+template <typename _Group, typename _LocalAcc, typename _IdxType, typename _ValueType, typename _BinaryOp>
+_ValueType
+__wg_segmented_scan(_Group __group, _LocalAcc __local_acc, _IdxType __local_id, _IdxType __delta_local_id,
+                    _ValueType __accumulator, _ValueType __identity, _BinaryOp __binary_op, std::size_t __wgroup_size)
+{
+    _IdxType __first = 0;
+    __local_acc[__local_id] = __accumulator;
+
+    sycl::group_barrier(__group);
+
+    for (std::size_t __i = 1; __i < __wgroup_size; __i *= 2)
+    {
+        if (__delta_local_id >= __i)
+            __accumulator = __binary_op(__local_acc[__first + __local_id - __i], __accumulator);
+
+        __first = __wgroup_size - __first;
+        __local_acc[__first + __local_id] = __accumulator;
+        sycl::group_barrier(__group);
+    }
+
+    return (__local_id ? __local_acc[__first + __local_id - 1] : __identity);
+}
 
 template <typename... Name>
 class __seg_reduce_count_kernel;
@@ -160,7 +195,7 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                                                                               __seg_reduce_count_kernel,
 #endif
                                                                               sycl::nd_item<1> __item) {
-                auto __group = __item.get_group();
+                sycl::group __group = __item.get_group();
                 std::size_t __group_id = __item.get_group(0);
                 std::uint32_t __local_id = __item.get_local_id(0);
                 std::size_t __global_id = __item.get_global_id(0);
@@ -222,7 +257,7 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
             sycl::nd_range<1>{__n_groups * __wgroup_size, __wgroup_size}, [=](sycl::nd_item<1> __item) {
                 __val_type __loc_partials[__vals_per_item];
 
-                auto __group = __item.get_group();
+                sycl::group __group = __item.get_group();
                 std::size_t __group_id = __item.get_group(0);
                 std::size_t __local_id = __item.get_local_id(0);
                 std::size_t __global_id = __item.get_global_id(0);
@@ -263,7 +298,7 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
 
                 // __wg_segmented_scan is a derivative work and responsible for the third header copyright
                 __val_type __carry_in = oneapi::dpl::__par_backend_hetero::__wg_segmented_scan(
-                    __item, __loc_acc, __local_id, __local_id - __closest_seg_id, __accumulator, __identity,
+                    __group, __loc_acc, __local_id, __local_id - __closest_seg_id, __accumulator, __identity,
                     __binary_op, __wgroup_size);
 
                 // 2e. Update local partial reductions in first segment and write to global memory.
@@ -382,7 +417,7 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                                 }
                             }
                             __loc_partials_acc[__local_id] = __local_collector;
-                            __dpl_sycl::__group_barrier(__item);
+                            sycl::group_barrier(__group);
                             // serial aggregate collection and synchronization
                             if (__local_id == 0)
                             {
@@ -396,8 +431,8 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                                     }
                                 }
                             }
-                            __agg_collector = __dpl_sycl::__group_broadcast(__item.get_group(), __agg_collector);
-                            __last_it = __dpl_sycl::__group_broadcast(__item.get_group(), __last_it);
+                            __agg_collector = __dpl_sycl::__group_broadcast(__group, __agg_collector);
+                            __last_it = __dpl_sycl::__group_broadcast(__group, __last_it);
                         }
 
                         // Check to see if aggregates exist.

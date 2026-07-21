@@ -1,15 +1,22 @@
-oneAPI DPC++ Library (oneDPL)
+oneAPI DPC++ Library Documentation
 ==================================
+
+.. include:: library_guide/overview.rst
 
 .. toctree::
    :maxdepth: 2
    :titlesonly:
+   :caption: Get Started
 
-   release_notes.rst
-   library_guide/overview.rst
-   library_guide/parallel_api_main.rst
-   library_guide/parallel_api/std_execution_policies.rst
-   library_guide/macros.rst
-   library_guide/oneDPL_2022.0_changes.rst
-   library_guide/api_for_dpcpp_kernels_main.rst
+   get_started/release_notes.rst
+   get_started/onedpl_gsg.rst
 
+.. toctree::
+   :maxdepth: 2
+   :titlesonly:
+   :caption: oneDPL Specification
+   
+   Latest Revision <specification/index.rst>
+   Version History <specification/spec_versions.rst>
+
+.. include:: library_guide/guide_toc.rst

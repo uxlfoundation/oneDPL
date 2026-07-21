@@ -23,9 +23,71 @@
 #include "support/scan_serial_impl.h"
 
 #include <iostream>
+#include <cstdint>
 #include <vector>
 
-#include "support/scan_serial_impl.h"
+using namespace TestUtils;
+
+template <typename In, typename Init, typename Out>
+struct test_exclusive_scan_with_plus
+{
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
+    std::enable_if_t<!TestUtils::is_reverse_v<Iterator1> || std::is_same_v<Iterator1, Iterator2>>
+    operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
+               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, T init, T trash)
+    {
+        using namespace std;
+
+        exclusive_scan_serial(in_first, in_last, expected_first, init);
+        auto orr = exclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, init);
+        EXPECT_TRUE(out_last == orr, "exclusive_scan returned wrong iterator");
+        EXPECT_EQ_N(expected_first, out_first, n, "wrong result from exclusive_scan");
+        std::fill_n(out_first, n, trash);
+    }
+    // exclusive_scan with reverse_iterator between different iterator types results in a compilation error even if
+    // the call should be valid. Please see: https://github.com/uxlfoundation/oneDPL/issues/2296
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
+    std::enable_if_t<TestUtils::is_reverse_v<Iterator1> && !std::is_same_v<Iterator1, Iterator2>>
+    operator()(Policy&& /*exec*/, Iterator1 /*in_first*/, Iterator1 /*in_last*/, Iterator2 /*out_first*/,
+               Iterator2 /*out_last*/, Iterator3 /*expected_first*/, Iterator3 /*expected_last*/, Size /*n*/,
+               T /*init*/, T /*trash*/)
+    {
+    }
+};
+
+template <typename In, typename Init, typename Out, typename Convert>
+void
+test_with_plus(Init init, Out trash, Convert convert)
+{
+    for (size_t n = 0; n <= TestUtils::get_scan_test_max_n(); n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    {
+        Sequence<In> in(n, convert);
+        Sequence<Out> expected(n);
+        Sequence<Out> out(n, [&](std::int32_t) { return trash; });
+
+        invoke_on_all_policies<2>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(), out.begin(),
+                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
+        invoke_on_all_policies<3>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.cbegin(), in.cend(), out.begin(),
+                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
+    }
+
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
+    // testing of large number of items may take too much time in debug mode
+    std::size_t n = TestUtils::test_queue_is_cpu() ? TestUtils::get_scan_test_max_n() :
+#    if PSTL_USE_DEBUG
+                                                     1000000;
+#    else
+                                                     100000000;
+#    endif
+
+    Sequence<In> in(n, convert);
+    Sequence<Out> expected(n);
+    Sequence<Out> out(n, [&](std::int32_t) { return trash; });
+    invoke_on_all_hetero_policies<5>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(),
+                                       out.begin(), out.end(), expected.begin(), expected.end(), in.size(), init,
+                                       trash);
+#endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
+}
 
 #if TEST_DPCPP_BACKEND_PRESENT
 
@@ -68,7 +130,7 @@ template <sycl::usm::alloc alloc_type, typename Policy>
 void
 test_with_usm(Policy&& exec)
 {
-    for (::std::size_t n = 0; n <= TestUtils::max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (std::size_t n = 0; n <= TestUtils::max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         test_with_usm<alloc_type>(CLONE_TEST_POLICY(exec), n);
     }
@@ -81,11 +143,11 @@ test_diff_iterators(Policy&& exec)
     constexpr std::size_t N = 6;
 
     sycl::queue q = exec.queue();
-    
+
     // Allocate USM shared memory for input (bool type) and output (int type)
     bool* input = sycl::malloc_shared<bool>(N, q);
     int* result = sycl::malloc_shared<int>(N, q);
-    
+
     // Initialize input data
     input[0] = true;
     input[1] = false;
@@ -131,7 +193,8 @@ test_diff_iterators(Policy&& exec)
 }
 
 template <typename Policy>
-void test_impl(Policy&& exec)
+void
+test_usm_impl(Policy&& exec)
 {
     // Run tests for USM shared/device memory
     test_with_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec));
@@ -144,15 +207,25 @@ void test_impl(Policy&& exec)
 int
 main()
 {
+    // Since the implicit "+" forms of the scan delegate to the generic forms,
+    // there's little point in using a highly restricted type, so just use double.
+    test_with_plus<float64_t, float64_t, float64_t>(
+        0.0, -666.0, [](std::uint32_t k) { return float64_t((k % 991 + 1) ^ (k % 997 + 2)); });
+    test_with_plus<std::int32_t, std::int32_t, std::int32_t>(
+        0.0, -666.0, [](std::uint32_t k) { return std::int32_t((k % 991 + 1) ^ (k % 997 + 2)); });
+
+    // When testing from bool to uint32_t, we must give a uint32_t init type to scan over integers
+    test_with_plus<bool, std::uint32_t, std::uint32_t>(0, 123456,
+                                                       [](std::uint32_t k) { return std::uint32_t{k % 2 == 0}; });
+
 #if TEST_DPCPP_BACKEND_PRESENT
-
     auto policy = TestUtils::get_dpcpp_test_policy();
-    test_impl(policy);
+    test_usm_impl(policy);
 
-#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
-    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
-#endif
+#    if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_usm_impl(std::forward<decltype(policy)>(policy)); });
+#    endif
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return done();
 }

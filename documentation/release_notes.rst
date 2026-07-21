@@ -8,8 +8,74 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
-New in the next release
-=======================
+New in 2022.13.0
+================
+
+New Features
+------------
+- Added more parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``replace_copy``, ``replace_copy_if``,
+  ``remove_copy``, ``remove_copy_if``, ``find_last``, ``find_last_if``, ``find_last_if_not``, ``starts_with``,
+  ``ends_with``, ``contains``, ``contains_subrange``, ``lexicographical_compare``.
+- The sorting algorithms with device policies now can use radix sort with
+  the ``less`` and ``greater`` comparators from the ``std::ranges`` namespace [#fnote1]_.
+- Implemented support for bounded output for range-based set algorithms with CPU policies,
+  with optional support for C++26 semantics of return values.
+- Improved performance of ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` when using
+  Radix sort [#fnote1]_ and device policies for key and/or value types larger than four bytes.
+- Improved performance of ``inclusive_scan``, ``exclusive_scan``, ``transform_inclusive_scan``, and
+  ``transform_exclusive_scan`` with device policies for non-trivially-copyable value types on GPU devices.
+- Improved performance of the ``histogram_even`` and ``histogram_range`` algorithms with device policies for a small
+  number of bins on GPU devices.
+
+Known Issues and Limitations
+----------------------------
+Existing Issues
+^^^^^^^^^^^^^^^
+See oneDPL Guide for other `restrictions and known limitations`_.
+
+- When used with device policies, ``set_union``, ``set_intersection``, ``set_difference``, ``set_symmetric_difference``
+  range algorithms require the output range to have sufficient size to hold all resulting elements.
+- ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
+  when used with a device policy on hardware that does not support 64-bit atomic operations.
+- For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
+  it is required that the provided input and destination iterators are equality comparable.
+  Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
+  If these conditions are not met, the result of these algorithm calls is undefined.
+- ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
+  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
+  to the device compiler.
+
+New in 2022.12.0
+================
+
+Changes to CMake
+-------------------
+- Removed the ``ONEDPL_DEVICE_TYPE`` and ``ONEDPL_DEVICE_BACKEND`` CMake options. 
+  Use ``ONEAPI_DEVICE_SELECTOR`` environment variable or compiler options for device selection instead.
+- Removed the ``ONEDPL_USE_AOT_COMPILATION``, ``ONEDPL_AOT_ARCH``, and ``ONEDPL_FPGA_STATIC_REPORT`` CMake options.
+  Use the appropriate compiler flags to control ahead-of-time compilation.
+
+New Features
+------------
+- ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``, and ``histogram`` algorithms
+  are added to the ``<oneapi/dpl/numeric>`` header, and this header is now recommended to use for these algorithms.
+- Improved performance of ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` when using Radix sort
+  [#fnote1]_ and device policies.
+- Moved ``philox_engine`` to the ``oneapi::dpl`` namespace and fixed incorrect results for instantiations with
+  non-predefined word size values and ``std::uint_fast64_t``.
+- Added experimental ``radix_sort`` and ``radix_sort_by_key`` algorithms in the ``oneapi::dpl::experimental::kt::gpu``
+  namespace. The implementation has been verified on Intel® Arc B580 Graphics and Intel® Data Center GPU Max Series.
+- The ``experimental::ranges::zip_view`` range adaptor can now be used with the oneDPL parallel range algorithms
+  and C++20 random access ranges.
+- Improved performance of multiple (30+) algorithms with ``par`` and ``par_unseq`` execution policies and data sizes
+  from 50K to 4M elements when built with the OpenMP backend and Intel® oneAPI DPC++/C++ Compiler.
+
+Deprecation Notice
+------------------
+Support for FPGA devices in oneDPL algorithms, the corresponding execution policies ``fpga_policy`` and ``dpcpp_fpga``,
+the ``make_fpga_policy`` function, and the enabling macros ``ONEDPL_FPGA_DEVICE`` and ``ONEDPL_FPGA_EMULATOR``
+are deprecated and will be removed in a future release.
 
 Fixed Issues
 ------------
@@ -18,12 +84,34 @@ Fixed Issues
 - Fixed ``ranges::unique_copy`` to allow output ranges of any size.
 - Fixed the default template argument for the new value type in `ranges::replace` and `ranges::replace_if`
   to not use projections.
+- Removed excessive data copying when using device policies and host allocated data with several algorithms:
+  ``fill``, ``generate``, ``transform_if``, ``binary_search``, ``lower_bound``, ``upper_bound``,
+  ``histogram``, ``unique_copy``, ``uninitialized_copy``, ``uninitialized_move``, ``uninitialized_fill``,
+  ``uninitialized_value_construct``, ``uninitialized_default_construct``, and ``destroy``.
 
 Known Issues and Limitations
 ----------------------------
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
 - ``ranges::unique_copy`` with the output size smaller than the input size may lose performance on GPU devices.
+- ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
+  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
+  to the device compiler.
+
+Existing Issues
+^^^^^^^^^^^^^^^
+See oneDPL Guide for other `restrictions and known limitations`_.
+
+- ``ranges::copy_if`` with the output size smaller than the input size may lose performance on GPU devices.
+- ``set_union``, ``set_intersection``, ``set_difference``, ``set_symmetric_difference`` range algorithms require the
+  output range to have sufficient size to hold all resulting elements.
+- ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
+  when used with a device policy on hardware that does not support 64-bit atomic operations.
+- For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
+  it is required that the provided input and destination iterators are equality comparable.
+  Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
+  If these conditions are not met, the result of these algorithm calls is undefined.
 
 New in 2022.11.0
 ================
@@ -104,7 +192,7 @@ Fixed Issues
 - Fixed an issue with ``PSTL_USE_NONTEMPORAL_STORES`` macro having no effect.
 - Fixed a bug where ``unique`` called with a device policy returned an incorrect result iterator.
 - Fixed a bug in ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``, ``transform_inclusive_scan``,
-  ``exlusive_scan_by_segment``, and ``inclusive_scan_by_segment`` algorithms when using device policies with different
+  ``exclusive_scan_by_segment``, and ``inclusive_scan_by_segment`` algorithms when using device policies with different
   input and output value types.
 - Fixed a bug in return value types of ``minmax_element`` and ``mismatch`` range algorithms.
 - Fixed compile errors in ``set_union`` and ``set_symmetric_difference`` when using device policies
@@ -163,7 +251,7 @@ Known Issues and Limitations
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
 - The `set_intersection`, `set_difference`, `set_symmetric_difference`, and `set_union` algorithms with a device policy
-require GPUs with double-precision support on Windows, regardless of the value type of the input sequences.
+  require GPUs with double-precision support on Windows, regardless of the value type of the input sequences.
 
 Existing Issues
 ^^^^^^^^^^^^^^^
@@ -508,7 +596,7 @@ New Features
 ------------
 - Added experimental ``radix_sort`` and ``radix_sort_by_key`` algorithms residing in
   the ``oneapi::dpl::experimental::kt::esimd`` namespace. These algorithms are first
-  in the family of _kernel templates_ that allow configuring a variety of parameters
+  in the family of *kernel templates* that allow configuring a variety of parameters
   including the number of elements to process by a work item, and the size of a workgroup.
   The algorithms only work with Intel® Data Center GPU Max Series.
 - Added new ``transform_if`` algorithm for applying a transform function conditionally
@@ -524,8 +612,8 @@ New in This Release
   is built with -g, -O0, -O1 compiler options.
 - ``esimd::radix_sort_by_key`` kernel template produces wrong results with the following combinations
   of ``kernel_param`` and types of keys and values:
-    - ``sizeof(key_type) + sizeof(val_type) == 12``, ``kernel_param::workgroup_size == 64``, and ``kernel_param::data_per_workitem == 96``
-    - ``sizeof(key_type) + sizeof(val_type) == 16``, ``kernel_param::workgroup_size == 64``, and ``kernel_param::data_per_workitem == 64``
+  - ``sizeof(key_type) + sizeof(val_type) == 12``, ``kernel_param::workgroup_size == 64``, and ``kernel_param::data_per_workitem == 96``
+  - ``sizeof(key_type) + sizeof(val_type) == 16``, ``kernel_param::workgroup_size == 64``, and ``kernel_param::data_per_workitem == 64``
 
 New in 2022.3.0
 ===============
@@ -1089,12 +1177,13 @@ Known Issues and Limitations
   for double precision.
 
 .. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types and
-   ``sycl::half`` (since oneDPL 2022.6) compared with ``std::less`` or ``std::greater``, otherwise Merge sort.
-.. _`oneDPL Guide`: https://uxlfoundation.github.io/oneDPL/index.html
+  ``sycl::half`` (since oneDPL 2022.6) compared with ``less`` or ``greater`` from
+  the ``std`` and ``std::ranges`` (since oneDPL 2022.13) namespaces, otherwise Merge sort.
+.. _`oneDPL Guide`: https://uxlfoundation.github.io/oneDPL/library_guide/index.html
 .. _`Intel® oneAPI Threading Building Blocks (oneTBB) Release Notes`: https://www.intel.com/content/www/us/en/developer/articles/release-notes/intel-oneapi-threading-building-blocks-release-notes.html
-.. _`restrictions and known limitations`: https://uxlfoundation.github.io/oneDPL/introduction.html#restrictions.
-.. _`Tested Standard C++ API`: https://uxlfoundation.github.io/oneDPL/api_for_sycl_kernels/tested_standard_cpp_api.html#tested-standard-c-api-reference
-.. _`Macros`: https://uxlfoundation.github.io/oneDPL/macros.html
-.. _`2022.0 Changes`: https://uxlfoundation.github.io/oneDPL/oneDPL_2022.0_changes.html
+.. _`restrictions and known limitations`: https://uxlfoundation.github.io/oneDPL/library_guide/introduction.html#restrictions.
+.. _`Tested Standard C++ API`: https://uxlfoundation.github.io/oneDPL/library_guide/api_for_sycl_kernels/tested_standard_cpp_api.html#tested-standard-c-api-reference
+.. _`Macros`: https://uxlfoundation.github.io/oneDPL/library_guide/macros.html
+.. _`2022.0 Changes`: https://uxlfoundation.github.io/oneDPL/library_guide/oneDPL_2022.0_changes.html
 .. _`sycl device copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
 .. _`oneAPI DPC++ Library Manual Migration Guide`: https://www.intel.com/content/www/us/en/developer/articles/guide/oneapi-dpcpp-library-manual-migration.html 

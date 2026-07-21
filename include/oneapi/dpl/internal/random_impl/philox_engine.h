@@ -7,11 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Abstract:
-//
-// Public header file provides implementation for Philox Engine
-//
-// The documentation of the Engine: https://en.cppreference.com/w/cpp/numeric/random/philox_engine
+// The behavior of the Philox engine's scalar API was aligned with std::philox_engine generator: https://en.cppreference.com/w/cpp/numeric/random/philox_engine
 //
 
 #ifndef _ONEDPL_PHILOX_ENGINE_H
@@ -31,8 +27,6 @@
 namespace oneapi
 {
 namespace dpl
-{
-namespace experimental
 {
 
 template <typename _UIntType, std::size_t _w, std::size_t _n, std::size_t _r,
@@ -67,18 +61,18 @@ class philox_engine
     /* The size of the consts arrays */
     static constexpr std::size_t __array_size = _n / 2;
 
-    /* Methods for unpacking variadic of constants into two arrays */
-    template <std::size_t... _Is>
-    static constexpr auto
-    get_even_element_array(std::array<scalar_type, _n> __input_array, std::index_sequence<_Is...>)
+    /* Method for unpacking even and odd elements of input constants into an array */
+    enum class __indices_offset : std::size_t
     {
-        return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2]...};
-    }
-    template <std::size_t... _Is>
+        __even_indices = 0,
+        __odd_indices = 1
+    };
+    template <__indices_offset _Offset, std::size_t... _Is>
     static constexpr auto
-    get_odd_element_array(std::array<scalar_type, _n> __input_array, std::index_sequence<_Is...>)
+    __get_consts_by(std::index_sequence<_Is...>)
     {
-        return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2 + 1]...};
+        constexpr std::array __input_array{_consts...};
+        return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2 + static_cast<std::size_t>(_Offset)]...};
     }
 
   public:
@@ -97,9 +91,9 @@ class philox_engine
     static_assert(std::is_unsigned_v<scalar_type>, "UIntType must be unsigned type or vector of unsigned types");
 
     static constexpr std::array<scalar_type, __array_size> multipliers =
-        get_even_element_array(std::array{_consts...}, std::make_index_sequence<__array_size>{});
+        __get_consts_by<__indices_offset::__even_indices>(std::make_index_sequence<__array_size>{});
     static constexpr std::array<scalar_type, __array_size> round_consts =
-        get_odd_element_array(std::array{_consts...}, std::make_index_sequence<__array_size>{});
+        __get_consts_by<__indices_offset::__odd_indices>(std::make_index_sequence<__array_size>{});
 
     static constexpr scalar_type
     min()
@@ -269,7 +263,24 @@ class philox_engine
         }
     }
 
-    /* generate_internal() specified for sycl_vec output 
+    /* Decrement counter by 1 */
+    void
+    decrease_counter_internal()
+    {
+        for (std::size_t __i = 0; __i < word_count; ++__i)
+        {
+            if (state_.X[__i])
+            {
+                state_.X[__i] = (state_.X[__i] - 1) & in_mask;
+                return;
+            }
+
+            /* Borrow for zero counter chunk */
+            state_.X[__i] = in_mask;
+        }
+    }
+
+    /* generate_internal() specified for sycl_vec output
        and overload for result portion generation */
     template <unsigned int _N>
     std::enable_if_t<(_N > 0), result_type>
@@ -371,43 +382,44 @@ class philox_engine
     {
         if constexpr (word_count == 2)
         {
-            scalar_type __V0 = state_.X[0];
-            scalar_type __V1 = state_.X[1];
-            scalar_type __K0 = state_.K[0];
+            scalar_type& __v0 = state_.Y[0];
+            scalar_type& __v1 = state_.Y[1];
+            __v0 = state_.X[0];
+            __v1 = state_.X[1];
+            scalar_type __k0 = state_.K[0];
             for (std::size_t __i = 0; __i < round_count; ++__i)
             {
-                auto [__hi0, __lo0] = mulhilo(__V0, multipliers[0]);
-                __V0 = __hi0 ^ __K0 ^ __V1;
-                __V1 = __lo0;
-                __K0 = (__K0 + round_consts[0]) & in_mask;
+                auto [__hi0, __lo0] = mulhilo(__v0, multipliers[0]);
+                __v0 = __hi0 ^ __k0 ^ __v1;
+                __v1 = __lo0;
+                __k0 = (__k0 + round_consts[0]) & in_mask;
             }
-            state_.Y[0] = __V0;
-            state_.Y[1] = __V1;
         }
         else if constexpr (word_count == 4)
         {
-            // permute X to V
-            scalar_type __V2 = state_.X[0];
-            scalar_type __V1 = state_.X[1];
-            scalar_type __V0 = state_.X[2];
-            scalar_type __V3 = state_.X[3];
-            scalar_type __K0 = state_.K[0];
-            scalar_type __K1 = state_.K[1];
+            scalar_type& __v0 = state_.Y[2];
+            scalar_type& __v1 = state_.Y[1];
+            scalar_type& __v2 = state_.Y[0];
+            scalar_type& __v3 = state_.Y[3];
+
+            // permute __x to V
+            __v2 = state_.X[0];
+            __v1 = state_.X[1];
+            __v0 = state_.X[2];
+            __v3 = state_.X[3];
+            scalar_type __k0 = state_.K[0];
+            scalar_type __k1 = state_.K[1];
             for (std::size_t __i = 0; __i < round_count; ++__i)
             {
-                auto [__hi0, __lo0] = mulhilo(__V0, multipliers[0]);
-                auto [__hi1, __lo1] = mulhilo(__V2, multipliers[1]);
-                __V2 = __hi0 ^ __V1 ^ __K0;
-                __V1 = __lo0;
-                __V0 = __hi1 ^ __V3 ^ __K1;
-                __V3 = __lo1;
-                __K0 = (__K0 + round_consts[0]) & in_mask;
-                __K1 = (__K1 + round_consts[1]) & in_mask;
+                auto [__hi0, __lo0] = mulhilo(__v0, multipliers[0]);
+                auto [__hi1, __lo1] = mulhilo(__v2, multipliers[1]);
+                __v2 = __hi0 ^ __v1 ^ __k0;
+                __v1 = __lo0;
+                __v0 = __hi1 ^ __v3 ^ __k1;
+                __v3 = __lo1;
+                __k0 = (__k0 + round_consts[0]) & in_mask;
+                __k1 = (__k1 + round_consts[1]) & in_mask;
             }
-            state_.Y[0] = __V2;
-            state_.Y[1] = __V1;
-            state_.Y[2] = __V0;
-            state_.Y[3] = __V3;
         }
     }
 
@@ -422,33 +434,49 @@ class philox_engine
         if constexpr (word_size <= 32)
         {
             std::uint_fast64_t __mult_result = (std::uint_fast64_t)__a * (std::uint_fast64_t)__b;
-            __res_hi = (__mult_result >> word_size) & in_mask;
-            __res_lo = __mult_result & in_mask;
+            __res_hi = __mult_result >> word_size;
+            __res_lo = __mult_result;
         }
-        /* pen-pencil multiplication by 32-bit chunks */
+        /* pen-and-pencil multiplication by 32-bit chunks */
         else if constexpr (word_size > 32)
         {
-            constexpr std::size_t chunk_size = 32;
-            __res_lo = (__a * __b) & in_mask;
+            constexpr std::size_t __chunk_size = 32;
+            __res_lo = __a * __b;
 
-            scalar_type __x0 = __a & __word_mask<chunk_size>;
-            scalar_type __x1 = __a >> chunk_size;
-            scalar_type __y0 = __b & __word_mask<chunk_size>;
-            scalar_type __y1 = __b >> chunk_size;
+            scalar_type __x0 = __a & __word_mask<__chunk_size>;
+            scalar_type __x1 = __a >> __chunk_size;
+            scalar_type __y0 = __b & __word_mask<__chunk_size>;
+            scalar_type __y1 = __b >> __chunk_size;
 
-            scalar_type __p11 = __x1 * __y1;
-            scalar_type __p01 = __x0 * __y1;
-            scalar_type __p10 = __x1 * __y0;
-            scalar_type __p00 = __x0 * __y0;
+            /* alias partial products to chunk variables to reduce register pressure */
+            scalar_type __p00;
+            scalar_type& __p01 = __x0;
+            scalar_type& __p10 = __y0;
+            scalar_type& __p11 = __x1;
 
-            // 64-bit product + two 32-bit values
-            scalar_type __middle = __p10 + (__p00 >> chunk_size) + (__p01 & __word_mask<chunk_size>);
+            /* calculate parts of the final multiplication result */
+            __p00 = __x0 * __y0;
+            __p01 = __x0 * __y1;
+            __p10 = __x1 * __y0;
+            __p11 = __x1 * __y1;
 
-            // 64-bit product + two 32-bit values
-            __res_hi = (__p11 + (__middle >> chunk_size) + (__p01 >> chunk_size)) & in_mask;
+            /* addition of three 32-bit values to get the carry for the hi part */
+            scalar_type& __carry_hi = __y1;
+            __carry_hi =
+                ((__p10 & __word_mask<__chunk_size>)+(__p00 >> __chunk_size) + (__p01 & __word_mask<__chunk_size>)) >>
+                __chunk_size;
+
+            /* 64-bit product + two 32-bit values + carry from the lo part */
+            __res_hi = (__p11 + (__p01 >> __chunk_size) + (__p10 >> __chunk_size) + __carry_hi);
+
+            /* for w!=64 the result should be concatenated with the lo part */
+            __res_hi =
+                (word_size == std::numeric_limits<scalar_type>::digits)
+                    ? __res_hi
+                    : __res_hi << (std::numeric_limits<scalar_type>::digits - word_size) | (__res_lo >> word_size);
         }
 
-        return {__res_hi, __res_lo};
+        return {__res_hi & in_mask, __res_lo & in_mask};
     }
 };
 
@@ -464,17 +492,13 @@ operator<<(std::basic_ostream<__CharT, __Traits>& __os,
     __CharT __sp = __os.widen(' ');
     __os.fill(__sp);
 
-    for (auto x_elm : __engine.state_.X)
+    for (auto __k_elm : __engine.state_.K)
     {
-        __os << x_elm << __sp;
+        __os << __k_elm << __sp;
     }
-    for (auto k_elm : __engine.state_.K)
+    for (auto __x_elm : __engine.state_.X)
     {
-        __os << k_elm << __sp;
-    }
-    for (auto y_elm : __engine.state_.Y)
-    {
-        __os << y_elm << __sp;
+        __os << __x_elm << __sp;
     }
     __os << __engine.state_.idx;
 
@@ -486,17 +510,13 @@ template <typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r
 const sycl::stream&
 operator<<(const sycl::stream& __os, const philox_engine<__UIntType, __w, __n, __r, __consts...>& __engine)
 {
-    for (auto __x_elm : __engine.state_.X)
-    {
-        __os << __x_elm << ' ';
-    }
     for (auto __k_elm : __engine.state_.K)
     {
         __os << __k_elm << ' ';
     }
-    for (auto __y_elm : __engine.state_.Y)
+    for (auto __x_elm : __engine.state_.X)
     {
-        __os << __y_elm << ' ';
+        __os << __x_elm << ' ';
     }
     __os << __engine.state_.idx;
 
@@ -512,8 +532,8 @@ operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType
 
     __is.setf(std::ios_base::dec);
 
-    /* Number of elements in the state (X, K, Y and idx) */
-    constexpr std::size_t __state_size = 2 * __n + __n / 2 + 1;
+    /* Number of elements in the state (K, X and idx) */
+    constexpr std::size_t __state_size = __n / 2 + __n + 1;
 
     std::array<oneapi::dpl::internal::element_type_t<__UIntType>, __state_size> __tmp_inp;
     for (std::size_t __i = 0; __i < __state_size; ++__i)
@@ -524,19 +544,28 @@ operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType
     if (!__is.fail())
     {
         int __inp_itr = 0;
-        for (std::size_t __i = 0; __i < __n; ++__i, ++__inp_itr)
-            __engine.state_.X[__i] = __tmp_inp[__inp_itr];
         for (std::size_t __i = 0; __i < __n / 2; ++__i, ++__inp_itr)
+        {
             __engine.state_.K[__i] = __tmp_inp[__inp_itr];
+        }
         for (std::size_t __i = 0; __i < __n; ++__i, ++__inp_itr)
-            __engine.state_.Y[__i] = __tmp_inp[__inp_itr];
+        {
+            __engine.state_.X[__i] = __tmp_inp[__inp_itr];
+        }
         __engine.state_.idx = __tmp_inp[__inp_itr];
+
+        /* Counter is incremented right after the generation of Yi - to restore the unused sequence Yi, the counter has to be decremented */
+        if (__engine.state_.idx != __n - 1)
+        {
+            __engine.decrease_counter_internal();
+            /* setup Yi */
+            __engine.philox_kernel();
+        }
     }
 
     return __is;
 }
 
-} // namespace experimental
 } // namespace dpl
 } // namespace oneapi
 

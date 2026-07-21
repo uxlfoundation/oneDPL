@@ -24,6 +24,10 @@
 #ifndef _ONEDPL_SYCL_TRAITS_H
 #define _ONEDPL_SYCL_TRAITS_H
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#    include <ranges>
+#endif
+
 #if _ONEDPL_SYCL_DEVICE_COPYABLE_SPECIALIZATION_BROKEN
 // Prior to the particular version of SYCL library implementation, sycl::is_device_copyable relied upon a second
 // template parameter to resolve ambiguity with the general is_trivially_copyable trait. This does not follow the SYCL
@@ -443,10 +447,10 @@ struct __gen_mask;
 template <typename _BinaryPredicate>
 struct __gen_unique_mask;
 
-template <typename _GenMask>
+template <typename _GenMask, typename _RetType>
 struct __gen_count_mask;
 
-template <typename _GenMask, typename _RangeTransform>
+template <typename _GenMask, typename _RetType, typename _RangeTransform>
 struct __gen_expand_count_mask;
 
 template <int32_t __offset, typename _Assign>
@@ -476,19 +480,21 @@ struct __red_by_seg_op;
 template <typename _BinaryOp>
 struct __scan_by_seg_op;
 
-template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _SetOpCount, typename _BoundsProvider, typename _RetType, typename _Compare, typename _Proj1,
+          typename _Proj2>
 struct __gen_set_balanced_path;
 
-template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _SetOpCount, typename _TempData, typename _RetType, typename _Compare, typename _Proj1,
+          typename _Proj2>
 struct __gen_set_op_from_known_balanced_path;
 
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag,
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
+template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename _KernelName>
+          typename _TransformResult, typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
 template <typename _GenInput, typename _KernelName>
@@ -544,15 +550,16 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPredicate>
 {
 };
-template <typename _GenMask>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_count_mask, _GenMask)>
+template <typename _GenMask, typename _RetType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_count_mask, _GenMask,
+                                                       _RetType)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
 {
 };
 
-template <typename _GenMask, typename _RangeTransform>
+template <typename _GenMask, typename _RetType, typename _RangeTransform>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask,
-                                                       _GenMask, _RangeTransform)>
+                                                       _GenMask, _RetType, _RangeTransform)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
 {
 };
@@ -617,40 +624,44 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2,
+          typename _RetType>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path,
-                                                       _SetOpCount, _BoundsProvider, _Compare, _Proj1, _Proj2)>
+                                                       _SetOpCount, _BoundsProvider, _RetType, _Compare, _Proj1,
+                                                       _Proj2)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_SetOpCount, _BoundsProvider, _Compare, _Proj1, _Proj2>
 {
 };
 
-template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
-struct sycl::is_device_copyable<
-    _ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path,
-                           _SetOpCount, _TempData, _Compare, _Proj1, _Proj2)>
+template <typename _SetOpCount, typename _TempData, typename _RetType, typename _Compare, typename _Proj1,
+          typename _Proj2>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
+    oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path, _SetOpCount, _TempData, _RetType,
+    _Compare, _Proj1, _Proj2)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_SetOpCount, _Compare, _Proj1, _Proj2>
 {
 };
 
 // Submitters that capture member variables via *this into the kernel lambda must have device copyable specializations
 // if their members may not be trivially copyable.
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag,
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename... _KernelName>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
-    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_reduce_submitter, __max_inputs_per_item,
-    __is_inclusive, __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType, _KernelName...)>
+    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_reduce_submitter, _Bounded, __is_inclusive,
+    __is_unique_pattern_v, _ScanOpsTag, _GenReduceInput, _ReduceOp, _InitType, _KernelName...)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenReduceInput, _ReduceOp, _InitType>
 {
 };
 
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
+template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename... _KernelName>
+          typename _TransformResult, typename... _KernelName>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
-    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_scan_submitter, __max_inputs_per_item,
-    __is_inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
-    _KernelName...)> : oneapi::dpl::__internal::__are_all_device_copyable<_ReduceOp, _GenScanInput, _ScanInputTransform,
-                                                                          _WriteOp, _InitType>
+    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_scan_submitter, _Bounded, __is_inclusive,
+    __is_unique_pattern_v, _ScanOpsTag, _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
+    _TransformResult, _KernelName...)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp,
+                                                         _InitType, _TransformResult>
 {
 };
 template <typename _GenInput, typename KernelName>
@@ -693,27 +704,11 @@ struct n_elem_match_pred;
 template <typename _Pred>
 struct first_match_pred;
 
-template <typename _Pred, typename _ValueType>
-struct __create_mask;
-
-template <typename _Assigner, std::size_t N>
-struct __copy_by_mask;
-
-template <typename _Inclusive, typename _BinaryOp, typename _InitType>
-struct __global_scan_functor;
-
 template <typename _InitType>
 struct __init_value;
 
-template <typename _Inclusive, typename _BinaryOperation, typename _UnaryOp, typename _WgAssigner,
-          typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
-struct __scan;
-
 template <typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
 struct __brick_includes;
-
-template <typename _SetTag, typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
-class __brick_set_op;
 
 template <typename _BinaryOperator, typename _Size>
 struct __brick_reduce_idx;
@@ -783,38 +778,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _Pred, typename _ValueType>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__create_mask, _Pred, _ValueType)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
-{
-};
-
-template <typename _Assigner, std::size_t N>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__copy_by_mask, _Assigner, N)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Assigner>
-{
-};
-
-template <typename _Inclusive, typename _BinaryOp, typename _InitType>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__global_scan_functor, _Inclusive,
-                                                       _BinaryOp, _InitType)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOp, _InitType>
-{
-};
-
 template <typename _InitType>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__init_value, _InitType)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_InitType>
-{
-};
-
-template <typename _Inclusive, typename _BinaryOperation, typename _UnaryOp, typename _WgAssigner,
-          typename _GlobalAssigner, typename _DataAccessor, typename _InitType>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__scan, _Inclusive, _BinaryOperation,
-                                                       _UnaryOp, _WgAssigner, _GlobalAssigner, _DataAccessor,
-                                                       _InitType)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOperation, _UnaryOp, _WgAssigner, _GlobalAssigner,
-                                                         _DataAccessor, _InitType>
 {
 };
 
@@ -825,17 +791,28 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _SetTag, typename _SizeA, typename _SizeB, typename _Compare, typename _ProjA, typename _ProjB>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_set_op, _SetTag, _SizeA,
-                                                       _SizeB, _Compare, _ProjA, _ProjB)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_SizeA, _SizeB, _Compare, _ProjA, _ProjB>
-{
-};
-
 template <typename _BinaryOperator, typename _Size>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__brick_reduce_idx, _BinaryOperator,
                                                        _Size)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOperator, _Size>
+{
+};
+
+namespace oneapi::dpl::__internal
+{
+
+template <sycl::access_mode Mode, typename T, typename Allocator>
+struct sycl_iterator;
+
+} // namespace oneapi::dpl::__internal
+
+// sycl_iterator is not device_copyable: it wraps a sycl::buffer and is only usable on the host. This
+// specialization is more specialized than any user-provided template <class T> struct is_device_copyable<T>
+// specialization, so it takes precedence and keeps sycl_iterator from being mistaken for a directly-passable,
+// device-ready iterator.
+template <sycl::access_mode Mode, typename T, typename Allocator>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::sycl_iterator, Mode, T, Allocator)>
+    : std::false_type
 {
 };
 
@@ -916,6 +893,41 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::permutation_
     : oneapi::dpl::__internal::__are_all_device_copyable<SourceIterator, _Permutation>
 {
 };
+
+// zip_view device copyable specializations
+
+namespace oneapi::dpl::__ranges
+{
+
+template <typename... _Ranges>
+class zip_view;
+
+} // namespace oneapi::dpl::__ranges
+
+template <typename... _Ranges>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__ranges::zip_view, _Ranges...)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Ranges...>
+{
+};
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+
+namespace oneapi::dpl::ranges::__internal
+{
+
+template <std::ranges::input_range... _Views>
+    requires((std::ranges::view<_Views> && ...) && (sizeof...(_Views) > 0))
+class zip_view;
+
+} // namespace oneapi::dpl::ranges::__internal
+
+template <typename... _Views>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::ranges::__internal::zip_view, _Views...)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Views...>
+{
+};
+
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 #undef _ONEDPL_SPECIALIZE_FOR
 

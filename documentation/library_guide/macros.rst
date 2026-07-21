@@ -8,9 +8,7 @@ Use these macros to get the current version of |onedpl_long| (|onedpl_short|).
 ================================= ==============================
 Macro                             Description
 ================================= ==============================
-``ONEDPL_SPEC_VERSION``           The version of the `specification
-                                  <https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/>`_
-                                  that the implementation is compliant with.
+``ONEDPL_SPEC_VERSION``           The version of the |onedpl_specification|_ that the implementation is compliant with.
 --------------------------------- ------------------------------
 ``ONEDPL_VERSION_MAJOR``          A decimal number for the major version of the library.
 --------------------------------- ------------------------------
@@ -42,13 +40,16 @@ Macro                              Macro values and the functionality
 ================================== ===============================================
 ``ONEDPL_HAS_RANDOM_NUMBERS``      Pseudo-random number generators and distributions.
 
-                                   * ``202409L`` - added support of comparison and I/O stream operators and an experimental Philox engine
+                                   * ``202409L`` - added support of comparison and I/O stream operators and an experimental Philox engine.
+                                   * ``202603L`` - finalized the Philox engine and moved it to the ``oneapi::dpl`` namespace.
 ---------------------------------- -----------------------------------------------
 ``ONEDPL_HAS_RANGE_ALGORITHMS``    Parallel range algorithms.
 
                                    * ``202409L`` - see :ref:`available algorithms <range-algorithms-202409L>`.
                                    * ``202505L`` - see :ref:`available algorithms <range-algorithms-202505L>`.
                                    * ``202509L`` - see :ref:`available algorithms <range-algorithms-202509L>`.
+                                   * ``202604L`` - see :ref:`available algorithms <range-algorithms-202604L>`.
+                                   * ``202605L`` - see :ref:`available algorithms <range-algorithms-202605L>`.
 ================================== ===============================================
 
 Additional Macros
@@ -56,89 +57,108 @@ Additional Macros
 Use these macros to control aspects of |onedpl_short| usage. You can set them in your program code
 before including |onedpl_short| headers.
 
-================================== ==============================
-Macro                              Description
-================================== ==============================
-``PSTL_USE_NONTEMPORAL_STORES``    This macro enables the use of ``#pragma vector nontemporal``
-                                   for write-only data when algorithms such as ``std::copy``, ``std::fill``, etc.,
-                                   are executed with unsequenced policies.
-                                   For further details about the pragma, see the |vector_pragma|_.
-                                   If the macro evaluates to a non-zero value,
-                                   the use of ``#pragma vector nontemporal`` is enabled.
-                                   By default, the macro is not defined.
+==================================== ==============================
+Macro                                Description
+==================================== ==============================
+``PSTL_USE_NONTEMPORAL_STORES``      This macro enables the use of ``#pragma vector nontemporal``
+                                     for write-only data when algorithms such as ``std::copy``, ``std::fill``, etc.,
+                                     are executed with unsequenced policies.
+                                     For further details about the pragma, see the |vector_pragma|_.
+                                     If the macro evaluates to a non-zero value,
+                                     the use of ``#pragma vector nontemporal`` is enabled.
+                                     By default, the macro is not defined.
 
-                                   Using this macro may have the same effect on the implementation of parallel
-                                   algorithms in the C++ standard libraries of GCC and LLVM.
----------------------------------- ------------------------------
-``PSTL_USAGE_WARNINGS``            This macro enables Parallel STL to
-                                   emit compile-time messages, such as warnings
-                                   about an algorithm not supporting a certain execution policy.
-                                   When set to 1, the macro allows the implementation to emit
-                                   usage warnings. When the macro is not defined (by default)
-                                   or evaluates to zero, usage warnings are disabled.
+                                     Using this macro may have the same effect on the implementation of parallel
+                                     algorithms in the C++ standard libraries of GCC and LLVM.
+------------------------------------ ------------------------------
+``PSTL_USAGE_WARNINGS``              This macro enables Parallel STL to
+                                     emit compile-time messages, such as warnings
+                                     about an algorithm not supporting a certain execution policy.
+                                     When set to 1, the macro allows the implementation to emit
+                                     usage warnings. When the macro is not defined (by default)
+                                     or evaluates to zero, usage warnings are disabled.
 
-                                   Using this macro may have the same effect on the implementation of parallel
-                                   algorithms in the C++ standard libraries of GCC and LLVM.
----------------------------------- ------------------------------
-``ONEDPL_USE_TBB_BACKEND``         This macro controls the use of |onetbb_long| or |tbb_long| for parallel
-                                   execution policies (``par`` and ``par_unseq``).
+                                     Using this macro may have the same effect on the implementation of  parallel
+                                     algorithms in the C++ standard libraries of GCC and LLVM.
+------------------------------------ ------------------------------
+``ONEDPL_USE_TBB_BACKEND``           This macro controls the use of |onetbb_long| or |tbb_long| for parallel
+                                     execution policies (``par`` and ``par_unseq``).
 
-                                   When the macro evaluates to a non-zero value, or when it is not defined (by default)
-                                   and no other parallel backends are explicitly chosen, algorithms with parallel policies
-                                   are executed using the |onetbb_short| or |tbb_short| library.
-                                   Setting the macro to 0 disables use of TBB API for parallel execution and is recommended
-                                   for code that should not depend on the presence of the |onetbb_short| or |tbb_short| library.
+                                     When the macro evaluates to a non-zero value, or when it is not defined (by default)
+                                     and no other parallel backends are explicitly chosen, algorithms with parallel policies
+                                     are executed using the |onetbb_short| or |tbb_short| library.
+                                     Setting the macro to 0 disables use of TBB API for parallel execution and is recommended
+                                     for code that should not depend on the presence of the |onetbb_short| or |tbb_short| library.
 
-                                   If all parallel backends are disabled by setting respective macros to 0, algorithms
-                                   with parallel policies are executed sequentially by the calling thread.
----------------------------------- ------------------------------
-``ONEDPL_USE_OPENMP_BACKEND``      This macro controls the use of OpenMP* for parallel execution policies (``par`` and ``par_unseq``).
+                                     If all parallel backends are disabled by setting respective macros to 0, algorithms
+                                     with parallel policies are executed sequentially by the calling thread.
+------------------------------------ ------------------------------
+``ONEDPL_USE_OPENMP_BACKEND``        This macro controls the use of OpenMP* for parallel execution policies (``par`` and ``par_unseq``).
 
-                                   When the macro evaluates to a non-zero value, algorithms with parallel policies are executed
-                                   using OpenMP unless the TBB backend is explicitly enabled (that is, the TBB backend takes
-                                   precedence over the OpenMP backend).
-                                   When the macro is not defined (by default) and no other parallel backends are chosen,
-                                   a dedicated compiler option to enable OpenMP (such as ``-fopenmp``) also enables its use
-                                   for algorithms with parallel policies.
-                                   Setting the macro to 0 disables use of OpenMP for parallel execution.
+                                     When the macro evaluates to a non-zero value, algorithms with parallel policies are executed
+                                     using OpenMP unless the TBB backend is explicitly enabled (that is, the TBB backend takes
+                                     precedence over the OpenMP backend).
+                                     When the macro is not defined (by default) and no other parallel backends are chosen,
+                                     a dedicated compiler option to enable OpenMP (such as ``-fopenmp``) also enables its use
+                                     for algorithms with parallel policies.
+                                     Setting the macro to 0 disables use of OpenMP for parallel execution.
 
-                                   If all parallel backends are disabled by setting respective macros to 0, algorithms
-                                   with parallel policies are executed sequentially by the calling thread.
----------------------------------- ------------------------------
-``ONEDPL_USE_DPCPP_BACKEND``       This macro enables the use of device execution policies.
+                                     If all parallel backends are disabled by setting respective macros to 0, algorithms
+                                     with parallel policies are executed sequentially by the calling thread.
+------------------------------------ ------------------------------
+``ONEDPL_USE_DPCPP_BACKEND``         This macro enables the use of device execution policies.
 
-                                   When the macro is not defined (default),
-                                   device policies are enabled only if SYCL support can be detected;
-                                   otherwise, they are disabled.
-                                   If the macro is set to a non-zero value, device policies are enabled unconditionally.
-                                   Setting the macro to 0 disables device policies.
+                                     When the macro is not defined (default),
+                                     device policies are enabled only if SYCL support can be detected;
+                                     otherwise, they are disabled.
+                                     If the macro is set to a non-zero value, device policies are enabled unconditionally.
+                                     Setting the macro to 0 disables device policies.
 
-                                   When device policies are disabled, no SYCL dependency is introduced,
-                                   and their usage will lead to compilation errors.
----------------------------------- ------------------------------
-``ONEDPL_USE_PREDEFINED_POLICIES`` This macro enables the use of predefined device policy objects,
-                                   such as ``dpcpp_default`` and ``dpcpp_fpga``. When the macro is not defined (by default)
-                                   or evaluates to non-zero, predefined policies objects can be used.
-                                   When the macro is set to 0, predefined policies objects and make functions
-                                   without arguments (``make_device_policy()`` and ``make_fpga_policy()``) are not available.
----------------------------------- ------------------------------
-``ONEDPL_ALLOW_DEFERRED_WAITING``  This macro allows waiting for completion of certain algorithms executed with
-                                   device policies to be deferred. (Disabled by default.)
+                                     When device policies are disabled, no SYCL dependency is introduced,
+                                     and their usage will lead to compilation errors.
+------------------------------------ ------------------------------
+``ONEDPL_USE_PREDEFINED_POLICIES``   This macro enables the use of predefined device policy objects,
+                                     such as ``dpcpp_default``. When the macro is not defined (by default)
+                                     or evaluates to non-zero, predefined policy objects can be used.
+                                     When the macro is set to 0, predefined policy objects and the
+                                     ``make_device_policy()`` function without arguments are not available.
+------------------------------------ ------------------------------
+``ONEDPL_ALLOW_DEFERRED_WAITING``    This macro allows waiting for completion of certain algorithms executed with
+                                     device policies to be deferred. (Disabled by default.)
 
-                                   When the macro evaluates to non-zero, a call to a oneDPL algorithm with
-                                   a device policy might return before the computation completes on the device.
+                                     When the macro evaluates to non-zero, a call to an algorithm with
+                                     a device policy might return before the computation completes on the device.
 
-                                   .. Warning:: Before accessing data produced or modified by the call, waiting
-                                      for completion of all tasks in the corresponding SYCL queue is required;
-                                      otherwise, the program behavior is undefined.
----------------------------------- ------------------------------
-``ONEDPL_FPGA_DEVICE``             Use this macro to build your code containing |onedpl_short| parallel
-                                   algorithms for FPGA devices. (Disabled by default.)
----------------------------------- ------------------------------
-``ONEDPL_FPGA_EMULATOR``           Use this macro to build your code containing Parallel STL
-                                   algorithms for FPGA emulation device. (Disabled by default.)
+                                     .. Warning:: Before accessing data produced or modified by the call, waiting
+                                        for completion of all tasks in the corresponding SYCL queue is required;
+                                        otherwise, the program behavior is undefined.
+------------------------------------ ------------------------------
+``ONEDPL_SET_RANGE_ALGS_CPP26_LIKE`` This macro enables the use of C++26 conformant return value semantics
+                                     for ``oneapi::dpl::ranges::set_*`` algorithms. (Disabled by default.)
 
-                                   .. Note:: Define ``ONEDPL_FPGA_DEVICE`` and ``ONEDPL_FPGA_EMULATOR`` macros in the same
-                                      application to run on a FPGA emulation device.
-                                      Define only the ``ONEDPL_FPGA_DEVICE`` macro to run on a FPGA hardware device.
-================================== ==============================
+                                     When the macro evaluates to non-zero, these algorithms change the return type
+                                     and/or value to match the respective C++26 parallel algorithm in ``std::ranges``,
+                                     which might be incompatible with the earlier versions of |onedpl_short|.
+
+                                     .. Warning:: This behavior is not yet supported for device execution policies. If such policy
+                                     is used with a ``ranges::set_*`` algorithm when the macro is set, you will get a compilation error.
+
+                                     .. Note:: The standard conformant behavior for these algorithms will be fully enabled
+                                     in a future release, at which point any value of the macro will have no effect.
+------------------------------------ ------------------------------
+``ONEDPL_FPGA_DEVICE``               Use this macro to build your code containing |onedpl_short| parallel
+                                     algorithms for FPGA devices. (Disabled by default.)
+
+                                     .. Warning:: Support for FPGA and FPGA emulation devices in |onedpl_short| parallel algorithms
+                                        is deprecated and will be removed in a future release.
+------------------------------------ ------------------------------
+``ONEDPL_FPGA_EMULATOR``             Use this macro to build your code containing Parallel STL
+                                     algorithms for FPGA emulation device. (Disabled by default.)
+
+                                     .. Warning:: Support for FPGA and FPGA emulation devices in |onedpl_short| parallel algorithms
+                                        is deprecated and will be removed in a future release.
+
+                                     .. Note:: Define ``ONEDPL_FPGA_DEVICE`` and ``ONEDPL_FPGA_EMULATOR`` macros in the same
+                                        application to run on a FPGA emulation device.
+                                        Define only the ``ONEDPL_FPGA_DEVICE`` macro to run on a FPGA hardware device.
+==================================== ==============================

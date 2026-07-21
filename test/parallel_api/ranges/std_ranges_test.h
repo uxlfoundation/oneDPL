@@ -26,7 +26,7 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L);
+static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202605L);
 
 #if TEST_CPP20_SPAN_PRESENT
 #include <span>
@@ -39,6 +39,17 @@ static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L);
 #include <algorithm>
 #include <memory>
 #include <array>
+
+// Controls how many range/view permutations each test builds. When set to 1
+// (the default), every view-type permutation is built and run, giving full
+// coverage. When set to 0, only a single representative permutation is built
+// per call, which substantially reduces compile time. Per-commit CI defines
+// this to 0 for the bulk of the std_ranges tests when building with the dpcpp
+// backend; a couple of representative tests force it back to 1 so full
+// permutation coverage is still exercised in that CI.
+#    ifndef ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
+#        define ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS 1
+#    endif
 
 namespace test_std_ranges
 {
@@ -54,6 +65,10 @@ inline constexpr int big_size = (1<<22) + 37; //4M
 inline constexpr int big_size = (1<<24) + 10; //16M
 #endif
 
+// Cap used for the device tier of scan-based std_ranges tests when the dpcpp
+// backend targets a CPU device.
+inline constexpr int big_size_scan_cpu = (1 << 20) + 10; //1M
+
 // ~100K is sufficient for parallel policies.
 // It also usually results in using multiple-work-group specializations for device policies.
 inline constexpr int medium_size = (1<<17) + 10; //128K
@@ -64,8 +79,23 @@ inline constexpr int small_size = 2025;
 
 #if TEST_DPCPP_BACKEND_PRESENT
 inline constexpr std::array<int, 3> big_sz = {/*serial*/ small_size, /*par*/ medium_size, /*device*/ big_size};
+
+// Size tuple for scan-based std_ranges tests (copy_if, remove*, unique*,
+// set_*). Shrinks the device tier for CPU+dpcpp at runtime.
+inline std::array<int, 3>
+get_scan_big_sz()
+{
+    const int device_size = TestUtils::test_queue_is_cpu() ? big_size_scan_cpu : big_size;
+    return {/*serial*/ small_size, /*par*/ medium_size, /*device*/ device_size};
+}
 #else
 inline constexpr std::array<int, 2> big_sz = {/*serial*/ small_size, /*par*/ medium_size};
+
+inline std::array<int, 2>
+get_scan_big_sz()
+{
+    return {/*serial*/ small_size, /*par*/ medium_size};
+}
 #endif
 
 enum TestDataMode
@@ -103,11 +133,20 @@ struct P2
 {
     P2() {}
     P2(int v): x(v) {}
+    P2(int v, int w): x(v), y(w) {}
     int x = {};
     int y = {};
 
     int proj() const { return x; }
     friend bool operator==(const P2& a, const P2& b) { return a.x == b.x && a.y == b.y; }
+};
+
+struct P3 : public P2
+{
+    using P2::P2;
+    P3(int v): P2(v, v + 13) {}
+
+    friend bool operator==(const P3& a, const P3& b) { return a.x == b.x && a.y == b.y; }
 };
 
 struct A
@@ -215,6 +254,12 @@ template <typename I1, typename I2>
 static constexpr bool check_in_in_result<std::ranges::in_in_result<I1, I2>> = true;
 
 template <typename T>
+static constexpr bool check_in_out_result{};
+
+template <typename I1, typename O>
+static constexpr bool check_in_out_result<std::ranges::in_out_result<I1, O>> = true;
+
+template <typename T>
 static constexpr bool check_in_in_out_result{};
 
 template <typename I1, typename I2, typename O>
@@ -258,6 +303,14 @@ struct all_dangling_in_result<std::ranges::min_max_result<std::ranges::dangling>
 template <typename _ReturnType>
 constexpr bool all_dangling_in_result_v = all_dangling_in_result<_ReturnType>::value;
 
+void call_with_host_policies(auto algo, auto... args)
+{
+    algo(oneapi::dpl::execution::seq, args...);
+    algo(oneapi::dpl::execution::unseq, args...);
+    algo(oneapi::dpl::execution::par, args...);
+    algo(oneapi::dpl::execution::par_unseq, args...);
+}
+
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
 struct test
@@ -283,98 +336,7 @@ struct test
 
 private:
 
-    template <typename T>
-    using TmpContainerType = std::array<T,0>;
-
-    // Test dangling iterators in return types for call with temporary data
-    template <int idx, typename Policy, typename Algo, typename ...Args>
-    constexpr void
-    test_dangling_pointers_arg_1(Policy&& exec, Algo&& algo, Args&& ...args)
-    {
-        // Check dangling iterators in return types for call with temporary data
-        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
-        {
-            using T = typename Container::value_type;
-
-            // Check dangling with temporary containers in implementation
-            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
-                                            std::declval<TmpContainerType<T>>(),
-                                            args...));
-
-            if constexpr (!std::is_fundamental_v<res_ret_t>)
-            {
-                if constexpr (!all_dangling_in_result_v<res_ret_t>)
-                    static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
-            }
-        }
-    }
-
-    // Test dangling iterators in return types for call with temporary data
-    template <int idx, typename Policy, typename Algo, typename ...Args>
-    constexpr void
-    test_dangling_pointers_args_2(Policy&& exec, Algo&& algo, Args&& ...args)
-    {
-        // Check dangling iterators in return types for call with temporary data
-        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
-        {
-            using T = typename Container::value_type;
-
-            // Check dangling with temporary containers in implementation
-            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
-                                            std::declval<TmpContainerType<T>>(),
-                                            std::declval<TmpContainerType<T>>(),
-                                            args...));
-
-            if constexpr (!std::is_fundamental_v<res_ret_t>)
-            {
-                if constexpr (!all_dangling_in_result_v<res_ret_t>)
-                    static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
-            }
-        }
-    }
-
-    // Test dangling iterators in return types for call with temporary data
-    template <int idx, typename Policy, typename Algo, typename ...Args>
-    constexpr void
-    test_dangling_pointers_args_3(Policy&& exec, Algo&& algo, Args&& ...args)
-    {
-        // Check dangling iterators in return types for call with temporary data
-        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
-        {
-            using T = typename Container::value_type;
-
-            // Check dangling with temporary containers in implementation
-            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
-                                            std::declval<TmpContainerType<T>>(),
-                                            std::declval<TmpContainerType<T>>(),
-                                            std::declval<TmpContainerType<T>>(),
-                                            args...));
-
-            if constexpr (!std::is_fundamental_v<res_ret_t>)
-            {
-                if constexpr (!all_dangling_in_result_v<res_ret_t>)
-                    static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
-            }
-        }
-    }
-
-    // Test dangling iterators in return types for call with temporary data
-    template <std::size_t ArgsSize, int idx, typename Policy, typename Algo, typename ...Args>
-    constexpr void
-    test_dangling_pointers(Policy&& exec, Algo&& algo, Args&& ...args)
-    {
-        static_assert(ArgsSize == 1 || ArgsSize == 2 || ArgsSize == 3,
-                      "The test for dangling pointers is not implemented for this number of algorithm arguments");
-
-        if constexpr (ArgsSize == 1)
-            test_dangling_pointers_arg_1<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
-
-        else if constexpr (ArgsSize == 2)
-            test_dangling_pointers_args_2<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
-
-        else if constexpr (ArgsSize == 3)
-            test_dangling_pointers_args_3<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
-    }
+    using rvalue_container_t = std::array<typename Container::value_type, 0>;
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn>
     void
@@ -396,9 +358,21 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        EXPECT_EQ(ret_in_val(expected_res, expected_view.begin()), ret_in_val(res, r_in.begin()),
-                  (std::string("wrong stop position with ") + typeid(Algo).name() +
-                   typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+        if constexpr(is_range<std::remove_cvref_t<decltype(res)>>)
+        {
+            std::pair exp_split = ret_in_val(expected_res, expected_view.begin());
+            std::pair split = ret_in_val(res, r_in.begin());
+            EXPECT_EQ(exp_split.first, split.first, (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+            EXPECT_EQ(exp_split.second, split.second, (std::string("wrong subrange size with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+        }
+        else
+        {
+            EXPECT_EQ(ret_in_val(expected_res, expected_view.begin()), ret_in_val(res, r_in.begin()),
+                      (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+        }
 
         //check result
         auto n = std::ranges::size(expected_view);
@@ -408,8 +382,23 @@ private:
         EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("data mismatch with ")
             + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
 
-        // Test dangling iterators in return types for call with temporary data
-        test_dangling_pointers<1, 100>(exec, algo, std::forward<decltype(args)>(args)...);
+        if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT // Otherwise, `tr_in = std::views::all` leads to a compile error for `rvalue_container_t`.
+            // Check dangling iterators in return types for call with r-value ranges; 
+            // TransIn may modify the non-borrowed range to a borrowed one, so we need to check it.        
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
+            {
+                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()), args...));
+
+                if constexpr(!std::is_fundamental_v<res_ret_t>)
+                {
+                    static_assert(all_dangling_in_result_v<res_ret_t>,
+                                "res_ret_t is expected to be or consist of std::ranges::dangling");
+                }
+            }
+#endif //_ONEDPL_CPP20_OWNING_VIEW_PRESENT
+        }
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut,
@@ -445,7 +434,12 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        if constexpr (check_in_out_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                        (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
+        else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                       (std::string("wrong input stop position with ") + names + sizes).c_str());
@@ -480,8 +474,25 @@ private:
         EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp,
                     (std::string("input mismatch with ") + names + sizes).c_str());
 
-        // Test dangling iterators in return types for call with temporary data
-        test_dangling_pointers<2, 200>(exec, algo, std::forward<decltype(args)>(args)...);
+        if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT // Otherwise, `tr_in = std::views::all` leads to a compile error for `rvalue_container_t`.
+            // Check dangling iterators in return types for call with r-value ranges; 
+            // TransIn and TransOut may modify the non-borrowed range to a borrowed one, so we need to check it.
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
+                        && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
+            {
+                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
+                                        tr_out(std::declval<rvalue_container_t&&>()), args...));
+
+                if constexpr(!std::is_fundamental_v<res_ret_t>)
+                {
+                    static_assert(all_dangling_in_result_v<res_ret_t>,
+                                "res_ret_t is expected to be or consist of std::ranges::dangling");
+                }
+            }
+#endif //_ONEDPL_CPP20_OWNING_VIEW_PRESENT
+        }
     }
 
 public:
@@ -531,6 +542,8 @@ public:
 
         //test cases with empty sequence(s)
         process_data_in_in(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, 0, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
     }
 
 private:
@@ -587,8 +600,24 @@ private:
                        typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
         }
 
-        // Test dangling iterators in return types for call with temporary data
-        test_dangling_pointers<2, 300>(exec, algo, std::forward<decltype(args)>(args)...);
+        if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT // Otherwise, `tr_in = std::views::all` leads to a compile error for `rvalue_container_t`.
+            // Check dangling iterators in return types for call with r-value ranges; 
+            // TransIn may modify the non-borrowed range to a borrowed one, so we need to check it.
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
+            {
+                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
+                                        tr_in(std::declval<rvalue_container_t&&>()), args...));
+
+                if constexpr(!std::is_fundamental_v<res_ret_t>)
+                {
+                    static_assert(all_dangling_in_result_v<res_ret_t>,
+                                "res_ret_t is expected to be or consist of std::ranges::dangling");
+                }
+            }
+#endif //_ONEDPL_CPP20_OWNING_VIEW_PRESENT
+        }
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut,
@@ -624,7 +653,12 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        if constexpr (check_in_out_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
+        else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                       (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
@@ -648,8 +682,26 @@ private:
         EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("output mismatch with ")
                     + typeid(Algo).name() + typeid(Policy).name() + sizes).c_str());
 
-        // Test dangling iterators in return types for call with temporary data
-        test_dangling_pointers<3, 400>(exec, algo, std::forward<decltype(args)>(args)...);
+        if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT // Otherwise, `tr_in = std::views::all` leads to a compile error for `rvalue_container_t`.
+            // Check dangling iterators in return types for call with r-value ranges; 
+            // TransIn and TransOut may modify the non-borrowed range to a borrowed one, so we need to check it.
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
+                        && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
+            {
+                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
+                                        tr_in(std::declval<rvalue_container_t&&>()),
+                                        tr_out(std::declval<rvalue_container_t&&>()), args...));
+
+                if constexpr(!std::is_fundamental_v<res_ret_t>)
+                {
+                    static_assert(all_dangling_in_result_v<res_ret_t>,
+                                "res_ret_t is expected to be or consist of std::ranges::dangling");
+                }
+            }
+#endif //_ONEDPL_CPP20_OWNING_VIEW_PRESENT
+        }
     }
 
 public:
@@ -677,8 +729,9 @@ public:
         process_data_in_in_out(max_n, r_size, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, r_size, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
-        //test cases with empty sequence(s)
+        //test cases with empty sequence(s) and/or zero output capacity
         process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, 0, r_size / 2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, r_size / 2, 0, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, 0, r_size / 2, r_size / 4, CLONE_TEST_POLICY(exec), algo, checker, args...);
@@ -971,18 +1024,20 @@ struct test_range_algo
     test_range_algo_impl_host(auto algo, auto& checker, auto... args)
     {
         auto subrange_view = subrange_view_fo{};
-#if TEST_CPP20_SPAN_PRESENT
+#    if TEST_CPP20_SPAN_PRESENT && ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
         auto span_view = span_view_fo{};
 #endif
 
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{},  std::identity{}, args...);
         test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, subrange_view,    std::identity{}, args...);
+#    if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
+        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{}, std::identity{}, args...);
         test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
         test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
         test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, span_view,        std::identity{}, args...);
         test<T, host_span<T>,     mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #endif
+#    endif // ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -990,7 +1045,7 @@ struct test_range_algo
     void test_range_algo_impl_hetero(Policy&& exec, auto algo, auto& checker, auto... args)
     {
         auto subrange_view = subrange_view_fo{};
-#if TEST_CPP20_SPAN_PRESENT
+#        if TEST_CPP20_SPAN_PRESENT && ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
         auto span_view = span_view_fo{};
 #endif
 
@@ -1002,11 +1057,13 @@ struct test_range_algo
 #endif
             {
                 test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
+#        if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
                 test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
                 test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
                 test<T, usm_span<T>,     mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
+#        endif // ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
             }
         }
     }
@@ -1027,6 +1084,29 @@ struct test_range_algo
 #endif // TEST_DPCPP_BACKEND_PRESENT
     }
 };
+
+// @param TSize size - 1-based size of the range, zero for empty range
+// @param TIndex index - 0-based index of item in range to calculate remaining space for
+// @return TSize - remaining space in range starting from index
+template <typename TSize, typename TIndex>
+TSize
+eval_remaining_space(TSize size, TIndex index)
+{
+    if (size >= index)
+        return size - index;
+
+    return 0;
+}
+
+template <typename TSize1, typename TIndex1, typename TSize2, typename TIndex2>
+std::common_type_t<TSize1, TSize2>
+eval_remaining_space_min(TSize1 size1, TIndex1 index1, TSize2 size2, TIndex2 index2)
+{
+    const TSize1 space1 = eval_remaining_space(size1, index1);
+    const TSize2 space2 = eval_remaining_space(size2, index2);
+
+    return std::min<std::common_type_t<TSize1, TSize2>>(space1, space2);
+}
 
 } //namespace test_std_ranges
 

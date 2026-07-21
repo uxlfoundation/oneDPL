@@ -217,125 +217,6 @@ struct __serial_move_merge
     }
 };
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
-          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
-_OutputIterator
-__set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                      _ForwardIterator2 __last2, _OutputIterator __result, _CopyConstructRange __cc_range,
-                      _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-    using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
-
-    for (; __first1 != __last1; ++__result)
-    {
-        if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result);
-        if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
-        {
-            ::new (::std::addressof(*__result)) _Tp(*__first2);
-            ++__first2;
-        }
-        else
-        {
-            ::new (::std::addressof(*__result)) _Tp(*__first1);
-            if (!std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
-                ++__first2;
-            ++__first1;
-        }
-    }
-    return __cc_range(__first2, __last2, __result);
-}
-
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _CopyFunc,
-          typename _Compare, typename _Proj1, typename _Proj2>
-_OutputIterator
-__set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                             _ForwardIterator2 __last2, _OutputIterator __result, _CopyFunc _copy, _Compare __comp,
-                             _Proj1 __proj1, _Proj2 __proj2)
-{
-    while (__first1 != __last1 && __first2 != __last2)
-    {
-        if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
-            ++__first1;
-        else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
-            ++__first2;
-        else
-        {
-            _copy(*__first1, *__result);
-
-            ++__first1;
-            ++__first2;
-            ++__result;
-        }
-    }
-    return __result;
-}
-
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
-          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
-_OutputIterator
-__set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                           _ForwardIterator2 __last2, _OutputIterator __result, _CopyConstructRange __cc_range,
-                           _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-    using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
-
-    for (; __first1 != __last1;)
-    {
-        if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result);
-
-        if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
-        {
-            ::new (::std::addressof(*__result)) _Tp(*__first1);
-            ++__result;
-            ++__first1;
-        }
-        else
-        {
-            if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
-                ++__first1;
-            ++__first2;
-        }
-    }
-    return __result;
-}
-
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
-          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
-_OutputIterator
-__set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                                     _ForwardIterator2 __last2, _OutputIterator __result,
-                                     _CopyConstructRange __cc_range, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-    using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
-
-    for (; __first1 != __last1;)
-    {
-        if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result);
-
-        if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
-        {
-            ::new (::std::addressof(*__result)) _Tp(*__first1);
-            ++__result;
-            ++__first1;
-        }
-        else
-        {
-            if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
-            {
-                ::new (::std::addressof(*__result)) _Tp(*__first2);
-                ++__result;
-            }
-            else
-                ++__first1;
-            ++__first2;
-        }
-    }
-    return __cc_range(__first2, __last2, __result);
-}
-
 template <template <typename, typename...> typename _Concrete, typename _ValueType, typename... _Args>
 struct __enumerable_thread_local_storage_base
 {
@@ -387,14 +268,14 @@ struct __enumerable_thread_local_storage_base
     get_for_current_thread()
     {
         const std::size_t __i = _Derived::get_thread_num();
-        std::optional<_ValueType>& __local = __thread_specific_storage[__i];
-        if (!__local)
+        std::optional<_ValueType>& __local_value = __thread_specific_storage[__i];
+        if (!__local_value)
         {
             // create temporary storage on first usage to avoid extra parallel region and unnecessary instantiation
-            std::apply([&__local](_Args... __arg_pack) { __local.emplace(__arg_pack...); }, __args);
+            std::apply([&__local_value](_Args... __arg_pack) { __local_value.emplace(__arg_pack...); }, __args);
             __num_elements.fetch_add(1, std::memory_order_relaxed);
         }
-        return *__local;
+        return *__local_value;
     }
 
     std::vector<std::optional<_ValueType>> __thread_specific_storage;

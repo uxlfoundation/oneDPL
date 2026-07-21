@@ -53,11 +53,13 @@ function(_generate_sort_test _variant _base_file _data_per_work_item _work_group
     endif()
 
     string(REPLACE "_t" "" _key_type_short ${_key_type})
+    string(REPLACE "::" "_" _key_type_short ${_key_type_short})
     if (NOT "${_val_type}" STREQUAL "")
         string(REPLACE "_t" "" _val_type_short ${_val_type})
-        set(_target_name "${_variant}_${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}_${_val_type_short}")
+        string(REPLACE "::" "_" _val_type_short ${_val_type_short})
+        set(_target_name "${_variant}_${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}_${_val_type_short}.pass")
     else()
-        set(_target_name "${_variant}_${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}")
+        set(_target_name "${_variant}_${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}.pass")
     endif()
     # Use unified test file without variant prefix
     set(_test_path "${_base_file}.cpp")
@@ -69,8 +71,9 @@ function(_generate_sort_test _variant _base_file _data_per_work_item _work_group
 
         # Define backend macro based on variant
         string(TOUPPER ${_variant} _variant_upper)
+        string(REGEX REPLACE "^KT_" "" _variant_upper ${_variant_upper}) # e.g. KT_ESIMD -> ESIMD
         target_compile_definitions(${_target_name} PRIVATE TEST_KT_BACKEND_${_variant_upper})
- 
+
         target_compile_definitions(${_target_name} PRIVATE TEST_DATA_PER_WORK_ITEM=${_data_per_work_item})
         target_compile_definitions(${_target_name} PRIVATE TEST_WORK_GROUP_SIZE=${_work_group_size})
         target_compile_definitions(${_target_name} PRIVATE TEST_KEY_TYPE=${_key_type})
@@ -102,17 +105,17 @@ endfunction()
 function(_generate_sort_tests _variant _key_value_pairs)
     set(_base_file_all "radix_sort" "radix_sort_out_of_place")
     set(_base_file_by_key_all "radix_sort_by_key" "radix_sort_by_key_out_of_place")
-    
+
     # Variant-specific configurations
-    if ("${_variant}" STREQUAL "sycl")
+    if ("${_variant}" STREQUAL "kt_sycl")
         set(_data_per_work_item_all "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" "13" "14" "15" "16")
         set(_work_group_size_all "1024" "512")
-    else() # esimd
+    else() # kt_esimd
         set(_data_per_work_item_all "32" "64" "96" "128" "160" "192" "224" "256" "288" "320" "352" "384" "416" "448" "480" "512")
         set(_work_group_size_all "64")
     endif()
-    
-    set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double")
+
+    set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double" "sycl::half")
 
     foreach (_data_per_work_item ${_data_per_work_item_all})
         foreach (_work_group_size ${_work_group_size_all})
@@ -136,40 +139,42 @@ function(_generate_sort_tests _variant _key_value_pairs)
 endfunction()
 
 if (ONEDPL_TEST_ENABLE_KT_ESIMD)
-    _generate_sort_tests("esimd" FALSE) # radix_sort, random
-    _generate_sort_tests("esimd" TRUE) # radix_sort_by_key, random
+    _generate_sort_tests("kt_esimd" FALSE) # radix_sort, random
+    _generate_sort_tests("kt_esimd" TRUE) # radix_sort_by_key, random
 
     # Pin some cases to track them
-    _generate_sort_test("esimd" "radix_sort_by_key_out_of_place" "96" "64" "uint32_t" "uint32_t" 1000)
-    _generate_sort_test("esimd" "radix_sort" "384" "64" "int32_t" "" 1000)
+    _generate_sort_test("kt_esimd" "radix_sort_by_key_out_of_place" "96" "64" "uint32_t" "uint32_t" 1000)
+    _generate_sort_test("kt_esimd" "radix_sort_by_key" "96" "64" "sycl::half" "uint32_t" 1000)
+    _generate_sort_test("kt_esimd" "radix_sort" "384" "64" "int32_t" "" 1000)
 endif()
 
 if (ONEDPL_TEST_ENABLE_KT_SYCL)
-    _generate_sort_tests("sycl" FALSE) # radix_sort, random
-    _generate_sort_tests("sycl" TRUE) # radix_sort_by_key, random
+    _generate_sort_tests("kt_sycl" FALSE) # radix_sort, random
+    _generate_sort_tests("kt_sycl" TRUE) # radix_sort_by_key, random
 
     # Pin some cases to track them
-    _generate_sort_test("sycl" "radix_sort_by_key_out_of_place" "3" "1024" "uint32_t" "uint32_t" 1000)
-    _generate_sort_test("sycl" "radix_sort" "12" "1024" "int32_t" "" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_by_key_out_of_place" "3" "1024" "uint32_t" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_by_key" "5" "512" "float" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort" "12" "1024" "int32_t" "" 1000)
 endif()
 
 function (_generate_gpu_scan_test _data_per_work_item _work_group_size _type _probability_permille)
-    if ((NOT TARGET build-scan-kt-tests) AND (NOT TARGET run-scan-kt-tests))
-        add_custom_target(build-scan-kt-tests COMMENT "Build all scan kernel template tests")
-        add_custom_target(run-scan-kt-tests
-            COMMAND "${CMAKE_CTEST_COMMAND}" -R "^run-scan-kt-tests$" --output-on-failure --no-label-summary
-            DEPENDS build-scan-kt-tests
+    if ((NOT TARGET build-kt_sycl-scan-tests) AND (NOT TARGET run-kt_sycl-scan-tests))
+        add_custom_target(build-kt_sycl-scan-tests COMMENT "Build all scan kernel template tests")
+        add_custom_target(run-kt_sycl-scan-tests
+            COMMAND "${CMAKE_CTEST_COMMAND}" -R "^run-kt_sycl-scan-tests$" --output-on-failure --no-label-summary
+            DEPENDS build-kt_sycl-scan-tests
             COMMENT "Build and run all scan kernel template tests")
     endif()
 
     string(REPLACE "_t" "" _type_short ${_type})
-    set(_target_name "single_pass_scan_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_type_short}")
+    set(_target_name "kt_sycl_inclusive_scan_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_type_short}.pass")
     set(_test_path "single_pass_scan.cpp")
 
     _generate_test_randomly(${_target_name} ${_test_path} ${_probability_permille})
     if(TARGET ${_target_name})
-        add_dependencies(build-scan-kt-tests ${_target_name})
-        add_dependencies(run-scan-kt-tests ${_target_name})
+        add_dependencies(build-kt_sycl-scan-tests ${_target_name})
+        add_dependencies(run-kt_sycl-scan-tests ${_target_name})
 
         target_compile_definitions(${_target_name} PRIVATE TEST_DATA_PER_WORK_ITEM=${_data_per_work_item})
         target_compile_definitions(${_target_name} PRIVATE TEST_WORK_GROUP_SIZE=${_work_group_size})

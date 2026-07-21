@@ -245,61 +245,6 @@ DEFINE_TEST(test_uninitialized_value_construct_n)
     }
 };
 
-DEFINE_TEST(test_destroy)
-{
-    DEFINE_TEST_CONSTRUCTOR(test_destroy, 1.0f, 1.0f)
-
-    template <typename Policy, typename Iterator1, typename Size>
-    void
-    operator()(Policy&& exec, Iterator1 first1, Iterator1 /* last1 */, Size n)
-    {
-        TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
-
-        using T1 = typename std::iterator_traits<Iterator1>::value_type;
-        auto value = T1{ 2 };
-        ::std::fill(host_keys.get(), host_keys.get() + n, value);
-        host_keys.update_data();
-
-        using _NewKernelName = policy_name_wrapper<new_kernel_name<Policy, 0>, T1>;
-        std::destroy(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), first1 + (n / 3), first1 + (n / 2));
-        if (!::std::is_trivially_destructible_v<T1>)
-            value = T1{-2};
-        wait_and_throw(exec);
-
-        host_keys.retrieve_data();
-        EXPECT_TRUE(check_values(host_keys.get() + (n / 3), host_keys.get() + (n / 2), value),
-                    "wrong effect from destroy");
-    }
-};
-
-DEFINE_TEST(test_destroy_n)
-{
-    DEFINE_TEST_CONSTRUCTOR(test_destroy_n, 1.0f, 1.0f)
-
-    template <typename Policy, typename Iterator1, typename Size>
-    void
-    operator()(Policy&& exec, Iterator1 first1, Iterator1 /* last1 */, Size n)
-    {
-        TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
-
-        using T1 = typename std::iterator_traits<Iterator1>::value_type;
-        auto value = T1{ 2 };
-
-        ::std::fill(host_keys.get(), host_keys.get() + n, value);
-        host_keys.update_data();
-
-        using _NewKernelName = policy_name_wrapper<new_kernel_name<Policy, 0>, T1>;
-        std::destroy_n(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), first1, n);
-        if(!::std::is_trivially_destructible_v<T1>)
-            value = T1{-2};
-        wait_and_throw(exec);
-
-        host_keys.retrieve_data();
-        EXPECT_TRUE(check_values(host_keys.get(), host_keys.get() + n, value),
-                    "wrong effect from destroy_n");
-    }
-};
-
 DEFINE_TEST(test_fill)
 {
     DEFINE_TEST_CONSTRUCTOR(test_fill, 1.0f, 1.0f)
@@ -1078,11 +1023,6 @@ test_usm_and_buffer()
     test1buffer<alloc_type, test_uninitialized_value_construct<ValueType>>();
     PRINT_DEBUG("test_uninitialized_value_construct_n");
     test1buffer<alloc_type, test_uninitialized_value_construct_n<ValueType>>();
-    PRINT_DEBUG("test_destroy");
-    test1buffer<alloc_type, test_destroy<SyclTypeWrapper<ValueType>>>();
-    PRINT_DEBUG("test_destroy_n");
-    test1buffer<alloc_type, test_destroy_n<SyclTypeWrapper<ValueType>>>();
-    test1buffer<alloc_type, test_destroy_n<ValueType>>();
 
     //test2buffers
     PRINT_DEBUG("test_replace_copy");
