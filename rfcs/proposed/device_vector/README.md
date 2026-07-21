@@ -95,7 +95,6 @@ classDiagram
         }
     }
 
-    device_array --> sycl::span : .span()
     device_vector *-- device_array : contains
     device_vector --> device_pointer : begin()/end()
     device_pointer --> device_reference : operator*() / operator[]()
