@@ -116,8 +116,8 @@ struct all_view_fn
 {
     template <typename _T>
     constexpr oneapi::dpl::__ranges::all_view<_T, AccMode, _NoInit, _Target, _Placeholder>
-    operator()(sycl::buffer<_T, 1> __buf, typename ::std::iterator_traits<_T*>::difference_type __offset = 0,
-               typename ::std::iterator_traits<_T*>::difference_type __n = 0) const
+    operator()(sycl::buffer<_T, 1> __buf, typename std::iterator_traits<_T*>::difference_type __offset = 0,
+               typename std::iterator_traits<_T*>::difference_type __n = 0) const
     {
         return oneapi::dpl::__ranges::all_view<_T, AccMode, _NoInit, _Target, _Placeholder>(__buf, __offset, __n);
     }
@@ -578,7 +578,7 @@ struct __get_sycl_range
         //  "get_idx()" to return the buffer offset
 
         //  __first.base() is not guaranteed to be a sycl_iterator, it may be another type which sets the trait
-        //   is_hetero = ::std::true_type.  Therefore, to make sure our types match, we use get_idx() to get the buffer
+        //   is_hetero = std::true_type.  Therefore, to make sure our types match, we use get_idx() to get the buffer
         //   offset, and use that to recurse as a sycl_iterator over the __base_buffer.
         auto __base_iter = __first.base();
         auto __base_buffer = __base_iter.get_buffer();
@@ -698,7 +698,7 @@ struct __get_sycl_range
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
     auto
     __process_input_iter(_Iter __first, _Iter __last)
-        -> ::std::enable_if_t<
+        -> std::enable_if_t<
             is_temp_buff<_Iter>::value && __is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
                 !is_permutation<_Iter>::value,
             __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode, _LocalNoInit>>>
@@ -730,7 +730,7 @@ struct __get_sycl_range
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
     auto
     __process_input_iter(_Iter __first, _Iter __last)
-        -> ::std::enable_if_t<
+        -> std::enable_if_t<
             is_temp_buff<_Iter>::value && !__is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
                 !is_permutation<_Iter>::value,
             __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode, _LocalNoInit>>>
