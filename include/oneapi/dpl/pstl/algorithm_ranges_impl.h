@@ -1789,8 +1789,8 @@ template <typename _IsVector, typename _ExecutionPolicy, typename _InRange, type
 std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
                                    std::ranges::borrowed_iterator_t<_OutRange1>,
                                    std::ranges::borrowed_iterator_t<_OutRange2>>
-__pattern_partition_copy(__serial_tag<_IsVector /*TODO: std::false_type*/>, _ExecutionPolicy&&, _InRange&& __in_r,
-                         _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
+__pattern_partition_copy_ranges(__serial_tag<_IsVector>, _ExecutionPolicy&&, _InRange&& __in_r,
+                                _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
 {
     auto [__it_in, __it_out1, __it_out2] = __brick_bounded_partition_copy(
         std::ranges::begin(__in_r), std::ranges::end(__in_r), std::ranges::begin(__out_true_r),
@@ -1805,8 +1805,8 @@ template <typename _IsVector, typename _ExecutionPolicy, typename _InRange, type
 std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
                                    std::ranges::borrowed_iterator_t<_OutRange1>,
                                    std::ranges::borrowed_iterator_t<_OutRange2>>
-__pattern_partition_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
-                         _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
+__pattern_partition_copy_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
+                                _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
     __internal::__pred_at_index __idx_pred{__internal::__unary_op<_Pred, _Proj>{__pred, __proj}};
@@ -1873,9 +1873,9 @@ __pattern_partition_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         return {__stop_in, __stop_out1, __stop_out2};
     }
     // trivial sequence - use serial algorithm
-    return __pattern_partition_copy(__serial_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec),
-                                    std::forward<_InRange>(__in_r), std::forward<_OutRange1>(__out_true_r),
-                                    std::forward<_OutRange2>(__out_false_r), __pred, __proj);
+    return __pattern_partition_copy_ranges(__serial_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec),
+                                           std::forward<_InRange>(__in_r), std::forward<_OutRange1>(__out_true_r),
+                                           std::forward<_OutRange2>(__out_false_r), __pred, __proj);
 }
 
 } // namespace __ranges

@@ -1440,7 +1440,7 @@ struct __internal::__partition_copy_fn
                _Pred __pred, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_partition_copy(
+        return oneapi::dpl::__internal::__ranges::__pattern_partition_copy_ranges(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r),
             std::forward<_OutRange1>(__out_true_r), std::forward<_OutRange2>(__out_false_r), __pred, __proj);
     }
