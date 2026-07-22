@@ -361,7 +361,7 @@ endif()
 ###############################################################################
 # Installation instructions
 ###############################################################################
-install(CODE "set(OUTPUT_DIR \"\${CMAKE_INSTALL_PREFIX}/lib/cmake/oneDPL\")")
+install(CODE "set(OUTPUT_DIR \"${CMAKE_INSTALL_FULL_LIBDIR}/cmake/oneDPL\")")
 install(CODE "set(SKIP_HEADERS_SUBDIR TRUE)")
 install(SCRIPT cmake/scripts/generate_config.cmake)
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
