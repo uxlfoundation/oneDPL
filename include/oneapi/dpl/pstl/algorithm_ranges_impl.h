@@ -1839,7 +1839,10 @@ __pattern_partition_copy_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolic
                 },
                 [=, &__stop_in, &__stop_out1, &__stop_out2](std::intptr_t __i, std::intptr_t __len,
                                                             _OutputPos __initial) { // Scan
-                    if (__initial.first > __n_out1 && __initial.second > __n_out2) // no place to write for the chunk
+                    // __initial carries the numbers of true/false mask elements produced by preceding chunks,
+                    // which are also the starting output positions of this chunk. If any of these is greater
+                    // than the corresponding output size, the stop position is located in a preceding chunk.
+                    if (__initial.first > __n_out1 || __initial.second > __n_out2)
                         return;
                     const std::intptr_t __safe_len = std::min(__n_out1 - __initial.first, __n_out2 - __initial.second);
                     if (__safe_len >= __len)
