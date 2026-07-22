@@ -295,7 +295,7 @@ __split(_Index __m)
 // 1. Affinitize leaves of upsweep and leaves of downsweep.  For working sets that
 //    fit in cache, this might reduce memory interconnect load significantly.
 // 2. Add automatic tilesize adjustment.  Initial stealing during upsweep ought to provide a good hint.
-// 3. Use continuation-passing style for the tasks.  For downsweep, a binomial tree pattern is likely optimal.
+// 3. Use continuation-passing style for the tasks. For downsweep, a binomial tree pattern is likely optimal.
 
 template <typename _Index, typename _Tp, typename _Rp, typename _Cp>
 void
@@ -351,20 +351,25 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
 // apex is called exactly once, after all calls to reduce and before all calls to scan.
 // For example, it's useful for allocating a __buffer used by scan but whose size is the sum of all reduction values.
 // T must have a trivial constructor and destructor.
-#if !defined(_ONEDPL_STRICT_SCAN_MIN_TILESIZE)
-#    define _ONEDPL_STRICT_SCAN_MIN_TILESIZE 2000
+#if !defined(_ONEDPL_STRICT_SCAN_SERIAL_CUTOFF)
+#    define _ONEDPL_STRICT_SCAN_SERIAL_CUTOFF 2000
 #endif
 template <class _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
 __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
                        _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
 {
-    tbb::this_task_arena::isolate([=, &__combine]() {
-        if (__n > 1)
-        {
-            _Index __p = tbb::this_task_arena::max_concurrency();
-            const _Index __slack = 4;
-            _Index __tilesize = std::max(_ONEDPL_STRICT_SCAN_MIN_TILESIZE, (__n - 1) / (__slack * __p) + 1);
+    constexpr _Index __cutoff = _ONEDPL_STRICT_SCAN_SERIAL_CUTOFF;
+    if (__n > __cutoff)
+    {
+        _Index __p_available = tbb::this_task_arena::max_concurrency();
+        _Index __p_needed = (__n - 1) / __cutoff + 1;
+        _Index __p = std::min(__p_available, __p_needed);
+        auto __scan_body = [=, &__combine]() {
+            // Tilesize may be smaller than cutoff,
+            // but this is fine because TBB needs some slack for load balancing.
+            constexpr _Index __slack = 4;
+            _Index __tilesize = (__n - 1) / (__slack * __p) + 1;
             _Index __m = (__n - 1) / __tilesize;
             __tbb_backend::__buffer<_Tp> __buf(__m + 1);
             _Tp* __r = __buf.get();
@@ -383,15 +388,21 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
             __tbb_backend::__downsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __initial,
                                        __combine, __scan);
             return;
-        }
-        // Fewer than 2 elements in sequence, or out of memory.  Handle has single block.
+        };
+        tbb::task_arena __arena(__p);
+        __arena.execute([=, &__scan_body]() {
+            tbb::this_task_arena::isolate([=, &__scan_body]() { __scan_body(); });
+        });
+    }
+    else // serial scan for small n
+    {
         _Tp __sum = __initial;
         if (__n)
             __sum = __combine(__sum, __reduce(_Index(0), __n));
         __apex(__sum);
         if (__n)
             __scan(_Index(0), __n, __initial);
-    });
+    }
 }
 
 template <class _ExecutionPolicy, class _Index, class _Up, class _Tp, class _Cp, class _Rp, class _Sp>
