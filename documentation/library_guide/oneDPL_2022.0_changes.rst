@@ -33,5 +33,5 @@ The following APIs are deprecated in C++17 and not supported in C++20:
   * ``result_of_t``
 
 The size and the layout of the ``discard_block_engine`` class template were changed to align its 
-implementation with the С++ standard proposal found at https://cplusplus.github.io/LWG/issue3561.
+implementation with the C++ standard proposal found at https://cplusplus.github.io/LWG/issue3561.
 This change lets you utilize the full range of values for the template parameters of the engine.
