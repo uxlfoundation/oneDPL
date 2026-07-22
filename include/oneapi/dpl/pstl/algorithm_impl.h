@@ -2252,7 +2252,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             return __block_end - __gap;
         }; // __move_left
 
-        auto __merge = [&__exec, __move_right, __move_left, __swap_ranges](_PartitionRange __val1, _PartitionRange __val2)
+        auto __merge = [__move_right, __move_left, __swap_ranges](_PartitionRange __val1, _PartitionRange __val2)
             -> _PartitionRange
         {
             // Merged range initialized with __val2's leftovers, which are already adjacent to the middle.
