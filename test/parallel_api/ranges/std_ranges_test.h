@@ -762,7 +762,7 @@ private:
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
         EXPECT_EQ(ret_in_val(expected_res, src_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                  (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                  (std::string("wrong input stop position with ") + names + sizes).c_str());
 
         EXPECT_EQ(ret_out_val<1>(expected_res, out1_exp_view.begin()), ret_out_val<1>(res, tr_out(B).begin()),
                   (std::string("wrong 1st output stop position with ") + names + sizes).c_str());
