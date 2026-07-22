@@ -231,7 +231,7 @@
 // MSVC STL implements the std::complex transcendentals log/log10/pow for double (and long double)
 // that reads the non-const global variable __isa_available. SYCL device code cannot reference non-const global
 // variables, so these operations fail to compile in the device pass.
-#define _PSTL_TEST_COMPLEX_LOG_POW_SYCL_DEVICE_BROKEN                                                                  \
+#define _PSTL_TEST_COMPLEX_MSVC_LOG_POW_SYCL_DEVICE_BROKEN                                                             \
     (_MSVC_STL_VERSION && _MSVC_STL_UPDATE >= 202509L && __SYCL_DEVICE_ONLY__)
 
 #define _PSTL_ICC_TEST_UNDERLYING_TYPE_BROKEN (_GLIBCXX_RELEASE && _GLIBCXX_RELEASE < 9)

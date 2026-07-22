@@ -86,11 +86,11 @@ ONEDPL_TEST_NUM_MAIN
 #endif
     // pow for double is implemented in MSVC STL via a runtime CPU-feature dispatch that reads a
     // non-const global variable, which cannot be referenced from SYCL device code.
-#if !_PSTL_TEST_COMPLEX_LOG_POW_SYCL_DEVICE_BROKEN
+#if !_PSTL_TEST_COMPLEX_MSVC_LOG_POW_SYCL_DEVICE_BROKEN
     IF_DOUBLE_SUPPORT(test<double>())
     IF_LONG_DOUBLE_SUPPORT(test<long double>())
     IF_DOUBLE_SUPPORT(test_edges())
-#endif // !_PSTL_TEST_COMPLEX_LOG_POW_SYCL_DEVICE_BROKEN
+#endif // !_PSTL_TEST_COMPLEX_MSVC_LOG_POW_SYCL_DEVICE_BROKEN
 
     return 0;
 }

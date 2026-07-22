@@ -83,7 +83,7 @@ ONEDPL_TEST_NUM_MAIN
     // These pow overloads promote to complex<double> (or complex<long double>), which MSVC STL
     // implements via a runtime CPU-feature dispatch that reads a non-const global variable that
     // cannot be referenced from SYCL device code.
-#if !_PSTL_TEST_COMPLEX_LOG_POW_SYCL_DEVICE_BROKEN
+#if !_PSTL_TEST_COMPLEX_MSVC_LOG_POW_SYCL_DEVICE_BROKEN
     IF_DOUBLE_SUPPORT(
 #if !_PSTL_GLIBCXX_TEST_COMPLEX_POW_BROKEN
                       test<int, float>();
@@ -104,7 +104,7 @@ ONEDPL_TEST_NUM_MAIN
                            test<double, long double>();
                            test<long double, float>();
                            test<long double, double>())
-#endif // !_PSTL_TEST_COMPLEX_LOG_POW_SYCL_DEVICE_BROKEN
+#endif // !_PSTL_TEST_COMPLEX_MSVC_LOG_POW_SYCL_DEVICE_BROKEN
 
     return 0;
 }
