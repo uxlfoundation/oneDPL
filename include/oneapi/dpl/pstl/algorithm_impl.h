@@ -2155,7 +2155,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                     _RandomAccessIterator __last, _UnaryPredicate __pred)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
-    
+
     // Mirror-Reduce Partition (MRP) algorithm
     // ---------------------------------------
     // The input [__first, __last) is interpreted as two mirrored halves: a "real" half [__first, __first + __n / 2)
@@ -2182,10 +2182,22 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
         _RandomAccessIterator __false_leftover;
         _RandomAccessIterator __true_leftover;
 
-        bool __has_false_leftover() const { return __false_leftover != __real_chunk_end; }
-        bool __has_true_leftover() const { return __true_leftover != __mirror_chunk_begin; }
+        bool
+        __has_false_leftover() const
+        {
+            return __false_leftover != __real_chunk_end;
+        }
+        bool
+        __has_true_leftover() const
+        {
+            return __true_leftover != __mirror_chunk_begin;
+        }
 
-        bool __empty() const { return __real_chunk_begin == __real_chunk_end; }
+        bool
+        __empty() const
+        {
+            return __real_chunk_begin == __real_chunk_end;
+        }
     };
 
     return __internal::__except_handler([&] {
@@ -2196,8 +2208,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             return __internal::__brick_partition(__first, __last, __pred, _IsVector{});
 
         auto __swap_ranges = [&__exec](_RandomAccessIterator __begin, _RandomAccessIterator __end,
-                                       _RandomAccessIterator __target)
-        {
+                                       _RandomAccessIterator __target) {
             static constexpr __diff_type __serial_swap_ranges_cutoff = 8192;
             if ((__end - __begin) < __serial_swap_ranges_cutoff)
             {
@@ -2205,23 +2216,18 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             }
             else
             {
-                __par_backend::__parallel_for(__backend_tag{},
-                    ::std::forward<_ExecutionPolicy>(__exec),
-                    __begin, __end,
-                    [__begin, __target](_RandomAccessIterator __chunk_begin, _RandomAccessIterator __chunk_end)
-                    {
+                __par_backend::__parallel_for(
+                    __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
+                    [__begin, __target](_RandomAccessIterator __chunk_begin, _RandomAccessIterator __chunk_end) {
                         _RandomAccessIterator __chunk_target = __target + (__chunk_begin - __begin);
-                        __internal::__brick_swap_ranges(__chunk_begin, __chunk_end,
-                                                        __chunk_target, _IsVector{});
+                        __internal::__brick_swap_ranges(__chunk_begin, __chunk_end, __chunk_target, _IsVector{});
                     },
                     __serial_swap_ranges_cutoff);
             }
         }; // __swap_ranges
 
         auto __move_right = [__swap_ranges](_RandomAccessIterator __block_begin, _RandomAccessIterator __block_end,
-                                            _RandomAccessIterator __target_region_end)
-            -> _RandomAccessIterator
-        {
+                                            _RandomAccessIterator __target_region_end) -> _RandomAccessIterator {
             __diff_type __block_size = __block_end - __block_begin;
             __diff_type __gap = __target_region_end - __block_end;
 
@@ -2236,9 +2242,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
         }; // __move_right
 
         auto __move_left = [__swap_ranges](_RandomAccessIterator __block_begin, _RandomAccessIterator __block_end,
-                                           _RandomAccessIterator __target_region_begin)
-            -> _RandomAccessIterator
-        {
+                                           _RandomAccessIterator __target_region_begin) -> _RandomAccessIterator {
             __diff_type __block_size = __block_end - __block_begin;
             __diff_type __gap = __block_begin - __target_region_begin;
 
@@ -2252,14 +2256,13 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             return __block_end - __gap;
         }; // __move_left
 
-        auto __merge = [__move_right, __move_left, __swap_ranges](_PartitionRange __val1, _PartitionRange __val2)
-            -> _PartitionRange
-        {
+        auto __merge = [__move_right, __move_left, __swap_ranges](_PartitionRange __val1,
+                                                                  _PartitionRange __val2) -> _PartitionRange {
             // Merged range initialized with __val2's leftovers, which are already adjacent to the middle.
             // If __val1 has no leftover, this initial state is already the correct result.
-            _PartitionRange __merged_range{__val1.__real_chunk_begin, __val2.__real_chunk_end,
+            _PartitionRange __merged_range{__val1.__real_chunk_begin,   __val2.__real_chunk_end,
                                            __val2.__mirror_chunk_begin, __val1.__mirror_chunk_end,
-                                           __val2.__false_leftover, __val2.__true_leftover};
+                                           __val2.__false_leftover,     __val2.__true_leftover};
 
             if (__val1.__has_false_leftover())
             {
@@ -2268,7 +2271,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                     // Two false leftovers in the real side
                     // Move __val1 false leftover closer to the middle
                     __merged_range.__false_leftover = __move_right(__val1.__false_leftover, __val1.__real_chunk_end,
-                                                                   /*__target_region_end = */__val2.__false_leftover);
+                                                                   /*__target_region_end = */ __val2.__false_leftover);
                 }
                 else
                 {
@@ -2293,8 +2296,9 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                         __merged_range.__true_leftover = __val2.__mirror_chunk_begin;
 
                         // Move remaining part of the false leftover closer to the middle
-                        __merged_range.__false_leftover = __move_right(__swap_end, __val1.__real_chunk_end,
-                                                                       /*__target_region_end = */__val2.__real_chunk_end);
+                        __merged_range.__false_leftover =
+                            __move_right(__swap_end, __val1.__real_chunk_end,
+                                         /*__target_region_end = */ __val2.__real_chunk_end);
                     }
                 }
             }
@@ -2305,7 +2309,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                     // Two true leftovers in the mirror side
                     // Move __val1 true leftover closer to the middle
                     __merged_range.__true_leftover = __move_left(__val1.__mirror_chunk_begin, __val1.__true_leftover,
-                                                                 /*__target_region_begin = */__val2.__true_leftover);
+                                                                 /*__target_region_begin = */ __val2.__true_leftover);
                 }
                 else
                 {
@@ -2323,15 +2327,17 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                         __merged_range.__false_leftover = __val2.__real_chunk_end;
 
                         // Move remaining part of the true leftover closer to the middle
-                        __merged_range.__true_leftover = __move_left(__val1.__mirror_chunk_begin, __swap_begin,
-                                                                     /*__target_region_begin = */__val2.__mirror_chunk_begin);
+                        __merged_range.__true_leftover =
+                            __move_left(__val1.__mirror_chunk_begin, __swap_begin,
+                                        /*__target_region_begin = */ __val2.__mirror_chunk_begin);
                     }
                     else
                     {
                         // True leftover is smaller and will be consumed by swap
                         // Remaining false leftover, if any, is already in place
                         __merged_range.__false_leftover = __val2.__false_leftover + __true_leftover_size;
-                        __swap_ranges(__val2.__false_leftover, __merged_range.__false_leftover, __val1.__mirror_chunk_begin);
+                        __swap_ranges(__val2.__false_leftover, __merged_range.__false_leftover,
+                                      __val1.__mirror_chunk_begin);
                     }
                 }
             }
@@ -2340,9 +2346,8 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
         }; // merge
 
         auto __reduce_leaf = [&__pred, __merge, __first, __last](_RandomAccessIterator __real_chunk_begin,
-            _RandomAccessIterator __real_chunk_end, _PartitionRange __value)
-            -> _PartitionRange
-        {
+                                                                 _RandomAccessIterator __real_chunk_end,
+                                                                 _PartitionRange __value) -> _PartitionRange {
             _RandomAccessIterator __mirror_chunk_begin = __last - (__real_chunk_end - __first);
             _RandomAccessIterator __mirror_chunk_end = __last - (__real_chunk_begin - __first);
 
@@ -2388,8 +2393,8 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                 __true_leftover = __internal::__brick_partition(__mirror_chunk_begin, __right, __pred, _IsVector{});
             }
 
-            _PartitionRange __range{__real_chunk_begin, __real_chunk_end, __mirror_chunk_begin, __mirror_chunk_end,
-                                    __false_leftover, __true_leftover};
+            _PartitionRange __range{__real_chunk_begin, __real_chunk_end, __mirror_chunk_begin,
+                                    __mirror_chunk_end, __false_leftover, __true_leftover};
 
             return __value.__empty() ? __range : __merge(__value, __range);
         }; // reduce leaf
@@ -2397,15 +2402,12 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
         __diff_type __mid = __n / 2;
 
         _PartitionRange __init{__last, __last, __last, __last, __last, __last};
-        _PartitionRange __final_range = __par_backend::__parallel_reduce(__backend_tag{},
-            ::std::forward<_ExecutionPolicy>(__exec),
-            __first, __first + (__mid),
-            __init,
-            __reduce_leaf,
-            __merge);
+        _PartitionRange __final_range =
+            __par_backend::__parallel_reduce(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first,
+            __first + __mid, __init, __reduce_leaf, __merge);
 
-        _RandomAccessIterator __partition = __final_range.__has_true_leftover() ? __final_range.__true_leftover
-                                                                                : __final_range.__false_leftover;
+        _RandomAccessIterator __partition =
+            __final_range.__has_true_leftover() ? __final_range.__true_leftover : __final_range.__false_leftover;
         // For odd inputs, the exact middle element is not covered by the reduction
         if (__n % 2 != 0)
         {
