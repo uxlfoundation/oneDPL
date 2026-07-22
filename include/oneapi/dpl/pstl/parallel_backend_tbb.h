@@ -362,14 +362,12 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
     constexpr _Index __cutoff = _ONEDPL_STRICT_SCAN_SERIAL_CUTOFF;
     if (__n > __cutoff)
     {
-        _Index __p_available = tbb::this_task_arena::max_concurrency();
-        _Index __p_needed = (__n - 1) / __cutoff + 1;
-        _Index __p = std::min(__p_available, __p_needed);
-        auto __scan_body = [=, &__combine]() {
+        tbb::this_task_arena::isolate([=, &__combine]() {
             // Tilesize may be smaller than cutoff,
             // but this is fine because TBB needs some slack for load balancing.
+            _Index __p = tbb::this_task_arena::max_concurrency();
             constexpr _Index __slack = 4;
-            _Index __tilesize = (__n - 1) / (__slack * __p) + 1;
+            _Index __tilesize = std::max(__cutoff, (__n - 1) / (__slack * __p) + 1);
             _Index __m = (__n - 1) / __tilesize;
             __tbb_backend::__buffer<_Tp> __buf(__m + 1);
             _Tp* __r = __buf.get();
@@ -388,10 +386,6 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
             __tbb_backend::__downsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __initial,
                                        __combine, __scan);
             return;
-        };
-        tbb::task_arena __arena(__p);
-        __arena.execute([=, &__scan_body]() {
-            tbb::this_task_arena::isolate([=, &__scan_body]() { __scan_body(); });
         });
     }
     else // serial scan for small n
