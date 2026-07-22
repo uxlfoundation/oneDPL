@@ -2404,7 +2404,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
         _PartitionRange __init{__last, __last, __last, __last, __last, __last};
         _PartitionRange __final_range =
             __par_backend::__parallel_reduce(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first,
-            __first + __mid, __init, __reduce_leaf, __merge);
+                                             __first + __mid, __init, __reduce_leaf, __merge);
 
         _RandomAccessIterator __partition =
             __final_range.__has_true_leftover() ? __final_range.__true_leftover : __final_range.__false_leftover;
