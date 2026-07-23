@@ -2201,8 +2201,9 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
     };
 
     return __internal::__except_handler([&] {
-        using __diff_type = typename ::std::iterator_traits<_RandomAccessIterator>::difference_type;
+        using __diff_type = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
         __diff_type __n = __last - __first;
+        using std::iter_swap;
 
         if (__n < __diff_type(2))
             return __internal::__brick_partition(__first, __last, __pred, _IsVector{});
@@ -2217,7 +2218,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             else
             {
                 __par_backend::__parallel_for(
-                    __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
+                    __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __begin, __end,
                     [__begin, __target](_RandomAccessIterator __chunk_begin, _RandomAccessIterator __chunk_end) {
                         _RandomAccessIterator __chunk_target = __target + (__chunk_begin - __begin);
                         __internal::__brick_swap_ranges(__chunk_begin, __chunk_end, __chunk_target, _IsVector{});
@@ -2354,16 +2355,15 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             // Partition the pair of chunks
             _RandomAccessIterator __left = __real_chunk_begin;
             _RandomAccessIterator __right = __mirror_chunk_end;
-            using ::std::iter_swap;
 
             while (true)
             {
-                while (__left != __real_chunk_end && ::std::invoke(__pred, *__left))
+                while (__left != __real_chunk_end && std::invoke(__pred, *__left))
                 {
                     ++__left;
                 }
 
-                while (__right != __mirror_chunk_begin && !::std::invoke(__pred, *(__right - 1)))
+                while (__right != __mirror_chunk_begin && !std::invoke(__pred, *(__right - 1)))
                 {
                     --__right;
                 }
@@ -2403,7 +2403,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
 
         _PartitionRange __init{__last, __last, __last, __last, __last, __last};
         _PartitionRange __final_range =
-            __par_backend::__parallel_reduce(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first,
+            __par_backend::__parallel_reduce(__backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __first,
                                              __first + __mid, __init, __reduce_leaf, __merge);
 
         _RandomAccessIterator __partition =
@@ -2413,7 +2413,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
         {
             if (__final_range.__has_true_leftover())
             {
-                if (!::std::invoke(__pred, __first[__mid]))
+                if (!std::invoke(__pred, __first[__mid]))
                 {
                     --__partition;
                     iter_swap(__first + __mid, __partition);
