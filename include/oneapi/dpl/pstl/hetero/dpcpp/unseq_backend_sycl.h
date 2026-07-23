@@ -704,8 +704,6 @@ struct __reverse_functor
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
-        assert(__idx < (__end - __begin) / 2);
-
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
         _ValueType __rng_left_vector[_Params::__vector_size];
         _ValueType __rng_right_vector[_Params::__vector_size];
@@ -754,7 +752,6 @@ struct __reverse_functor
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
-        assert(__idx < (__end - __begin) / 2);
         using std::swap;
         swap(__rng[__begin + __idx], __rng[__end - __idx - 1]);
     }

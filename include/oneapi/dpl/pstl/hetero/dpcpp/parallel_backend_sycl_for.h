@@ -73,7 +73,7 @@ struct __dual_brick
     _Brick2 __brick2;
     std::size_t __pivot; // the number of iterations for the first brick
 
-    // When called by __parallel_for_small_submitter, dispatch to the proper brick based on __idx
+    // When called by __parallel_for_small_submitter, dispatch to the proper brick based on the pivot
     template <typename... _Ranges>
     void
     operator()(std::true_type __full, const std::size_t __idx, __pfor_params_simple __params, _Ranges&&... __rngs) const
@@ -129,9 +129,6 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
     __future<sycl::event>
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
-        assert(oneapi::dpl::__ranges::__min_size_calc{}(__rngs...) > 0);
-        assert(__count > 0);
-
         _PRINT_INFO_IN_DEBUG_MODE(__q);
         auto __event = __q.submit([__rngs..., __brick, __count](sycl::handler& __cgh) {
 
@@ -141,7 +138,6 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
             __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__count), [=](sycl::item</*dim=*/1> __item) {
                 // Simple loop and no vectorization within the brick, to evenly spread work across compute units.
                 const std::size_t __idx = __item.get_linear_id();
-                assert(__idx < __count);
                 __brick(std::true_type{}, __idx, __pfor_params_simple{}, __rngs...);
             });
         });

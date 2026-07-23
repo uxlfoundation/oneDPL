@@ -1215,7 +1215,6 @@ struct __strided_loop
     operator()(/*__is_full*/ std::true_type, std::size_t __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
                _Args&&... __args) const
     {
-        assert(__idx + (__num_strides - 1) * __stride < __full_range_size);
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint8_t __i = 0; __i < __num_strides; ++__i)
         {

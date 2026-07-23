@@ -1623,7 +1623,7 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bi
 // rotate
 //------------------------------------------------------------------------
 template <typename Name>
-struct __rotate_wrapper;
+struct __rotate_dual_reverse;
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator>
 _Iterator
@@ -1647,7 +1647,7 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
                 unseq_backend::__reverse_functor{__shift}, unseq_backend::__reverse_functor{__n - __shift, __shift},
                 __shift / 2 /*iterations in the first reverse*/};
             oneapi::dpl::__par_backend_hetero::__parallel_for(
-                _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__rotate_wrapper>(__exec),
+                _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__rotate_dual_reverse>(__exec),
                 __dbrick, __shift / 2 + (__n - __shift) / 2, __buf.all_view())
                 .wait();
         }
@@ -1655,8 +1655,8 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
         {
             // For a non-trivial single-position shift, reverse only the bigger part
             oneapi::dpl::__par_backend_hetero::__parallel_for(
-                _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                unseq_backend::__reverse_functor{__n - 1, __shift == 1 ? 1u : 0u}, (__n - 1) / 2, __buf.all_view())
+                _BackendTag{}, __exec, unseq_backend::__reverse_functor{__n - 1, __shift == 1 ? 1u : 0u},
+                (__n - 1) / 2, __buf.all_view())
                 .wait();
         }
         // TODO: need a non-blocking dependency between the kernels
