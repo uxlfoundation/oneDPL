@@ -2170,65 +2170,280 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    // partitioned range: elements before pivot satisfy pred (true part),
-    //                    elements after pivot don't satisfy pred (false part)
+    // Mirror-Reduce Partition (MRP) algorithm
+    // ---------------------------------------
+    // The input [__first, __last) is interpreted as two mirrored halves: a "real" half [__first, __first + __n / 2)
+    // and a "mirror" half [__last - __n / 2, __last).
+    // Parallel reduction runs over the real half. Each leaf pairs a real chunk with its mirror chunk and
+    // partitions the pair by swapping the misplaced elements. Once one side is exhausted, it
+    // partitions the remaining tail on one side. This yields at most one leftover per leaf:
+    // either a false-leftover (elements for which the predicate is FALSE) on the real side or
+    // a true-leftover (elements for which the predicate is TRUE) on the mirror side, never both.
+    //
+    // Merge combines adjacent leaf ranges by moving leftovers toward the middle while preserving that
+    // invariant. Same-kind leftovers are shifted together, and a false/true pair is neutralized by swapping,
+    // with any remainder moved inward.
+    //
+    // After reduction, the surviving leftover determines the partition point. For odd __n the uncovered middle element
+    // is placed separately.
+
     struct _PartitionRange
     {
-        _RandomAccessIterator __begin;
-        _RandomAccessIterator __pivot;
-        _RandomAccessIterator __end;
+        _RandomAccessIterator __real_chunk_begin;
+        _RandomAccessIterator __real_chunk_end;
+        _RandomAccessIterator __mirror_chunk_begin;
+        _RandomAccessIterator __mirror_chunk_end;
+        _RandomAccessIterator __false_leftover;
+        _RandomAccessIterator __true_leftover;
+
+        bool
+        __has_false_leftover() const
+        {
+            return __false_leftover != __real_chunk_end;
+        }
+        bool
+        __has_true_leftover() const
+        {
+            return __true_leftover != __mirror_chunk_begin;
+        }
+
+        bool
+        __empty() const
+        {
+            return __real_chunk_begin == __real_chunk_end;
+        }
     };
 
-    return __internal::__except_handler([&]() {
-        _PartitionRange __init{__last, __last, __last};
+    return __internal::__except_handler([&] {
+        using __diff_type = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
+        __diff_type __n = __last - __first;
+        using std::iter_swap;
 
-        // lambda for merging two partitioned ranges to one partitioned range
-        auto __reductor = [&__exec](_PartitionRange __val1, _PartitionRange __val2) -> _PartitionRange {
-            auto __size1 = __val1.__end - __val1.__pivot;
-            auto __size2 = __val2.__pivot - __val2.__begin;
-            auto __new_begin = __val2.__begin - (__val1.__end - __val1.__begin);
+        if (__n < __diff_type(2))
+            return __internal::__brick_partition(__first, __last, __pred, _IsVector{});
 
-            // if all elements in left range satisfy pred then we can move new pivot to pivot of right range
-            if (__val1.__end == __val1.__pivot)
+        auto __swap_ranges = [&__exec](_RandomAccessIterator __begin, _RandomAccessIterator __end,
+                                       _RandomAccessIterator __target) {
+            static constexpr __diff_type __serial_swap_ranges_cutoff = 8192;
+            if ((__end - __begin) < __serial_swap_ranges_cutoff)
             {
-                return {__new_begin, __val2.__pivot, __val2.__end};
+                __internal::__brick_swap_ranges(__begin, __end, __target, _IsVector{});
             }
-            // if true part of right range greater than false part of left range
-            // then we should swap the false part of left range and last part of true part of right range
-            else if (__size2 > __size1)
-            {
-                __par_backend::__parallel_for(
-                    __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __val1.__pivot, __val1.__pivot + __size1,
-                    [__val1, __val2, __size1](_RandomAccessIterator __i, _RandomAccessIterator __j) {
-                        __internal::__brick_swap_ranges(__i, __j, (__val2.__pivot - __size1) + (__i - __val1.__pivot),
-                                                        _IsVector{});
-                    });
-                return {__new_begin, __val2.__pivot - __size1, __val2.__end};
-            }
-            // else we should swap the first part of false part of left range and true part of right range
             else
             {
                 __par_backend::__parallel_for(
-                    __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __val1.__pivot, __val1.__pivot + __size2,
-                    [__val1, __val2](_RandomAccessIterator __i, _RandomAccessIterator __j) {
-                        __internal::__brick_swap_ranges(__i, __j, __val2.__begin + (__i - __val1.__pivot), _IsVector{});
-                    });
-                return {__new_begin, __val1.__pivot + __size2, __val2.__end};
+                    __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __begin, __end,
+                    [__begin, __target](_RandomAccessIterator __chunk_begin, _RandomAccessIterator __chunk_end) {
+                        _RandomAccessIterator __chunk_target = __target + (__chunk_begin - __begin);
+                        __internal::__brick_swap_ranges(__chunk_begin, __chunk_end, __chunk_target, _IsVector{});
+                    },
+                    __serial_swap_ranges_cutoff);
             }
-        };
+        }; // __swap_ranges
 
-        _PartitionRange __result = __par_backend::__parallel_reduce(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __init,
-            [__pred, __reductor](_RandomAccessIterator __i, _RandomAccessIterator __j,
-                                 _PartitionRange __value) -> _PartitionRange {
-                //1. serial partition
-                _RandomAccessIterator __pivot = __internal::__brick_partition(__i, __j, __pred, _IsVector{});
+        auto __move_right = [__swap_ranges](_RandomAccessIterator __block_begin, _RandomAccessIterator __block_end,
+                                            _RandomAccessIterator __target_region_end) -> _RandomAccessIterator {
+            __diff_type __block_size = __block_end - __block_begin;
+            __diff_type __gap = __target_region_end - __block_end;
 
-                // 2. merging of two ranges (left and right respectively)
-                return __reductor(__value, {__i, __pivot, __j});
-            },
-            __reductor);
-        return __result.__pivot;
+            if (__block_size <= __gap)
+            {
+                __swap_ranges(__block_begin, __block_end, __target_region_end - __block_size);
+                return __target_region_end - __block_size;
+            }
+
+            __swap_ranges(__block_begin, __block_begin + __gap, __block_end);
+            return __block_begin + __gap;
+        }; // __move_right
+
+        auto __move_left = [__swap_ranges](_RandomAccessIterator __block_begin, _RandomAccessIterator __block_end,
+                                           _RandomAccessIterator __target_region_begin) -> _RandomAccessIterator {
+            __diff_type __block_size = __block_end - __block_begin;
+            __diff_type __gap = __block_begin - __target_region_begin;
+
+            if (__block_size <= __gap)
+            {
+                __swap_ranges(__block_begin, __block_end, __target_region_begin);
+                return __target_region_begin + __block_size;
+            }
+
+            __swap_ranges(__target_region_begin, __block_begin, __block_end - __gap);
+            return __block_end - __gap;
+        }; // __move_left
+
+        auto __merge = [__move_right, __move_left, __swap_ranges](_PartitionRange __val1,
+                                                                  _PartitionRange __val2) -> _PartitionRange {
+            // Merged range initialized with __val2's leftovers, which are already adjacent to the middle.
+            // If __val1 has no leftover, this initial state is already the correct result.
+            _PartitionRange __merged_range{__val1.__real_chunk_begin,   __val2.__real_chunk_end,
+                                           __val2.__mirror_chunk_begin, __val1.__mirror_chunk_end,
+                                           __val2.__false_leftover,     __val2.__true_leftover};
+
+            if (__val1.__has_false_leftover())
+            {
+                if (__val2.__has_false_leftover())
+                {
+                    // Two false leftovers in the real side
+                    // Move __val1 false leftover closer to the middle
+                    __merged_range.__false_leftover = __move_right(__val1.__false_leftover, __val1.__real_chunk_end,
+                                                                   /*__target_region_end = */ __val2.__false_leftover);
+                }
+                else
+                {
+                    // False leftover in __val1, true leftover (or none) in __val2
+                    __diff_type __false_leftover_size = __val1.__real_chunk_end - __val1.__false_leftover;
+                    __diff_type __true_leftover_size = __val2.__true_leftover - __val2.__mirror_chunk_begin;
+
+                    if (__false_leftover_size <= __true_leftover_size)
+                    {
+                        // False leftover is smaller and will be consumed by the swap
+                        // Remaining true leftover, if any, is already in place
+                        __merged_range.__true_leftover = __val2.__true_leftover - __false_leftover_size;
+                        __swap_ranges(__val1.__false_leftover, __val1.__real_chunk_end, __merged_range.__true_leftover);
+                    }
+                    else
+                    {
+                        // True leftover is smaller and will be consumed by the swap
+                        _RandomAccessIterator __swap_end = __val1.__false_leftover + __true_leftover_size;
+                        __swap_ranges(__val1.__false_leftover, __swap_end, __val2.__mirror_chunk_begin);
+
+                        // __val2 true leftover is fully consumed by the swap, so the merged range has none
+                        __merged_range.__true_leftover = __val2.__mirror_chunk_begin;
+
+                        // Move remaining part of the false leftover closer to the middle
+                        __merged_range.__false_leftover =
+                            __move_right(__swap_end, __val1.__real_chunk_end,
+                                         /*__target_region_end = */ __val2.__real_chunk_end);
+                    }
+                }
+            }
+            else if (__val1.__has_true_leftover())
+            {
+                if (__val2.__has_true_leftover())
+                {
+                    // Two true leftovers in the mirror side
+                    // Move __val1 true leftover closer to the middle
+                    __merged_range.__true_leftover = __move_left(__val1.__mirror_chunk_begin, __val1.__true_leftover,
+                                                                 /*__target_region_begin = */ __val2.__true_leftover);
+                }
+                else
+                {
+                    // True leftover in __val1, false leftover (or none) in __val2
+                    __diff_type __false_leftover_size = __val2.__real_chunk_end - __val2.__false_leftover;
+                    __diff_type __true_leftover_size = __val1.__true_leftover - __val1.__mirror_chunk_begin;
+
+                    if (__false_leftover_size < __true_leftover_size)
+                    {
+                        // False leftover is smaller and will be consumed by swap
+                        _RandomAccessIterator __swap_begin = __val1.__true_leftover - __false_leftover_size;
+                        __swap_ranges(__val2.__false_leftover, __val2.__real_chunk_end, __swap_begin);
+
+                        // __val2 false leftover is fully consumed by the swap, so the merged range has none
+                        __merged_range.__false_leftover = __val2.__real_chunk_end;
+
+                        // Move remaining part of the true leftover closer to the middle
+                        __merged_range.__true_leftover =
+                            __move_left(__val1.__mirror_chunk_begin, __swap_begin,
+                                        /*__target_region_begin = */ __val2.__mirror_chunk_begin);
+                    }
+                    else
+                    {
+                        // True leftover is smaller and will be consumed by swap
+                        // Remaining false leftover, if any, is already in place
+                        __merged_range.__false_leftover = __val2.__false_leftover + __true_leftover_size;
+                        __swap_ranges(__val2.__false_leftover, __merged_range.__false_leftover,
+                                      __val1.__mirror_chunk_begin);
+                    }
+                }
+            }
+
+            return __merged_range;
+        }; // merge
+
+        auto __reduce_leaf = [&__pred, __merge, __first, __last](_RandomAccessIterator __real_chunk_begin,
+                                                                 _RandomAccessIterator __real_chunk_end,
+                                                                 _PartitionRange __value) -> _PartitionRange {
+            _RandomAccessIterator __mirror_chunk_begin = __last - (__real_chunk_end - __first);
+            _RandomAccessIterator __mirror_chunk_end = __last - (__real_chunk_begin - __first);
+
+            // Partition the pair of chunks
+            _RandomAccessIterator __left = __real_chunk_begin;
+            _RandomAccessIterator __right = __mirror_chunk_end;
+
+            while (true)
+            {
+                while (__left != __real_chunk_end && std::invoke(__pred, *__left))
+                {
+                    ++__left;
+                }
+
+                while (__right != __mirror_chunk_begin && !std::invoke(__pred, *(__right - 1)))
+                {
+                    --__right;
+                }
+
+                if (__left != __real_chunk_end && __right != __mirror_chunk_begin)
+                {
+                    iter_swap(__left, __right - 1);
+                    ++__left;
+                    --__right;
+                    continue;
+                }
+                else
+                {
+                    break;
+                }
+            } // while (true)
+
+            _RandomAccessIterator __false_leftover = __real_chunk_end;
+            _RandomAccessIterator __true_leftover = __mirror_chunk_begin;
+
+            if (__left != __real_chunk_end)
+            {
+                __false_leftover = __internal::__brick_partition(__left, __real_chunk_end, __pred, _IsVector{});
+            }
+            else
+            {
+                __true_leftover = __internal::__brick_partition(__mirror_chunk_begin, __right, __pred, _IsVector{});
+            }
+
+            _PartitionRange __range{__real_chunk_begin, __real_chunk_end, __mirror_chunk_begin,
+                                    __mirror_chunk_end, __false_leftover, __true_leftover};
+
+            return __value.__empty() ? __range : __merge(__value, __range);
+        }; // reduce leaf
+
+        __diff_type __mid = __n / 2;
+
+        _PartitionRange __init{__last, __last, __last, __last, __last, __last};
+        _PartitionRange __final_range =
+            __par_backend::__parallel_reduce(__backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __first,
+                                             __first + __mid, __init, __reduce_leaf, __merge);
+
+        _RandomAccessIterator __partition =
+            __final_range.__has_true_leftover() ? __final_range.__true_leftover : __final_range.__false_leftover;
+        // For odd inputs, the exact middle element is not covered by the reduction
+        if (__n % 2 != 0)
+        {
+            if (__final_range.__has_true_leftover())
+            {
+                if (!std::invoke(__pred, __first[__mid]))
+                {
+                    --__partition;
+                    iter_swap(__first + __mid, __partition);
+                }
+            }
+            else
+            {
+                if (std::invoke(__pred, __first[__mid]))
+                {
+                    iter_swap(__partition, __first + __mid);
+                    ++__partition;
+                }
+            }
+        }
+
+        return __partition;
     });
 }
 
