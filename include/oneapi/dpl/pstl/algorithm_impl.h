@@ -2421,7 +2421,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             }
             else
             {
-                if (::std::invoke(__pred, __first[__mid]))
+                if (std::invoke(__pred, __first[__mid]))
                 {
                     iter_swap(__partition, __first + __mid);
                     ++__partition;
