@@ -817,16 +817,16 @@ struct __reverse_copy
 //------------------------------------------------------------------------
 // rotate_copy
 //------------------------------------------------------------------------
-template <typename _Size>
 struct __rotate_copy
 {
   private:
-    _Size __size;
-    _Size __shift;
-    oneapi::dpl::__internal::__pstl_assign __assigner;
+    const std::size_t __size;
+    const std::size_t __size_in;
+    const std::size_t __shift;
 
   public:
-    __rotate_copy(_Size __size, _Size __shift) : __size(__size), __shift(__shift) {}
+    __rotate_copy(std::size_t __sz, std::size_t __sz_in, std::size_t __sh)
+        : __size(__sz), __size_in(__sz_in), __shift(__sh) {}
 
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
               std::enable_if_t<_Params::__can_vectorize, int> = 0>
@@ -834,38 +834,31 @@ struct __rotate_copy
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
-        const std::size_t __n = __size;
-        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__n};
-        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__n};
+        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__size_in};
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__size};
         oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
         oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>
             __store_op;
-        const std::size_t __shifted_idx = __shift + __idx;
-        const std::size_t __wrapped_idx = __shifted_idx % __size;
+        std::size_t __shifted_idx = __shift + __idx;
+        if (__shifted_idx >= __size_in)
+            __shifted_idx -= __size_in;
         _ValueType __rng1_vector[_Params::__vector_size];
-        //1. Vectorize loads only if we know the wrap around point is beyond the current vector elements to process
-        if (__wrapped_idx + _Params::__vector_size <= __n)
+        // Vectorize loads only if we know the wraparound point is beyond the current vector elements to process
+        if (__shifted_idx + _Params::__vector_size <= __size_in)
         {
-            __vec_load(__is_full, __wrapped_idx, __load_op, __rng1, __rng1_vector);
+            __vec_load(std::true_type{}, __shifted_idx, __load_op, __rng1, __rng1_vector);
         }
         else
         {
-            // A single point of non-contiguity within the rotation operation. Manually process two loops here:
-            // the first before the wraparound point and the second after.
-            const std::size_t __remaining_elements = __n - __idx;
-            const std::uint8_t __elements_to_process =
-                std::min(std::size_t{_Params::__vector_size}, __remaining_elements);
-            // __n - __wrapped_idx can safely fit into a uint8_t due to the condition check above.
-            const std::uint8_t __loop1_elements =
-                std::min(__elements_to_process, static_cast<std::uint8_t>(__n - __wrapped_idx));
-            const std::uint8_t __loop2_elements = __elements_to_process - __loop1_elements;
+            // Around the single wraparound point within the rotation, load elements in separate loops before and after
+            const std::uint8_t __elements_to_load = std::min<std::size_t>(_Params::__vector_size, __size - __idx);
+            const std::uint8_t __loop1_bound = std::min<std::size_t>(__elements_to_load, __size_in - __shifted_idx);
             std::uint8_t __i = 0;
-            for (__i = 0; __i < __loop1_elements; ++__i)
-                __assigner(__rng1[__wrapped_idx + __i], __rng1_vector[__i]);
-            for (std::uint8_t __j = 0; __j < __loop2_elements; ++__j)
-                __assigner(__rng1[__j], __rng1_vector[__i + __j]);
+            for (; __i < __loop1_bound; ++__i)
+                __rng1_vector[__i] = __rng1[__shifted_idx + __i];
+            for (; __i < __elements_to_load; ++__i)
+                __rng1_vector[__i] = __rng1[__shifted_idx + __i - __size_in];
         }
-        // 2. Store the rotation
         __vec_store(__is_full, __idx, __store_op, __rng1_vector, __rng2);
     }
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
@@ -873,7 +866,10 @@ struct __rotate_copy
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
-        __rng2[__idx] = __rng1[(__shift + __idx) % __size];
+        std::size_t __shifted_idx = __shift + __idx;
+        if (__shifted_idx >= __size_in)
+            __shifted_idx -= __size_in;
+        __rng2[__idx] = __rng1[__shifted_idx];
     }
 };
 

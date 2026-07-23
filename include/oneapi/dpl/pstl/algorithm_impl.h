@@ -1919,68 +1919,74 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
 // rotate_copy
 //------------------------------------------------------------------------
 
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
+template <class _ForwardIterator, class _OutputIterator>
 _OutputIterator
-__brick_rotate_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __middle,
-                    _ForwardIterator __last, _OutputIterator __result) noexcept
+__brick_rotate_copy(_ForwardIterator __first, _ForwardIterator __middle, _ForwardIterator __last,
+                    _OutputIterator __result, std::size_t __n_out, /*is_vector=*/std::false_type) noexcept
 {
-    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
-
-    return ::std::rotate_copy(__first, __middle, __last, __result);
+    std::size_t __i = 0;
+    for (_ForwardIterator __from = __middle; __from != __last && __i < __n_out; ++__i)
+    {
+        *__result++ = *__from++;
+    }
+    for (_ForwardIterator __from = __first; __from != __middle && __i < __n_out; ++__i)
+    {
+        *__result++ = *__from++;
+    }
+    return __result;
 }
 
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
+template <class _RandomAccessIterator1, class _RandomAccessIterator2>
 _RandomAccessIterator2
-__brick_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1 __first,
-                    _RandomAccessIterator1 __middle, _RandomAccessIterator1 __last,
-                    _RandomAccessIterator2 __result) noexcept
+__brick_rotate_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __middle, _RandomAccessIterator1 __last,
+                    _RandomAccessIterator2 __result, std::size_t __n_out, /*is_vector=*/std::true_type) noexcept
 {
-    _RandomAccessIterator2 __res = __brick_copy<__parallel_tag<_IsVector>>{}(__middle, __last, __result);
-    return __internal::__brick_copy<__parallel_tag<_IsVector>>{}(__first, __middle, __res);
+    auto __assign = [](_RandomAccessIterator1 __first, _RandomAccessIterator2 __result) { *__result = *__first; };
+    std::size_t __len = std::min<std::size_t>(__n_out, __last - __middle);
+    __result = __unseq_backend::__simd_assign(__middle, __len, __result, __assign);
+    __len = std::min<std::size_t>(__n_out - __len, __middle - __first);
+    return __unseq_backend::__simd_assign(__first, __len, __result, __assign);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
 _OutputIterator
-__pattern_rotate_copy(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __middle,
-                      _ForwardIterator __last, _OutputIterator __result) noexcept
+__pattern_rotate_copy(_Tag __tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __middle,
+                      _ForwardIterator __last, _OutputIterator __result, std::size_t __n_out) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __internal::__brick_rotate_copy(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
-                                           __result);
+    return __internal::__brick_rotate_copy(__first, __middle, __last, __result, __n_out, typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
 _RandomAccessIterator2
 __pattern_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
-                      _RandomAccessIterator1 __middle, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result)
+                      _RandomAccessIterator1 __middle, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
+                      std::size_t __n_out)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
+    if (__n_out > std::size_t(__last - __first))
+        __n_out = __last - __first;
+
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            [__first, __last, __middle, __result](_RandomAccessIterator1 __b, _RandomAccessIterator1 __e) {
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), std::size_t(0), __n_out,
+            [__first, __last, __middle, __result](std::size_t __b, std::size_t __e) {
                 __internal::__brick_copy<__parallel_tag<_IsVector>> __copy{};
-                if (__b > __middle)
+                std::size_t __split = __last - __middle;
+                _RandomAccessIterator2 __dest = __result + __b;
+                if (__b < __split)
                 {
-                    __copy(__b, __e, __result + (__b - __middle), _IsVector{});
+                    __dest = __copy(__middle + __b, (__e < __split)? __middle + __e : __last, __dest, _IsVector{});
                 }
-                else
+                if (__e >= __split)
                 {
-                    _RandomAccessIterator2 __new_result = __result + ((__last - __middle) + (__b - __first));
-                    if (__e < __middle)
-                    {
-                        __copy(__b, __e, __new_result, _IsVector{});
-                    }
-                    else
-                    {
-                        __copy(__b, __middle, __new_result, _IsVector{});
-                        __copy(__middle, __e, __result, _IsVector{});
-                    }
+                    __copy((__b < __split)? __first : __first + (__b - __split), __first + (__e - __split), __dest,
+                           _IsVector{});
                 }
             });
-        return __result + (__last - __first);
+        return __result + __n_out;
     });
 }
 
