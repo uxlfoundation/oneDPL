@@ -1196,6 +1196,9 @@ class __merge_func_static
     _Compare _M_comp;
     _LeafMerge _M_leaf_merge;
 
+    void
+    __make_and_spawn_child_task(__task* __self, _RandomAccessIterator1 __xm, _RandomAccessIterator2 __ym);
+
   public:
     __merge_func_static(_RandomAccessIterator1 __xs, _RandomAccessIterator1 __xe, _RandomAccessIterator2 __ys,
                         _RandomAccessIterator2 __ye, _RandomAccessIterator3 __zs, _Compare __comp,
@@ -1225,18 +1228,26 @@ operator()(__task* __self)
         return nullptr;
     }
 
-    _RandomAccessIterator1 __xm;
-    _RandomAccessIterator2 __ym;
     if (_M_xe - _M_xs < _M_ye - _M_ys)
     {
-        __ym = _M_ys + (_M_ye - _M_ys) / 2;
-        __xm = ::std::upper_bound(_M_xs, _M_xe, *__ym, _M_comp);
+        _RandomAccessIterator2 __ym = _M_ys + (_M_ye - _M_ys) / 2;
+        __make_and_spawn_child_task(__self, ::std::upper_bound(_M_xs, _M_xe, *__ym, _M_comp), __ym);
     }
     else
     {
-        __xm = _M_xs + (_M_xe - _M_xs) / 2;
-        __ym = ::std::lower_bound(_M_ys, _M_ye, *__xm, _M_comp);
+        _RandomAccessIterator1 __xm = _M_xs + (_M_xe - _M_xs) / 2;
+        __make_and_spawn_child_task(__self, __xm, ::std::lower_bound(_M_ys, _M_ye, *__xm, _M_comp));
     }
+
+    return __self;
+}
+
+template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _RandomAccessIterator3,
+          typename __M_Compare, typename _LeafMerge>
+void
+__merge_func_static<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3, __M_Compare, _LeafMerge>::
+__make_and_spawn_child_task(__task* __self, _RandomAccessIterator1 __xm, _RandomAccessIterator2 __ym)
+{
     const _RandomAccessIterator3 __zm = _M_zs + ((__xm - _M_xs) + (__ym - _M_ys));
     auto __right = __self->make_additional_child_of(
         __self->parent(), __merge_func_static(__xm, _M_xe, __ym, _M_ye, __zm, _M_comp, _M_leaf_merge));
@@ -1244,8 +1255,6 @@ operator()(__task* __self)
     __self->recycle_as_continuation();
     _M_xe = __xm;
     _M_ye = __ym;
-
-    return __self;
 }
 
 template <class _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
