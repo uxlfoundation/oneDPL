@@ -1259,7 +1259,9 @@ __parallel_merge(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&,
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
     const _SizeType __n = (__xe - __xs) + (__ye - __ys);
-    if (__n <= __merge_cut_off)
+
+    using _CommonType = std::common_type_t<_SizeType, decltype(__merge_cut_off)>;
+    if (static_cast<_CommonType>(__n) <= static_cast<_CommonType>(__merge_cut_off))
     {
         // Fall back on serial merge
         __leaf_merge(__xs, __xe, __ys, __ye, __zs, __comp);
