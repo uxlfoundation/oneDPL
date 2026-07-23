@@ -53,9 +53,8 @@ struct test_one_policy
 
         reverse(std::forward<ExecutionPolicy>(exec), actual_b, actual_e);
 
-        bool check = equal(data_b, data_e, reverse_iterator<Iterator2>(actual_e));
-
-        EXPECT_TRUE(check, "wrong result of reverse");
+        EXPECT_EQ_N(std::reverse_iterator<Iterator1>(data_e), actual_b, std::distance(actual_b, actual_e),
+                    "wrong effect of reverse");
     }
 
     template <typename ExecutionPolicy, typename Iterator1, typename Iterator2>
@@ -70,9 +69,11 @@ void
 test()
 {
     std::vector<std::size_t> test_sizes = TestUtils::get_pattern_for_test_sizes();
-    const std::size_t max_len = test_sizes.back();
+    std::size_t max_len = test_sizes.back();
     // Add a value to cover the case of len modulo 8 == 3
-    test_sizes.push_back((max_len / 8) * 8 - 5);
+    max_len = (max_len / 8) * 8 + 11;
+    test_sizes.push_back(max_len);
+    test_sizes.push_back(max_len - 16);
 
     Sequence<T> actual(max_len);
     Sequence<T> data(max_len, [](std::size_t i) { return T(i); });
