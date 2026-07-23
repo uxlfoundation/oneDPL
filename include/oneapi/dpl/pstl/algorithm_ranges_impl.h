@@ -1751,6 +1751,136 @@ __pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPoli
     }
     return {__it_in, __it_out};
 }
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_partition_copy
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _IsVector, typename _ForwardIterator, typename _FwdSentinel, typename _OutIterator1,
+          typename _OutSentinel1, class _OutIterator2, class _OutSentinel2, typename _Condition>
+std::tuple<_ForwardIterator, _OutIterator1, _OutIterator2>
+__brick_bounded_partition_copy(_ForwardIterator __it_in, _FwdSentinel __end_in, _OutIterator1 __it_out1,
+                               _OutSentinel1 __end_out1, _OutIterator2 __it_out2, _OutSentinel2 __end_out2,
+                               _Condition __cond, _IsVector /*TODO: dispatch*/)
+{
+    std::size_t __i = 0;
+    for (; __it_in != __end_in; ++__it_in, ++__i)
+    {
+        if (__cond(__it_in, __i))
+        {
+            if (__it_out1 == __end_out1)
+                break;
+            *__it_out1 = *__it_in;
+            ++__it_out1;
+        }
+        else
+        {
+            if (__it_out2 == __end_out2)
+                break;
+            *__it_out2 = *__it_in;
+            ++__it_out2;
+        }
+    }
+    return {__it_in, __it_out1, __it_out2};
+}
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _InRange, typename _OutRange1, typename _OutRange2,
+          typename _Pred, typename _Proj>
+std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                   std::ranges::borrowed_iterator_t<_OutRange1>,
+                                   std::ranges::borrowed_iterator_t<_OutRange2>>
+__pattern_partition_copy_ranges(__serial_tag<_IsVector>, _ExecutionPolicy&&, _InRange&& __in_r,
+                                _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
+{
+    auto [__it_in, __it_out1, __it_out2] = __brick_bounded_partition_copy(
+        std::ranges::begin(__in_r), std::ranges::end(__in_r), std::ranges::begin(__out_true_r),
+        std::ranges::end(__out_true_r), std::ranges::begin(__out_false_r), std::ranges::end(__out_false_r),
+        [=](auto __it, std::size_t /*__i*/) -> bool { return std::invoke(__pred, std::invoke(__proj, *__it)); },
+        _IsVector{});
+    return {__it_in, __it_out1, __it_out2};
+}
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _InRange, typename _OutRange1, typename _OutRange2,
+          typename _Pred, typename _Proj>
+std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                   std::ranges::borrowed_iterator_t<_OutRange1>,
+                                   std::ranges::borrowed_iterator_t<_OutRange2>>
+__pattern_partition_copy_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
+                                _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
+{
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+    __internal::__pred_at_index __idx_pred{__internal::__unary_op<_Pred, _Proj>{__pred, __proj}};
+
+    const std::intptr_t __n = std::ranges::size(__in_r);
+    if (__n > 1)
+    {
+        using _OutputPos = std::pair<std::intptr_t, std::intptr_t>;
+        __par_backend::__buffer<bool> __mask_buf(__n);
+        bool* __mask = __mask_buf.get();
+        const std::intptr_t __n_out1 = std::ranges::size(__out_true_r);
+        const std::intptr_t __n_out2 = std::ranges::size(__out_false_r);
+        auto __begin = std::ranges::begin(__in_r);
+        auto __out1_begin = std::ranges::begin(__out_true_r);
+        auto __out2_begin = std::ranges::begin(__out_false_r);
+        auto __stop_in = __begin + __n;
+        auto __stop_out1 = __out1_begin + __n_out1;
+        auto __stop_out2 = __out2_begin + __n_out2;
+
+        __internal::__except_handler([=, &__exec, &__idx_pred, &__stop_in, &__stop_out1, &__stop_out2]() {
+            __par_backend::__parallel_strict_scan(
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n,
+                _OutputPos{std::intptr_t(0), std::intptr_t(0)},
+                [=, &__idx_pred](std::intptr_t __i, std::intptr_t __len) { // Reduce
+                    return __internal::__brick_compute_mask(__begin + __i, __len, __idx_pred, __mask + __i,
+                                                            _IsVector{});
+                },
+                [](const _OutputPos& __x, const _OutputPos& __y) -> _OutputPos { // Combine
+                    return std::make_pair(__x.first + __y.first, __x.second + __y.second);
+                },
+                [=, &__stop_in, &__stop_out1, &__stop_out2](std::intptr_t __i, std::intptr_t __len,
+                                                            _OutputPos __initial) { // Scan
+                    // __initial carries the numbers of true/false mask elements produced by preceding chunks,
+                    // which are also the starting output positions of this chunk. If any of these is greater
+                    // than the corresponding output size, the stop position is located in a preceding chunk.
+                    if (__initial.first > __n_out1 || __initial.second > __n_out2)
+                        return;
+                    const std::intptr_t __safe_len = std::min(__n_out1 - __initial.first, __n_out2 - __initial.second);
+                    if (__safe_len >= __len)
+                    {
+                        __internal::__brick_partition_by_mask(
+                            __begin + __i, __begin + (__i + __len), __out1_begin + __initial.first,
+                            __out2_begin + __initial.second, __mask + __i, _IsVector{});
+                    }
+                    else
+                    {
+                        auto [__next_in, __next_out1, __next_out2] = __brick_bounded_partition_copy(
+                            __begin + __i, __begin + (__i + __len), __out1_begin + __initial.first,
+                            __out1_begin + __n_out1, __out2_begin + __initial.second, __out2_begin + __n_out2,
+                            [=](auto /*__it*/, std::intptr_t __j) { return __mask[__i + __j]; }, _IsVector{});
+                        // If the end of the chunk is not reached, then the stop positions are found.
+                        if (__next_in - __begin < __i + __len)
+                        {
+                            __stop_in = __next_in;
+                            __stop_out1 = __next_out1;
+                            __stop_out2 = __next_out2;
+                        }
+                    }
+                },
+                [=, &__stop_out1, &__stop_out2](_OutputPos __total) { // Apex
+                    if (__total.first < __n_out1) // Output size is bigger than needed
+                        __stop_out1 = __out1_begin + __total.first;
+                    if (__total.second < __n_out2)
+                        __stop_out2 = __out2_begin + __total.second;
+                });
+        });
+        return {__stop_in, __stop_out1, __stop_out2};
+    }
+    // trivial sequence - use serial algorithm
+    return __pattern_partition_copy_ranges(__serial_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec),
+                                           std::forward<_InRange>(__in_r), std::forward<_OutRange1>(__out_true_r),
+                                           std::forward<_OutRange2>(__out_false_r), __pred, __proj);
+}
+
 } // namespace __ranges
 } // namespace __internal
 } // namespace dpl
