@@ -228,6 +228,12 @@
 #define _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN _PSTL_TEST_COMPLEX_OP_BROKEN
 #define _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
 
+// MSVC STL implements the std::complex transcendentals log/log10/pow for double (and long double)
+// that reads the non-const global variable __isa_available. SYCL device code cannot reference non-const global
+// variables, so these operations fail to compile in the device pass.
+#define _PSTL_TEST_COMPLEX_MSVC_LOG_POW_SYCL_DEVICE_BROKEN                                                             \
+    (_MSVC_STL_VERSION && _MSVC_STL_UPDATE >= 202509L && __SYCL_DEVICE_ONLY__)
+
 #define _PSTL_ICC_TEST_UNDERLYING_TYPE_BROKEN (_GLIBCXX_RELEASE && _GLIBCXX_RELEASE < 9)
 
 // Known limitation:
@@ -334,8 +340,5 @@
 // P2325R3 also removed default_initializable from weakly_incrementable, which breaks
 // std::input_iterator and std::output_iterator on the same pre-P2325R3 implementations.
 #define _ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
-
-// TODO remove after implementation of range-based set operations with hetero policies
-#define STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
 
 #endif // _TEST_CONFIG_H

@@ -28,6 +28,14 @@
 #    define _ONEDPL_CPP20_CONCEPTS_PRESENT 0
 #endif
 
+// -- Check for C++20 requires-clause support --
+// This is the concepts language feature (a requires-clause, e.g. on a constrained partial specialization)
+#if __cpp_concepts >= 201907L
+#    define _ONEDPL_CPP20_REQUIRES_CLAUSE_PRESENT 1
+#else
+#    define _ONEDPL_CPP20_REQUIRES_CLAUSE_PRESENT 0
+#endif
+
 // -- Check for C++20 Ranges support --
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
 // Ranges library is available if the standard library provides it and concepts are supported

@@ -18,20 +18,6 @@
 #if _ENABLE_STD_RANGES_TESTING
 namespace test_std_ranges
 {
-// TODO remove after implementation range-based set operations for bounded output range with hetero policies
-template <>
-struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
-{
-    static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
-};
-
-#if TEST_DPCPP_BACKEND_PRESENT
-#if STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
-template <>
-inline constexpr bool skip_test_for_hetero_policy<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_union)>> = true;
-#endif
-#endif
-
 template<>
 inline int out_size_with_empty_in2<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_union)>>(int in1_size)
 {
@@ -68,7 +54,6 @@ void test_mixed_types_host()
 }
 
 #if TEST_DPCPP_BACKEND_PRESENT
-#if !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
 void test_mixed_types_device()
 {
     auto policy = TestUtils::get_dpcpp_test_policy();
@@ -93,7 +78,6 @@ void test_mixed_types_device()
         EXPECT_EQ_RANGES(out_expected, out, "wrong result with device policy");
     }
 }
-#endif // !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 struct
@@ -444,9 +428,7 @@ main()
 
     test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
-#if !STD_RANGES_SET_OP_BROKEN_FOR_HETERO_POLICY
     test_mixed_types_device();
-#endif
 #endif
 
     bProcessed = true;

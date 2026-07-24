@@ -119,36 +119,10 @@ test_device_copyable()
     static_assert(sycl::is_device_copyable_v<
                       oneapi::dpl::unseq_backend::first_match_pred<noop_device_copyable>>,
                   "first_match_pred is not device copyable with device copyable types");
-    //__create_mask
-    static_assert(sycl::is_device_copyable_v<
-                      oneapi::dpl::unseq_backend::__create_mask<noop_device_copyable, int_device_copyable>>,
-                  "__create_mask is not device copyable with device copyable types");
-    static_assert(sycl::is_device_copyable_v<
-                      oneapi::dpl::unseq_backend::__create_mask<noop_device_copyable, int_non_device_copyable>>,
-                  "__create_mask is incorrectly not device copyable because of non member field template arg");
-    //__copy_by_mask
-    static_assert(
-        sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__copy_by_mask<noop_device_copyable, 10>>,
-        "__copy_by_mask is not device copyable with device copyable types");
-    // __global_scan_functor
-    static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__global_scan_functor<
-                      std::true_type, noop_device_copyable, int_device_copyable>>,
-                  "__global_scan_functor is not device copyable with device copyable types");
-    // __scan
-    static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__scan<
-                      std::true_type, noop_device_copyable, noop_device_copyable,
-                      noop_device_copyable, noop_device_copyable, noop_device_copyable,
-                      oneapi::dpl::unseq_backend::__init_value<int_device_copyable>>>,
-                  "__scan is not device copyable with device copyable types");
     // __brick_includes
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__brick_includes<
                       noop_device_copyable, int_device_copyable, int_device_copyable, int_device_copyable, int_device_copyable>>,
                   "__brick_includes is not device copyable with device copyable types");
-    // __brick_set_op
-    // template <typename _SetTag, typename _Size1, typename _Size2, typename _Compare, typename _Proj1, typename _Proj2>
-    static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__brick_set_op<
-                      std::true_type, noop_device_copyable, int_device_copyable, int_device_copyable, int_device_copyable, int_device_copyable>>,
-                  "__brick_set_op is not device copyable with device copyable types");
     // __brick_reduce_idx
     static_assert(sycl::is_device_copyable_v<
                       oneapi::dpl::unseq_backend::__brick_reduce_idx<noop_device_copyable, int_device_copyable>>,
@@ -201,7 +175,7 @@ test_device_copyable()
 
     //__gen_set_balanced_path
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
-                      oneapi::dpl::__par_backend_hetero::__set_intersection,
+                      oneapi::dpl::__par_backend_hetero::__set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
                       oneapi::dpl::__par_backend_hetero::__get_bounds_simple, int, binary_op_device_copyable,
                       binary_op_device_copyable, binary_op_device_copyable>>,
                   "__gen_set_balanced_path is not device copyable with device copyable types");
@@ -210,7 +184,7 @@ test_device_copyable()
     //__partition_set_balanced_path_submitter
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter<
                       oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
-                          oneapi::dpl::__par_backend_hetero::__set_intersection,
+                          oneapi::dpl::__par_backend_hetero::__set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
                           oneapi::dpl::__par_backend_hetero::__get_bounds_simple, int, binary_op_device_copyable,
                           binary_op_device_copyable, binary_op_device_copyable>,
                       oneapi::dpl::execution::DefaultKernelName>>,
@@ -220,7 +194,7 @@ test_device_copyable()
     //__gen_set_op_from_known_balanced_path
     static_assert(
         sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<
-            oneapi::dpl::__par_backend_hetero::__set_intersection,
+            oneapi::dpl::__par_backend_hetero::__set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
             oneapi::dpl::__internal::__ignore_call_op, int, binary_op_device_copyable,
             binary_op_device_copyable, binary_op_device_copyable>>,
         "__gen_set_op_from_known_balanced_path is not device copyable with device copyable types");
@@ -462,34 +436,11 @@ test_non_device_copyable()
     //first_match_pred
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::first_match_pred<noop_non_device_copyable>>,
                   "first_match_pred is device copyable with non device copyable types");
-    //__create_mask
-    static_assert(!sycl::is_device_copyable_v<
-                      oneapi::dpl::unseq_backend::__create_mask<noop_non_device_copyable, int_device_copyable>>,
-                  "__create_mask is device copyable with non device copyable types");
-    //__copy_by_mask
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__copy_by_mask<noop_non_device_copyable, 10>>,
-                  "__copy_by_mask is device copyable with non device copyable types");
-    //__global_scan_functor
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__global_scan_functor<
-                      std::true_type, noop_non_device_copyable, int_device_copyable>>,
-                  "__global_scan_functor is device copyable with non device copyable types");
-    //__scan
-    static_assert(
-        !sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__scan<
-            std::true_type, noop_non_device_copyable, noop_device_copyable, noop_device_copyable, noop_device_copyable,
-            noop_device_copyable, oneapi::dpl::unseq_backend::__init_value<int_device_copyable>>>,
-        "__scan is device copyable with non device copyable types");
     //__brick_includes
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__brick_includes<
                       noop_non_device_copyable, int_device_copyable, int_device_copyable, int_device_copyable,
                       int_device_copyable>>,
                   "__brick_includes is device copyable with non device copyable types");
-    //__brick_set_op
-    static_assert(
-        !sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::__brick_set_op<std::true_type, noop_non_device_copyable, int_device_copyable,
-                                                       int_device_copyable, int_device_copyable, int_device_copyable>>,
-                  "__brick_set_op is device copyable with non device copyable types");
     //__brick_reduce_idx
     static_assert(!sycl::is_device_copyable_v<
                       oneapi::dpl::unseq_backend::__brick_reduce_idx<noop_device_copyable, int_non_device_copyable>>,
@@ -542,7 +493,7 @@ test_non_device_copyable()
 
     //__gen_set_balanced_path
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
-                      oneapi::dpl::__par_backend_hetero::__set_intersection,
+                      oneapi::dpl::__par_backend_hetero::__set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
                       oneapi::dpl::__par_backend_hetero::__get_bounds_simple, int, binary_op_non_device_copyable,
                       binary_op_non_device_copyable, binary_op_non_device_copyable>>,
                   "__gen_set_balanced_path is device copyable with non device copyable types");
@@ -552,7 +503,7 @@ test_non_device_copyable()
     static_assert(
         !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter<
             oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<
-                oneapi::dpl::__par_backend_hetero::__set_intersection,
+                oneapi::dpl::__par_backend_hetero::__set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
                 oneapi::dpl::__par_backend_hetero::__get_bounds_simple, int, binary_op_non_device_copyable,
                 binary_op_non_device_copyable, binary_op_non_device_copyable>,
             oneapi::dpl::execution::DefaultKernelName>>,
@@ -562,7 +513,7 @@ test_non_device_copyable()
     //__gen_set_op_from_known_balanced_path
     static_assert(
         !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<
-            oneapi::dpl::__par_backend_hetero::__set_intersection,
+            oneapi::dpl::__par_backend_hetero::__set_operation<oneapi::dpl::unseq_backend::_IntersectionTag>,
             oneapi::dpl::__internal::__ignore_call_op, int, binary_op_non_device_copyable,
             binary_op_non_device_copyable, binary_op_non_device_copyable>>,
         "__gen_set_op_from_known_balanced_path is device copyable with non device copyable types");
