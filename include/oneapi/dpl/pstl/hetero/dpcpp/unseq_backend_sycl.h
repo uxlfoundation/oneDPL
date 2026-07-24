@@ -693,35 +693,37 @@ struct __brick_includes
 struct __reverse_functor
 {
   private:
-    const std::size_t __size;
+    const std::size_t __begin;
+    const std::size_t __end;
 
   public:
-    __reverse_functor(std::size_t __size) : __size(__size) {}
+    // Construction parameters: the number of elements to reverse, the index of the first element (0 by default)
+    __reverse_functor(std::size_t __n, std::size_t __shift = 0) : __begin(__shift), __end(__n + __shift) {}
 
     template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<_Params::__can_vectorize, int> = 0>
     void
-    operator()(_IsFull, const std::size_t __left_start_idx, _Params, _Range&& __rng) const
+    operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
-
         _ValueType __rng_left_vector[_Params::__vector_size];
         _ValueType __rng_right_vector[_Params::__vector_size];
 
-        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__size};
+        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__end};
         oneapi::dpl::__par_backend_hetero::__vector_reverse<_Params::__vector_size> __vec_reverse;
-        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size>
-            __vec_store{__size - __left_start_idx};
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__end - __idx};
         oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
         oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>
             __store_op;
 
+        const std::size_t __left_start_idx = __begin + __idx;
+
         if constexpr (_IsFull::value == false)
         {
-            if (__left_start_idx + _Params::__vector_size >= __size - __left_start_idx)
+            if (__left_start_idx + _Params::__vector_size >= __end - __idx)
             {
                 // The remaining data to reverse fits into a single vector
                 __vec_load(std::false_type{}, __left_start_idx, __load_op, __rng, __rng_left_vector);
-                __vec_reverse(std::false_type{}, __size - 2 * __left_start_idx, __rng_left_vector);
+                __vec_reverse(std::false_type{}, __end - __idx - __left_start_idx, __rng_left_vector);
                 __vec_store(std::false_type{}, __left_start_idx, __store_op, __rng_left_vector, __rng);
                 return;
             }
@@ -733,7 +735,7 @@ struct __reverse_functor
         // There may exist a single point of double processing between left and right vectors in the last work-item
         // which reverses middle elements.
 
-        const std::size_t __right_start_idx = __size - __left_start_idx - _Params::__vector_size;
+        const std::size_t __right_start_idx = __end - __idx - _Params::__vector_size;
 
         // 1. Load two vectors that we want to swap: one from the left half of the buffer and one from the right.
         // Note that due to indices we have chosen, there will always be a full vector of elements to load.
@@ -751,7 +753,7 @@ struct __reverse_functor
     operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
         using std::swap;
-        swap(__rng[__idx], __rng[__size - __idx - 1]);
+        swap(__rng[__begin + __idx], __rng[__end - __idx - 1]);
     }
 };
 

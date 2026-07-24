@@ -1242,7 +1242,8 @@ struct __strided_loop
     operator()(/*__is_full*/ std::false_type, std::size_t __idx, std::uint16_t __stride, _LoopBodyOp __loop_body_op,
                _Args&&... __args) const
     {
-        for (; __idx < __full_range_size; __idx += __stride)
+        std::size_t __limit = std::min(__full_range_size, __idx + __num_strides * __stride);
+        for (; __idx < __limit; __idx += __stride)
         {
             __loop_body_op(std::false_type{}, __idx, __args...);
         }
