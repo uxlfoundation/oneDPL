@@ -370,7 +370,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
             _Index __tilesize;
             if (__n >= 4 * __p * __cutoff)
                 __tilesize = (__n - 1) / (4 * __p) + 1;
-            else if (__n >=  __p * __cutoff / 2)
+            else if (__n >= __p * __cutoff / 2)
                 __tilesize = (__n - 1) / (2 * __p) + 1;
             else
                 __tilesize = __cutoff;
