@@ -359,15 +359,12 @@ void
 __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
                        _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
 {
-    constexpr _Index __cutoff = _ONEDPL_STRICT_SCAN_SERIAL_CUTOFF;
-    if (__n > __cutoff)
+    if (__n > _ONEDPL_STRICT_SCAN_SERIAL_CUTOFF)
     {
         tbb::this_task_arena::isolate([=, &__combine]() {
-            // Tilesize may be smaller than cutoff,
-            // but this is fine because TBB needs some slack for load balancing.
             _Index __p = tbb::this_task_arena::max_concurrency();
             constexpr _Index __slack = 4;
-            _Index __tilesize = std::max(__cutoff, (__n - 1) / (__slack * __p) + 1);
+            _Index __tilesize = std::max(_ONEDPL_STRICT_SCAN_SERIAL_CUTOFF, (__n - 1) / (__slack * __p) + 1);
             _Index __m = (__n - 1) / __tilesize;
             __tbb_backend::__buffer<_Tp> __buf(__m + 1);
             _Tp* __r = __buf.get();
@@ -388,7 +385,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
             return;
         });
     }
-    else // serial scan for small n
+    else
     {
         _Tp __sum = __initial;
         if (__n)
