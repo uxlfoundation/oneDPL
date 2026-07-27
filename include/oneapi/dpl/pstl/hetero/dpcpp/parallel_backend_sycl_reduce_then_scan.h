@@ -166,7 +166,7 @@ struct __write_to_id_if
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
         if (std::get<1>(__v))
         {
-            const auto __out_idx = std::get<0>(__v) - 1 + __offset;
+            const std::size_t __out_idx = std::get<0>(__v) - 1 + __offset;
 
             if (__out_idx < __out_size)
                 __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
@@ -181,8 +181,7 @@ struct __write_to_id_if
 // Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1`, but only if the
 // condition `get<1>(__v)` is `true`. Otherwise, writes the element to the output range at the index,
 // `__id - get<0>(__v)`. Used for __parallel_partition_copy.
-template <typename _Assign>
-struct __write_to_id_if_else
+struct __write_partitioned
 {
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
@@ -195,12 +194,12 @@ struct __write_to_id_if_else
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
         if (std::get<1>(__v))
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[std::get<0>(__v) - 1]));
+            std::get<0>(__out_rng[std::get<0>(__v) - 1]) = static_cast<_ConvertedTupleType>(std::get<2>(__v));
         else
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
-                     std::get<1>(__out_rng[__id - std::get<0>(__v)]));
+            std::get<1>(__out_rng[__id - std::get<0>(__v)]) = static_cast<_ConvertedTupleType>(std::get<2>(__v));
     }
-    _Assign __assign;
+    std::size_t __out1_size;
+    std::size_t __out2_size;
 };
 
 // Writes operation for reduce_by_segment, writes first key if the id is 0. Also, if the segment end is reached, writes
@@ -334,7 +333,7 @@ struct __write_multiple_to_id
             // and let the next set() placement-new over a still-live object.
             auto&& __val = __temp_data.get_and_destroy(__i);
 
-            const auto __out_idx = std::get<0>(__v) - std::get<1>(__v) + __i;
+            const std::size_t __out_idx = std::get<0>(__v) - std::get<1>(__v) + __i;
             if (__out_idx < __out_size)
                 __assign(static_cast<_ConvertedTupleType>(std::forward<decltype(__val)>(__val)), __out_rng[__out_idx]);
 
