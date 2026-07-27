@@ -131,6 +131,15 @@ struct __simple_write_to_id
 template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
 {
+    template <typename _ValueType>
+    bool
+    __oob_write_possible(std::size_t __max_write_index,
+                         const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix)
+    {
+        const std::size_t __carry_in = __prefix.__has_value() ? __prefix.__get_cref() : 0;
+        return (__carry_in + __max_write_index > __out_size);
+    }
+
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
@@ -145,10 +154,9 @@ struct __write_to_id_if
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
     }
 
-    template <typename _OutRng, typename _OutSize, typename _SizeType, typename _ValueType, typename _OnOOBReached>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
     void
-    operator()(_OutRng& __out_rng, const _OutSize __out_size, _SizeType __id, const _ValueType& __v,
-               _OnOOBReached __on_oob_reached) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _OnOOBReached __on_oob_reached) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -166,6 +174,7 @@ struct __write_to_id_if
                 __on_oob_reached(__id, __id);
         }
     }
+    std::size_t __out_size;
     _Assign __assign;
 };
 
@@ -275,9 +284,17 @@ struct __write_scan_by_seg
 // previous operation, and must be written to the output range in the appropriate location. The zeroth element of `__v`
 // will contain the index of one past the last element to write, and the first element of `__v` will contain the number
 // of elements to write. Used for __parallel_set_write_a_b_op.
-template <typename _Assign>
 struct __write_multiple_to_id
 {
+    template <typename _ValueType>
+    bool
+    __oob_write_possible(std::size_t __max_write_index,
+                         const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix)
+    {
+        const std::size_t __carry_in = __prefix.__has_value() ? __prefix.__get_cref() : 0;
+        return (__carry_in + __max_write_index > __out_size);
+    }
+
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
     operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data) const
@@ -296,11 +313,11 @@ struct __write_multiple_to_id
         }
     }
 
-    template <typename _OutRng, typename _OutSize, typename _SizeType, typename _ValueType, typename _TempData,
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData,
               typename _OnOOBReached>
     void
-    operator()(_OutRng& __out_rng, const _OutSize __out_size, _SizeType __id, const _ValueType& __v,
-               _TempData& __temp_data, _OnOOBReached __on_oob_reached) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData& __temp_data,
+               _OnOOBReached __on_oob_reached) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -329,7 +346,8 @@ struct __write_multiple_to_id
                 __on_oob_reached(__id, __i);
         }
     }
-    _Assign __assign;
+    std::size_t __out_size;
+    oneapi::dpl::__internal::__pstl_assign __assign;
 };
 
 // *** Algorithm Specific Helpers, Input Generators to Reduction and Scan Operations ***
@@ -1578,25 +1596,21 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
         {
             if constexpr (_Bounded)
             {
-                _OutRngSize __out_rng_size = oneapi::dpl::__ranges::__size(__out_rng);
-
-                const std::size_t __carry_in = __sub_group_carry.__has_value() ? __sub_group_carry.__get_cref() : 0;
-                const std::uint8_t __sub_group_size =
-                    __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
+                const std::uint8_t __sg_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
                 // A single scanned element may emit up to _TempData::__max_outputs_per_input output elements:
                 // one for copy_if/unique, but up to __diagonal_spacing for set operations, where each scanned
                 // element is a diagonal written through __write_multiple_to_id. The estimate must account for
                 // this many writes per scanned element, otherwise the unchecked write path could be selected for
                 // set operations and overrun __out_rng (corrupting memory and skipping OOB position detection).
-                const std::size_t __max_writes_this_sub_group =
-                    std::size_t{__iters_per_item} * __sub_group_size * _TempData::__max_outputs_per_input;
-                if (__carry_in + __max_writes_this_sub_group + __is_unique_pattern_v > __out_rng_size)
+                const std::size_t __max_write_index = std::size_t{__is_unique_pattern_v} +
+                    __iters_per_item * __sg_size * _TempData::__max_outputs_per_input;
+                if (__write_op.__oob_write_possible(__max_write_index, __sub_group_carry))
                 {
                     auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
                         if constexpr (__is_temp_data_required)
-                            __write_op(__out_rng, __out_rng_size, __id, __v, __temp_data, __on_oob_reached);
+                            __write_op(__out_rng, __id, __v, __temp_data, __on_oob_reached);
                         else
-                            __write_op(__out_rng, __out_rng_size, __id, __v, __on_oob_reached);
+                            __write_op(__out_rng, __id, __v, __on_oob_reached);
                     };
                     __scan_through_elements_helper_impl<__is_inclusive>(
                         __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __bounded_write_op,
