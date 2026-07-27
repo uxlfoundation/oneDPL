@@ -313,8 +313,7 @@ struct __write_multiple_to_id
         }
     }
 
-    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData,
-              typename _OnOOBReached>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData, typename _OnOOBReached>
     void
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData& __temp_data,
                _OnOOBReached __on_oob_reached) const
@@ -1579,8 +1578,6 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
         else
             return __gen_input(__rng, __id);
     };
-
-    using _OutRngSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
 
     // Hoist the sub-group-ops vs SLM-fallback decision to here. The element-scan body below is instantiated
     // once per available communication path; the branch is taken a single time per call to this helper.
