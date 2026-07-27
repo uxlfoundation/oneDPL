@@ -220,11 +220,6 @@ test_device_copyable()
                                                                                           binary_op_device_copyable>>,
         "__write_scan_by_seg is not device copyable with device copyable types");
 
-    //__write_multiple_to_id
-    static_assert(sycl::is_device_copyable_v<
-                      oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<assign_device_copyable>>,
-                  "__write_multiple_to_id is not device copyable with device copyable types");
-
     // __early_exit_find_or
     static_assert(
         sycl::is_device_copyable_v<
@@ -537,11 +532,6 @@ test_non_device_copyable()
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__write_scan_by_seg<
                       true, int_non_device_copyable, binary_op_non_device_copyable>>,
                   "__write_scan_by_seg is device copyable with non device copyable types");
-
-    //__write_multiple_to_id
-    static_assert(!sycl::is_device_copyable_v<
-                      oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<assign_non_device_copyable>>,
-                  "__write_multiple_to_id is device copyable with non device copyable types");
 
     // __early_exit_find_or
     static_assert(
