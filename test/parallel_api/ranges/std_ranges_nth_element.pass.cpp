@@ -67,6 +67,14 @@ nth_positions(int n)
 // Default data generator: values in [-48, 48] with duplicates to exercise partition ties.
 inline auto nth_element_gen = [](int i) { return (i * 7 + 3) % 97 - 48; };
 
+// Degenerate distributions that stress the partition/selection paths differently from random data:
+//  - all elements equal (every pivot choice ties),
+//  - already sorted ascending,
+//  - sorted descending.
+inline auto nth_element_equal_gen = [](int) { return 42; };
+inline auto nth_element_sorted_gen = [](int i) { return i; };
+inline auto nth_element_reverse_gen = [](int i) { return -i; };
+
 // A single declarative test case, in the spirit of test_range_algo: one instantiation runs the
 // tested algorithm against std::ranges::nth_element for every policy (serial/parallel and, when
 // available, device), across a set of sizes and 'nth' positions, for a fixed comparator/projection.
@@ -79,6 +87,18 @@ struct test_nth_element
     {
         for (int n : {0, 1, 2, 3, 7, 20, small_size})
             host_case(algo, checker, n, comp, proj);
+
+        // Borrowed views (std::ranges::subrange, std::span): exercise the algorithm on non-container
+        // random-access sized ranges, not only on std::vector.
+        for (int n : {0, 1, 2, 3, 7, 20, small_size})
+            host_view_case(algo, checker, n, comp, proj);
+
+        // A non-borrowed rvalue range must yield std::ranges::dangling as the return type.
+        using dangling_ret_t = decltype(algo(oneapi::dpl::execution::seq, std::declval<std::vector<T>>(),
+                                             std::declval<std::vector<T>>().begin(), std::declval<Comp>(),
+                                             std::declval<Proj>()));
+        static_assert(std::is_same_v<dangling_ret_t, std::ranges::dangling>,
+                      "nth_element over an rvalue non-borrowed range must return std::ranges::dangling");
 
 #if TEST_DPCPP_BACKEND_PRESENT
         // Pointer-to-member-function comparators/projections are not supported inside device kernels.
@@ -132,6 +152,44 @@ struct test_nth_element
         }
     }
 
+    template <typename Algo, typename Checker, typename Comp, typename Proj>
+    void
+    host_view_case(Algo algo, Checker checker, int n, Comp comp, Proj proj) const
+    {
+        const std::string msg = "host view, nth_element<" + std::to_string(CallId) + ">";
+        for (int nth : nth_positions(n))
+        {
+            std::vector<T> reference = make_data(n);
+            checker(reference, reference.begin() + nth, comp, proj);
+
+            // std::ranges::subrange over an lvalue vector: a borrowed, random-access, sized view.
+            auto run_subrange = [&](auto&& policy)
+            {
+                std::vector<T> data = make_data(n);
+                auto view = std::ranges::subrange(data.begin(), data.end());
+                auto res = algo(policy, view, view.begin() + nth, comp, proj);
+                EXPECT_TRUE(res == data.end(), (std::string("wrong return value (subrange): ") + msg).c_str());
+                check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+            };
+            run_subrange(oneapi::dpl::execution::seq);
+            run_subrange(oneapi::dpl::execution::par);
+
+#if TEST_CPP20_SPAN_PRESENT
+            // std::span: a borrowed, non-owning view without an owning container interface.
+            auto run_span = [&](auto&& policy)
+            {
+                std::vector<T> data = make_data(n);
+                std::span<T> view(data.data(), data.size());
+                auto res = algo(policy, view, view.begin() + nth, comp, proj);
+                EXPECT_TRUE(res == view.end(), (std::string("wrong return value (span): ") + msg).c_str());
+                check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+            };
+            run_span(oneapi::dpl::execution::seq);
+            run_span(oneapi::dpl::execution::par);
+#endif // TEST_CPP20_SPAN_PRESENT
+        }
+    }
+
 #if TEST_DPCPP_BACKEND_PRESENT
     template <typename Algo, typename Checker, typename Comp, typename Proj>
     void
@@ -181,6 +239,14 @@ main()
 
     // External projection proj_apm: exercised on host and device.
     test_nth_element<7, A_PM>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::greater{}, proj_apm);
+
+    // Degenerate data distributions: all-equal, ascending, descending.
+    test_nth_element<8, int, decltype(nth_element_equal_gen)>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{});
+    test_nth_element<9, int, decltype(nth_element_sorted_gen)>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{});
+    test_nth_element<10, int, decltype(nth_element_reverse_gen)>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{});
+
+    // Floating-point keys.
+    test_nth_element<11, double>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{});
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
