@@ -221,6 +221,41 @@ struct test_nth_element
 #endif // TEST_DPCPP_BACKEND_PRESENT
 };
 
+class A_PM
+{
+  protected:
+    int a = {};
+
+  public:
+    A_PM() = default;
+    A_PM(int v) : a(v) {}
+
+    int
+    get() const
+    {
+        return a;
+    }
+};
+
+class B_PM
+{
+  protected:
+    int b = {};
+
+  public:
+    B_PM() = default;
+    B_PM(int v) : b(v) {}
+
+    int
+    get() const
+    {
+        return b;
+    }
+};
+
+auto proj_apm = [](const A_PM& a) { return a.get(); };
+auto proj_bpm = [](const B_PM& b) { return b.get(); };
+
 #endif // _ENABLE_STD_RANGES_TESTING
 
 std::int32_t
