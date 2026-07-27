@@ -94,12 +94,23 @@ struct test_nth_element
             host_view_case(algo, checker, n, comp, proj);
 
         // A non-borrowed rvalue range must yield std::ranges::dangling as the return type.
-        using dangling_ret_t = decltype(algo(oneapi::dpl::execution::seq, std::declval<std::vector<T>>(),
-                                             std::declval<std::vector<T>>().begin(), std::declval<Comp>(),
-                                             std::declval<Proj>()));
-        static_assert(std::is_same_v<dangling_ret_t, std::ranges::dangling>,
-                      "nth_element over an rvalue non-borrowed range must return std::ranges::dangling");
+        using dangling_ret_seq_t = decltype(algo(oneapi::dpl::execution::seq, std::declval<std::vector<T>>(),
+                                                 std::declval<std::vector<T>>().begin(), std::declval<Comp>(),
+                                                 std::declval<Proj>()));
+        using dangling_ret_unseq_t = decltype(algo(oneapi::dpl::execution::unseq, std::declval<std::vector<T>>(),
+                                                   std::declval<std::vector<T>>().begin(), std::declval<Comp>(),
+                                                   std::declval<Proj>()));
+        using dangling_ret_par_t = decltype(algo(oneapi::dpl::execution::par, std::declval<std::vector<T>>(),
+                                                  std::declval<std::vector<T>>().begin(), std::declval<Comp>(),
+                                                  std::declval<Proj>()));
+        using dangling_ret_par_unseq_t = decltype(algo(oneapi::dpl::execution::par_unseq, std::declval<std::vector<T>>(),
+                                                       std::declval<std::vector<T>>().begin(), std::declval<Comp>(),
+                                                       std::declval<Proj>()));
 
+        static_assert(std::is_same_v<dangling_ret_seq_t, std::ranges::dangling>);
+        static_assert(std::is_same_v<dangling_ret_unseq_t, std::ranges::dangling>);
+        static_assert(std::is_same_v<dangling_ret_par_t, std::ranges::dangling>);
+        static_assert(std::is_same_v<dangling_ret_par_unseq_t, std::ranges::dangling>);
 #if TEST_DPCPP_BACKEND_PRESENT
         // Pointer-to-member-function comparators/projections are not supported inside device kernels.
         if constexpr (!std::disjunction_v<std::is_member_function_pointer<Comp>,
