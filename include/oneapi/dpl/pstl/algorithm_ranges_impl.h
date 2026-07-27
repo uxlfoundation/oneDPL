@@ -1532,9 +1532,7 @@ __pattern_nth_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::rang
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto __beg = std::ranges::begin(__r);
-    auto __end = __beg + std::ranges::size(__r);
-
+    auto [__beg, __end] = oneapi::dpl::__ranges::__bounds(__r);
     oneapi::dpl::__internal::__pattern_nth_element(
         __tag, std::forward<_ExecutionPolicy>(__exec), __beg, __nth, __end,
         oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
