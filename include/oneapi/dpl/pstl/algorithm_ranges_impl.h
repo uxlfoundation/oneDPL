@@ -1829,8 +1829,7 @@ __pattern_partition_copy_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolic
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n,
             _OutputPos{std::intptr_t(0), std::intptr_t(0)},
             [=, &__idx_pred](std::intptr_t __i, std::intptr_t __len) { // Reduce
-                return __internal::__brick_compute_mask(__begin + __i, __len, __idx_pred, __mask + __i,
-                                                        _IsVector{});
+                return __internal::__brick_compute_mask(__begin + __i, __len, __idx_pred, __mask + __i, _IsVector{});
             },
             [](const _OutputPos& __x, const _OutputPos& __y) -> _OutputPos { // Combine
                 return std::make_pair(__x.first + __y.first, __x.second + __y.second);
