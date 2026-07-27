@@ -1423,9 +1423,8 @@ inline constexpr __internal::__unique_copy_fn unique_copy;
 
 struct __internal::__nth_element_fn
 {
-    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
-             std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>>
-                _Comp = std::ranges::less>
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Comp = std::ranges::less,
+              typename _Proj = std::identity>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
                  std::ranges::sized_range<_R> && std::sortable<std::ranges::iterator_t<_R>, _Comp, _Proj>
 
