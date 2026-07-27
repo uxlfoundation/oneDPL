@@ -196,6 +196,11 @@ struct test_nth_element
     {
         const std::string msg = "device, nth_element<" + std::to_string(CallId) + ">";
         auto policy = TestUtils::get_dpcpp_test_policy();
+
+        // Skip device tests for double if the device does not support double precision floating point.
+        if (std::is_same_v<T, double> && !policy.queue().get_device().has(sycl::aspect::fp64))
+            return;
+
         for (int nth : nth_positions(n))
         {
             std::vector<T> reference = make_data(n);
