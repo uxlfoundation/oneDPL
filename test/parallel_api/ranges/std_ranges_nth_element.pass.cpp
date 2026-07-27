@@ -100,6 +100,8 @@ struct test_nth_element
                                            std::declval<Proj>()));
         static_assert(all_dangling_in_result_v<rvalue_ret_t>);
 #if TEST_DPCPP_BACKEND_PRESENT
+
+
         // Pointer-to-member-function comparators/projections are not supported inside device kernels.
         if constexpr (!std::disjunction_v<std::is_member_function_pointer<Comp>,
                                           std::is_member_function_pointer<Proj>>)
@@ -108,8 +110,14 @@ struct test_nth_element
             if constexpr (!std::disjunction_v<std::is_member_pointer<Comp>, std::is_member_pointer<Proj>>)
 #endif
             {
-                for (int n : {0, 1, small_size, medium_size})
-                    device_case(algo, checker, n, comp, proj);
+                auto policy = TestUtils::get_dpcpp_test_policy();
+
+                // Skip device tests for double if the device does not support double precision floating point.
+                if (!std::is_same_v<T, double> || policy.queue().get_device().has(sycl::aspect::fp64))
+                {
+                    for (int n : {0, 1, small_size, medium_size})
+                        device_case(policy, algo, checker, n, comp, proj);
+                }
             }
         }
 #endif // TEST_DPCPP_BACKEND_PRESENT
@@ -190,16 +198,11 @@ struct test_nth_element
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    template <typename Algo, typename Checker, typename Comp, typename Proj>
+    template <typename ExecutionPolicy, typename Algo, typename Checker, typename Comp, typename Proj>
     void
-    device_case(Algo algo, Checker checker, int n, Comp comp, Proj proj) const
+    device_case(ExecutionPolicy&& policy, Algo algo, Checker checker, int n, Comp comp, Proj proj) const
     {
         const std::string msg = "device, nth_element<" + std::to_string(CallId) + ">";
-        auto policy = TestUtils::get_dpcpp_test_policy();
-
-        // Skip device tests for double if the device does not support double precision floating point.
-        if (std::is_same_v<T, double> && !policy.queue().get_device().has(sycl::aspect::fp64))
-            return;
 
         for (int nth : nth_positions(n))
         {
