@@ -1966,8 +1966,7 @@ __pattern_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    if (__n_out > std::size_t(__last - __first))
-        __n_out = __last - __first;
+    __n_out = std::min<std::size_t>(__n_out, __last - __first);
 
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_for(

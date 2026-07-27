@@ -61,11 +61,12 @@ main()
         return ret_type{it1, it2, it_out};
     };
 
-    const int test_sz = 19787;
+    const int test_sz = 19786;
     test_range_algo<0, int, data_in_out_lim>{big_sz}(rotate_copy_tester, rotate_copy_checker);
     test_range_algo<1, float, data_in_out_lim>{test_sz}(rotate_copy_tester, rotate_copy_checker, test_sz - 1);
-    test_range_algo<2, P2, data_in_out_lim>{test_sz/11}(rotate_copy_tester, rotate_copy_checker, 0);
-    test_range_algo<3, int, data_in_out_lim>{test_sz/17}(rotate_copy_tester, rotate_copy_checker, 1);
+    test_range_algo<2, std::size_t, data_in_out_lim>{test_sz}(rotate_copy_tester, rotate_copy_checker, test_sz/2);
+    test_range_algo<3, P2, data_in_out_lim>{test_sz/11}(rotate_copy_tester, rotate_copy_checker, 0);
+    test_range_algo<4, int, data_in_out_lim>{test_sz/17}(rotate_copy_tester, rotate_copy_checker, 1);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
