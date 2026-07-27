@@ -456,9 +456,6 @@ struct __gen_expand_count_mask;
 template <int32_t __offset, typename _Assign>
 struct __write_to_id_if;
 
-template <typename _Assign>
-struct __write_to_id_if_else;
-
 template <typename _BinaryPred>
 struct __write_red_by_seg;
 
@@ -563,13 +560,6 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 
 template <int32_t __offset, typename _Assign>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_to_id_if, __offset,
-                                                       _Assign)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Assign>
-{
-};
-
-template <typename _Assign>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_to_id_if_else,
                                                        _Assign)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Assign>
 {
