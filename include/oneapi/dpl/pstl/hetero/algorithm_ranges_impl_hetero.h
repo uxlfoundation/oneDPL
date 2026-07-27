@@ -744,14 +744,9 @@ __pattern_nth_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 {
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
-    if (__first != __last && __nth != __last)
-    {
-        // TODO: check partition-based implementation
-        // - try to avoid host dereference issue
-        // - measure performance of the issue-free implementation
-        __pattern_partial_sort(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __nth + 1, __last,
-                               oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
-    }
+    oneapi::dpl::__internal::__pattern_nth_element(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __nth, __last,
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
 
     return __last;
 }
