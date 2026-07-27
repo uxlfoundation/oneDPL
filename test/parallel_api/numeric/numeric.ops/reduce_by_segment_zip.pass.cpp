@@ -170,6 +170,65 @@ test_zip_with_discard(Policy&& exec, BinaryOp binary_op)
     EXPECT_EQ(std::distance(begin_vals_out, new_last.second), 3, "wrong number of values from reduce_by_segment");
 }
 
+// A std::tuple value type flowing through reduce_by_segment with a device policy, which requires conversion of a temp
+// buffer to oneDPL internal tuple (along with its allocator)
+template <sycl::usm::alloc alloc_type, std::size_t KernelIdx, typename Policy>
+void
+test_transform_tuple_values(Policy&& exec)
+{
+    constexpr int n = 6;
+
+    // keys form three segments: {10, 10}, {20}, {30, 30, 30}
+    int keys[n] = {10, 10, 20, 30, 30, 30};
+    double src[n] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
+
+    int output_keys[n] = {};
+    int output_counts[n] = {};
+    double output_sums[n] = {};
+
+    TestUtils::usm_data_transfer<alloc_type, int> dt_keys(exec, keys, n);
+    TestUtils::usm_data_transfer<alloc_type, double> dt_src(exec, src, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_out_keys(exec, output_keys, n);
+    TestUtils::usm_data_transfer<alloc_type, int> dt_out_counts(exec, output_counts, n);
+    TestUtils::usm_data_transfer<alloc_type, double> dt_out_sums(exec, output_sums, n);
+
+    auto d_keys = dt_keys.get_data();
+    auto d_src = dt_src.get_data();
+    auto d_out_keys = dt_out_keys.get_data();
+    auto d_out_counts = dt_out_counts.get_data();
+    auto d_out_sums = dt_out_sums.get_data();
+
+    // The value range yields std::tuple<int, double>: a count of 1 paired with the source value.
+    auto values_begin = oneapi::dpl::make_transform_iterator(oneapi::dpl::counting_iterator<int>(0),
+                                                             [d_src](int i) { return std::make_tuple(1, d_src[i]); });
+
+    auto out_values_begin = oneapi::dpl::make_zip_iterator(d_out_counts, d_out_sums);
+
+    auto reduce_op = [](const auto& lhs, const auto& rhs) {
+        return std::make_tuple(std::get<0>(lhs) + std::get<0>(rhs), std::get<1>(lhs) + std::get<1>(rhs));
+    };
+
+    using _NewKernelName = TestUtils::unique_kernel_name<class TransformTupleValues, KernelIdx>;
+    auto new_last =
+        oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), d_keys, d_keys + n, values_begin,
+                                       d_out_keys, out_values_begin, std::equal_to<int>(), reduce_op);
+
+    dt_out_keys.retrieve_data(output_keys);
+    dt_out_counts.retrieve_data(output_counts);
+    dt_out_sums.retrieve_data(output_sums);
+
+    const int exp_keys[n] = {10, 20, 30};
+    const int exp_counts[n] = {2, 1, 3};
+    const double exp_sums[n] = {3.0, 3.0, 15.0};
+    EXPECT_EQ_N(exp_keys, output_keys, 3, "wrong keys from reduce_by_segment with tuple values");
+    EXPECT_EQ_N(exp_counts, output_counts, 3, "wrong counts from reduce_by_segment with tuple values");
+    EXPECT_EQ_N(exp_sums, output_sums, 3, "wrong sums from reduce_by_segment with tuple values");
+    EXPECT_EQ(std::distance(d_out_keys, new_last.first), 3,
+              "wrong number of keys from reduce_by_segment with tuple values");
+    EXPECT_EQ(std::distance(out_values_begin, new_last.second), 3,
+              "wrong number of values from reduce_by_segment with tuple values");
+}
+
 template <typename Policy, typename BinaryOp>
 void test_with_op(Policy&& exec, BinaryOp binary_op)
 {
@@ -185,6 +244,8 @@ void test_impl(Policy&& exec)
 {
     test_with_op(CLONE_TEST_POLICY(exec), TestUtils::TupleAddFunctor1{});
     test_with_op(CLONE_TEST_POLICY(exec), TestUtils::TupleAddFunctor2{});
+
+    test_transform_tuple_values<sycl::usm::alloc::shared, 3>(CLONE_TEST_POLICY(exec));
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
