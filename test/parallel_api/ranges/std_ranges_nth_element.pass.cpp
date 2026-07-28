@@ -304,12 +304,12 @@ main()
     test_nth_element<7, A_PM>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::greater{}, proj_apm);
 
     // Degenerate data distributions: all-equal, ascending, descending.
-    test_nth_element<8, int, decltype(nth_element_equal_gen)>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{});
-    test_nth_element<9, int, decltype(nth_element_sorted_gen)>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{});
-    test_nth_element<10, int, decltype(nth_element_reverse_gen)>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{});
+    test_nth_element<8, int, decltype(nth_element_equal_gen)>{}(dpl_ranges::nth_element, nth_element_checker);
+    test_nth_element<9, int, decltype(nth_element_sorted_gen)>{}(dpl_ranges::nth_element, nth_element_checker);
+    test_nth_element<10, int, decltype(nth_element_reverse_gen)>{}(dpl_ranges::nth_element, nth_element_checker);
 
     // Floating-point keys.
-    test_nth_element<11, double>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{});
+    test_nth_element<11, double>{}(dpl_ranges::nth_element, nth_element_checker);
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
