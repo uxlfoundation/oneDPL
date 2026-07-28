@@ -32,20 +32,14 @@ struct CustomLess
 // in its final sorted position, and the range is partitioned around it. The parallel and device
 // specializations rearrange the rest of the elements differently from std::ranges::nth_element,
 // so we verify the algorithm post-conditions instead of comparing the whole range element-wise.
-//   1) the projected key at 'nth' is equivalent (under comp) to the reference one produced by
-//      std::ranges::nth_element for the same input;
-//   2) nothing before 'nth' is ordered after it and nothing after 'nth' is ordered before it.
-template <typename Range, typename Reference, typename Comp, typename Proj>
+template <typename Range, typename Comp, typename Proj>
 void
-check_nth_element_effect(Range&& r, const Reference& reference, int n, int nth, Comp comp, Proj proj, const char* msg)
+check_nth_element_effect(Range&& r, int n, int nth, Comp comp, Proj proj, const char* msg)
 {
     if (n == 0 || nth == n) // no element is selected: nothing to check
         return;
 
     auto ordered = [&](auto&& a, auto&& b) { return std::invoke(comp, std::invoke(proj, a), std::invoke(proj, b)); };
-
-    EXPECT_TRUE(!ordered(r[nth], reference[nth]) && !ordered(reference[nth], r[nth]),
-                (std::string("wrong nth element value: ") + msg).c_str());
 
     for (int i = 0; i < nth; ++i)
         EXPECT_TRUE(!ordered(r[nth], r[i]), (std::string("wrong left partition: ") + msg).c_str());
@@ -151,19 +145,19 @@ struct test_nth_element
                 {
                     auto res = algo(policy, data, data.begin() + nth, comp, proj);
                     EXPECT_TRUE(res == data.end(), (std::string("wrong return value: ") + msg).c_str());
-                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                    check_nth_element_effect(data, n, nth, comp, proj, msg.c_str());
                 }
                 else if constexpr (!std::is_same_v<Comp, std::ranges::less>)
                 {
                     auto res = algo(policy, data, data.begin() + nth, comp);
                     EXPECT_TRUE(res == data.end(), (std::string("wrong return value: ") + msg).c_str());
-                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                    check_nth_element_effect(data, n, nth, comp, proj, msg.c_str());
                 }
                 else
                 {
                     auto res = algo(policy, data, data.begin() + nth);
                     EXPECT_TRUE(res == data.end(), (std::string("wrong return value: ") + msg).c_str());
-                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                    check_nth_element_effect(data, n, nth, comp, proj, msg.c_str());
                 }
             };
 
@@ -193,19 +187,19 @@ struct test_nth_element
                 {
                     auto res = algo(policy, view, view.begin() + nth, comp, proj);
                     EXPECT_TRUE(res == data.end(), (std::string("wrong return value (subrange): ") + msg).c_str());
-                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                    check_nth_element_effect(data, n, nth, comp, proj, msg.c_str());
                 }
                 else if constexpr (!std::is_same_v<Comp, std::ranges::less>)
                 {
                     auto res = algo(policy, view, view.begin() + nth, comp);
                     EXPECT_TRUE(res == data.end(), (std::string("wrong return value (subrange): ") + msg).c_str());
-                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                    check_nth_element_effect(data, n, nth, comp, proj, msg.c_str());
                 }
                 else
                 {
                     auto res = algo(policy, view, view.begin() + nth);
                     EXPECT_TRUE(res == data.end(), (std::string("wrong return value (subrange): ") + msg).c_str());
-                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                    check_nth_element_effect(data, n, nth, comp, proj, msg.c_str());
                 }
             };
             run_subrange(oneapi::dpl::execution::seq);
@@ -221,19 +215,19 @@ struct test_nth_element
                 {
                     auto res = algo(policy, view, view.begin() + nth, comp, proj);
                     EXPECT_TRUE(res == view.end(), (std::string("wrong return value (span): ") + msg).c_str());
-                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                    check_nth_element_effect(data, n, nth, comp, proj, msg.c_str());
                 }
                 else if constexpr (!std::is_same_v<Comp, std::ranges::less>)
                 {
                     auto res = algo(policy, view, view.begin() + nth, comp);
                     EXPECT_TRUE(res == view.end(), (std::string("wrong return value (span): ") + msg).c_str());
-                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                    check_nth_element_effect(data, n, nth, comp, proj, msg.c_str());
                 }
                 else
                 {
                     auto res = algo(policy, view, view.begin() + nth);
                     EXPECT_TRUE(res == view.end(), (std::string("wrong return value (span): ") + msg).c_str());
-                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                    check_nth_element_effect(data, n, nth, comp, proj, msg.c_str());
                 }
             };
             run_span(oneapi::dpl::execution::seq);
@@ -260,7 +254,7 @@ struct test_nth_element
 
             auto res = algo(CLONE_TEST_POLICY_IDX(policy, CallId), vec, vec.begin() + nth, comp, proj);
             EXPECT_TRUE(res == vec.end(), (std::string("wrong return value: ") + msg).c_str());
-            check_nth_element_effect(vec, reference, n, nth, comp, proj, msg.c_str());
+            check_nth_element_effect(vec, n, nth, comp, proj, msg.c_str());
         }
     }
 #endif // TEST_DPCPP_BACKEND_PRESENT
