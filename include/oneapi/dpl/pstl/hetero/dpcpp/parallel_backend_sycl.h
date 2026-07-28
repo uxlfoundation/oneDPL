@@ -582,6 +582,11 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     else
         __ret[1] = __n;
 
+    assert(__ret[1] >= __ret[0]);
+    assert(__n >= __ret[1]);
+    assert(__n_out1 >= __ret[0]);
+    assert(__n_out2 >= __ret[1] - __ret[0]);
+    assert(__ret[1] == __n || __ret[0] == __n_out1 || __ret[1] - __ret[0] == __n_out2);
     return __ret;
 }
 
