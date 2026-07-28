@@ -220,11 +220,6 @@ q.parallel_for(sycl::range<1>(d.size()), [=](sycl::id<1> i) {
 float val = d.host_read(0, q);     // synchronous read
 d.host_write(0, 42.0f, q);         // synchronous write
 
-// --- Async transfer with dependency ---
-float result;
-sycl::event e = d.async_read(0, result, q, {some_prior_event});
-e.wait();
-
 // --- Bulk download ---
 std::vector<float> out = d.to_vector(q);
 
