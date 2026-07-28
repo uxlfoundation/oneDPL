@@ -75,17 +75,17 @@ inline auto nth_element_reverse_gen = [](int i) { return -i; };
 template <int CallId, typename T, typename Gen = decltype(nth_element_gen)>
 struct test_nth_element
 {
-    template <typename Algo, typename Checker, typename Comp = std::ranges::less, typename Proj = std::identity>
+    template <typename Algo, typename Comp = std::ranges::less, typename Proj = std::identity>
     void
-    operator()(Algo algo, Checker checker, Comp comp = {}, Proj proj = {}) const
+    operator()(Algo algo, Comp comp = {}, Proj proj = {}) const
     {
         for (int n : {0, 1, 2, 3, 7, 20, small_size})
-            host_case(algo, checker, n, comp, proj);
+            host_case(algo, n, comp, proj);
 
         // Borrowed views (std::ranges::subrange, std::span): exercise the algorithm on non-container
         // random-access sized ranges, not only on std::vector.
         for (int n : {0, 1, 2, 3, 7, 20, small_size})
-            host_view_case(algo, checker, n, comp, proj);
+            host_view_case(algo, n, comp, proj);
 
         // A non-borrowed rvalue range must yield std::ranges::dangling as the return type. The niebloid's
         // return type does not depend on the policy, so a single check is sufficient; reuse the harness trait.
@@ -110,7 +110,7 @@ struct test_nth_element
                 if (!std::is_same_v<T, double> || policy.queue().get_device().has(sycl::aspect::fp64))
                 {
                     for (int n : {0, 1, small_size, medium_size})
-                        device_case(policy, algo, checker, n, comp, proj);
+                        device_case(policy, algo, n, comp, proj);
                 }
             }
         }
@@ -128,16 +128,13 @@ struct test_nth_element
         return data;
     }
 
-    template <typename Algo, typename Checker, typename Comp, typename Proj>
+    template <typename Algo, typename Comp, typename Proj>
     void
-    host_case(Algo algo, Checker checker, int n, Comp comp, Proj proj) const
+    host_case(Algo algo, int n, Comp comp, Proj proj) const
     {
         const std::string msg = "host, nth_element<" + std::to_string(CallId) + ">";
         for (int nth : nth_positions(n))
         {
-            std::vector<T> reference = make_data(n);
-            checker(reference, reference.begin() + nth, comp, proj);
-
             auto run = [&](auto&& policy)
             {
                 std::vector<T> data = make_data(n);
@@ -168,16 +165,13 @@ struct test_nth_element
         }
     }
 
-    template <typename Algo, typename Checker, typename Comp, typename Proj>
+    template <typename Algo, typename Comp, typename Proj>
     void
-    host_view_case(Algo algo, Checker checker, int n, Comp comp, Proj proj) const
+    host_view_case(Algo algo, int n, Comp comp, Proj proj) const
     {
         const std::string msg = "host view, nth_element<" + std::to_string(CallId) + ">";
         for (int nth : nth_positions(n))
         {
-            std::vector<T> reference = make_data(n);
-            checker(reference, reference.begin() + nth, comp, proj);
-
             // std::ranges::subrange over an lvalue vector: a borrowed, random-access, sized view.
             auto run_subrange = [&](auto&& policy)
             {
@@ -237,17 +231,14 @@ struct test_nth_element
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    template <typename ExecutionPolicy, typename Algo, typename Checker, typename Comp, typename Proj>
+    template <typename ExecutionPolicy, typename Algo, typename Comp, typename Proj>
     void
-    device_case(ExecutionPolicy&& policy, Algo algo, Checker checker, int n, Comp comp, Proj proj) const
+    device_case(ExecutionPolicy&& policy, Algo algo, int n, Comp comp, Proj proj) const
     {
         const std::string msg = "device, nth_element<" + std::to_string(CallId) + ">";
 
         for (int nth : nth_positions(n))
         {
-            std::vector<T> reference = make_data(n);
-            checker(reference, reference.begin() + nth, comp, proj);
-
             std::vector<T> host = make_data(n);
             usm_vector<T> usm(policy, host.data(), n);
             auto& vec = usm();
@@ -283,34 +274,31 @@ std::int32_t
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
-    auto nth_element_checker = TEST_PREPARE_CALLABLE(std::ranges::nth_element);
-
     // comp = less/greater/CustomLess, proj = identity: plain integer keys.
-    test_nth_element<0, int>{}(dpl_ranges::nth_element, nth_element_checker);
-    test_nth_element<1, int>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::greater{});
-    test_nth_element<2, int>{}(dpl_ranges::nth_element, nth_element_checker, CustomLess{});
+    test_nth_element<0, int>{}(dpl_ranges::nth_element);
+    test_nth_element<1, int>{}(dpl_ranges::nth_element, std::ranges::greater{});
+    test_nth_element<2, int>{}(dpl_ranges::nth_element, CustomLess{});
 
     // Projection applied to integer keys.
-    test_nth_element<3, int>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{}, proj);
+    test_nth_element<3, int>{}(dpl_ranges::nth_element, std::ranges::less{}, proj);
 
     // Member-data projection (P2::x): exercised on host and device.
-    test_nth_element<4, P2>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{}, &P2::x);
-    test_nth_element<5, P2>{}(dpl_ranges::nth_element, nth_element_checker, CustomLess{}, &P2::x);
+    test_nth_element<4, P2>{}(dpl_ranges::nth_element, std::ranges::less{}, &P2::x);
+    test_nth_element<5, P2>{}(dpl_ranges::nth_element, CustomLess{}, &P2::x);
 
     // Member-function projection (P2::proj): host only (skipped inside device kernels).
-    test_nth_element<6, P2>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::greater{}, &P2::proj);
+    test_nth_element<6, P2>{}(dpl_ranges::nth_element, std::ranges::greater{}, &P2::proj);
 
     // External projection proj_apm: exercised on host and device.
-    test_nth_element<7, A_PM>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::greater{}, proj_apm);
+    test_nth_element<7, A_PM>{}(dpl_ranges::nth_element, std::ranges::greater{}, proj_apm);
 
     // Degenerate data distributions: all-equal, ascending, descending.
-    test_nth_element<8, int, decltype(nth_element_equal_gen)>{}(dpl_ranges::nth_element, nth_element_checker);
-    test_nth_element<9, int, decltype(nth_element_sorted_gen)>{}(dpl_ranges::nth_element, nth_element_checker);
-    test_nth_element<10, int, decltype(nth_element_reverse_gen)>{}(dpl_ranges::nth_element, nth_element_checker);
+    test_nth_element<8, int, decltype(nth_element_equal_gen)>{}(dpl_ranges::nth_element);
+    test_nth_element<9, int, decltype(nth_element_sorted_gen)>{}(dpl_ranges::nth_element);
+    test_nth_element<10, int, decltype(nth_element_reverse_gen)>{}(dpl_ranges::nth_element);
 
     // Floating-point keys.
-    test_nth_element<11, double>{}(dpl_ranges::nth_element, nth_element_checker);
-
+    test_nth_element<11, double>{}(dpl_ranges::nth_element);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
