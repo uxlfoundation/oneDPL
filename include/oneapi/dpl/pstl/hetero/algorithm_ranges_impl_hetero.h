@@ -733,7 +733,36 @@ __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
-// __pattern_nth_element
+// partition_copy
+//------------------------------------------------------------------------
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange1, typename _OutRange2,
+          typename _Pred, typename _Proj>
+std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                   std::ranges::borrowed_iterator_t<_OutRange1>,
+                                   std::ranges::borrowed_iterator_t<_OutRange2>>
+__pattern_partition_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
+                                _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
+{
+    if (oneapi::dpl::__ranges::__size(__in_r) == 0)
+        return {std::ranges::begin(__in_r), std::ranges::begin(__out_true_r), std::ranges::begin(__out_false_r)};
+
+    oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
+
+    std::array<std::size_t, 2> __stops = oneapi::dpl::__par_backend_hetero::__parallel_partition_copy</*_Bounded*/ true>(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange1>(__out_true_r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange2>(__out_false_r)), __pred_1);
+
+    return {std::ranges::begin(__in_r) + __stops[1], std::ranges::begin(__out_true_r) + __stops[0],
+            std::ranges::begin(__out_false_r) + (__stops[1] - __stops[0])};
+}
+#endif
+
+//------------------------------------------------------------------------
+// nth_element
 //------------------------------------------------------------------------
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
