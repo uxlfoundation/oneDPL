@@ -558,7 +558,7 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
           typename _UnaryPredicate>
-__future<sycl::event, __result_and_scratch_storage<std::size_t>>
+__transform_reduce_then_scan_result_t<_Bounded, std::size_t, std::size_t>
 __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
                           _Range2&& __out_true, _Range3&& __out_false, _UnaryPredicate __pred)
 {
@@ -581,13 +581,11 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     // Create optional limiter for result by output range size
     auto __transform_result_op = __create_transform_result_op<_Bounded>(__result);
 
-    auto&& [__event, __payload] = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_iter, _CustomName>(
+    return __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_iter, _CustomName>(
         __q_local, __n, std::forward<_Range1>(__rng), std::move(__result), _GenReduceInput{_GenMask{__pred}},
         std::plus<std::size_t>{}, _GenScanInput{_GenMask{__pred}}, _ScanInputTransform{}, _WriteOp{__n_out1, __n_out2},
         oneapi::dpl::unseq_backend::__no_init_value<std::size_t>{}, /*_Inclusive=*/std::true_type{},
         /*_IsUniquePattern=*/std::false_type{}, __stop_pos_initial_state, __transform_result_op);
-
-    return __create_future(std::move(__event), std::move(__payload));
 }
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,

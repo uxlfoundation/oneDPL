@@ -945,7 +945,9 @@ __pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     auto __result = oneapi::dpl::__par_backend_hetero::__parallel_partition_copy</*_Bounded*/ false>(_BackendTag{},
         std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __pred);
 
-    _It1DifferenceType __num_true = __result.get(); // blocking call
+    std::get<0>(__result).wait_and_throw();
+
+    const _It1DifferenceType __num_true = __load_result(std::get<1>(__result));
 
     return std::make_pair(__result1 + __num_true, __result2 + (__last - __first - __num_true));
 }
