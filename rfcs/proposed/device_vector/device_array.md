@@ -217,8 +217,8 @@ q.parallel_for(sycl::range<1>(d.size()), [=](sycl::id<1> i) {
 }).wait();
 
 // --- Explicit single-element host access ---
-float val = d.read(0, q);     // synchronous read
-d.write(0, 42.0f, q);         // synchronous write
+float val = d.host_read(0, q);     // synchronous read
+d.host_write(0, 42.0f, q);         // synchronous write
 
 // --- Async transfer with dependency ---
 float result;
