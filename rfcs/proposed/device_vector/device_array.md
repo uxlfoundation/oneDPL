@@ -248,9 +248,7 @@ q.parallel_for(sycl::range<1>(s2.size()), [=](sycl::id<1> i) {
 }).wait();
 ```
 
-## Open Questions
+## Resolved Questions
 
 - **Should async overloads be in the initial proposal or deferred?** 
-    This provides more control over synchronization than merely an in-order queue,
-    but it is unclear whether users who are wanting this would just want to work
-    with USM memory and memcpy directly.
+    No, while this provides more control over synchronization, it complicates the interface too much for the initial API.
