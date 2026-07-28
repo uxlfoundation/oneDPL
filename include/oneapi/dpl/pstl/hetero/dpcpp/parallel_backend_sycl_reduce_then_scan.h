@@ -191,13 +191,12 @@ struct __write_to_id_if
 // `__id - get<0>(__v)`. Used for __parallel_partition_copy.
 struct __write_partitioned
 {
-    template <typename _ValueType>
-    friend _ValueType
+    friend std::size_t
     __transform_result(const __write_partitioned& __write_op,
-                       const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __carry)
+                       const oneapi::dpl::__internal::__opt_lazy_ctor_storage<std::size_t>& __carry)
     {
         // __carry holds the total number of inputs partitioned to the first output range
-        return std::min<_ValueType>(__carry.__get_cref(), __write_op.__out1_size);
+        return std::min({__carry.__get_cref(), __write_op.__out1_size, __write_op.__out1_stop});
     }
 
     template <typename _ValueType>
@@ -230,7 +229,7 @@ struct __write_partitioned
 
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _OnOOBReached __on_oob_reached) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _OnOOBReached __on_oob_reached)
     {
         const auto& [__mask_prefix, __mask, __value] = __v;
         using _ConvertedType =
@@ -247,10 +246,14 @@ struct __write_partitioned
                 std::get<1>(__out_rng[__out_idx]) = static_cast<_ConvertedType>(__value);
         }
         if (__out_idx == __out_size)
+        {
+            this->__out1_stop = __mask_prefix - 1;
             __on_oob_reached(__id, __id);
+        }
     }
     std::size_t __out1_size;
     std::size_t __out2_size;
+    std::size_t __out1_stop = std::numeric_limits<std::size_t>::max();
 };
 
 // Writes operation for reduce_by_segment, writes first key if the id is 0. Also, if the segment end is reached, writes
