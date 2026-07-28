@@ -132,6 +132,14 @@ template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
 {
     template <typename _ValueType>
+    friend _ValueType
+    __transform_result(const __write_to_id_if& __write_op,
+                       const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __carry)
+    {
+        return std::min<_ValueType>(__carry.__get_cref() + __offset, __write_op.__out_size);
+    }
+
+    template <typename _ValueType>
     bool
     __oob_write_possible(std::size_t __max_write_index,
                          const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix)
@@ -286,6 +294,14 @@ struct __write_scan_by_seg
 struct __write_multiple_to_id
 {
     template <typename _ValueType>
+    friend _ValueType
+    __transform_result(const __write_multiple_to_id& __write_op,
+                       const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __carry)
+    {
+        return std::min<_ValueType>(__carry.__get_cref(), __write_op.__out_size);
+    }
+
+    template <typename _ValueType>
     bool
     __oob_write_possible(std::size_t __max_write_index,
                          const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix)
@@ -347,6 +363,14 @@ struct __write_multiple_to_id
     std::size_t __out_size;
     oneapi::dpl::__internal::__pstl_assign __assign;
 };
+
+// The generic definition of __transform_result just returns the carried value
+template <typename _WriteOp, typename _ValueType>
+const _ValueType&
+__transform_result(const _WriteOp&, const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __carry)
+{
+    return __carry.__get_cref();
+}
 
 // *** Algorithm Specific Helpers, Input Generators to Reduction and Scan Operations ***
 
@@ -1846,15 +1870,15 @@ using __transform_reduce_then_scan_result_t =
 
 template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename _TransformResult, typename _KernelName>
+          typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
 template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename _TransformResult, typename... _KernelName>
+          typename... _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is_unique_pattern_v, _ScanOpsTag,
                                                   _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
-                                                  _TransformResult, __internal::__optional_kernel_name<_KernelName...>>
+                                                  __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
 
@@ -2171,15 +2195,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                 {
                     if (__block_num + 1 == __num_blocks)
                     {
-                        if constexpr (__is_unique_pattern_v)
-                        {
-                            // unique patterns automatically copy the 0th element and scan starting at index 1
-                            __res_ptr[0] = __transform_result(__sub_group_carry.__get_cref() + 1);
-                        }
-                        else
-                        {
-                            __res_ptr[0] = __transform_result(__sub_group_carry.__get_cref());
-                        }
+                        __res_ptr[0] = __transform_result(__write_op, __sub_group_carry);
                     }
                     else
                     {
@@ -2206,7 +2222,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
     const _WriteOp __write_op;
     _InitType __init;
     const bool __use_subgroup_ops;
-    const _TransformResult __transform_result;
 };
 
 // Helper for __parallel_transform_reduce_then_scan templated on the choice of sub-group communication
@@ -2215,14 +2230,13 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 template <bool _Bounded, typename _ScanOpsTag, std::uint32_t __bytes_per_work_item_iter, typename _CustomName,
           typename _InRng, typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
-          typename _IsUniquePattern, typename _TransformResult, typename _StopPosInitState>
+          typename _IsUniquePattern, typename _StopPosInitState>
 __transform_reduce_then_scan_result_t<_Bounded, typename _InitType::__value_type, _StopPosInitState>
 __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng,
                                            _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
                                            _ReduceOp __reduce_op, _GenScanInput __gen_scan_input,
                                            _ScanInputTransform __scan_input_transform, _WriteOp __write_op,
                                            _InitType __init, _Inclusive, _IsUniquePattern, bool __use_subgroup_ops,
-                                           _TransformResult __transform_result,
                                            _StopPosInitState __stop_pos_initial_state, sycl::event __prior_event)
 {
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -2351,7 +2365,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     using _ScanSubmitter =
         __parallel_reduce_then_scan_scan_submitter<_Bounded, __inclusive, __is_unique_pattern_v, _ScanOpsTag, _ReduceOp,
                                                    _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
-                                                   _TransformResult, _ScanKernel>;
+                                                   _ScanKernel>;
     _ReduceSubmitter __reduce_submitter{__num_work_groups,
                                         __work_group_size,
                                         __max_inputs_per_block,
@@ -2373,8 +2387,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
                                     __scan_input_transform,
                                     __write_op,
                                     __init,
-                                    __use_subgroup_ops,
-                                    __transform_result};
+                                    __use_subgroup_ops};
 
     // Allocate storage for stop pos and out-of-bounds position if needed
     auto __create_stop_pos_storage_opt = [](sycl::queue& __q) {
@@ -2432,16 +2445,14 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng,
           typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
-          typename _IsUniquePattern, typename _StopPosInitState = oneapi::dpl::__internal::__difference_t<_InRng>,
-          typename _TransformResult = oneapi::dpl::identity>
+          typename _IsUniquePattern, typename _StopPosInitState = oneapi::dpl::__internal::__difference_t<_InRng>>
 __transform_reduce_then_scan_result_t<_Bounded, typename _InitType::__value_type, _StopPosInitState>
 __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
                                       _WriteOp __write_op, _InitType __init, _Inclusive __inclusive,
                                       _IsUniquePattern __is_unique_pattern,
-                                      _StopPosInitState __stop_pos_initial_state = {},
-                                      _TransformResult __transform_result = {}, sycl::event __prior_event = {})
+                                      _StopPosInitState __stop_pos_initial_state = {}, sycl::event __prior_event = {})
 {
     using _ValueType = typename _InitType::__value_type;
 
@@ -2460,7 +2471,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                                           __bytes_per_work_item_iter, _CustomName>(
             __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
             __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
-            __use_subgroup_ops, __transform_result, __stop_pos_initial_state, std::move(__prior_event));
+            __use_subgroup_ops, __stop_pos_initial_state, std::move(__prior_event));
     }
     else
     {
@@ -2468,7 +2479,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                                           __bytes_per_work_item_iter, _CustomName>(
             __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
             __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
-            /*__use_subgroup_ops=*/false, __transform_result, __stop_pos_initial_state, std::move(__prior_event));
+            /*__use_subgroup_ops=*/false, __stop_pos_initial_state, std::move(__prior_event));
     }
 }
 

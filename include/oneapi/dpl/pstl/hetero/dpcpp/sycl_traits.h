@@ -488,7 +488,7 @@ struct __parallel_reduce_then_scan_reduce_submitter;
 
 template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename _TransformResult, typename _KernelName>
+          typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
 template <typename _GenInput, typename _KernelName>
@@ -635,13 +635,13 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
 
 template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename _TransformResult, typename... _KernelName>
+          typename... _KernelName>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
     oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_scan_submitter, _Bounded, __is_inclusive,
     __is_unique_pattern_v, _ScanOpsTag, _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
-    _TransformResult, _KernelName...)>
+    _KernelName...)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp,
-                                                         _InitType, _TransformResult>
+                                                         _InitType>
 {
 };
 template <typename _GenInput, typename KernelName>

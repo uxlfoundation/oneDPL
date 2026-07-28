@@ -465,14 +465,11 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
     // Initial stop pos state is just input range size
     const _Size __stop_pos_initial_state = oneapi::dpl::__ranges::__size(__in_rng);
 
-    // Create optional limiter for result by output range size
-    auto __transform_result_op = __create_transform_result_op<_Bounded>(__out_rng);
-
     return __parallel_transform_reduce_then_scan<_Bounded, sizeof(_Size), _CustomName>(
         __q, oneapi::dpl::__ranges::__size(__in_rng), std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
         _GenReduceInput{__generate_mask}, _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{},
         __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-        /*_Inclusive=*/std::true_type{}, __is_unique_pattern, __stop_pos_initial_state, __transform_result_op);
+        /*_Inclusive=*/std::true_type{}, __is_unique_pattern, __stop_pos_initial_state);
 }
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size,
@@ -578,14 +575,12 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range2>(__out_true), std::forward<_Range3>(__out_false));
     // Initial stop position state is just input range size
     const std::size_t __stop_pos_initial_state = __n;
-    // Create optional limiter for result by output range size
-    auto __transform_result_op = __create_transform_result_op<_Bounded>(__result);
 
     return __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_iter, _CustomName>(
         __q_local, __n, std::forward<_Range1>(__rng), std::move(__result), _GenReduceInput{_GenMask{__pred}},
         std::plus<std::size_t>{}, _GenScanInput{_GenMask{__pred}}, _ScanInputTransform{}, _WriteOp{__n_out1, __n_out2},
         oneapi::dpl::unseq_backend::__no_init_value<std::size_t>{}, /*_Inclusive=*/std::true_type{},
-        /*_IsUniquePattern=*/std::false_type{}, __stop_pos_initial_state, __transform_result_op);
+        /*_IsUniquePattern=*/std::false_type{}, __stop_pos_initial_state);
 }
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
@@ -710,15 +705,12 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
     // Initial stop pos state
     const auto __stop_pos_initial_state = __create_initial_final_and_oob_pos_state<_Bounded>(__set_tag, __rng1, __rng2);
 
-    // Create optional limiter for result by output range size
-    auto __transform_result_op = __create_transform_result_op<_Bounded>(__result);
-
     return __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
         __q, __num_diagonals, std::move(__in_in_tmp_rng), std::forward<_Range3>(__result), __gen_reduce_input,
         _ReduceOp{}, _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2},
         _ScanInputTransform{}, _WriteOp{__n_out}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}, __stop_pos_initial_state,
-        __transform_result_op, __partition_event);
+        __partition_event);
 }
 
 template <typename _CustomName>

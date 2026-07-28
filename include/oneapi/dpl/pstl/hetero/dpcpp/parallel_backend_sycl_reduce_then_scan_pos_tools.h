@@ -217,35 +217,6 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
 
 } // namespace __internal
 
-template <typename _TResult, typename = std::enable_if_t<std::is_trivially_copyable_v<_TResult>>>
-struct __clamp_max
-{
-    template <typename _TArg>
-    _TArg
-    operator()(_TArg __arg) const
-    {
-        return std::min<_TArg>(__arg, __max_value);
-    }
-
-    _TResult __max_value{};
-};
-
-template <bool _Bounded, typename _OutRng>
-auto
-__create_transform_result_op(_OutRng& __out_rng)
-{
-    if constexpr (_Bounded)
-    {
-        // In C++17 we can't deduce template parameter in aggregate initialization.
-        using _SizeT = decltype(oneapi::dpl::__ranges::__size(__out_rng));
-        return __clamp_max<_SizeT>{oneapi::dpl::__ranges::__size(__out_rng)};
-    }
-    else
-    {
-        return oneapi::dpl::identity{};
-    }
-}
-
 // The return type of set operation implementation for bounded and unbounded cases.
 // For bounded case we need to return final and OOB positions in source ranges,
 // for unbounded case we need to return only the size of the result.
