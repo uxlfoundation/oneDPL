@@ -141,11 +141,11 @@ struct __write_to_id_if
 
     template <typename _ValueType>
     bool
-    __oob_write_possible(std::size_t __max_write_index,
+    __oob_write_possible(std::size_t __max_write_offset, std::size_t /*__start_idx*/,
                          const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix)
     {
         const std::size_t __carry_in = __prefix.__has_value() ? __prefix.__get_cref() : 0;
-        return (__carry_in + __max_write_index > __out_size);
+        return (__carry_in + __max_write_offset > __out_size);
     }
 
     template <typename _OutRng, typename _SizeType, typename _ValueType>
@@ -186,11 +186,32 @@ struct __write_to_id_if
     _Assign __assign;
 };
 
-// Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1`, but only if the
-// condition `get<1>(__v)` is `true`. Otherwise, writes the element to the output range at the index,
+// If the condition `get<1>(__v)` is `true`, writes a single element `get<2>(__v)` to the first output range
+// at the index `get<0>(__v) - 1`. Otherwise, writes the element to the second output range at the index
 // `__id - get<0>(__v)`. Used for __parallel_partition_copy.
 struct __write_partitioned
 {
+    template <typename _ValueType>
+    friend _ValueType
+    __transform_result(const __write_partitioned& __write_op,
+                       const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __carry)
+    {
+        // __carry holds the total number of inputs partitioned to the first output range
+        return std::min<_ValueType>(__carry.__get_cref(), __write_op.__out1_size);
+    }
+
+    template <typename _ValueType>
+    bool
+    __oob_write_possible(std::size_t __max_write_offset, std::size_t __start_idx,
+                         const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix)
+    {
+        // __mask_prefix is the number of inputs written to the first output range by previous items
+        const std::size_t __mask_prefix = __prefix.__has_value() ? __prefix.__get_cref() : 0;
+        // (__start_idx - __mask_prefix) is the number of inputs already written to the second output range
+        return (__mask_prefix + __max_write_offset > __out1_size
+                || (__start_idx - __mask_prefix) + __max_write_offset > __out2_size);
+    }
+
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
@@ -198,13 +219,35 @@ struct __write_partitioned
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
-        using _ConvertedTupleType =
+        using _ConvertedType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
         if (std::get<1>(__v))
-            std::get<0>(__out_rng[std::get<0>(__v) - 1]) = static_cast<_ConvertedTupleType>(std::get<2>(__v));
+            std::get<0>(__out_rng[std::get<0>(__v) - 1]) = static_cast<_ConvertedType>(std::get<2>(__v));
         else
-            std::get<1>(__out_rng[__id - std::get<0>(__v)]) = static_cast<_ConvertedTupleType>(std::get<2>(__v));
+            std::get<1>(__out_rng[__id - std::get<0>(__v)]) = static_cast<_ConvertedType>(std::get<2>(__v));
+    }
+
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
+    void
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _OnOOBReached __on_oob_reached) const
+    {
+        const auto& [__mask_prefix, __mask, __value] = __v;
+        using _ConvertedType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__value)>,
+                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
+        // __mask_prefix is the number of inputs written to the first output range by previous items
+        const std::size_t __out_idx = __mask ? __mask_prefix - 1 : __id - __mask_prefix;
+        const std::size_t __out_size = __mask ? __out1_size : __out2_size;
+        if (__out_idx < __out_size)
+        {
+            if (__mask)
+                std::get<0>(__out_rng[__out_idx]) = static_cast<_ConvertedType>(__value);
+            else
+                std::get<1>(__out_rng[__out_idx]) = static_cast<_ConvertedType>(__value);
+        }
+        if (__out_idx == __out_size)
+            __on_oob_reached(__id, __id);
     }
     std::size_t __out1_size;
     std::size_t __out2_size;
@@ -303,11 +346,11 @@ struct __write_multiple_to_id
 
     template <typename _ValueType>
     bool
-    __oob_write_possible(std::size_t __max_write_index,
+    __oob_write_possible(std::size_t __max_write_offset, std::size_t /*__start_idx*/,
                          const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix)
     {
         const std::size_t __carry_in = __prefix.__has_value() ? __prefix.__get_cref() : 0;
-        return (__carry_in + __max_write_index > __out_size);
+        return (__carry_in + __max_write_offset > __out_size);
     }
 
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
@@ -1622,9 +1665,9 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                 // element is a diagonal written through __write_multiple_to_id. The estimate must account for
                 // this many writes per scanned element, otherwise the unchecked write path could be selected for
                 // set operations and overrun __out_rng (corrupting memory and skipping OOB position detection).
-                const std::size_t __max_write_index = std::size_t{__is_unique_pattern_v} +
+                const std::size_t __max_write_offset = std::size_t{__is_unique_pattern_v} +
                     __iters_per_item * __sg_size * _TempData::__max_outputs_per_input;
-                if (__write_op.__oob_write_possible(__max_write_index, __sub_group_carry))
+                if (__write_op.__oob_write_possible(__max_write_offset, __subgroup_start_id, __sub_group_carry))
                 {
                     auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
                         if constexpr (__is_temp_data_required)
