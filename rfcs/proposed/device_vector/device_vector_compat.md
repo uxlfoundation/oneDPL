@@ -11,9 +11,16 @@ container.
 The goal is a near drop-in replacement for `thrust::device_vector`, covering
 the functionality that is actually used in practice, adapted to fit within SYCL.
 
-## Relationship to `device_array`
+## Relationship to the shared base
 
-`compat::device_vector<T, Alloc>` contains a `device_array<T, Alloc>` for core functionality.
+`compat::device_vector<T, Alloc>` and [`device_array`](device_array.md) share
+their implementation through a non-public base,
+`oneapi::dpl::experimental::internal::__device_storage_base<T, Alloc>`, which
+owns the device allocation and its lifetime, the size, the associated
+`sycl::context` / `sycl::device`, the allocator instance, resizing, and the
+host-device transfer helpers. `device_vector` **privately inherits** from it and
+re-exposes the full resizable, allocator-aware interface, adding the Thrust
+proxy layer on top.
 
 It uses an iterator/pointer type, `device_pointer`, as a wrapper for USM memory, and reference type, `device_reference`, as a reference proxy type to enable host-side usage with implicit memory transfers. These types hold a pointer to a `sycl::context` to facilitate creation of a queue for memcpy.
 
@@ -95,9 +102,8 @@ public:
 // =========================================================================
 
 template <typename T, typename Alloc = device_allocator<T>>
-class device_vector {
-    device_array<T, Alloc> __impl;  // stores context + device + allocator
-
+class device_vector : private internal::__device_storage_base<T, Alloc> {
+    // base stores context + device + allocator + allocation + size
 public:
     using value_type      = T;
     using allocator_type  = Alloc;
@@ -157,13 +163,13 @@ public:
     pointer       data();
     const_pointer data() const;
 
-    // --- Iterators (device_pointer wrapping device_array's T*) ---
+    // --- Iterators (device_pointer wrapping the underlying T*) ---
     iterator       begin();
     const_iterator begin() const;
     iterator       end();
     const_iterator end() const;
 
-    // --- Capacity (forwarded to device_array) ---
+    // --- Capacity ---
     size_type size()     const;
     size_type capacity() const;
     bool      empty()    const;
@@ -176,10 +182,6 @@ public:
 
     // --- Swap ---
     void swap(device_vector& other);
-
-    // --- Access to underlying device_array ---
-    device_array<T, Alloc>&       base();
-    const device_array<T, Alloc>& base() const;
 
     // --- Allocator ---
     allocator_type get_allocator() const;
@@ -233,10 +235,54 @@ std::vector<float> result = static_cast<std::vector<float>>(d);
 sycl::context ctx = q.get_context();
 sycl::device  dev = q.get_device();
 compat::device_vector<float> d3(1024, ctx, dev);
+```
 
-// --- Gradual migration to device_array ---
-auto& arr = d.base();
-float v = arr.read(5, q);           // explicit, no proxy
-arr.write(5, v * 2.0f, q);          // explicit
-std::vector<float> out = arr.to_vector(q);
+## Allocator
+
+`compat::device_vector` accepts an optional allocator template parameter for
+device memory allocation. The default allocator wraps `sycl::malloc_device` /
+`sycl::free`. (`device_array` fixes this to the default and does not expose it;
+pluggable allocation is a `device_vector` feature.)
+
+### Allocator Requirements
+
+A type `Alloc` satisfies `DeviceAllocator` for type `T` if, given an instance
+`a` of type `Alloc`, a pointer `p` of type `T*`, a `std::size_t n`, a
+`sycl::context ctx`, and a `sycl::device dev`, the following expressions are
+valid:
+
+| Expression | Return type | Semantics |
+|---|---|---|
+| `a.allocate(n, ctx, dev)` | `T*` | Allocate device memory for `n` objects of type `T` |
+| `a.deallocate(p, n, ctx, dev)` | `void` | Free device memory previously allocated by `allocate` |
+
+The allocator is not required to support `construct`, `destroy`, or any of the
+`std::allocator` named requirements beyond `allocate`/`deallocate`. Device
+memory is not host-accessible, so construction and destruction happen via
+kernel launches or memcpy, managed by the container itself.
+
+The allocator must be copy-constructible and copy-assignable.
+
+```cpp
+// Default allocator
+template <typename T>
+struct device_allocator {
+    T* allocate(std::size_t n, sycl::context ctx, sycl::device dev) {
+        return sycl::malloc_device<T>(n, dev, ctx);
+    }
+    void deallocate(T* p, std::size_t n, sycl::context ctx, sycl::device dev) {
+        sycl::free(p, ctx);
+    }
+};
+```
+
+### C++20 Concept (informational; enforced via SFINAE on C++17)
+
+```cpp
+template <typename Alloc, typename T>
+concept DeviceAllocator = requires(Alloc a, T* p, std::size_t n,
+                                   sycl::context ctx, sycl::device dev) {
+    { a.allocate(n, ctx, dev) } -> std::same_as<T*>;
+    { a.deallocate(p, n, ctx, dev) } -> std::same_as<void>;
+};
 ```

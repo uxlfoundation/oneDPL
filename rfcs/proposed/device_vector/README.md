@@ -55,18 +55,29 @@ a `std::vector`-like interface for managing device memory.
 
 ## Proposal
 
-The proposal consists of two complementary types that share an underlying
-implementation:
+The proposal consists of two complementary public types that share a
+non-public base implementation, `internal::__device_storage_base`:
 
-1. **[`device_array<T, Alloc>`](device_array.md)** — the primary API.
-   A clean, explicit container for device memory with no proxy types. Raw `T*`
-   iterators, explicit `read()`/`write()` for host access, uninitialized by
-   default, and range support via `sycl::span`.
+1. **[`device_array<T>`](device_array.md)** — the primary API.
+   A clean, explicit, **fixed-size** container for device memory with no proxy
+   types. Raw `T*` iterators, explicit `read()`/`write()` for host access,
+   uninitialized by default, and range support via `sycl::span`. It surfaces a
+   deliberately minimal interface: no allocator access, and no resizing.
 
 2. **[`compat::device_vector<T, Alloc>`](device_vector_compat.md)** — a
-   Thrust compatibility layer built on `device_array`. Adds `device_pointer`,
-   `device_reference`, and `operator[]` proxy semantics for drop-in migration
-   from `thrust::device_vector`.
+   Thrust compatibility layer. Adds `device_pointer`, `device_reference`, and
+   `operator[]` proxy semantics for drop-in migration from
+   `thrust::device_vector`, along with a resizable, allocator-aware interface.
+
+Both types **privately inherit** from
+`internal::__device_storage_base<T, Alloc>`, which owns the shared machinery:
+the device allocation and its lifetime, size, associated `sycl::context` /
+`sycl::device`, the allocator instance, resizing, and the host-device transfer
+helpers. Each derived type re-exposes (via `using` declarations) only the
+subset of the base appropriate to its public contract — `device_array` omits
+the allocator and resizing entirely, while `compat::device_vector` re-exposes
+the full surface. This lets `device_array` present a simplified interface
+without duplicating the implementation that `device_vector` reuses.
 
 ### Class Relationships
 
@@ -74,8 +85,16 @@ implementation:
 classDiagram
     direction LR
 
+    namespace internal {
+        class device_storage_base~T, Alloc~ {
+            owns allocation + size + context/device + allocator
+            resize / host transfers / iterators
+        }
+    }
+
     namespace experimental {
-        class device_array~T, Alloc~ {
+        class device_array~T~ {
+            fixed size, no allocator
             iterators: T*
             host access: read() / write()
         }
@@ -84,6 +103,7 @@ classDiagram
     namespace experimental_compat {
         class device_vector~T, Alloc~ {
             Thrust compat layer
+            resizable, allocator-aware
         }
 
         class device_pointer~T~ {
@@ -95,7 +115,8 @@ classDiagram
         }
     }
 
-    device_vector *-- device_array : contains
+    device_array --|> device_storage_base : private inherits
+    device_vector --|> device_storage_base : private inherits
     device_vector --> device_pointer : begin()/end()
     device_pointer --> device_reference : operator*() / operator[]()
 ```
@@ -126,8 +147,11 @@ classDiagram
   A minimal allocator interface — just `allocate(n, ctx, dev)` and
   `deallocate(p, n, ctx, dev)` — that avoids the `std::allocator` named
   requirements (which mandate host-accessible memory). Enables pool allocators,
-  aligned allocation, and other strategies. See the
-  [device_array allocator section](device_array.md#allocator) for details.
+  aligned allocation, and other strategies. The allocator is a template
+  parameter of `compat::device_vector` (and the shared base); `device_array`
+  hardcodes the default `device_allocator<T>` and does not expose it. See the
+  [device_vector allocator section](device_vector_compat.md#allocator) for
+  details.
 
 - **No `push_back`, `insert`, `erase`.**
   Rarely used in practice (see [usage study](usage_pattern_study.md)),
