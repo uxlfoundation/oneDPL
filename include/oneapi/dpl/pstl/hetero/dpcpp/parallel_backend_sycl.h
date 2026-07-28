@@ -454,7 +454,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
           typename _WriteOp, typename _IsUniquePattern>
 __transform_reduce_then_scan_result_t<_Bounded, _Size, _Size>
-__parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size  __n,
+__parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n,
                                  _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
     assert(oneapi::dpl::__ranges::__size(__in_rng) == __n);
@@ -466,7 +466,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
     constexpr std::uint32_t __bytes_per_iter = sizeof(oneapi::dpl::__internal::__value_t<_InRng>);
 
     return __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_iter, _CustomName>(
-        __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask}, 
+        __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask},
         _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{}, __is_unique_pattern,
         /*__stop_pos_initial_state=*/__n);
@@ -570,8 +570,9 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range2>(__out_true), std::forward<_Range3>(__out_false));
 
     std::array<std::size_t, 2> __ret{};
+    sycl::queue __q_local = __exec.queue();
     std::tuple __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
-        __exec.queue(), std::forward<_Range1>(__rng), std::move(__zipped_output), __n, _GenMask{__pred},
+        __q_local, std::forward<_Range1>(__rng), std::move(__zipped_output), __n, _GenMask{__pred},
         _WriteOp{__n_out1, __n_out2}, /*_IsUniquePattern=*/std::false_type{});
 
     std::get<0>(__res).wait_and_throw();
@@ -580,7 +581,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
         __ret[1] = __load_result(std::get<2>(__res));
     else
         __ret[1] = __n;
-    
+
     return __ret;
 }
 
