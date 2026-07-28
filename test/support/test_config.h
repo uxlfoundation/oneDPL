@@ -337,6 +337,14 @@
 #    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE 0
 #endif
 
+// -- Check for C++20 requires-clause support --
+// This is the concepts language feature (a requires-clause, e.g. on a constrained partial specialization)
+#if __cpp_concepts >= 201907L
+#    define _TEST_CPP20_REQUIRES_CLAUSE_PRESENT 1
+#else
+#    define _TEST_CPP20_REQUIRES_CLAUSE_PRESENT 0
+#endif
+
 // P2325R3 also removed default_initializable from weakly_incrementable, which breaks
 // std::input_iterator and std::output_iterator on the same pre-P2325R3 implementations.
 #define _ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
