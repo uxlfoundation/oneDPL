@@ -81,9 +81,9 @@ inline auto nth_element_reverse_gen = [](int i) { return -i; };
 template <int CallId, typename T, typename Gen = decltype(nth_element_gen)>
 struct test_nth_element
 {
-    template <typename Algo, typename Checker, typename Comp, typename Proj = std::identity>
+    template <typename Algo, typename Checker, typename Comp = std::ranges::less, typename Proj = std::identity>
     void
-    operator()(Algo algo, Checker checker, Comp comp, Proj proj = {}) const
+    operator()(Algo algo, Checker checker, Comp comp = {}, Proj proj = {}) const
     {
         for (int n : {0, 1, 2, 3, 7, 20, small_size})
             host_case(algo, checker, n, comp, proj);
@@ -147,9 +147,24 @@ struct test_nth_element
             auto run = [&](auto&& policy)
             {
                 std::vector<T> data = make_data(n);
-                auto res = algo(policy, data, data.begin() + nth, comp, proj);
-                EXPECT_TRUE(res == data.end(), (std::string("wrong return value: ") + msg).c_str());
-                check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                if constexpr (!std::is_same_v<Proj, std::identity>)
+                {
+                    auto res = algo(policy, data, data.begin() + nth, comp, proj);
+                    EXPECT_TRUE(res == data.end(), (std::string("wrong return value: ") + msg).c_str());
+                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                }
+                else if constexpr (!std::is_same_v<Comp, std::ranges::less>)
+                {
+                    auto res = algo(policy, data, data.begin() + nth, comp);
+                    EXPECT_TRUE(res == data.end(), (std::string("wrong return value: ") + msg).c_str());
+                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                }
+                else
+                {
+                    auto res = algo(policy, data, data.begin() + nth);
+                    EXPECT_TRUE(res == data.end(), (std::string("wrong return value: ") + msg).c_str());
+                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                }
             };
 
             run(oneapi::dpl::execution::seq);
@@ -174,9 +189,24 @@ struct test_nth_element
             {
                 std::vector<T> data = make_data(n);
                 auto view = std::ranges::subrange(data.begin(), data.end());
-                auto res = algo(policy, view, view.begin() + nth, comp, proj);
-                EXPECT_TRUE(res == data.end(), (std::string("wrong return value (subrange): ") + msg).c_str());
-                check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                if constexpr (!std::is_same_v<Proj, std::identity>)
+                {
+                    auto res = algo(policy, view, view.begin() + nth, comp, proj);
+                    EXPECT_TRUE(res == data.end(), (std::string("wrong return value (subrange): ") + msg).c_str());
+                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                }
+                else if constexpr (!std::is_same_v<Comp, std::ranges::less>)
+                {
+                    auto res = algo(policy, view, view.begin() + nth, comp);
+                    EXPECT_TRUE(res == data.end(), (std::string("wrong return value (subrange): ") + msg).c_str());
+                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                }
+                else
+                {
+                    auto res = algo(policy, view, view.begin() + nth);
+                    EXPECT_TRUE(res == data.end(), (std::string("wrong return value (subrange): ") + msg).c_str());
+                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                }
             };
             run_subrange(oneapi::dpl::execution::seq);
             run_subrange(oneapi::dpl::execution::par);
@@ -187,9 +217,24 @@ struct test_nth_element
             {
                 std::vector<T> data = make_data(n);
                 std::span<T> view(data.data(), data.size());
-                auto res = algo(policy, view, view.begin() + nth, comp, proj);
-                EXPECT_TRUE(res == view.end(), (std::string("wrong return value (span): ") + msg).c_str());
-                check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                if constexpr (!std::is_same_v<Proj, std::identity>)
+                {
+                    auto res = algo(policy, view, view.begin() + nth, comp, proj);
+                    EXPECT_TRUE(res == view.end(), (std::string("wrong return value (span): ") + msg).c_str());
+                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                }
+                else if constexpr (!std::is_same_v<Comp, std::ranges::less>)
+                {
+                    auto res = algo(policy, view, view.begin() + nth, comp);
+                    EXPECT_TRUE(res == view.end(), (std::string("wrong return value (span): ") + msg).c_str());
+                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                }
+                else
+                {
+                    auto res = algo(policy, view, view.begin() + nth);
+                    EXPECT_TRUE(res == view.end(), (std::string("wrong return value (span): ") + msg).c_str());
+                    check_nth_element_effect(data, reference, n, nth, comp, proj, msg.c_str());
+                }
             };
             run_span(oneapi::dpl::execution::seq);
             run_span(oneapi::dpl::execution::par);
@@ -247,7 +292,7 @@ main()
     auto nth_element_checker = TEST_PREPARE_CALLABLE(std::ranges::nth_element);
 
     // comp = less/greater/CustomLess, proj = identity: plain integer keys.
-    test_nth_element<0, int>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::less{});
+    test_nth_element<0, int>{}(dpl_ranges::nth_element, nth_element_checker);
     test_nth_element<1, int>{}(dpl_ranges::nth_element, nth_element_checker, std::ranges::greater{});
     test_nth_element<2, int>{}(dpl_ranges::nth_element, nth_element_checker, CustomLess{});
 
