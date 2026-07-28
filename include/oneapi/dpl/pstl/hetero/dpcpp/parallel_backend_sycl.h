@@ -454,22 +454,22 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
           typename _WriteOp, typename _IsUniquePattern>
 __transform_reduce_then_scan_result_t<_Bounded, _Size, _Size>
-__parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size,
+__parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size  __n,
                                  _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
+    assert(oneapi::dpl::__ranges::__size(__in_rng) == __n);
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask, _Size>;
     using _ReduceOp = std::plus<_Size>;
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask, _Size>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
-    // Initial stop pos state is just input range size
-    const _Size __stop_pos_initial_state = oneapi::dpl::__ranges::__size(__in_rng);
+    constexpr std::uint32_t __bytes_per_iter = sizeof(oneapi::dpl::__internal::__value_t<_InRng>);
 
-    return __parallel_transform_reduce_then_scan<_Bounded, sizeof(_Size), _CustomName>(
-        __q, oneapi::dpl::__ranges::__size(__in_rng), std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng),
-        _GenReduceInput{__generate_mask}, _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{},
-        __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-        /*_Inclusive=*/std::true_type{}, __is_unique_pattern, __stop_pos_initial_state);
+    return __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_iter, _CustomName>(
+        __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask}, 
+        _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
+        oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{}, __is_unique_pattern,
+        /*__stop_pos_initial_state=*/__n);
 }
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size,
@@ -555,32 +555,33 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
           typename _UnaryPredicate>
-__transform_reduce_then_scan_result_t<_Bounded, std::size_t, std::size_t>
+std::array<std::size_t, 2>
 __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
                           _Range2&& __out_true, _Range3&& __out_false, _UnaryPredicate __pred)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_partitioned;
-    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask, std::size_t>;
-    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask, std::size_t>;
-    using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
-    constexpr std::uint32_t __bytes_per_iter = sizeof(oneapi::dpl::__internal::__value_t<_Range1>);
-    sycl::queue __q_local = __exec.queue();
     const std::size_t __n = oneapi::dpl::__ranges::__size(__rng);
     const std::size_t __n_out1 = oneapi::dpl::__ranges::__size(__out_true);
     const std::size_t __n_out2 = oneapi::dpl::__ranges::__size(__out_false);
-    auto __result =
+    auto __zipped_output =
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range2>(__out_true), std::forward<_Range3>(__out_false));
-    // Initial stop position state is just input range size
-    const std::size_t __stop_pos_initial_state = __n;
 
-    return __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_iter, _CustomName>(
-        __q_local, __n, std::forward<_Range1>(__rng), std::move(__result), _GenReduceInput{_GenMask{__pred}},
-        std::plus<std::size_t>{}, _GenScanInput{_GenMask{__pred}}, _ScanInputTransform{}, _WriteOp{__n_out1, __n_out2},
-        oneapi::dpl::unseq_backend::__no_init_value<std::size_t>{}, /*_Inclusive=*/std::true_type{},
-        /*_IsUniquePattern=*/std::false_type{}, __stop_pos_initial_state);
+    std::array<std::size_t, 2> __ret{};
+    std::tuple __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
+        __exec.queue(), std::forward<_Range1>(__rng), std::move(__zipped_output), __n, _GenMask{__pred},
+        _WriteOp{__n_out1, __n_out2}, /*_IsUniquePattern=*/std::false_type{});
+
+    std::get<0>(__res).wait_and_throw();
+    std::get<1>(__res).__copy_result(__ret.data(), 1);
+    if constexpr (_Bounded)
+        __ret[1] = __load_result(std::get<2>(__res));
+    else
+        __ret[1] = __n;
+    
+    return __ret;
 }
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,

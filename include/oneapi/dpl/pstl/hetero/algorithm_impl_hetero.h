@@ -923,14 +923,14 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
           typename _Iterator3, typename _UnaryPredicate>
-::std::pair<_Iterator2, _Iterator3>
+std::pair<_Iterator2, _Iterator3>
 __pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first,
                          _Iterator1 __last, _Iterator2 __result1, _Iterator3 __result2, _UnaryPredicate __pred)
 {
     if (__first == __last)
-        return ::std::make_pair(__result1, __result2);
+        return std::make_pair(__result1, __result2);
 
-    using _It1DifferenceType = typename ::std::iterator_traits<_Iterator1>::difference_type;
+    using _It1DifferenceType = typename std::iterator_traits<_Iterator1>::difference_type;
 
     _It1DifferenceType __n = __last - __first;
 
@@ -942,12 +942,9 @@ __pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     auto __buf2 = __keep_out(__result1, __result1 + __n);
     auto __buf3 = __keep_out(__result2, __result2 + __n);
 
-    auto __result = oneapi::dpl::__par_backend_hetero::__parallel_partition_copy</*_Bounded*/ false>(_BackendTag{},
-        std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __pred);
-
-    std::get<0>(__result).wait_and_throw();
-
-    const _It1DifferenceType __num_true = __load_result(std::get<1>(__result));
+    std::size_t __num_true = oneapi::dpl::__par_backend_hetero::__parallel_partition_copy</*_Bounded*/ false>(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __buf3.all_view(),
+        __pred)[0];
 
     return std::make_pair(__result1 + __num_true, __result2 + (__last - __first - __num_true));
 }
