@@ -127,7 +127,7 @@ allocation via the `DeviceAllocator` concept is available on
 non-owning views, and range composition, use `sycl::span<T>` via `.span()`.
 
 `sycl::span` is guaranteed to be present with sycl 2020 and device copyable,
-modeled on c++20 `std::span` even when compiled with c++17.
+conforms to c++20 `std::span` even when compiled with c++17.
 
 ## Usage Examples
 
