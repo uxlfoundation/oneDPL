@@ -194,7 +194,7 @@ struct __write_to_id_if
 struct __write_partitioned
 {
     using __position_type = std::tuple<std::size_t, std::size_t>;
-    
+
     friend std::size_t
     __transform_result(const __write_partitioned& __write_op,
                        const oneapi::dpl::__internal::__opt_lazy_ctor_storage<std::size_t>& __carry)
@@ -239,7 +239,7 @@ struct __write_partitioned
         using _ConvertedType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__value)>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
-        // __mask_prefix is the number of inputs written to the first output range by previous items
+        // __mask_prefix is the number of inputs for the first output range up to and including this item
         const std::size_t __out_idx = __mask ? __mask_prefix - 1 : __id - __mask_prefix;
         const std::size_t __out_size = __mask ? __out1_size : __out2_size;
         if (__out_idx < __out_size)
@@ -251,7 +251,7 @@ struct __write_partitioned
         }
         if (__out_idx == __out_size)
         {
-            __on_oob_reached(__id, __position_type{std::size_t(__id), std::size_t(__mask_prefix - 1)});
+            __on_oob_reached(__id, __position_type{std::size_t(__id), std::size_t(__mask_prefix - __mask)});
         }
     }
     std::size_t __out1_size;
