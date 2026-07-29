@@ -212,7 +212,7 @@ compat::device_vector<float> d(host_data, q);
 
 // --- Thrust-like algorithm use ---
 auto policy = oneapi::dpl::execution::make_device_policy(q);
-std::sort(policy, d.begin(), d.end());
+oneapi::dpl::sort(policy, d.begin(), d.end());
 
 // --- Thrust-like element access (proxy, synchronous) ---
 float val = d[0];          // implicit device-to-host
