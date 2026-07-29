@@ -55,7 +55,7 @@ public:
     // From context + device
     device_array(size_type count, sycl::context ctx, sycl::device dev);
 
-    // Allocate and fill with value (requires kernel launch or memset)
+    // Allocate and fill with value
     device_array(size_type count, const T& value, sycl::queue q);
     device_array(size_type count, const T& value,
                  sycl::context ctx, sycl::device dev);
