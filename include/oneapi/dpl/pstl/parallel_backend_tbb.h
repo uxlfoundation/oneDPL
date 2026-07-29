@@ -762,7 +762,7 @@ class __merge_func
         Iterator2
         operator()(Iterator1 __first1, Iterator1 __last1, Iterator2 __first2)
         {
-            if (__last1 - __first1 < __merge_cut_off)
+            if (oneapi::dpl::__internal::__cmp_less(__last1 - __first1, __merge_cut_off))
                 return ::std::move(__first1, __last1, __first2);
 
             auto __n = __last1 - __first1;
@@ -781,7 +781,7 @@ class __merge_func
         Iterator2
         operator()(Iterator1 __first1, Iterator1 __last1, Iterator2 __first2)
         {
-            if (__last1 - __first1 < __merge_cut_off)
+            if (oneapi::dpl::__internal::__cmp_less(__last1 - __first1, __merge_cut_off))
             {
                 for (; __first1 != __last1; ++__first1, (void)++__first2)
                     __move_value_construct()(__first1, __first2);
@@ -804,7 +804,7 @@ class __merge_func
         void
         operator()(Iterator __first, Iterator __last)
         {
-            if (__last - __first < __merge_cut_off)
+            if (oneapi::dpl::__internal::__cmp_less(__last - __first, __merge_cut_off))
                 _Cleanup()(__first, __last);
             else
             {
@@ -923,7 +923,7 @@ class __merge_func
         const auto __n = __nx + __ny;
 
         // need to merge {x} and {y}
-        if (__n > __merge_cut_off)
+        if (oneapi::dpl::__internal::__cmp_less(__n, __merge_cut_off))
             return split_merging(__self);
 
         //merge to buffer
