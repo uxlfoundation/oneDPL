@@ -193,11 +193,12 @@ struct __write_to_id_if
 // `__id - get<0>(__v)`. Used for __parallel_partition_copy.
 struct __write_partitioned
 {
-    using __position_type = std::tuple<std::size_t, std::size_t>;
+    using diff_t = std::ptrdiff_t;
+    using __position_type = std::tuple<diff_t, diff_t>;
 
-    friend std::size_t
+    friend diff_t
     __transform_result(const __write_partitioned& __write_op,
-                       const oneapi::dpl::__internal::__opt_lazy_ctor_storage<std::size_t>& __carry)
+                       const oneapi::dpl::__internal::__opt_lazy_ctor_storage<diff_t>& __carry)
     {
         // __carry holds the total number of inputs partitioned to the first output range
         return std::min(__carry.__get_cref(), __write_op.__out1_size);
@@ -205,11 +206,11 @@ struct __write_partitioned
 
     template <typename _ValueType>
     bool
-    __oob_write_possible(std::size_t __max_write_offset, std::size_t __start_idx,
+    __oob_write_possible(diff_t __max_write_offset, diff_t __start_idx,
                          const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix)
     {
         // __mask_prefix is the number of inputs written to the first output range by previous items
-        const std::size_t __mask_prefix = __prefix.__has_value() ? __prefix.__get_cref() : 0;
+        const diff_t __mask_prefix = __prefix.__has_value() ? __prefix.__get_cref() : 0;
         // (__start_idx - __mask_prefix) is the number of inputs already written to the second output range
         return (__mask_prefix + __max_write_offset > __out1_size
                 || (__start_idx - __mask_prefix) + __max_write_offset > __out2_size);
@@ -240,8 +241,8 @@ struct __write_partitioned
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__value)>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
         // __mask_prefix is the number of inputs for the first output range up to and including this item
-        const std::size_t __out1_idx = __mask_prefix - 1;
-        const std::size_t __out2_idx = __id - __mask_prefix;
+        const diff_t __out1_idx = __mask_prefix - 1;
+        const diff_t __out2_idx = __id - __mask_prefix;
         if (__out1_idx <= __out1_size && __out2_idx <= __out2_size )
         {
             if (__mask && __out2_idx < __out2_size)
@@ -249,19 +250,19 @@ struct __write_partitioned
                 if (__out1_idx < __out1_size)
                     std::get<0>(__out_rng[__out1_idx]) = static_cast<_ConvertedType>(__value);
                 else // (__out1_idx == __out1_size)
-                    __on_oob_reached(__id, __position_type{std::size_t(__id), __out1_idx});
+                    __on_oob_reached(__id, __position_type{diff_t(__id), __out1_idx});
             }
             if (!__mask && __out1_idx < __out1_size)
             {
                 if (__out2_idx < __out2_size)
                     std::get<1>(__out_rng[__out2_idx]) = static_cast<_ConvertedType>(__value);
                 else // (__out2_idx == __out2_size)
-                    __on_oob_reached(__id, __position_type{std::size_t(__id), std::size_t(__mask_prefix)});
+                    __on_oob_reached(__id, __position_type{diff_t(__id), diff_t(__mask_prefix)});
             }
         }
     }
-    std::size_t __out1_size;
-    std::size_t __out2_size;
+    diff_t __out1_size;
+    diff_t __out2_size;
 };
 
 // Writes operation for reduce_by_segment, writes first key if the id is 0. Also, if the segment end is reached, writes
