@@ -681,6 +681,18 @@ __cmp_less(T __t, U __u)
         return __u >= 0 && __t < static_cast<std::make_unsigned_t<U>>(__u);
 }
 
+template <typename T, typename U>
+constexpr std::enable_if_t<std::is_integral_v<T> && std::is_integral_v<U>, bool>
+__cmp_less_equal(T __t, U __u)
+{
+    if constexpr (std::is_signed_v<T> == std::is_signed_v<U>)
+        return __t <= __u;
+    else if constexpr (std::is_signed_v<T>)
+        return __t < 0 || static_cast<std::make_unsigned_t<T>>(__t) <= __u;
+    else
+        return __u >= 0 && __t <= static_cast<std::make_unsigned_t<U>>(__u);
+}
+
 template <typename _Size, typename _Comparator>
 _Size
 __pstl_lower_bound_impl(_Size __first, _Size __last, _Comparator&& __comp)
