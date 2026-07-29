@@ -68,9 +68,11 @@ class device_pointer {
     const sycl::context* __ctx = nullptr;  // non-owning, from device_vector
 
 public:
+    using iterator_category = std::random_access_iterator_tag;
     using iterator_concept  = std::random_access_iterator_tag;
     using value_type        = std::remove_cv_t<T>;
     using difference_type   = std::ptrdiff_t;
+    using pointer           = T*;
     using reference         = device_reference<T>;
 
     device_pointer() = default;
