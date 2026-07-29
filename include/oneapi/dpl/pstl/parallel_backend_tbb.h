@@ -1219,7 +1219,7 @@ operator()(__task* __self)
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
     const _SizeType __n = (_M_xe - _M_xs) + (_M_ye - _M_ys);
-    if (__n <= __merge_cut_off)
+    if (oneapi::dpl::__internal::__cmp_less_equal(__n, __merge_cut_off))
     {
         _M_leaf_merge(_M_xs, _M_xe, _M_ys, _M_ye, _M_zs, _M_comp);
         return nullptr;
