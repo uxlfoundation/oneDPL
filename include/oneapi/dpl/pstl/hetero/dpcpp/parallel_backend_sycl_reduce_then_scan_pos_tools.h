@@ -131,14 +131,6 @@ struct __no_callback_tag
 {
 };
 
-template <typename, typename = void>
-struct __detect_oob_in_two_steps_selector : std::false_type
-{
-};
-
-template <typename _T>
-inline constexpr bool __detect_oob_in_two_steps_v = __detect_oob_in_two_steps_selector<std::decay_t<_T>>::value;
-
 // Sentinel type used as a stand-in for the stop-position accessor when _Bounded=false.
 struct __no_stop_pos_acc_tag
 {
@@ -156,7 +148,7 @@ __get_stop_pos_accessor_opt(_ModeTagT __mode, sycl::handler& __cgh, _StopPosStor
         return __no_stop_pos_acc_tag{};
 }
 
-template <bool _Bounded, typename _WriteOp, typename _StopPosStorage>
+template <bool _Bounded, typename _StopPosStorage>
 struct __parallel_reduce_then_scan_stop_oob_pos_tools
 {
     using __storage_data_t = typename _StopPosStorage::type;
@@ -167,10 +159,6 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
     // Describes final position type (if any) in the storage
     using __src_final_pos_t = typename __final_pos_type_selector<std::decay_t<__storage_data_t>>::type;
 
-    // Describes OOB position type
-    using __oob_pos_t =
-        std::conditional_t<__detect_oob_in_two_steps_v<_WriteOp>, std::uint16_t, __src_final_pos_t>;
-
     template <typename __FinalAndOOBPosAcc>
     static void
     __store_final_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const __src_final_pos_t& __final_pos)
@@ -179,26 +167,18 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
         __final_and_oob_pos.__final_pos = __final_pos;
     }
 
-    template <typename _InRng, typename _OOBPositionT, typename _GenScanInputArg, typename __FinalAndOOBPosAcc>
+    // The second part of two-pass OOB processing: if the OOB position is reached in the first pass,
+    // here we recover the source indexes for the diagonal where it happened and store the OOB position from them.
+    template <typename _InRng, typename _OOBPositionT, typename _GenScanInput, typename __FinalAndOOBPosAcc>
     static void
     __finalize_and_store_oob_pos(_InRng&& __in_rng, _OOBPositionT __detected_oob_pos,
-                                 const std::size_t __start_id_reached_on_oob, _GenScanInputArg __gen_scan_input,
+                                 const std::size_t __start_id_reached_on_oob, _GenScanInput __gen_scan_input,
                                  __FinalAndOOBPosAcc& __final_and_oob_pos_acc)
     {
         auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
-
-        // No synchronization needed because OOB may be detected only in a single work-item
-        if constexpr (__detect_oob_in_two_steps_v<_WriteOp>)
-        {
-            __src_pos_capturing_temp_data<__src_final_pos_t> __pos_catcher(__detected_oob_pos);
-            __gen_scan_input(std::forward<_InRng>(__in_rng), __start_id_reached_on_oob, __pos_catcher,
-                             __no_callback_tag{});
-            __final_and_oob_pos.__oob_pos = __pos_catcher.__get_saved_src_pos();
-        }
-        else
-        {
-            __final_and_oob_pos = __detected_oob_pos;
-        }
+        __src_pos_capturing_temp_data<__src_final_pos_t> __pos_catcher(__detected_oob_pos);
+        __gen_scan_input(std::forward<_InRng>(__in_rng), __start_id_reached_on_oob, __pos_catcher, __no_callback_tag{});
+        __final_and_oob_pos.__oob_pos = __pos_catcher.__get_saved_src_pos();
     }
 };
 

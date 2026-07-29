@@ -579,7 +579,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
         __q_local, __n, std::forward<_Range1>(__rng), std::move(__zipped_output), _GenReduceInput{_GenMask{__pred}},
         std::plus<std::size_t>{}, _GenScanInput{_GenMask{__pred}}, _ScanInputTransform{}, _WriteOp{__n_out1, __n_out2},
         oneapi::dpl::unseq_backend::__no_init_value<std::size_t>{}, /*_Inclusive=*/std::true_type{},
-        /*_IsUniquePattern=*/std::false_type{}, /*__stop_pos_initial_state=*/__n);
+        /*_IsUniquePattern=*/std::false_type{}, __write_partitioned::__position_type{__n, __n_out1});
 
     std::array<std::size_t, 2> __ret{};
     std::get<0>(__res).wait_and_throw();

@@ -131,6 +131,8 @@ struct __simple_write_to_id
 template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
 {
+    using __position_type = std::size_t;
+
     template <typename _ValueType>
     friend _ValueType
     __transform_result(const __write_to_id_if& __write_op,
@@ -191,12 +193,14 @@ struct __write_to_id_if
 // `__id - get<0>(__v)`. Used for __parallel_partition_copy.
 struct __write_partitioned
 {
+    using __position_type = std::tuple<std::size_t, std::size_t>;
+    
     friend std::size_t
     __transform_result(const __write_partitioned& __write_op,
                        const oneapi::dpl::__internal::__opt_lazy_ctor_storage<std::size_t>& __carry)
     {
         // __carry holds the total number of inputs partitioned to the first output range
-        return std::min({__carry.__get_cref(), __write_op.__out1_size, __write_op.__out1_stop});
+        return std::min(__carry.__get_cref(), __write_op.__out1_size);
     }
 
     template <typename _ValueType>
@@ -247,13 +251,11 @@ struct __write_partitioned
         }
         if (__out_idx == __out_size)
         {
-            this->__out1_stop = __mask_prefix - 1;
-            __on_oob_reached(__id, __id);
+            __on_oob_reached(__id, __position_type{std::size_t(__id), std::size_t(__mask_prefix - 1)});
         }
     }
     std::size_t __out1_size;
     std::size_t __out2_size;
-    std::size_t __out1_stop = std::numeric_limits<std::size_t>::max();
 };
 
 // Writes operation for reduce_by_segment, writes first key if the id is 0. Also, if the segment end is reached, writes
@@ -339,6 +341,8 @@ struct __write_scan_by_seg
 // of elements to write. Used for __parallel_set_write_a_b_op.
 struct __write_multiple_to_id
 {
+    using __position_type = std::size_t;
+
     template <typename _ValueType>
     friend _ValueType
     __transform_result(const __write_multiple_to_id& __write_op,
@@ -408,11 +412,6 @@ struct __write_multiple_to_id
     }
     std::size_t __out_size;
     oneapi::dpl::__internal::__pstl_assign __assign;
-};
-
-template <>
-struct __internal::__detect_oob_in_two_steps_selector<__write_multiple_to_id> : std::true_type
-{
 };
 
 // The generic definition of __transform_result just returns the carried value
@@ -2184,8 +2183,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
                     using _PosTools =
-                        __internal::__parallel_reduce_then_scan_stop_oob_pos_tools<_Bounded, _WriteOp,
-                                                                                   _StopPosStorage>;
+                        __internal::__parallel_reduce_then_scan_stop_oob_pos_tools<_Bounded, _StopPosStorage>;
 
                     auto __call_scan_through_elements_helper = [&](auto __on_oob_reached, auto __final_pos_saver) {
                         __scan_through_elements_helper<_Bounded, __is_inclusive, __is_unique_pattern_v>(
@@ -2198,17 +2196,13 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     {
                         using __src_final_pos_t = typename _PosTools::__src_final_pos_t;
 
-                        // Two pass processing: if the OOB position is reached in the first pass, then on the second
-                        // pass we recover the source indexes for the diagonal where it happened and store the OOB
-                        // position from them. The OOB position may be reached only in one work-item, so no
-                        // synchronization is needed to update the shared OOB position in the second pass.
-                        std::size_t __start_id_reached_on_oob = __start_id;
-                        typename _PosTools::__oob_pos_t __oob_position = {};
+                        std::size_t __start_id_on_oob = __start_id;
+                        typename _WriteOp::__position_type __oob_position{};
                         bool __oob_detected = false;
 
-                        auto __on_oob_reached = [&](std::size_t __start_id, auto __id) {
-                            __start_id_reached_on_oob = __start_id;
-                            __oob_position = __id;
+                        auto __on_oob_reached = [&](std::size_t __start_id, typename _WriteOp::__position_type __pos) {
+                            __start_id_on_oob = __start_id;
+                            __oob_position = __pos;
                             __oob_detected = true;
                         };
 
@@ -2225,10 +2219,17 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                             __call_scan_through_elements_helper(__on_oob_reached, __internal::__no_callback_tag{});
                         }
 
+                        // The OOB position may be reached only in one work-item, so no synchronization is needed
+                        // to update __stop_pos_acc.
                         if (__oob_detected)
                         {
-                            _PosTools::__finalize_and_store_oob_pos(__in_rng, __oob_position, __start_id_reached_on_oob,
-                                                                    __gen_scan_input, __stop_pos_acc);
+                            if constexpr (_PosTools::__has_src_final_pos)
+                            {
+                                _PosTools::__finalize_and_store_oob_pos(__in_rng, __oob_position, __start_id_on_oob,
+                                                                        __gen_scan_input, __stop_pos_acc);
+                            }
+                            else
+                                __stop_pos_acc.__data()[0] = __oob_position;
                         }
                     }
                     else
