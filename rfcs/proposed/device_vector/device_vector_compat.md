@@ -84,6 +84,13 @@ public:
 
     /* Full random access iterator arithmetic + comparison*/
 
+    // Opt in to oneDPL's device-accessibility customization point, so that
+    // device_pointer are passed to kernels directly
+    friend std::true_type
+    is_onedpl_indirectly_device_accessible(device_pointer)
+    {
+        return {};
+    }
 };
 
 // =========================================================================
