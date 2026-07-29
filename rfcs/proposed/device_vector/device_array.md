@@ -75,7 +75,7 @@ public:
     device_array(const device_array&) = delete;
     device_array& operator=(const device_array&) = delete;
 
-    // Move
+    // Move (shallow move, device memory remains where it is)
     device_array(device_array&&);
     device_array& operator=(device_array&&);
 
