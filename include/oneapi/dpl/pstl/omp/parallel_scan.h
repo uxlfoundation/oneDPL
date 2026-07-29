@@ -17,6 +17,7 @@
 #define _ONEDPL_INTERNAL_OMP_PARALLEL_SCAN_H
 
 #include "parallel_invoke.h"
+#include "../utils.h"
 
 namespace oneapi
 {
