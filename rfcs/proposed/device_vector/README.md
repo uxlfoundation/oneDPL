@@ -175,7 +175,7 @@ classDiagram
   - Individual headers:
   `<oneapi/dpl/device_array>` and `<oneapi/dpl/device_vector>`.. `device_vector`
   would transitively include `device_array` since it depends on it.
-  - We could have a `compat` header and a individual `device_array` header. If we intend to use `device_array` as convenient RAII device storage within our own sycl backend implementations, that may impact our decision here.
+  - We could have a `compat` header and a individual `device_array` header. If we intend to use `device_array` as convenient RAII device storage within oneDPL's sycl backend implementations, that may impact our decision here.
 
 - **Compatibility namespace naming?** This proposal places the
   Thrust-compatible types in `oneapi::dpl::experimental::compat`. Several
