@@ -1,15 +1,11 @@
 # `device_array<T>` — Simplified Device Memory Container
 
 `device_array` provides RAII device allocation, explicit host-device transfers,
-and direct use of raw USM pointers as iterators. It emphasizes convenience of
-use while making host-side use explicit. It provides control over synchronization
-of host side operations.
+and direct use of spans over raw USM pointers. It emphasizes convenience of
+use while making host-side use explicit.
 
-It is a **fixed-size** container: once constructed, its size does not change.
-This keeps its public interface deliberately small — there is no allocator
-access and no resizing. These capabilities live on
-[`compat::device_vector`](device_vector_compat.md), which targets the fuller
-Thrust-compatible contract.
+It is intended to be minimal in its design: no allocator, no resizing, no
+asynchronous access.
 
 This focus provides support for the main usage pattern for users of `device_vector`,
 and fits nicely within SYCL while avoiding much of the complexity of `device_vector`.
