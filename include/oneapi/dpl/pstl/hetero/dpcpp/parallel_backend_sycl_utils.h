@@ -400,7 +400,9 @@ struct __local_buffer<sycl::buffer<_T, __dim, _AllocT>>
 template <int __dim, typename _AllocT, typename... _T>
 struct __local_buffer<sycl::buffer<::std::tuple<_T...>, __dim, _AllocT>>
 {
-    using type = sycl::buffer<oneapi::dpl::__internal::tuple<_T...>, __dim, _AllocT>;
+    using type = sycl::buffer<
+        oneapi::dpl::__internal::tuple<_T...>, __dim,
+        typename std::allocator_traits<_AllocT>::template rebind_alloc<oneapi::dpl::__internal::tuple<_T...>>>;
 };
 
 // impl for sycl::buffer<...>
