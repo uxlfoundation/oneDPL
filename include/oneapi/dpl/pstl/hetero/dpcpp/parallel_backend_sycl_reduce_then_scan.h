@@ -240,18 +240,24 @@ struct __write_partitioned
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__value)>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
         // __mask_prefix is the number of inputs for the first output range up to and including this item
-        const std::size_t __out_idx = __mask ? __mask_prefix - 1 : __id - __mask_prefix;
-        const std::size_t __out_size = __mask ? __out1_size : __out2_size;
-        if (__out_idx < __out_size)
+        const std::size_t __out1_idx = __mask_prefix - 1;
+        const std::size_t __out2_idx = __id - __mask_prefix;
+        if (__out1_idx <= __out1_size && __out2_idx <= __out2_size )
         {
-            if (__mask)
-                std::get<0>(__out_rng[__out_idx]) = static_cast<_ConvertedType>(__value);
-            else
-                std::get<1>(__out_rng[__out_idx]) = static_cast<_ConvertedType>(__value);
-        }
-        if (__out_idx == __out_size)
-        {
-            __on_oob_reached(__id, __position_type{std::size_t(__id), std::size_t(__mask_prefix - __mask)});
+            if (__mask && __out2_idx < __out2_size)
+            {
+                if (__out1_idx < __out1_size)
+                    std::get<0>(__out_rng[__out1_idx]) = static_cast<_ConvertedType>(__value);
+                else // (__out1_idx == __out1_size)
+                    __on_oob_reached(__id, __position_type{std::size_t(__id), __out1_idx});
+            }
+            if (!__mask && __out1_idx < __out1_size)
+            {
+                if (__out2_idx < __out2_size)
+                    std::get<1>(__out_rng[__out2_idx]) = static_cast<_ConvertedType>(__value);
+                else // (__out2_idx == __out2_size)
+                    __on_oob_reached(__id, __position_type{std::size_t(__id), std::size_t(__mask_prefix)});
+            }
         }
     }
     std::size_t __out1_size;
