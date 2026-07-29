@@ -31,6 +31,14 @@ It uses an iterator/pointer type, `device_pointer`, as a wrapper for USM memory,
 3. **No `push_back`, `insert`, `erase`** — rarely used, unnecessary complexity.
 4. **No `host_vector` type** — use `std::vector<T>` directly.
 5. **No system tag dispatch** — execution policies determine where algorithms run.
+6. **No copy-initialization from a host vector** — `device_vector<T> d = h_v;` cannot be
+   supported, because every constructor additionally requires a context + device (or queue)
+   and so is never a candidate for copy-initialization. Assignment from a host
+   vector to an already-constructed `device_vector` (`d = h_v;`) is supported.
+7. **Conversion to `std::vector` is explicit** — `std::vector<T> h = d;` will not compile;
+   use `static_cast<std::vector<T>>(d)`. `dpct::device_vector` provides this conversion
+   implicitly. Made explicit here because the conversion is a blocking bulk device-to-host
+   transfer, which is worth making visible at the call site.
 
 ## Namespace
 We are using `oneapi::dpl::experimental::compat` for these compatibility classes. The intention would be to promote
