@@ -1686,7 +1686,7 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
                       _RandomAccessIterator1 __new_first, _RandomAccessIterator1 __last,
                       _RandomAccessIterator2 __result, std::size_t __n_out)
 {
-    std::size_t __n = __last - __first;
+    const std::size_t __n = __last - __first;
     if (__n == 0 || __n_out == 0)
         return __result;
     if (__n_out > __n)
