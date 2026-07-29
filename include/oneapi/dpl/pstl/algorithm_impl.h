@@ -773,7 +773,7 @@ __find_subrange(_RandomAccessIterator __first, _RandomAccessIterator __last, _Ra
         return __first; // According to the standard std::search_n shall return first when count < 1
     }
 
-    if (static_cast<_Size>(__global_last - __first) < __count)
+    if (oneapi::dpl::__internal::__cmp_less(__global_last - __first, __count))
     {
         return __last;
     }
