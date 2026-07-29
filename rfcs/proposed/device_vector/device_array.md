@@ -112,14 +112,6 @@ public:
     T host_read(size_type pos, sycl::queue q) const;
     void host_write(size_type pos, const T& value, sycl::queue q);
 
-    // Device iteration — raw USM pointers
-    iterator       begin();
-    const_iterator begin() const;
-    iterator       end();
-    const_iterator end() const;
-    pointer        data();
-    const_pointer  data() const;
-
     // Capacity (fixed size — no resize / reserve / capacity / clear)
     size_type size()  const;
     bool      empty() const;
