@@ -101,7 +101,12 @@ public:
 
 template <typename T>
 class device_reference {
+    T* __ptr = nullptr;
+    const sycl::context* __ctx = nullptr;  // non-owning, from device_pointer
+
 public:
+    device_reference(T* ptr, const sycl::context* ctx);
+
     operator T() const;                                       // read
     const device_reference& operator=(const T& val) const;    // write
     const device_reference& operator=(const device_reference&) const;
