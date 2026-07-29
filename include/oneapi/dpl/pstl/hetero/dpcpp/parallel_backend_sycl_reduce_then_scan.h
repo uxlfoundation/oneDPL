@@ -410,6 +410,11 @@ struct __write_multiple_to_id
     oneapi::dpl::__internal::__pstl_assign __assign;
 };
 
+template <>
+struct __internal::__detect_oob_in_two_steps_selector<__write_multiple_to_id> : std::true_type
+{
+};
+
 // The generic definition of __transform_result just returns the carried value
 template <typename _WriteOp, typename _ValueType>
 const _ValueType&
@@ -1033,13 +1038,6 @@ struct __gen_set_op_from_known_balanced_path
     _Compare __comp;
     _Proj1 __proj1;
     _Proj2 __proj2;
-};
-
-template <typename _SetOpCount, typename _TempData, typename _RetType, typename _Compare, typename _Proj1,
-          typename _Proj2>
-struct __internal::__detect_oob_in_two_steps_selector<
-    __gen_set_op_from_known_balanced_path<_SetOpCount, _TempData, _RetType, _Compare, _Proj1, _Proj2>> : std::true_type
-{
 };
 
 // kernel for balanced path to partition the input into tiles by calculating balanced path on diagonals of tile bounds
@@ -2186,7 +2184,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
                     using _PosTools =
-                        __internal::__parallel_reduce_then_scan_stop_oob_pos_tools<_Bounded, _GenScanInput,
+                        __internal::__parallel_reduce_then_scan_stop_oob_pos_tools<_Bounded, _WriteOp,
                                                                                    _StopPosStorage>;
 
                     auto __call_scan_through_elements_helper = [&](auto __on_oob_reached, auto __final_pos_saver) {
@@ -2205,11 +2203,13 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         // position from them. The OOB position may be reached only in one work-item, so no
                         // synchronization is needed to update the shared OOB position in the second pass.
                         std::size_t __start_id_reached_on_oob = __start_id;
-                        typename _PosTools::__oob_pos_t __oob_position = _PosTools::__initial_oob_pos();
+                        typename _PosTools::__oob_pos_t __oob_position = {};
+                        bool __oob_detected = false;
 
-                        auto __on_oob_reached = [&](std::size_t __start_id, typename _PosTools::__oob_pos_t __id) {
+                        auto __on_oob_reached = [&](std::size_t __start_id, auto __id) {
                             __start_id_reached_on_oob = __start_id;
                             __oob_position = __id;
+                            __oob_detected = true;
                         };
 
                         if constexpr (_PosTools::__has_src_final_pos)
@@ -2225,8 +2225,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                             __call_scan_through_elements_helper(__on_oob_reached, __internal::__no_callback_tag{});
                         }
 
-                        _PosTools::__finalize_and_store_oob_pos(__in_rng, __oob_position, __start_id_reached_on_oob,
-                                                                __gen_scan_input, __stop_pos_acc);
+                        if (__oob_detected)
+                        {
+                            _PosTools::__finalize_and_store_oob_pos(__in_rng, __oob_position, __start_id_reached_on_oob,
+                                                                    __gen_scan_input, __stop_pos_acc);
+                        }
                     }
                     else
                     {
