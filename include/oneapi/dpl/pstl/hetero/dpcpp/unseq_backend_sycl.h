@@ -26,9 +26,6 @@
 #include "parallel_backend_sycl_utils.h"
 #include "../../functional_impl.h" // for oneapi::dpl::identity
 
-#define _ONEDPL_SYCL_KNOWN_IDENTITY_PRESENT                                                                            \
-    (_ONEDPL_SYCL2020_KNOWN_IDENTITY_PRESENT || _ONEDPL_LIBSYCL_KNOWN_IDENTITY_PRESENT)
-
 namespace oneapi
 {
 namespace dpl
@@ -36,12 +33,14 @@ namespace dpl
 namespace unseq_backend
 {
 
-#if _ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
-//This optimization depends on Intel(R) oneAPI DPC++ Compiler implementation such as support of binary operators from std namespace.
+//This optimization depends on Intel(R) oneAPI DPC++ Compiler implementation such as:
+// - support of binary operators from std namespace. Note, ACPP also supports them.
+// - support of sycl::half.
 //We need to use defined(SYCL_IMPLEMENTATION_INTEL) macro as a guard.
-
+//TODO: guard only DPC++ compiler specific details.
+#if _ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
 template <typename _Tp>
-inline constexpr bool __can_use_known_identity =
+inline constexpr bool __enable_group_reduce_scan_for_type =
 #    if ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
     // When ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION is defined as non-zero, we avoid using known identity for 64-bit arithmetic data types
     !(::std::is_arithmetic_v<_Tp> && sizeof(_Tp) == sizeof(::std::uint64_t));
@@ -49,58 +48,29 @@ inline constexpr bool __can_use_known_identity =
     true;
 #    endif // ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
 
-//TODO: To change __has_known_identity implementation as soon as the Intel(R) oneAPI DPC++ Compiler implementation issues related to
+//TODO: To change __can_use_group_reduce_scan implementation as soon as the Intel(R) oneAPI DPC++ Compiler implementation issues related to
 //std::multiplies, std::bit_or, std::bit_and and std::bit_xor operations will be fixed.
 //std::logical_and and std::logical_or are not supported in Intel(R) oneAPI DPC++ Compiler to be used in sycl::inclusive_scan_over_group and sycl::reduce_over_group
 template <typename _BinaryOp, typename _Tp>
-using __has_known_identity = ::std::conditional_t<
-    __can_use_known_identity<_Tp>,
-#    if _ONEDPL_SYCL_KNOWN_IDENTITY_PRESENT
-    typename ::std::disjunction<
-        __dpl_sycl::__has_known_identity<_BinaryOp, _Tp>,
-        ::std::conjunction<::std::is_arithmetic<_Tp>,
-                           ::std::disjunction<::std::is_same<::std::decay_t<_BinaryOp>, ::std::plus<_Tp>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, ::std::plus<void>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<_Tp>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<void>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__minimum<_Tp>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__minimum<void>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__maximum<_Tp>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__maximum<void>>>>>,
-#    else
-    typename ::std::conjunction<
-        ::std::is_arithmetic<_Tp>,
-        ::std::disjunction<::std::is_same<::std::decay_t<_BinaryOp>, ::std::plus<_Tp>>,
-                           ::std::is_same<::std::decay_t<_BinaryOp>, ::std::plus<void>>,
-                           ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<_Tp>>,
-                           ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<void>>>>,
-#    endif
-    ::std::false_type>;     // This is for the case of __can_use_known_identity<_Tp>==false
-
+using __can_use_group_reduce_scan = std::conditional_t<
+    __enable_group_reduce_scan_for_type<_Tp>,
+    typename std::conjunction<
+        std::disjunction<std::is_arithmetic<_Tp>, std::is_same<_Tp, sycl::half>>,
+        std::disjunction<std::is_same<std::decay_t<_BinaryOp>, std::plus<_Tp>>,
+                            std::is_same<std::decay_t<_BinaryOp>, std::plus<void>>,
+                            std::is_same<std::decay_t<_BinaryOp>, __dpl_sycl::__plus<_Tp>>,
+                            std::is_same<std::decay_t<_BinaryOp>, __dpl_sycl::__plus<void>>,
+                            std::is_same<std::decay_t<_BinaryOp>, __dpl_sycl::__minimum<_Tp>>,
+                            std::is_same<std::decay_t<_BinaryOp>, __dpl_sycl::__minimum<void>>,
+                            std::is_same<std::decay_t<_BinaryOp>, __dpl_sycl::__maximum<_Tp>>,
+                            std::is_same<std::decay_t<_BinaryOp>, __dpl_sycl::__maximum<void>>>>,
+    std::false_type>;     // This is for the case of __can_use_group_scan_reduce<_Tp>==false
 #else //_ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
 
 template <typename _BinaryOp, typename _Tp>
-using __has_known_identity = std::false_type;
+using __can_use_group_reduce_scan = std::false_type;
 
 #endif //_ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
-
-template <typename _BinaryOp, typename _Tp>
-struct __known_identity_for_plus
-{
-    static_assert(::std::is_same_v<::std::decay_t<_BinaryOp>, ::std::plus<_Tp>> ||
-                  ::std::is_same_v<::std::decay_t<_BinaryOp>, ::std::plus<void>> ||
-                  ::std::is_same_v<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<_Tp>> ||
-                  ::std::is_same_v<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<void>>);
-    static constexpr _Tp value = 0;
-};
-
-template <typename _BinaryOp, typename _Tp>
-inline constexpr _Tp __known_identity =
-#if _ONEDPL_SYCL_KNOWN_IDENTITY_PRESENT
-    __dpl_sycl::__known_identity<_BinaryOp, _Tp>::value;
-#else
-    __known_identity_for_plus<_BinaryOp, _Tp>::value; //for plus only
-#endif
 
 template <typename _F>
 struct walk_n
@@ -476,7 +446,8 @@ struct reduce_over_group
     {
         const _Size __global_idx = __item.get_global_id(0);
         return __dpl_sycl::__reduce_over_group(
-            __item.get_group(), __global_idx >= __n ? __known_identity<_BinaryOperation1, _Tp> : __val.__v, __bin_op1);
+            __item.get_group(),
+            __global_idx >= __n ? sycl::known_identity<_BinaryOperation1, _Tp>::value : __val.__v, __bin_op1);
     }
 
     template <typename _NDItemId, typename _Size, typename _AccLocal>
@@ -512,7 +483,7 @@ struct reduce_over_group
     operator()(const _NDItemId __item, const _Size __n, oneapi::dpl::__internal::__lazy_ctor_storage<_Tp>& __val,
                const _AccLocal& __local_mem) const
     {
-        return reduce_impl(__item, __n, __val, __local_mem, __has_known_identity<_BinaryOperation1, _Tp>{});
+        return reduce_impl(__item, __n, __val, __local_mem, __can_use_group_reduce_scan<_BinaryOperation1, _Tp>{});
     }
 
     template <typename _InitType, typename _Result>
@@ -525,7 +496,7 @@ struct reduce_over_group
     inline std::size_t
     local_mem_req(const std::uint16_t& __work_group_size) const
     {
-        if constexpr (__has_known_identity<_BinaryOperation1, _Tp>{})
+        if constexpr (__can_use_group_reduce_scan<_BinaryOperation1, _Tp>{})
             return 0;
 
         return __work_group_size;
