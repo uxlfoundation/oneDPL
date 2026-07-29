@@ -65,6 +65,7 @@ public:
 
     // explicit copy construction only (avoids accidental deep copies)
     explicit device_array(const device_array&);
+    explicit device_array(const device_array&, sycl::queue q);
 
     device_array& operator=(const device_array&) = delete;
 
