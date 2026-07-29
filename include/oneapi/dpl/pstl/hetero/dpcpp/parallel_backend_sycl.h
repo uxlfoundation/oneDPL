@@ -585,7 +585,12 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     std::get<0>(__res).wait_and_throw();
     std::get<1>(__res).__copy_result(__ret.data(), 1);
     if constexpr (_Bounded)
-        __ret[1] = __load_result(std::get<2>(__res));
+    {
+        auto [__stop_in, __stop_out1] = __load_result(std::get<2>(__res));
+        __ret[1] = __stop_in;
+        if (__stop_out1 < __ret[0])
+            __ret[0] = __stop_out1;
+    }
     else
         __ret[1] = __n;
 
