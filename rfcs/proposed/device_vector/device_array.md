@@ -60,49 +60,33 @@ public:
     device_array(size_type count, const T& value,
                  sycl::context ctx, sycl::device dev);
 
-    // Construct from host data (upload)
-    template <typename InputIt>
-    device_array(InputIt first, InputIt last, sycl::queue q);
-    device_array(std::initializer_list<T> init, sycl::queue q);
-    device_array(const std::vector<T>& src, sycl::queue q);
+    device_array(sycl::span<const T> src, sycl::queue q);
+    device_array(sycl::span<const T> src, sycl::context ctx, sycl::device dev);
 
-    template <typename InputIt>
-    device_array(InputIt first, InputIt last, sycl::context ctx, sycl::device dev);
-    device_array(std::initializer_list<T> init, sycl::context ctx, sycl::device dev);
-    device_array(const std::vector<T>& src, sycl::context ctx, sycl::device dev);
+    // explicit copy construction only (avoids accidental deep copies)
+    explicit device_array(const device_array&);
 
-    // Deleted Copy — use copy_from for explicit device-to-device copies)
-    device_array(const device_array&) = delete;
     device_array& operator=(const device_array&) = delete;
 
     // Move (shallow move, device memory remains where it is)
     device_array(device_array&&);
     device_array& operator=(device_array&&);
 
+    // deallocates device memory
     ~device_array();
 
-    // Device-to-device copy (allocates on the provided context+device)
-    // Supports cross-device copies: source and destination may be on different devices
-    static device_array copy_from(const device_array& src, sycl::queue q);
-    static device_array copy_from(const device_array& src,
-                                  size_type offset, size_type count, sycl::queue q);
-    static device_array copy_from(const device_array& src,
-                                  sycl::context ctx, sycl::device dev);
-    static device_array copy_from(const device_array& src,
-                                  size_type offset, size_type count,
-                                  sycl::context ctx, sycl::device dev);
-
     // Host-device transfer
+    // Bulk transfer from device (dst may be host memory or USM on this context)
+    void copy_to(sycl::span<T> dst) const;
+    void copy_to(sycl::span<T> dst, sycl::queue q) const;
 
-    // Bulk download
+    // Convenience download into a fresh host vector
     std::vector<T> to_vector() const;
     std::vector<T> to_vector(sycl::queue q) const;
 
-    // Bulk upload (source length must equal size(); does not resize)
-    void assign(const T* first, const T* last);
-    void assign(const T* first, const T* last, sycl::queue q);
-    void assign(const std::vector<T>& src);
-    void assign(const std::vector<T>& src, sycl::queue q);
+    // Bulk transfer to device (src may be host memory or USM on this context)
+    void copy_from(sycl::span<const T> src);
+    void copy_from(sycl::span<const T> src, sycl::queue q);
 
     // Single-element host access (blocking, creates queue from context & device)
     T host_read(size_type pos) const;
@@ -143,7 +127,7 @@ allocation via the `DeviceAllocator` concept is available on
 non-owning views, and range composition, use `sycl::span<T>` via `.span()`.
 
 `sycl::span` is guaranteed to be present with sycl 2020 and device copyable,
-conforming to c++20 `std::span` even when compiled with c++17.
+modeled on c++20 `std::span` even when compiled with c++17.
 
 ## Usage Examples
 
@@ -158,15 +142,16 @@ namespace dpl = oneapi::dpl::experimental;
 sycl::queue q{sycl::property::queue::in_order{}};
 
 // --- RAII allocation + upload from host ---
+// host_data converts implicitly to sycl::span<const float>; size is taken from it
 std::vector<float> host_data(1024, 3.14f);
 dpl::device_array<float> d(host_data, q);
 
 // --- Use with oneDPL algorithms (raw T* iterators) ---
 auto policy = oneapi::dpl::execution::make_device_policy(q);
-std::sort(policy, d.begin(), d.end());
+std::sort(policy, d.span().begin(), d.span().end());
 
 // --- Use in a SYCL kernel ---
-float* ptr = d.data();
+float* ptr = d.span().data();
 q.parallel_for(sycl::range<1>(d.size()), [=](sycl::id<1> i) {
     ptr[i] *= 2.0f;
 }).wait();
@@ -176,11 +161,22 @@ float val = d.host_read(0, q);     // synchronous read
 d.host_write(0, 42.0f, q);         // synchronous write
 
 // --- Bulk download ---
-std::vector<float> out = d.to_vector(q);
+std::vector<float> out = d.to_vector(q);   // fresh vector
+d.copy_to(out, q);                         // or into existing storage (sizes must match)
+
+// --- Bulk upload into an existing device_array (does not resize) ---
+d.copy_from(host_data, q);
+
+// --- Device-to-device: span() is USM, so it is a valid source ---
+dpl::device_array<float> d2(d.size(), q);
+d2.copy_from(d.span(), q);                 // span<float> -> span<const float>
+
+// --- Subrange copy into a new, smaller device_array ---
+dpl::device_array<float> head(d.span().subspan(0, 100), q);
 
 // --- Output buffer (uninitialized by default — no memset) ---
 dpl::device_array<float> output(1024, q);
-std::transform(policy, d.begin(), d.end(), output.begin(),
+std::transform(policy, d.span().begin(), d.span().end(), output.span().begin(),
                [](float x) { return x * 2.0f; });
 
 // --- Zero-initialized allocation (opt-in) ---
