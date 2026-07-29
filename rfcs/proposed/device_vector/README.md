@@ -48,7 +48,7 @@ a `std::vector`-like interface for managing device memory.
 |---|---|---|---|---|
 | **Default Allocator** | `device_allocator<T>` wrapping `sycl::malloc_device`; custom `DeviceAllocator` concept | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | `device_allocator<T>` (`sycl::malloc_device`); supports alignment template parameter | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` |
 | **Memory Model** | **Device memory** via `sycl::malloc_device`; host access triggers implicit transfers | **Device memory** via `cudaMalloc`; host access triggers implicit transfers | **Device memory** via `sycl::malloc_device`; implicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement |
-| **Host Element Access** | `device_array`: explicit `read()`/`write()`; compat `device_vector`: `device_reference` proxy | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (`__SYCL_DEVICE_ONLY__` bifurcation) | Via `device_reference` proxy (runtime-managed migration) |
+| **Host Element Access** | `device_array`: explicit `host_read()`/`host_write()`; compat `device_vector`: `device_reference` proxy | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (`__SYCL_DEVICE_ONLY__` bifurcation) | Via `device_reference` proxy (runtime-managed migration) |
 | **std::vector Interop** | Explicit constructor + `to_vector()` | Copy constructors from/to `std::vector` | Constructor from `std::vector` | Copy/move + implicit `operator std::vector()` |
 | **Queue Association** | Stores context + device; queue provided per-operation or created on demand | Implicit (CUDA stream) | Allocator stores `device` + `context`; queue resolved at runtime via pointer introspection | Global default queue |
 | **Uninitialized Construction** | `device_array`: uninitialized by default; compat `device_vector`: `no_init_t` tag | `default_init_t`, `no_init_t` tags | Not supported | Not supported |
@@ -60,7 +60,7 @@ non-public base implementation, `internal::__device_storage_base`:
 
 1. **[`device_array<T>`](device_array.md)** — the primary API.
    A clean, explicit, **fixed-size** container for device memory with no proxy
-   types. Raw `T*` iterators, explicit `read()`/`write()` for host access,
+   types. Raw `T*` iterators, explicit `host_read()`/`host_write()` for host access,
    uninitialized by default, and range support via `sycl::span`. It surfaces a
    deliberately minimal interface: no allocator access, and no resizing.
 
@@ -160,14 +160,10 @@ classDiagram
 - **Host-side operations block but do not synchronize with prior work.**
   The user is responsible for ensuring prior kernels have completed before
   host-side access. This can be achieved via an in-order queue or explicit
-  event waits. `device_array` additionally offers async overloads with
-  `depends_on` events.
+  event waits. No asynchronous overloads are proposed for either type; see
+  [device_array](device_array.md#resolved-questions).
 
 ## Open Questions
-
-- **Should `device_array`'s async overloads be in the initial release or
-  deferred?**
-  see [device_array](device_array.md).
 
 - **Header organization?**
   - We could have a `<oneapi/dpl/compat>` header and automatically include `device_array` with other includes?
