@@ -148,7 +148,7 @@ dpl::device_array<float> d(host_data, q);
 
 // --- Use with oneDPL algorithms (raw T* iterators) ---
 auto policy = oneapi::dpl::execution::make_device_policy(q);
-std::sort(policy, d.span().begin(), d.span().end());
+oneapi::dpl::sort(policy, d.span().begin(), d.span().end());
 
 // --- Use in a SYCL kernel ---
 float* ptr = d.span().data();
@@ -176,7 +176,7 @@ dpl::device_array<float> head(d.span().subspan(0, 100), q);
 
 // --- Output buffer (uninitialized by default — no memset) ---
 dpl::device_array<float> output(1024, q);
-std::transform(policy, d.span().begin(), d.span().end(), output.span().begin(),
+oneapi::dpl::transform(policy, d.span().begin(), d.span().end(), output.span().begin(),
                [](float x) { return x * 2.0f; });
 
 // --- Zero-initialized allocation (opt-in) ---
