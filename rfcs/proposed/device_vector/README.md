@@ -86,7 +86,7 @@ classDiagram
     direction LR
 
     namespace internal {
-        class device_storage_base~T, Alloc~ {
+        class __device_storage_base~T, Alloc~ {
             owns allocation + size + context/device + allocator
             resize / host transfers / iterators
         }
@@ -115,8 +115,8 @@ classDiagram
         }
     }
 
-    device_array --|> device_storage_base : private inherits
-    device_vector --|> device_storage_base : private inherits
+    device_array --|> __device_storage_base : private inherits
+    device_vector --|> __device_storage_base : private inherits
     device_vector --> device_pointer : begin()/end()
     device_pointer --> device_reference : operator*() / operator[]()
 ```
