@@ -44,6 +44,20 @@ in this `compat` namespace in the future.
 namespace oneapi::dpl::experimental::compat {
 
 // =========================================================================
+// Initialization tags
+// =========================================================================
+// Empty tags selecting the initialization behavior of a constructor or
+// resize(). Migration targets for thrust::no_init / thrust::default_init.
+
+// No initialization: elements are left with indeterminate values.
+struct no_init_t {};
+inline constexpr no_init_t no_init{};
+
+// Default-initialization: elements are default-initialized.
+struct default_init_t {};
+inline constexpr default_init_t default_init{};
+
+// =========================================================================
 // device_pointer<T>
 // =========================================================================
 // Wraps a raw T* from device_array. Dereference provides device_reference.
@@ -134,7 +148,9 @@ public:
     explicit device_vector(const std::vector<T>& src,
                            sycl::context ctx, sycl::device dev);
 
-    /* Copy of all above constructors for `sycl::queue` (extracts context + device), using no_init_t to avoid initialization, and with explicit allocator */
+    /* Copy of all above constructors for `sycl::queue` (extracts context + device),
+       using no_init_t / default_init_t to select initialization behavior, and with
+       explicit allocator */
 
 
     // Copy / move
@@ -177,6 +193,7 @@ public:
     void resize(size_type count);
     void resize(size_type count, const T& value);
     void resize(size_type count, no_init_t);
+    void resize(size_type count, default_init_t);
     void reserve(size_type new_cap);
     void clear();
 
