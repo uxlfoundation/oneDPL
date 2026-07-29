@@ -272,7 +272,7 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
 
                 std::size_t __max_end = 0;
                 std::size_t __item_segments = 0;
-                auto __identity = unseq_backend::__known_identity<_BinaryOperator, __val_type>;
+                auto __identity = sycl::known_identity<_BinaryOperator, __val_type>::value;
 
                 __val_type __accumulator = __identity;
                 for (std::size_t __i = __start; __i < __end; ++__i)
@@ -388,7 +388,7 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                     std::size_t __item_segments = 0;
 
                     std::int64_t __wg_agg_idx = __group_id - 1;
-                    __val_type __agg_collector = unseq_backend::__known_identity<_BinaryOperator, __val_type>;
+                    __val_type __agg_collector = sycl::known_identity<_BinaryOperator, __val_type>::value;
 
                     bool __ag_exists = false;
                     // 3a. Check to see if an aggregate exists and compute that value in the first
@@ -400,11 +400,11 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                         constexpr std::int32_t __vals_to_explore = 16;
                         bool __last_it = false;
                         __loc_seg_ends_acc[__local_id] = false;
-                        __loc_partials_acc[__local_id] = unseq_backend::__known_identity<_BinaryOperator, __val_type>;
+                        __loc_partials_acc[__local_id] = sycl::known_identity<_BinaryOperator, __val_type>::value;
                         for (std::int32_t __i = __wg_agg_idx - __vals_to_explore * __local_id; !__last_it;
                              __i -= __wgroup_size * __vals_to_explore)
                         {
-                            __val_type __local_collector = unseq_backend::__known_identity<_BinaryOperator, __val_type>;
+                            __val_type __local_collector = sycl::known_identity<_BinaryOperator, __val_type>::value;
                             // exploration phase
                             for (std::int32_t __j = __i;
                                  __j > __dpl_sycl::__maximum<std::int32_t>{}(-1L, __i - __vals_to_explore); --__j)
