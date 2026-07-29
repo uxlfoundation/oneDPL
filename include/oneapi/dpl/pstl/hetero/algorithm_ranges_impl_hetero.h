@@ -750,11 +750,12 @@ __pattern_partition_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolic
 
     oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
-    std::array<std::size_t, 2> __stops = oneapi::dpl::__par_backend_hetero::__parallel_partition_copy</*_Bounded*/true>(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
-        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange1>(__out_true_r)),
-        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange2>(__out_false_r)), __pred_1);
+    std::array<std::intptr_t, 2> __stops =
+        oneapi::dpl::__par_backend_hetero::__parallel_partition_copy</*_Bounded*/ true>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange1>(__out_true_r)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange2>(__out_false_r)), __pred_1);
 
     return {std::ranges::begin(__in_r) + __stops[1], std::ranges::begin(__out_true_r) + __stops[0],
             std::ranges::begin(__out_false_r) + (__stops[1] - __stops[0])};

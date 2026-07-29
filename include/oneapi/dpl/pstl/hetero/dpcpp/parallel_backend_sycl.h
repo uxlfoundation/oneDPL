@@ -555,20 +555,20 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
           typename _UnaryPredicate>
-std::array<std::size_t, 2>
+std::array<std::intptr_t, 2>
 __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
                           _Range2&& __out_true, _Range3&& __out_false, _UnaryPredicate __pred)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_partitioned;
-    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask, std::size_t>;
-    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask, std::size_t>;
+    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask, std::intptr_t>;
+    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask, std::intptr_t>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
-    const std::size_t __n = oneapi::dpl::__ranges::__size(__rng);
-    const std::size_t __n_out1 = oneapi::dpl::__ranges::__size(__out_true);
-    const std::size_t __n_out2 = oneapi::dpl::__ranges::__size(__out_false);
+    const std::intptr_t __n = oneapi::dpl::__ranges::__size(__rng);
+    const std::intptr_t __n_out1 = oneapi::dpl::__ranges::__size(__out_true);
+    const std::intptr_t __n_out2 = oneapi::dpl::__ranges::__size(__out_false);
     auto __zipped_output =
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range2>(__out_true), std::forward<_Range3>(__out_false));
 
@@ -577,11 +577,11 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
     std::tuple __res = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_iter, _CustomName>(
         __q_local, __n, std::forward<_Range1>(__rng), std::move(__zipped_output), _GenReduceInput{_GenMask{__pred}},
-        std::plus<std::size_t>{}, _GenScanInput{_GenMask{__pred}}, _ScanInputTransform{}, _WriteOp{__n_out1, __n_out2},
-        oneapi::dpl::unseq_backend::__no_init_value<std::size_t>{}, /*_Inclusive=*/std::true_type{},
+        std::plus<std::intptr_t>{}, _GenScanInput{_GenMask{__pred}}, _ScanInputTransform{}, _WriteOp{__n_out1, __n_out2},
+        oneapi::dpl::unseq_backend::__no_init_value<std::intptr_t>{}, /*_Inclusive=*/std::true_type{},
         /*_IsUniquePattern=*/std::false_type{}, __write_partitioned::__position_type{__n, __n_out1});
 
-    std::array<std::size_t, 2> __ret{};
+    std::array<std::intptr_t, 2> __ret{};
     std::get<0>(__res).wait_and_throw();
     std::get<1>(__res).__copy_result(__ret.data(), 1);
     if constexpr (_Bounded)
