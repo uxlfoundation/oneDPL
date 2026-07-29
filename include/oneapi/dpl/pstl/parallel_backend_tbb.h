@@ -1259,6 +1259,7 @@ __parallel_merge(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&,
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
     const _SizeType __n = (__xe - __xs) + (__ye - __ys);
+    assert(__n > 0);
     if (oneapi::dpl::__internal::__cmp_less_equal(__n, __merge_cut_off))
     {
         // Fall back on serial merge
