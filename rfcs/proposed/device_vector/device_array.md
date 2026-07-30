@@ -271,4 +271,4 @@ d.copy_to(out, 0, q);
 
 ## Open Questions
 - ** Should member functions which include a `sycl::queue` for synchronization also include an optional `sycl::event depends_on` parameter for event based sychronization?
-  - The idea here is for out-of-order queue synchronization with existing workflows
+  - The idea here is for out-of-order queue synchronization with existing workflows, I've added this into the proposal for now.
