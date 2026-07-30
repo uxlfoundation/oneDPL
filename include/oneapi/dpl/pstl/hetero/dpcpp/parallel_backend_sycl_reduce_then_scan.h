@@ -144,7 +144,7 @@ struct __write_to_id_if
     template <typename _ValueType>
     bool
     __oob_write_possible(std::size_t __max_write_offset, std::size_t /*__start_idx*/,
-                         const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix)
+                         const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix) const
     {
         const std::size_t __carry_in = __prefix.__has_value() ? __prefix.__get_cref() : 0;
         return (__carry_in + __max_write_offset > __out_size);
@@ -184,7 +184,7 @@ struct __write_to_id_if
                 __on_oob_reached(__id, __id);
         }
     }
-    std::size_t __out_size;
+    const std::size_t __out_size;
     _Assign __assign;
 };
 
@@ -207,7 +207,7 @@ struct __write_partitioned
     template <typename _ValueType>
     bool
     __oob_write_possible(diff_t __max_write_offset, diff_t __start_idx,
-                         const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix)
+                         const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix) const
     {
         // __mask_prefix is the number of inputs written to the first output range by previous items
         const diff_t __mask_prefix = __prefix.__has_value() ? __prefix.__get_cref() : 0;
@@ -234,7 +234,7 @@ struct __write_partitioned
 
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _OnOOBReached __on_oob_reached)
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _OnOOBReached __on_oob_reached) const
     {
         const auto& [__mask_prefix, __mask, __value] = __v;
         using _ConvertedType =
@@ -243,7 +243,7 @@ struct __write_partitioned
         // __mask_prefix is the number of inputs for the first output range up to and including this item.
         // the index to write to if the mask matches out1/out2, otherwise the previous would-be written index (or -1)
         const diff_t __out1_idx = __mask_prefix - 1;
-        const diff_t __out2_idx = __id - __mask_prefix;
+        const diff_t __out2_idx = diff_t(__id) - __mask_prefix;
         const bool __target_idx_in_bound = __mask ? __out1_idx < __out1_size : __out2_idx < __out2_size;
         const bool __other_idx_in_bound_before = __mask ? __out2_idx < __out2_size : __out1_idx < __out1_size;
         const bool __oob_reached = __mask ? __out1_idx == __out1_size : __out2_idx == __out2_size;
@@ -262,8 +262,8 @@ struct __write_partitioned
                 __on_oob_reached(__id, __position_type{diff_t(__id), __out1_idx + (__mask ? 0 : 1)});
         }
     }
-    diff_t __out1_size;
-    diff_t __out2_size;
+    const diff_t __out1_size;
+    const diff_t __out2_size;
 };
 
 // Writes operation for reduce_by_segment, writes first key if the id is 0. Also, if the segment end is reached, writes
@@ -304,13 +304,13 @@ struct __write_red_by_seg
         }
     }
     _BinaryPred __binary_pred;
-    std::size_t __n;
+    const std::size_t __n;
 };
 
 template <bool __is_inclusive, typename _InitType, typename _BinaryOp>
 struct __write_scan_by_seg
 {
-    _InitType __init_value;
+    const _InitType __init_value;
     _BinaryOp __binary_op;
 
     template <typename _OutRng, typename _ValueType>
@@ -362,7 +362,7 @@ struct __write_multiple_to_id
     template <typename _ValueType>
     bool
     __oob_write_possible(std::size_t __max_write_offset, std::size_t /*__start_idx*/,
-                         const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix)
+                         const oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __prefix) const
     {
         const std::size_t __carry_in = __prefix.__has_value() ? __prefix.__get_cref() : 0;
         return (__carry_in + __max_write_offset > __out_size);
@@ -418,7 +418,7 @@ struct __write_multiple_to_id
                 __on_oob_reached(__id, __i);
         }
     }
-    std::size_t __out_size;
+    const std::size_t __out_size;
     oneapi::dpl::__internal::__pstl_assign __assign;
 };
 
