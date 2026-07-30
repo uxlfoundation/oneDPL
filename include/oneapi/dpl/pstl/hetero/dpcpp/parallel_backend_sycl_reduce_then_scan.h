@@ -2200,42 +2200,50 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
                     if constexpr (_Bounded)
                     {
-                        using __src_final_pos_t = typename _PosTools::__src_final_pos_t;
-
-                        std::size_t __start_id_on_oob = __start_id;
                         typename _WriteOp::__position_type __oob_position{};
                         bool __oob_detected = false;
-
-                        auto __on_oob_reached = [&](std::size_t __start_id, typename _WriteOp::__position_type __pos) {
-                            __start_id_on_oob = __start_id;
-                            __oob_position = __pos;
-                            __oob_detected = true;
-                        };
+                        auto& __stop_pos_acc_data = __stop_pos_acc.__data()[0];
 
                         if constexpr (_PosTools::__has_src_final_pos)
                         {
-                            __call_scan_through_elements_helper(__on_oob_reached, [&](__src_final_pos_t __final_pos) {
-                                // Exactly one work-item reaches the edge crossing, so no synchronization
-                                // is needed to store the shared final position.
-                                _PosTools::__store_final_pos(__stop_pos_acc, __final_pos);
-                            });
+                            using __src_final_pos_t = typename _PosTools::__src_final_pos_t;
+                            std::size_t __start_id_on_oob = __start_id;
+
+                            __call_scan_through_elements_helper(
+                                [&](std::size_t __start_id, typename _WriteOp::__position_type __pos) {
+                                    __start_id_on_oob = __start_id;
+                                    __oob_position = __pos;
+                                    __oob_detected = true;
+                                },
+                                [&](__src_final_pos_t __final_pos) {
+                                    // Exactly one work-item reaches the edge crossing, so no synchronization
+                                    // is needed to store the shared final position.
+                                    __stop_pos_acc_data.__final_pos = __final_pos;
+                                });
+
+                            // The OOB position may be reached only in one work-item, so no synchronization is needed
+                            // to update __stop_pos_acc.
+                            if (__oob_detected)
+                            {
+                                __stop_pos_acc_data.__oob_pos = _PosTools::__finalize_oob_pos(
+                                    __in_rng, __oob_position, __start_id_on_oob, __gen_scan_input);
+                            }
                         }
                         else
                         {
-                            __call_scan_through_elements_helper(__on_oob_reached, __internal::__no_callback_tag{});
-                        }
+                            __call_scan_through_elements_helper(
+                                [&](std::size_t /*__start_id*/, typename _WriteOp::__position_type __pos) {
+                                    __oob_position = __pos;
+                                    __oob_detected = true;
+                                },
+                                __internal::__no_callback_tag{});
 
-                        // The OOB position may be reached only in one work-item, so no synchronization is needed
-                        // to update __stop_pos_acc.
-                        if (__oob_detected)
-                        {
-                            if constexpr (_PosTools::__has_src_final_pos)
+                            // The OOB position may be reached only in one work-item, so no synchronization is needed
+                            // to update __stop_pos_acc.
+                            if (__oob_detected)
                             {
-                                _PosTools::__finalize_and_store_oob_pos(__in_rng, __oob_position, __start_id_on_oob,
-                                                                        __gen_scan_input, __stop_pos_acc);
+                                __stop_pos_acc_data = __oob_position;
                             }
-                            else
-                                __stop_pos_acc.__data()[0] = __oob_position;
                         }
                     }
                     else
@@ -2244,6 +2252,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                                                             __internal::__no_callback_tag{});
                     }
                 }
+
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block
                 if (__sub_group_local_id == 0 && (__active_groups == __group_id + 1) &&
@@ -2253,7 +2262,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     {
                         __res_ptr[0] = __transform_result(__write_op, __sub_group_carry);
                     }
-                    else
+                    if (__block_num + 1 != __num_blocks)
                     {
                         // capture the last carry out for the next block
                         __set_block_carry_out(__block_num, __tmp_ptr, __sub_group_carry.__get_cref(),

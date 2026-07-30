@@ -159,26 +159,18 @@ struct __parallel_reduce_then_scan_stop_oob_pos_tools
     // Describes final position type (if any) in the storage
     using __src_final_pos_t = typename __final_pos_type_selector<std::decay_t<__storage_data_t>>::type;
 
-    template <typename __FinalAndOOBPosAcc>
-    static void
-    __store_final_pos(__FinalAndOOBPosAcc& __final_and_oob_pos_acc, const __src_final_pos_t& __final_pos)
-    {
-        auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
-        __final_and_oob_pos.__final_pos = __final_pos;
-    }
-
     // The second part of two-pass OOB processing: if the OOB position is reached in the first pass,
     // here we recover the source indexes for the diagonal where it happened and store the OOB position from them.
-    template <typename _InRng, typename _OOBPositionT, typename _GenScanInput, typename __FinalAndOOBPosAcc>
-    static void
-    __finalize_and_store_oob_pos(_InRng&& __in_rng, _OOBPositionT __detected_oob_pos,
-                                 const std::size_t __start_id_reached_on_oob, _GenScanInput __gen_scan_input,
-                                 __FinalAndOOBPosAcc& __final_and_oob_pos_acc)
+    template <typename _InRng, typename _OOBPositionT, typename _GenScanInput>
+    static __src_final_pos_t
+    __finalize_oob_pos(_InRng&& __in_rng, _OOBPositionT __detected_oob_pos, const std::size_t __start_id_reached_on_oob,
+                       _GenScanInput __gen_scan_input)
     {
-        auto& __final_and_oob_pos = __final_and_oob_pos_acc.__data()[0];
         __src_pos_capturing_temp_data<__src_final_pos_t> __pos_catcher(__detected_oob_pos);
+
         __gen_scan_input(std::forward<_InRng>(__in_rng), __start_id_reached_on_oob, __pos_catcher, __no_callback_tag{});
-        __final_and_oob_pos.__oob_pos = __pos_catcher.__get_saved_src_pos();
+
+        return __pos_catcher.__get_saved_src_pos();
     }
 };
 
