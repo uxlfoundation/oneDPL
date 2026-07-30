@@ -92,7 +92,7 @@ test_with_plus(Init init, Out trash, Convert convert)
 }
 
 #if TEST_DPCPP_BACKEND_PRESENT && defined(SYCL_IMPLEMENTATION_INTEL)
-// Immitate segmented scan to avoid too large precision errors
+// Imitate segmented scan to avoid too large precision errors
 void test_with_bfloat16(std::size_t n)
 {
     using T = sycl::ext::oneapi::bfloat16;
