@@ -118,24 +118,24 @@ is_close(T a, T b)
     // It is a multiple of an epsilon to tolerate accumulated errors.
     // The larger the type, the larger the multiple to allow for more accumulations.
     // rel_tol is selected intuitively.
-    T rel_tol = 0.001; // 0.1%
-    T abs_tol = 1e-5; // ~100x of the epsilon for float
+    T rel_tol = T(0.001); // 0.1%
+    T abs_tol = T(1e-5); // ~100x of the epsilon for float
     if constexpr (sizeof(T) > sizeof(float))
     {
-        rel_tol = 0.0001; // 0.01%, 10x of the relative difference of any nearest number
-        abs_tol = 1e-12; // ~1000x of the epsilon
+        rel_tol = T(0.0001); // 0.01%, 10x of the relative difference of any nearest number
+        abs_tol = T(1e-12); // ~1000x of the epsilon
     }
 #if TEST_DPCPP_BACKEND_PRESENT
     else if constexpr (std::is_same_v<T, sycl::half>)
     {
-        rel_tol = 0.005; // 0.5%
-        abs_tol = 1e-3; // ~10x of the epsilon
+        rel_tol = T(0.005); // 0.5%
+        abs_tol = T(1e-3); // ~10x of the epsilon
     }
 #if defined(SYCL_IMPLEMENTATION_INTEL)
     else if constexpr (std::is_same_v<T, sycl::ext::oneapi::bfloat16>)
     {
-        rel_tol = 0.02; // 2%
-        abs_tol = 1e-2; // ~10x of the epsilon
+        rel_tol = T(0.02); // 2%
+        abs_tol = T(1e-2); // ~10x of the epsilon
     }
 #endif
 #endif
