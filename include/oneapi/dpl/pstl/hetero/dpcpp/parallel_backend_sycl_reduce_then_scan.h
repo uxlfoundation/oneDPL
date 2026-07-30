@@ -759,7 +759,7 @@ struct __gen_set_balanced_path
 
         // Calculate the number of "unmatched" repeats in the first set, add one and divide by two to round up for a
         // possible star diagonal.
-        _Index __fwd_search_count = (__rng1_repeats - __rng2_repeats_bck + 1) / 2;
+        _Index __fwd_search_count = oneapi::dpl::__internal::__dpl_ceiling_div(__rng1_repeats - __rng2_repeats_bck, 2);
 
         // Calculate the max location to search in the second set for future repeats, limiting to the edge of the range
         _Index __fwd_search_bound = std::min(__merge_path_rng2 + __fwd_search_count, __rng2_end);
