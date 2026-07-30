@@ -55,12 +55,12 @@ public:
     device_array(size_type count, const T& value,
                  sycl::context ctx, sycl::device dev);
 
-    device_array(sycl::span<const T> src, sycl::queue q);
+    device_array(sycl::span<const T> src, sycl::queue q, sycl::event depends_on = {});
     device_array(sycl::span<const T> src, sycl::context ctx, sycl::device dev);
 
     // explicit copy construction only (avoids accidental deep copies)
     explicit device_array(const device_array&);
-    explicit device_array(const device_array&, sycl::queue q);
+    explicit device_array(const device_array&, sycl::queue q, sycl::event depends_on = {});
 
     device_array& operator=(const device_array&) = delete;
 
@@ -75,24 +75,24 @@ public:
     // Bulk transfer from device (dst may be host memory or USM on this context)
     // copies min(dst.size(), size() - src_offset) elements
     void copy_to(sycl::span<T> dst, size_type src_offset) const;
-    void copy_to(sycl::span<T> dst, size_type src_offset, sycl::queue q) const;
+    void copy_to(sycl::span<T> dst, size_type src_offset, sycl::queue q, sycl::event depends_on = {}) const;
 
     // Convenience download into a fresh host vector
     std::vector<T> to_vector() const;
-    std::vector<T> to_vector(sycl::queue q) const;
+    std::vector<T> to_vector(sycl::queue q, sycl::event depends_on = {}) const;
 
     // Bulk transfer to device (src may be host memory or USM on this context)
     // copies min(src.size(), size() - dst_offset) elements
     void copy_from(sycl::span<const T> src, size_type dst_offset);
-    void copy_from(sycl::span<const T> src, size_type dst_offset, sycl::queue q);
+    void copy_from(sycl::span<const T> src, size_type dst_offset, sycl::queue q, sycl::event depends_on = {});
 
     // Single-element host access (blocking, creates queue from context & device)
     T host_read(size_type pos) const;
     void host_write(size_type pos, const T& value);
 
     // Single-element host access (blocking, provided queue is used for copy submissions)
-    T host_read(size_type pos, sycl::queue q) const;
-    void host_write(size_type pos, const T& value, sycl::queue q);
+    T host_read(size_type pos, sycl::queue q, sycl::event depends_on = {}) const;
+    void host_write(size_type pos, const T& value, sycl::queue q, sycl::event depends_on = {});
 
     // Capacity (fixed size — no resize / reserve / capacity / clear)
     size_type size()  const;
@@ -200,6 +200,27 @@ oneapi::dpl::transform(policy, d.span().begin(), d.span().end(), output.span().b
 
 // --- Zero-initialized allocation (opt-in) ---
 dpl::device_array<float> zeroed(1024, 0.0f, q);
+
+// --- Out-of-order queue: chain transfers onto an existing event ---
+sycl::queue ooo_q;                             // out-of-order by default
+dpl::device_array<float> d3(1024, ooo_q);
+
+// a kernel the user submitted themselves; nothing orders it against d3's
+// transfers on an out-of-order queue
+sycl::event e = ooo_q.parallel_for(sycl::range<1>(d3.size()),
+                                   [s = d3.span()](sycl::id<1> i) { s[i] = i; });
+
+// the copy waits on e before reading, then blocks until the copy completes
+std::vector<float> ooo_out(d3.size());
+d3.copy_to(ooo_out, 0, ooo_q, e);
+
+// same for uploads and single-element access
+d3.copy_from(host_data, 0, ooo_q, e);
+float first = d3.host_read(0, ooo_q, e);
+
+// with an in-order queue the parameter is unnecessary — prior submissions on q
+// already order against the transfer
+d.copy_to(out, 0, q);
 ```
 
 ## Resolved Questions
