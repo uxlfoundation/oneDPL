@@ -187,9 +187,6 @@ dpl::device_array<float> head(d.span().subspan(0, 100), q);
 dpl::device_array<float> output(1024, q);
 oneapi::dpl::transform(policy, d.span().begin(), d.span().end(), output.span().begin(),
                [](float x) { return x * 2.0f; });
-// or, range-based, with both sides as spans
-oneapi::dpl::ranges::transform(policy, d.span(), output.span(),
-                               [](float x) { return x * 2.0f; });
 
 // --- Zero-initialized allocation (opt-in) ---
 dpl::device_array<float> zeroed(1024, 0.0f, q);
