@@ -147,10 +147,23 @@ auto policy = oneapi::dpl::execution::make_device_policy(q);
 oneapi::dpl::sort(policy, d.span().begin(), d.span().end());
 
 // --- Use in a SYCL kernel ---
+
+auto s = d.span();
+q.parallel_for(sycl::range<1>(s.size()), [=](sycl::id<1> i) {
+    s[i] *= 2.0f;
+}).wait();
+
 float* ptr = d.span().data();
 q.parallel_for(sycl::range<1>(d.size()), [=](sycl::id<1> i) {
     ptr[i] *= 2.0f;
 }).wait();
+
+// --- Pass the span directly to the oneDPL range-based algorithms ---
+oneapi::dpl::ranges::for_each(policy, d.span(), [](float& x) { x += 1.0f; });
+
+oneapi::dpl::ranges::sort(policy, d.span());
+
+oneapi::dpl::ranges::sort(policy, d.span().subspan(0, 100));
 
 // --- Explicit single-element host access ---
 float val = d.host_read(0, q);     // synchronous read
@@ -174,21 +187,13 @@ dpl::device_array<float> head(d.span().subspan(0, 100), q);
 dpl::device_array<float> output(1024, q);
 oneapi::dpl::transform(policy, d.span().begin(), d.span().end(), output.span().begin(),
                [](float x) { return x * 2.0f; });
+// or, range-based, with both sides as spans
+oneapi::dpl::ranges::transform(policy, d.span(), output.span(),
+                               [](float x) { return x * 2.0f; });
 
 // --- Zero-initialized allocation (opt-in) ---
 dpl::device_array<float> zeroed(1024, 0.0f, q);
 
-// For kernel capture or composition with range adaptors, use sycl::span:
-auto s = d.span();  // returns sycl::span<float>
-auto pipeline = s | std::views::take(100);
-oneapi::dpl::ranges::for_each(policy, pipeline, [](float& x) { x += 1.0f; });
-
-// Capture a sycl::span into a kernel:
-auto s2 = d.span();
-q.parallel_for(sycl::range<1>(s2.size()), [=](sycl::id<1> i) {
-    s2[i] *= 2.0f;
-}).wait();
-```
 
 ## Resolved Questions
 
