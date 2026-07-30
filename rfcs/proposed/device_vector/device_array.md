@@ -190,7 +190,7 @@ oneapi::dpl::transform(policy, d.span().begin(), d.span().end(), output.span().b
 
 // --- Zero-initialized allocation (opt-in) ---
 dpl::device_array<float> zeroed(1024, 0.0f, q);
-
+```
 
 ## Resolved Questions
 
