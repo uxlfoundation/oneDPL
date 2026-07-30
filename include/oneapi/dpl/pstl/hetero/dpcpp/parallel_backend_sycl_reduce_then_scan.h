@@ -240,25 +240,26 @@ struct __write_partitioned
         using _ConvertedType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__value)>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
-        // __mask_prefix is the number of inputs for the first output range up to and including this item
+        // __mask_prefix is the number of inputs for the first output range up to and including this item.
+        // the index to write to if the mask matches out1/out2, otherwise the previous would-be written index (or -1)
         const diff_t __out1_idx = __mask_prefix - 1;
         const diff_t __out2_idx = __id - __mask_prefix;
-        if (__out1_idx <= __out1_size && __out2_idx <= __out2_size )
+        const bool __target_idx_in_bound = __mask ? __out1_idx < __out1_size : __out2_idx < __out2_size;
+        const bool __other_idx_in_bound_before = __mask ? __out2_idx < __out2_size : __out1_idx < __out1_size;
+        const bool __oob_reached = __mask ? __out1_idx == __out1_size : __out2_idx == __out2_size;
+
+        if (__other_idx_in_bound_before)
         {
-            if (__mask && __out2_idx < __out2_size)
+            if (__target_idx_in_bound)
             {
-                if (__out1_idx < __out1_size)
+                if (__mask)
                     std::get<0>(__out_rng[__out1_idx]) = static_cast<_ConvertedType>(__value);
-                else // (__out1_idx == __out1_size)
-                    __on_oob_reached(__id, __position_type{diff_t(__id), __out1_idx});
-            }
-            if (!__mask && __out1_idx < __out1_size)
-            {
-                if (__out2_idx < __out2_size)
+                else
                     std::get<1>(__out_rng[__out2_idx]) = static_cast<_ConvertedType>(__value);
-                else // (__out2_idx == __out2_size)
-                    __on_oob_reached(__id, __position_type{diff_t(__id), diff_t(__mask_prefix)});
             }
+            // If out-of-bound conditions detected, report stop positions in the input and the 1st output
+            if (__oob_reached)
+                __on_oob_reached(__id, __position_type{diff_t(__id), __out1_idx + (__mask ? 0 : 1)});
         }
     }
     diff_t __out1_size;
