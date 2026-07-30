@@ -73,16 +73,18 @@ public:
 
     // Host-device transfer
     // Bulk transfer from device (dst may be host memory or USM on this context)
-    void copy_to(sycl::span<T> dst) const;
-    void copy_to(sycl::span<T> dst, sycl::queue q) const;
+    // copies min(dst.size(), size() - src_offset) elements
+    void copy_to(sycl::span<T> dst, size_type src_offset) const;
+    void copy_to(sycl::span<T> dst, size_type src_offset, sycl::queue q) const;
 
     // Convenience download into a fresh host vector
     std::vector<T> to_vector() const;
     std::vector<T> to_vector(sycl::queue q) const;
 
     // Bulk transfer to device (src may be host memory or USM on this context)
-    void copy_from(sycl::span<const T> src);
-    void copy_from(sycl::span<const T> src, sycl::queue q);
+    // copies min(src.size(), size() - dst_offset) elements
+    void copy_from(sycl::span<const T> src, size_type dst_offset);
+    void copy_from(sycl::span<const T> src, size_type dst_offset, sycl::queue q);
 
     // Single-element host access (blocking, creates queue from context & device)
     T host_read(size_type pos) const;
@@ -171,14 +173,22 @@ d.host_write(0, 42.0f, q);         // synchronous write
 
 // --- Bulk download ---
 std::vector<float> out = d.to_vector(q);   // fresh vector
-d.copy_to(out, q);                         // or into existing storage (sizes must match)
+d.copy_to(out, 0, q);                      // or into existing storage
+                                           // copies min(out.size(), d.size()) elements
 
 // --- Bulk upload into an existing device_array (does not resize) ---
-d.copy_from(host_data, q);
+d.copy_from(host_data, 0, q);
+
+// --- Offset transfers: copy the tail of d into the front of out ---
+d.copy_to(out, 100, q);                    // d[100 .. 100 + n) -> out[0 .. n)
+                                           // n = min(out.size(), d.size() - 100)
+
+// --- Offset upload: write host_data into d starting at element 100 ---
+d.copy_from(host_data, 100, q);            // truncated at the end of d
 
 // --- Device-to-device: span() is USM, so it is a valid source ---
 dpl::device_array<float> d2(d.size(), q);
-d2.copy_from(d.span(), q);                 // span<float> -> span<const float>
+d2.copy_from(d.span(), 0, q);              // span<float> -> span<const float>
 
 // --- Subrange copy into a new, smaller device_array ---
 dpl::device_array<float> head(d.span().subspan(0, 100), q);
