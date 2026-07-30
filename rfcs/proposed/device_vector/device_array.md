@@ -41,11 +41,6 @@ class device_array : private internal::__device_storage_base<T, device_allocator
 public:
     using value_type      = T;
     using size_type       = std::size_t;
-    using difference_type = std::ptrdiff_t;
-    using pointer         = T*;
-    using const_pointer   = const T*;
-    using iterator        = T*;
-    using const_iterator  = const T*;
 
     // Construction
 
@@ -147,7 +142,7 @@ sycl::queue q{sycl::property::queue::in_order{}};
 std::vector<float> host_data(1024, 3.14f);
 dpl::device_array<float> d(host_data, q);
 
-// --- Use with oneDPL algorithms (raw T* iterators) ---
+// --- Use with oneDPL algorithms ---
 auto policy = oneapi::dpl::execution::make_device_policy(q);
 oneapi::dpl::sort(policy, d.span().begin(), d.span().end());
 

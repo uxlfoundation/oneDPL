@@ -60,9 +60,10 @@ non-public base implementation, `internal::__device_storage_base`:
 
 1. **[`device_array<T>`](device_array.md)** — the primary API.
    A clean, explicit, **fixed-size** container for device memory with no proxy
-   types. Raw `T*` iterators, explicit `host_read()`/`host_write()` for host access,
-   uninitialized by default, and range support via `sycl::span`. It surfaces a
-   deliberately minimal interface: no allocator access, and no resizing.
+   types. Explicit `host_read()`/`host_write()` for host access, uninitialized by
+   default, and device iteration and range support via `sycl::span` from `span()`.
+   It surfaces a deliberately minimal interface: no allocator access, and no
+   resizing.
 
 2. **[`compat::device_vector<T, Alloc>`](device_vector_compat.md)** — a
    Thrust compatibility layer. Adds `device_pointer`, `device_reference`, and
@@ -88,15 +89,15 @@ classDiagram
     namespace internal {
         class __device_storage_base~T, Alloc~ {
             owns allocation + size + context/device + allocator
-            resize / host transfers / iterators
+            resize / host transfers
         }
     }
 
     namespace experimental {
         class device_array~T~ {
             fixed size, no allocator
-            iterators: T*
-            host access: read() / write()
+            device access: span()
+            host access: host_read() / host_write()
         }
     }
 
