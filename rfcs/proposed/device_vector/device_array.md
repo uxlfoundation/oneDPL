@@ -196,3 +196,7 @@ dpl::device_array<float> zeroed(1024, 0.0f, q);
 
 - **Should async overloads be in the initial proposal or deferred?** 
     No, while this provides more control over synchronization, it complicates the interface too much for the initial API.
+
+## Open Questions
+- ** Should member functions which include a `sycl::queue` for synchronization also include an optional `sycl::event depends_on` parameter for event based sychronization?
+  - The idea here is for out-of-order queue synchronization with existing workflows
