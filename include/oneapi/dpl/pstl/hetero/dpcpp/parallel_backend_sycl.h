@@ -786,7 +786,7 @@ struct __parallel_find_forward_tag
     using _AtomicType = _IndexType;
 #endif
 
-    using _LocalResultsReduceOp = __dpl_sycl::__minimum<_AtomicType>;
+    using _LocalResultsReduceOp = sycl::minimum<_AtomicType>;
 
     // The template parameter is intended to unify __init_value in tags.
     template <typename _SrcDataSize>
@@ -825,7 +825,7 @@ struct __parallel_find_backward_tag
     using _AtomicType = _IndexType;
 #endif
 
-    using _LocalResultsReduceOp = __dpl_sycl::__maximum<_AtomicType>;
+    using _LocalResultsReduceOp = sycl::maximum<_AtomicType>;
 
     template <typename _SrcDataSize>
     constexpr static _AtomicType
@@ -1062,8 +1062,8 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
                     __pred(__item, __rng_n, __iters_per_work_item, __wgroup_size, __found_local, __brick_tag,
                            __rngs...);
 
-                    // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
-                    // find __dpl_sycl::__maximum (for the __parallel_find_backward_tag)
+                    // 3. Reduce over group: find sycl::minimum (for the __parallel_find_forward_tag),
+                    // find sycl::maximum (for the __parallel_find_backward_tag)
                     // or update state with __dpl_sycl::__any_of_group (for the __parallel_or_tag)
                     // inside all our group items
                     if constexpr (__or_tag_check)
@@ -1151,8 +1151,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                     __pred(__item, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
                            __brick_tag, __rngs...);
 
-                    // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
-                    // find __dpl_sycl::__maximum (for the __parallel_find_backward_tag)
+                    // 3. Reduce over group: find sycl::minimum (for the __parallel_find_forward_tag),
+                    // find sycl::maximum (for the __parallel_find_backward_tag)
                     // or update state with __dpl_sycl::__any_of_group (for the __parallel_or_tag)
                     // inside all our group items
                     if constexpr (__or_tag_check)
