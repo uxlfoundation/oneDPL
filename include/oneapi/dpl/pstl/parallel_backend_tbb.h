@@ -923,7 +923,7 @@ class __merge_func
         const auto __n = __nx + __ny;
 
         // need to merge {x} and {y}
-        if (oneapi::dpl::__internal::__cmp_less(__n, __merge_cut_off))
+        if (oneapi::dpl::__internal::__cmp_less(__merge_cut_off, __n))
             return split_merging(__self);
 
         //merge to buffer
