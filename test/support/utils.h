@@ -155,13 +155,12 @@ constexpr bool is_non_standard_float_v<sycl::ext::oneapi::bfloat16> = true;
 #endif
 #endif
 
+// Do not change signature to const T&.
+// Function must be able to detect const differences between expected and actual.
 template <typename T1, typename T2>
 bool
-is_equal_val(T1&& val1, T2&& val2)
+is_equal_val(const T1& val1, const T2& val2)
 {
-    static_assert(std::is_const_v<std::remove_reference_t<T1>> == std::is_const_v<std::remove_reference_t<T2>>,
-                  "is_equal_val: expected and actual must have the same const-qualification");
-
     using DT1 = std::decay_t<T1>;
     using DT2 = std::decay_t<T2>;
     using T = std::common_type_t<DT1, DT2>;
@@ -233,12 +232,12 @@ template <typename TStream, typename Tag, typename TValue>
     }
 }
 
+// Do not change signature to const T&.
+// Function must be able to detect const differences between expected and actual.
 template <typename T1, typename T2>
 void
-expect_equal_val(T1&& expected, T2&& actual, const char* file, std::int32_t line, const char* message)
+expect_equal_val(const T1& expected, const T2& actual, const char* file, std::int32_t line, const char* message)
 {
-    static_assert(std::is_const_v<std::remove_reference_t<T1>> == std::is_const_v<std::remove_reference_t<T2>>,
-                  "is_equal_val: expected and actual must have the same const-qualification");
     if (!is_equal_val(expected, actual))
     {
         std::stringstream outstr;
