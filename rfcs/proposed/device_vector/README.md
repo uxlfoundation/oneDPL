@@ -61,7 +61,7 @@ non-public base implementation, `internal::__device_storage_base`:
 1. **[`device_array<T>`](device_array.md)** — the primary API.
    A clean, explicit, **fixed-size** container for device memory with no proxy
    types. Explicit `host_read()`/`host_write()` for host access, uninitialized by
-   default, and device iteration and range support via `sycl::span` from `span()`.
+   default, and device iteration and range support via `oneapi::dpl::span` from `span()`.
    It surfaces a deliberately minimal interface: no allocator access, and no
    resizing.
 
@@ -153,6 +153,14 @@ classDiagram
   hardcodes the default `device_allocator<T>` and does not expose it. See the
   [device_vector allocator section](device_vector_compat.md#allocator) for
   details.
+
+- **`oneapi::dpl::span` alias rather than `sycl::span` directly.**
+  Spans appear in the public interface (`span()`, `copy_to`, `copy_from`), so we
+  alias `std::span` when `__cpp_lib_span >= 202002L` and fall back to
+  `sycl::span` otherwise. Both are device copyable per SYCL 2020 §3.13.1, but
+  preferring the standard type where it exists lets these spans compose with
+  users' C++20 code and `std::ranges` without conversion. See
+  [device_array](device_array.md#oneapidplspan).
 
 - **No `push_back`, `insert`, `erase`.**
   Rarely used in practice (see [usage study](usage_pattern_study.md)),

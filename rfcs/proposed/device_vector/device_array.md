@@ -55,8 +55,8 @@ public:
     device_array(size_type count, const T& value,
                  sycl::context ctx, sycl::device dev);
 
-    device_array(sycl::span<const T> src, sycl::queue q, sycl::event depends_on = {});
-    device_array(sycl::span<const T> src, sycl::context ctx, sycl::device dev);
+    device_array(oneapi::dpl::span<const T> src, sycl::queue q, sycl::event depends_on = {});
+    device_array(oneapi::dpl::span<const T> src, sycl::context ctx, sycl::device dev);
 
     // explicit copy construction only (avoids accidental deep copies)
     explicit device_array(const device_array&);
@@ -74,8 +74,8 @@ public:
     // Host-device transfer
     // Bulk transfer from device (dst may be host memory or USM on this context)
     // copies min(dst.size(), size() - src_offset) elements
-    void copy_to(sycl::span<T> dst, size_type src_offset) const;
-    void copy_to(sycl::span<T> dst, size_type src_offset, sycl::queue q, sycl::event depends_on = {}) const;
+    void copy_to(oneapi::dpl::span<T> dst, size_type src_offset) const;
+    void copy_to(oneapi::dpl::span<T> dst, size_type src_offset, sycl::queue q, sycl::event depends_on = {}) const;
 
     // Convenience download into a fresh host vector
     std::vector<T> to_vector() const;
@@ -83,8 +83,8 @@ public:
 
     // Bulk transfer to device (src may be host memory or USM on this context)
     // copies min(src.size(), size() - dst_offset) elements
-    void copy_from(sycl::span<const T> src, size_type dst_offset);
-    void copy_from(sycl::span<const T> src, size_type dst_offset, sycl::queue q, sycl::event depends_on = {});
+    void copy_from(oneapi::dpl::span<const T> src, size_type dst_offset);
+    void copy_from(oneapi::dpl::span<const T> src, size_type dst_offset, sycl::queue q, sycl::event depends_on = {});
 
     // Single-element host access (blocking, creates queue from context & device)
     T host_read(size_type pos) const;
@@ -101,8 +101,8 @@ public:
     void swap(device_array& other);
 
     // Views
-    sycl::span<T>       span();
-    sycl::span<const T> span() const;
+    oneapi::dpl::span<T>       span();
+    oneapi::dpl::span<const T> span() const;
 
     // Context / device access
     sycl::context get_context() const;
@@ -119,13 +119,53 @@ wraps `sycl::malloc_device` / `sycl::free`) and does not expose it. Pluggable
 allocation via the `DeviceAllocator` concept is available on
 [`compat::device_vector`](device_vector_compat.md#allocator).
 
+## `oneapi::dpl::span`
+
+The span type used throughout this API is an alias which resolves to
+`std::span` when the standard library provides it, and falls back to
+`sycl::span` otherwise:
+
+```cpp
+// onedpl_config.h
+#if _ONEDPL_STD_FEATURE_MACROS_PRESENT
+#    define _ONEDPL_CPP20_SPAN_PRESENT (_ONEDPL___cplusplus >= 202002L && __cpp_lib_span >= 202002L)
+#else
+#    define _ONEDPL_CPP20_SPAN_PRESENT 0
+#endif
+
+namespace oneapi::dpl {
+
+#if _ONEDPL_CPP20_SPAN_PRESENT
+inline constexpr std::size_t dynamic_extent = std::dynamic_extent;
+
+template <typename T, std::size_t Extent = dynamic_extent>
+using span = std::span<T, Extent>;
+#else
+inline constexpr std::size_t dynamic_extent = sycl::dynamic_extent;
+
+template <typename T, std::size_t Extent = dynamic_extent>
+using span = sycl::span<T, Extent>;
+#endif
+
+} // namespace oneapi::dpl
+```
+
+Both alternatives are usable for the purposes of this API: `sycl::span` is
+guaranteed to be present in SYCL 2020, pre-adopted from c++20 and is
+device_copyable.
+
+Preferring `std::span` where available keeps oneDPL's interface in terms of a
+standard type rather than a SYCL-specific one, so spans obtained from
+`device_array` compose with the rest of a user's C++20 code (and with
+`std::ranges`) without a conversion step. It also avoids some issues in the
+`sycl::span` when combined with some range features in the current
+implementation.
+
 ## Use within kernels
 
 `device_array` is not device-copyable (it owns memory). For kernel capture,
-non-owning views, and range composition, use `sycl::span<T>` via `.span()`.
-
-`sycl::span` is guaranteed to be present with sycl 2020 and device copyable,
-conforms to c++20 `std::span` even when compiled with c++17.
+non-owning views, and range composition, use `oneapi::dpl::span<T>` via
+`.span()`, which is device copyable.
 
 ## Usage Examples
 
@@ -140,7 +180,7 @@ namespace dpl = oneapi::dpl::experimental;
 sycl::queue q{sycl::property::queue::in_order{}};
 
 // --- RAII allocation + upload from host ---
-// host_data converts implicitly to sycl::span<const float>; size is taken from it
+// host_data converts implicitly to oneapi::dpl::span<const float>; size is taken from it
 std::vector<float> host_data(1024, 3.14f);
 dpl::device_array<float> d(host_data, q);
 
