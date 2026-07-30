@@ -122,7 +122,7 @@ using _SegReducePrefixPhase = __seg_reduce_prefix_kernel<_Name...>;
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
-__parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
+__parallel_reduce_by_segment_fallback_with_group_algorithms(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
                                                          _Range3&& __out_keys, _Range4&& __out_values,
                                                          _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
 {
@@ -487,13 +487,13 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                       _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
                                       _Range4&& __out_values, _BinaryPredicate __binary_pred,
                                       _BinaryOperator __binary_op,
-                                      /*known_identity=*/std::true_type)
+                                      /*__can_use_group_reduce_scan=*/std::true_type)
 {
     using __CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
 
-    return __parallel_reduce_by_segment_fallback_has_known_identity<__CustomName>(
+    return __parallel_reduce_by_segment_fallback_with_group_algorithms<__CustomName>(
         __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
         std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
 }
