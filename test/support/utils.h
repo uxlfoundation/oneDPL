@@ -161,15 +161,13 @@ template <typename T1, typename T2>
 bool
 is_equal_val(const T1& val1, const T2& val2)
 {
-    using DT1 = std::decay_t<T1>;
-    using DT2 = std::decay_t<T2>;
-    using T = std::common_type_t<DT1, DT2>;
+    using T = std::common_type_t<T1, T2>;
 
     if constexpr (std::is_floating_point_v<T> || is_non_standard_float_v<T>)
     {
         return is_close<T>(val1, val2);
     }
-    else if constexpr (std::is_same_v<DT1, DT2>)
+    else if constexpr (std::is_same_v<T1, T2>)
     {
         return val1 == val2;
     }
