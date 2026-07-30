@@ -117,7 +117,8 @@ public:
 `device_array` fixes its allocator to the default `device_allocator<T>` (which
 wraps `sycl::malloc_device` / `sycl::free`) and does not expose it. Pluggable
 allocation via the `DeviceAllocator` concept is available on
-[`compat::device_vector`](device_vector_compat.md#allocator).
+[`compat::device_vector`](device_vector_compat.md#allocator). Allocation via
+`sycl::malloc_device` during construction can result in a `sycl::exception`.
 
 ## `oneapi::dpl::span`
 
