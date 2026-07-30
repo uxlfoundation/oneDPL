@@ -65,8 +65,8 @@ public:
     device_array& operator=(const device_array&) = delete;
 
     // Move (shallow move, device memory remains where it is)
-    device_array(device_array&&);
-    device_array& operator=(device_array&&);
+    device_array(device_array&&) noexcept;
+    device_array& operator=(device_array&&)  noexcept;
 
     // deallocates device memory
     ~device_array();
@@ -98,7 +98,7 @@ public:
     size_type size()  const;
     bool      empty() const;
 
-    void swap(device_array& other);
+    void swap(device_array& other) noexcept;
 
     // Views
     oneapi::dpl::span<T>       span();
