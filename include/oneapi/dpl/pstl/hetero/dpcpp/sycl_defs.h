@@ -66,7 +66,6 @@
 // Kernel bundle support is not expected in ACPP, see https://github.com/AdaptiveCpp/AdaptiveCpp/issues/1296.
 #define _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT                                                                        \
     (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300) && !_ONEDPL_ACPP_VERSION)
-#define _ONEDPL_SYCL2020_FUNCTIONAL_OBJECTS_PRESENT           (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_SYCL2020_REQD_SUB_GROUP_SIZE_PRESENT          (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_SYCL2020_TARGET_PRESENT                       (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50400))
 #define _ONEDPL_SYCL2020_TARGET_DEVICE_PRESENT                (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50400))
@@ -143,29 +142,6 @@ using __no_init =
 #else
 #    error "sycl::property::no_init is not supported, and no alternative is available"
 #endif
-
-#if _ONEDPL_SYCL2020_FUNCTIONAL_OBJECTS_PRESENT
-template <typename _T = void>
-using __plus = sycl::plus<_T>;
-
-template <typename _T = void>
-using __maximum = sycl::maximum<_T>;
-
-template <typename _T = void>
-using __minimum = sycl::minimum<_T>;
-#elif _ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300)
-template <typename _T>
-using __plus = sycl::ONEAPI::plus<_T>;
-
-template <typename _T>
-using __maximum = sycl::ONEAPI::maximum<_T>;
-
-template <typename _T>
-using __minimum = sycl::ONEAPI::minimum<_T>;
-
-#else
-#    error "sycl::plus, sycl::maximum, sycl::minimum are not supported, and no alternative is available"
-#endif // _ONEDPL_SYCL2020_FUNCTIONAL_OBJECTS_PRESENT
 
 #if _ONEDPL_SYCL2020_SUB_GROUP_PRESENT
 using __sub_group = sycl::sub_group;

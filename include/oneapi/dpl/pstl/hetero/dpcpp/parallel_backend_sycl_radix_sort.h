@@ -479,7 +479,7 @@ __radix_sort_scan_submit(sycl::queue& __q, std::size_t __scan_wg_size, std::size
                 sycl::global_ptr<_CountT> __begin = __count_rng.begin() + __scan_size * __self_item.get_group(0);
                 // TODO: consider another approach with use of local memory
                 __dpl_sycl::__joint_exclusive_scan(__self_item.get_group(), __begin, __begin + __scan_size, __begin,
-                                                   _CountT(0), __dpl_sycl::__plus<_CountT>{});
+                                                   _CountT(0), sycl::plus<_CountT>{});
                 const auto __wi = __self_item.get_local_linear_id();
                 //That condition may be truth (by algo semantic) just on one WG, one WI, so there is no race here.
                 if (__wi == __scan_wg_size - 1 && *(__begin + __scan_size - 1) == __n)
@@ -531,7 +531,7 @@ __radix_sort_exclusive_scan(sycl::sub_group __sub_group, _ValueType __val, [[may
     }
     return __inclusive - __val;
 #else
-    return __dpl_sycl::__exclusive_scan_over_group(__sub_group, __val, __dpl_sycl::__plus<_ValueType>());
+    return __dpl_sycl::__exclusive_scan_over_group(__sub_group, __val, sycl::plus<_ValueType>());
 #endif
 }
 

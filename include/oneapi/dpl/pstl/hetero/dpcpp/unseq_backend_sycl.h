@@ -48,22 +48,27 @@ inline constexpr bool __enable_group_reduce_scan_for_type =
     true;
 #    endif // ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
 
-//TODO: To change __can_use_group_reduce_scan implementation as soon as the Intel(R) oneAPI DPC++ Compiler implementation issues related to
-//std::multiplies, std::bit_or, std::bit_and and std::bit_xor operations will be fixed.
-//std::logical_and and std::logical_or are not supported in Intel(R) oneAPI DPC++ Compiler to be used in sycl::inclusive_scan_over_group and sycl::reduce_over_group
+// True if _BinaryOp (decayed) is an instantiation of any of _Ops<_Tp> or _Ops<void>
+template <typename _BinaryOp, typename _Tp, template <typename> class... _Ops>
+inline constexpr bool __is_one_of_ops_v =
+    std::disjunction_v<std::is_same<std::decay_t<_BinaryOp>, _Ops<_Tp>>...,
+                       std::is_same<std::decay_t<_BinaryOp>, _Ops<void>>...>;
+
 template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan = std::conditional_t<
     __enable_group_reduce_scan_for_type<_Tp>,
     typename std::conjunction<
         std::disjunction<std::is_arithmetic<_Tp>, std::is_same<_Tp, sycl::half>>,
-        std::disjunction<std::is_same<std::decay_t<_BinaryOp>, std::plus<_Tp>>,
-                            std::is_same<std::decay_t<_BinaryOp>, std::plus<void>>,
-                            std::is_same<std::decay_t<_BinaryOp>, __dpl_sycl::__plus<_Tp>>,
-                            std::is_same<std::decay_t<_BinaryOp>, __dpl_sycl::__plus<void>>,
-                            std::is_same<std::decay_t<_BinaryOp>, __dpl_sycl::__minimum<_Tp>>,
-                            std::is_same<std::decay_t<_BinaryOp>, __dpl_sycl::__minimum<void>>,
-                            std::is_same<std::decay_t<_BinaryOp>, __dpl_sycl::__maximum<_Tp>>,
-                            std::is_same<std::decay_t<_BinaryOp>, __dpl_sycl::__maximum<void>>>>,
+        std::bool_constant<__is_one_of_ops_v<_BinaryOp, _Tp,
+                          std::plus, sycl::plus,
+                          std::multiplies, sycl::multiplies,
+                          std::bit_and, sycl::bit_and,
+                          std::bit_or, sycl::bit_or,
+                          std::bit_xor, sycl::bit_xor,
+                          std::logical_and, sycl::logical_and,
+                          std::logical_or, sycl::logical_or,
+                          sycl::minimum,
+                          sycl::maximum>>>,
     std::false_type>;     // This is for the case of __can_use_group_scan_reduce<_Tp>==false
 #else //_ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
 

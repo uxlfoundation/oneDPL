@@ -252,7 +252,7 @@ struct __subgroup_radix_sort
                                     //exclusive scan local sum
                                     std::uint16_t __sum_scan = __dpl_sycl::__exclusive_scan_over_group(
                                         __g, __bin_sum[__bin_count - 1],
-                                        __dpl_sycl::__plus<std::uint16_t>());
+                                        sycl::plus<std::uint16_t>());
                                     //add to local sum, generate exclusive scan result
                                     _ONEDPL_PRAGMA_UNROLL
                                     for (std::uint16_t __i = 0; __i < __bin_count; ++__i)
