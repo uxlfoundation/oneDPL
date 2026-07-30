@@ -411,8 +411,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     {
         // TODO: Consider re-implementing single group scan to support types without known identities. This could also
         // allow us to use single wg scan for the last block of reduce-then-scan if it is sufficiently small.
-        constexpr bool __can_use_group_scan = unseq_backend::__can_use_group_reduce_scan<_BinaryOperation, _Type>::value;
-        if constexpr (__can_use_group_scan)
+        if constexpr (unseq_backend::__can_use_group_reduce_scan<_BinaryOperation, _Type>::value)
         {
             // Next power of 2 greater than or equal to __n
             std::size_t __n_uniform = oneapi::dpl::__internal::__dpl_bit_ceil(__n);
@@ -1560,7 +1559,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                       _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
                                       _Range4&& __out_values, _BinaryPredicate __binary_pred,
                                       _BinaryOperator __binary_op,
-                                      /*known_identity=*/std::false_type)
+                                      /*__can_use_group_reduce_scan*/std::false_type)
 {
     const auto __n = oneapi::dpl::__ranges::__size(__keys);
     assert(__n > 0);
