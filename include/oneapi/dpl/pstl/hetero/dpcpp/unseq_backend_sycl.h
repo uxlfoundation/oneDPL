@@ -33,49 +33,61 @@ namespace dpl
 namespace unseq_backend
 {
 
-//This optimization depends on Intel(R) oneAPI DPC++ Compiler implementation such as:
-// - support of binary operators from std namespace. Note, ACPP also supports them.
-// - support of sycl::half.
-//We need to use defined(SYCL_IMPLEMENTATION_INTEL) macro as a guard.
-//TODO: guard only DPC++ compiler specific details.
-#if _ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
+#if _ONEDPL_USE_GROUP_ALGOS
+#if defined(SYCL_IMPLEMENTATION_INTEL)
+
+// When ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION is defined as non-zero, we avoid using known identity for 64-bit arithmetic data types
 template <typename _Tp>
-inline constexpr bool __enable_group_reduce_scan_for_type =
+using __workaround_igpu_64_bit_reduction =
 #    if ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
-    // When ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION is defined as non-zero, we avoid using known identity for 64-bit arithmetic data types
-    !(::std::is_arithmetic_v<_Tp> && sizeof(_Tp) == sizeof(::std::uint64_t));
+    std::bool_constant<!(::std::is_arithmetic_v<_Tp> && sizeof(_Tp) == sizeof(::std::uint64_t))>;
 #    else
-    true;
+    std::true_type;
 #    endif // ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
 
-// True if _BinaryOp (decayed) is an instantiation of any of _Ops<_Tp> or _Ops<void>
 template <typename _BinaryOp, typename _Tp, template <typename> class... _Ops>
-inline constexpr bool __is_one_of_ops_v =
-    std::disjunction_v<std::is_same<std::decay_t<_BinaryOp>, _Ops<_Tp>>...,
-                       std::is_same<std::decay_t<_BinaryOp>, _Ops<void>>...>;
+using __is_one_of_ops = std::disjunction<std::is_same<std::decay_t<_BinaryOp>, _Ops<_Tp>>...,
+                                         std::is_same<std::decay_t<_BinaryOp>, _Ops<void>>...>;
 
 template <typename _BinaryOp, typename _Tp>
-using __can_use_group_reduce_scan = std::conditional_t<
-    __enable_group_reduce_scan_for_type<_Tp>,
-    typename std::conjunction<
-        std::disjunction<std::is_arithmetic<_Tp>, std::is_same<_Tp, sycl::half>>,
-        std::bool_constant<__is_one_of_ops_v<_BinaryOp, _Tp,
-                          std::plus, sycl::plus,
-                          std::multiplies, sycl::multiplies,
-                          std::bit_and, sycl::bit_and,
-                          std::bit_or, sycl::bit_or,
-                          std::bit_xor, sycl::bit_xor,
-                          std::logical_and, sycl::logical_and,
-                          std::logical_or, sycl::logical_or,
-                          sycl::minimum,
-                          sycl::maximum>>>,
-    std::false_type>;     // This is for the case of __can_use_group_scan_reduce<_Tp>==false
-#else //_ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
+using __can_use_group_reduce_scan = std::conjunction<
+    __workaround_igpu_64_bit_reduction<_Tp>,
+    std::negation<std::is_same<_Tp, bool>>, // group algorithms are not implemented for bool in icpx as of 2026.0
+    std::disjunction<std::is_arithmetic<_Tp>, std::is_same<_Tp, sycl::half>>,
+    __is_one_of_ops<_BinaryOp, _Tp,
+                    std::plus, sycl::plus,
+                    std::multiplies, sycl::multiplies,
+                    std::bit_and, sycl::bit_and,
+                    std::bit_or, sycl::bit_or,
+                    std::bit_xor, sycl::bit_xor,
+                    // std::logical_and and std::logical_or are not accepted by icpx
+                    sycl::logical_and,
+                    sycl::logical_or,
+                    // no std::minimum and std::maximum exist
+                    sycl::minimum,
+                    sycl::maximum>>;
+#else // Other SYCL implementations, assuming they are SYCL 2020 compliant
+// TODO: check acpp - it should support std::* ops as sycl::* ops are aliases to std::* ops.
+template <typename _BinaryOp, typename _Tp>
+using __can_use_group_reduce_scan = std::conjunction<
+    std::is_arithmetic<_Tp>,
+    __is_one_of_ops<_BinaryOp, _Tp,
+                    std::plus,
+                    sycl::multiplies,
+                    sycl::bit_and,
+                    sycl::bit_or,
+                    sycl::bit_xor,
+                    sycl::logical_and,
+                    sycl::logical_or,
+                    sycl::minimum,
+                    sycl::maximum>>;
+#endif // defined(SYCL_IMPLEMENTATION_INTEL)
+#else // _ONEDPL_USE_GROUP_ALGOS
 
 template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan = std::false_type;
 
-#endif //_ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
+#endif // _ONEDPL_USE_GROUP_ALGOS
 
 template <typename _F>
 struct walk_n
