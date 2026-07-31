@@ -2,8 +2,7 @@
 
 ## Introduction
 
-This RFC proposes adding a container to oneDPL that provides
-a `std::vector`-like interface for managing device memory.
+This RFC proposes adding data containers to oneDPL for managing device memory and data transfer.
 
 ### Motivation
 
@@ -15,7 +14,7 @@ a `std::vector`-like interface for managing device memory.
   actively maintained.
 - **Ease of use** - Users currently must manually manage USM allocations or
   SYCL buffers and pair them with raw pointers or iterators. A
-  `device_vector` encapsulates allocation, sizing, and lifetime in a
+  device container encapsulates allocation, sizing, and lifetime in a
   single object and integrates directly with oneDPL algorithms.
 - **Real-world usage patterns** - A [detailed survey](usage_pattern_study.md)
   of real-world usage informed the design. Key findings:
@@ -48,7 +47,7 @@ a `std::vector`-like interface for managing device memory.
 |---|---|---|---|---|
 | **Default Allocator** | `device_allocator<T>` wrapping `sycl::malloc_device`; custom `DeviceAllocator` concept | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | `device_allocator<T>` (`sycl::malloc_device`); supports alignment template parameter | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` |
 | **Memory Model** | **Device memory** via `sycl::malloc_device`; host access triggers implicit transfers | **Device memory** via `cudaMalloc`; host access triggers implicit transfers | **Device memory** via `sycl::malloc_device`; implicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement |
-| **Host Element Access** | `device_array`: explicit `host_read()`/`host_write()`; compat `device_vector`: `device_reference` proxy | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (`__SYCL_DEVICE_ONLY__` bifurcation) | Via `device_reference` proxy (runtime-managed migration) |
+| **Host Element Access** | `device_array`: explicit transfer to host; compat `device_vector`: `device_reference` proxy | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (`__SYCL_DEVICE_ONLY__` bifurcation) | Via `device_reference` proxy (runtime-managed migration) |
 | **std::vector Interop** | Explicit constructor + `to_vector()` | Copy constructors from/to `std::vector` | Constructor from `std::vector` | Copy/move + implicit `operator std::vector()` |
 | **Queue Association** | Stores context + device; queue provided per-operation or created on demand | Implicit (CUDA stream) | Allocator stores `device` + `context`; queue resolved at runtime via pointer introspection | Global default queue |
 | **Uninitialized Construction** | `device_array`: uninitialized by default; compat `device_vector`: `no_init_t` tag | `default_init_t`, `no_init_t` tags | Not supported | Not supported |
@@ -60,7 +59,7 @@ non-public base implementation, `internal::__device_storage_base`:
 
 1. **[`device_array<T>`](device_array.md)** — the primary API.
    A clean, explicit, **fixed-size** container for device memory with no proxy
-   types. Explicit `host_read()`/`host_write()` for host access, uninitialized by
+   types. Explicit methods for host access or transfer, uninitialized by
    default, and device iteration and range support via `oneapi::dpl::span` from `span()`.
    It surfaces a deliberately minimal interface: no allocator access, and no
    resizing.
