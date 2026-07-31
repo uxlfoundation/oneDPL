@@ -1895,6 +1895,9 @@ struct __shift_left_right;
 template <typename _Name>
 struct __shift_left_stage;
 
+template <typename _Name>
+struct __shift_left_unstage;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range __rng,
@@ -1954,10 +1957,16 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
         //An explicit wait isn't required between the two kernels: they communicate through a
         //temporary sycl::buffer, and the SYCL runtime orders them via its dependency graph.
 
+        //Both kernels need their own wrapped policy: with explicit kernel names, case 1 submits the
+        //same brick and the same iteration count, so reusing the unwrapped policy here would mangle
+        //to a kernel name already claimed by that case.
         auto __temp_rng_r =
             oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::read>(__temp_buf.get_buffer());
-        oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                          __brick, __size_res, __temp_rng_r, __dst)
+        oneapi::dpl::__par_backend_hetero::__parallel_for(
+            _BackendTag{},
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_unstage>(
+                std::forward<_ExecutionPolicy>(__exec)),
+            __brick, __size_res, __temp_rng_r, __dst)
             .__checked_deferrable_wait();
 
         //The temporary buffer does not block on destruction, so the wait above provides the
