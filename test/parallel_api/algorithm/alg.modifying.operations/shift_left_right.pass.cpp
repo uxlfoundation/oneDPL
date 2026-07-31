@@ -219,6 +219,25 @@ test_shift_by_type(Size m, Size n)
 #endif
 }
 
+#if TEST_DPCPP_BACKEND_PRESENT
+// The paths worth checking at these sizes exist only in the SYCL backend, and the sizes are large
+// enough that running them through every host policy as well would dominate the test's runtime.
+template <typename T, typename Size>
+void
+test_shift_by_type_hetero(Size m, Size n)
+{
+    TestUtils::Sequence<T> orig(m, [](std::size_t v) -> T { return T(v); }); //fill data
+    TestUtils::Sequence<T> in(m, [](std::size_t v) -> T { return T(v); });   //fill data
+
+#    ifdef _PSTL_TEST_SHIFT_LEFT
+    TestUtils::invoke_on_all_hetero_policies<>()(test_shift(), in.begin(), m, orig.begin(), n, shift_left_algo{});
+#    endif
+#    ifdef _PSTL_TEST_SHIFT_RIGHT
+    TestUtils::invoke_on_all_hetero_policies<>()(test_shift(), in.begin(), m, orig.begin(), n, shift_right_algo{});
+#    endif
+}
+#endif
+
 int
 main()
 {
@@ -249,11 +268,12 @@ main()
     // A shift small enough that one work-item per shifted position cannot fill the device: the SYCL
     // backend stages these through a temporary instead. The size must exceed 16 work-items per lane
     // of the widest tested device to reach that path there, and the shifts are deliberately not
-    // multiples of the vector size.
+    // multiples of the vector size. Covered with one vectorizable and one non-vectorizable type,
+    // plus a shift just wide enough to keep the in-place chain walk, which is the fallback.
     const std::size_t staging_n = 2000003;
-    test_shift_by_type<std::uint16_t>(staging_n, std::size_t{7});
-    test_shift_by_type<ValueType>(staging_n, std::size_t{1});
-    test_shift_by_type<ValueType>(staging_n, std::size_t{4001});
+    test_shift_by_type_hetero<std::uint16_t>(staging_n, std::size_t{7});
+    test_shift_by_type_hetero<ValueType>(staging_n, std::size_t{1});
+    test_shift_by_type_hetero<ValueType>(staging_n, std::size_t{4001});
 #endif
 
     return TestUtils::done();

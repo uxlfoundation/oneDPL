@@ -1932,13 +1932,14 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
     //   leaves most of the machine idle, so stage through a temporary instead: two passes that both
     //   run at full parallelism. Staging transfers 4x(size - n) rather than 2x and allocates a
     //   temporary, so it is worth it only when the parallelism it buys clearly outweighs the extra
-    //   pass ('n' no more than a quarter of the device width) and the range is long enough to
-    //   amortize the allocation. Like case 3, and unlike a rotate-based shift, this leaves the
+    //   pass ('n' no more than a quarter of the width worth filling) and the range is long enough to
+    //   amortize the allocation. A device that cannot profit from a wider launch reports a width of
+    //   0, which fails both tests. Like case 3, and unlike a rotate-based shift, this leaves the
     //   trailing 'n' elements untouched.
-    else if (const std::size_t __resident_width =
-                 oneapi::dpl::__par_backend_hetero::__parallel_for_resident_width(_BackendTag{}, __exec);
-             4 * static_cast<std::size_t>(__n) <= __resident_width &&
-             static_cast<std::size_t>(__size_res) >= 16 * __resident_width)
+    else if (const std::size_t __occupancy_width =
+                 oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(_BackendTag{}, __exec);
+             4 * static_cast<std::size_t>(__n) <= __occupancy_width &&
+             static_cast<std::size_t>(__size_res) >= 16 * __occupancy_width)
     {
         using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
 

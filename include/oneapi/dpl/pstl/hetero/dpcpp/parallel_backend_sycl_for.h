@@ -339,13 +339,20 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
                                                                                std::forward<_Ranges>(__rngs)...);
 }
 
-// The number of work-items the device can keep resident at once, used by patterns that must choose
-// between a strategy whose parallelism is fixed by the problem and one that can fill the machine.
+// The launch width a pattern should aim for when it can choose between a strategy whose parallelism
+// is fixed by the problem and a costlier one that can fill the machine: a launch much narrower than
+// this figure leaves the device idle. Returns 0 when widening the launch cannot pay off at all, so
+// that the usual "is my launch narrow compared to the machine" test keeps the cheaper strategy.
+// CPU devices report 0: a work-item there is a slice of a hardware thread rather than a lane, so
+// even a narrow launch already occupies a useful share of the device and paying extra memory traffic
+// to widen it is a loss.
 template <typename _ExecutionPolicy>
 std::size_t
-__parallel_for_resident_width(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec)
+__parallel_for_occupancy_width(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec)
 {
     sycl::queue __q_local = __exec.queue();
+    if (__q_local.get_device().is_cpu())
+        return 0;
     return oneapi::dpl::__internal::__max_work_group_size(
                __q_local,
                __parallel_for_large_submitter<__internal::__optional_kernel_name<>>::__work_group_size_limit) *
