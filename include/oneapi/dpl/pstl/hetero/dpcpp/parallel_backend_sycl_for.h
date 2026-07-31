@@ -339,6 +339,19 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
                                                                                std::forward<_Ranges>(__rngs)...);
 }
 
+// The number of work-items the device can keep resident at once, used by patterns that must choose
+// between a strategy whose parallelism is fixed by the problem and one that can fill the machine.
+template <typename _ExecutionPolicy>
+std::size_t
+__parallel_for_resident_width(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec)
+{
+    sycl::queue __q_local = __exec.queue();
+    return oneapi::dpl::__internal::__max_work_group_size(
+               __q_local,
+               __parallel_for_large_submitter<__internal::__optional_kernel_name<>>::__work_group_size_limit) *
+           oneapi::dpl::__internal::__max_compute_units(__q_local);
+}
+
 } // namespace __par_backend_hetero
 } // namespace dpl
 } // namespace oneapi

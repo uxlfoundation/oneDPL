@@ -244,8 +244,16 @@ main()
     const std::size_t quarter_shift = 250111;
     const std::size_t three_quarters_shift = 750203;
     test_shift_by_type<std::uint8_t>(large_n, quarter_shift);
-    test_shift_by_type<std::uint8_t>(three_quarters_shift, large_n);
+    test_shift_by_type<std::uint8_t>(large_n, three_quarters_shift);
     test_shift_by_type<std::uint16_t>(large_n, quarter_shift);
+    // A shift small enough that one work-item per shifted position cannot fill the device: the SYCL
+    // backend stages these through a temporary instead. The size must exceed 16 work-items per lane
+    // of the widest tested device to reach that path there, and the shifts are deliberately not
+    // multiples of the vector size.
+    const std::size_t staging_n = 2000003;
+    test_shift_by_type<std::uint16_t>(staging_n, std::size_t{7});
+    test_shift_by_type<ValueType>(staging_n, std::size_t{1});
+    test_shift_by_type<ValueType>(staging_n, std::size_t{4001});
 #endif
 
     return TestUtils::done();

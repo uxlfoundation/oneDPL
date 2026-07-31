@@ -1892,6 +1892,9 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
 template <typename _Name>
 struct __shift_left_right;
 
+template <typename _Name>
+struct __shift_left_stage;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range __rng,
@@ -1899,6 +1902,7 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
 {
     //If (n > 0 && n < m), returns first + (m - n). Otherwise, if n  > 0, returns first. Otherwise, returns last.
     using _DiffType = oneapi::dpl::__internal::__difference_t<_Range>;
+    using _Function = __brick_move<__hetero_tag<_BackendTag>>;
     _DiffType __size = oneapi::dpl::__ranges::__size(__rng);
 
     assert(__n > 0 && __n < __size);
@@ -1909,8 +1913,6 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
     //1. n >= size/2; 'size - _n' parallel copying
     if (__n >= __mid)
     {
-        using _Function = __brick_move<__hetero_tag<_BackendTag>>;
-
         //TODO: to consider use just "read" access mode for a source range and just "write" - for a destination range.
         auto __src = oneapi::dpl::__ranges::drop_view_simple<_Range, _DiffType>(__rng, __n);
         auto __dst = oneapi::dpl::__ranges::take_view_simple<_Range, _DiffType>(__rng, __size_res);
@@ -1922,7 +1924,46 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
                                                           __brick, __size_res, __src, __dst)
             .__checked_deferrable_wait();
     }
-    else //2. n < size/2; 'n' parallel copying
+    //2. The in-place shift below uses 'n' independent chains of copies, so its parallelism is 'n' and
+    //   each chain walks 'size/n' elements in order. When 'n' cannot fill the device, that kernel
+    //   leaves most of the machine idle, so stage through a temporary instead: two passes that both
+    //   run at full parallelism. Staging transfers 4x(size - n) rather than 2x and allocates a
+    //   temporary, so it is worth it only when the parallelism it buys clearly outweighs the extra
+    //   pass ('n' no more than a quarter of the device width) and the range is long enough to
+    //   amortize the allocation. Like case 3, and unlike a rotate-based shift, this leaves the
+    //   trailing 'n' elements untouched.
+    else if (const std::size_t __resident_width =
+                 oneapi::dpl::__par_backend_hetero::__parallel_for_resident_width(_BackendTag{}, __exec);
+             4 * static_cast<std::size_t>(__n) <= __resident_width &&
+             static_cast<std::size_t>(__size_res) >= 16 * __resident_width)
+    {
+        using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
+
+        auto __temp_buf = oneapi::dpl::__par_backend_hetero::__buffer<_Tp>(__size_res);
+        auto __src = oneapi::dpl::__ranges::drop_view_simple<_Range, _DiffType>(__rng, __n);
+        auto __dst = oneapi::dpl::__ranges::take_view_simple<_Range, _DiffType>(__rng, __size_res);
+        auto __brick =
+            unseq_backend::walk_n_vectors_or_scalars<_Function>{_Function{}, static_cast<std::size_t>(__size_res)};
+
+        auto __temp_rng_w =
+            oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::write>(__temp_buf.get_buffer());
+        oneapi::dpl::__par_backend_hetero::__parallel_for(
+            _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_stage>(__exec), __brick,
+            __size_res, __src, __temp_rng_w);
+
+        //An explicit wait isn't required between the two kernels: they communicate through a
+        //temporary sycl::buffer, and the SYCL runtime orders them via its dependency graph.
+
+        auto __temp_rng_r =
+            oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::read>(__temp_buf.get_buffer());
+        oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                          __brick, __size_res, __temp_rng_r, __dst)
+            .__checked_deferrable_wait();
+
+        //The temporary buffer does not block on destruction, so the wait above provides the
+        //blocking synchronization this pattern owes its caller.
+    }
+    else //3. n < size/2; 'n' parallel copying
     {
         auto __brick = unseq_backend::__brick_shift_left<_DiffType>{__size, __n};
         oneapi::dpl::__par_backend_hetero::__parallel_for(
