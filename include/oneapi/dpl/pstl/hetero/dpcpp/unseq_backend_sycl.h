@@ -34,16 +34,16 @@ namespace unseq_backend
 {
 
 #if _ONEDPL_USE_GROUP_ALGOS
-#if defined(SYCL_IMPLEMENTATION_INTEL)
+#    if defined(SYCL_IMPLEMENTATION_INTEL)
 
 // When ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION is defined as non-zero, we avoid using known identity for 64-bit arithmetic data types
 template <typename _Tp>
 using __workaround_igpu_64_bit_reduction =
-#    if ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
+#        if ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
     std::bool_constant<!(::std::is_arithmetic_v<_Tp> && sizeof(_Tp) == sizeof(::std::uint64_t))>;
-#    else
+#        else
     std::true_type;
-#    endif // ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
+#        endif // ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
 
 template <typename _BinaryOp, typename _Tp, template <typename> class... _Ops>
 using __is_one_of_ops = std::disjunction<std::is_same<std::decay_t<_BinaryOp>, _Ops<_Tp>>...,
@@ -66,7 +66,7 @@ using __can_use_group_reduce_scan = std::conjunction<
                     // no std::minimum and std::maximum exist
                     sycl::minimum,
                     sycl::maximum>>;
-#else // Other SYCL implementations, assuming they are SYCL 2020 compliant
+#    else  // Other SYCL implementations, assuming they are SYCL 2020 compliant
 // TODO: check acpp - it should support std::* ops as sycl::* ops are aliases to std::* ops.
 template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan = std::conjunction<
@@ -81,8 +81,8 @@ using __can_use_group_reduce_scan = std::conjunction<
                     sycl::logical_or,
                     sycl::minimum,
                     sycl::maximum>>;
-#endif // defined(SYCL_IMPLEMENTATION_INTEL)
-#else // _ONEDPL_USE_GROUP_ALGOS
+#    endif // defined(SYCL_IMPLEMENTATION_INTEL)
+#else      // _ONEDPL_USE_GROUP_ALGOS
 
 template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan = std::false_type;
@@ -463,8 +463,8 @@ struct reduce_over_group
     {
         const _Size __global_idx = __item.get_global_id(0);
         return __dpl_sycl::__reduce_over_group(
-            __item.get_group(),
-            __global_idx >= __n ? sycl::known_identity<_BinaryOperation1, _Tp>::value : __val.__v, __bin_op1);
+            __item.get_group(), __global_idx >= __n ? sycl::known_identity<_BinaryOperation1, _Tp>::value : __val.__v,
+            __bin_op1);
     }
 
     template <typename _NDItemId, typename _Size, typename _AccLocal>
