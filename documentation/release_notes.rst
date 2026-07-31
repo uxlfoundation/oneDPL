@@ -8,6 +8,15 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
+New in 2022.15.0
+================
+
+Fixed Issues
+------------
+
+- The workaround macro ``ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION`` has been removed, and it no longer affects
+  the library behavior as the underlying issue is now fixed in all relevant versions of Intel® Graphics Driver.
+
 New in 2022.14.0
 ================
 New Features
@@ -73,7 +82,6 @@ See oneDPL Guide for other `restrictions and known limitations`_.
   * ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union`` with both host
     and device policies require an output value type constructible from input reference types and
     a non-proxy output iterator.
- 
 
 New in 2022.13.0
 ================
