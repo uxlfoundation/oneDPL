@@ -123,8 +123,8 @@ template <typename _CustomName, typename _Range1, typename _Range2, typename _Ra
           typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
 __parallel_reduce_by_segment_fallback_with_group_algorithms(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
-                                                         _Range3&& __out_keys, _Range4&& __out_values,
-                                                         _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
+                                                            _Range3&& __out_keys, _Range4&& __out_values,
+                                                            _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
 {
     using _SegReduceCountKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
         _SegReduceCountPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
@@ -210,8 +210,8 @@ __parallel_reduce_by_segment_fallback_with_group_algorithms(sycl::queue& __q, _R
                         ++__item_segments;
 
                 // 1b. Work group reduction
-                std::size_t __num_segs = __dpl_sycl::__reduce_over_group(
-                    __group, __item_segments, sycl::plus<decltype(__item_segments)>());
+                std::size_t __num_segs =
+                    __dpl_sycl::__reduce_over_group(__group, __item_segments, sycl::plus<decltype(__item_segments)>());
 
                 // 1c. First work item writes segment count to global memory
                 if (__local_id == 0)
@@ -288,13 +288,13 @@ __parallel_reduce_by_segment_fallback_with_group_algorithms(sycl::queue& __q, _R
                 }
 
                 // 2c. Count the number of prior work segments cooperatively over group
-                std::size_t __prior_segs_in_wg = __dpl_sycl::__exclusive_scan_over_group(
-                    __group, __item_segments, sycl::plus<std::size_t>());
+                std::size_t __prior_segs_in_wg =
+                    __dpl_sycl::__exclusive_scan_over_group(__group, __item_segments, sycl::plus<std::size_t>());
                 std::size_t __start_idx = __wg_num_prior_segs + __prior_segs_in_wg;
 
                 // 2d. Find the greatest segment end less than the current index (inclusive)
-                std::size_t __closest_seg_id = __dpl_sycl::__inclusive_scan_over_group(
-                    __group, __max_end, sycl::maximum<std::size_t>());
+                std::size_t __closest_seg_id =
+                    __dpl_sycl::__inclusive_scan_over_group(__group, __max_end, sycl::maximum<std::size_t>());
 
                 // __wg_segmented_scan is a derivative work and responsible for the third header copyright
                 __val_type __carry_in = oneapi::dpl::__par_backend_hetero::__wg_segmented_scan(

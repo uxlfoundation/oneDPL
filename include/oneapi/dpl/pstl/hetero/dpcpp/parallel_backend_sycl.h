@@ -1528,7 +1528,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                       _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
                                       _Range4&& __out_values, _BinaryPredicate __binary_pred,
                                       _BinaryOperator __binary_op,
-                                      /*__can_use_group_reduce_scan*/std::false_type)
+                                      /*__can_use_group_reduce_scan*/ std::false_type)
 {
     const auto __n = oneapi::dpl::__ranges::__size(__keys);
     assert(__n > 0);
