@@ -189,6 +189,13 @@ dpl::device_array<float> d(host_data, q);
 auto policy = oneapi::dpl::execution::make_device_policy(q);
 oneapi::dpl::sort(policy, d.span().begin(), d.span().end());
 
+// --- Pass the span directly to the oneDPL range-based algorithms ---
+oneapi::dpl::ranges::for_each(policy, d.span(), [](float& x) { x += 1.0f; });
+
+oneapi::dpl::ranges::sort(policy, d.span());
+
+oneapi::dpl::ranges::sort(policy, d.span().subspan(0, 100));
+
 // --- Use in a SYCL kernel ---
 
 auto s = d.span();
@@ -200,13 +207,6 @@ float* ptr = d.span().data();
 q.parallel_for(sycl::range<1>(d.size()), [=](sycl::id<1> i) {
     ptr[i] *= 2.0f;
 }).wait();
-
-// --- Pass the span directly to the oneDPL range-based algorithms ---
-oneapi::dpl::ranges::for_each(policy, d.span(), [](float& x) { x += 1.0f; });
-
-oneapi::dpl::ranges::sort(policy, d.span());
-
-oneapi::dpl::ranges::sort(policy, d.span().subspan(0, 100));
 
 // --- Explicit single-element host access ---
 float val = d.read_at(q, 0);       // synchronous read
