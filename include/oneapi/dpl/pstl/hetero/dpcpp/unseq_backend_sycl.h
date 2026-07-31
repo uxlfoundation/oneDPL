@@ -459,7 +459,7 @@ struct reduce_over_group
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
     reduce_impl(const _NDItemId __item, const _Size __n, oneapi::dpl::__internal::__lazy_ctor_storage<_Tp>& __val,
-                const _AccLocal& /*__local_mem*/, std::true_type /*has_known_identity*/) const
+                const _AccLocal& /*__local_mem*/, std::true_type /*__can_use_group_reduce_scan*/) const
     {
         const _Size __global_idx = __item.get_global_id(0);
         return __dpl_sycl::__reduce_over_group(
@@ -470,7 +470,7 @@ struct reduce_over_group
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
     reduce_impl(const _NDItemId __item, const _Size __n, oneapi::dpl::__internal::__lazy_ctor_storage<_Tp>& __val,
-                const _AccLocal& __local_mem, std::false_type /*has_known_identity*/) const
+                const _AccLocal& __local_mem, std::false_type /*__can_use_group_reduce_scan*/) const
     {
         auto __local_idx = __item.get_local_id(0);
         auto __group_size = __item.get_local_range().size();
