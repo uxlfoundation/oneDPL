@@ -571,7 +571,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     const diff_t __n_out1 = oneapi::dpl::__ranges::__size(__out_true);
     const diff_t __n_out2 = oneapi::dpl::__ranges::__size(__out_false);
     auto __zipped_output =
-        oneapi::dpl::__ranges::make_zip_view(std::forward<_Range2>(__out_true), std::forward<_Range3>(__out_false));
+        oneapi::dpl::__internal::make_tuple(std::forward<_Range2>(__out_true), std::forward<_Range3>(__out_false));
 
     sycl::queue __q_local = __exec.queue();
     constexpr std::uint32_t __bytes_per_iter = sizeof(oneapi::dpl::__internal::__value_t<_Range1>);

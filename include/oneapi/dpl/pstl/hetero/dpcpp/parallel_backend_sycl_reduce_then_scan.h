@@ -216,20 +216,28 @@ struct __write_partitioned
                 || (__start_idx - __mask_prefix) + __max_write_offset > __out2_size);
     }
 
+    template <typename _ValueType, typename _Range>
+    static constexpr auto
+    __tuple_type_cast(_ValueType&& __value, _Range&&)
+    {
+        // An explicit cast to our internal tuple type is required to resolve conversion issues between an
+        // internal tuple and a std::tuple. If the underlying type is not a tuple, it just passes through.
+        // _Range is only used for type deduction; no runtime access occurs.
+        using _ConvertedType = typename oneapi::dpl::__internal::__get_tuple_type<
+            std::decay_t<_ValueType>, std::decay_t<decltype(std::declval<_Range>()[0])>>::__type;
+        return static_cast<_ConvertedType>(std::forward<_ValueType>(__value));
+    }
+
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
     {
-        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
-        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
-        // through.
-        using _ConvertedType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
-        if (std::get<1>(__v))
-            std::get<0>(__out_rng[std::get<0>(__v) - 1]) = static_cast<_ConvertedType>(std::get<2>(__v));
+        const auto& [__mask_prefix, __mask, __value] = __v;
+        auto& [__out1_rng, __out2_rng] = __out_rng; // unpack the tuple of outputs
+        if (__mask)
+            __out1_rng[__mask_prefix - 1] = __tuple_type_cast(__value, __out1_rng);
         else
-            std::get<1>(__out_rng[__id - std::get<0>(__v)]) = static_cast<_ConvertedType>(std::get<2>(__v));
+            __out2_rng[__id - __mask_prefix] = __tuple_type_cast(__value, __out2_rng);
     }
 
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
@@ -237,13 +245,11 @@ struct __write_partitioned
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _OnOOBReached __on_oob_reached) const
     {
         const auto& [__mask_prefix, __mask, __value] = __v;
-        using _ConvertedType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__value)>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
+        auto& [__out1_rng, __out2_rng] = __out_rng; // unpack the tuple of outputs
         // __mask_prefix is the number of inputs for the first output range up to and including this item.
         // the index to write to if the mask matches out1/out2, otherwise the previous would-be written index (or -1)
-        const diff_t __out1_idx = __mask_prefix - 1;
-        const diff_t __out2_idx = diff_t(__id) - __mask_prefix;
+        diff_t __out1_idx = __mask_prefix - 1;
+        diff_t __out2_idx = diff_t(__id) - __mask_prefix;
         const bool __target_idx_in_bound = __mask ? __out1_idx < __out1_size : __out2_idx < __out2_size;
         const bool __other_idx_in_bound_before = __mask ? __out2_idx < __out2_size : __out1_idx < __out1_size;
         const bool __oob_reached = __mask ? __out1_idx == __out1_size : __out2_idx == __out2_size;
@@ -253,9 +259,9 @@ struct __write_partitioned
             if (__target_idx_in_bound)
             {
                 if (__mask)
-                    std::get<0>(__out_rng[__out1_idx]) = static_cast<_ConvertedType>(__value);
+                    __out1_rng[__out1_idx] = __tuple_type_cast(__value, __out1_rng);
                 else
-                    std::get<1>(__out_rng[__out2_idx]) = static_cast<_ConvertedType>(__value);
+                    __out2_rng[__out2_idx] = __tuple_type_cast(__value, __out2_rng);
             }
             // If out-of-bound conditions detected, report stop positions in the input and the 1st output
             if (__oob_reached)
