@@ -95,7 +95,7 @@ classDiagram
         class device_array~T~ {
             fixed size, no allocator
             device access: span()
-            host access: copy_to() / host_read() / host_write()
+            host access: copy_to() / copy_from() / read_at()
         }
     }
 

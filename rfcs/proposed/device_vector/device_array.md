@@ -72,27 +72,27 @@ public:
     ~device_array();
 
     // Host-device transfer
-    // Bulk transfer from device (dst may be host memory or USM on this context)
+    // Transfer from device (dst may be host memory or USM on this context)
     // copies min(dst.size(), size() - src_offset) elements
-    void copy_to(oneapi::dpl::span<T> dst, size_type src_offset) const;
-    void copy_to(oneapi::dpl::span<T> dst, size_type src_offset, sycl::queue q, sycl::event depends_on = {}) const;
+    void copy_to(oneapi::dpl::span<T> dst, size_type src_offset = 0) const;
+    void copy_to(sycl::queue q, oneapi::dpl::span<T> dst, size_type src_offset = 0, sycl::event depends_on = {}) const;
+
+    // single element
+    T read_at(size_type pos) const;
+    T read_at(sycl::queue q, size_type pos, sycl::event depends_on = {}) const;
 
     // Convenience download into a fresh host vector
     std::vector<T> to_vector() const;
     std::vector<T> to_vector(sycl::queue q, sycl::event depends_on = {}) const;
 
-    // Bulk transfer to device (src may be host memory or USM on this context)
+    // Transfer to device (src may be host memory or USM on this context)
     // copies min(src.size(), size() - dst_offset) elements
-    void copy_from(oneapi::dpl::span<const T> src, size_type dst_offset);
-    void copy_from(oneapi::dpl::span<const T> src, size_type dst_offset, sycl::queue q, sycl::event depends_on = {});
+    void copy_from(oneapi::dpl::span<const T> src, size_type dst_offset = 0);
+    void copy_from(sycl::queue q, oneapi::dpl::span<const T> src, size_type dst_offset = 0, sycl::event depends_on = {});
 
-    // Single-element host access (blocking, creates queue from context & device)
-    T host_read(size_type pos) const;
-    void host_write(size_type pos, const T& value);
-
-    // Single-element host access (blocking, provided queue is used for copy submissions)
-    T host_read(size_type pos, sycl::queue q, sycl::event depends_on = {}) const;
-    void host_write(size_type pos, const T& value, sycl::queue q, sycl::event depends_on = {});
+    // single element
+    void copy_from(const T& value, size_type dst_offset = 0);
+    void copy_from(sycl::queue q, const T& value, size_type dst_offset = 0, sycl::event depends_on = {});
 
     // Capacity (fixed size — no resize / reserve / capacity / clear)
     size_type size()  const;
@@ -209,27 +209,27 @@ oneapi::dpl::ranges::sort(policy, d.span());
 oneapi::dpl::ranges::sort(policy, d.span().subspan(0, 100));
 
 // --- Explicit single-element host access ---
-float val = d.host_read(0, q);     // synchronous read
-d.host_write(0, 42.0f, q);         // synchronous write
+float val = d.read_at(q, 0);       // synchronous read
+d.copy_from(q, 42.0f, 0);          // synchronous write
 
 // --- Bulk download ---
 std::vector<float> out = d.to_vector(q);   // fresh vector
-d.copy_to(out, 0, q);                      // or into existing storage
+d.copy_to(q, out);                         // or into existing storage
                                            // copies min(out.size(), d.size()) elements
 
 // --- Bulk upload into an existing device_array (does not resize) ---
-d.copy_from(host_data, 0, q);
+d.copy_from(q, host_data);
 
 // --- Offset transfers: copy the tail of d into the front of out ---
-d.copy_to(out, 100, q);                    // d[100 .. 100 + n) -> out[0 .. n)
+d.copy_to(q, out, 100);                    // d[100 .. 100 + n) -> out[0 .. n)
                                            // n = min(out.size(), d.size() - 100)
 
 // --- Offset upload: write host_data into d starting at element 100 ---
-d.copy_from(host_data, 100, q);            // truncated at the end of d
+d.copy_from(q, host_data, 100);            // truncated at the end of d
 
 // --- Device-to-device: span() is USM, so it is a valid source ---
 dpl::device_array<float> d2(d.size(), q);
-d2.copy_from(d.span(), 0, q);              // span<float> -> span<const float>
+d2.copy_from(q, d.span());                 // span<float> -> span<const float>
 
 // --- Subrange copy into a new, smaller device_array ---
 dpl::device_array<float> head(d.span().subspan(0, 100), q);
@@ -253,15 +253,15 @@ sycl::event e = ooo_q.parallel_for(sycl::range<1>(d3.size()),
 
 // the copy waits on e before reading, then blocks until the copy completes
 std::vector<float> ooo_out(d3.size());
-d3.copy_to(ooo_out, 0, ooo_q, e);
+d3.copy_to(ooo_q, ooo_out, 0, e);
 
 // same for uploads and single-element access
-d3.copy_from(host_data, 0, ooo_q, e);
-float first = d3.host_read(0, ooo_q, e);
+d3.copy_from(ooo_q, host_data, 0, e);
+float first = d3.read_at(ooo_q, 0, e);
 
 // with an in-order queue the parameter is unnecessary — prior submissions on q
 // already order against the transfer
-d.copy_to(out, 0, q);
+d.copy_to(q, out);
 ```
 
 ## Resolved Questions
