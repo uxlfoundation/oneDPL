@@ -58,10 +58,9 @@ public:
     device_array(oneapi::dpl::span<const T> src, sycl::queue q, sycl::event depends_on = {});
     device_array(oneapi::dpl::span<const T> src, sycl::context ctx, sycl::device dev);
 
-    // explicit copy construction only (avoids accidental deep copies)
-    explicit device_array(const device_array&);
-    explicit device_array(const device_array&, sycl::queue q, sycl::event depends_on = {});
-
+    // No copy — avoids accidental deep copies. A deep copy is can be done 
+    // explicitly with the span constructor above: device_array<T> b(a.span(), q);
+    device_array(const device_array&) = delete;
     device_array& operator=(const device_array&) = delete;
 
     // Move (shallow move, device memory remains where it is)
@@ -231,8 +230,14 @@ d.copy_from(q, host_data, 100);            // truncated at the end of d
 dpl::device_array<float> d2(d.size(), q);
 d2.copy_from(q, d.span());                 // span<float> -> span<const float>
 
+// --- Full deep copy: device_array is not copyable, do it with span() ---
+dpl::device_array<float> d_copy(d.span(), q);
+
 // --- Subrange copy into a new, smaller device_array ---
 dpl::device_array<float> head(d.span().subspan(0, 100), q);
+
+// --- Move transfers ownership; no allocation, no data movement ---
+dpl::device_array<float> d_moved = std::move(d_copy);   // d_copy is left empty
 
 // --- Output buffer (uninitialized by default — no memset) ---
 dpl::device_array<float> output(1024, q);
