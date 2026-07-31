@@ -647,7 +647,7 @@ template <typename _T1, typename _T2>
 constexpr auto
 __dpl_ceiling_div(_T1 __number, _T2 __divisor)
 {
-    return (__number - 1) / __divisor + 1;
+    return (__number + __divisor - 1) / __divisor;
 }
 
 template <typename _T>
