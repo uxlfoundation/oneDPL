@@ -146,14 +146,16 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
     }
 };
 
+// Limit the work-group size to 512 which has empirically yielded the best results across different architectures.
+inline constexpr std::uint16_t __parallel_for_work_group_size_limit = 512;
+
 template <typename _KernelName>
 struct __parallel_for_large_submitter;
 
 template <typename... _Name>
 struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name...>>
 {
-    // Limit the work-group size to 512 which has empirically yielded the best results across different architectures.
-    static constexpr std::uint16_t __work_group_size_limit = 512;
+    static constexpr std::uint16_t __work_group_size_limit = __parallel_for_work_group_size_limit;
 
     template <typename _Fp>
     static std::size_t
@@ -353,9 +355,7 @@ __parallel_for_occupancy_width(oneapi::dpl::__internal::__device_backend_tag, _E
     sycl::queue __q_local = __exec.queue();
     if (__q_local.get_device().is_cpu())
         return 0;
-    return oneapi::dpl::__internal::__max_work_group_size(
-               __q_local,
-               __parallel_for_large_submitter<__internal::__optional_kernel_name<>>::__work_group_size_limit) *
+    return oneapi::dpl::__internal::__max_work_group_size(__q_local, __parallel_for_work_group_size_limit) *
            oneapi::dpl::__internal::__max_compute_units(__q_local);
 }
 

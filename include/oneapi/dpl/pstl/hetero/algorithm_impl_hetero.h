@@ -1898,6 +1898,36 @@ struct __shift_left_stage;
 template <typename _Name>
 struct __shift_left_unstage;
 
+// Whether a shift of '__n' over a range whose moved part is '__size_res' long should be staged
+// through a temporary rather than shifted in place.
+//
+// The in-place shift uses '__n' independent chains of copies, so its parallelism is '__n' and each
+// chain walks 'size/__n' elements in order: a narrow shift leaves most of the device idle no matter
+// how long the range is. Staging replaces it with two passes that each run at full parallelism, but
+// moves 4x(size - n) bytes rather than 2x, so it can only win while the in-place walk achieves under
+// half of peak bandwidth - past that point it is a ~2x loss. Measured on BMG and PVC, the in-place
+// walk reaches bandwidth saturation at '__n' around a sixteenth of the occupancy width, so the
+// parallelism test below stays an order of magnitude clear of that crossover instead of approaching
+// it. The size test covers the fixed cost of the temporary and the extra launch; the measured
+// break-even sizes sit well under this bound for every '__n' the first test admits.
+//
+// A device that cannot profit from a wider launch reports an occupancy width of 0, which fails both
+// tests and keeps the cheaper in-place path.
+template <typename _BackendTag, typename _ExecutionPolicy, typename _DiffType>
+bool
+__should_stage_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _DiffType __size_res)
+{
+    //The occupancy width is a device query, so screen it off with the cheap size-only bound first:
+    //no device this library targets has an occupancy width under 32, and staging cannot pay off
+    //below 32 of them.
+    if (static_cast<std::size_t>(__size_res) < 32 * std::size_t{32})
+        return false;
+    const std::size_t __occupancy_width =
+        oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(_BackendTag{}, __exec);
+    return 128 * static_cast<std::size_t>(__n) <= __occupancy_width &&
+           static_cast<std::size_t>(__size_res) >= 32 * __occupancy_width;
+}
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range __rng,
@@ -1927,19 +1957,8 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
                                                           __brick, __size_res, __src, __dst)
             .__checked_deferrable_wait();
     }
-    //2. The in-place shift below uses 'n' independent chains of copies, so its parallelism is 'n' and
-    //   each chain walks 'size/n' elements in order. When 'n' cannot fill the device, that kernel
-    //   leaves most of the machine idle, so stage through a temporary instead: two passes that both
-    //   run at full parallelism. Staging transfers 4x(size - n) rather than 2x and allocates a
-    //   temporary, so it is worth it only when the parallelism it buys clearly outweighs the extra
-    //   pass ('n' no more than a quarter of the width worth filling) and the range is long enough to
-    //   amortize the allocation. A device that cannot profit from a wider launch reports a width of
-    //   0, which fails both tests. Like case 3, and unlike a rotate-based shift, this leaves the
-    //   trailing 'n' elements untouched.
-    else if (const std::size_t __occupancy_width =
-                 oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(_BackendTag{}, __exec);
-             4 * static_cast<std::size_t>(__n) <= __occupancy_width &&
-             static_cast<std::size_t>(__size_res) >= 16 * __occupancy_width)
+    //2. 'size - n' parallel copying, staged through a temporary. See __should_stage_shift.
+    else if (__should_stage_shift(_BackendTag{}, __exec, __n, __size_res))
     {
         using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
 
@@ -1949,8 +1968,11 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
         auto __brick =
             unseq_backend::walk_n_vectors_or_scalars<_Function>{_Function{}, static_cast<std::size_t>(__size_res)};
 
+        //The first kernel overwrites every element of the temporary, so its previous contents need
+        //not be fetched: request no-init access.
         auto __temp_rng_w =
-            oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::write>(__temp_buf.get_buffer());
+            oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::write, /*_NoInit*/ true>(
+                __temp_buf.get_buffer());
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_stage>(__exec), __brick,
             __size_res, __src, __temp_rng_w);
@@ -1961,8 +1983,13 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
         //Both kernels need their own wrapped policy: with explicit kernel names, case 1 submits the
         //same brick and the same iteration count, so reusing the unwrapped policy here would mangle
         //to a kernel name already claimed by that case.
+        //The temporary is read with "read_write" rather than "read" access: a "read" view hands the
+        //brick a 'const _Tp&', which makes its 'std::move' select copy assignment, so an element
+        //type that is move-assignable but not copy-assignable would fail to compile. std::shift_left
+        //only requires the former.
         auto __temp_rng_r =
-            oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::read>(__temp_buf.get_buffer());
+            oneapi::dpl::__ranges::all_view<_Tp, __par_backend_hetero::access_mode::read_write>(
+                __temp_buf.get_buffer());
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_unstage>(
@@ -1970,8 +1997,9 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
             __brick, __size_res, __temp_rng_r, __dst)
             .__checked_deferrable_wait();
 
-        //The temporary buffer does not block on destruction, so the wait above provides the
-        //blocking synchronization this pattern owes its caller.
+        //The temporary buffer does not block on destruction; freeing its storage is deferred until
+        //the kernels using it retire. The wait above is this pattern's usual completion handshake,
+        //matching what the other two cases do.
     }
     else //3. n < size/2; 'n' parallel copying
     {

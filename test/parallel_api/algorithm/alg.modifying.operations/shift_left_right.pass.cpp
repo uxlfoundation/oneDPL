@@ -266,14 +266,27 @@ main()
     test_shift_by_type<std::uint8_t>(large_n, three_quarters_shift);
     test_shift_by_type<std::uint16_t>(large_n, quarter_shift);
     // A shift small enough that one work-item per shifted position cannot fill the device: the SYCL
-    // backend stages these through a temporary instead. The size must exceed 16 work-items per lane
-    // of the widest tested device to reach that path there, and the shifts are deliberately not
-    // multiples of the vector size. Covered with one vectorizable and one non-vectorizable type,
-    // plus a shift just wide enough to keep the in-place chain walk, which is the fallback.
-    const std::size_t staging_n = 2000003;
-    test_shift_by_type_hetero<std::uint16_t>(staging_n, std::size_t{7});
-    test_shift_by_type_hetero<ValueType>(staging_n, std::size_t{1});
-    test_shift_by_type_hetero<ValueType>(staging_n, std::size_t{4001});
+    // backend stages these through a temporary instead. Whether that path is reachable depends on
+    // the device, so derive the sizes from it rather than hard-coding them - a fixed size large
+    // enough for a small GPU silently misses the path on a large one. The backend gates staging on
+    // '128 * n <= width' and 'size - n >= 32 * width', so straddle both bounds: one size above the
+    // threshold with shifts under it (staged), and the same size with a shift over it (the in-place
+    // chain walk, which is the fallback). Shifts are deliberately not multiples of the vector size,
+    // and both a vectorizable and a non-vectorizable type are covered.
+    sycl::queue __q = TestUtils::get_test_queue();
+    const std::size_t width =
+        std::min(__q.get_device().get_info<sycl::info::device::max_work_group_size>(), std::size_t{512}) *
+        __q.get_device().get_info<sycl::info::device::max_compute_units>();
+    // A CPU device reports a width of 0 to the backend, so staging is never selected there; keep
+    // this coverage affordable by only paying for it where the path actually exists.
+    if (!__q.get_device().is_cpu() && width > 0)
+    {
+        const std::size_t staged_size = 32 * width + 3;
+        test_shift_by_type_hetero<std::uint16_t>(staged_size, std::size_t{7});
+        test_shift_by_type_hetero<ValueType>(staged_size, std::size_t{1});
+        // Just past the parallelism bound, so this one must take the in-place chain walk.
+        test_shift_by_type_hetero<ValueType>(staged_size, width / 128 + 1);
+    }
 #endif
 
     return TestUtils::done();
