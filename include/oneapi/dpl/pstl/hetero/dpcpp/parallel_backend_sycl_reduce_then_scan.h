@@ -2506,6 +2506,10 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 // _ReduceOp - a binary function which is used in the reduction and scan operations
 // _WriteOp - a function which accepts output range, index, and output of `_GenScanInput` applied to the input range
 //            and performs the final write to output operation
+// __bytes_per_work_item_iter - the number of bytes of *input* data which a single work-item reads from global memory
+//            for a single iteration of its serial loop over a block. It is used only as a block sizing heuristic: we
+//            try to make a block's total input footprint fit within the last level cache so that the scan kernel can
+//            re-read the input from LLC rather than paying for a second read from global memory.
 template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng,
           typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
