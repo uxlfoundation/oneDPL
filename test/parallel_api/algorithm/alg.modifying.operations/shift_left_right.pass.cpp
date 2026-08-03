@@ -269,10 +269,11 @@ main()
     // backend stages these through a temporary instead. Whether that path is reachable depends on
     // the device, so derive the sizes from it rather than hard-coding them - a fixed size large
     // enough for a small GPU silently misses the path on a large one. The backend gates staging on
-    // '128 * n <= width' and 'size - n >= 32 * width', so straddle both bounds: one size above the
-    // threshold with shifts under it (staged), and the same size with a shift over it (the in-place
-    // chain walk, which is the fallback). Shifts are deliberately not multiples of the vector size,
-    // and both a vectorizable and a non-vectorizable type are covered.
+    // '128 * n <= width' and a serial depth of 'size - n >= 4096 * n', so straddle the parallelism
+    // bound at a size that clears the depth bound either way: shifts under it are staged, and a
+    // shift over it takes the in-place chain walk, which is the fallback. Shifts are deliberately
+    // not multiples of the vector size, and both a vectorizable and a non-vectorizable type are
+    // covered.
     sycl::queue __q = TestUtils::get_test_queue();
     const std::size_t width =
         std::min(__q.get_device().get_info<sycl::info::device::max_work_group_size>(), std::size_t{512}) *

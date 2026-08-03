@@ -1908,24 +1908,30 @@ struct __shift_left_unstage;
 // half of peak bandwidth - past that point it is a ~2x loss. Measured on BMG and PVC, the in-place
 // walk reaches bandwidth saturation at '__n' around a sixteenth of the occupancy width, so the
 // parallelism test below stays an order of magnitude clear of that crossover instead of approaching
-// it. The size test covers the fixed cost of the temporary and the extra launch; the measured
-// break-even sizes sit well under this bound for every '__n' the first test admits.
+// it.
 //
-// A device that cannot profit from a wider launch reports an occupancy width of 0, which fails both
-// tests and keeps the cheaper in-place path.
+// The second test covers the fixed cost of the temporary and the extra launch. What that cost has to
+// be weighed against is the in-place walk's *serial depth*, 'size_res / __n' dependent moves - not
+// the range length on its own, since a longer range with a proportionally wider shift is no slower.
+// So the bound is on the depth. '4096' is the depth the parallelism test already implies at the
+// widest shift it admits ('32 * width' elements over 'width / 128' chains, where the width cancels),
+// applied uniformly at every '__n' rather than only at that end. Both platforms' measured break-even
+// depths are well under it: ~504 moves on BMG, ~89 on PVC.
+//
+// A device that cannot profit from a wider launch reports an occupancy width of 0, which fails the
+// parallelism test and keeps the cheaper in-place path.
 template <typename _BackendTag, typename _ExecutionPolicy, typename _DiffType>
 bool
 __should_stage_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _DiffType __size_res)
 {
-    //The occupancy width is a device query, so screen it off with the cheap size-only bound first:
-    //no device this library targets has an occupancy width under 32, and staging cannot pay off
-    //below 32 of them.
-    if (static_cast<std::size_t>(__size_res) < 32 * std::size_t{32})
+    //Both tests below are necessary, but the occupancy width is a device query, so screen it off
+    //with the one that does not need it: staging cannot pay for itself at a shallower depth than
+    //this whatever the device.
+    if (static_cast<std::size_t>(__size_res) < 4096 * static_cast<std::size_t>(__n))
         return false;
     const std::size_t __occupancy_width =
         oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(_BackendTag{}, __exec);
-    return 128 * static_cast<std::size_t>(__n) <= __occupancy_width &&
-           static_cast<std::size_t>(__size_res) >= 32 * __occupancy_width;
+    return 128 * static_cast<std::size_t>(__n) <= __occupancy_width;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range>
