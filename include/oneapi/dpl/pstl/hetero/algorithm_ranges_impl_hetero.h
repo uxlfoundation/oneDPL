@@ -745,11 +745,13 @@ std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
 __pattern_partition_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
                                 _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
 {
-    if (oneapi::dpl::__ranges::__size(__in_r) == 0)
-        return {std::ranges::begin(__in_r), std::ranges::begin(__out_true_r), std::ranges::begin(__out_false_r)};
+    auto [__in_first, __in_size] =  oneapi::dpl::__ranges::__begin_and_size(__in_r);
+    auto [__out1_first, __out1_size] =  oneapi::dpl::__ranges::__begin_and_size(__out_true_r);
+    auto [__out2_first, __out2_size] =  oneapi::dpl::__ranges::__begin_and_size(__out_false_r);
+    if (__in_size == 0 || ( __out1_size == 0 && __out2_size == 0))
+        return {__in_first, __out1_first, __out2_first};
 
     oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
-
     std::array<std::ptrdiff_t, 2> __stops =
         oneapi::dpl::__par_backend_hetero::__parallel_partition_copy</*_Bounded*/ true>(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
@@ -757,8 +759,7 @@ __pattern_partition_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolic
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange1>(__out_true_r)),
             oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange2>(__out_false_r)), __pred_1);
 
-    return {std::ranges::begin(__in_r) + __stops[1], std::ranges::begin(__out_true_r) + __stops[0],
-            std::ranges::begin(__out_false_r) + (__stops[1] - __stops[0])};
+    return {__in_first + __stops[1], __out1_first + __stops[0], __out2_first + (__stops[1] - __stops[0])};
 }
 #endif
 
