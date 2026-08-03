@@ -1216,6 +1216,7 @@ struct __internal::__rotate_fn
         {
             auto __first = std::ranges::begin(__r);
             auto __last = __first + std::ranges::size(__r);
+#if _ONEDPL_HETERO_BACKEND
             if constexpr (oneapi::dpl::__internal::__is_hetero_backend_tag_v<__dispatch_tag_t>)
             {
                 auto __res = __first + (__last - __middle);
@@ -1225,12 +1226,10 @@ struct __internal::__rotate_fn
                     oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r)), __pivot);
                 return {__res, __last};
             }
-            else
-            {
-                auto __res = oneapi::dpl::__internal::__pattern_rotate(
-                    __dispatch_tag_t{}, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last);
-                return {__res, __last};
-            }
+#endif
+            auto __res = oneapi::dpl::__internal::__pattern_rotate(
+                __dispatch_tag_t{}, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last);
+            return {__res, __last};
         }
     }
 }; //__rotate_fn
