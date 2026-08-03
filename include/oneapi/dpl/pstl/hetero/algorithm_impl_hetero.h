@@ -1630,9 +1630,44 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bi
 template <typename Name>
 struct __rotate_dual_reverse;
 
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Range>
+void
+__pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __r, std::size_t __pivot)
+{
+    const std::size_t __n = oneapi::dpl::__ranges::__size(__r);
+    if (__pivot > 0 && __pivot < __n)
+    {
+        if (__pivot > 1 && __pivot < __n - 1)
+        {
+            // Reverse the ranges before and after the shift point, in one kernel
+            auto __dbrick = oneapi::dpl::__par_backend_hetero::__dual_brick{
+                unseq_backend::__reverse_functor{__pivot}, unseq_backend::__reverse_functor{__n - __pivot, __pivot},
+                __pivot / 2 /*iterations in the first reverse*/};
+            oneapi::dpl::__par_backend_hetero::__parallel_for(
+                _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__rotate_dual_reverse>(__exec),
+                __dbrick, __pivot / 2 + (__n - __pivot) / 2, __r)
+                .wait();
+        }
+        else if (__n > 2)
+        {
+            // For a non-trivial single-position shift, reverse only the bigger part
+            oneapi::dpl::__par_backend_hetero::__parallel_for(
+                _BackendTag{}, __exec, unseq_backend::__reverse_functor{__n - 1, __pivot == 1 ? 1u : 0u},
+                (__n - 1) / 2, __r)
+                .wait();
+        }
+        // TODO: need a non-blocking dependency between the kernels
+
+        // Now reverse the whole range
+        oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                          unseq_backend::__reverse_functor{__n}, __n / 2, __r)
+            .__checked_deferrable_wait();
+    }
+}
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator>
 _Iterator
-__pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __new_first,
+__pattern_rotate(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __new_first,
                  _Iterator __last)
 {
     const std::size_t __n = __last - __first;
@@ -1641,37 +1676,9 @@ __pattern_rotate(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf = __keep(__first, __last);
-    const std::size_t __shift = __new_first - __first;
+    const std::size_t __pivot = __new_first - __first;
+    __pattern_rotate(__tag, std::forward<_ExecutionPolicy>(__exec), __buf.all_view(), __pivot);
 
-    if (__shift > 0 && __shift < __n)
-    {
-        if (__shift > 1 && __shift < __n - 1)
-        {
-            // Reverse the ranges before and after the shift point, in one kernel
-            auto __dbrick = oneapi::dpl::__par_backend_hetero::__dual_brick{
-                unseq_backend::__reverse_functor{__shift}, unseq_backend::__reverse_functor{__n - __shift, __shift},
-                __shift / 2 /*iterations in the first reverse*/};
-            oneapi::dpl::__par_backend_hetero::__parallel_for(
-                _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__rotate_dual_reverse>(__exec),
-                __dbrick, __shift / 2 + (__n - __shift) / 2, __buf.all_view())
-                .wait();
-        }
-        else if (__n > 2)
-        {
-            // For a non-trivial single-position shift, reverse only the bigger part
-            oneapi::dpl::__par_backend_hetero::__parallel_for(
-                _BackendTag{}, __exec, unseq_backend::__reverse_functor{__n - 1, __shift == 1 ? 1u : 0u},
-                (__n - 1) / 2, __buf.all_view())
-                .wait();
-        }
-        // TODO: need a non-blocking dependency between the kernels
-
-        // Now reverse the whole range
-        oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                          unseq_backend::__reverse_functor{__n}, __n / 2,
-                                                          __buf.all_view())
-            .__checked_deferrable_wait();
-    }
     return __first + (__last - __new_first);
 }
 
