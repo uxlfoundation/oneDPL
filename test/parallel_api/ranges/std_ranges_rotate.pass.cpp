@@ -19,7 +19,7 @@ struct
         const int in_size = std::ranges::size(r);
         auto middle = std::ranges::begin(r) + ((pivot_pos < 0)? in_size/3 : std::min<int>(pivot_pos, in_size));
 
-        return oneapi::dpl::ranges::rotate(std::forward<Policy>(exec), std::forward<InRange>(r), middle);
+        return oneapi::dpl::ranges::rotate(std::forward<Policy>(exec), std::forward<Range>(r), middle);
     }
 } rotate_tester;
 #endif // _ENABLE_STD_RANGES_TESTING
@@ -35,7 +35,7 @@ main()
         // calculate the pivot point exactly like in the tester above
         const int in_size = std::ranges::size(r);
         auto middle = std::ranges::begin(r) + ((pivot_pos < 0)? in_size/3 : std::min<int>(pivot_pos, in_size));
-        return std::ranges::rotate(std::forward<InRange>(r), middle);
+        return std::ranges::rotate(std::forward<decltype(r)>(r), middle);
     };
 
     const int test_sz = 13192;
