@@ -84,6 +84,8 @@ struct __reverse_fn;
 struct __reverse_copy_fn;
 struct __rotate_fn;
 struct __rotate_copy_fn;
+struct __shift_left_fn;
+struct __shift_right_fn;
 struct __mismatch_fn;
 struct __starts_with_fn;
 struct __ends_with_fn;

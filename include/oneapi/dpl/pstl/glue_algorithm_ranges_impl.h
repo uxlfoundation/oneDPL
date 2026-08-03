@@ -1267,6 +1267,40 @@ struct __internal::__rotate_copy_fn
 }; //__rotate_copy_fn
 inline constexpr __internal::__rotate_copy_fn rotate_copy;
 
+// [alg.shift]
+
+struct __internal::__shift_left_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
+
+    std::ranges::borrowed_subrange_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, std::ranges::range_difference_t<_R> __shift) const
+    {
+        using __dispatch_tag_t = decltype(oneapi::dpl::__ranges::__select_backend(__exec));
+        if constexpr (std::is_same_v<__dispatch_tag_t, oneapi::dpl::__internal::__serial_tag<std::false_type>>)
+            return std::ranges::shift_left(std::forward<_R>(__r), __shift);
+        else 
+        {
+            auto __first = std::ranges::begin(__r);
+#if _ONEDPL_HETERO_BACKEND
+            if constexpr (oneapi::dpl::__internal::__is_hetero_backend_tag_v<__dispatch_tag_t>)
+            {
+                std::ranges::range_difference_t<_R> __res = oneapi::dpl::__internal::__pattern_shift_left(
+                    __dispatch_tag_t{}, std::forward<_ExecutionPolicy>(__exec),
+                    oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r)), __shift);
+                return {__first, __first + __res};
+            }
+#endif
+            auto __res = oneapi::dpl::__internal::__pattern_shift_left(__dispatch_tag_t{},
+                std::forward<_ExecutionPolicy>(__exec), __first, __first + std::ranges::size(__r), __shift);
+            return {__first, __res};
+        }
+    }
+}; //__shift_left_fn
+inline constexpr __internal::__shift_left_fn __shift_left;
+
 // [alg.mismatch]
 
 struct __internal::__mismatch_fn
