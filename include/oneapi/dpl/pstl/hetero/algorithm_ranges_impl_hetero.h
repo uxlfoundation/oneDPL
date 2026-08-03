@@ -745,10 +745,10 @@ std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
 __pattern_partition_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
                                 _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
 {
-    auto [__in_first, __in_size] =  oneapi::dpl::__ranges::__begin_and_size(__in_r);
-    auto [__out1_first, __out1_size] =  oneapi::dpl::__ranges::__begin_and_size(__out_true_r);
-    auto [__out2_first, __out2_size] =  oneapi::dpl::__ranges::__begin_and_size(__out_false_r);
-    if (__in_size == 0 || ( __out1_size == 0 && __out2_size == 0))
+    auto [__in_first, __in_size] = oneapi::dpl::__ranges::__begin_and_size(__in_r);
+    auto [__out1_first, __out1_size] = oneapi::dpl::__ranges::__begin_and_size(__out_true_r);
+    auto [__out2_first, __out2_size] = oneapi::dpl::__ranges::__begin_and_size(__out_false_r);
+    if (__in_size == 0 || (__out1_size == 0 && __out2_size == 0))
         return {__in_first, __out1_first, __out2_first};
 
     oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};

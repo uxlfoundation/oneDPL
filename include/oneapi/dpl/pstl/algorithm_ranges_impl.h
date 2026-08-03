@@ -1878,8 +1878,8 @@ __pattern_partition_copy_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolic
                 else
                 {
                     auto [__next_in, __next_out1, __next_out2] = __brick_bounded_partition_copy(
-                        __begin + __i, __begin + (__i + __len), __out1_begin + __initial.first,
-                        __out1_begin + __n_out1, __out2_begin + __initial.second, __out2_begin + __n_out2,
+                        __begin + __i, __begin + (__i + __len), __out1_begin + __initial.first, __out1_begin + __n_out1,
+                        __out2_begin + __initial.second, __out2_begin + __n_out2,
                         [=](auto /*__it*/, std::intptr_t __j) { return __mask[__i + __j]; }, _IsVector{});
                     // If the end of the chunk is not reached, then the stop positions are found.
                     if (__next_in - __begin < __i + __len)
