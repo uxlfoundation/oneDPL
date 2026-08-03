@@ -18,7 +18,11 @@ main()
 
     auto is_partitioned_checker = TEST_PREPARE_CALLABLE(std::ranges::is_partitioned);
 
-    test_range_algo<0>{big_sz}(dpl_ranges::is_partitioned, is_partitioned_checker, pred1);
+    // Partitioned (true): positive values first, then non-positive.
+    auto partitioned_true_gen = [](auto i) { return i < 17 ? static_cast<int>(i) + 1 : 0; };
+    test_range_algo<0, int, data_in, decltype(partitioned_true_gen)>{big_sz}(dpl_ranges::is_partitioned, is_partitioned_checker, pred1);
+
+    // Partitioned (false): default ascending data [0,1,2,...] violates pred1 (>0).
     test_range_algo<1>{}(dpl_ranges::is_partitioned, is_partitioned_checker, pred1, proj);
     test_range_algo<2, P2>{}(dpl_ranges::is_partitioned, is_partitioned_checker, pred1, &P2::x);
     test_range_algo<3, P2>{}(dpl_ranges::is_partitioned, is_partitioned_checker, pred1, &P2::proj);
