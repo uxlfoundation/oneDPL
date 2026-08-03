@@ -1200,6 +1200,30 @@ inline constexpr __internal::__reverse_copy_fn reverse_copy;
 
 // [alg.rotate]
 
+struct __internal::__rotate_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
+
+    std::ranges::borrowed_subrange_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, std::ranges::iterator_t<_R> __middle) const
+    {
+        using __dispatch_tag_t = decltype(oneapi::dpl::__ranges::__select_backend(__exec));
+        if constexpr (std::is_same_v<__dispatch_tag_t, oneapi::dpl::__internal::__serial_tag<std::false_type>>)
+            return std::ranges::rotate(std::forward<_R>(__r), __middle);
+        else
+        {
+            auto __first = std::ranges::begin(__r);
+            auto __last = __first + std::ranges::size(__r);
+            auto __res = oneapi::dpl::__internal::__pattern_rotate(
+                __dispatch_tag_t{}, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last);
+            return {__res, __last};
+        }
+    }
+}; //__rotate_fn
+inline constexpr __internal::__rotate_fn rotate;
+
 struct __internal::__rotate_copy_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
