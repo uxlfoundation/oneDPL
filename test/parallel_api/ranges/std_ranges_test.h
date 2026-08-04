@@ -1146,6 +1146,7 @@ struct test_range_algo
     void
     test_range_algo_impl_host(auto algo, auto& checker, auto... args)
     {
+        std::cout << "Test ID " << call_id << ", host policies" << std::endl;
         auto subrange_view = subrange_view_fo{};
 #    if TEST_CPP20_SPAN_PRESENT && ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
         auto span_view = span_view_fo{};
@@ -1167,6 +1168,7 @@ struct test_range_algo
     template <typename Policy>
     void test_range_algo_impl_hetero(Policy&& exec, auto algo, auto& checker, auto... args)
     {
+        std::cout << "Test ID " << call_id << ", hetero policies" << std::endl;
         auto subrange_view = subrange_view_fo{};
 #        if TEST_CPP20_SPAN_PRESENT && ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
         auto span_view = span_view_fo{};

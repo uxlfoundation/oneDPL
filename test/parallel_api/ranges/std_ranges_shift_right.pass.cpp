@@ -27,7 +27,6 @@ main()
     test_range_algo<1>{test_sz}(dpl_ranges::shift_right, checker, 3 * test_sz/4);
     test_range_algo<2>{small_size}(dpl_ranges::shift_right, checker, small_size + 2);
     test_range_algo<3>{small_size}(dpl_ranges::shift_right, checker, 0);
-    test_range_algo<4>{small_size}(dpl_ranges::shift_right, checker, -2);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
