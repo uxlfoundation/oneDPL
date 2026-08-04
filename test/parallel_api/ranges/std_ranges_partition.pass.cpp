@@ -22,16 +22,16 @@ namespace dpl_ranges = oneapi::dpl::ranges;
 // predicate precede those that do not, without preserving relative order. The parallel and device
 // specializations rearrange elements differently from std::ranges::partition, so we verify the
 // algorithm post-conditions instead of comparing the whole range element-wise against a reference.
-template <typename Range, typename Pred, typename Proj>
+template <typename Original, typename Range, typename Pred, typename Proj>
 void
-check_partition_effect(const std::vector<int>& original_keys, Range&& r, int n, Pred pred, Proj proj,
+check_partition_effect(const Original& original, Range&& r, int n, Pred pred, Proj proj,
                        decltype(std::ranges::begin(std::declval<Range&>())) res_begin, const char* msg)
 {
     auto holds = [&](auto&& v) { return bool(std::invoke(pred, std::invoke(proj, v))); };
 
-    // The partition point: number of elements satisfying the predicate.
-    const int k = static_cast<int>(std::count_if(original_keys.begin(), original_keys.end(),
-                                                  [&](int key) { return bool(std::invoke(pred, key)); }));
+    // The partition point: number of elements satisfying the predicate (after projection).
+    const int k = static_cast<int>(std::count_if(original.begin(), original.end(),
+                                                  [&](auto&& v) { return holds(v); }));
 
     // Returned subrange must start exactly at the partition point and end at the range end.
     EXPECT_TRUE(res_begin == std::ranges::begin(r) + k, (std::string("wrong partition point: ") + msg).c_str());
@@ -42,11 +42,16 @@ check_partition_effect(const std::vector<int>& original_keys, Range&& r, int n, 
     for (int i = k; i < n; ++i)
         EXPECT_TRUE(!holds(r[i]), (std::string("wrong right partition: ") + msg).c_str());
 
-    // The result must be a permutation of the input: compare the multiset of projected keys.
-    std::vector<int> result_keys(n);
+    // The result must be a permutation of the input: compare the multiset of projected keys,
+    // applying the same projection to both the original data and the result.
+    using key_t = std::decay_t<decltype(std::invoke(proj, *original.begin()))>;
+    std::vector<key_t> expected_keys(n);
+    std::vector<key_t> result_keys(n);
     for (int i = 0; i < n; ++i)
+    {
+        expected_keys[i] = std::invoke(proj, original[i]);
         result_keys[i] = std::invoke(proj, r[i]);
-    std::vector<int> expected_keys = original_keys;
+    }
     std::sort(expected_keys.begin(), expected_keys.end());
     std::sort(result_keys.begin(), result_keys.end());
     EXPECT_TRUE(expected_keys == result_keys, (std::string("result is not a permutation: ") + msg).c_str());
@@ -116,10 +121,10 @@ struct test_partition
         const std::string msg = "host, partition<" + std::to_string(CallId) + ">";
         auto run = [&](auto&& policy)
         {
-            std::vector<int> keys = make_keys(n);
-            std::vector<T> data = make_data(keys);
+            std::vector<T> data = make_data(make_keys(n));
+            std::vector<T> original = data;
             auto res = algo(policy, data, pred, proj);
-            check_partition_effect(keys, data, n, pred, proj, res.begin(), msg.c_str());
+            check_partition_effect(original, data, n, pred, proj, res.begin(), msg.c_str());
             EXPECT_TRUE(res.end() == data.end(), (std::string("wrong subrange end: ") + msg).c_str());
         };
         run(oneapi::dpl::execution::seq);
@@ -135,11 +140,11 @@ struct test_partition
         const std::string msg = "host view, partition<" + std::to_string(CallId) + ">";
         auto run_subrange = [&](auto&& policy)
         {
-            std::vector<int> keys = make_keys(n);
-            std::vector<T> data = make_data(keys);
+            std::vector<T> data = make_data(make_keys(n));
+            std::vector<T> original = data;
             auto view = std::ranges::subrange(data.begin(), data.end());
             auto res = algo(policy, view, pred, proj);
-            check_partition_effect(keys, view, n, pred, proj, res.begin(), msg.c_str());
+            check_partition_effect(original, view, n, pred, proj, res.begin(), msg.c_str());
             EXPECT_TRUE(res.end() == view.end(), (std::string("wrong subrange end (subrange): ") + msg).c_str());
         };
         run_subrange(oneapi::dpl::execution::seq);
@@ -148,11 +153,11 @@ struct test_partition
 #if TEST_CPP20_SPAN_PRESENT
         auto run_span = [&](auto&& policy)
         {
-            std::vector<int> keys = make_keys(n);
-            std::vector<T> data = make_data(keys);
+            std::vector<T> data = make_data(make_keys(n));
+            std::vector<T> original = data;
             std::span<T> view(data.data(), data.size());
             auto res = algo(policy, view, pred, proj);
-            check_partition_effect(keys, view, n, pred, proj, res.begin(), msg.c_str());
+            check_partition_effect(original, view, n, pred, proj, res.begin(), msg.c_str());
             EXPECT_TRUE(res.end() == view.end(), (std::string("wrong subrange end (span): ") + msg).c_str());
         };
         run_span(oneapi::dpl::execution::seq);
@@ -166,12 +171,11 @@ struct test_partition
     device_case(ExecutionPolicy&& policy, Algo algo, int n, Pred pred, Proj proj) const
     {
         const std::string msg = "device, partition<" + std::to_string(CallId) + ">";
-        std::vector<int> keys = make_keys(n);
-        std::vector<T> host = make_data(keys);
+        std::vector<T> host = make_data(make_keys(n));
         usm_vector<T> usm(policy, host.data(), n);
         auto& vec = usm();
         auto res = algo(CLONE_TEST_POLICY_IDX(policy, CallId), vec, pred, proj);
-        check_partition_effect(keys, vec, n, pred, proj, res.begin(), msg.c_str());
+        check_partition_effect(host, vec, n, pred, proj, res.begin(), msg.c_str());
         EXPECT_TRUE(res.end() == vec.end(), (std::string("wrong subrange end: ") + msg).c_str());
     }
 #endif // TEST_DPCPP_BACKEND_PRESENT
