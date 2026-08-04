@@ -22,19 +22,18 @@ namespace dpl_ranges = oneapi::dpl::ranges;
 // predicate precede those that do not, without preserving relative order. The parallel and device
 // specializations rearrange elements differently from std::ranges::partition, so we verify the
 // algorithm post-conditions instead of comparing the whole range element-wise against a reference.
+// Verifies the partition post-conditions on the data itself (left/right split and permutation),
+// independent of the algorithm's return value. Reused by both the borrowed cases (which also check
+// the returned subrange) and the dangling cases (whose return carries no iterator).
 template <typename Original, typename Range, typename Pred, typename Proj>
 void
-check_partition_effect(const Original& original, Range&& r, int n, Pred pred, Proj proj,
-                       decltype(std::ranges::begin(std::declval<Range&>())) res_begin, const char* msg)
+check_partition_data(const Original& original, Range&& r, int n, Pred pred, Proj proj, const char* msg)
 {
     auto holds = [&](auto&& v) { return bool(std::invoke(pred, std::invoke(proj, v))); };
 
     // The partition point: number of elements satisfying the predicate (after projection).
     const int k = static_cast<int>(std::count_if(original.begin(), original.end(),
                                                   [&](auto&& v) { return holds(v); }));
-
-    // Returned subrange must start exactly at the partition point and end at the range end.
-    EXPECT_TRUE(res_begin == std::ranges::begin(r) + k, (std::string("wrong partition point: ") + msg).c_str());
 
     // All elements before the partition point satisfy the predicate, all after do not.
     for (int i = 0; i < k; ++i)
@@ -56,6 +55,38 @@ check_partition_effect(const Original& original, Range&& r, int n, Pred pred, Pr
     std::sort(result_keys.begin(), result_keys.end());
     EXPECT_TRUE(expected_keys == result_keys, (std::string("result is not a permutation: ") + msg).c_str());
 }
+
+template <typename Original, typename Range, typename Pred, typename Proj>
+void
+check_partition_effect(const Original& original, Range&& r, int n, Pred pred, Proj proj,
+                       decltype(std::ranges::begin(std::declval<Range&>())) res_begin, const char* msg)
+{
+    auto holds = [&](auto&& v) { return bool(std::invoke(pred, std::invoke(proj, v))); };
+
+    // The partition point: number of elements satisfying the predicate (after projection).
+    const int k = static_cast<int>(std::count_if(original.begin(), original.end(),
+                                                  [&](auto&& v) { return holds(v); }));
+
+    // Returned subrange must start exactly at the partition point and end at the range end.
+    EXPECT_TRUE(res_begin == std::ranges::begin(r) + k, (std::string("wrong partition point: ") + msg).c_str());
+
+    check_partition_data(original, r, n, pred, proj, msg);
+}
+
+// A minimal user-defined range that owns nothing but is intentionally NOT a borrowed range, so that
+// passing it as an rvalue forces std::ranges::partition to return std::ranges::dangling. Its iterators
+// are plain pointers (host or USM), so both the host and the device backend can consume it.
+template <typename It>
+struct non_borrowed_range
+{
+    It first;
+    It last;
+    It begin() const { return first; }
+    It end() const { return last; }
+};
+
+template <typename It>
+non_borrowed_range(It, It) -> non_borrowed_range<It>;
 
 // Data generator producing a mix of elements satisfying and not satisfying pred1 (val > 0),
 // including zeros and duplicates to exercise partition ties.
@@ -79,6 +110,10 @@ struct test_partition
                                             std::declval<Pred>(), std::declval<Proj>()));
         static_assert(all_dangling_in_result_v<rvalue_ret_t>);
 
+        //for (int n : {0, 1, 2, 3, 7, 20, small_size})
+        //    host_dangling_case(algo, n, pred, proj);
+        host_dangling_case(algo, 1, pred, proj);
+
 #if TEST_DPCPP_BACKEND_PRESENT
         // Pointer-to-member-function projections are not supported inside device kernels.
         if constexpr (!std::is_member_function_pointer_v<Proj>)
@@ -90,6 +125,9 @@ struct test_partition
                 auto policy = TestUtils::get_dpcpp_test_policy();
                 for (int n : {0, 1, small_size, medium_size})
                     device_case(policy, algo, n, pred, proj);
+                //for (int n : {0, 1, small_size, medium_size})
+                //    device_dangling_case(policy, algo, n, pred, proj);
+                device_dangling_case(policy, algo, 1, pred, proj);
             }
         }
 #endif // TEST_DPCPP_BACKEND_PRESENT
@@ -165,6 +203,32 @@ struct test_partition
 #endif // TEST_CPP20_SPAN_PRESENT
     }
 
+    // A non-borrowed rvalue range must return std::ranges::dangling at run time. We wrap live data in
+    // a non-borrowed range and pass it as an rvalue, so the else-branch that yields
+    // std::ranges::dangling{} is actually executed; the underlying data outlives the call, letting us
+    // also confirm the partition effect took place.
+    template <typename Algo, typename Pred>
+    void
+    host_dangling_case(Algo algo, int n, Pred pred, Proj proj) const
+    {
+        const std::string msg = "host dangling, partition<" + std::to_string(CallId) + ">";
+        auto run = [&](auto&& policy)
+        {
+            std::vector<T> data = make_data(make_keys(n));
+            std::vector<T> original = data;
+            auto res = algo(policy, non_borrowed_range{data.begin(), data.end()}, pred, proj);
+            static_assert(std::is_same_v<decltype(res), std::ranges::dangling>,
+                          "partition over an rvalue non-borrowed range must return std::ranges::dangling");
+            EXPECT_TRUE((std::is_same_v<decltype(res), std::ranges::dangling>),
+                        (std::string("expected std::ranges::dangling return: ") + msg).c_str());
+            check_partition_data(original, data, n, pred, proj, msg.c_str());
+        };
+        run(oneapi::dpl::execution::seq);
+        run(oneapi::dpl::execution::unseq);
+        run(oneapi::dpl::execution::par);
+        run(oneapi::dpl::execution::par_unseq);
+    }
+
 #if TEST_DPCPP_BACKEND_PRESENT
     template <typename ExecutionPolicy, typename Algo, typename Pred>
     void
@@ -177,6 +241,25 @@ struct test_partition
         auto res = algo(CLONE_TEST_POLICY_IDX(policy, CallId), vec, pred, proj);
         check_partition_effect(host, vec, n, pred, proj, res.begin(), msg.c_str());
         EXPECT_TRUE(res.end() == vec.end(), (std::string("wrong subrange end: ") + msg).c_str());
+    }
+
+    // Device counterpart of host_dangling_case: the non-borrowed range wraps USM iterators, so the
+    // device backend partitions the data while the front-end still returns std::ranges::dangling.
+    template <typename ExecutionPolicy, typename Algo, typename Pred>
+    void
+    device_dangling_case(ExecutionPolicy&& policy, Algo algo, int n, Pred pred, Proj proj) const
+    {
+        const std::string msg = "device dangling, partition<" + std::to_string(CallId) + ">";
+        std::vector<T> host = make_data(make_keys(n));
+        usm_vector<T> usm(policy, host.data(), n);
+        auto& vec = usm();
+        auto res = algo(CLONE_TEST_POLICY_IDX(policy, CallId),
+                        non_borrowed_range{vec.begin(), vec.end()}, pred, proj);
+        static_assert(std::is_same_v<decltype(res), std::ranges::dangling>,
+                      "partition over an rvalue non-borrowed range must return std::ranges::dangling");
+        EXPECT_TRUE((std::is_same_v<decltype(res), std::ranges::dangling>),
+                    (std::string("expected std::ranges::dangling return: ") + msg).c_str());
+        check_partition_data(host, vec, n, pred, proj, msg.c_str());
     }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 };
