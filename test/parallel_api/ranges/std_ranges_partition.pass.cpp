@@ -110,8 +110,6 @@ struct test_partition
                                             std::declval<Pred>(), std::declval<Proj>()));
         static_assert(all_dangling_in_result_v<rvalue_ret_t>);
 
-        //for (int n : {0, 1, 2, 3, 7, 20, small_size})
-        //    host_dangling_case(algo, n, pred, proj);
         host_dangling_case(algo, 1, pred, proj);
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -125,8 +123,7 @@ struct test_partition
                 auto policy = TestUtils::get_dpcpp_test_policy();
                 for (int n : {0, 1, small_size, medium_size})
                     device_case(policy, algo, n, pred, proj);
-                //for (int n : {0, 1, small_size, medium_size})
-                //    device_dangling_case(policy, algo, n, pred, proj);
+
                 device_dangling_case(policy, algo, 1, pred, proj);
             }
         }
