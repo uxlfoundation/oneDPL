@@ -366,14 +366,10 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
             _Index __p = tbb::this_task_arena::max_concurrency();
             // 4 tasks/thread for large N - to aid load balancing.
             // <1 task/thread for small N - to avoid excessive synchronization overhead.
-            // 2 tasks/thread once half the threads would clear the cutoff - middle ground.
-            _Index __tilesize;
+            _Index __tilesize = __cutoff;
             if (__n >= 4 * __p * __cutoff)
                 __tilesize = (__n - 1) / (4 * __p) + 1;
-            else if (__n >= __p * __cutoff / 2)
-                __tilesize = (__n - 1) / (2 * __p) + 1;
-            else
-                __tilesize = __cutoff;
+
             _Index __m = (__n - 1) / __tilesize;
             __tbb_backend::__buffer<_Tp> __buf(__m + 1);
             _Tp* __r = __buf.get();
