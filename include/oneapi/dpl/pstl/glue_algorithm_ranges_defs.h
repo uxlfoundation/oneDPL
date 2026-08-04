@@ -93,6 +93,7 @@ struct __remove_copy_fn;
 struct __unique_fn;
 struct __unique_copy_fn;
 struct __partition_copy_fn;
+struct __is_partitioned_fn;
 } // namespace ranges::__internal
 #endif
 

@@ -1549,6 +1549,31 @@ __pattern_nth_element(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPoli
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// __pattern_is_partitioned
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
+bool
+__pattern_is_partitioned(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    return oneapi::dpl::__internal::__pattern_is_partitioned(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
+bool
+__pattern_is_partitioned(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
+                         _Proj __proj)
+{
+    return std::ranges::is_partitioned(std::forward<_R>(__r), __pred, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // __pattern_remove_if
 //---------------------------------------------------------------------------------------------------------------------
 
