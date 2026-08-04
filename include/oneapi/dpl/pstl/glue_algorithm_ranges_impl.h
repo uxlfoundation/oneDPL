@@ -1212,7 +1212,7 @@ struct __internal::__rotate_fn
         using __dispatch_tag_t = decltype(oneapi::dpl::__ranges::__select_backend(__exec));
         if constexpr (std::is_same_v<__dispatch_tag_t, oneapi::dpl::__internal::__serial_tag<std::false_type>>)
             return std::ranges::rotate(std::forward<_R>(__r), __middle);
-        else 
+        else
         {
             auto __first = std::ranges::begin(__r);
             auto __last = __first + std::ranges::size(__r);
@@ -1286,7 +1286,7 @@ struct __internal::__shift_left_fn
             // std::ranges::shift_left is only available since C++23
             return {__first, std::shift_left(__first, __first + __sz, __shift)};
         }
-        else 
+        else
         {
 #if _ONEDPL_HETERO_BACKEND
             if constexpr (oneapi::dpl::__internal::__is_hetero_backend_tag_v<__dispatch_tag_t>)
