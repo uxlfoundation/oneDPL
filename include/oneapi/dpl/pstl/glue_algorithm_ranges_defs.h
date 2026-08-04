@@ -68,6 +68,7 @@ struct __minmax_fn;
 struct __copy_fn;
 struct __copy_if_fn;
 struct __merge_fn;
+struct __inplace_merge_fn;
 struct __includes_fn;
 struct __set_union_fn;
 struct __set_intersection_fn;
