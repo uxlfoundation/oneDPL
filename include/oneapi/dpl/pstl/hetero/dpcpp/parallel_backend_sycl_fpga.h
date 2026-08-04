@@ -110,6 +110,15 @@ __parallel_for_occupancy_width(oneapi::dpl::__internal::__fpga_backend_tag, _Exe
     return 0;
 }
 
+// Reachable only if a caller tests this before the occupancy width above, which already keeps every
+// widening strategy off this backend. Defined so such a caller still compiles for the FPGA tag.
+template <typename _Tp, typename _ExecutionPolicy>
+std::size_t
+__max_temporary_elements(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&&)
+{
+    return 0;
+}
+
 //------------------------------------------------------------------------
 // parallel_histogram
 //-----------------------------------------------------------------------

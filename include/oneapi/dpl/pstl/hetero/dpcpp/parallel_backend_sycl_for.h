@@ -345,18 +345,40 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
 // is fixed by the problem and a costlier one that can fill the machine: a launch much narrower than
 // this figure leaves the device idle. Returns 0 when widening the launch cannot pay off at all, so
 // that the usual "is my launch narrow compared to the machine" test keeps the cheaper strategy.
-// CPU devices report 0: a work-item there is a slice of a hardware thread rather than a lane, so
-// even a narrow launch already occupies a useful share of the device and paying extra memory traffic
-// to widen it is a loss.
+// Only GPUs report a nonzero width. On a CPU a work-item is a slice of a hardware thread rather than
+// a lane, so even a narrow launch already occupies a useful share of the device and paying extra
+// memory traffic to widen it is a loss; any other device class is left on the cheaper strategy
+// because this figure has not been calibrated against one.
+// Note the unit: max_compute_units reports EUs on Intel GPUs, not Xe cores. The callers' thresholds
+// were fitted against this same quantity, so the choice of unit is absorbed into their constants -
+// it affects calibration, not correctness. A caller comparing this against a figure derived some
+// other way has to convert.
 template <typename _ExecutionPolicy>
 std::size_t
 __parallel_for_occupancy_width(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec)
 {
     sycl::queue __q_local = __exec.queue();
-    if (__q_local.get_device().is_cpu())
+    if (!__q_local.get_device().is_gpu())
         return 0;
     return oneapi::dpl::__internal::__max_work_group_size(__q_local, __parallel_for_work_group_size_limit) *
            oneapi::dpl::__internal::__max_compute_units(__q_local);
+}
+
+// How many elements of type _Tp a pattern may put in a temporary on the device. A strategy that
+// stages through a temporary has to stay within what the device can allocate, and a bound in
+// elements alone does not: the same element count is a modest buffer for a char and an impossible
+// one for a large struct. Kept to a fraction of device memory rather than all of it, since the
+// input the pattern was called on already occupies some of that memory.
+template <typename _Tp, typename _ExecutionPolicy>
+std::size_t
+__max_temporary_elements(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec)
+{
+    sycl::queue __q_local = __exec.queue();
+    const sycl::device __device = __q_local.get_device();
+    const std::size_t __global_mem_size = __device.get_info<sycl::info::device::global_mem_size>();
+    const std::size_t __max_alloc = __device.get_info<sycl::info::device::max_mem_alloc_size>();
+    //A quarter of device memory, and no more than the largest single allocation the device admits.
+    return std::min(__global_mem_size / 4, __max_alloc) / sizeof(_Tp);
 }
 
 } // namespace __par_backend_hetero
