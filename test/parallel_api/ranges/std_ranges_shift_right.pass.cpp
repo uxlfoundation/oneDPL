@@ -19,7 +19,7 @@ main()
     auto checker = [](std::ranges::random_access_range auto&& r, int shift)
     {
         auto new_first = std::shift_right(std::ranges::begin(r), std::ranges::end(r), shift);
-        return std::borrowed_subrange_t<decltype(r)>{new_first, std::ranges::end(r)};
+        return std::ranges::borrowed_subrange_t<decltype(r)>{new_first, std::ranges::end(r)};
     };
 
     const int test_sz = (1<<18) + 739; // 256K+
