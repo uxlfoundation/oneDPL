@@ -40,11 +40,6 @@ struct inplace_merge_checker_fn
     }
 } inplace_merge_checker;
 
-// Data generator producing equal projected keys (P2::x) with distinct payloads (P2::y).
-// With all keys equal, both halves [begin, middle) and [middle, end) are trivially sorted and the
-// duplicates span the boundary, so the element-wise comparison against std::ranges::inplace_merge
-// validates the stable ordering guarantee (elements of the first half must precede equal elements
-// of the second half).
 struct stable_data_gen_fn
 {
     test_std_ranges::P2
