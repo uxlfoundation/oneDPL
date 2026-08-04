@@ -351,9 +351,7 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
 // apex is called exactly once, after all calls to reduce and before all calls to scan.
 // For example, it's useful for allocating a __buffer used by scan but whose size is the sum of all reduction values.
 // T must have a trivial constructor and destructor.
-#if !defined(_ONEDPL_STRICT_SCAN_SERIAL_CUTOFF) // handle for benchmarking and tuning
-#    define _ONEDPL_STRICT_SCAN_SERIAL_CUTOFF 2000
-#endif
+#define _ONEDPL_STRICT_SCAN_SERIAL_CUTOFF 2000
 template <class _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
 __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
