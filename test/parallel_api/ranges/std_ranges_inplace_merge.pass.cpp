@@ -43,6 +43,20 @@ struct inplace_merge_checker_fn
         return std::ranges::inplace_merge(std::forward<_R>(r), middle, comp, proj);
     }
 } inplace_merge_checker;
+
+// Data generator producing equal projected keys (P2::x) with distinct payloads (P2::y).
+// With all keys equal, both halves [begin, middle) and [middle, end) are trivially sorted and the
+// duplicates span the boundary, so the element-wise comparison against std::ranges::inplace_merge
+// validates the stable ordering guarantee (elements of the first half must precede equal elements
+// of the second half).
+struct stable_data_gen_fn
+{
+    test_std_ranges::P2
+    operator()(int i) const
+    {
+        return test_std_ranges::P2(/*x = key*/ 0, /*y = payload*/ i);
+    }
+};
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int
@@ -62,6 +76,10 @@ main()
 
     test_range_algo<3, P2>{}(inplace_merge_dpl, inplace_merge_checker, std::ranges::less{}, &P2::x);
     test_range_algo<4, P2>{}(inplace_merge_dpl, inplace_merge_checker, std::ranges::less{}, &P2::proj);
+
+    // Stability check: equal projected keys with distinct payloads must preserve relative order.
+    test_range_algo<5, P2, data_in, stable_data_gen_fn>{}(inplace_merge_dpl, inplace_merge_checker,
+                                                          std::ranges::less{}, &P2::x);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
