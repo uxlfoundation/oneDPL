@@ -9,7 +9,7 @@
 
 #include "std_ranges_test.h"
 
-#if _ENABLE_STD_RANGES_TESTING && !TEST_DPCPP_BACKEND_PRESENT
+#if _ENABLE_STD_RANGES_TESTING
 struct
 {
     template <std::ranges::random_access_range InRange, std::ranges::random_access_range OutRange1,
@@ -48,7 +48,7 @@ struct
 std::int32_t
 main()
 {
-#if _ENABLE_STD_RANGES_TESTING && !TEST_DPCPP_BACKEND_PRESENT
+#if _ENABLE_STD_RANGES_TESTING
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
