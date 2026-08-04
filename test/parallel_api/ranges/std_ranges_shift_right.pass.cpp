@@ -9,12 +9,22 @@
 
 #include "std_ranges_test.h"
 
+#if _ENABLE_STD_RANGES_TESTING
+namespace dpl_ranges = oneapi::dpl::ranges;
+
+template<>
+constexpr std::pair<int, int>
+test_std_ranges::range_to_verify<std::remove_cvref_t<decltype(dpl_ranges::shift_right)>>(int total_size, int result_size)
+{ 
+    return {total_size - result_size, result_size}; // in the result are the shifted elements
+}
+#endif
+
 int
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
     using namespace test_std_ranges;
-    namespace dpl_ranges = oneapi::dpl::ranges;
 
     auto checker = [](std::ranges::random_access_range auto&& r, int shift)
     {

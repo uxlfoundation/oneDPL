@@ -16,14 +16,14 @@
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
-namespace test_std_ranges
-{
+namespace dpl_ranges = oneapi::dpl::ranges;
+
 template<>
-constexpr int calc_res_size<std::remove_cvref_t<decltype(oneapi::dpl::ranges::remove)>>(int n, int res_n)
+constexpr std::pair<int, int>
+test_std_ranges::range_to_verify<std::remove_cvref_t<decltype(dpl_ranges::remove_if)>>(int total_size, int result_size)
 { 
-    return n - res_n; //res_n - number of elements to be removed
+    return {0, total_size - result_size}; // in the result are the elements to remove
 }
-} //test_std_ranges
 #endif
 
 std::int32_t
@@ -31,7 +31,6 @@ main()
 {
 #if _ENABLE_STD_RANGES_TESTING
     using namespace test_std_ranges;
-    namespace dpl_ranges = oneapi::dpl::ranges;
 
     auto remove_if_checker = TEST_PREPARE_CALLABLE(std::ranges::remove_if);
 
