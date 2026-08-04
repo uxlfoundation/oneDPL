@@ -733,7 +733,38 @@ __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
-// __pattern_nth_element
+// partition_copy
+//------------------------------------------------------------------------
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange1, typename _OutRange2,
+          typename _Pred, typename _Proj>
+std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                   std::ranges::borrowed_iterator_t<_OutRange1>,
+                                   std::ranges::borrowed_iterator_t<_OutRange2>>
+__pattern_partition_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
+                                _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
+{
+    auto [__in_first, __in_size] = oneapi::dpl::__ranges::__begin_and_size(__in_r);
+    auto [__out1_first, __out1_size] = oneapi::dpl::__ranges::__begin_and_size(__out_true_r);
+    auto [__out2_first, __out2_size] = oneapi::dpl::__ranges::__begin_and_size(__out_false_r);
+    if (__in_size == 0 || (__out1_size == 0 && __out2_size == 0))
+        return {__in_first, __out1_first, __out2_first};
+
+    oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
+    std::array<std::ptrdiff_t, 2> __stops =
+        oneapi::dpl::__par_backend_hetero::__parallel_partition_copy</*_Bounded*/ true>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+            oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange1>(__out_true_r)),
+            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange2>(__out_false_r)), __pred_1);
+
+    return {__in_first + __stops[1], __out1_first + __stops[0], __out2_first + (__stops[1] - __stops[0])};
+}
+#endif
+
+//------------------------------------------------------------------------
+// nth_element
 //------------------------------------------------------------------------
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
