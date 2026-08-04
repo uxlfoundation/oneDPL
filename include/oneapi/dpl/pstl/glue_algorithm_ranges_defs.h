@@ -82,6 +82,7 @@ struct __replace_copy_if_fn;
 struct __replace_copy_fn;
 struct __reverse_fn;
 struct __reverse_copy_fn;
+struct __rotate_copy_fn;
 struct __mismatch_fn;
 struct __starts_with_fn;
 struct __ends_with_fn;
@@ -91,6 +92,7 @@ struct __remove_copy_if_fn;
 struct __remove_copy_fn;
 struct __unique_fn;
 struct __unique_copy_fn;
+struct __partition_copy_fn;
 struct __is_partitioned_fn;
 } // namespace ranges::__internal
 #endif

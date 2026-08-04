@@ -17,6 +17,7 @@
 #define _ONEDPL_GLUE_ALGORITHM_RANGES_IMPL_H
 
 #include <utility>
+#include <cassert>
 #include "functional_impl.h" // for oneapi::dpl::identity
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #    include <ranges>
@@ -26,7 +27,7 @@
 #    include <concepts>  // for std::copy_constructible, std::indirectly_unary_invocable, std::indirectly_writable
 #endif
 
-#include "utils_ranges.h" // __difference_t
+#include "utils_ranges.h" // __difference_t, __bounds
 
 #include "execution_defs.h"
 #include "oneapi/dpl/pstl/ranges_defs.h"
@@ -1197,6 +1198,40 @@ struct __internal::__reverse_copy_fn
 }; //__reverse_copy_fn
 inline constexpr __internal::__reverse_copy_fn reverse_copy;
 
+// [alg.rotate]
+
+struct __internal::__rotate_copy_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
+              std::ranges::random_access_range _OutRange>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange> &&
+                 std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
+
+    std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                  std::ranges::borrowed_iterator_t<_InRange>,
+                                  std::ranges::borrowed_iterator_t<_OutRange>>
+    operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, std::ranges::iterator_t<_InRange> __middle,
+               _OutRange&& __out_r) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        auto [__first_in, __last_in, __in_size] = oneapi::dpl::__ranges::__bounds_and_size(__in_r);
+        auto __first_out = std::ranges::begin(__out_r);
+        const std::size_t __min_size = std::min<std::size_t>(__in_size, std::ranges::size(__out_r));
+
+        auto __stop_out = oneapi::dpl::__internal::__pattern_rotate_copy(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first_in, __middle, __last_in, __first_out,
+            __min_size);
+        assert(__stop_out == __first_out + __min_size);
+
+        if (__min_size < std::size_t(__last_in - __middle))
+            return {__middle + __min_size, __first_in, __stop_out};
+        else
+            return {__last_in, __middle - (__in_size - __min_size), __stop_out};
+    }
+}; //__rotate_copy_fn
+inline constexpr __internal::__rotate_copy_fn rotate_copy;
+
 // [alg.mismatch]
 
 struct __internal::__mismatch_fn
@@ -1418,6 +1453,34 @@ struct __internal::__unique_copy_fn
     }
 }; //__unique_copy_fn
 inline constexpr __internal::__unique_copy_fn unique_copy;
+
+// [alg.partitions]
+
+struct __internal::__partition_copy_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
+              std::ranges::random_access_range _OutRange1, std::ranges::random_access_range _OutRange2,
+              typename _Proj = std::identity,
+              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_InRange>, _Proj>> _Pred>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange1> &&
+                 std::ranges::sized_range<_OutRange2> &&
+                 std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange1>> &&
+                 std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange2>>
+
+    std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                       std::ranges::borrowed_iterator_t<_OutRange1>,
+                                       std::ranges::borrowed_iterator_t<_OutRange2>>
+    operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange1&& __out_true_r, _OutRange2&& __out_false_r,
+               _Pred __pred, _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_partition_copy_ranges(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r),
+            std::forward<_OutRange1>(__out_true_r), std::forward<_OutRange2>(__out_false_r), __pred, __proj);
+    }
+}; //__partition_copy_fn
+inline constexpr __internal::__partition_copy_fn partition_copy;
 
 // [alg.nth.element]
 
