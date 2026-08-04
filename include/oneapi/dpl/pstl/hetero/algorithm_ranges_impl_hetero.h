@@ -803,6 +803,24 @@ __pattern_nth_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 #endif // #if _ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
+// is_partitioned
+//------------------------------------------------------------------------
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Pred, typename _Proj>
+bool
+__pattern_is_partitioned(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range&& __r, _Pred __pred,
+                         _Proj __proj)
+{
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    return oneapi::dpl::__internal::__pattern_is_partitioned(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+}
+#endif // #if _ONEDPL_CPP20_RANGES_PRESENT
+
+//------------------------------------------------------------------------
 // remove_if
 //------------------------------------------------------------------------
 
