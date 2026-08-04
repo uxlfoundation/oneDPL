@@ -1,0 +1,51 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Copyright (C) Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _ONEDPL_DEVICE_ARRAY
+#define _ONEDPL_DEVICE_ARRAY
+
+#include "../internal/common_config.h"
+#include "../pstl/onedpl_config.h"
+
+// A hard error rather than defining nothing: device_array is inherently a SYCL device-memory
+// container, there is no host fallback, and silently defining nothing would turn a configuration
+// mistake into confusing errors at every use site. This mirrors <oneapi/dpl/async>.
+#if !_ONEDPL_BACKEND_SYCL
+#    error "To use oneapi::dpl::experimental::device_array, a SYCL compiler is required"
+#endif
+
+// device_array's transfer operations and its span() observer are expressed in terms of
+// oneapi::dpl::span, which is an alias rather than a type of its own:
+//
+//   * std::span<_Tp, _Extent>  when the standard library provides it, that is in C++20 and later
+//     (_ONEDPL_CPP20_SPAN_PRESENT). Preferred where available, so that these spans compose with
+//     users' C++20 code and std::ranges without a conversion step.
+//   * sycl::span<_Tp, _Extent> otherwise, that is in C++17. SYCL 2020 requires this type, so it is
+//     always available in the configurations that can use device_array at all.
+//
+// oneapi::dpl::dynamic_extent follows the same choice. Both alternatives are device copyable per
+// SYCL 2020 [3.13.1], support construction from (pointer, count) and from a contiguous container,
+// convert from span<_Tp> to span<const _Tp>, and provide subspan(), which is the whole of what
+// device_array's interface relies on.
+//
+// The two are *not* fully interchangeable. sycl::span<_Tp>::iterator is _Tp*, while
+// std::span<_Tp>::iterator is a wrapper type on every implementation. That is why device_array
+// exposes iterators through oneapi::dpl::begin / oneapi::dpl::end, which return raw pointers, and
+// why span iterators must never be handed to a oneDPL algorithm; see the note at the bottom of
+// internal/device_array_impl.h.
+//
+// The alias itself is defined in internal/span_impl.h, which device_array_impl.h includes for
+// itself. It is named here as well, to keep this configuration choice visible to a reader of the
+// public header.
+#include "../internal/span_impl.h"
+#include "../internal/device_array_impl.h"
+
+namespace dpl = oneapi::dpl;
+
+#endif // _ONEDPL_DEVICE_ARRAY
