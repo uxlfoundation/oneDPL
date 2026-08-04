@@ -1279,11 +1279,15 @@ struct __internal::__shift_left_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, std::ranges::range_difference_t<_R> __shift) const
     {
         using __dispatch_tag_t = decltype(oneapi::dpl::__ranges::__select_backend(__exec));
+        std::ranges::iterator_t<_R> __first = std::ranges::begin(__r);
+        std::ranges::range_difference_t<_R> __sz = std::ranges::size(__r);
         if constexpr (std::is_same_v<__dispatch_tag_t, oneapi::dpl::__internal::__serial_tag<std::false_type>>)
-            return std::ranges::shift_left(std::forward<_R>(__r), __shift);
+        {
+            // std::ranges::shift_left is only available since C++23
+            return {__first, std::shift_left(__first, __first + __sz, __shift)};
+        }
         else 
         {
-            auto __first = std::ranges::begin(__r);
 #if _ONEDPL_HETERO_BACKEND
             if constexpr (oneapi::dpl::__internal::__is_hetero_backend_tag_v<__dispatch_tag_t>)
             {
@@ -1294,7 +1298,7 @@ struct __internal::__shift_left_fn
             }
 #endif
             auto __res = oneapi::dpl::__internal::__pattern_shift_left(__dispatch_tag_t{},
-                std::forward<_ExecutionPolicy>(__exec), __first, __first + std::ranges::size(__r), __shift);
+                std::forward<_ExecutionPolicy>(__exec), __first, __first + __sz, __shift);
             return {__first, __res};
         }
     }
