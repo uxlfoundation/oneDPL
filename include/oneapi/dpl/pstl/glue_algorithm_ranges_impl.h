@@ -1297,8 +1297,8 @@ struct __internal::__shift_left_fn
                 return {__first, __first + __res};
             }
 #endif
-            auto __res = oneapi::dpl::__internal::__pattern_shift_left(__dispatch_tag_t{},
-                std::forward<_ExecutionPolicy>(__exec), __first, __first + __sz, __shift);
+            auto __res = oneapi::dpl::__internal::__pattern_shift_left(
+                __dispatch_tag_t{}, std::forward<_ExecutionPolicy>(__exec), __first, __first + __sz, __shift);
             return {__first, __res};
         }
     }
