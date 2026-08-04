@@ -24,6 +24,7 @@
 #include <chrono>
 #include <algorithm>
 #include <list>
+#include <tuple>
 #include <iomanip>
 
 #if  !defined(_PSTL_TEST_SHIFT_LEFT) && !defined(_PSTL_TEST_SHIFT_RIGHT)
@@ -220,14 +221,34 @@ test_shift_by_type(Size m, Size n)
 }
 
 #if TEST_DPCPP_BACKEND_PRESENT
+template <typename T>
+struct is_std_tuple : std::false_type
+{
+};
+template <typename... T>
+struct is_std_tuple<std::tuple<T...>> : std::true_type
+{
+};
+
+// A distinct value per index, for an arithmetic element type or for a tuple of them.
+template <typename T>
+T
+shift_fill_value(std::size_t v)
+{
+    if constexpr (is_std_tuple<T>::value)
+        return std::apply([v](auto... f) { return T(decltype(f)(v)...); }, T{});
+    else
+        return T(v);
+}
+
 // The paths worth checking at these sizes exist only in the SYCL backend, and the sizes are large
 // enough that running them through every host policy as well would dominate the test's runtime.
 template <typename T, typename Size>
 void
 test_shift_by_type_hetero(Size m, Size n)
 {
-    TestUtils::Sequence<T> orig(m, [](std::size_t v) -> T { return T(v); }); //fill data
-    TestUtils::Sequence<T> in(m, [](std::size_t v) -> T { return T(v); });   //fill data
+    TestUtils::Sequence<T> orig(m, [](std::size_t v) -> T { return shift_fill_value<T>(v); }); //fill data
+    TestUtils::Sequence<T> in(m, [](std::size_t v) -> T { return shift_fill_value<T>(v); });   //fill data
 
 #    ifdef _PSTL_TEST_SHIFT_LEFT
     TestUtils::invoke_on_all_hetero_policies<>()(test_shift(), in.begin(), m, orig.begin(), n, shift_left_algo{});
@@ -274,19 +295,26 @@ main()
     // shift over it takes the in-place chain walk, which is the fallback. Shifts are deliberately
     // not multiples of the vector size, and both a vectorizable and a non-vectorizable type are
     // covered.
+    // Ask the backend for the width rather than recomputing it here: a test that duplicates the
+    // formula keeps passing while silently testing something else once the backend's definition
+    // changes. A device the backend does not stage on reports 0, which also skips this block - so
+    // the coverage is only paid for where the path exists.
     sycl::queue __q = TestUtils::get_test_queue();
-    const std::size_t width =
-        std::min(__q.get_device().get_info<sycl::info::device::max_work_group_size>(), std::size_t{512}) *
-        __q.get_device().get_info<sycl::info::device::max_compute_units>();
-    // A CPU device reports a width of 0 to the backend, so staging is never selected there; keep
-    // this coverage affordable by only paying for it where the path actually exists.
-    if (!__q.get_device().is_cpu() && width > 0)
+    auto __policy = oneapi::dpl::execution::make_device_policy(__q);
+    const std::size_t width = oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(
+        oneapi::dpl::__internal::__device_backend_tag{}, __policy);
+    if (width > 0)
     {
         const std::size_t staged_size = 32 * width + 3;
         test_shift_by_type_hetero<std::uint16_t>(staged_size, std::size_t{7});
         test_shift_by_type_hetero<ValueType>(staged_size, std::size_t{1});
         // Just past the parallelism bound, so this one must take the in-place chain walk.
         test_shift_by_type_hetero<ValueType>(staged_size, width / 128 + 1);
+        // A std::tuple element type: the staged path is the only one that puts the element type in a
+        // temporary buffer, and the backend rebinds std::tuple to its own tuple type there, so this
+        // is the only shape of element that exercises that rebind. Kept small - it only has to
+        // instantiate and run, and the paths themselves are covered by the cases above.
+        test_shift_by_type_hetero<std::tuple<std::int32_t, float>>(staged_size, std::size_t{1});
     }
 #endif
 
