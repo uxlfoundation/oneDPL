@@ -16,11 +16,7 @@
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
-// oneapi::dpl::ranges::inplace_merge and std::ranges::inplace_merge require a "middle" iterator
-// pointing inside the range. The test harness passes the same trailing arguments to both the
-// algorithm under test and the reference checker, so the wrappers below compute "middle" from the
-// range itself (begin + size/2). This keeps the two consecutive sub-ranges [begin, middle) and
-// [middle, end) consistent between the reference and the algorithm under test.
+// Adaptors for the test harness to pass a middle iterator.
 struct inplace_merge_dpl_fn
 {
     template <typename Policy, std::ranges::random_access_range _R, typename _Comp = std::ranges::less,
