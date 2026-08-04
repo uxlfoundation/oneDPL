@@ -1305,6 +1305,25 @@ struct __internal::__shift_left_fn
 }; //__shift_left_fn
 inline constexpr __internal::__shift_left_fn __shift_left;
 
+struct __internal::__shift_right_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
+
+    std::ranges::borrowed_subrange_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, std::ranges::range_difference_t<_R> __shift) const
+    {
+        std::ranges::reverse_view __reverse_r{__r};
+
+        auto __res = oneapi::dpl::ranges::shift_left(std::forward<_ExecutionPolicy>(__exec), __reverse_r, __shift);
+
+        auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
+        return {__res.end().base(), __last};
+    }
+}; //__shift_right_fn
+inline constexpr __internal::__shift_right_fn __shift_right;
+
 // [alg.mismatch]
 
 struct __internal::__mismatch_fn
