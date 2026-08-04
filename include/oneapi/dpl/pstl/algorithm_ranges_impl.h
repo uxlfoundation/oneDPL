@@ -1861,6 +1861,33 @@ __pattern_partition(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// __pattern_stable_partition
+//---------------------------------------------------------------------------------------------------------------------
+
+template <class _Tag, typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_stable_partition(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    auto __res = oneapi::dpl::__internal::__pattern_stable_partition(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+
+    return {__res, oneapi::dpl::__ranges::__end(__r)};
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_stable_partition(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
+    _Proj __proj)
+{
+    return std::ranges::stable_partition(std::forward<_R>(__r), __pred, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // __pattern_partition_copy
 //---------------------------------------------------------------------------------------------------------------------
 
