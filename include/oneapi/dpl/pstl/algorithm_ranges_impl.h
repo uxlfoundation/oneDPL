@@ -764,8 +764,8 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
 std::ranges::borrowed_iterator_t<_R>
-__pattern_inplace_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r,
-                               std::ranges::iterator_t<_R> __middle, _Comp __comp, _Proj __proj)
+__pattern_inplace_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::ranges::iterator_t<_R> __middle,
+                               _Comp __comp, _Proj __proj)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
