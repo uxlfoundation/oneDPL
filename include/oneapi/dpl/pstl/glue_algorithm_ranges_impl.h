@@ -1303,7 +1303,7 @@ struct __internal::__shift_left_fn
         }
     }
 }; //__shift_left_fn
-inline constexpr __internal::__shift_left_fn __shift_left;
+inline constexpr __internal::__shift_left_fn shift_left;
 
 struct __internal::__shift_right_fn
 {
@@ -1322,7 +1322,7 @@ struct __internal::__shift_right_fn
         return {__res.end().base(), __last};
     }
 }; //__shift_right_fn
-inline constexpr __internal::__shift_right_fn __shift_right;
+inline constexpr __internal::__shift_right_fn shift_right;
 
 // [alg.mismatch]
 
