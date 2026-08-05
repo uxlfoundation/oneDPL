@@ -10,7 +10,7 @@ asynchronous access.
 This focus provides support for the main usage pattern for users of `device_vector`,
 and fits nicely within SYCL while avoiding much of the complexity of `device_vector`.
 
-See the [device_vector RFC](../../../rfcs/proposed/device_vector/README.md) for
+See the [device_vector RFC](README.md) for
 full motivation, usage study, and comparison of existing implementations. This
 document only describes `device_array`.
 
@@ -58,17 +58,17 @@ public:
     device_array(oneapi::dpl::span<const T> src, sycl::queue q, sycl::event depends_on = {});
     device_array(oneapi::dpl::span<const T> src, sycl::context ctx, sycl::device dev);
 
-    // No copy — avoids accidental deep copies. A deep copy is can be done 
+    // No copy — avoids accidental deep copies. A deep copy can be done
     // explicitly with the span constructor above: device_array<T> b(a.span(), q);
     device_array(const device_array&) = delete;
     device_array& operator=(const device_array&) = delete;
 
     // Move (shallow move, device memory remains where it is, but changes ownership).
-    // A moved-from device_array  is empty: size() == 0 and empty() is true. It may be
+    // A moved-from device_array is empty: size() == 0 and empty() is true. It may be
     // destroyed or used as the target of a move assignment, but other usage is
     // undefined behavior.
     device_array(device_array&&) noexcept;
-    device_array& operator=(device_array&&)  noexcept;
+    device_array& operator=(device_array&&) noexcept;
 
     // deallocates device memory
     ~device_array();
@@ -140,13 +140,15 @@ template <typename T> const T* end  (const experimental::device_array<T>& d);
 Iterators come from the non-member `oneapi::dpl::begin` / `oneapi::dpl::end` overloads,
 which return raw `T*` (and `const T*` for a const `device_array`).
 
-Span iterators should not be passed to a oneDPL iterator API with a device policy. `std::span<T>::iterator` is an implementation defined iterator, which isn't guaranteed to be
-`oneapi::dpl::is_indirectly_device_accessible`. What we want for iterator APIs with a device policy are pointers to USM memory (use `oneapi::dpl::begin/end`).
+Span iterators should not be passed to a oneDPL iterator API with a device policy.
+`std::span<T>::iterator` is an implementation defined iterator, which isn't guaranteed
+to be `oneapi::dpl::is_indirectly_device_accessible`. What we want for iterator APIs
+with a device policy are pointers to USM memory (use `oneapi::dpl::begin/end`).
 
 ## Allocator
 
-`device_array` fixes its allocator to the default `device_allocator<T>` and does not expose it. Pluggable
-allocation via the `DeviceAllocator` concept is available on
+`device_array` fixes its allocator to the default `device_allocator<T>` and does not
+expose it. Pluggable allocation via the `DeviceAllocator` concept is available on
 [`compat::device_vector`](device_vector_compat.md#allocator). Allocation via
 `sycl::malloc_device` during construction can result in a `sycl::exception`.
 
@@ -304,9 +306,13 @@ d.copy_to(out, q);
 
 ## Resolved Questions
 
-- **Should async overloads be in the initial proposal or deferred?** 
-    No, while this provides more control over synchronization, it complicates the interface too much for the initial API.
+- **Should async overloads be in the initial proposal or deferred?**
+    No, while this provides more control over synchronization, it complicates the
+    interface too much for the initial API.
 
 ## Open Questions
-- Should member functions which include a `sycl::queue` for synchronization also include an optional `sycl::event depends_on` parameter for event based synchronization?
-  - The idea here is for out-of-order queue synchronization with existing workflows, I've added this into the proposal for now.
+- Should member functions which include a `sycl::queue` for synchronization also
+  include an optional `sycl::event depends_on` parameter for event based
+  synchronization?
+  - The idea here is for out-of-order queue synchronization with existing workflows,
+    I've added this into the proposal for now.
