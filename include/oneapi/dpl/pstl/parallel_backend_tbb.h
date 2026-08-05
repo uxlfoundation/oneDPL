@@ -295,7 +295,7 @@ __split(_Index __m)
 // 1. Affinitize leaves of upsweep and leaves of downsweep.  For working sets that
 //    fit in cache, this might reduce memory interconnect load significantly.
 // 2. Add automatic tilesize adjustment.  Initial stealing during upsweep ought to provide a good hint.
-// 3. Use continuation-passing style for the tasks.  For downsweep, a binomial tree pattern is likely optimal.
+// 3. Use continuation-passing style for the tasks. For downsweep, a binomial tree pattern is likely optimal.
 
 template <typename _Index, typename _Tp, typename _Rp, typename _Cp>
 void
@@ -356,12 +356,17 @@ void
 __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
                        _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
 {
-    tbb::this_task_arena::isolate([=, &__combine]() {
-        if (__n > 1)
-        {
+    constexpr _Index __strict_scan_cutoff = 2000;
+    if (__n > __strict_scan_cutoff)
+    {
+        tbb::this_task_arena::isolate([=, &__combine]() {
             _Index __p = tbb::this_task_arena::max_concurrency();
-            const _Index __slack = 4;
-            _Index __tilesize = (__n - 1) / (__slack * __p) + 1;
+            // 4 tasks/thread for large N - to aid load balancing.
+            // <1 task/thread for small N - to avoid excessive synchronization overhead.
+            _Index __tilesize = __strict_scan_cutoff;
+            if (__n >= 4 * __p * __strict_scan_cutoff)
+                __tilesize = (__n - 1) / (4 * __p) + 1;
+
             _Index __m = (__n - 1) / __tilesize;
             __tbb_backend::__buffer<_Tp> __buf(__m + 1);
             _Tp* __r = __buf.get();
@@ -380,15 +385,17 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
             __tbb_backend::__downsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __initial,
                                        __combine, __scan);
             return;
-        }
-        // Fewer than 2 elements in sequence, or out of memory.  Handle has single block.
+        });
+    }
+    else
+    {
         _Tp __sum = __initial;
         if (__n)
             __sum = __combine(__sum, __reduce(_Index(0), __n));
         __apex(__sum);
         if (__n)
             __scan(_Index(0), __n, __initial);
-    });
+    }
 }
 
 template <class _ExecutionPolicy, class _Index, class _Up, class _Tp, class _Cp, class _Rp, class _Sp>
