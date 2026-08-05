@@ -195,14 +195,14 @@ non-owning views, and range composition, use `oneapi::dpl::span<T>` via
 #include <oneapi/dpl/execution>
 #include <sycl/sycl.hpp>
 
-namespace dpl = oneapi::dpl::experimental;
+namespace dpl_exp = oneapi::dpl::experimental;
 
 sycl::queue q{sycl::property::queue::in_order{}};
 
 // --- RAII allocation + upload from host ---
 // host_data converts implicitly to oneapi::dpl::span<const float>; size is taken from it
 std::vector<float> host_data(1024, 3.14f);
-dpl::device_array<float> d(host_data, q);
+dpl_exp::device_array<float> d(host_data, q);
 
 // --- Use with oneDPL algorithms ---
 auto policy = oneapi::dpl::execution::make_device_policy(q);
@@ -248,30 +248,30 @@ d.copy_to(q, out, 100);                    // d[100 .. 100 + n) -> out[0 .. n)
 d.copy_from(q, host_data, 100);            // truncated at the end of d
 
 // --- Device-to-device: span() is USM, so it is a valid source ---
-dpl::device_array<float> d2(d.size(), q);
+dpl_exp::device_array<float> d2(d.size(), q);
 d2.copy_from(q, d.span());                 // span<float> -> span<const float>
 
 // --- Full deep copy: device_array is not copyable, do it with span() ---
-dpl::device_array<float> d_copy(d.span(), q);
+dpl_exp::device_array<float> d_copy(d.span(), q);
 
 // --- Subrange copy into a new, smaller device_array ---
-dpl::device_array<float> head(d.span().subspan(0, 100), q);
+dpl_exp::device_array<float> head(d.span().subspan(0, 100), q);
 
 // --- Move transfers ownership; no allocation, no data movement ---
-dpl::device_array<float> d_moved = std::move(d_copy);   // d_copy is left empty
+dpl_exp::device_array<float> d_moved = std::move(d_copy);
 
 // --- Output buffer (uninitialized by default — no memset) ---
-dpl::device_array<float> output(1024, q);
+dpl_exp::device_array<float> output(1024, q);
 oneapi::dpl::transform(policy, oneapi::dpl::begin(d), oneapi::dpl::end(d),
                        oneapi::dpl::begin(output),
                        [](float x) { return x * 2.0f; });
 
 // --- Zero-initialized allocation (opt-in) ---
-dpl::device_array<float> zeroed(1024, 0.0f, q);
+dpl_exp::device_array<float> zeroed(1024, 0.0f, q);
 
 // --- Out-of-order queue: chain transfers onto an existing event ---
 sycl::queue ooo_q;                             // out-of-order by default
-dpl::device_array<float> d3(1024, ooo_q);
+dpl_exp::device_array<float> d3(1024, ooo_q);
 
 // a kernel the user submitted themselves; nothing orders it against d3's
 // transfers on an out-of-order queue
