@@ -68,7 +68,6 @@ namespace dpl
 namespace __par_backend_hetero
 {
 
-
 // set of class templates to name kernels
 
 template <typename... _Name>
@@ -743,9 +742,6 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
         __partition_event);
 }
 
-template <typename _CustomName>
-struct reduce_then_scan_wrapper;
-
 template <bool _Bounded, typename _SetTag, typename _ExecutionPolicy, typename _Range1, typename _Range2,
           typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
 __set_op_impl_return_t<_Bounded, _Range1, _Range2, _Range3>
@@ -757,7 +753,7 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _SetTag __set_t
 
     sycl::queue __q_local = __exec.queue();
 
-    auto __res = __parallel_set_write_a_b_op<_Bounded, reduce_then_scan_wrapper<_CustomName>>(
+    auto __res = __parallel_set_write_a_b_op<_Bounded, _CustomName>(
         __set_tag, __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
         std::forward<_Range3>(__result), __comp, __proj1, __proj2);
 
