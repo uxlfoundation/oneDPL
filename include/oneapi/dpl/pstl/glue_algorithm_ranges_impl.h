@@ -631,6 +631,28 @@ struct __internal::__partial_sort_fn
 }; //__partial_sort_fn
 inline constexpr __internal::__partial_sort_fn partial_sort;
 
+struct __internal::__partial_sort_copy_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, std::ranges::random_access_range _OutR,
+              typename _Comp = std::ranges::less, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R> && std::ranges::sized_range<_OutR> &&
+                 std::indirectly_copyable<std::ranges::iterator_t<_R>, std::ranges::iterator_t<_OutR>> &&
+                 std::sortable<std::ranges::iterator_t<_OutR>, _Comp, _Proj2> &&
+                 std::indirect_strict_weak_order<_Comp, std::projected<std::ranges::iterator_t<_R>, _Proj1>,
+                                                 std::projected<std::ranges::iterator_t<_OutR>, _Proj2>>
+    std::ranges::partial_sort_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutR&& __result, _Comp __comp = {}, _Proj1 __proj1 = {},
+               _Proj2 __proj2 = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_partial_sort_copy_ranges(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            std::forward<_OutR>(__result), __comp, __proj1, __proj2);
+    }
+}; //__partial_sort_copy_fn
+inline constexpr __internal::__partial_sort_copy_fn partial_sort_copy;
+
 // [is.heap]
 
 struct __internal::__is_heap_fn
