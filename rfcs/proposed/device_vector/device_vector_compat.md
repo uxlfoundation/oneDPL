@@ -55,11 +55,11 @@ namespace oneapi::dpl::experimental::compat {
 // Empty tags selecting the initialization behavior of a constructor or
 // resize(). Migration targets for thrust::no_init / thrust::default_init.
 
-// No initialization: elements are left with indeterminate values.
+// No initialization: elements are left with indeterminate values. Requires std::is_trivially_constructible_v<T>
 struct no_init_t {};
 inline constexpr no_init_t no_init{};
 
-// Default-initialization: elements are default-initialized.
+// Default-initialization: elements are default-initialized. Requires std::is_default_constructible_v<T>
 struct default_init_t {};
 inline constexpr default_init_t default_init{};
 
