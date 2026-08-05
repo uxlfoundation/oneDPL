@@ -237,27 +237,27 @@ q.parallel_for(sycl::range<1>(d.size()), [=](sycl::id<1> i) {
 }).wait();
 
 // --- Explicit single-element host access ---
-float val = d.read_at(q, 0);       // synchronous read
-d.copy_from(q, 42.0f, 0);          // synchronous write
+float val = d.read_at(0, q);       // synchronous read
+d.copy_from(42.0f, q);             // synchronous write
 
 // --- Bulk download ---
 std::vector<float> out = d.to_vector(q);   // fresh vector
-d.copy_to(q, out);                         // or into existing storage
+d.copy_to(out, q);                         // or into existing storage
                                            // copies min(out.size(), d.size()) elements
 
 // --- Bulk upload into an existing device_array (does not resize) ---
-d.copy_from(q, host_data);
+d.copy_from(host_data, q);
 
 // --- Offset transfers: copy the tail of d into the front of out ---
-d.copy_to(q, out, 100);                    // d[100 .. 100 + n) -> out[0 .. n)
+d.copy_to(out, 100, q);                    // d[100 .. 100 + n) -> out[0 .. n)
                                            // n = min(out.size(), d.size() - 100)
 
 // --- Offset upload: write host_data into d starting at element 100 ---
-d.copy_from(q, host_data, 100);            // truncated at the end of d
+d.copy_from(host_data, 100, q);            // truncated at the end of d
 
 // --- Device-to-device: span() is USM, so it is a valid source ---
 dpl_exp::device_array<float> d2(d.size(), q);
-d2.copy_from(q, d.span());                 // span<float> -> span<const float>
+d2.copy_from(d.span(), q);                 // span<float> -> span<const float>
 
 // --- Full deep copy: device_array is not copyable, do it with span() ---
 dpl_exp::device_array<float> d_copy(d.span(), q);
@@ -288,15 +288,15 @@ sycl::event e = ooo_q.parallel_for(sycl::range<1>(d3.size()),
 
 // the copy waits on e before reading, then blocks until the copy completes
 std::vector<float> ooo_out(d3.size());
-d3.copy_to(ooo_q, ooo_out, 0, e);
+d3.copy_to(ooo_out, ooo_q, e);             // offset defaults to 0
 
 // same for uploads and single-element access
-d3.copy_from(ooo_q, host_data, 0, e);
-float first = d3.read_at(ooo_q, 0, e);
+d3.copy_from(host_data, ooo_q, e);
+float first = d3.read_at(0, ooo_q, e);
 
 // with an in-order queue the parameter is unnecessary — prior submissions on q
 // already order against the transfer
-d.copy_to(q, out);
+d.copy_to(out, q);
 ```
 
 ## Resolved Questions
