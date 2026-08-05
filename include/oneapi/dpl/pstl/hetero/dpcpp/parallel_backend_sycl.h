@@ -445,8 +445,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
     // Each work-item iteration reads a single input element and applies __unary_op to it. The input element size, not
     // the size of the scanned type produced by __unary_op, is what determines the input footprint of a block.
-    constexpr std::uint32_t __bytes_per_work_item_iter =
-        sizeof(oneapi::dpl::__internal::__value_t<std::decay_t<_Range1>>);
+    constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(oneapi::dpl::__internal::__value_t<_Range1>);
 
     auto&& [__event, __payload] = __parallel_transform_reduce_then_scan<
         /*_Bounded*/ false, __bytes_per_work_item_iter, _CustomName>(
@@ -469,8 +468,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     // Each work-item iteration reads a single input element to evaluate the mask and to copy it to the output.
-    constexpr std::uint32_t __bytes_per_work_item_iter =
-        sizeof(oneapi::dpl::__internal::__value_t<std::decay_t<_InRng>>);
+    constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(oneapi::dpl::__internal::__value_t<_InRng>);
 
     return __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
         __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask},
@@ -587,9 +585,10 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
         oneapi::dpl::__internal::make_tuple(std::forward<_Range2>(__out_true), std::forward<_Range3>(__out_false));
 
     sycl::queue __q_local = __exec.queue();
-    constexpr std::uint32_t __bytes_per_iter = sizeof(oneapi::dpl::__internal::__value_t<_Range1>);
+    // Each work-item iteration reads a single input element to evaluate the mask and to copy it to the output.
+    constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(oneapi::dpl::__internal::__value_t<_Range1>);
 
-    std::tuple __res = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_iter, _CustomName>(
+    std::tuple __res = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
         __q_local, __n, std::forward<_Range1>(__rng), std::move(__zipped_output), _GenReduceInput{_GenMask{__pred}},
         std::plus<diff_t>{}, _GenScanInput{_GenMask{__pred}}, _ScanInputTransform{}, _WriteOp{__n_out1, __n_out2},
         oneapi::dpl::unseq_backend::__no_init_value<diff_t>{}, /*_Inclusive=*/std::true_type{},
