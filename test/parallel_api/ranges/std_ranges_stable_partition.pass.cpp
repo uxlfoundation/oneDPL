@@ -16,9 +16,6 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    // std::ranges::stable_partition is a stable algorithm: it preserves the relative order of the
-    // elements in both partitions, so the whole range can be compared element-wise against the
-    // reference (the default calc_res_size returns the full size).
     auto stable_partition_checker = TEST_PREPARE_CALLABLE(std::ranges::stable_partition);
 
     test_range_algo<0>{get_scan_big_sz()}(dpl_ranges::stable_partition, stable_partition_checker, pred);
