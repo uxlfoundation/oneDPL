@@ -747,7 +747,7 @@ __pattern_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         oneapi::dpl::__internal::__pattern_partition(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
                                                      oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
 
-    return {__middle, oneapi::dpl::__ranges::__end(__r)};
+    return {__middle, __last};
 }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
