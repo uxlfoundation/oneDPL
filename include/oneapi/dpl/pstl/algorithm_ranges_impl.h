@@ -1882,7 +1882,7 @@ __pattern_stable_partition(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pre
 template <typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
 std::ranges::borrowed_subrange_t<_R>
 __pattern_stable_partition(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
-    _Proj __proj)
+                           _Proj __proj)
 {
     return std::ranges::stable_partition(std::forward<_R>(__r), __pred, __proj);
 }
