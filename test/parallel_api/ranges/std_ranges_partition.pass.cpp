@@ -11,11 +11,6 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-#include <algorithm>
-#include <functional>
-#include <ranges>
-#include <utility>
-
 // std::ranges::partition is not a stable algorithm: it only guarantees that the elements satisfying
 // the predicate precede those that do not. The parallel and device specializations rearrange the
 // elements differently from std::ranges::partition, so the element-wise comparison against the
