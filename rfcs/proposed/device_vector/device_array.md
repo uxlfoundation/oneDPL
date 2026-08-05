@@ -109,7 +109,27 @@ public:
 };
 
 } // namespace oneapi::dpl::experimental
+
+namespace oneapi::dpl {
+
+// Note the namespace: these are in oneapi::dpl, not oneapi::dpl::experimental, so ADL
+// does not find them and calls must be qualified. By reference rather than by value,
+// since device_array is not copyable.
+template <typename T> T*       begin(experimental::device_array<T>& d);
+template <typename T> T*       end  (experimental::device_array<T>& d);
+template <typename T> const T* begin(const experimental::device_array<T>& d);
+template <typename T> const T* end  (const experimental::device_array<T>& d);
+
+} // namespace oneapi::dpl
 ```
+
+### Iterator access
+
+Iterators come from the non-member `oneapi::dpl::begin` / `oneapi::dpl::end` overloads,
+which return raw `T*` (and `const T*` for a const `device_array`).
+
+Span iterators should not be passed to a oneDPL iterator API with a device policy. `std::span<T>::iterator` is an implementation defined iterator, which isnt guaranteed to be
+`oneapi::dpl::is_indirectly_device_accessible`. What we want for iterator APIs with a device policy are pointers to USM memory (use `oneapi::dpl::begin/end`).
 
 ## Allocator
 
@@ -186,7 +206,8 @@ dpl::device_array<float> d(host_data, q);
 
 // --- Use with oneDPL algorithms ---
 auto policy = oneapi::dpl::execution::make_device_policy(q);
-oneapi::dpl::sort(policy, d.span().begin(), d.span().end());
+// iterators come from oneapi::dpl::begin/end (raw pointers), never from span()
+oneapi::dpl::sort(policy, oneapi::dpl::begin(d), oneapi::dpl::end(d));
 
 // --- Pass the span directly to the oneDPL range-based algorithms ---
 oneapi::dpl::ranges::for_each(policy, d.span(), [](float& x) { x += 1.0f; });
@@ -241,8 +262,9 @@ dpl::device_array<float> d_moved = std::move(d_copy);   // d_copy is left empty
 
 // --- Output buffer (uninitialized by default — no memset) ---
 dpl::device_array<float> output(1024, q);
-oneapi::dpl::transform(policy, d.span().begin(), d.span().end(), output.span().begin(),
-               [](float x) { return x * 2.0f; });
+oneapi::dpl::transform(policy, oneapi::dpl::begin(d), oneapi::dpl::end(d),
+                       oneapi::dpl::begin(output),
+                       [](float x) { return x * 2.0f; });
 
 // --- Zero-initialized allocation (opt-in) ---
 dpl::device_array<float> zeroed(1024, 0.0f, q);
