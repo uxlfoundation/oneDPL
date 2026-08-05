@@ -190,7 +190,7 @@ non-owning views, and range composition, use `oneapi::dpl::span<T>` via
 ## Usage Examples
 
 ```cpp
-#include <oneapi/dpl/device_array>
+#include <oneapi/dpl/experimental/device_array>
 #include <oneapi/dpl/algorithm>
 #include <oneapi/dpl/execution>
 #include <sycl/sycl.hpp>

@@ -172,9 +172,10 @@ classDiagram
   event waits. No asynchronous overloads are proposed for either type; see
   [device_array](device_array.md#resolved-questions).
 
-- **Header organization** - use individual headers <oneapi/dpl/device_array>,
-  <oneapi/dpl/compat/device_vector>, we may add <oneapi/dpl/compat> in the
-  future. This matches convention of the standard library and thrust.
+- **Header organization** - use individual headers
+  <oneapi/dpl/experimental/device_array>, <oneapi/dpl/compat/device_vector>, we may add
+  <oneapi/dpl/compat> in the future. This matches convention of the standard library and
+  thrust.
 
 - **Namespace** - device_array should be in `oneapi::dpl::experimental::device_array`.
   The intention for `device_vector` is to add it `oneapi::dpl::compat` directly without `experimental`.
