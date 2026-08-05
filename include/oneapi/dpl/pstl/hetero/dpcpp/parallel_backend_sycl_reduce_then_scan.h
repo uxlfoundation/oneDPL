@@ -2193,9 +2193,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
                     std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                    using _PosTools =
-                        __internal::__parallel_reduce_then_scan_stop_oob_pos_tools<_Bounded, _StopPosStorage>;
-
                     auto __call_scan_through_elements_helper = [&](auto __on_oob_reached, auto __final_pos_saver) {
                         __scan_through_elements_helper<_Bounded, __is_inclusive, __is_unique_pattern_v>(
                             __ndi, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op, __sub_group_carry,
@@ -2205,8 +2202,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
                     if constexpr (_Bounded)
                     {
-                        using __src_final_pos_t = typename _PosTools::__src_final_pos_t;
-
                         std::size_t __start_id_on_oob = __start_id;
                         typename _WriteOp::__position_type __oob_position{};
                         bool __oob_detected = false;
@@ -2218,9 +2213,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                             __oob_detected = true;
                         };
 
-                        if constexpr (_PosTools::__has_src_final_pos)
+                        using __stop_pos_handler_type = typename _StopPosStorage::type;
+                        if constexpr (__internal::__has_final_pos<__stop_pos_handler_type>)
                         {
-                            __call_scan_through_elements_helper(__on_oob_reached, [&](__src_final_pos_t __final_pos) {
+                            using __final_pos_t = typename __stop_pos_handler_type::__final_pos_t;
+                            __call_scan_through_elements_helper(__on_oob_reached, [&](__final_pos_t __final_pos) {
                                 // Exactly one work-item reaches the edge crossing, so no synchronization is needed
                                 // to store the shared final position.
                                 __stop_pos_acc_data.__final_pos = __final_pos;
@@ -2229,7 +2226,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                             {
                                 // Exactly one work-item reaches the OOB position, so no synchronization is needed
                                 // to update __stop_pos_acc.
-                                __stop_pos_acc_data.__oob_pos = _PosTools::__finalize_oob_pos(
+                                __stop_pos_acc_data.__oob_pos = __internal::__finalize_oob_pos<__final_pos_t>(
                                     __in_rng, __oob_position, __start_id_on_oob, __gen_scan_input);
                             }
                         }

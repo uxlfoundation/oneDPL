@@ -38,6 +38,7 @@ struct _SetOpFinalAndOOBPosTypeImpl
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
     using _PositionT = oneapi::dpl::__internal::tuple<_Size1, _Size2>;
+    using __final_pos_t = _PositionT;
 
     _PositionT __final_pos = {}; // Describes final position after set operation in source ranges
     _PositionT __oob_pos = {};   // Describes OOB position during set operation in source ranges
@@ -79,26 +80,16 @@ using _SetOpFinalAndOOBPosType = _SetOpFinalAndOOBPosTypeImpl<std::decay_t<_Rang
 
 namespace __internal
 {
-// Detecting _PositionT type alias in the specified structure
-template <typename _T, typename = void>
-struct __final_pos_type_selector : std::false_type
-{
-    // This means we only deal with the OOB position here.
-    using type = _T;
-};
+// Describes whether we have a final-position type in the storage or not
+template <typename _StopPosStorage>
+constexpr bool __has_final_pos = false;
 
 template <typename _Range1, typename _Range2>
-struct __final_pos_type_selector<_SetOpFinalAndOOBPosTypeImpl<_Range1, _Range2>,
-                                 std::void_t<typename _SetOpFinalAndOOBPosTypeImpl<_Range1, _Range2>::_PositionT>>
-    : std::true_type
-{
-    // This means we deal with both final and OOB positions together here.
-    using type = typename _SetOpFinalAndOOBPosType<_Range1, _Range2>::_PositionT;
-};
+constexpr bool __has_final_pos<_SetOpFinalAndOOBPosTypeImpl<_Range1, _Range2>> = true;
 
 // Temporary data stand-in which discards the stored values and instead captures
 // the source position of the element at a specific index during a reduce then scan operation.
-template <typename _SrcDataPosT>
+template <typename _FinalPosT>
 struct __src_pos_capturing_temp_data
 {
   public:
@@ -109,13 +100,13 @@ struct __src_pos_capturing_temp_data
 
     template <typename _ValueT2>
     void
-    set(std::uint16_t __idx, const _ValueT2&, _SrcDataPosT __src_idx)
+    set(std::uint16_t __idx, const _ValueT2&, _FinalPosT __src_idx)
     {
         if (__idx == __idx_for_src_pos)
             __saved_src_pos = __src_idx;
     }
 
-    _SrcDataPosT
+    _FinalPosT
     __get_saved_src_pos() const
     {
         return __saved_src_pos;
@@ -123,7 +114,7 @@ struct __src_pos_capturing_temp_data
 
   private:
     const std::uint16_t __idx_for_src_pos = 0;
-    _SrcDataPosT __saved_src_pos = {};
+    _FinalPosT __saved_src_pos = {};
 };
 
 // Tag type to indicate that no callback is provided
@@ -137,6 +128,18 @@ struct __no_stop_pos_acc_tag
     // No stop position is tracked when _Bounded=false, so std::size_t is just a harmless default.
     using type = std::size_t;
 };
+
+// The second part of two-pass OOB processing: if the OOB position is reached in the first pass,
+// here we recover the source indexes for the diagonal where it happened and store the OOB position from them.
+template <typename _FinalPosT, typename _InRng, typename _OOBPositionT, typename _GenScanInput>
+static _FinalPosT
+__finalize_oob_pos(_InRng&& __in_rng, _OOBPositionT __detected_oob_pos, const std::size_t __start_id_reached_on_oob,
+                   _GenScanInput __gen_scan_input)
+{
+    __src_pos_capturing_temp_data<_FinalPosT> __pos_catcher(__detected_oob_pos);
+    __gen_scan_input(std::forward<_InRng>(__in_rng), __start_id_reached_on_oob, __pos_catcher, __no_callback_tag{});
+    return __pos_catcher.__get_saved_src_pos();
+}
 
 template <bool _Bounded, typename _StopPosInitState>
 auto
@@ -157,30 +160,6 @@ __get_stop_pos_accessor_opt(_ModeTagT __mode, sycl::handler& __cgh, _StopPosStor
     else
         return __no_stop_pos_acc_tag{};
 }
-
-template <bool _Bounded, typename _StopPosStorage>
-struct __parallel_reduce_then_scan_stop_oob_pos_tools
-{
-    using __storage_data_t = typename _StopPosStorage::type;
-
-    // Describes whether we have a final-position type in the storage or not
-    static constexpr bool __has_src_final_pos = __final_pos_type_selector<std::decay_t<__storage_data_t>>::value;
-
-    // Describes final position type (if any) in the storage
-    using __src_final_pos_t = typename __final_pos_type_selector<std::decay_t<__storage_data_t>>::type;
-
-    // The second part of two-pass OOB processing: if the OOB position is reached in the first pass,
-    // here we recover the source indexes for the diagonal where it happened and store the OOB position from them.
-    template <typename _InRng, typename _OOBPositionT, typename _GenScanInput>
-    static __src_final_pos_t
-    __finalize_oob_pos(_InRng&& __in_rng, _OOBPositionT __detected_oob_pos, const std::size_t __start_id_reached_on_oob,
-                       _GenScanInput __gen_scan_input)
-    {
-        __src_pos_capturing_temp_data<__src_final_pos_t> __pos_catcher(__detected_oob_pos);
-        __gen_scan_input(std::forward<_InRng>(__in_rng), __start_id_reached_on_oob, __pos_catcher, __no_callback_tag{});
-        return __pos_catcher.__get_saved_src_pos();
-    }
-};
 
 } // namespace __internal
 
