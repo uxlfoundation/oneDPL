@@ -55,7 +55,7 @@ namespace oneapi::dpl::compat {
 // Empty tags selecting the initialization behavior of a constructor or
 // resize(). Migration targets for thrust::no_init / thrust::default_init.
 
-// No initialization: elements are left with indeterminate values. Requires std::is_trivially_constructible_v<T>
+// No initialization: elements are left with indeterminate values. Requires std::is_trivially_default_constructible_v<T>
 struct no_init_t {};
 inline constexpr no_init_t no_init{};
 
@@ -169,7 +169,8 @@ public:
                            sycl::context ctx, sycl::device dev);
 
     /* Copy of all above constructors for `sycl::queue` (extracts context + device),
-       using no_init_t / default_init_t to select initialization behavior, and with
+       using no_init_t / default_init_t to select initialization behavior where
+       applicable (tags impose type requirements; see their definition), and with
        explicit allocator */
 
 
