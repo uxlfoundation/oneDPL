@@ -231,7 +231,7 @@ static constexpr
 bool check_out2<T, std::void_t<decltype(std::declval<T>().out2)>> = true;
 
 template<typename, typename = void>
-static constexpr bool is_range{};
+static constexpr bool is_range = false;
 
 template<typename T>
 static constexpr
@@ -248,7 +248,7 @@ template<typename>
 constexpr int trivial_size{0};
 
 template<typename>
-constexpr int calc_res_size(int n, int) { return n; }
+constexpr std::pair<int, int> range_to_verify(int total_size, int /*result_size*/) { return {0, total_size}; }
 
 // If in1 range is empty, then the out range is always empty
 // Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union test.
@@ -396,12 +396,14 @@ private:
                        typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
         }
 
-        //check result
-        auto n = std::ranges::size(expected_view);
+        // check data
+        int total_size = std::ranges::size(expected_view);
+        int result_size = total_size;
         if constexpr(is_range<std::remove_cvref_t<decltype(res)>>)
-            n = calc_res_size<std::remove_cvref_t<Algo>>(n, std::ranges::size(res));
+            result_size = std::ranges::size(res);
+        auto [start, n] = range_to_verify<std::remove_cvref_t<Algo>>(total_size, result_size);
 
-        EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("data mismatch with ")
+        EXPECT_EQ_N(cont_exp().begin() + start, cont_in().begin() + start, n, (std::string("data mismatch with ")
             + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
 
         if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
