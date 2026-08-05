@@ -1474,6 +1474,22 @@ inline constexpr __internal::__unique_copy_fn unique_copy;
 
 // [alg.partitions]
 
+struct __internal::__partition_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R> && std::permutable<std::ranges::iterator_t<_R>>
+    std::ranges::borrowed_subrange_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_partition(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+    }
+}; //__partition_fn
+inline constexpr __internal::__partition_fn partition;
+
 struct __internal::__partition_copy_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,

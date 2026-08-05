@@ -733,6 +733,25 @@ __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
+// partition
+//------------------------------------------------------------------------
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
+{
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    auto __middle =
+        oneapi::dpl::__internal::__pattern_partition(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                                     oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+
+    return {__middle, __last};
+}
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
+
+//------------------------------------------------------------------------
 // partition_copy
 //------------------------------------------------------------------------
 
