@@ -99,7 +99,7 @@ classDiagram
         }
     }
 
-    namespace experimental_compat {
+    namespace compat {
         class device_vector~T, Alloc~ {
             Thrust compat layer
             resizable, allocator-aware

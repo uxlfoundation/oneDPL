@@ -41,9 +41,7 @@ It uses an iterator/pointer type, `device_pointer`, as a wrapper for USM memory,
    transfer, which is worth making visible at the call site.
 
 ## Namespace
-We are using `oneapi::dpl::experimental::compat` for these compatibility classes. The intention would be to promote
-these to `oneapi::dpl::compat` as they exit experimental. We could add `ext` as well, but this further elongates the
-already long name. Other elements which graduate from SYCLomatic, but don't belong in oneDPL proper may end up living
+We are using `oneapi::dpl::compat` for these compatibility classes.  Other elements which graduate from SYCLomatic, but don't belong in oneDPL proper may end up living
 in this `compat` namespace in the future.
 
 ## API
