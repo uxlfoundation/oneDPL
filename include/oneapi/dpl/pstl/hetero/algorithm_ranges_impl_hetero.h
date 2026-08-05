@@ -1186,6 +1186,26 @@ __pattern_merge_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exe
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
+//------------------------------------------------------------------------
+// inplace_merge_ranges
+//------------------------------------------------------------------------
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_inplace_merge_ranges(__hetero_tag<_Tag> __tag, _ExecutionPolicy&& __exec, _R&& __r,
+                               std::ranges::iterator_t<_R> __middle, _Comp __comp, _Proj __proj)
+{
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    oneapi::dpl::__internal::__pattern_inplace_merge(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+
+    return oneapi::dpl::__ranges::__end(__r);
+}
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
