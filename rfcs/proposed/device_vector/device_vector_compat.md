@@ -47,7 +47,7 @@ in this `compat` namespace in the future.
 ## API
 
 ```cpp
-namespace oneapi::dpl::experimental::compat {
+namespace oneapi::dpl::compat {
 
 // =========================================================================
 // Initialization tags
@@ -228,7 +228,7 @@ public:
     sycl::device  get_device()  const;
 };
 
-} // namespace oneapi::dpl::experimental::compat
+} // namespace oneapi::dpl::compat
 ```
 
 ## Usage Example
@@ -239,7 +239,7 @@ public:
 #include <oneapi/dpl/execution>
 #include <sycl/sycl.hpp>
 
-namespace compat = oneapi::dpl::experimental::compat;
+namespace compat = oneapi::dpl::compat;
 
 sycl::queue q{sycl::property::queue::in_order{}};
 
