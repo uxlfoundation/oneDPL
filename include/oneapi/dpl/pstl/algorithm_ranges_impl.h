@@ -488,7 +488,7 @@ __pattern_partial_sort_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, s
 template <typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_partial_sort_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&& __exec, _R&& __r,
-    std::ranges::iterator_t<_R> __middle, _Comp __comp, _Proj __proj)
+                              std::ranges::iterator_t<_R> __middle, _Comp __comp, _Proj __proj)
 {
     return std::ranges::partial_sort(std::forward<_R>(__r), __middle, __comp, __proj);
 }
