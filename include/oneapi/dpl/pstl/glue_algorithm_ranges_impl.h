@@ -833,6 +833,24 @@ struct __internal::__merge_fn
 }; //__merge_fn
 inline constexpr __internal::__merge_fn merge;
 
+struct __internal::__inplace_merge_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Comp = std::ranges::less,
+              typename _Proj = std::identity>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R> && std::sortable<std::ranges::iterator_t<_R>, _Comp, _Proj>
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, std::ranges::iterator_t<_R> __middle, _Comp __comp = {},
+               _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_inplace_merge_ranges(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __middle, __comp, __proj);
+    }
+
+}; //__inplace_merge_fn
+inline constexpr __internal::__inplace_merge_fn inplace_merge;
+
 // [includes]
 
 struct __internal::__includes_fn
