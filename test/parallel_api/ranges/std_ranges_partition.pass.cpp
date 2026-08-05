@@ -11,19 +11,10 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-// std::ranges::partition is not a stable algorithm: it only guarantees that the elements satisfying
-// the predicate precede those that do not. The parallel and device specializations rearrange the
-// elements differently from std::ranges::partition, so the element-wise comparison against the
-// reference implementation, which the test harness performs, is only meaningful for data where the
-// partitioned sequence is unique. That is why every data generator below produces just two distinct
-// values: one satisfying the tested predicate and one not satisfying it. The generators differ in
-// how these values are distributed over the sequence, which exercises different balances of the
-// partition implementation.
+// The test harness compares the whole target/reference ranges element-wise. The algorithm is unstable.
+// To guarantee the equivalence, generate only one unique value per true/false partitions.
 
-// The generators are function objects rather than lambda variables: only their types are used (as a
-// DataGen1 template argument), so lambda objects would be reported as unneeded and not emitted.
-
-// pred1 (val > 0): alternating, blocked, all-true, all-false and almost-all-true/false patterns.
+// pred1 (val > 0).
 struct gen_alternate { int operator()(auto i) const { return i % 2 ? 1 : 0;        } };
 struct gen_blocked   { int operator()(auto i) const { return (i / 64) % 2 ? 1 : 0; } };
 struct gen_all_true  { int operator()(auto)   const { return 1;                    } };
