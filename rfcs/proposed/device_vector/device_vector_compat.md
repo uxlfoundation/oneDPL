@@ -287,8 +287,7 @@ The default `device_allocator` deliberately mirrors `sycl::usm_allocator`. It is
 stateful, carrying the `sycl::context`, `sycl::device` and `sycl::property_list` to
 allocate against, so `allocate()` takes only an element count. It also matches
 `usm_allocator`'s alignment template parameter, its `rebind` and
-`propagate_on_container_*` members, its converting constructor, and its equality
-operators. Matching that shape makes `device_allocator` familiar and usable standalone.
+`propagate_on_container_*` members, and its converting constructor.
 
 `sycl::usm_allocator` itself cannot serve this role: it contains
 `static_assert(AllocKind != sycl::usm::alloc::device)`, because device memory is not
