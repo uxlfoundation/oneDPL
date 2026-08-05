@@ -13,271 +13,99 @@
 
 #include <algorithm>
 #include <functional>
-#include <vector>
+#include <ranges>
+#include <utility>
 
-using namespace test_std_ranges;
-namespace dpl_ranges = oneapi::dpl::ranges;
-
-// std::ranges::partition is not a stable algorithm: it only guarantees that elements satisfying the
-// predicate precede those that do not, without preserving relative order. The parallel and device
-// specializations rearrange elements differently from std::ranges::partition, so we verify the
-// algorithm post-conditions instead of comparing the whole range element-wise against a reference.
-// Verifies the partition post-conditions on the data itself (left/right split and permutation),
-// independent of the algorithm's return value. Reused by both the borrowed cases (which also check
-// the returned subrange) and the dangling cases (whose return carries no iterator).
-template <typename Original, typename Range, typename Pred, typename Proj>
-void
-check_partition_data(const Original& original, Range&& r, int n, Pred pred, Proj proj, const char* msg)
+namespace test_std_ranges
 {
-    auto holds = [&](auto&& v) { return bool(std::invoke(pred, std::invoke(proj, v))); };
 
-    // The partition point: number of elements satisfying the predicate (after projection).
-    const int k = static_cast<int>(std::count_if(original.begin(), original.end(),
-                                                  [&](auto&& v) { return holds(v); }));
+// std::ranges::partition is not a stable algorithm: it only guarantees that the elements satisfying
+// the predicate precede those that do not. The parallel and device specializations rearrange the
+// elements differently from std::ranges::partition, so the element-wise comparison against the
+// reference implementation, which the test harness performs, is only meaningful for data where the
+// partitioned sequence is unique. That is why every data generator below produces just two distinct
+// values: one satisfying the tested predicate and one not satisfying it. The generators differ in
+// how these values are distributed over the sequence, which exercises different balances of the
+// partition implementation.
 
-    // All elements before the partition point satisfy the predicate, all after do not.
-    for (int i = 0; i < k; ++i)
-        EXPECT_TRUE(holds(r[i]), (std::string("wrong left partition: ") + msg).c_str());
-    for (int i = k; i < n; ++i)
-        EXPECT_TRUE(!holds(r[i]), (std::string("wrong right partition: ") + msg).c_str());
+// pred1 (val > 0): alternating, blocked, all-true, all-false and almost-all-true/false patterns.
+auto gen_alternate = [](auto i) { return i % 2 ? 1 : 0;        };
+auto gen_blocked   = [](auto i) { return (i / 64) % 2 ? 1 : 0; };
+auto gen_all_true  = [](auto)   { return 1;                    };
+auto gen_all_false = [](auto)   { return 0;                    };
+auto gen_one_true  = [](auto i) { return i == 0 ? 1 : 0;       };
+auto gen_one_false = [](auto i) { return i == 0 ? 0 : 1;       };
 
-    // The result must be a permutation of the input: compare the multiset of projected keys,
-    // applying the same projection to both the original data and the result.
-    using key_t = std::decay_t<decltype(std::invoke(proj, *original.begin()))>;
-    std::vector<key_t> expected_keys(n);
-    std::vector<key_t> result_keys(n);
-    for (int i = 0; i < n; ++i)
+// pred2 (val == 4) with the identity projection.
+auto gen_eq4 = [](auto i) { return i % 3 ? 7 : 4; };
+
+// pred2 (val == 4) with the 'proj' projection (val * 2).
+auto gen_eq4_proj = [](auto i) { return i % 3 ? 7 : 2; };
+
+// pred3 (val < 0).
+auto gen_negative = [](auto i) { return i % 2 ? -5 : 5; };
+
+// A wrapper around the tested algorithm which is passed to the harness instead of the algorithm
+// itself: besides the element-wise comparison against std::ranges::partition made by the harness, it
+// verifies the partition post-conditions, which do not depend on a particular permutation produced
+// by the parallel or the device implementation.
+struct partition_checked_fn
+{
+    template <typename Policy, typename R, typename... Args>
+    std::ranges::borrowed_subrange_t<R>
+    operator()(Policy&& exec, R&& r, Args... args) const
     {
-        expected_keys[i] = std::invoke(proj, original[i]);
-        result_keys[i] = std::invoke(proj, r[i]);
-    }
-    std::sort(expected_keys.begin(), expected_keys.end());
-    std::sort(result_keys.begin(), result_keys.end());
-    EXPECT_TRUE(expected_keys == result_keys, (std::string("result is not a permutation: ") + msg).c_str());
-}
+        std::ranges::borrowed_subrange_t<R> res =
+            oneapi::dpl::ranges::partition(std::forward<Policy>(exec), std::forward<R>(r), args...);
 
-template <typename Original, typename Range, typename Pred, typename Proj>
-void
-check_partition_effect(const Original& original, Range&& r, int n, Pred pred, Proj proj,
-                       decltype(std::ranges::begin(std::declval<Range&>())) res_begin, const char* msg)
-{
-    auto holds = [&](auto&& v) { return bool(std::invoke(pred, std::invoke(proj, v))); };
-
-    // The partition point: number of elements satisfying the predicate (after projection).
-    const int k = static_cast<int>(std::count_if(original.begin(), original.end(),
-                                                  [&](auto&& v) { return holds(v); }));
-
-    // Returned subrange must start exactly at the partition point and end at the range end.
-    EXPECT_TRUE(res_begin == std::ranges::begin(r) + k, (std::string("wrong partition point: ") + msg).c_str());
-
-    check_partition_data(original, r, n, pred, proj, msg);
-}
-
-// A minimal user-defined range that owns nothing but is intentionally NOT a borrowed range, so that
-// passing it as an rvalue forces std::ranges::partition to return std::ranges::dangling. Its iterators
-// are plain pointers (host or USM), so both the host and the device backend can consume it.
-template <typename It>
-struct non_borrowed_range
-{
-    It first;
-    It last;
-    It begin() const { return first; }
-    It end() const { return last; }
-};
-
-template <typename It>
-non_borrowed_range(It, It) -> non_borrowed_range<It>;
-
-// Data generator producing a mix of elements satisfying and not satisfying pred1 (val > 0),
-// including zeros and duplicates to exercise partition ties.
-inline auto partition_gen = [](int i) { return (i % 7) - 3; };
-
-template <int CallId, typename T, typename Proj = std::identity>
-struct test_partition
-{
-    template <typename Algo, typename Pred>
-    void
-    operator()(Algo algo, Pred pred, Proj proj = {}) const
-    {
-        for (int n : {0, 1, 2, 3, 7, 20, small_size, medium_size})
-            host_case(algo, n, pred, proj);
-
-        for (int n : {0, 1, 2, 3, 7, 20, small_size})
-            host_view_case(algo, n, pred, proj);
-
-        // A non-borrowed rvalue range must yield std::ranges::dangling as the return type.
-        using rvalue_ret_t = decltype(algo(oneapi::dpl::execution::par, std::declval<std::vector<T>>(),
-                                            std::declval<Pred>(), std::declval<Proj>()));
-        static_assert(all_dangling_in_result_v<rvalue_ret_t>);
-
-        host_dangling_case(algo, 1, pred, proj);
-
-#if TEST_DPCPP_BACKEND_PRESENT
-        // Pointer-to-member-function projections are not supported inside device kernels.
-        if constexpr (!std::is_member_function_pointer_v<Proj>)
+        // An r-value range is only used in an unevaluated context (a return type check), so the data
+        // is available for inspection whenever the range is passed as an l-value.
+        if constexpr (std::is_lvalue_reference_v<R>)
         {
-#if _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN
-            if constexpr (!std::is_member_pointer_v<Proj>)
-#endif
-            {
-                auto policy = TestUtils::get_dpcpp_test_policy();
-                for (int n : {0, 1, small_size, medium_size})
-                    device_case(policy, algo, n, pred, proj);
+            EXPECT_TRUE(std::ranges::is_partitioned(r, args...), "the range is not partitioned");
 
-                device_dangling_case(policy, algo, 1, pred, proj);
+            if constexpr (std::ranges::borrowed_range<R>)
+            {
+                EXPECT_TRUE(std::ranges::end(res) == std::ranges::end(r), "wrong end of the returned subrange");
+                EXPECT_TRUE(std::ranges::none_of(res, args...),
+                            "the returned subrange contains elements satisfying the predicate");
             }
         }
-#endif // TEST_DPCPP_BACKEND_PRESENT
-    }
 
-  private:
-    static std::vector<int>
-    make_keys(int n)
-    {
-        std::vector<int> keys(n);
-        for (int i = 0; i < n; ++i)
-            keys[i] = partition_gen(i);
-        return keys;
+        return res;
     }
-
-    static std::vector<T>
-    make_data(const std::vector<int>& keys)
-    {
-        std::vector<T> data(keys.size());
-        for (std::size_t i = 0; i < keys.size(); ++i)
-            data[i] = T(keys[i]);
-        return data;
-    }
-
-    template <typename Algo, typename Pred>
-    void
-    host_case(Algo algo, int n, Pred pred, Proj proj) const
-    {
-        const std::string msg = "host, partition<" + std::to_string(CallId) + ">";
-        auto run = [&](auto&& policy)
-        {
-            std::vector<T> data = make_data(make_keys(n));
-            std::vector<T> original = data;
-            auto res = algo(policy, data, pred, proj);
-            check_partition_effect(original, data, n, pred, proj, res.begin(), msg.c_str());
-            EXPECT_TRUE(res.end() == data.end(), (std::string("wrong subrange end: ") + msg).c_str());
-        };
-        run(oneapi::dpl::execution::seq);
-        run(oneapi::dpl::execution::unseq);
-        run(oneapi::dpl::execution::par);
-        run(oneapi::dpl::execution::par_unseq);
-    }
-
-    template <typename Algo, typename Pred>
-    void
-    host_view_case(Algo algo, int n, Pred pred, Proj proj) const
-    {
-        const std::string msg = "host view, partition<" + std::to_string(CallId) + ">";
-        auto run_subrange = [&](auto&& policy)
-        {
-            std::vector<T> data = make_data(make_keys(n));
-            std::vector<T> original = data;
-            auto view = std::ranges::subrange(data.begin(), data.end());
-            auto res = algo(policy, view, pred, proj);
-            check_partition_effect(original, view, n, pred, proj, res.begin(), msg.c_str());
-            EXPECT_TRUE(res.end() == view.end(), (std::string("wrong subrange end (subrange): ") + msg).c_str());
-        };
-        run_subrange(oneapi::dpl::execution::seq);
-        run_subrange(oneapi::dpl::execution::par);
-
-#if TEST_CPP20_SPAN_PRESENT
-        auto run_span = [&](auto&& policy)
-        {
-            std::vector<T> data = make_data(make_keys(n));
-            std::vector<T> original = data;
-            std::span<T> view(data.data(), data.size());
-            auto res = algo(policy, view, pred, proj);
-            check_partition_effect(original, view, n, pred, proj, res.begin(), msg.c_str());
-            EXPECT_TRUE(res.end() == view.end(), (std::string("wrong subrange end (span): ") + msg).c_str());
-        };
-        run_span(oneapi::dpl::execution::seq);
-        run_span(oneapi::dpl::execution::par);
-#endif // TEST_CPP20_SPAN_PRESENT
-    }
-
-    // A non-borrowed rvalue range must return std::ranges::dangling at run time. We wrap live data in
-    // a non-borrowed range and pass it as an rvalue, so the else-branch that yields
-    // std::ranges::dangling{} is actually executed; the underlying data outlives the call, letting us
-    // also confirm the partition effect took place.
-    template <typename Algo, typename Pred>
-    void
-    host_dangling_case(Algo algo, int n, Pred pred, Proj proj) const
-    {
-        const std::string msg = "host dangling, partition<" + std::to_string(CallId) + ">";
-        auto run = [&](auto&& policy)
-        {
-            std::vector<T> data = make_data(make_keys(n));
-            std::vector<T> original = data;
-            auto res = algo(policy, non_borrowed_range{data.begin(), data.end()}, pred, proj);
-            static_assert(std::is_same_v<decltype(res), std::ranges::dangling>,
-                          "partition over an rvalue non-borrowed range must return std::ranges::dangling");
-            EXPECT_TRUE((std::is_same_v<decltype(res), std::ranges::dangling>),
-                        (std::string("expected std::ranges::dangling return: ") + msg).c_str());
-            check_partition_data(original, data, n, pred, proj, msg.c_str());
-        };
-        run(oneapi::dpl::execution::seq);
-        run(oneapi::dpl::execution::unseq);
-        run(oneapi::dpl::execution::par);
-        run(oneapi::dpl::execution::par_unseq);
-    }
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    template <typename ExecutionPolicy, typename Algo, typename Pred>
-    void
-    device_case(ExecutionPolicy&& policy, Algo algo, int n, Pred pred, Proj proj) const
-    {
-        const std::string msg = "device, partition<" + std::to_string(CallId) + ">";
-        std::vector<T> host = make_data(make_keys(n));
-        usm_vector<T> usm(policy, host.data(), n);
-        auto& vec = usm();
-        auto res = algo(CLONE_TEST_POLICY_IDX(policy, CallId), vec, pred, proj);
-        check_partition_effect(host, vec, n, pred, proj, res.begin(), msg.c_str());
-        EXPECT_TRUE(res.end() == vec.end(), (std::string("wrong subrange end: ") + msg).c_str());
-    }
-
-    // Device counterpart of host_dangling_case: the non-borrowed range wraps USM iterators, so the
-    // device backend partitions the data while the front-end still returns std::ranges::dangling.
-    template <typename ExecutionPolicy, typename Algo, typename Pred>
-    void
-    device_dangling_case(ExecutionPolicy&& policy, Algo algo, int n, Pred pred, Proj proj) const
-    {
-        const std::string msg = "device dangling, partition<" + std::to_string(CallId) + ">";
-        std::vector<T> host = make_data(make_keys(n));
-        usm_vector<T> usm(policy, host.data(), n);
-        auto& vec = usm();
-        auto res = algo(CLONE_TEST_POLICY_IDX(policy, CallId),
-                        non_borrowed_range{vec.begin(), vec.end()}, pred, proj);
-        static_assert(std::is_same_v<decltype(res), std::ranges::dangling>,
-                      "partition over an rvalue non-borrowed range must return std::ranges::dangling");
-        EXPECT_TRUE((std::is_same_v<decltype(res), std::ranges::dangling>),
-                    (std::string("expected std::ranges::dangling return: ") + msg).c_str());
-        check_partition_data(host, vec, n, pred, proj, msg.c_str());
-    }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 };
 
-#endif // _ENABLE_STD_RANGES_TESTING
+inline constexpr partition_checked_fn partition_checked{};
+
+} // namespace test_std_ranges
+
+#endif //_ENABLE_STD_RANGES_TESTING
 
 std::int32_t
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
-    // pred = pred1 (val > 0), projection = identity: plain integer keys.
-    test_partition<0, int>{}(dpl_ranges::partition, pred1);
+    using namespace test_std_ranges;
 
-    // Projection applied to integer keys (proj doubles the value).
-    test_partition<1, int, decltype(proj)>{}(dpl_ranges::partition, pred1, proj);
+    auto partition_checker = TEST_PREPARE_CALLABLE(std::ranges::partition);
 
-    // Member-data projection (P2::x): exercised on host and device.
-    test_partition<2, P2, int P2::*>{}(dpl_ranges::partition, pred1, &P2::x);
+    // Different data generators with the same predicate: balanced, blocked and degenerate cases.
+    test_range_algo<0, int, data_in, decltype(gen_alternate)>{big_sz}(partition_checked, partition_checker, pred1);
+    test_range_algo<1, int, data_in, decltype(gen_blocked  )>{      }(partition_checked, partition_checker, pred1);
+    test_range_algo<2, int, data_in, decltype(gen_all_true )>{      }(partition_checked, partition_checker, pred1);
+    test_range_algo<3, int, data_in, decltype(gen_all_false)>{      }(partition_checked, partition_checker, pred1);
+    test_range_algo<4, int, data_in, decltype(gen_one_true )>{      }(partition_checked, partition_checker, pred1);
+    test_range_algo<5, int, data_in, decltype(gen_one_false)>{      }(partition_checked, partition_checker, pred1);
 
-    // Member-function projection (P2::proj): host only (skipped inside device kernels).
-    test_partition<3, P2, int (P2::*)() const>{}(dpl_ranges::partition, pred1, &P2::proj);
+    // Other predicates.
+    test_range_algo<6, int, data_in, decltype(gen_eq4     )>{}(partition_checked, partition_checker, pred2);
+    test_range_algo<7, int, data_in, decltype(gen_negative)>{}(partition_checked, partition_checker, pred3);
+
+    // Projections: a callable one and the pointer-to-data-member/pointer-to-member-function ones.
+    test_range_algo<8, int, data_in, decltype(gen_eq4_proj )>{}(partition_checked, partition_checker, pred2, proj);
+    test_range_algo<9,  P2, data_in, decltype(gen_alternate)>{}(partition_checked, partition_checker, pred1, &P2::x);
+    test_range_algo<10, P2, data_in, decltype(gen_blocked  )>{}(partition_checked, partition_checker, pred1, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
