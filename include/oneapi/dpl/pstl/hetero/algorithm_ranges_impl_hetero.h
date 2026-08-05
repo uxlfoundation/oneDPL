@@ -1222,7 +1222,7 @@ __pattern_inplace_merge_ranges(__hetero_tag<_Tag> __tag, _ExecutionPolicy&& __ex
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
         oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
 
-    return oneapi::dpl::__ranges::__end(__r);
+    return __last;
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
