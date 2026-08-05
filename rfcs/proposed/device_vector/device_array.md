@@ -63,7 +63,10 @@ public:
     device_array(const device_array&) = delete;
     device_array& operator=(const device_array&) = delete;
 
-    // Move (shallow move, device memory remains where it is)
+    // Move (shallow move, device memory remains where it is, but changes ownership).
+    // A moved-from device_array  is empty: size() == 0 and empty() is true. It may be
+    // destroyed or used as the target of a move assignment, but other usage is
+    // undefined behavior.
     device_array(device_array&&) noexcept;
     device_array& operator=(device_array&&)  noexcept;
 
