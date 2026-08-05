@@ -403,10 +403,9 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                           _BinaryOperation __binary_op, _Inclusive)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    using _Type = typename _InitType::__value_type;
 
     sycl::queue __q_local = __exec.queue();
-
-    using _Type = typename _InitType::__value_type;
 
     // The single work-group implementation requires a fundamental type which must be trivially copyable.
     if constexpr (std::is_trivially_copyable_v<_Type>)
@@ -436,8 +435,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
             }
         }
     }
-    using _GenInput =
-        oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation, typename _InitType::__value_type>;
+    using _GenInput = oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation, _Type>;
     using _ScanInputTransform = oneapi::dpl::identity;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
 

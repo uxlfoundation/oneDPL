@@ -1774,11 +1774,10 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
 {
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
-    template <typename _InRng, typename _TmpStorageAcc, typename _StopPosStorage, typename _StopPosInitState>
+    template <typename _InRng, typename _TmpStorage, typename _StopPosStorage, typename _StopPosInitState>
     sycl::event
-    operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng,
-               _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
-               const std::uint32_t __inputs_per_item, const std::size_t __block_num,
+    operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _TmpStorage& __scratch_storage,
+               const sycl::event& __prior_event, const std::uint32_t __inputs_per_item, const std::size_t __block_num,
                _StopPosStorage& __stop_pos_storage, _StopPosInitState __stop_pos_initial_state) const
     {
         using _InitValueType = typename _InitType::__value_type;
@@ -1791,7 +1790,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
             auto __comm_acc_or_placeholder = __comm_handler.__get_accessor_or_placeholder(__work_group_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
-            auto __temp_acc = __get_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
+            auto __temp_acc = __get_accessor(sycl::write_only, __scratch_storage, __cgh, __dpl_sycl::__no_init{});
             auto __stop_pos_acc =
                 __internal::__get_stop_pos_accessor_opt<_Bounded>(sycl::write_only, __cgh, __stop_pos_storage);
             __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi)
@@ -1955,12 +1954,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
         __tmp_acc[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
     }
 
-    template <typename _InRng, typename _OutRng, typename _TmpStorageAcc, typename _StopPosStorage>
+    template <typename _InRng, typename _OutRng, typename _TmpStorage, typename _StopPosStorage>
     sycl::event
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
-               _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
-               const std::uint32_t __inputs_per_item, const std::size_t __block_num,
-               _StopPosStorage& __stop_pos_storage) const
+               _TmpStorage& __scratch_storage, const sycl::event& __prior_event, const std::uint32_t __inputs_per_item,
+               const std::size_t __block_num, _StopPosStorage& __stop_pos_storage) const
     {
         // Size-independent, host-computed inputs-per-work-item; see the reduce submitter for why it is passed in
         // rather than re-derived on the device.
@@ -1985,9 +1983,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
-            auto __temp_acc = __get_accessor(sycl::read_write, __scratch_container, __cgh);
-            auto __res_acc =
-                __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
+            auto __temp_acc = __get_accessor(sycl::read_write, __scratch_storage, __cgh);
+            auto __res_acc = __get_result_accessor(sycl::write_only, __scratch_storage, __cgh, __dpl_sycl::__no_init{});
             auto __stop_pos_acc =
                 __internal::__get_stop_pos_accessor_opt<_Bounded>(sycl::read_write, __cgh, __stop_pos_storage);
 
@@ -2213,6 +2210,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         std::size_t __start_id_on_oob = __start_id;
                         typename _WriteOp::__position_type __oob_position{};
                         bool __oob_detected = false;
+                        auto& __stop_pos_acc_data = __stop_pos_acc.__data()[0];
 
                         auto __on_oob_reached = [&](std::size_t __start_id, typename _WriteOp::__position_type __pos) {
                             __start_id_on_oob = __start_id;
@@ -2223,27 +2221,23 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         if constexpr (_PosTools::__has_src_final_pos)
                         {
                             __call_scan_through_elements_helper(__on_oob_reached, [&](__src_final_pos_t __final_pos) {
-                                // Exactly one work-item reaches the edge crossing, so no synchronization
-                                // is needed to store the shared final position.
-                                _PosTools::__store_final_pos(__stop_pos_acc, __final_pos);
+                                // Exactly one work-item reaches the edge crossing, so no synchronization is needed
+                                // to store the shared final position.
+                                __stop_pos_acc_data.__final_pos = __final_pos;
                             });
+                            if (__oob_detected)
+                            {
+                                // Exactly one work-item reaches the OOB position, so no synchronization is needed
+                                // to update __stop_pos_acc.
+                                __stop_pos_acc_data.__oob_pos = _PosTools::__finalize_oob_pos(
+                                    __in_rng, __oob_position, __start_id_on_oob, __gen_scan_input);
+                            }
                         }
                         else
                         {
                             __call_scan_through_elements_helper(__on_oob_reached, __internal::__no_callback_tag{});
-                        }
-
-                        // The OOB position may be reached only in one work-item, so no synchronization is needed
-                        // to update __stop_pos_acc.
-                        if (__oob_detected)
-                        {
-                            if constexpr (_PosTools::__has_src_final_pos)
-                            {
-                                _PosTools::__finalize_and_store_oob_pos(__in_rng, __oob_position, __start_id_on_oob,
-                                                                        __gen_scan_input, __stop_pos_acc);
-                            }
-                            else
-                                __stop_pos_acc.__data()[0] = __oob_position;
+                            if (__oob_detected)
+                                __stop_pos_acc_data = __oob_position;
                         }
                     }
                     else
@@ -2453,14 +2447,8 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
                                     __init,
                                     __use_subgroup_ops};
 
-    // Allocate storage for stop pos and out-of-bounds position if needed
-    auto __create_stop_pos_storage_opt = [](sycl::queue& __q) {
-        if constexpr (_Bounded)
-            return __result_storage<_StopPosInitState>(__q, 1);
-        else
-            return __internal::__no_stop_pos_acc_tag{};
-    };
-    auto __stop_pos_storage = __create_stop_pos_storage_opt(__q);
+    // Allocate storage for stop and out-of-bounds position if needed
+    auto __stop_pos_storage = __internal::__create_stop_pos_storage_opt<_Bounded, _StopPosInitState>(__q);
 
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
     // with sufficiently large L2 / L3 caches.
