@@ -74,7 +74,9 @@ public:
     // Transfer from device (dst may be host memory or USM on this context)
     // copies min(dst.size(), size() - src_offset) elements
     void copy_to(oneapi::dpl::span<T> dst, size_type src_offset = 0) const;
-    void copy_to(sycl::queue q, oneapi::dpl::span<T> dst, size_type src_offset = 0, sycl::event depends_on = {}) const;
+    // overload to support queue with defaulted offset = 0
+    void copy_to(oneapi::dpl::span<T> dst, sycl::queue q, sycl::event depends_on = {}) const;
+    void copy_to(oneapi::dpl::span<T> dst, size_type src_offset, sycl::queue q, sycl::event depends_on = {}) const;
 
     // single element
     T read_at(size_type pos) const;
@@ -87,11 +89,16 @@ public:
     // Transfer to device (src may be host memory or USM on this context)
     // copies min(src.size(), size() - dst_offset) elements
     void copy_from(oneapi::dpl::span<const T> src, size_type dst_offset = 0);
-    void copy_from(sycl::queue q, oneapi::dpl::span<const T> src, size_type dst_offset = 0, sycl::event depends_on = {});
+    // overload to support queue with defaulted offset = 0
+    void copy_from(oneapi::dpl::span<const T> src, sycl::queue q, sycl::event depends_on = {});
+
+    void copy_from(oneapi::dpl::span<const T> src, size_type dst_offset, sycl::queue q, sycl::event depends_on = {});
 
     // single element
     void copy_from(const T& value, size_type dst_offset = 0);
-    void copy_from(sycl::queue q, const T& value, size_type dst_offset = 0, sycl::event depends_on = {});
+    // overload to support queue with defaulted offset = 0
+    void copy_from(const T& value, sycl::queue q, sycl::event depends_on = {});
+    void copy_from(const T& value, size_type dst_offset, sycl::queue q, sycl::event depends_on = {});
 
     // Capacity (fixed size — no resize / reserve / capacity / clear)
     size_type size()  const;
