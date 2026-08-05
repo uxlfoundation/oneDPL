@@ -1504,6 +1504,22 @@ __pattern_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_partial_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r,
+                              std::ranges::iterator_t<_R> __middle, _Comp __comp, _Proj __proj)
+{
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    oneapi::dpl::__internal::__pattern_partial_sort(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+
+    return __last;
+}
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
 //------------------------------------------------------------------------
 // min_element
 //------------------------------------------------------------------------
