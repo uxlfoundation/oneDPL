@@ -74,12 +74,22 @@ public:
     ~device_array();
 
     // Host-device transfer
+    //
+    // Preconditions: for the bulk overloads, offset <= size(); an offset equal to
+    // size() is well-formed and transfers zero elements. For the single-element
+    // overloads, pos < size(). Violating either throws std::out_of_range rather
+    // than reading or writing out of bounds.
+    //
+    // The bulk overloads return the number of elements actually transferred,
+    // min(other.size(), size() - offset), which may be less than requested.
+
     // Transfer from device (dst may be host memory or USM on this context)
-    // copies min(dst.size(), size() - src_offset) elements
-    void copy_to(oneapi::dpl::span<T> dst, size_type src_offset = 0) const;
+    size_type copy_to(oneapi::dpl::span<T> dst, size_type src_offset = 0) const;
     // overload to support queue with defaulted offset = 0
-    void copy_to(oneapi::dpl::span<T> dst, sycl::queue q, sycl::event depends_on = {}) const;
-    void copy_to(oneapi::dpl::span<T> dst, size_type src_offset, sycl::queue q, sycl::event depends_on = {}) const;
+    size_type copy_to(oneapi::dpl::span<T> dst, sycl::queue q,
+                      sycl::event depends_on = {}) const;
+    size_type copy_to(oneapi::dpl::span<T> dst, size_type src_offset, sycl::queue q,
+                      sycl::event depends_on = {}) const;
 
     // single element
     T read_at(size_type pos) const;
@@ -90,18 +100,19 @@ public:
     std::vector<T> to_vector(sycl::queue q, sycl::event depends_on = {}) const;
 
     // Transfer to device (src may be host memory or USM on this context)
-    // copies min(src.size(), size() - dst_offset) elements
-    void copy_from(oneapi::dpl::span<const T> src, size_type dst_offset = 0);
+    size_type copy_from(oneapi::dpl::span<const T> src, size_type dst_offset = 0);
     // overload to support queue with defaulted offset = 0
-    void copy_from(oneapi::dpl::span<const T> src, sycl::queue q, sycl::event depends_on = {});
-
-    void copy_from(oneapi::dpl::span<const T> src, size_type dst_offset, sycl::queue q, sycl::event depends_on = {});
+    size_type copy_from(oneapi::dpl::span<const T> src, sycl::queue q,
+                        sycl::event depends_on = {});
+    size_type copy_from(oneapi::dpl::span<const T> src, size_type dst_offset, sycl::queue q,
+                        sycl::event depends_on = {});
 
     // single element
     void copy_from(const T& value, size_type dst_offset = 0);
     // overload to support queue with defaulted offset = 0
     void copy_from(const T& value, sycl::queue q, sycl::event depends_on = {});
-    void copy_from(const T& value, size_type dst_offset, sycl::queue q, sycl::event depends_on = {});
+    void copy_from(const T& value, size_type dst_offset, sycl::queue q,
+                   sycl::event depends_on = {});
 
     // Capacity (fixed size — no resize / reserve / capacity / clear)
     size_type size()  const;
@@ -247,15 +258,17 @@ d.copy_from(42.0f, q);             // synchronous write
 
 // --- Bulk download ---
 std::vector<float> out = d.to_vector(q);   // fresh vector
-d.copy_to(out, q);                         // or into existing storage
-                                           // copies min(out.size(), d.size()) elements
+std::size_t n = d.copy_to(out, q);         // or into existing storage; returns the
+                                           // count actually copied, which is
+                                           // min(out.size(), d.size())
 
 // --- Bulk upload into an existing device_array (does not resize) ---
-d.copy_from(host_data, q);
+d.copy_from(host_data, q);                 // return value may be discarded
 
 // --- Offset transfers: copy the tail of d into the front of out ---
 d.copy_to(out, 100, q);                    // d[100 .. 100 + n) -> out[0 .. n)
                                            // n = min(out.size(), d.size() - 100)
+                                           // throws std::out_of_range if 100 > d.size()
 
 // --- Offset upload: write host_data into d starting at element 100 ---
 d.copy_from(host_data, 100, q);            // truncated at the end of d
