@@ -15,7 +15,7 @@ the functionality that is actually used in practice, adapted to fit within SYCL.
 
 `compat::device_vector<T, Alloc>` and [`device_array`](device_array.md) share
 their implementation through a non-public base,
-`oneapi::dpl::experimental::internal::__device_storage_base<T, Alloc>`, which
+`oneapi::dpl::__internal::__device_storage_base<T, Alloc>`, which
 owns the device allocation and its lifetime, the size, the associated
 `sycl::context` / `sycl::device`, the allocator instance, resizing, and the
 host-device transfer helpers. `device_vector` **privately inherits** from it and
@@ -234,7 +234,7 @@ public:
 ## Usage Example
 
 ```cpp
-#include <oneapi/dpl/device_vector>
+#include <oneapi/dpl/compat/device_vector>
 #include <oneapi/dpl/algorithm>
 #include <oneapi/dpl/execution>
 #include <sycl/sycl.hpp>

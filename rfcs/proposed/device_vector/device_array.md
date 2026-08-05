@@ -17,7 +17,7 @@ document only describes `device_array`.
 ## Relationship to the shared base
 
 `device_array` and `compat::device_vector` share their implementation through a
-non-public base, `oneapi::dpl::experimental::internal::__device_storage_base<T, Alloc>`,
+non-public base, `oneapi::dpl::__internal::__device_storage_base<T, Alloc>`,
 which owns the device allocation and its lifetime, the size, the associated
 `sycl::context` / `sycl::device`, the allocator instance, resizing, and the
 host-device transfer helpers.
