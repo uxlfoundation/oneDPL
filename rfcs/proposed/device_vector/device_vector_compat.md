@@ -357,7 +357,7 @@ public:
 };
 ```
 
-Allocation failure surfaces as the `sycl::exception` thrown by the underlying USM `sycl::device_malloc` or `sycl::aligned_alloc_device`.
+Allocation failure surfaces as the `sycl::exception` thrown by the underlying USM `sycl::malloc_device` or `sycl::aligned_alloc_device`.
 
 
 ### C++20 Concept (informational; enforced via SFINAE on C++17)
