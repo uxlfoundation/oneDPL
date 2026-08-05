@@ -137,7 +137,7 @@ template <typename T> const T* end  (const experimental::device_array<T>& d);
 Iterators come from the non-member `oneapi::dpl::begin` / `oneapi::dpl::end` overloads,
 which return raw `T*` (and `const T*` for a const `device_array`).
 
-Span iterators should not be passed to a oneDPL iterator API with a device policy. `std::span<T>::iterator` is an implementation defined iterator, which isnt guaranteed to be
+Span iterators should not be passed to a oneDPL iterator API with a device policy. `std::span<T>::iterator` is an implementation defined iterator, which isn't guaranteed to be
 `oneapi::dpl::is_indirectly_device_accessible`. What we want for iterator APIs with a device policy are pointers to USM memory (use `oneapi::dpl::begin/end`).
 
 ## Allocator
