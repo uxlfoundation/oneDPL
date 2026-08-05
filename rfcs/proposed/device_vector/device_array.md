@@ -80,7 +80,7 @@ public:
 
     // single element
     T read_at(size_type pos) const;
-    T read_at(sycl::queue q, size_type pos, sycl::event depends_on = {}) const;
+    T read_at(size_type pos, sycl::queue q, sycl::event depends_on = {}) const;
 
     // Convenience download into a fresh host vector
     std::vector<T> to_vector() const;
