@@ -177,7 +177,7 @@ classDiagram
   <oneapi/dpl/compat> in the future. This matches convention of the standard library and
   thrust.
 
-- **Namespace** - device_array should be in `oneapi::dpl::experimental::device_array`.
+- **Namespace** - `device_array` should be in `oneapi::dpl::experimental`.
   The intention for `device_vector` is to add it `oneapi::dpl::compat` directly without `experimental`.
   This means we must be very careful with the initial implementation of
   `device_vector` as a breaking change here is a breaking change for oneDPL as a
