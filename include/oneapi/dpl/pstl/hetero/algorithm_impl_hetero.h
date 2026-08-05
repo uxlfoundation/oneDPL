@@ -1674,11 +1674,13 @@ __pattern_rotate(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
     if (__n == 0)
         return __first;
 
-    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
-    auto __buf = __keep(__first, __last);
     const std::size_t __pivot = __new_first - __first;
-    __pattern_rotate(__tag, std::forward<_ExecutionPolicy>(__exec), __buf.all_view(), __pivot);
-
+    if (__pivot > 0 && __pivot < __n)
+    {
+        auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
+        auto __buf = __keep(__first, __last);
+        __pattern_rotate(__tag, std::forward<_ExecutionPolicy>(__exec), __buf.all_view(), __pivot);
+    }
     return __first + (__last - __new_first);
 }
 

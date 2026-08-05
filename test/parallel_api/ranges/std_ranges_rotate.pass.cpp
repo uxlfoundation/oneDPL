@@ -15,7 +15,7 @@ struct
 {
     template <typename Policy, std::ranges::random_access_range Range>
     std::ranges::borrowed_subrange_t<Range>
-    operator()(Policy&& exec, Range&& r, int pivot_pos = -1)
+    operator()(Policy&& exec, Range&& r, int pivot_pos = -1) const
     {
         const int in_size = std::ranges::size(r);
         auto middle = std::ranges::begin(r) + ((pivot_pos < 0)? in_size/3 : std::min<int>(pivot_pos, in_size));
