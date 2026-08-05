@@ -16,9 +16,6 @@
 #include <ranges>
 #include <utility>
 
-namespace test_std_ranges
-{
-
 // std::ranges::partition is not a stable algorithm: it only guarantees that the elements satisfying
 // the predicate precede those that do not. The parallel and device specializations rearrange the
 // elements differently from std::ranges::partition, so the element-wise comparison against the
@@ -64,7 +61,9 @@ struct partition_checked_fn
         {
             EXPECT_TRUE(std::ranges::is_partitioned(r, args...), "the range is not partitioned");
 
-            if constexpr (std::ranges::borrowed_range<R>)
+            // The returned subrange carries an iterator only for a borrowed range, otherwise it is
+            // std::ranges::dangling.
+            if constexpr (!std::is_same_v<decltype(res), std::ranges::dangling>)
             {
                 EXPECT_TRUE(std::ranges::end(res) == std::ranges::end(r), "wrong end of the returned subrange");
                 EXPECT_TRUE(std::ranges::none_of(res, args...),
@@ -77,8 +76,6 @@ struct partition_checked_fn
 };
 
 inline constexpr partition_checked_fn partition_checked{};
-
-} // namespace test_std_ranges
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
