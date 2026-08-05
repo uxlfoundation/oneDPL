@@ -25,22 +25,25 @@
 // how these values are distributed over the sequence, which exercises different balances of the
 // partition implementation.
 
+// The generators are function objects rather than lambda variables: only their types are used (as a
+// DataGen1 template argument), so lambda objects would be reported as unneeded and not emitted.
+
 // pred1 (val > 0): alternating, blocked, all-true, all-false and almost-all-true/false patterns.
-auto gen_alternate = [](auto i) { return i % 2 ? 1 : 0;        };
-auto gen_blocked   = [](auto i) { return (i / 64) % 2 ? 1 : 0; };
-auto gen_all_true  = [](auto)   { return 1;                    };
-auto gen_all_false = [](auto)   { return 0;                    };
-auto gen_one_true  = [](auto i) { return i == 0 ? 1 : 0;       };
-auto gen_one_false = [](auto i) { return i == 0 ? 0 : 1;       };
+struct gen_alternate { int operator()(auto i) const { return i % 2 ? 1 : 0;        } };
+struct gen_blocked   { int operator()(auto i) const { return (i / 64) % 2 ? 1 : 0; } };
+struct gen_all_true  { int operator()(auto)   const { return 1;                    } };
+struct gen_all_false { int operator()(auto)   const { return 0;                    } };
+struct gen_one_true  { int operator()(auto i) const { return i == 0 ? 1 : 0;       } };
+struct gen_one_false { int operator()(auto i) const { return i == 0 ? 0 : 1;       } };
 
 // pred2 (val == 4) with the identity projection.
-auto gen_eq4 = [](auto i) { return i % 3 ? 7 : 4; };
+struct gen_eq4 { int operator()(auto i) const { return i % 3 ? 7 : 4; } };
 
 // pred2 (val == 4) with the 'proj' projection (val * 2).
-auto gen_eq4_proj = [](auto i) { return i % 3 ? 7 : 2; };
+struct gen_eq4_proj { int operator()(auto i) const { return i % 3 ? 7 : 2; } };
 
 // pred3 (val < 0).
-auto gen_negative = [](auto i) { return i % 2 ? -5 : 5; };
+struct gen_negative { int operator()(auto i) const { return i % 2 ? -5 : 5; } };
 
 // A wrapper around the tested algorithm which is passed to the harness instead of the algorithm
 // itself: besides the element-wise comparison against std::ranges::partition made by the harness, it
@@ -88,21 +91,21 @@ main()
     auto partition_checker = TEST_PREPARE_CALLABLE(std::ranges::partition);
 
     // Different data generators with the same predicate: balanced, blocked and degenerate cases.
-    test_range_algo<0, int, data_in, decltype(gen_alternate)>{big_sz}(partition_checked, partition_checker, pred1);
-    test_range_algo<1, int, data_in, decltype(gen_blocked  )>{      }(partition_checked, partition_checker, pred1);
-    test_range_algo<2, int, data_in, decltype(gen_all_true )>{      }(partition_checked, partition_checker, pred1);
-    test_range_algo<3, int, data_in, decltype(gen_all_false)>{      }(partition_checked, partition_checker, pred1);
-    test_range_algo<4, int, data_in, decltype(gen_one_true )>{      }(partition_checked, partition_checker, pred1);
-    test_range_algo<5, int, data_in, decltype(gen_one_false)>{      }(partition_checked, partition_checker, pred1);
+    test_range_algo<0, int, data_in, gen_alternate>{big_sz}(partition_checked, partition_checker, pred1);
+    test_range_algo<1, int, data_in, gen_blocked>{}(partition_checked, partition_checker, pred1);
+    test_range_algo<2, int, data_in, gen_all_true>{}(partition_checked, partition_checker, pred1);
+    test_range_algo<3, int, data_in, gen_all_false>{}(partition_checked, partition_checker, pred1);
+    test_range_algo<4, int, data_in, gen_one_true>{}(partition_checked, partition_checker, pred1);
+    test_range_algo<5, int, data_in, gen_one_false>{}(partition_checked, partition_checker, pred1);
 
     // Other predicates.
-    test_range_algo<6, int, data_in, decltype(gen_eq4     )>{}(partition_checked, partition_checker, pred2);
-    test_range_algo<7, int, data_in, decltype(gen_negative)>{}(partition_checked, partition_checker, pred3);
+    test_range_algo<6, int, data_in, gen_eq4>{}(partition_checked, partition_checker, pred2);
+    test_range_algo<7, int, data_in, gen_negative>{}(partition_checked, partition_checker, pred3);
 
     // Projections: a callable one and the pointer-to-data-member/pointer-to-member-function ones.
-    test_range_algo<8, int, data_in, decltype(gen_eq4_proj )>{}(partition_checked, partition_checker, pred2, proj);
-    test_range_algo<9,  P2, data_in, decltype(gen_alternate)>{}(partition_checked, partition_checker, pred1, &P2::x);
-    test_range_algo<10, P2, data_in, decltype(gen_blocked  )>{}(partition_checked, partition_checker, pred1, &P2::proj);
+    test_range_algo<8, int, data_in, gen_eq4_proj>{}(partition_checked, partition_checker, pred2, proj);
+    test_range_algo<9,  P2, data_in, gen_alternate>{}(partition_checked, partition_checker, pred1, &P2::x);
+    test_range_algo<10, P2, data_in, gen_blocked>{}(partition_checked, partition_checker, pred1, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
