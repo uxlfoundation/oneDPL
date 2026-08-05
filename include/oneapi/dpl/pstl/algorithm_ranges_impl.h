@@ -1849,7 +1849,7 @@ __pattern_partition(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pre
         oneapi::dpl::__internal::__pattern_partition(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
                                                      oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
 
-    return {__res, oneapi::dpl::__ranges::__end(__r)};
+    return {__res, __last};
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
