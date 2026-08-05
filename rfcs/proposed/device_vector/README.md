@@ -44,7 +44,7 @@ This RFC proposes adding data containers to oneDPL for managing device memory an
 
 | Aspect | Proposed (oneDPL) | Thrust | sycl-thrust | SYCLomatic |
 |---|---|---|---|---|
-| **Default Allocator** | `device_allocator<T>` wrapping `sycl::malloc_device`; custom `DeviceAllocator` concept | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | `device_allocator<T>` (`sycl::malloc_device`); supports alignment template parameter | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` |
+| **Default Allocator** | `device_allocator<T, Alignment>` wrapping `sycl::malloc_device`; custom `DeviceAllocator` concept | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | `device_allocator<T>` (`sycl::malloc_device`); supports alignment template parameter | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` |
 | **Memory Model** | **Device memory** via `sycl::malloc_device`; host access triggers implicit transfers | **Device memory** via `cudaMalloc`; host access triggers implicit transfers | **Device memory** via `sycl::malloc_device`; implicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement |
 | **Host Element Access** | `device_array`: explicit transfer to host; compat `device_vector`: `device_reference` proxy | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (`__SYCL_DEVICE_ONLY__` bifurcation) | Via `device_reference` proxy (runtime-managed migration) |
 | **std::vector Interop** | Explicit constructor + `to_vector()` | Copy constructors from/to `std::vector` | Constructor from `std::vector` | Copy/move + implicit `operator std::vector()` |
@@ -143,10 +143,12 @@ classDiagram
   which would be required to dispatch based upon tag.
 
 - **Custom `DeviceAllocator` concept for pluggable allocation.**
-  A minimal allocator interface — just `allocate(n, ctx, dev)` and
-  `deallocate(p, n, ctx, dev)` — that avoids the `std::allocator` named
-  requirements (which mandate host-accessible memory). Enables pool allocators,
-  aligned allocation, and other strategies. The allocator is a template
+  A minimal allocator interface — just `allocate(n)` and `deallocate(p, n)` — that avoids
+  the `std::allocator` named requirements (which mandate host-accessible memory). Enables
+  pool allocators, aligned allocation, and other strategies. The allocator is
+  stateful, carrying the `sycl::context`, `sycl::device` and `sycl::property_list` to
+  allocate against, mirroring `sycl::usm_allocator`; that is why `allocate()` needs only
+  an element count. The allocator is a template
   parameter of `compat::device_vector` (and the shared base); `device_array`
   hardcodes the default `device_allocator<T>` and does not expose it. See the
   [device_vector allocator section](device_vector_compat.md#allocator) for

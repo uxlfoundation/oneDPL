@@ -283,17 +283,33 @@ device memory allocation. The default allocator wraps `sycl::malloc_device` /
 `sycl::free`. (`device_array` fixes this to the default and does not expose it;
 pluggable allocation is a `device_vector` feature.)
 
+The default `device_allocator` deliberately mirrors `sycl::usm_allocator`. It is
+stateful, carrying the `sycl::context`, `sycl::device` and `sycl::property_list` to
+allocate against, so `allocate()` takes only an element count. It also matches
+`usm_allocator`'s alignment template parameter, its `rebind` and
+`propagate_on_container_*` members, its converting constructor, and its equality
+operators. Matching that shape makes `device_allocator` familiar and usable standalone.
+
+`sycl::usm_allocator` itself cannot serve this role: it contains
+`static_assert(AllocKind != sycl::usm::alloc::device)`, because device memory is not
+host-accessible and so cannot satisfy the `std::allocator` named requirements that
+`usm_allocator` is built to satisfy. `device_allocator` provides only
+`allocate`/`deallocate` and imposes none of those requirements.
+
 ### Allocator Requirements
 
 A type `Alloc` satisfies `DeviceAllocator` for type `T` if, given an instance
-`a` of type `Alloc`, a pointer `p` of type `T*`, a `std::size_t n`, a
-`sycl::context ctx`, and a `sycl::device dev`, the following expressions are
-valid:
+`a` of type `Alloc`, a pointer `p` of type `T*`, and a `std::size_t n`, the following
+expressions are valid:
 
 | Expression | Return type | Semantics |
 |---|---|---|
-| `a.allocate(n, ctx, dev)` | `T*` | Allocate device memory for `n` objects of type `T` |
-| `a.deallocate(p, n, ctx, dev)` | `void` | Free device memory previously allocated by `allocate` |
+| `a.allocate(n)` | `T*` | Allocate uninitialized device memory for `n` objects of type `T` |
+| `a.deallocate(p, n)` | `void` | Free device memory previously allocated by `allocate` |
+
+The allocator is not required to be default constructible, and the default
+`device_allocator` deliberately is not. An allocation needs a context and a device, and
+there is no meaningful default for either.
 
 The allocator is not required to support `construct`, `destroy`, or any of the
 `std::allocator` named requirements beyond `allocate`/`deallocate`. Device
@@ -301,27 +317,56 @@ memory is not host-accessible, so construction and destruction happen via
 kernel launches or memcpy, managed by the container itself.
 
 The allocator must be copy-constructible and copy-assignable.
-
 ```cpp
 // Default allocator
-template <typename T>
-struct device_allocator {
-    T* allocate(std::size_t n, sycl::context ctx, sycl::device dev) {
-        return sycl::malloc_device<T>(n, dev, ctx);
-    }
-    void deallocate(T* p, std::size_t n, sycl::context ctx, sycl::device dev) {
-        sycl::free(p, ctx);
-    }
+template <typename T, std::size_t Alignment = 0>
+class device_allocator {
+public:
+    using value_type = T;
+
+    // Device memory is never host-accessible, so a container can never relocate
+    // elements on the host; propagating on all three operations keeps a container's
+    // allocator consistent with the memory it holds. Matches sycl::usm_allocator.
+    using propagate_on_container_copy_assignment = std::true_type;
+    using propagate_on_container_move_assignment = std::true_type;
+    using propagate_on_container_swap            = std::true_type;
+
+    template <typename U> struct rebind { using other = device_allocator<U, Alignment>; };
+
+    // Not default constructible: an allocation needs a context and a device.
+    device_allocator() = delete;
+    explicit device_allocator(const sycl::context& ctx, const sycl::device& dev,
+                              const sycl::property_list& prop_list = {});
+    explicit device_allocator(const sycl::queue& q,
+                              const sycl::property_list& prop_list = {});
+
+    // Rebinding conversion; carries the allocation target over.
+    template <typename U>
+    device_allocator(const device_allocator<U, Alignment>& other) noexcept;
+
+    // Alignment == 0 uses sycl::malloc_device; otherwise sycl::aligned_alloc_device,
+    // which itself raises the alignment to max(Alignment, alignof(T)).
+    T*   allocate(std::size_t count) const;
+    void deallocate(T* ptr, std::size_t count) const;
+
+    sycl::context get_context() const;
+    sycl::device  get_device()  const;
+
+    template <typename Property> bool     has_property() const noexcept;
+    template <typename Property> Property get_property() const;
+
 };
 ```
+
+Allocation failure surfaces as the `sycl::exception` thrown by the underlying USM `sycl::device_malloc` or `sycl::aligned_alloc_device`.
+
 
 ### C++20 Concept (informational; enforced via SFINAE on C++17)
 
 ```cpp
 template <typename Alloc, typename T>
-concept DeviceAllocator = requires(Alloc a, T* p, std::size_t n,
-                                   sycl::context ctx, sycl::device dev) {
-    { a.allocate(n, ctx, dev) } -> std::same_as<T*>;
-    { a.deallocate(p, n, ctx, dev) } -> std::same_as<void>;
+concept DeviceAllocator = requires(Alloc a, T* p, std::size_t n) {
+    { a.allocate(n) }      -> std::same_as<T*>;
+    { a.deallocate(p, n) } -> std::same_as<void>;
 };
 ```
