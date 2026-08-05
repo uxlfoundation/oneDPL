@@ -135,7 +135,8 @@ classDiagram
 
 - **Type T should only require device copyability.**
   We should not need anything except device copyability (for copy to and from
-  the device).
+  the device). The exceptions to this are from `no_init_t` and `default_init_t`
+  tags within `device_vector`, see their definition for details.
 
 - **No tag system for dispatch to specific hardware.**
   Execution policies dictate where algorithms are run. We don't intend to
