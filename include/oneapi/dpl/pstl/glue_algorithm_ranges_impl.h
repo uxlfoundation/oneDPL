@@ -614,6 +614,23 @@ struct __internal::__sort_fn
 }; //__sort_fn
 inline constexpr __internal::__sort_fn sort;
 
+struct __internal::__partial_sort_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Comp = std::ranges::less,
+              typename _Proj = std::identity>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R> && std::sortable<std::ranges::iterator_t<_R>, _Comp, _Proj>
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, std::ranges::iterator_t<_R> __middle, _Comp __comp = {},
+               _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_partial_sort_ranges(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __middle, __comp, __proj);
+    }
+}; //__partial_sort_fn
+inline constexpr __internal::__partial_sort_fn partial_sort;
+
 // [is.heap]
 
 struct __internal::__is_heap_fn
