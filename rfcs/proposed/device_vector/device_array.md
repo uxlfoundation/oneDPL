@@ -107,7 +107,7 @@ public:
     size_type size()  const;
     bool      empty() const;
 
-    void swap(device_array& other) noexcept;
+    void swap(device_array& other);
 
     // Views
     oneapi::dpl::span<T>       span();
@@ -118,7 +118,7 @@ public:
     sycl::device  get_device()  const;
 };
 
-template <typename T> void swap(device_array<T>& a, device_array<T>& b) noexcept;
+template <typename T> void swap(device_array<T>& a, device_array<T>& b);
 
 } // namespace oneapi::dpl::experimental
 
@@ -308,5 +308,5 @@ d.copy_to(out, q);
     No, while this provides more control over synchronization, it complicates the interface too much for the initial API.
 
 ## Open Questions
-- ** Should member functions which include a `sycl::queue` for synchronization also include an optional `sycl::event depends_on` parameter for event based synchronization?
+- Should member functions which include a `sycl::queue` for synchronization also include an optional `sycl::event depends_on` parameter for event based synchronization?
   - The idea here is for out-of-order queue synchronization with existing workflows, I've added this into the proposal for now.
