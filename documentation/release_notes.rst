@@ -8,6 +8,14 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
+
+New in 2022.14.0
+================
+-  ``radix_sort`` and ``radix_sort_by_key`` algorithms from ``oneapi::dpl::experimental::kt::gpu`` namespace
+  now support ``sycl::ext::oneapi::bfloat16`` type,
+  and ``sort``, ``stable_sort``, ``sort_by_key``, ``stable_sort_by_key`` algorithms with device policies
+  now use use Radix sort [#fnote1]_ for sorting elements of this type .
+
 New in 2022.13.0
 ================
 
@@ -26,9 +34,6 @@ New Features
   ``transform_exclusive_scan`` with device policies for non-trivially-copyable value types on GPU devices.
 - Improved performance of the ``histogram_even`` and ``histogram_range`` algorithms with device policies for a small
   number of bins on GPU devices.
-- ``sort``, ``stable_sort``, ``sort_by_key`` algorithms, as well as the ``kt::gpu::radix_sort`` and
-  ``kt::gpu::radix_sort_by_key`` kernel templates, now use Radix sort [#fnote1]_ for sorting
-  ``sycl::ext::oneapi::bfloat16`` elements compared with ``std::less`` or ``std::greater``.
 
 Known Issues and Limitations
 ----------------------------
@@ -1180,7 +1185,7 @@ Known Issues and Limitations
   for double precision.
 
 .. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types,
-  ``sycl::half`` (since oneDPL 2022.6), and ``sycl::ext::oneapi::bfloat16`` (since oneDPL 2022.13)
+  ``sycl::half`` (since oneDPL 2022.6), and ``sycl::ext::oneapi::bfloat16`` (since oneDPL 2022.14)
   compared with ``less`` or ``greater`` from the ``std`` and ``std::ranges`` (since oneDPL 2022.13)
   namespaces, otherwise Merge sort.
 .. _`oneDPL Guide`: https://uxlfoundation.github.io/oneDPL/library_guide/index.html
