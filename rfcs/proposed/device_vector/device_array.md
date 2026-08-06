@@ -95,7 +95,9 @@ public:
     T read_at(size_type pos) const;
     T read_at(size_type pos, sycl::queue q, sycl::event depends_on = {}) const;
 
-    // Convenience download into a fresh host vector
+    // Convenience download into a fresh host vector.
+    // Additionally requires std::is_default_constructible_v<T>. With a
+    // non-default-constructible T, use copy_to() into storage the caller owns.
     std::vector<T> to_vector() const;
     std::vector<T> to_vector(sycl::queue q, sycl::event depends_on = {}) const;
 

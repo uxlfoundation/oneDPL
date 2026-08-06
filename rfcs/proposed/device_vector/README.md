@@ -135,8 +135,17 @@ classDiagram
 
 - **Type T should only require device copyability.**
   We should not need anything except device copyability (for copy to and from
-  the device). The exceptions to this are from `no_init_t` and `default_init_t`
-  tags within `device_vector`, see their definition for details.
+  the device). The exceptions to this are:
+  - the `no_init_t` and `default_init_t` tags within `device_vector`, see their
+    definition for details, and
+  - conversion to a host `std::vector<T>` — `device_array::to_vector()` and
+    `compat::device_vector::operator std::vector<T>()` additionally require
+    `std::is_default_constructible_v<T>`, because the returned vector must be
+    sized before its elements can be filled by the device-to-host transfer, and
+    `std::vector`'s sized construction value-initializes. This requirement
+    applies only to these members; it is not a requirement of the container
+    itself. Users with a non-default-constructible `T` can transfer into storage
+    they own with `copy_to()`.
 
 - **No tag system for dispatch to specific hardware.**
   Execution policies dictate where algorithms are run. We don't intend to

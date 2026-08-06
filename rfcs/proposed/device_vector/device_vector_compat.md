@@ -185,7 +185,8 @@ public:
     // Assign from host vector (bulk upload)
     device_vector& operator=(const std::vector<T>& src);
 
-    // Convert to host vector (bulk download)
+    // Convert to host vector (bulk download).
+    // Additionally requires std::is_default_constructible_v<T>
     explicit operator std::vector<T>() const;
 
     // --- Element access (proxy references) ---
@@ -333,9 +334,10 @@ public:
 
     // Not default constructible: an allocation needs a context and a device.
     device_allocator() = delete;
-    explicit device_allocator(const sycl::context& ctx, const sycl::device& dev,
+
+    explicit device_allocator(sycl::context ctx, sycl::device dev,
                               const sycl::property_list& prop_list = {});
-    explicit device_allocator(const sycl::queue& q,
+    explicit device_allocator(sycl::queue q,
                               const sycl::property_list& prop_list = {});
 
     // Rebinding conversion; carries the allocation target over.
