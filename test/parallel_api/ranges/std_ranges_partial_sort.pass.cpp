@@ -50,16 +50,22 @@ main()
         return std::ranges::partial_sort(std::forward<decltype(r)>(r), middle, std::forward<decltype(args)>(args)...);
     };
 
+    std::cerr << "test_range_algo<0>{big_sz}(partial_sort_algo, partial_sort_checker);" << std::endl;
     test_range_algo<0>{big_sz}(partial_sort_algo, partial_sort_checker);
     test_range_algo<1>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{});
 
     test_range_algo<2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, proj);
+    std::cerr << "test_range_algo<3>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, proj);" << std::endl;
     test_range_algo<3>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, proj);
 
+    std::cerr << "test_range_algo<4, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::x);" << std::endl;
     test_range_algo<4, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::x);
+    std::cerr << "test_range_algo<5, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::x);" << std::endl;
     test_range_algo<5, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::x);
 
+    std::cerr << "test_range_algo<6, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::proj);" << std::endl;
     test_range_algo<6, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::proj);
+    std::cerr << "test_range_algo<7, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::proj);" << std::endl;
     test_range_algo<7, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 

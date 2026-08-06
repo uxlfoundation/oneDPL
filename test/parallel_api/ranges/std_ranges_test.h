@@ -1154,13 +1154,19 @@ struct test_range_algo
         auto span_view = span_view_fo{};
 #endif
 
+        std::cerr << "\ttest_range_algo_impl_host #1" << std::endl;
         test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, subrange_view,    std::identity{}, args...);
 #    if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
+        std::cerr << "\ttest_range_algo_impl_host #2" << std::endl;
         test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{}, std::identity{}, args...);
+        std::cerr << "\ttest_range_algo_impl_host #3" << std::endl;
         test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+        std::cerr << "\ttest_range_algo_impl_host #4" << std::endl;
         test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
+        std::cerr << "\ttest_range_algo_impl_host #5" << std::endl;
         test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, span_view,        std::identity{}, args...);
+        std::cerr << "\ttest_range_algo_impl_host #6" << std::endl;
         test<T, host_span<T>,     mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #endif
 #    endif // ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
@@ -1182,11 +1188,15 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
+                std::cerr << "\ttest_range_algo_impl_hetero #1" << std::endl;
                 test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
 #        if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
+                std::cerr << "\ttest_range_algo_impl_hetero #2" << std::endl;
                 test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
+                std::cerr << "\ttest_range_algo_impl_hetero #3" << std::endl;
                 test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
+                std::cerr << "\ttest_range_algo_impl_hetero #4" << std::endl;
                 test<T, usm_span<T>,     mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
 #        endif // ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
@@ -1198,10 +1208,12 @@ struct test_range_algo
     void
     operator()(auto algo, auto& checker, auto... args)
     {
+        std::cerr << "" << std::endl;
         test_range_algo_impl_host(algo, checker, args...);
 
 #if TEST_DPCPP_BACKEND_PRESENT
         auto policy = TestUtils::get_dpcpp_test_policy();
+        std::cerr << "" << std::endl;
         test_range_algo_impl_hetero(policy, algo, checker, args...);
 
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
