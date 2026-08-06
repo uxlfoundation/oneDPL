@@ -15,11 +15,10 @@
 
 #if _ONEDPL_BACKEND_SYCL
 
-// internal/span_impl.h defines oneapi::dpl::span which device_array depends upon. It is an alias for std::span where it
+// span_impl.h defines oneapi::dpl::span which device_array depends upon. It is an alias for std::span where it
 // is available and for sycl::span otherwise.
-#    include "../internal/span_impl.h"
-#    include "../internal/device_array_impl.h"
-
+#    include "../pstl/hetero/dpcpp/span_impl.h"
+#    include "../pstl/hetero/dpcpp/device_array_impl.h"
 namespace dpl = oneapi::dpl;
 
 #endif // _ONEDPL_BACKEND_SYCL
