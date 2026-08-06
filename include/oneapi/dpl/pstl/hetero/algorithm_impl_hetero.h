@@ -1490,7 +1490,7 @@ _OutIterator
 __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InIterator __first,
                             _InIterator __last, _OutIterator __out_first, _OutIterator __out_last, _Compare __comp)
 {
-    using _ValueType = typename ::std::iterator_traits<_InIterator>::value_type;
+    using _ValueType = typename ::std::iterator_traits<_OutIterator>::value_type;
 
     auto __in_size = __last - __first;
     auto __out_size = __out_last - __out_first;
