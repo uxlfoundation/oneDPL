@@ -1287,10 +1287,12 @@ struct __partial_merge_kernel
         const auto __part_end_1 = sycl::min(__start_1 + __k, __end_1);
         const auto __part_end_2 = sycl::min(__start_2 + __k, __end_2);
 
+        assert(__part_end_1 <= __end_1);
+        assert(__part_end_2 <= __end_2);
+
         // Handle elements from p1
         if (__global_idx >= __start_1 && __global_idx < __part_end_1)
         {
-            assert(__part_end_2 <= __end_2);
             const auto __shift =
                 /* index inside p1 */ __global_idx - __start_1 +
                 /* relative position in p3 */
@@ -1299,8 +1301,8 @@ struct __partial_merge_kernel
                                                                 oneapi::dpl::identity{}) -
                 __start_2;
 
-            assert(__global_idx < __end_1);
-            assert(__out_shift + __shift < __end_3);
+            assert(0 <= __global_idx && __global_idx < __end_1);
+            assert(0 <= __out_shift + __shift && __out_shift + __shift < __end_3);
             __out_acc[__out_shift + __shift] = __in_acc1[__global_idx];
         }
         // Handle elements from p2
@@ -1310,14 +1312,13 @@ struct __partial_merge_kernel
                 /* index inside p2 */ (__global_idx - __part_end_1) +
                 /* size of p1 + size of p3 */ (__part_end_1 - __start_1) + (__part_end_2 - __start_2);
 
-            assert(__global_idx < __end_1);
-            assert(__out_shift + __shift < __end_3);
+            assert(0 <= __global_idx && __global_idx < __end_1);
+            assert(0 <= __out_shift + __shift && __out_shift + __shift < __end_3);
             __out_acc[__out_shift + __shift] = __in_acc1[__global_idx];
         }
         // Handle elements from p3
         else if (__global_idx >= __start_2 && __global_idx < __part_end_2)
         {
-            assert(__part_end_1 <= __end_1);
             const auto __shift =
                 /* index inside p3 */ __global_idx - __start_2 +
                 /* relative position in p1 */
@@ -1326,8 +1327,8 @@ struct __partial_merge_kernel
                                                                 oneapi::dpl::identity{}) -
                 __start_1;
 
-            assert(__global_idx < __end_2);
-            assert(__out_shift + __shift < __end_3);
+            assert(0 <= __global_idx && __global_idx < __end_2);
+            assert(0 <= __out_shift + __shift && __out_shift + __shift < __end_3);
             __out_acc[__out_shift + __shift] = __in_acc2[__global_idx];
         }
         // Handle elements from p4
@@ -1337,8 +1338,8 @@ struct __partial_merge_kernel
                 /* index inside p4 + size of p3 */ __global_idx - __start_2 +
                 /* size of p1, p2 */ __end_1 - __start_1;
 
-            assert(__global_idx < __end_2);
-            assert(__out_shift + __shift < __end_3);
+            assert(0 <= __global_idx && __global_idx < __end_2);
+            assert(0 <= __out_shift + __shift && __out_shift + __shift < __end_3);
             __out_acc[__out_shift + __shift] = __in_acc2[__global_idx];
         }
     }
