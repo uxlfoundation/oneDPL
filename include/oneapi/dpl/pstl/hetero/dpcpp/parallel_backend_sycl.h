@@ -1339,6 +1339,8 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
     __future<sycl::event>
     operator()(sycl::queue& __q, _Range&& __rng, _Merge __merge, _Compare __comp) const
     {
+        std::cerr << "\t\t__parallel_partial_sort_submitter::operator()" << std::endl;
+
         using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
         using _Size = oneapi::dpl::__internal::__difference_t<_Range>;
 
@@ -1354,6 +1356,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
         sycl::event __event1;
         do
         {
+            std::cerr << "\t\t\t__event1 = __q.submit(...)" << std::endl;
             __event1 = __q.submit([&, __data_in_temp, __k](sycl::handler& __cgh) {
                 __cgh.depends_on(__event1);
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
@@ -1378,6 +1381,8 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
                         }
                     });
             });
+            std::cerr << "\t\t\t\t__event1.wait_and_throw()" << std::endl;
+            __event1.wait_and_throw();
             __data_in_temp = !__data_in_temp;
             __k *= 2;
         } while (__k < __n);
@@ -1385,6 +1390,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
         // if results are in temporary buffer then copy back those
         if (__data_in_temp)
         {
+            std::cerr << "\t\t\t__event1 = __q.submit(...) (copy back)" << std::endl;
             __event1 = __q.submit([&](sycl::handler& __cgh) {
                 __cgh.depends_on(__event1);
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
@@ -1394,7 +1400,12 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
                     __rng[__item.get_linear_id()] = __temp_acc[__item];
                 });
             });
+            std::cerr << "\t\t\t\t__event1.wait_and_throw()" << std::endl;
+            __event1.wait_and_throw();
         }
+
+        std::cerr << "\t\t\treturn" << std::endl;
+
         // return future and extend lifetime of temporary buffer
         return __future{std::move(__event1)};
     }
