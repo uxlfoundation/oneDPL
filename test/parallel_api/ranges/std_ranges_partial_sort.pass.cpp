@@ -7,6 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#define _DEFINE_DEBUG_OUTPUT 1
+
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
@@ -50,22 +52,37 @@ main()
         return std::ranges::partial_sort(std::forward<decltype(r)>(r), middle, std::forward<decltype(args)>(args)...);
     };
 
+#if _DEFINE_DEBUG_OUTPUT
     std::cerr << "test_range_algo<0>{big_sz}(partial_sort_algo, partial_sort_checker);" << std::endl;
+#endif
     test_range_algo<0>{big_sz}(partial_sort_algo, partial_sort_checker);
     test_range_algo<1>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{});
 
+#if _DEFINE_DEBUG_OUTPUT
+    std::cerr << "test_range_algo<2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, proj);" << std::endl;
+#endif
     test_range_algo<2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, proj);
+#if _DEFINE_DEBUG_OUTPUT
     std::cerr << "test_range_algo<3>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, proj);" << std::endl;
+#endif
     test_range_algo<3>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, proj);
-
+      
+#if _DEFINE_DEBUG_OUTPUT
     std::cerr << "test_range_algo<4, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::x);" << std::endl;
+#endif
     test_range_algo<4, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::x);
+#if _DEFINE_DEBUG_OUTPUT
     std::cerr << "test_range_algo<5, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::x);" << std::endl;
+#endif
     test_range_algo<5, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::x);
 
+#if _DEFINE_DEBUG_OUTPUT
     std::cerr << "test_range_algo<6, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::proj);" << std::endl;
+#endif
     test_range_algo<6, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::proj);
+#if _DEFINE_DEBUG_OUTPUT
     std::cerr << "test_range_algo<7, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::proj);" << std::endl;
+#endif
     test_range_algo<7, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 
