@@ -500,16 +500,17 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutR,
           typename _Proj2>
 std::ranges::partial_sort_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
 __pattern_partial_sort_copy_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r, _Comp __comp,
-                                   _Proj1 __proj1, _Proj2 __proj2)
+                                   _Proj1, _Proj2 __proj2)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
     auto [__out_first, __out_last] = oneapi::dpl::__ranges::__bounds(__out_r);
+    // __pattern_partial_sort_copy sorts after copying, so _Proj1 is not used
+    oneapi::dpl::__internal::__binary_op<_Comp, _Proj2, _Proj2> __comp_proj2{__comp, __proj2, __proj2};
 
     auto __out_finish = oneapi::dpl::__internal::__pattern_partial_sort_copy(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __out_first, __out_last,
-        oneapi::dpl::__internal::__binary_op<_Comp, _Proj1, _Proj2>{__comp, __proj1, __proj2});
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __out_first, __out_last, __comp_proj2);
 
     return {__last, __out_finish};
 }
