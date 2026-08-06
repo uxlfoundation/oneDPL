@@ -2316,8 +2316,9 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
 
                         // Move remaining part of the true leftover closer to the middle by moving the adjacent
                         // block of correctly-placed elements right, swapping it with the true leftover.
-                        __merged_range.__true_leftover = __move_right(__val2.__mirror_chunk_begin, __val1.__mirror_chunk_begin,
-                                                                      /*__target_region_end = */ __swap_begin);
+                        __merged_range.__true_leftover =
+                            __move_right(__val2.__mirror_chunk_begin, __val1.__mirror_chunk_begin,
+                                         /*__target_region_end = */ __swap_begin);
                     }
                     else
                     {
@@ -2336,7 +2337,6 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
         auto __reduce_leaf = [&__pred, __merge, __first, __last, __mid](_RandomAccessIterator __real_chunk_begin,
                                                                         _RandomAccessIterator __real_chunk_end,
                                                                         _PartitionRange __value) -> _PartitionRange {
-
             // If the real chunk is the last chunk of the reduction, shift __mirror_chunk_begin to its end
             // to include the possibly uncovered middle element
             _RandomAccessIterator __mirror_chunk_begin =
