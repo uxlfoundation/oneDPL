@@ -27,6 +27,8 @@
 #include <cstdint> // std::uintptr_t
 #include <atomic>  // atomic_signal_fence
 #include <cassert>
+#include <exception> // std::exception_ptr, std::rethrow_exception, std::terminate
+#include <iostream>  // std::cerr
 
 namespace oneapi
 {
@@ -126,11 +128,49 @@ class alignas(sycl::queue) __queue_holder
     }
 };
 
+// Asynchronous exception handler: logs the exceptions and terminates the process,
+// since there is no way to propagate them to the user code from a queue destructor or a wait call.
+inline void
+__async_exception_handler(sycl::exception_list __exceptions)
+{
+    for (const std::exception_ptr& __e : __exceptions)
+    {
+        try
+        {
+            std::rethrow_exception(__e);
+        }
+        catch (const sycl::exception& __exc)
+        {
+            std::cerr << "oneDPL: asynchronous SYCL exception:\n"
+                      << "\twhat: "     << __exc.what() 
+                      << "\tcode: "     << __exc.code().value()
+                      << "\tcategory: " << __exc.code().category().name()
+                      << std::endl;
+        }
+        catch (const std::bad_alloc& __exc)
+        {
+            std::cerr << "oneDPL: asynchronous SYCL exception (std::bad_alloc):\n"
+                      << "\twhat: " << __exc.what() << std::endl;
+        }
+        catch (const std::exception& __exc)
+        {
+            std::cerr << "oneDPL: std::exception:\n"
+                      << "\twhat: " << __exc.what()
+                      << std::endl;
+        }
+        catch (...)
+        {
+            std::cerr << "oneDPL: unknown asynchronous SYCL exception" << std::endl;
+        }
+    }
+    std::terminate();
+}
+
 // Queue factory functions to use with the queue holder
 inline sycl::queue
 __get_default_queue()
 {
-    static sycl::queue __q;
+    static sycl::queue __q(__async_exception_handler);
     return __q;
 }
 
@@ -144,7 +184,8 @@ __get_fpga_default_queue()
 #else
         __dpl_sycl::__fpga_selector()
 #endif
-    );
+        ,
+        __async_exception_handler);
     return __q;
 }
 #endif // _ONEDPL_FPGA_DEVICE
