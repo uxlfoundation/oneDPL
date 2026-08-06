@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-//#define _DEFINE_DEBUG_OUTPUT 1
+#define _DEFINE_DEBUG_OUTPUT 1
 
 #include "std_ranges_test.h"
 
