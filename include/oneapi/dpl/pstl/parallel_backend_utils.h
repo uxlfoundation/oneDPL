@@ -68,7 +68,11 @@ class __buffer_impl
         return _M_ptr;
     }
     //! Destroy buffer
-    ~__buffer_impl() { _M_allocator.deallocate(_M_ptr, _M_buf_size); }
+    ~__buffer_impl()
+    {
+        _M_allocator.deallocate(_M_ptr, _M_buf_size);
+        _M_ptr = nullptr;
+    }
 };
 
 //! Destroy sequence [xs,xe)
