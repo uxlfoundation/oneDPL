@@ -2189,8 +2189,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
     // invariant. Same-kind leftovers are shifted together, and a false/true pair is neutralized by swapping,
     // with any remainder moved inward.
     //
-    // After reduction, the surviving leftover determines the partition point. For odd __n the uncovered middle element
-    // is placed separately.
+    // After reduction, the surviving leftover determines the partition point.
 
     struct _PartitionRange
     {
@@ -2227,6 +2226,8 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
         if (__n < __diff_type(2))
             return __internal::__brick_partition(__first, __last, __pred, _IsVector{});
 
+        const __diff_type __mid = __n / 2;
+
         auto __swap_ranges = [&__exec](_RandomAccessIterator __begin, _RandomAccessIterator __end,
                                        _RandomAccessIterator __target) {
             static constexpr __diff_type __serial_swap_ranges_cutoff = 8192;
@@ -2261,23 +2262,8 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             return __block_begin + __gap;
         }; // __move_right
 
-        auto __move_left = [__swap_ranges](_RandomAccessIterator __block_begin, _RandomAccessIterator __block_end,
-                                           _RandomAccessIterator __target_region_begin) -> _RandomAccessIterator {
-            __diff_type __block_size = __block_end - __block_begin;
-            __diff_type __gap = __block_begin - __target_region_begin;
-
-            if (__block_size <= __gap)
-            {
-                __swap_ranges(__block_begin, __block_end, __target_region_begin);
-                return __target_region_begin + __block_size;
-            }
-
-            __swap_ranges(__target_region_begin, __block_begin, __block_end - __gap);
-            return __block_end - __gap;
-        }; // __move_left
-
-        auto __merge = [__move_right, __move_left, __swap_ranges](_PartitionRange __val1,
-                                                                  _PartitionRange __val2) -> _PartitionRange {
+        auto __merge = [__move_right, __swap_ranges](_PartitionRange __val1,
+                                                     _PartitionRange __val2) -> _PartitionRange {
             // Merged range initialized with __val2's leftovers, which are already adjacent to the middle.
             // If __val1 has no leftover, this initial state is already the correct result.
             _PartitionRange __merged_range{__val1.__real_chunk_begin,   __val2.__real_chunk_end,
@@ -2327,9 +2313,11 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                 if (__val2.__has_true_leftover())
                 {
                     // Two true leftovers in the mirror side
-                    // Move __val1 true leftover closer to the middle
-                    __merged_range.__true_leftover = __move_left(__val1.__mirror_chunk_begin, __val1.__true_leftover,
-                                                                 /*__target_region_begin = */ __val2.__true_leftover);
+                    // Move __val1 true leftover closer to the middle by moving the adjacent block of
+                    // correctly-placed elements right, swapping it with the true leftover.
+                    __merged_range.__true_leftover =
+                        __move_right(__val2.__true_leftover, __val1.__mirror_chunk_begin,
+                                     /*__target_region_end = */ __val1.__true_leftover);
                 }
                 else
                 {
@@ -2346,10 +2334,11 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                         // __val2 false leftover is fully consumed by the swap, so the merged range has none
                         __merged_range.__false_leftover = __val2.__real_chunk_end;
 
-                        // Move remaining part of the true leftover closer to the middle
+                        // Move remaining part of the true leftover closer to the middle by moving the adjacent
+                        // block of correctly-placed elements right, swapping it with the true leftover.
                         __merged_range.__true_leftover =
-                            __move_left(__val1.__mirror_chunk_begin, __swap_begin,
-                                        /*__target_region_begin = */ __val2.__mirror_chunk_begin);
+                            __move_right(__val2.__mirror_chunk_begin, __val1.__mirror_chunk_begin,
+                                         /*__target_region_end = */ __swap_begin);
                     }
                     else
                     {
@@ -2365,10 +2354,16 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             return __merged_range;
         }; // merge
 
-        auto __reduce_leaf = [&__pred, __merge, __first, __last](_RandomAccessIterator __real_chunk_begin,
-                                                                 _RandomAccessIterator __real_chunk_end,
-                                                                 _PartitionRange __value) -> _PartitionRange {
-            _RandomAccessIterator __mirror_chunk_begin = __last - (__real_chunk_end - __first);
+        auto __reduce_leaf = [&__pred, __merge, __first, __last, __mid](_RandomAccessIterator __real_chunk_begin,
+                                                                        _RandomAccessIterator __real_chunk_end,
+                                                                        _PartitionRange __value) -> _PartitionRange {
+
+            // If the real chunk is the last chunk of the reduction, shift __mirror_chunk_begin to its end
+            // to include the possibly uncovered middle element
+            _RandomAccessIterator __mirror_chunk_begin = __real_chunk_end == __first + __mid
+                ? __first + __mid
+                : __last - (__real_chunk_end - __first);
+
             _RandomAccessIterator __mirror_chunk_end = __last - (__real_chunk_begin - __first);
 
             // Partition the pair of chunks
@@ -2418,37 +2413,12 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             return __value.__empty() ? __range : __merge(__value, __range);
         }; // reduce leaf
 
-        __diff_type __mid = __n / 2;
-
         _PartitionRange __init{__last, __last, __last, __last, __last, __last};
         _PartitionRange __final_range =
             __par_backend::__parallel_reduce(__backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __first,
                                              __first + __mid, __init, __reduce_leaf, __merge);
 
-        _RandomAccessIterator __partition =
-            __final_range.__has_true_leftover() ? __final_range.__true_leftover : __final_range.__false_leftover;
-        // For odd inputs, the exact middle element is not covered by the reduction
-        if (__n % 2 != 0)
-        {
-            if (__final_range.__has_true_leftover())
-            {
-                if (!std::invoke(__pred, __first[__mid]))
-                {
-                    --__partition;
-                    iter_swap(__first + __mid, __partition);
-                }
-            }
-            else
-            {
-                if (std::invoke(__pred, __first[__mid]))
-                {
-                    iter_swap(__partition, __first + __mid);
-                    ++__partition;
-                }
-            }
-        }
-
-        return __partition;
+        return __final_range.__has_true_leftover() ? __final_range.__true_leftover : __final_range.__false_leftover;
     });
 }
 
