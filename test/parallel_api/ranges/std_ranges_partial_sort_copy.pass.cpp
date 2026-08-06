@@ -20,10 +20,10 @@ void test_mixed_types()
 
     std::vector<int> out_expected = {0, 1, 2, 2, 3};
 
-    std::vector<B> out_seq(out_expected.size(), 0xCD);
-    std::vector<B> out_par(out_expected.size(), 0xCD);
-    std::vector<B> out_unseq(out_expected.size(), 0xCD);
-    std::vector<B> out_par_unseq(out_expected.size(), 0xCD);
+    std::vector<B> out_seq(out_expected.size(), B{0xCD});
+    std::vector<B> out_par(out_expected.size(), B{0xCD});
+    std::vector<B> out_unseq(out_expected.size(), B{0xCD});
+    std::vector<B> out_par_unseq(out_expected.size(), B{0xCD});
 
     dpl_ranges::partial_sort_copy(oneapi::dpl::execution::seq,       r1, out_seq,  std::ranges::less{}, proj_a, proj_b);
     dpl_ranges::partial_sort_copy(oneapi::dpl::execution::par,       r1, out_par,  std::ranges::less{}, proj_a, proj_b);
