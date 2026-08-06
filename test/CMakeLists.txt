@@ -65,6 +65,19 @@ else()
             "Select one of the following values: AUTO, ALWAYS")
 endif()
 
+# Address sanitizer for tests, including the device code (SYCL kernels).
+# Diagnoses out-of-bounds accesses inside kernels; requires Intel(R) oneAPI DPC++/C++ Compiler.
+option(ONEDPL_TEST_DEVICE_ASAN "Build tests with host and device address sanitizer" ON)
+set(_onedpl_test_asan_options "")
+if (ONEDPL_TEST_DEVICE_ASAN)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL IntelLLVM)
+        set(_onedpl_test_asan_options -fsanitize=address -Xarch_device -fsanitize=address)
+        message(STATUS "oneDPL tests: address sanitizer is enabled for host and device code")
+    else()
+        message(WARNING "oneDPL tests: ONEDPL_TEST_DEVICE_ASAN requires IntelLLVM compiler, the option is ignored")
+    endif()
+endif()
+
 add_custom_target(build-onedpl-tests
     COMMENT "Build all oneDPL tests")
 
@@ -97,6 +110,11 @@ macro(onedpl_construct_exec test_source_file _test_name switch_off_checked_itera
         endif()
         if (MSVC)
             target_compile_options(${_test_name} PRIVATE /bigobj)
+        endif()
+
+        if (_onedpl_test_asan_options)
+            target_compile_options(${_test_name} PRIVATE ${_onedpl_test_asan_options})
+            target_link_options(${_test_name} PRIVATE ${_onedpl_test_asan_options})
         endif()
 
         if (_use_release_in_debug)
