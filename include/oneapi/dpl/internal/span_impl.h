@@ -22,11 +22,13 @@
 #endif
 
 // oneapi::dpl::span is an alias for std::span where the standard library provides it, and for
-// sycl::span otherwise. The rationale for the choice, the properties the two alternatives share,
-// and the one way in which they differ -- sycl::span::iterator is a raw pointer while
-// std::span::iterator is not, so span iterators must never be exposed in oneDPL interfaces or
-// passed to oneDPL algorithms -- are documented in <oneapi/dpl/experimental/device_array>, the
-// public header through which this alias reaches users.
+// sycl::span otherwise. These two are not identical, despite the sycl 2020 specification
+// defining sycl::span as a drop-in replacement for std::span.  Surprisingly, with icpx, sycl::span
+// does not merely become an alias for std::span once it is available.
+// - sycl::span has some issues when used with std ranges APIs, which are fixed in std::span.
+//   Since our ranges API is only available in c++20, this works around these issues, which would
+//   be commonly encountered in the context of oneDPL.
+
 #if _ONEDPL_CPP20_SPAN_PRESENT || _ONEDPL_BACKEND_SYCL
 
 namespace oneapi

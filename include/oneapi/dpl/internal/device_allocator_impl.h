@@ -17,8 +17,6 @@
 #include "common_config.h"
 #include "../pstl/onedpl_config.h"
 
-// device_allocator allocates USM device memory, so it exists only with the SYCL backend. Without it
-// this header declares nothing, following the convention of the other internal headers.
 #if _ONEDPL_BACKEND_SYCL
 
 #    include "../pstl/hetero/dpcpp/sycl_defs.h"
@@ -28,34 +26,17 @@ namespace oneapi::dpl::experimental
 
 // The default allocator for the oneDPL device containers.
 //
-// The API deliberately mirrors sycl::usm_allocator: the allocator is stateful, carrying the
-// sycl::context, sycl::device and sycl::property_list to allocate against, so that allocate() takes
-// only an element count. It also matches usm_allocator's alignment template parameter, its rebind
-// and propagate_on_container_* members, its converting constructor, and its equality operators.
-//
-// It exists as a separate type because sycl::usm_allocator cannot serve this role at all: it
-// static_asserts that AllocKind != sycl::usm::alloc::device, since device memory is not
-// host-accessible and therefore cannot satisfy the std::allocator named requirements that
-// usm_allocator is built to satisfy. device_allocator provides exactly allocate() and deallocate()
-// and imposes none of those requirements; construction and destruction of elements is the
-// container's business, done through kernels or memcpy.
-//
-// Like usm_allocator, this is not default constructible: an allocation needs a context and a device,
-// and there is no meaningful default for either.
-//
-// Allocation failure surfaces as the sycl::exception that the underlying USM entry point throws. It
-// is not translated to std::bad_alloc, which would discard the backend diagnostics, and
-// sycl::aspect::usm_device_allocations is not queried up front: a device without that aspect simply
-// cannot host a device container, and there is no fallback to select.
+// The API mirrors sycl::usm_allocator, but provides USM device memory. For this
+// reason it does not satisfy std::allocator requirements and cannot be used with
+// standard containers. It is intended for use only with the oneDPL device containers.
+// Allocation failure surfaces as the sycl::exception thrown by the underlying USM,
+// sycl::malloc_device() or sycl::aligned_alloc_device().
 template <typename _Tp, std::size_t _Alignment = 0>
 class device_allocator
 {
   public:
     using value_type = _Tp;
 
-    // Device memory is never host-accessible, so a container can never relocate elements by copying
-    // them on the host; it always has to go through the device. Propagating on all three operations
-    // keeps a container's allocator consistent with the memory it holds, matching usm_allocator.
     using propagate_on_container_copy_assignment = std::true_type;
     using propagate_on_container_move_assignment = std::true_type;
     using propagate_on_container_swap = std::true_type;
@@ -87,17 +68,12 @@ class device_allocator
     operator=(device_allocator&&) noexcept = default;
     ~device_allocator() = default;
 
-    // Rebinding conversion, as on usm_allocator. Only the allocation target is carried over; the
-    // element type and therefore the alignment requirement come from the destination type.
     template <typename _Up>
     device_allocator(const device_allocator<_Up, _Alignment>& __other) noexcept
         : _M_context(__other._M_context), _M_device(__other._M_device), _M_prop_list(__other._M_prop_list)
     {
     }
 
-    // Allocates uninitialized device memory for __count objects of type _Tp. A count of zero
-    // allocates nothing and returns nullptr: sycl::malloc_device(0) is unspecified, and some
-    // backends return a non-null pointer that cannot be freed.
     _Tp*
     allocate(std::size_t __count) const
     {
@@ -115,8 +91,8 @@ class device_allocator
         }
     }
 
-    // __count is accepted, and ignored, to match the allocator convention; USM deallocation needs
-    // only the pointer and the context it was allocated against.
+    // __count is accepted, and ignored, to match the allocator convention; USM deallocation needs only
+    // the pointer and the context.
     void
     deallocate(_Tp* __ptr, std::size_t /*__count*/) const
     {

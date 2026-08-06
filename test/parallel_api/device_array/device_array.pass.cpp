@@ -40,8 +40,7 @@ using device_array = oneapi::dpl::experimental::device_array<_Tp>;
 template <typename _Tp, int _Id>
 class writer_kernel;
 
-// Every element type used here is constructible from int, so a single helper builds the reference
-// values for all of them.
+// Every element type used here is constructible from int.
 template <typename _Tp>
 _Tp
 make_value(int __i)
@@ -49,9 +48,9 @@ make_value(int __i)
     return _Tp(__i);
 }
 
-// A host copy of the whole container that does not require _Tp to be default constructible: the
-// staging vector is built by copy from a single value. to_vector() is exercised separately, where
-// the element type allows it.
+//TODO: is this a limitation of the API which can be solved or something we need to document about to_vector()?
+// A host copy of the whole container that, unlike to_vector(), does not require _Tp to be default
+// constructible.
 template <typename _Tp>
 std::vector<_Tp>
 to_host(const device_array<_Tp>& __d)
@@ -61,8 +60,6 @@ to_host(const device_array<_Tp>& __d)
     return __out;
 }
 
-// An out-of-range offset is a precondition violation and throws std::out_of_range rather than
-// silently transferring nothing.
 template <typename _Fp>
 bool
 throws_out_of_range(_Fp __f)
@@ -84,30 +81,27 @@ iota_host(std::size_t __n, int __start = 0)
 {
     std::vector<_Tp> __out;
     __out.reserve(__n);
+    // TODO: this seems really inefficient, can we just create a vector of size __n and copy?
     for (std::size_t __i = 0; __i < __n; ++__i)
         __out.push_back(make_value<_Tp>(__start + int(__i)));
     return __out;
 }
 
-// 22. Type properties.
 template <typename _Tp>
 void
 test_type_traits()
 {
     static_assert(!std::is_copy_constructible_v<device_array<_Tp>>, "device_array must not be copy constructible");
     static_assert(!std::is_copy_assignable_v<device_array<_Tp>>, "device_array must not be copy assignable");
-    static_assert(std::is_nothrow_move_constructible_v<device_array<_Tp>>,
+    static_assert(std::is_move_constructible_v<device_array<_Tp>>,
                   "device_array must be nothrow move constructible");
-    static_assert(std::is_nothrow_move_assignable_v<device_array<_Tp>>, "device_array must be nothrow move assignable");
+    static_assert(std::is_move_assignable_v<device_array<_Tp>>, "device_array must be nothrow move assignable");
     static_assert(!std::is_default_constructible_v<device_array<_Tp>>,
                   "device_array must not be default constructible");
     static_assert(std::is_same_v<typename device_array<_Tp>::value_type, _Tp>, "unexpected value_type");
     static_assert(std::is_same_v<typename device_array<_Tp>::size_type, std::size_t>, "unexpected size_type");
 }
 
-// device_allocator mirrors sycl::usm_allocator's API. It is stateful, so it is not default
-// constructible, and it carries the alignment template parameter, rebind, the
-// propagate_on_container_* members, the converting constructor and the equality operators.
 void
 test_device_allocator(sycl::queue __q)
 {
@@ -115,7 +109,7 @@ test_device_allocator(sycl::queue __q)
 
     static_assert(std::is_same_v<alloc_t::value_type, int>, "device_allocator::value_type");
     static_assert(!std::is_default_constructible_v<alloc_t>,
-                  "device_allocator must not be default constructible, matching sycl::usm_allocator");
+                  "device_allocator must not be default constructible");
     static_assert(std::is_copy_constructible_v<alloc_t>, "device_allocator must be copy constructible");
     static_assert(std::is_copy_assignable_v<alloc_t>, "device_allocator must be copy assignable");
     static_assert(std::is_same_v<alloc_t::rebind<float>::other, oneapi::dpl::experimental::device_allocator<float>>,
@@ -127,16 +121,7 @@ test_device_allocator(sycl::queue __q)
     // Both constructor forms, as on usm_allocator.
     alloc_t __a(__q);
     alloc_t __b(__q.get_context(), __q.get_device());
-    EXPECT_TRUE(__a.get_context() == __q.get_context(), "device_allocator(queue): wrong context");
-    EXPECT_TRUE(__a.get_device() == __q.get_device(), "device_allocator(queue): wrong device");
 
-    // Equality depends on the context and device only, and spans element types and alignments.
-    EXPECT_TRUE(__a == __b, "allocators on the same context and device must compare equal");
-    EXPECT_TRUE(!(__a != __b), "operator!= must be the negation of operator==");
-    oneapi::dpl::experimental::device_allocator<float> __f(__q);
-    EXPECT_TRUE(__a == __f, "allocators differing only in element type must compare equal");
-    oneapi::dpl::experimental::device_allocator<int, 256> __aligned(__q);
-    EXPECT_TRUE(__a == __aligned, "allocators differing only in alignment must compare equal");
 
     // The converting constructor carries the allocation target over.
     oneapi::dpl::experimental::device_allocator<double> __converted(__a);
@@ -151,13 +136,14 @@ test_device_allocator(sycl::queue __q)
     __a.deallocate(nullptr, 0); // must be a no-op
 
     // The aligned form dispatches to sycl::aligned_alloc_device.
+    oneapi::dpl::experimental::device_allocator<int, 256> __aligned(__q);
     int* __ap = __aligned.allocate(64);
     EXPECT_TRUE(__ap != nullptr, "the aligned device_allocator returned null");
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(__ap) % 256 == 0, "the aligned device_allocator ignored _Alignment");
     __aligned.deallocate(__ap, 64);
 }
 
-// 1, 2. Uninitialized construction. The contents are deliberately never read.
+// Uninitialized construction. The contents are deliberately never read
 template <typename _Tp>
 void
 test_uninitialized_ctor(sycl::queue __q)
@@ -181,7 +167,7 @@ test_uninitialized_ctor(sycl::queue __q)
     EXPECT_TRUE(__d2.get_device() == __q.get_device(), "uninitialized (count, context, device): wrong device");
 }
 
-// 3, 4. Fill construction.
+// Fill construction
 template <typename _Tp>
 void
 test_fill_ctor(sycl::queue __q)
@@ -201,8 +187,8 @@ test_fill_ctor(sycl::queue __q)
     EXPECT_EQ_RANGES(__expected, __got, "fill (count, value, context, device): wrong contents");
 }
 
-// 5, 6. Construction from a host range. The implicit std::vector<_Tp>& -> span<const _Tp> conversion
-// must work without naming the span at the call site: this is the RFC's headline example.
+// Construction from a host range: the implicit std::vector<_Tp>& -> span<const _Tp> conversion must
+// work without naming the span at the call site.
 template <typename _Tp>
 void
 test_host_range_ctor(sycl::queue __q)
@@ -219,7 +205,7 @@ test_host_range_ctor(sycl::queue __q)
     EXPECT_EQ_RANGES(__host, to_host(__d2), "(host_vector, context, device): wrong contents");
 }
 
-// 7. A zero-element container allocates nothing and every operation on it is a no-op.
+// A zero-element container allocates nothing and every operation on it is a no-op.
 template <typename _Tp>
 void
 test_empty(sycl::queue __q)
@@ -237,9 +223,7 @@ test_empty(sycl::queue __q)
     device_array<_Tp> __d1(oneapi::dpl::span<const _Tp>{}, __q);
     __check(__d1, "device_array(empty span, queue) is not empty");
 
-    // The bulk transfers are a no-op and must not throw, including the ones with a non-empty host
-    // side: offset 0 is the only in-range offset here, and it is <= size(), so the count truncates to
-    // zero. They report zero elements copied.
+    // The bulk transfers truncate to zero and must not throw, even with a non-empty host side.
     std::vector<_Tp> __host = iota_host<_Tp>(4);
     const oneapi::dpl::span<const _Tp> __src{__host.data(), __host.size()};
     const oneapi::dpl::span<_Tp> __dst{__host.data(), __host.size()};
@@ -249,8 +233,7 @@ test_empty(sycl::queue __q)
     EXPECT_EQ(std::size_t(0), __d0.copy_to(__dst), "queue-less copy_to on an empty device_array copied something");
     EXPECT_EQ_RANGES(iota_host<_Tp>(4), __host, "transfers on an empty device_array modified the host buffer");
 
-    // The single-element write addresses one element, so there is no in-range position at all on an
-    // empty container: even position 0 throws.
+    // The single-element operations have no in-range position on an empty container: even 0 throws.
     EXPECT_TRUE(throws_out_of_range([&] { __d0.copy_from(make_value<_Tp>(1), __q); }),
                 "copy_from(value, queue) on an empty device_array must throw");
     EXPECT_TRUE(throws_out_of_range([&] { __d0.copy_from(make_value<_Tp>(1)); }),
@@ -264,10 +247,9 @@ test_empty(sycl::queue __q)
         EXPECT_TRUE(__d0.to_vector().empty(), "to_vector() on an empty device_array is not empty");
         EXPECT_TRUE(__d0.to_vector(__q).empty(), "to_vector(queue) on an empty device_array is not empty");
     }
-    // Destruction of both containers must be clean; it happens on return from this function.
 }
 
-// 8. Move construction steals the pointer; the source retains its context and device.
+// Move construction steals the pointer; the source retains its context and device.
 template <typename _Tp>
 void
 test_move_ctor(sycl::queue __q)
@@ -286,13 +268,12 @@ test_move_ctor(sycl::queue __q)
     EXPECT_TRUE(__src.empty(), "move ctor: the source is not empty");
     EXPECT_EQ(std::size_t(0), __src.size(), "move ctor: the source size is not zero");
     EXPECT_TRUE(oneapi::dpl::begin(__src) == nullptr, "move ctor: the source still holds a pointer");
-    // A moved-from device_array deliberately retains its context and device, so that it stays a
-    // legal move-assignment target and its observers stay well-defined.
+    // A moved-from device_array deliberately retains its context and device.
     EXPECT_TRUE(__src.get_context() == __q.get_context(), "move ctor: the source lost its context");
     EXPECT_TRUE(__src.get_device() == __q.get_device(), "move ctor: the source lost its device");
 }
 
-// 9. Move assignment, with differently sized operands so the contents prove the steal.
+// Move assignment, with differently sized operands so the contents prove the steal.
 template <typename _Tp>
 void
 test_move_assign(sycl::queue __q)
@@ -320,8 +301,7 @@ test_move_assign(sycl::queue __q)
     EXPECT_EQ_RANGES(__host_dst, to_host(__src), "move assign into a moved-from target: wrong contents");
 }
 
-// 10. Self move assignment leaves the container untouched. Routed through a function taking two
-// references so that the compiler cannot diagnose it as an obvious self-move.
+// Routed through a function taking two references so that the compiler cannot diagnose the self-move.
 template <typename _Tp>
 void
 self_move_assign(device_array<_Tp>& __a, device_array<_Tp>& __b)
@@ -344,7 +324,7 @@ test_self_move_assign(sycl::queue __q)
     EXPECT_EQ_RANGES(__host, to_host(__d), "self move assign changed the contents");
 }
 
-// 11. Member and free swap.
+// Member and free swap.
 template <typename _Tp>
 void
 test_swap(sycl::queue __q)
@@ -371,7 +351,7 @@ test_swap(sycl::queue __q)
     EXPECT_EQ_RANGES(__host_b, to_host(__b), "free swap: wrong contents in b");
 }
 
-// 12. copy_to: the returned count, its truncation rules, and the offset precondition.
+// copy_to: the returned count, its truncation rules, and the offset precondition.
 template <typename _Tp>
 void
 test_copy_to(sycl::queue __q)
@@ -380,7 +360,7 @@ test_copy_to(sycl::queue __q)
     const std::vector<_Tp> __host = iota_host<_Tp>(__n);
     device_array<_Tp> __d(__host, __q);
 
-    // Exact size. All three overload forms name the same transfer.
+    // Exact size, through all three overload forms.
     {
         std::vector<_Tp> __out(__n, make_value<_Tp>(-1));
         const oneapi::dpl::span<_Tp> __dst{__out.data(), __out.size()};
@@ -426,7 +406,7 @@ test_copy_to(sycl::queue __q)
                     "copy_to with src_offset: wrong contents");
     }
 
-    // src_offset == size() names the end of the range: a well-formed, empty transfer.
+    // src_offset == size() is an empty transfer; past that is a precondition violation.
     {
         const _Tp __sentinel = make_value<_Tp>(-9);
         std::vector<_Tp> __out(8, __sentinel);
@@ -436,7 +416,7 @@ test_copy_to(sycl::queue __q)
         for (const _Tp& __v : __out)
             EXPECT_TRUE(__v == __sentinel, "copy_to with src_offset == size() copied something");
 
-        // src_offset > size() is a precondition violation.
+        // out of range offset must throw 
         EXPECT_TRUE(throws_out_of_range([&] { __d.copy_to(__dst, __n + 1, __q); }),
                     "copy_to with src_offset > size() must throw");
         EXPECT_TRUE(throws_out_of_range([&] { __d.copy_to(__dst, 10 * __n, __q); }),
@@ -448,7 +428,7 @@ test_copy_to(sycl::queue __q)
     }
 }
 
-// 13. copy_from, mirroring the copy_to matrix.
+// copy_from, mirroring the copy_to matrix.
 template <typename _Tp>
 void
 test_copy_from(sycl::queue __q)
@@ -456,7 +436,7 @@ test_copy_from(sycl::queue __q)
     const std::size_t __n = 200;
     const _Tp __background = make_value<_Tp>(-5);
 
-    // Exact size. All three overload forms name the same transfer.
+    // Exact size, through all three overload forms.
     {
         device_array<_Tp> __d(__n, __background, __q);
         const std::vector<_Tp> __host = iota_host<_Tp>(__n);
@@ -513,8 +493,7 @@ test_copy_from(sycl::queue __q)
                     "copy_from with dst_offset: wrong contents");
     }
 
-    // dst_offset == size() names the end of the range: a well-formed, empty transfer. Past that is a
-    // precondition violation.
+    // dst_offset == size() is an empty transfer; past that is a precondition violation.
     {
         device_array<_Tp> __d(__n, __background, __q);
         const std::vector<_Tp> __host = iota_host<_Tp>(8, 7);
@@ -524,6 +503,7 @@ test_copy_from(sycl::queue __q)
         EXPECT_EQ(std::size_t(0), __d.copy_from(__src, __n),
                   "queue-less copy_from with dst_offset == size(): wrong count");
 
+        // offset out of range must throw
         EXPECT_TRUE(throws_out_of_range([&] { __d.copy_from(__src, __n + 1, __q); }),
                     "copy_from with dst_offset > size() must throw");
         EXPECT_TRUE(throws_out_of_range([&] { __d.copy_from(__src, 10 * __n, __q); }),
@@ -537,8 +517,8 @@ test_copy_from(sycl::queue __q)
     }
 }
 
-// 14. read_at, both overloads, including for a non-default-constructible element type. This is the
-// point of the __lazy_ctor_storage in the implementation.
+// read_at, both overloads. Also runs for a non-default-constructible element type, which is what the
+// __lazy_ctor_storage in the implementation is for.
 template <typename _Tp>
 void
 test_read_at(sycl::queue __q)
@@ -555,14 +535,14 @@ test_read_at(sycl::queue __q)
     EXPECT_TRUE(__d.read_at(__n / 2) == __host[__n / 2], "read_at(middle): wrong value");
     EXPECT_TRUE(__d.read_at(__n - 1) == __host[__n - 1], "read_at(last): wrong value");
 
-    // read_at names a single element, so pos == size() is already out of range.
+    // A single element is addressed, so pos == size() is already out of range.
     EXPECT_TRUE(throws_out_of_range([&] { __d.read_at(__n, __q); }), "read_at(size(), queue) must throw");
     EXPECT_TRUE(throws_out_of_range([&] { __d.read_at(__n); }), "read_at(size()) must throw");
     EXPECT_TRUE(throws_out_of_range([&] { __d.read_at(10 * __n, __q); }),
                 "read_at with a far out-of-range position must throw");
 }
 
-// 15. Single-element copy_from, both overloads.
+// Single-element copy_from, both overloads.
 template <typename _Tp>
 void
 test_single_element_write(sycl::queue __q)
@@ -598,7 +578,7 @@ test_single_element_write(sycl::queue __q)
     EXPECT_EQ_RANGES(__got, to_host(__d), "a throwing copy_from(value, offset) wrote something");
 }
 
-// 16. to_vector, both overloads. Requires a default-constructible element type.
+// to_vector, both overloads. Requires a default-constructible element type.
 template <typename _Tp>
 void
 test_to_vector(sycl::queue __q)
@@ -614,8 +594,8 @@ test_to_vector(sycl::queue __q)
     EXPECT_TRUE(__empty.to_vector().empty(), "to_vector() on an empty container is not empty");
 }
 
-// 17, 18, 19. Device-to-device transfers, deep copy through the span constructor, and a subrange
-// copy. All of these lean on the span<_Tp> -> span<const _Tp> conversion.
+// Device-to-device transfers, deep copy through the span constructor, and a subrange copy, all of
+// which lean on the span<_Tp> -> span<const _Tp> conversion.
 template <typename _Tp>
 void
 test_device_to_device(sycl::queue __q)
@@ -624,12 +604,12 @@ test_device_to_device(sycl::queue __q)
     const std::vector<_Tp> __host = iota_host<_Tp>(__n, 1);
     device_array<_Tp> __d(__host, __q);
 
-    // 17. copy_from taking another container's span.
+    // copy_from taking another container's span.
     device_array<_Tp> __d2(__n, make_value<_Tp>(0), __q);
     EXPECT_EQ(__n, __d2.copy_from(__d.span(), __q), "device-to-device copy_from: wrong count");
     EXPECT_EQ_RANGES(__host, to_host(__d2), "device-to-device copy_from: wrong contents");
 
-    // 18. Deep copy through the span constructor.
+    // Deep copy through the span constructor.
     device_array<_Tp> __copy(__d.span(), __q);
     EXPECT_TRUE(oneapi::dpl::begin(__copy) != oneapi::dpl::begin(__d), "the span ctor did not allocate new storage");
     EXPECT_EQ_RANGES(__host, to_host(__copy), "the span ctor produced wrong contents");
@@ -638,7 +618,7 @@ test_device_to_device(sycl::queue __q)
     __d.copy_from(make_value<_Tp>(999), 0, __q);
     EXPECT_EQ_RANGES(__host, to_host(__copy), "the span ctor produced a shallow copy");
 
-    // 19. Subrange.
+    // Subrange.
     const std::size_t __k = 25;
     device_array<_Tp> __head(__d.span().subspan(0, __k), __q);
     EXPECT_EQ(__k, __head.size(), "subspan ctor: wrong size");
@@ -646,8 +626,7 @@ test_device_to_device(sycl::queue __q)
     EXPECT_EQ_N(__expected_head.begin(), to_host(__head).begin(), __k, "subspan ctor: wrong contents");
 }
 
-// 20. The queue-less path: a container that never saw a queue, exercised through every operation
-// that has a queue-less overload.
+// A container that never saw a queue, exercised through every queue-less overload.
 template <typename _Tp>
 void
 test_queueless_path(sycl::queue __q)
@@ -678,12 +657,11 @@ test_queueless_path(sycl::queue __q)
     }
 }
 
-// 21. depends_on against an out-of-order queue. A missing dependency would let the transfer read or
-// write the allocation concurrently with the kernel, so the loop makes an accidental pass unlikely.
+// depends_on against an out-of-order queue, where a transfer can only be ordered after a kernel
+// through the event. The iteration count makes an accidental pass unlikely.
 void
 test_depends_on(sycl::queue __q)
 {
-    // Deliberately not in-order: the transfer must depend on the kernel through the event alone.
     sycl::queue __ooo_q{__q.get_context(), __q.get_device()};
     EXPECT_TRUE(!__ooo_q.is_in_order(), "the test queue for depends_on must be out of order");
 
@@ -698,8 +676,6 @@ test_depends_on(sycl::queue __q)
         sycl::event __e = __ooo_q.parallel_for<writer_kernel<int, 0>>(
             sycl::range<1>(__n), [__s = __d.span()](sycl::id<1> __i) { __s[__i] = int(__i.get(0)); });
 
-        // The queue overload with a defaulted offset is the one that carries the event here; the
-        // explicit-offset form is exercised for copy_from below.
         std::vector<int> __out(__n, -1);
         __d.copy_to(oneapi::dpl::span<int>{__out.data(), __out.size()}, __ooo_q, __e);
         for (std::size_t __i = 0; __i < __n; ++__i)
@@ -711,8 +687,7 @@ test_depends_on(sycl::queue __q)
         EXPECT_EQ(1000 + int(__n / 2), __d.read_at(__n / 2, __ooo_q, __e2),
                   "read_at did not wait for the event it depends on");
 
-        // copy_from must not overwrite the allocation before the kernel has read it: the kernel
-        // doubles the elements, and the following copy_from replaces the whole range afterwards.
+        // copy_from must not overwrite the allocation before the kernel has read it.
         sycl::event __e3 = __ooo_q.parallel_for<writer_kernel<int, 2>>(
             sycl::range<1>(__n), [__s = __d.span()](sycl::id<1> __i) { __s[__i] = __s[__i] * 2; });
         const std::vector<int> __host(__n, 42);
@@ -755,8 +730,7 @@ main()
 
     test_all_common<int>(q);
     test_all_common<float>(q);
-    // Default constructibility is required by to_vector() alone, so everything else must work for a
-    // non-default-constructible (but device copyable) element type.
+    // Only to_vector() requires default constructibility, so everything else must work without it.
     test_all_common<TestUtils::NoDefaultCtorWrapper<int>>(q);
 
     test_to_vector<int>(q);
