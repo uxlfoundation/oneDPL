@@ -1283,8 +1283,11 @@ struct __partial_merge_kernel
     template <typename _Idx, typename _Acc1, typename _Size1, typename _Acc2, typename _Size2, typename _Acc3,
               typename _Size3, typename _Compare>
     void
-    operator()(_Idx __global_idx, const _Acc1& __in_acc1, _Size1 __start_1, _Size1 __end_1, const _Acc2& __in_acc2,
-               _Size2 __start_2, _Size2 __end_2, const _Acc3& __out_acc, _Size3 __out_shift, _Compare __comp) const
+    operator()(_Idx __global_idx,
+                const _Acc1& __in_acc1, _Size1 __start_1, _Size1 __end_1,
+                const _Acc2& __in_acc2, _Size2 __start_2, _Size2 __end_2,
+                const _Acc3& __out_acc, _Size3 __out_shift, _Size3 __end_3,
+                _Compare __comp) const
     {
         const auto __part_end_1 = sycl::min(__start_1 + __k, __end_1);
         const auto __part_end_2 = sycl::min(__start_2 + __k, __end_2);
@@ -1292,6 +1295,7 @@ struct __partial_merge_kernel
         // Handle elements from p1
         if (__global_idx >= __start_1 && __global_idx < __part_end_1)
         {
+            assert(__part_end_2 <= __end_2);
             const auto __shift =
                 /* index inside p1 */ __global_idx - __start_1 +
                 /* relative position in p3 */
@@ -1299,6 +1303,9 @@ struct __partial_merge_kernel
                                                                 __global_idx, __comp, oneapi::dpl::identity{},
                                                                 oneapi::dpl::identity{}) -
                 __start_2;
+
+            assert(__global_idx < __end_1);
+            assert(__out_shift + __shift < __end_3);
             __out_acc[__out_shift + __shift] = __in_acc1[__global_idx];
         }
         // Handle elements from p2
@@ -1307,11 +1314,15 @@ struct __partial_merge_kernel
             const auto __shift =
                 /* index inside p2 */ (__global_idx - __part_end_1) +
                 /* size of p1 + size of p3 */ (__part_end_1 - __start_1) + (__part_end_2 - __start_2);
+
+            assert(__global_idx < __end_1);
+            assert(__out_shift + __shift < __end_3);
             __out_acc[__out_shift + __shift] = __in_acc1[__global_idx];
         }
         // Handle elements from p3
         else if (__global_idx >= __start_2 && __global_idx < __part_end_2)
         {
+            assert(__part_end_1 <= __end_1);
             const auto __shift =
                 /* index inside p3 */ __global_idx - __start_2 +
                 /* relative position in p1 */
@@ -1319,6 +1330,9 @@ struct __partial_merge_kernel
                                                                 __global_idx, __comp, oneapi::dpl::identity{},
                                                                 oneapi::dpl::identity{}) -
                 __start_1;
+
+            assert(__global_idx < __end_2);
+            assert(__out_shift + __shift < __end_3);
             __out_acc[__out_shift + __shift] = __in_acc2[__global_idx];
         }
         // Handle elements from p4
@@ -1327,6 +1341,9 @@ struct __partial_merge_kernel
             const auto __shift =
                 /* index inside p4 + size of p3 */ __global_idx - __start_2 +
                 /* size of p1, p2 */ __end_1 - __start_1;
+
+            assert(__global_idx < __end_2);
+            assert(__out_shift + __shift < __end_3);
             __out_acc[__out_shift + __shift] = __in_acc2[__global_idx];
         }
     }
@@ -1379,9 +1396,9 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
                         _Size __end_2 = sycl::min(__start + 2 * __k, __n);
 
                         if (!__data_in_temp)
-                            __merge(__global_idx, __rng,      __start, __end_1, __rng,      __end_1, __end_2, __temp_acc, __start, __comp);
+                            __merge(__global_idx, __rng,      __start, __end_1, __rng,      __end_1, __end_2, __temp_acc, __start, __n, __comp);
                         else
-                            __merge(__global_idx, __temp_acc, __start, __end_1, __temp_acc, __end_1, __end_2, __rng,      __start, __comp);
+                            __merge(__global_idx, __temp_acc, __start, __end_1, __temp_acc, __end_1, __end_2, __rng,      __start, __n, __comp);
                     });
             });
             try
