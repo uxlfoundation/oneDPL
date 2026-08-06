@@ -150,22 +150,6 @@ class device_allocator
         return _M_prop_list.get_property<_Property>();
     }
 
-    // Two allocators are interchangeable when memory from one can be freed by the other, which for
-    // USM device allocations depends on the context and device alone. The comparison spans element
-    // types and alignments, as it does for usm_allocator.
-    template <typename _Up, std::size_t _AlignmentU>
-    friend bool
-    operator==(const device_allocator& __lhs, const device_allocator<_Up, _AlignmentU>& __rhs)
-    {
-        return __lhs._M_context == __rhs._M_context && __lhs._M_device == __rhs._M_device;
-    }
-
-    template <typename _Up, std::size_t _AlignmentU>
-    friend bool
-    operator!=(const device_allocator& __lhs, const device_allocator<_Up, _AlignmentU>& __rhs)
-    {
-        return !(__lhs == __rhs);
-    }
 
   private:
     template <typename _Up, std::size_t _AlignmentU>
