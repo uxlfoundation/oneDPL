@@ -1207,12 +1207,12 @@ struct test_range_algo
     void
     operator()(auto algo, auto& checker, auto... args)
     {
-        std::cerr << "" << std::endl;
+        std::cerr << "test_range_algo_impl_host(algo, checker, args...);" << std::endl;
         test_range_algo_impl_host(algo, checker, args...);
 
 #if TEST_DPCPP_BACKEND_PRESENT
         auto policy = TestUtils::get_dpcpp_test_policy();
-        std::cerr << "" << std::endl;
+        std::cerr << "test_range_algo_impl_hetero(policy, algo, checker, args...);" << std::endl;
         test_range_algo_impl_hetero(policy, algo, checker, args...);
 
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
