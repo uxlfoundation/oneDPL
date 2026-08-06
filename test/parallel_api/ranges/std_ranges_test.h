@@ -937,9 +937,9 @@ struct host_subrange_impl
     oneapi::dpl::__utils::__buffer_impl<T, std::allocator> buffer;
 
     template<typename Policy>
-    host_subrange_impl(Policy&&, T* data, int n) : buffer(n)
+    host_subrange_impl(Policy&&, T* data, int n)
     {
-        view = ViewType(buffer.get(), buffer.get() + n);
+        view = ViewType(data, data + n);
     }
 
     template<typename Policy, typename DataGen>
