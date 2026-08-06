@@ -78,36 +78,29 @@ template <typename T>
 class UninitializedMemoryContainer
 {
     std::size_t _capacity = {};
-    std::allocator<T> _allocator;
-    T* _ptr = nullptr;
+    oneapi::dpl::__utils::__buffer_impl<T, std::allocator> _buffer;
 
   public:
-    explicit UninitializedMemoryContainer(std::size_t __n) : _capacity(__n), _ptr(_allocator.allocate(__n)) {}
 
-    ~UninitializedMemoryContainer() { _allocator.deallocate(_ptr, _capacity); }
-
-    // Non-copyable
-    UninitializedMemoryContainer(const UninitializedMemoryContainer&) = delete;
-    UninitializedMemoryContainer&
-    operator=(const UninitializedMemoryContainer&) = delete;
+    explicit UninitializedMemoryContainer(std::size_t __n) : _capacity(__n), _buffer(__n) {}
 
     T*
     begin() noexcept
     {
-        return _ptr;
+        return _buffer.data();
     }
 
     T*
     end() noexcept
     {
-        return _ptr + _capacity;
+        return _buffer.data() + _capacity;
     }
 
     // Explicitly destroy the constructed range [begin(), __end) before destruction
     void
     destroy_range(T* __end) noexcept
     {
-        std::destroy(_ptr, __end);
+        std::destroy(_buffer.data(), __end);
     }
 };
 
