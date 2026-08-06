@@ -1036,25 +1036,24 @@ struct usm_subrange_impl
     static_assert(std::is_trivially_copyable_v<T>,
         "Memory initialization within the class relies on trivially copyability of the type T");
 
-    using shared_allocator = sycl::usm_allocator<T, sycl::usm::alloc::shared>;
+    template <typename TA>
+    using shared_allocator = sycl::usm_allocator<TA, sycl::usm::alloc::shared>;
     using type = ViewType;
 
-    shared_allocator alloc;
+    oneapi::dpl::__utils::__buffer_impl<T, shared_allocator> buffer;
     T* p = nullptr;
     ViewType view;
 
     template<typename Policy>
-    usm_subrange_impl(Policy&& exec, T* data, int n): alloc(exec.queue()), p(data)
+    usm_subrange_impl(Policy&& exec, T* data, int n) : buffer(n, exec.queue()), p(data)
     {
-        auto mem = alloc.allocate(n);
-        view = ViewType(mem, mem + n);
+        view = ViewType(buffer.get(), buffer.get() + n);
         std::copy_n(data, n, view.data());
     }
     template<typename Policy, typename DataGen>
-    usm_subrange_impl(Policy&& exec, int n, DataGen gen): alloc(exec.queue())
+    usm_subrange_impl(Policy&& exec, int n, DataGen gen) : buffer(n, exec.queue())
     {
-        auto mem = alloc.allocate(n);
-        view = ViewType(mem, mem + n);
+        view = ViewType(buffer.get(), buffer.get() + n);
         for(int i = 0; i < n; ++i)
             view[i] = gen(i);
     }
@@ -1068,7 +1067,6 @@ struct usm_subrange_impl
     {
         if(p)
             std::copy_n(view.data(), view.size(), p);
-        alloc.deallocate(view.data(), view.size());
     }
 };
 
