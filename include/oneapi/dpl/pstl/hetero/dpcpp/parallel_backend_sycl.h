@@ -1376,7 +1376,7 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
         do
         {
 #if _DEFINE_DEBUG_OUTPUT
-            std::cerr << "\t\t\t__event1 = __q.submit(...)" << std::endl;
+            std::cerr << "\t\t\t__event1 = __q.submit(...) : __n = " << __n << std::endl;
 #endif
             __event1 = __q.submit([&, __data_in_temp, __k](sycl::handler& __cgh) {
                 __cgh.depends_on(__event1);
