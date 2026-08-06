@@ -1370,19 +1370,22 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
                         _Size __end_2 = sycl::min(__start + 2 * __k, __n);
 
                         if (!__data_in_temp)
-                        {
-                            __merge(__global_idx, __rng, __start, __end_1, __rng, __end_1, __end_2, __temp_acc, __start,
-                                    __comp);
-                        }
+                            __merge(__global_idx, __rng,      __start, __end_1, __rng,      __end_1, __end_2, __temp_acc, __start, __comp);
                         else
-                        {
-                            __merge(__global_idx, __temp_acc, __start, __end_1, __temp_acc, __end_1, __end_2, __rng,
-                                    __start, __comp);
-                        }
+                            __merge(__global_idx, __temp_acc, __start, __end_1, __temp_acc, __end_1, __end_2, __rng,      __start, __comp);
                     });
             });
-            std::cerr << "\t\t\t\t__event1.wait_and_throw()" << std::endl;
-            __event1.wait_and_throw();
+            try
+            {
+                std::cerr << "\t\t\t\t__event1.wait_and_throw()" << std::endl;
+                __event1.wait_and_throw();
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << "\t\t\t\t__event1.wait_and_throw() failed with exception: " << e.what() << std::endl;
+                throw;
+            }
+
             __data_in_temp = !__data_in_temp;
             __k *= 2;
         } while (__k < __n);
