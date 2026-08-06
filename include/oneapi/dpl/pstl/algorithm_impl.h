@@ -2592,7 +2592,7 @@ __pattern_partial_sort_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec
                                                   __i, __j, __d_first + (__i - __r), _IsVector{});
                                           });
 
-            if constexpr (!::std::is_trivially_destructible_v<_T1>)
+            if constexpr (!::std::is_trivially_destructible_v<_T2>)
                 __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r + __n2,
                                               __r + __n1,
                                               [](_T2* __i, _T2* __j) { __brick_destroy(__i, __j, _IsVector{}); });
