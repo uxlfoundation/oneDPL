@@ -133,51 +133,45 @@ class __device_storage_base
 
     // A default-constructed __depends_on is a ready event, so it can be forwarded unconditionally.
     // wait_and_throw() rather than wait(), so asynchronous errors surface at the transfer call site.
-    // TODO: check if the following is a problem, should we just accept a queue by copy? (same for many of these calls)
-    // The queue is copied into a local because its memcpy/fill shortcuts are not const-qualified.
     void
-    __copy_to_host(_Tp* __dst, size_type __count, size_type __src_offset, const sycl::queue& __q,
+    __copy_to_host(_Tp* __dst, size_type __count, size_type __src_offset, sycl::queue __q,
                    const sycl::event& __depends_on) const
     {
         if (__count == 0)
             return;
 
-        sycl::queue __queue = __q;
-        __queue.memcpy(__dst, _M_data + __src_offset, __count * sizeof(_Tp), __depends_on).wait_and_throw();
+        __q.memcpy(__dst, _M_data + __src_offset, __count * sizeof(_Tp), __depends_on).wait_and_throw();
     }
 
     void
-    __copy_from_host(const _Tp* __src, size_type __count, size_type __dst_offset, const sycl::queue& __q,
+    __copy_from_host(const _Tp* __src, size_type __count, size_type __dst_offset, sycl::queue __q,
                      const sycl::event& __depends_on)
     {
         if (__count == 0)
             return;
 
-        sycl::queue __queue = __q;
-        __queue.memcpy(_M_data + __dst_offset, __src, __count * sizeof(_Tp), __depends_on).wait_and_throw();
+        __q.memcpy(_M_data + __dst_offset, __src, __count * sizeof(_Tp), __depends_on).wait_and_throw();
     }
 
     void
-    __fill_n(const _Tp& __value, size_type __count, size_type __offset, const sycl::queue& __q,
+    __fill_n(const _Tp& __value, size_type __count, size_type __offset, sycl::queue __q,
              const sycl::event& __depends_on)
     {
         if (__count == 0)
             return;
 
-        sycl::queue __queue = __q;
-        __queue.fill(_M_data + __offset, __value, __count, __depends_on).wait_and_throw();
+        __q.fill(_M_data + __offset, __value, __count, __depends_on).wait_and_throw();
     }
 
     // Precondition: __pos < size(), must be checked by __check_element_pos() in the caller.
     _Tp
-    __read_at(size_type __pos, const sycl::queue& __q, const sycl::event& __depends_on) const
+    __read_at(size_type __pos, sycl::queue __q, const sycl::event& __depends_on) const
     {
         // Lazy storage to avoid requiring _Tp to be default constructible. _Tp is device copyable, so
         // copy construction is a bitwise copy and __space.__v may be treated as constructed after the
         // memcpy; its destructor must have no effect, so there is nothing to destroy.
         oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __space;
-        sycl::queue __queue = __q;
-        __queue.memcpy(&__space.__v, _M_data + __pos, sizeof(_Tp), __depends_on).wait_and_throw();
+        __q.memcpy(&__space.__v, _M_data + __pos, sizeof(_Tp), __depends_on).wait_and_throw();
         return __space.__v;
     }
 
