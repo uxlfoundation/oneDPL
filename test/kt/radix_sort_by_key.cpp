@@ -144,7 +144,11 @@ int main()
                 test_sycl_buffer<TEST_KEY_TYPE, TEST_VALUE_TYPE, Descending, TestRadixBits>(
                     q, size, TestUtils::create_new_kernel_param_idx<3>(params));
             }
-            if constexpr (std::is_floating_point_v<TEST_KEY_TYPE> || std::is_same_v<TEST_KEY_TYPE, sycl::half>)
+            if constexpr (std::is_floating_point_v<TEST_KEY_TYPE> || std::is_same_v<TEST_KEY_TYPE, sycl::half>
+#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+                          || std::is_same_v<TEST_KEY_TYPE, sycl::ext::oneapi::bfloat16>
+#endif
+            )
             {
                 test_negative_zero_stability<TEST_KEY_TYPE, TEST_VALUE_TYPE, Ascending, TestRadixBits>(
                     q, 64, TestUtils::create_new_kernel_param_idx<4>(params));

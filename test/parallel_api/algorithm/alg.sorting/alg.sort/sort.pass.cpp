@@ -50,6 +50,15 @@ int main()
     test_sort<TestUtils::float64_t>(SortTestConfig{cfg, "float64_t, device"}, small_sizes, Device<5>{},
                                     Converter<TestUtils::float64_t>{});
     test_sort<sycl::half>(SortTestConfig{cfg, "sycl::half, device"}, small_sizes, Device<6>{}, half_converter);
+
+#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+    auto bfloat16_converter = [](size_t /*index*/, size_t val) {
+        return TestUtils::sycl_bfloat16_convert(std::uint16_t(val & 0xFFFFu));
+    };
+    test_sort<sycl::ext::oneapi::bfloat16>(SortTestConfig{cfg, "sycl::ext::oneapi::bfloat16, device"}, small_sizes,
+                                           Device<7>{}, bfloat16_converter);
+#endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
+
     // TODO: add a test for a MoveConstructible only type
 #endif
 

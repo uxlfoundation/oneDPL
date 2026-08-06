@@ -149,6 +149,32 @@ __order_preserving_cast_scalar(sycl::half __src)
     return __uint16_src ^ __mask;
 }
 
+#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+// Order-preserving cast for bfloat16 - scalar version
+template <bool __is_ascending>
+std::uint16_t
+__order_preserving_cast_scalar(sycl::ext::oneapi::bfloat16 __src)
+{
+    std::uint16_t __uint16_src = sycl::bit_cast<std::uint16_t>(__src);
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation.
+    // Detected via the bit pattern (rather than a floating-point comparison with 0) because bfloat16 denormals
+    // widen to float32 subnormals, which a floating-point comparison may flush to zero.
+    if ((__uint16_src & 0x7FFFu) == 0)
+        return 0x8000u;
+    std::uint16_t __mask;
+    bool __sign_bit_is_zero = (__uint16_src >> 15 == 0);
+    if constexpr (__is_ascending)
+    {
+        __mask = __sign_bit_is_zero ? 0x8000u : 0xFFFFu;
+    }
+    else
+    {
+        __mask = __sign_bit_is_zero ? 0x7FFFu : std::uint16_t(0);
+    }
+    return __uint16_src ^ __mask;
+}
+#endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
+
 // Order-preserving cast for 32-bit floats - scalar version
 template <bool __is_ascending, typename _Float,
           std::enable_if_t<std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(std::uint32_t), int> = 0>
@@ -222,6 +248,18 @@ __sort_identity()
     else
         return sycl::bit_cast<_T>(std::uint16_t(0xFFFFu));
 }
+
+#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+template <typename _T, bool __is_ascending, std::enable_if_t<std::is_same_v<_T, sycl::ext::oneapi::bfloat16>, int> = 0>
+constexpr _T
+__sort_identity()
+{
+    if constexpr (__is_ascending)
+        return sycl::bit_cast<_T>(std::uint16_t(0x7FFFu));
+    else
+        return sycl::bit_cast<_T>(std::uint16_t(0xFFFFu));
+}
+#endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
 
 template <typename _T, bool __is_ascending,
           std::enable_if_t<std::is_floating_point_v<_T> && sizeof(_T) == sizeof(std::uint32_t), int> = 0>

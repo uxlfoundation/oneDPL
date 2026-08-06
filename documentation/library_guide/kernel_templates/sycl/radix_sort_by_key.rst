@@ -104,7 +104,7 @@ Parameters
 **Type Requirements**:
 
 - The element type of sequence(s) to sort must be a C++ integral or floating-point type
-  other than ``bool`` with a width of up to 64 bits.
+  other than ``bool`` with a width of up to 64 bits, ``sycl::half``, or ``sycl::ext::oneapi::bfloat16``.
 
 .. note::
 

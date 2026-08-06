@@ -26,6 +26,9 @@ New Features
   ``transform_exclusive_scan`` with device policies for non-trivially-copyable value types on GPU devices.
 - Improved performance of the ``histogram_even`` and ``histogram_range`` algorithms with device policies for a small
   number of bins on GPU devices.
+- ``sort``, ``stable_sort``, ``sort_by_key`` algorithms, as well as the ``kt::gpu::radix_sort`` and
+  ``kt::gpu::radix_sort_by_key`` kernel templates, now use Radix sort [#fnote1]_ for sorting
+  ``sycl::ext::oneapi::bfloat16`` elements compared with ``std::less`` or ``std::greater``.
 
 Known Issues and Limitations
 ----------------------------
@@ -1176,9 +1179,10 @@ Known Issues and Limitations
   (including ``std::ldexp``, ``std::frexp``, ``std::sqrt(std::complex<float>)``) require device support
   for double precision.
 
-.. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types and
-  ``sycl::half`` (since oneDPL 2022.6) compared with ``less`` or ``greater`` from
-  the ``std`` and ``std::ranges`` (since oneDPL 2022.13) namespaces, otherwise Merge sort.
+.. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types,
+  ``sycl::half`` (since oneDPL 2022.6), and ``sycl::ext::oneapi::bfloat16`` (since oneDPL 2022.13)
+  compared with ``less`` or ``greater`` from the ``std`` and ``std::ranges`` (since oneDPL 2022.13)
+  namespaces, otherwise Merge sort.
 .. _`oneDPL Guide`: https://uxlfoundation.github.io/oneDPL/library_guide/index.html
 .. _`Intel® oneAPI Threading Building Blocks (oneTBB) Release Notes`: https://www.intel.com/content/www/us/en/developer/articles/release-notes/intel-oneapi-threading-building-blocks-release-notes.html
 .. _`restrictions and known limitations`: https://uxlfoundation.github.io/oneDPL/library_guide/introduction.html#restrictions.

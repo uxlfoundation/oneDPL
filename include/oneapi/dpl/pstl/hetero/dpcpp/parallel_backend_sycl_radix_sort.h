@@ -88,6 +88,27 @@ __order_preserving_cast(sycl::half __val)
     return __uint16_val ^ __mask;
 }
 
+#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+template <bool __is_ascending>
+::std::uint16_t
+__order_preserving_cast(sycl::ext::oneapi::bfloat16 __val)
+{
+    std::uint16_t __uint16_val = oneapi::dpl::__internal::__dpl_bit_cast<std::uint16_t>(__val);
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation.
+    // Detected via the bit pattern (rather than a floating-point comparison with 0) because bfloat16 denormals
+    // widen to float32 subnormals, which a floating-point comparison may flush to zero.
+    if ((__uint16_val & 0x7FFFu) == 0)
+        return 0x8000u;
+    ::std::uint16_t __mask;
+    // __uint16_val >> 15 takes the sign bit of the original value
+    if constexpr (__is_ascending)
+        __mask = (__uint16_val >> 15 == 0) ? 0x8000u : 0xFFFFu;
+    else
+        __mask = (__uint16_val >> 15 == 0) ? 0x7FFFu : ::std::uint16_t(0);
+    return __uint16_val ^ __mask;
+}
+#endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
+
 template <bool __is_ascending, typename _Float,
           ::std::enable_if_t<::std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(::std::uint32_t), int> = 0>
 ::std::uint32_t
