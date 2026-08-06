@@ -13,12 +13,11 @@
 #include "../internal/common_config.h"
 #include "../pstl/onedpl_config.h"
 
-// A hard error rather than defining nothing: device_array is inherently a SYCL device-memory
-// container, there is no host fallback, and silently defining nothing would turn a configuration
-// mistake into confusing errors at every use site. This mirrors <oneapi/dpl/async>.
-#if !_ONEDPL_BACKEND_SYCL
-#    error "To use oneapi::dpl::experimental::device_array, a SYCL compiler is required"
-#endif
+// device_array is inherently a SYCL device-memory container, so without the SYCL backend this header
+// declares nothing at all. Including it is still well-formed: that follows the convention of the rest
+// of the library, where backend-specific content is guarded rather than diagnosed, so that a
+// translation unit can include what it needs and select on _ONEDPL_BACKEND_SYCL itself.
+#if _ONEDPL_BACKEND_SYCL
 
 // device_array's transfer operations and its span() observer are expressed in terms of
 // oneapi::dpl::span, which is an alias rather than a type of its own:
@@ -43,9 +42,11 @@
 // The alias itself is defined in internal/span_impl.h, which device_array_impl.h includes for
 // itself. It is named here as well, to keep this configuration choice visible to a reader of the
 // public header.
-#include "../internal/span_impl.h"
-#include "../internal/device_array_impl.h"
+#    include "../internal/span_impl.h"
+#    include "../internal/device_array_impl.h"
 
 namespace dpl = oneapi::dpl;
+
+#endif // _ONEDPL_BACKEND_SYCL
 
 #endif // _ONEDPL_DEVICE_ARRAY

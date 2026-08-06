@@ -17,11 +17,11 @@
 #include "common_config.h"
 #include "../pstl/onedpl_config.h"
 
-#if !_ONEDPL_BACKEND_SYCL
-#    error "oneapi::dpl::experimental::device_allocator requires a SYCL compiler"
-#endif
+// device_allocator allocates USM device memory, so it exists only with the SYCL backend. Without it
+// this header declares nothing, following the convention of the other internal headers.
+#if _ONEDPL_BACKEND_SYCL
 
-#include "../pstl/hetero/dpcpp/sycl_defs.h"
+#    include "../pstl/hetero/dpcpp/sycl_defs.h"
 
 namespace oneapi::dpl::experimental
 {
@@ -177,5 +177,7 @@ class device_allocator
 };
 
 } // namespace oneapi::dpl::experimental
+
+#endif // _ONEDPL_BACKEND_SYCL
 
 #endif // _ONEDPL_DEVICE_ALLOCATOR_IMPL_H

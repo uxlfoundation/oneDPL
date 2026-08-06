@@ -25,6 +25,7 @@
 #    include <cstddef>
 #    include <cstdint>
 #    include <numeric>
+#    include <stdexcept>
 #    include <utility>
 #    include <vector>
 
@@ -58,6 +59,23 @@ to_host(const device_array<_Tp>& __d)
     std::vector<_Tp> __out(__d.size(), make_value<_Tp>(-1));
     __d.copy_to(oneapi::dpl::span<_Tp>{__out.data(), __out.size()});
     return __out;
+}
+
+// An out-of-range offset is a precondition violation and throws std::out_of_range rather than
+// silently transferring nothing.
+template <typename _Fp>
+bool
+throws_out_of_range(_Fp __f)
+{
+    try
+    {
+        __f();
+    }
+    catch (const std::out_of_range&)
+    {
+        return true;
+    }
+    return false;
 }
 
 template <typename _Tp>
@@ -179,7 +197,7 @@ test_fill_ctor(sycl::queue __q)
     device_array<_Tp> __d2(__n, __value, __q.get_context(), __q.get_device());
     sycl::queue __explicit_q{__q.get_context(), __q.get_device()};
     std::vector<_Tp> __got(__n, make_value<_Tp>(-1));
-    __d2.copy_to(__explicit_q, oneapi::dpl::span<_Tp>{__got.data(), __got.size()});
+    __d2.copy_to(oneapi::dpl::span<_Tp>{__got.data(), __got.size()}, __explicit_q);
     EXPECT_EQ_RANGES(__expected, __got, "fill (count, value, context, device): wrong contents");
 }
 
@@ -219,15 +237,27 @@ test_empty(sycl::queue __q)
     device_array<_Tp> __d1(oneapi::dpl::span<const _Tp>{}, __q);
     __check(__d1, "device_array(empty span, queue) is not empty");
 
-    // All transfers are no-op and must not throw, including the ones with a non-empty host side.
+    // The bulk transfers are a no-op and must not throw, including the ones with a non-empty host
+    // side: offset 0 is the only in-range offset here, and it is <= size(), so the count truncates to
+    // zero. They report zero elements copied.
     std::vector<_Tp> __host = iota_host<_Tp>(4);
-    __d0.copy_from(__q, oneapi::dpl::span<const _Tp>{__host.data(), __host.size()});
-    __d0.copy_to(__q, oneapi::dpl::span<_Tp>{__host.data(), __host.size()});
-    __d0.copy_from(__q, make_value<_Tp>(1));
-    __d0.copy_from(oneapi::dpl::span<const _Tp>{__host.data(), __host.size()});
-    __d0.copy_to(oneapi::dpl::span<_Tp>{__host.data(), __host.size()});
-    __d0.copy_from(make_value<_Tp>(1));
+    const oneapi::dpl::span<const _Tp> __src{__host.data(), __host.size()};
+    const oneapi::dpl::span<_Tp> __dst{__host.data(), __host.size()};
+    EXPECT_EQ(std::size_t(0), __d0.copy_from(__src, __q), "copy_from on an empty device_array copied something");
+    EXPECT_EQ(std::size_t(0), __d0.copy_to(__dst, __q), "copy_to on an empty device_array copied something");
+    EXPECT_EQ(std::size_t(0), __d0.copy_from(__src), "queue-less copy_from on an empty device_array copied something");
+    EXPECT_EQ(std::size_t(0), __d0.copy_to(__dst), "queue-less copy_to on an empty device_array copied something");
     EXPECT_EQ_RANGES(iota_host<_Tp>(4), __host, "transfers on an empty device_array modified the host buffer");
+
+    // The single-element write addresses one element, so there is no in-range position at all on an
+    // empty container: even position 0 throws.
+    EXPECT_TRUE(throws_out_of_range([&] { __d0.copy_from(make_value<_Tp>(1), __q); }),
+                "copy_from(value, queue) on an empty device_array must throw");
+    EXPECT_TRUE(throws_out_of_range([&] { __d0.copy_from(make_value<_Tp>(1)); }),
+                "copy_from(value) on an empty device_array must throw");
+    EXPECT_TRUE(throws_out_of_range([&] { __d0.read_at(0, __q); }),
+                "read_at(0, queue) on an empty device_array must throw");
+    EXPECT_TRUE(throws_out_of_range([&] { __d0.read_at(0); }), "read_at(0) on an empty device_array must throw");
 
     if constexpr (std::is_default_constructible_v<_Tp>)
     {
@@ -324,7 +354,6 @@ test_swap(sycl::queue __q)
 
     device_array<_Tp> __a(__host_a, __q);
     device_array<_Tp> __b(__host_b, __q);
-    static_assert(noexcept(__a.swap(__b)), "device_array::swap must be noexcept");
 
     const _Tp* __ptr_a = oneapi::dpl::begin(__a);
     const _Tp* __ptr_b = oneapi::dpl::begin(__b);
@@ -342,7 +371,7 @@ test_swap(sycl::queue __q)
     EXPECT_EQ_RANGES(__host_b, to_host(__b), "free swap: wrong contents in b");
 }
 
-// 12. copy_to and its truncation rules.
+// 12. copy_to: the returned count, its truncation rules, and the offset precondition.
 template <typename _Tp>
 void
 test_copy_to(sycl::queue __q)
@@ -351,18 +380,28 @@ test_copy_to(sycl::queue __q)
     const std::vector<_Tp> __host = iota_host<_Tp>(__n);
     device_array<_Tp> __d(__host, __q);
 
-    // Exact size.
+    // Exact size. All three overload forms name the same transfer.
     {
         std::vector<_Tp> __out(__n, make_value<_Tp>(-1));
-        __d.copy_to(__q, oneapi::dpl::span<_Tp>{__out.data(), __out.size()});
+        const oneapi::dpl::span<_Tp> __dst{__out.data(), __out.size()};
+        EXPECT_EQ(__n, __d.copy_to(__dst, __q), "copy_to(dst, queue): wrong count");
         EXPECT_EQ_RANGES(__host, __out, "copy_to with an exactly sized destination");
+
+        std::fill(__out.begin(), __out.end(), make_value<_Tp>(-1));
+        EXPECT_EQ(__n, __d.copy_to(__dst, 0, __q), "copy_to(dst, 0, queue): wrong count");
+        EXPECT_EQ_RANGES(__host, __out, "copy_to(dst, 0, queue): wrong contents");
+
+        std::fill(__out.begin(), __out.end(), make_value<_Tp>(-1));
+        EXPECT_EQ(__n, __d.copy_to(__dst), "copy_to(dst): wrong count");
+        EXPECT_EQ_RANGES(__host, __out, "copy_to(dst): wrong contents");
     }
 
     // Destination larger than the container: truncates to size(), the tail is untouched.
     {
         const _Tp __sentinel = make_value<_Tp>(-9);
         std::vector<_Tp> __out(__n + 32, __sentinel);
-        __d.copy_to(__q, oneapi::dpl::span<_Tp>{__out.data(), __out.size()});
+        EXPECT_EQ(__n, __d.copy_to(oneapi::dpl::span<_Tp>{__out.data(), __out.size()}, __q),
+                  "copy_to into a larger destination: wrong count");
         EXPECT_EQ_N(__host.begin(), __out.begin(), __n, "copy_to into a larger destination: wrong prefix");
         for (std::size_t __i = __n; __i < __out.size(); ++__i)
             EXPECT_TRUE(__out[__i] == __sentinel, "copy_to into a larger destination overwrote the tail");
@@ -372,7 +411,8 @@ test_copy_to(sycl::queue __q)
     {
         const std::size_t __m = 50;
         std::vector<_Tp> __out(__m, make_value<_Tp>(-1));
-        __d.copy_to(__q, oneapi::dpl::span<_Tp>{__out.data(), __out.size()});
+        EXPECT_EQ(__m, __d.copy_to(oneapi::dpl::span<_Tp>{__out.data(), __out.size()}, __q),
+                  "copy_to into a smaller destination: wrong count");
         EXPECT_EQ_N(__host.begin(), __out.begin(), __m, "copy_to into a smaller destination: wrong contents");
     }
 
@@ -380,20 +420,31 @@ test_copy_to(sycl::queue __q)
     {
         const std::size_t __offset = 100;
         std::vector<_Tp> __out(__n, make_value<_Tp>(-1));
-        __d.copy_to(__q, oneapi::dpl::span<_Tp>{__out.data(), __out.size()}, __offset);
+        EXPECT_EQ(__n - __offset, __d.copy_to(oneapi::dpl::span<_Tp>{__out.data(), __out.size()}, __offset, __q),
+                  "copy_to with src_offset: wrong count");
         EXPECT_EQ_N(__host.begin() + __offset, __out.begin(), __n - __offset,
                     "copy_to with src_offset: wrong contents");
     }
 
-    // src_offset == size() and src_offset > size() both clamp to zero elements and must not throw.
+    // src_offset == size() names the end of the range: a well-formed, empty transfer.
     {
         const _Tp __sentinel = make_value<_Tp>(-9);
         std::vector<_Tp> __out(8, __sentinel);
-        __d.copy_to(__q, oneapi::dpl::span<_Tp>{__out.data(), __out.size()}, __n);
-        __d.copy_to(__q, oneapi::dpl::span<_Tp>{__out.data(), __out.size()}, __n + 1);
-        __d.copy_to(__q, oneapi::dpl::span<_Tp>{__out.data(), __out.size()}, 10 * __n);
+        const oneapi::dpl::span<_Tp> __dst{__out.data(), __out.size()};
+        EXPECT_EQ(std::size_t(0), __d.copy_to(__dst, __n, __q), "copy_to with src_offset == size(): wrong count");
+        EXPECT_EQ(std::size_t(0), __d.copy_to(__dst, __n), "queue-less copy_to with src_offset == size(): wrong count");
         for (const _Tp& __v : __out)
-            EXPECT_TRUE(__v == __sentinel, "copy_to with an out-of-range src_offset copied something");
+            EXPECT_TRUE(__v == __sentinel, "copy_to with src_offset == size() copied something");
+
+        // src_offset > size() is a precondition violation.
+        EXPECT_TRUE(throws_out_of_range([&] { __d.copy_to(__dst, __n + 1, __q); }),
+                    "copy_to with src_offset > size() must throw");
+        EXPECT_TRUE(throws_out_of_range([&] { __d.copy_to(__dst, 10 * __n, __q); }),
+                    "copy_to with a far out-of-range src_offset must throw");
+        EXPECT_TRUE(throws_out_of_range([&] { __d.copy_to(__dst, __n + 1); }),
+                    "queue-less copy_to with src_offset > size() must throw");
+        for (const _Tp& __v : __out)
+            EXPECT_TRUE(__v == __sentinel, "a throwing copy_to copied something");
     }
 }
 
@@ -405,19 +456,30 @@ test_copy_from(sycl::queue __q)
     const std::size_t __n = 200;
     const _Tp __background = make_value<_Tp>(-5);
 
-    // Exact size.
+    // Exact size. All three overload forms name the same transfer.
     {
         device_array<_Tp> __d(__n, __background, __q);
         const std::vector<_Tp> __host = iota_host<_Tp>(__n);
-        __d.copy_from(__q, oneapi::dpl::span<const _Tp>{__host.data(), __host.size()});
+        const oneapi::dpl::span<const _Tp> __src{__host.data(), __host.size()};
+
+        EXPECT_EQ(__n, __d.copy_from(__src, __q), "copy_from(src, queue): wrong count");
         EXPECT_EQ_RANGES(__host, to_host(__d), "copy_from with an exactly sized source");
+
+        device_array<_Tp> __d2(__n, __background, __q);
+        EXPECT_EQ(__n, __d2.copy_from(__src, 0, __q), "copy_from(src, 0, queue): wrong count");
+        EXPECT_EQ_RANGES(__host, to_host(__d2), "copy_from(src, 0, queue): wrong contents");
+
+        device_array<_Tp> __d3(__n, __background, __q);
+        EXPECT_EQ(__n, __d3.copy_from(__src), "copy_from(src): wrong count");
+        EXPECT_EQ_RANGES(__host, to_host(__d3), "copy_from(src): wrong contents");
     }
 
     // Source larger than the container: truncates to size().
     {
         device_array<_Tp> __d(__n, __background, __q);
         const std::vector<_Tp> __host = iota_host<_Tp>(__n + 32);
-        __d.copy_from(__q, oneapi::dpl::span<const _Tp>{__host.data(), __host.size()});
+        EXPECT_EQ(__n, __d.copy_from(oneapi::dpl::span<const _Tp>{__host.data(), __host.size()}, __q),
+                  "copy_from from a larger source: wrong count");
         const std::vector<_Tp> __got = to_host(__d);
         EXPECT_EQ(__n, __got.size(), "copy_from from a larger source changed the container size");
         EXPECT_EQ_N(__host.begin(), __got.begin(), __n, "copy_from from a larger source: wrong contents");
@@ -428,7 +490,8 @@ test_copy_from(sycl::queue __q)
         device_array<_Tp> __d(__n, __background, __q);
         const std::size_t __m = 50;
         const std::vector<_Tp> __host = iota_host<_Tp>(__m);
-        __d.copy_from(__q, oneapi::dpl::span<const _Tp>{__host.data(), __host.size()});
+        EXPECT_EQ(__m, __d.copy_from(oneapi::dpl::span<const _Tp>{__host.data(), __host.size()}, __q),
+                  "copy_from from a smaller source: wrong count");
         const std::vector<_Tp> __got = to_host(__d);
         EXPECT_EQ_N(__host.begin(), __got.begin(), __m, "copy_from from a smaller source: wrong prefix");
         for (std::size_t __i = __m; __i < __n; ++__i)
@@ -440,7 +503,9 @@ test_copy_from(sycl::queue __q)
         device_array<_Tp> __d(__n, __background, __q);
         const std::size_t __offset = 100;
         const std::vector<_Tp> __host = iota_host<_Tp>(__n, 1000);
-        __d.copy_from(__q, oneapi::dpl::span<const _Tp>{__host.data(), __host.size()}, __offset);
+        EXPECT_EQ(__n - __offset,
+                  __d.copy_from(oneapi::dpl::span<const _Tp>{__host.data(), __host.size()}, __offset, __q),
+                  "copy_from with dst_offset: wrong count");
         const std::vector<_Tp> __got = to_host(__d);
         for (std::size_t __i = 0; __i < __offset; ++__i)
             EXPECT_TRUE(__got[__i] == __background, "copy_from with dst_offset wrote before the offset");
@@ -448,14 +513,24 @@ test_copy_from(sycl::queue __q)
                     "copy_from with dst_offset: wrong contents");
     }
 
-    // dst_offset == size() and dst_offset > size(): zero elements, no throw.
+    // dst_offset == size() names the end of the range: a well-formed, empty transfer. Past that is a
+    // precondition violation.
     {
         device_array<_Tp> __d(__n, __background, __q);
         const std::vector<_Tp> __host = iota_host<_Tp>(8, 7);
         const oneapi::dpl::span<const _Tp> __src{__host.data(), __host.size()};
-        __d.copy_from(__q, __src, __n);
-        __d.copy_from(__q, __src, __n + 1);
-        __d.copy_from(__q, __src, 10 * __n);
+
+        EXPECT_EQ(std::size_t(0), __d.copy_from(__src, __n, __q), "copy_from with dst_offset == size(): wrong count");
+        EXPECT_EQ(std::size_t(0), __d.copy_from(__src, __n),
+                  "queue-less copy_from with dst_offset == size(): wrong count");
+
+        EXPECT_TRUE(throws_out_of_range([&] { __d.copy_from(__src, __n + 1, __q); }),
+                    "copy_from with dst_offset > size() must throw");
+        EXPECT_TRUE(throws_out_of_range([&] { __d.copy_from(__src, 10 * __n, __q); }),
+                    "copy_from with a far out-of-range dst_offset must throw");
+        EXPECT_TRUE(throws_out_of_range([&] { __d.copy_from(__src, __n + 1); }),
+                    "queue-less copy_from with dst_offset > size() must throw");
+
         const std::vector<_Tp> __got = to_host(__d);
         for (const _Tp& __v : __got)
             EXPECT_TRUE(__v == __background, "copy_from with an out-of-range dst_offset wrote something");
@@ -472,13 +547,19 @@ test_read_at(sycl::queue __q)
     const std::vector<_Tp> __host = iota_host<_Tp>(__n, 5);
     device_array<_Tp> __d(__host, __q);
 
-    EXPECT_TRUE(__d.read_at(__q, 0) == __host[0], "read_at(queue, 0): wrong value");
-    EXPECT_TRUE(__d.read_at(__q, __n / 2) == __host[__n / 2], "read_at(queue, middle): wrong value");
-    EXPECT_TRUE(__d.read_at(__q, __n - 1) == __host[__n - 1], "read_at(queue, last): wrong value");
+    EXPECT_TRUE(__d.read_at(0, __q) == __host[0], "read_at(0, queue): wrong value");
+    EXPECT_TRUE(__d.read_at(__n / 2, __q) == __host[__n / 2], "read_at(middle, queue): wrong value");
+    EXPECT_TRUE(__d.read_at(__n - 1, __q) == __host[__n - 1], "read_at(last, queue): wrong value");
 
     EXPECT_TRUE(__d.read_at(0) == __host[0], "read_at(0): wrong value");
     EXPECT_TRUE(__d.read_at(__n / 2) == __host[__n / 2], "read_at(middle): wrong value");
     EXPECT_TRUE(__d.read_at(__n - 1) == __host[__n - 1], "read_at(last): wrong value");
+
+    // read_at names a single element, so pos == size() is already out of range.
+    EXPECT_TRUE(throws_out_of_range([&] { __d.read_at(__n, __q); }), "read_at(size(), queue) must throw");
+    EXPECT_TRUE(throws_out_of_range([&] { __d.read_at(__n); }), "read_at(size()) must throw");
+    EXPECT_TRUE(throws_out_of_range([&] { __d.read_at(10 * __n, __q); }),
+                "read_at with a far out-of-range position must throw");
 }
 
 // 15. Single-element copy_from, both overloads.
@@ -493,22 +574,28 @@ test_single_element_write(sycl::queue __q)
     const _Tp __v1 = make_value<_Tp>(11);
     const _Tp __v2 = make_value<_Tp>(22);
 
-    __d.copy_from(__q, __v1, 5);
+    __d.copy_from(__v1, 5, __q);
     __d.copy_from(__v2, 6);
+    // The queue overload with a defaulted offset writes element 0.
+    const _Tp __v0 = make_value<_Tp>(33);
+    __d.copy_from(__v0, __q);
 
     const std::vector<_Tp> __got = to_host(__d);
-    EXPECT_TRUE(__got[5] == __v1, "copy_from(queue, value, offset): wrong value written");
+    EXPECT_TRUE(__got[0] == __v0, "copy_from(value, queue): wrong value written");
+    EXPECT_TRUE(__got[5] == __v1, "copy_from(value, offset, queue): wrong value written");
     EXPECT_TRUE(__got[6] == __v2, "copy_from(value, offset): wrong value written");
     for (std::size_t __i = 0; __i < __n; ++__i)
     {
-        if (__i != 5 && __i != 6)
+        if (__i != 0 && __i != 5 && __i != 6)
             EXPECT_TRUE(__got[__i] == __background, "copy_from(value, offset) disturbed a neighbor");
     }
 
-    // An out-of-range offset clamps to a no-op.
-    __d.copy_from(__q, make_value<_Tp>(99), __n);
-    __d.copy_from(make_value<_Tp>(99), __n + 7);
-    EXPECT_EQ_RANGES(__got, to_host(__d), "copy_from(value, offset) with an out-of-range offset wrote something");
+    // A single element is addressed, so offset == size() is already out of range.
+    EXPECT_TRUE(throws_out_of_range([&] { __d.copy_from(make_value<_Tp>(99), __n, __q); }),
+                "copy_from(value, size(), queue) must throw");
+    EXPECT_TRUE(throws_out_of_range([&] { __d.copy_from(make_value<_Tp>(99), __n + 7); }),
+                "copy_from(value, offset) with an out-of-range offset must throw");
+    EXPECT_EQ_RANGES(__got, to_host(__d), "a throwing copy_from(value, offset) wrote something");
 }
 
 // 16. to_vector, both overloads. Requires a default-constructible element type.
@@ -539,7 +626,7 @@ test_device_to_device(sycl::queue __q)
 
     // 17. copy_from taking another container's span.
     device_array<_Tp> __d2(__n, make_value<_Tp>(0), __q);
-    __d2.copy_from(__q, __d.span());
+    EXPECT_EQ(__n, __d2.copy_from(__d.span(), __q), "device-to-device copy_from: wrong count");
     EXPECT_EQ_RANGES(__host, to_host(__d2), "device-to-device copy_from: wrong contents");
 
     // 18. Deep copy through the span constructor.
@@ -548,7 +635,7 @@ test_device_to_device(sycl::queue __q)
     EXPECT_EQ_RANGES(__host, to_host(__copy), "the span ctor produced wrong contents");
 
     // Mutating the source must not be visible through the copy.
-    __d.copy_from(__q, make_value<_Tp>(999), 0);
+    __d.copy_from(make_value<_Tp>(999), 0, __q);
     EXPECT_EQ_RANGES(__host, to_host(__copy), "the span ctor produced a shallow copy");
 
     // 19. Subrange.
@@ -571,10 +658,11 @@ test_queueless_path(sycl::queue __q)
     device_array<_Tp> __d(__n, make_value<_Tp>(0), __q.get_context(), __q.get_device());
     EXPECT_TRUE(__d.get_context() == __q.get_context(), "queue-less container: wrong context");
 
-    __d.copy_from(oneapi::dpl::span<const _Tp>{__host.data(), __host.size()});
+    EXPECT_EQ(__n, __d.copy_from(oneapi::dpl::span<const _Tp>{__host.data(), __host.size()}),
+              "queue-less copy_from: wrong count");
 
     std::vector<_Tp> __out(__n, make_value<_Tp>(-1));
-    __d.copy_to(oneapi::dpl::span<_Tp>{__out.data(), __out.size()});
+    EXPECT_EQ(__n, __d.copy_to(oneapi::dpl::span<_Tp>{__out.data(), __out.size()}), "queue-less copy_to: wrong count");
     EXPECT_EQ_RANGES(__host, __out, "queue-less copy_from/copy_to round trip");
 
     EXPECT_TRUE(__d.read_at(3) == __host[3], "queue-less read_at: wrong value");
@@ -610,15 +698,17 @@ test_depends_on(sycl::queue __q)
         sycl::event __e = __ooo_q.parallel_for<writer_kernel<int, 0>>(
             sycl::range<1>(__n), [__s = __d.span()](sycl::id<1> __i) { __s[__i] = int(__i.get(0)); });
 
+        // The queue overload with a defaulted offset is the one that carries the event here; the
+        // explicit-offset form is exercised for copy_from below.
         std::vector<int> __out(__n, -1);
-        __d.copy_to(__ooo_q, oneapi::dpl::span<int>{__out.data(), __out.size()}, 0, __e);
+        __d.copy_to(oneapi::dpl::span<int>{__out.data(), __out.size()}, __ooo_q, __e);
         for (std::size_t __i = 0; __i < __n; ++__i)
             EXPECT_EQ(int(__i), __out[__i], "copy_to did not wait for the event it depends on");
 
         // read_at must observe them as well.
         sycl::event __e2 = __ooo_q.parallel_for<writer_kernel<int, 1>>(
             sycl::range<1>(__n), [__s = __d.span()](sycl::id<1> __i) { __s[__i] = int(__i.get(0)) + 1000; });
-        EXPECT_EQ(1000 + int(__n / 2), __d.read_at(__ooo_q, __n / 2, __e2),
+        EXPECT_EQ(1000 + int(__n / 2), __d.read_at(__n / 2, __ooo_q, __e2),
                   "read_at did not wait for the event it depends on");
 
         // copy_from must not overwrite the allocation before the kernel has read it: the kernel
@@ -626,7 +716,7 @@ test_depends_on(sycl::queue __q)
         sycl::event __e3 = __ooo_q.parallel_for<writer_kernel<int, 2>>(
             sycl::range<1>(__n), [__s = __d.span()](sycl::id<1> __i) { __s[__i] = __s[__i] * 2; });
         const std::vector<int> __host(__n, 42);
-        __d.copy_from(__ooo_q, oneapi::dpl::span<const int>{__host.data(), __host.size()}, 0, __e3);
+        __d.copy_from(oneapi::dpl::span<const int>{__host.data(), __host.size()}, 0, __ooo_q, __e3);
         EXPECT_EQ_RANGES(__host, __d.to_vector(__ooo_q), "copy_from did not take effect after its dependency");
     }
 }

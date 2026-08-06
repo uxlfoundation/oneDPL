@@ -11,23 +11,23 @@
 #define _ONEDPL_DEVICE_STORAGE_BASE_IMPL_H
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 
 #include "common_config.h"
 #include "../pstl/onedpl_config.h"
 
-#if !_ONEDPL_BACKEND_SYCL
-#    error "oneapi::dpl::experimental::internal::__device_storage_base requires a SYCL compiler"
-#endif
+// The storage layer owns a USM device allocation, so it exists only with the SYCL backend. Without it
+// this header declares nothing, following the convention of the other internal headers.
+#if _ONEDPL_BACKEND_SYCL
 
 #include "../pstl/hetero/dpcpp/sycl_defs.h"
 #include "../pstl/utils.h"
 #include "device_allocator_impl.h"
 
-namespace oneapi::dpl::experimental::internal
+namespace oneapi::dpl::__internal
 {
 
 // Shared storage layer for the oneDPL device containers.
@@ -207,13 +207,11 @@ class __device_storage_base
         __queue.fill(_M_data + __offset, __value, __count, __depends_on).wait_and_throw();
     }
 
-    // Precondition: __pos < size(). Unlike the bulk transfers this cannot clamp, since it must
-    // return a value.
+    // Precondition: __pos < size(), checked by __check_element_pos() in the caller. Unlike the bulk
+    // transfers this cannot clamp, since it must return a value.
     _Tp
     __read_at(size_type __pos, const sycl::queue& __q, const sycl::event& __depends_on) const
     {
-        assert(__pos < _M_size);
-
         // Avoid requiring _Tp to be default constructible. Since _Tp is device copyable, copy
         // construction is equivalent to a bitwise copy, so __space.__v may be treated as constructed
         // after the memcpy. There is no need to destroy it afterwards, as the destructor must have no
@@ -234,21 +232,47 @@ class __device_storage_base
         return sycl::queue{_M_context, _M_device};
     }
 
-    // An out-of-range offset clamps to an empty transfer rather than throwing, consistent with the
-    // truncating min() philosophy of the container's copy_to/copy_from.
+    // The element count a bulk transfer of __requested elements starting at __offset performs.
+    //
+    // __offset is a precondition: it must be <= size(), where an offset of exactly size() names the
+    // end of the range and yields an empty transfer. A violation is a programming error and throws
+    // std::out_of_range, rather than silently transferring nothing, which would hide the mistake.
+    //
+    // The count itself is *not* a precondition: a mismatched host side truncates to
+    // min(__requested, size() - __offset), which is the count returned to the caller.
     size_type
-    __clamped_count(size_type __requested, size_type __offset) const noexcept
+    __checked_count(size_type __requested, size_type __offset) const
     {
-        if (__offset >= _M_size)
-            return 0;
+        __check_offset(__offset);
         return std::min(__requested, _M_size - __offset);
     }
 
-    // The SYCL handles move-assign over a shared_ptr, and device_allocator holds nothing but such
-    // handles, so noexcept is honest. Swapping the allocator along with the memory is what
-    // device_allocator::propagate_on_container_swap asks for.
+    // For the bulk transfers. See __checked_count().
     void
-    __swap(__device_storage_base& __other) noexcept
+    __check_offset(size_type __offset) const
+    {
+        if (__offset > _M_size)
+            throw std::out_of_range("oneDPL device container: transfer offset is past the end of the container");
+    }
+
+    // For the single-element operations, which address one element rather than a range and so cannot
+    // accept an offset of size().
+    void
+    __check_element_pos(size_type __pos) const
+    {
+        if (__pos >= _M_size)
+            throw std::out_of_range("oneDPL device container: element position is out of range");
+    }
+
+    // Swapping the allocator along with the memory is what
+    // device_allocator::propagate_on_container_swap asks for.
+    //
+    // Not noexcept: _Allocator is a template parameter, and an arbitrary DeviceAllocator's swap may
+    // throw. For the default device_allocator it cannot -- it holds nothing but SYCL handles, which
+    // move-assign over a shared_ptr -- but a noexcept here would turn a user allocator's throw into a
+    // std::terminate.
+    void
+    __swap(__device_storage_base& __other)
     {
         std::swap(_M_data, __other._M_data);
         std::swap(_M_size, __other._M_size);
@@ -275,6 +299,8 @@ class __device_storage_base
     _Allocator _M_alloc;
 };
 
-} // namespace oneapi::dpl::experimental::internal
+} // namespace oneapi::dpl::__internal
+
+#endif // _ONEDPL_BACKEND_SYCL
 
 #endif // _ONEDPL_DEVICE_STORAGE_BASE_IMPL_H

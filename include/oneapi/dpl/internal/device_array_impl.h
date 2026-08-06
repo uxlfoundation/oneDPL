@@ -18,9 +18,10 @@
 #include "common_config.h"
 #include "../pstl/onedpl_config.h"
 
-#if !_ONEDPL_BACKEND_SYCL
-#    error "oneapi::dpl::experimental::device_array requires a SYCL compiler"
-#endif
+// device_array is a container over USM device memory, so it exists only with the SYCL backend.
+// Without it this header declares nothing, following the convention of the other internal headers;
+// the public <oneapi/dpl/experimental/device_array> guards its include of this file the same way.
+#if _ONEDPL_BACKEND_SYCL
 
 #include "../pstl/hetero/dpcpp/sycl_defs.h"
 #include "span_impl.h"
@@ -37,18 +38,18 @@ namespace oneapi::dpl::experimental
 // read_at / to_vector call, so the cost of touching device memory is always visible in the source.
 //
 // The container stores a sycl::context and a sycl::device rather than a sycl::queue, so it is not
-// tied to any single queue. Each operation comes in two flavors: one taking the queue (and an
-// optional sycl::event to depend on) to use, and a queue-less convenience overload that builds a
+// tied to any single queue. Each transfer operation comes in overloads taking the queue (and an
+// optional sycl::event to depend on) to use, plus a queue-less convenience overload that builds a
 // temporary queue from the stored context and device. All of them block until the transfer
 // completes.
 //
 // The storage layer is inherited privately so that none of it leaks; the observers that are safe to
 // publish are re-exported with using-declarations below.
 template <typename _Tp>
-class device_array : private internal::__device_storage_base<_Tp, device_allocator<_Tp>>
+class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp, device_allocator<_Tp>>
 {
     using _Allocator = device_allocator<_Tp>;
-    using _Base = internal::__device_storage_base<_Tp, _Allocator>;
+    using _Base = oneapi::dpl::__internal::__device_storage_base<_Tp, _Allocator>;
 
   public:
     using value_type = _Tp;
@@ -118,22 +119,44 @@ class device_array : private internal::__device_storage_base<_Tp, device_allocat
 
     ~device_array() = default;
 
-    // -- Device to host --
+    // -- Host-device transfer --
     //
-    // min(__dst.size(), size() - __src_offset) elements are copied, so a mismatched destination
-    // truncates instead of throwing. An out-of-range __src_offset yields an empty, no-op transfer.
+    // Argument order is uniform across all of these: what is being transferred first, then where in
+    // the container, then the queue and the event to depend on. Each operation comes in three forms:
+    //
+    //   (data, offset)                 -- queue-less, uses a queue built from the stored context
+    //   (data, queue, depends_on)      -- offset defaults to 0; the common case, spelled without a 0
+    //   (data, offset, queue, depends_on)
+    //
+    // The offset is a precondition, not something to be clamped: for the bulk operations it must be
+    // <= size(), where exactly size() names the end of the range and transfers zero elements, and for
+    // the single-element operations it must be < size(). A violation throws std::out_of_range instead
+    // of reading or writing out of bounds, or silently doing nothing.
+    //
+    // The element count is not a precondition. A mismatched host side truncates to
+    // min(other.size(), size() - offset), and the bulk operations return that count, which may be
+    // less than requested.
 
-    void
-    copy_to(sycl::queue __q, oneapi::dpl::span<_Tp> __dst, size_type __src_offset = 0,
-            sycl::event __depends_on = {}) const
+    // -- Device to host --
+
+    size_type
+    copy_to(oneapi::dpl::span<_Tp> __dst, size_type __src_offset, sycl::queue __q, sycl::event __depends_on = {}) const
     {
-        const size_type __n = _Base::__clamped_count(__dst.size(), __src_offset);
+        const size_type __n = _Base::__checked_count(__dst.size(), __src_offset);
         _Base::__copy_to_host(__dst.data(), __n, __src_offset, __q, __depends_on);
+        return __n;
+    }
+
+    size_type
+    copy_to(oneapi::dpl::span<_Tp> __dst, sycl::queue __q, sycl::event __depends_on = {}) const
+    {
+        return copy_to(__dst, 0, __q, __depends_on);
     }
 
     _Tp
-    read_at(sycl::queue __q, size_type __pos, sycl::event __depends_on = {}) const
+    read_at(size_type __pos, sycl::queue __q, sycl::event __depends_on = {}) const
     {
+        _Base::__check_element_pos(__pos);
         return _Base::__read_at(__pos, __q, __depends_on);
     }
 
@@ -144,47 +167,59 @@ class device_array : private internal::__device_storage_base<_Tp, device_allocat
     to_vector(sycl::queue __q, sycl::event __depends_on = {}) const
     {
         std::vector<_Tp> __out(_Base::size());
-        copy_to(__q, oneapi::dpl::span<_Tp>{__out.data(), __out.size()}, 0, __depends_on);
+        copy_to(oneapi::dpl::span<_Tp>{__out.data(), __out.size()}, 0, __q, __depends_on);
         return __out;
     }
 
     // -- Host to device --
-    //
-    // min(__src.size(), size() - __dst_offset) elements are copied; see the note on copy_to.
 
-    void
-    copy_from(sycl::queue __q, oneapi::dpl::span<const _Tp> __src, size_type __dst_offset = 0,
+    size_type
+    copy_from(oneapi::dpl::span<const _Tp> __src, size_type __dst_offset, sycl::queue __q,
               sycl::event __depends_on = {})
     {
-        const size_type __n = _Base::__clamped_count(__src.size(), __dst_offset);
+        const size_type __n = _Base::__checked_count(__src.size(), __dst_offset);
         _Base::__copy_from_host(__src.data(), __n, __dst_offset, __q, __depends_on);
+        return __n;
     }
 
-    // Writes a single element. The count is clamped just as in the bulk overloads, so an
-    // out-of-range __dst_offset is a no-op rather than an error.
-    void
-    copy_from(sycl::queue __q, const _Tp& __value, size_type __dst_offset = 0, sycl::event __depends_on = {})
+    size_type
+    copy_from(oneapi::dpl::span<const _Tp> __src, sycl::queue __q, sycl::event __depends_on = {})
     {
-        _Base::__fill_n(__value, _Base::__clamped_count(1, __dst_offset), __dst_offset, __q, __depends_on);
+        return copy_from(__src, 0, __q, __depends_on);
+    }
+
+    // Writes a single element. Unlike the bulk overloads there is nothing to truncate, so the
+    // position is checked as an element position: __dst_offset == size() throws as well.
+    void
+    copy_from(const _Tp& __value, size_type __dst_offset, sycl::queue __q, sycl::event __depends_on = {})
+    {
+        _Base::__check_element_pos(__dst_offset);
+        _Base::__fill_n(__value, 1, __dst_offset, __q, __depends_on);
+    }
+
+    void
+    copy_from(const _Tp& __value, sycl::queue __q, sycl::event __depends_on = {})
+    {
+        copy_from(__value, 0, __q, __depends_on);
     }
 
     // -- Queue-less convenience overloads --
     //
     // Each forwards to its queue-taking sibling with a temporary queue built from the stored context
-    // and device, so span unwrapping and clamping happen in exactly one place. Constructing a queue
-    // per call is measurable overhead, and the queue-taking overloads are the performance path; this
-    // is the documented cost of storing a context rather than a queue.
+    // and device, so span unwrapping and range checking happen in exactly one place. Constructing a
+    // queue per call is measurable overhead, and the queue-taking overloads are the performance path;
+    // this is the documented cost of storing a context rather than a queue.
 
-    void
+    size_type
     copy_to(oneapi::dpl::span<_Tp> __dst, size_type __src_offset = 0) const
     {
-        copy_to(_Base::__make_queue(), __dst, __src_offset);
+        return copy_to(__dst, __src_offset, _Base::__make_queue());
     }
 
     _Tp
     read_at(size_type __pos) const
     {
-        return read_at(_Base::__make_queue(), __pos);
+        return read_at(__pos, _Base::__make_queue());
     }
 
     std::vector<_Tp>
@@ -193,16 +228,16 @@ class device_array : private internal::__device_storage_base<_Tp, device_allocat
         return to_vector(_Base::__make_queue());
     }
 
-    void
+    size_type
     copy_from(oneapi::dpl::span<const _Tp> __src, size_type __dst_offset = 0)
     {
-        copy_from(_Base::__make_queue(), __src, __dst_offset);
+        return copy_from(__src, __dst_offset, _Base::__make_queue());
     }
 
     void
     copy_from(const _Tp& __value, size_type __dst_offset = 0)
     {
-        copy_from(_Base::__make_queue(), __value, __dst_offset);
+        copy_from(__value, __dst_offset, _Base::__make_queue());
     }
 
     // -- Observers --
@@ -218,8 +253,11 @@ class device_array : private internal::__device_storage_base<_Tp, device_allocat
     using _Base::get_device;
     using _Base::size;
 
+    // Not noexcept, following the base: the allocator is swapped along with the memory, and although
+    // the fixed device_allocator cannot throw, the base is shared with compat::device_vector, whose
+    // allocator is a user-supplied template parameter.
     void
-    swap(device_array& __other) noexcept
+    swap(device_array& __other)
     {
         _Base::__swap(__other);
     }
@@ -241,7 +279,7 @@ class device_array : private internal::__device_storage_base<_Tp, device_allocat
 
 template <typename _Tp>
 void
-swap(device_array<_Tp>& __a, device_array<_Tp>& __b) noexcept
+swap(device_array<_Tp>& __a, device_array<_Tp>& __b)
 {
     __a.swap(__b);
 }
@@ -302,5 +340,7 @@ end(const experimental::device_array<_Tp>& __d)
 
 } // namespace dpl
 } // namespace oneapi
+
+#endif // _ONEDPL_BACKEND_SYCL
 
 #endif // _ONEDPL_DEVICE_ARRAY_IMPL_H
