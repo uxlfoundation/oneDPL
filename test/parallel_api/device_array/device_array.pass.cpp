@@ -93,9 +93,9 @@ test_type_traits()
 {
     static_assert(!std::is_copy_constructible_v<device_array<_Tp>>, "device_array must not be copy constructible");
     static_assert(!std::is_copy_assignable_v<device_array<_Tp>>, "device_array must not be copy assignable");
-    static_assert(std::is_move_constructible_v<device_array<_Tp>>,
+    static_assert(std::is_nothrow_move_constructible_v<device_array<_Tp>>,
                   "device_array must be nothrow move constructible");
-    static_assert(std::is_move_assignable_v<device_array<_Tp>>, "device_array must be nothrow move assignable");
+    static_assert(std::is_nothrow_move_assignable_v<device_array<_Tp>>, "device_array must be nothrow move assignable");
     static_assert(!std::is_default_constructible_v<device_array<_Tp>>,
                   "device_array must not be default constructible");
     static_assert(std::is_same_v<typename device_array<_Tp>::value_type, _Tp>, "unexpected value_type");
@@ -121,7 +121,10 @@ test_device_allocator(sycl::queue __q)
     // Both constructor forms, as on usm_allocator.
     alloc_t __a(__q);
     alloc_t __b(__q.get_context(), __q.get_device());
-
+    EXPECT_TRUE(__a.get_context() == __q.get_context(), "device_allocator(queue): wrong context");
+    EXPECT_TRUE(__a.get_device() == __q.get_device(), "device_allocator(queue): wrong device");
+    EXPECT_TRUE(__b.get_context() == __q.get_context(), "device_allocator(context, device): wrong context");
+    EXPECT_TRUE(__b.get_device() == __q.get_device(), "device_allocator(context, device): wrong device");
 
     // The converting constructor carries the allocation target over.
     oneapi::dpl::experimental::device_allocator<double> __converted(__a);
@@ -416,7 +419,7 @@ test_copy_to(sycl::queue __q)
         for (const _Tp& __v : __out)
             EXPECT_TRUE(__v == __sentinel, "copy_to with src_offset == size() copied something");
 
-        // out of range offset must throw 
+        // out of range offset must throw
         EXPECT_TRUE(throws_out_of_range([&] { __d.copy_to(__dst, __n + 1, __q); }),
                     "copy_to with src_offset > size() must throw");
         EXPECT_TRUE(throws_out_of_range([&] { __d.copy_to(__dst, 10 * __n, __q); }),

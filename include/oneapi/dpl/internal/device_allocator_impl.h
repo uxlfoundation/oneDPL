@@ -126,7 +126,6 @@ class device_allocator
         return _M_prop_list.get_property<_Property>();
     }
 
-
   private:
     template <typename _Up, std::size_t _AlignmentU>
     friend class device_allocator;

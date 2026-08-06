@@ -110,10 +110,12 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
     //   (data, offset, queue, depends_on)
     //
     // The offset is a precondition and throws std::out_of_range if violated: <= size() for the bulk
-    // operations. offset = size() transfers zero elements without throwing, and < size() for the single-element
-    // transfers. 
+    // operations, where offset == size() transfers zero elements without throwing, and < size() for the
+    // single-element transfers.
+    //
     // The element count between input and remaining container elements may be mismatched.
-    // min(other.size(), size() - offset) elements are transferred, the count is returned for the bulk operations.
+    // min(other.size(), size() - offset) elements are transferred, the count is returned for the bulk
+    // operations.
 
     // -- Device transfer out --
 
@@ -137,8 +139,6 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
         return copy_to(__dst, __src_offset, _Base::__make_queue());
     }
 
-
-
     _Tp
     read_at(size_type __pos, sycl::queue __q, sycl::event __depends_on = {}) const
     {
@@ -151,8 +151,6 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
     {
         return read_at(__pos, _Base::__make_queue());
     }
-
-
 
     // Requires _Tp to be default constructible, but only when called, so
     // device_array<NonDefaultConstructible> remains usable minus this one convenience.
@@ -206,7 +204,6 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
     {
         copy_from(__value, 0, __q, __depends_on);
     }
-
 
     void
     copy_from(const _Tp& __value, size_type __dst_offset = 0)
