@@ -43,29 +43,6 @@ using device_array = oneapi::dpl::experimental::device_array<_Tp>;
 class span_capture_kernel;
 class pointer_capture_kernel;
 
-//TODO: should these be in the main device_array.pass test?
-// oneapi::dpl::begin/end must yield raw pointers satisfying is_indirectly_device_accessible.
-static_assert(std::is_same_v<decltype(oneapi::dpl::begin(std::declval<device_array<int>&>())), int*>,
-              "oneapi::dpl::begin on a device_array must return a raw pointer");
-static_assert(std::is_same_v<decltype(oneapi::dpl::end(std::declval<device_array<int>&>())), int*>,
-              "oneapi::dpl::end on a device_array must return a raw pointer");
-static_assert(std::is_same_v<decltype(oneapi::dpl::begin(std::declval<const device_array<int>&>())), const int*>,
-              "oneapi::dpl::begin on a const device_array must return a raw pointer to const");
-static_assert(std::is_same_v<decltype(oneapi::dpl::end(std::declval<const device_array<int>&>())), const int*>,
-              "oneapi::dpl::end on a const device_array must return a raw pointer to const");
-
-static_assert(
-    oneapi::dpl::is_indirectly_device_accessible_v<decltype(oneapi::dpl::begin(std::declval<device_array<int>&>()))>,
-    "oneapi::dpl::begin on a device_array must yield a device accessible iterator");
-static_assert(oneapi::dpl::is_indirectly_device_accessible_v<
-                  decltype(oneapi::dpl::begin(std::declval<const device_array<int>&>()))>,
-              "oneapi::dpl::begin on a const device_array must yield a device accessible iterator");
-
-// Device copyable, so a span can be captured by value in a kernel.
-static_assert(sycl::is_device_copyable_v<oneapi::dpl::span<int>>, "oneapi::dpl::span must be device copyable");
-static_assert(sycl::is_device_copyable_v<oneapi::dpl::span<const int>>,
-              "oneapi::dpl::span of const must be device copyable");
-
 std::vector<int>
 shuffled_host(std::size_t __n)
 {

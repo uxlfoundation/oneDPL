@@ -48,9 +48,8 @@ make_value(int __i)
     return _Tp(__i);
 }
 
-//TODO: is this a limitation of the API which can be solved or something we need to document about to_vector()?
 // A host copy of the whole container that, unlike to_vector(), does not require _Tp to be default
-// constructible.
+// constructible, so the common tests can also run on a non-default-constructible element type.
 template <typename _Tp>
 std::vector<_Tp>
 to_host(const device_array<_Tp>& __d)
@@ -79,9 +78,11 @@ template <typename _Tp>
 std::vector<_Tp>
 iota_host(std::size_t __n, int __start = 0)
 {
+    // Sizing the vector up front and assigning into it would require _Tp to be default constructible,
+    // which the non-default-constructible element type these tests also run on is not. reserve() plus
+    // push_back() performs a single allocation and constructs each element exactly once.
     std::vector<_Tp> __out;
     __out.reserve(__n);
-    // TODO: this seems really inefficient, can we just create a vector of size __n and copy?
     for (std::size_t __i = 0; __i < __n; ++__i)
         __out.push_back(make_value<_Tp>(__start + int(__i)));
     return __out;
@@ -100,6 +101,33 @@ test_type_traits()
                   "device_array must not be default constructible");
     static_assert(std::is_same_v<typename device_array<_Tp>::value_type, _Tp>, "unexpected value_type");
     static_assert(std::is_same_v<typename device_array<_Tp>::size_type, std::size_t>, "unexpected size_type");
+
+    // span() and oneapi::dpl::begin/end preserve constness and yield raw pointers.
+    static_assert(std::is_same_v<decltype(std::declval<device_array<_Tp>&>().span()), oneapi::dpl::span<_Tp>>,
+                  "span() on a device_array must return a span of _Tp");
+    static_assert(
+        std::is_same_v<decltype(std::declval<const device_array<_Tp>&>().span()), oneapi::dpl::span<const _Tp>>,
+        "span() on a const device_array must return a span of const _Tp");
+    static_assert(std::is_same_v<decltype(oneapi::dpl::begin(std::declval<device_array<_Tp>&>())), _Tp*>,
+                  "oneapi::dpl::begin on a device_array must return a raw pointer");
+    static_assert(std::is_same_v<decltype(oneapi::dpl::end(std::declval<device_array<_Tp>&>())), _Tp*>,
+                  "oneapi::dpl::end on a device_array must return a raw pointer");
+    static_assert(std::is_same_v<decltype(oneapi::dpl::begin(std::declval<const device_array<_Tp>&>())), const _Tp*>,
+                  "oneapi::dpl::begin on a const device_array must return a raw pointer to const");
+    static_assert(std::is_same_v<decltype(oneapi::dpl::end(std::declval<const device_array<_Tp>&>())), const _Tp*>,
+                  "oneapi::dpl::end on a const device_array must return a raw pointer to const");
+
+    // Device copyable, so a span may be captured by value in a kernel.
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::span<_Tp>>, "oneapi::dpl::span must be device copyable");
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::span<const _Tp>>,
+                  "oneapi::dpl::span of const must be device copyable");
+
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<decltype(oneapi::dpl::begin(
+                      std::declval<device_array<_Tp>&>()))>,
+                  "oneapi::dpl::begin on a device_array must yield a device accessible iterator");
+    static_assert(oneapi::dpl::is_indirectly_device_accessible_v<decltype(oneapi::dpl::begin(
+                      std::declval<const device_array<_Tp>&>()))>,
+                  "oneapi::dpl::begin on a const device_array must yield a device accessible iterator");
 }
 
 void
@@ -108,8 +136,7 @@ test_device_allocator(sycl::queue __q)
     using alloc_t = oneapi::dpl::experimental::device_allocator<int>;
 
     static_assert(std::is_same_v<alloc_t::value_type, int>, "device_allocator::value_type");
-    static_assert(!std::is_default_constructible_v<alloc_t>,
-                  "device_allocator must not be default constructible");
+    static_assert(!std::is_default_constructible_v<alloc_t>, "device_allocator must not be default constructible");
     static_assert(std::is_copy_constructible_v<alloc_t>, "device_allocator must be copy constructible");
     static_assert(std::is_copy_assignable_v<alloc_t>, "device_allocator must be copy assignable");
     static_assert(std::is_same_v<alloc_t::rebind<float>::other, oneapi::dpl::experimental::device_allocator<float>>,
