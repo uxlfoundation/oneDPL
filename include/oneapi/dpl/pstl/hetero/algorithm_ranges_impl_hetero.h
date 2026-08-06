@@ -1524,8 +1524,8 @@ __pattern_partial_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp, typename _Proj1,
           typename _Proj2>
 std::ranges::partial_sort_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
-__pattern_partial_sort_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r,
-                                   _Comp __comp, _Proj1, _Proj2 __proj2)
+__pattern_partial_sort_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r,
+                                   _OutR&& __out_r, _Comp __comp, _Proj1, _Proj2 __proj2)
 {
     auto [__first1, __last1] = oneapi::dpl::__ranges::__bounds(__r);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__out_r);

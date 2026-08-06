@@ -520,7 +520,8 @@ std::ranges::partial_sort_copy_result<std::ranges::borrowed_iterator_t<_R>, std:
 __pattern_partial_sort_copy_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&& __exec, _R&& __r,
                                    _OutR&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    return std::ranges::partial_sort_copy(std::forward<_R>(__r), std::forward<_OutR>(__out_r), __comp, __proj1, __proj2);
+    return std::ranges::partial_sort_copy(
+        std::forward<_R>(__r), std::forward<_OutR>(__out_r),__comp, __proj1, __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
