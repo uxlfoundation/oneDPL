@@ -1339,7 +1339,9 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
     __future<sycl::event>
     operator()(sycl::queue& __q, _Range&& __rng, _Merge __merge, _Compare __comp) const
     {
+#if _DEFINE_DEBUG_OUTPUT
         std::cerr << "\t\t__parallel_partial_sort_submitter::operator()" << std::endl;
+#endif
 
         using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
         using _Size = oneapi::dpl::__internal::__difference_t<_Range>;
@@ -1356,7 +1358,9 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
         sycl::event __event1;
         do
         {
+#if _DEFINE_DEBUG_OUTPUT
             std::cerr << "\t\t\t__event1 = __q.submit(...)" << std::endl;
+#endif
             __event1 = __q.submit([&, __data_in_temp, __k](sycl::handler& __cgh) {
                 __cgh.depends_on(__event1);
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
@@ -1377,12 +1381,16 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
             });
             try
             {
+#if _DEFINE_DEBUG_OUTPUT
                 std::cerr << "\t\t\t\t__event1.wait_and_throw()" << std::endl;
+#endif
                 __event1.wait_and_throw();
             }
             catch (const std::exception& e)
             {
+#if _DEFINE_DEBUG_OUTPUT
                 std::cerr << "\t\t\t\t__event1.wait_and_throw() failed with exception: " << e.what() << std::endl;
+#endif
                 throw;
             }
 
@@ -1393,7 +1401,9 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
         // if results are in temporary buffer then copy back those
         if (__data_in_temp)
         {
+#if _DEFINE_DEBUG_OUTPUT
             std::cerr << "\t\t\t__event1 = __q.submit(...) (copy back)" << std::endl;
+#endif
             __event1 = __q.submit([&](sycl::handler& __cgh) {
                 __cgh.depends_on(__event1);
                 oneapi::dpl::__ranges::__require_access(__cgh, __rng);
@@ -1403,11 +1413,15 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
                     __rng[__item.get_linear_id()] = __temp_acc[__item];
                 });
             });
+#if _DEFINE_DEBUG_OUTPUT
             std::cerr << "\t\t\t\t__event1.wait_and_throw()" << std::endl;
+#endif
             __event1.wait_and_throw();
         }
 
+#if _DEFINE_DEBUG_OUTPUT
         std::cerr << "\t\t\treturn" << std::endl;
+#endif
 
         // return future and extend lifetime of temporary buffer
         return __future{std::move(__event1)};
