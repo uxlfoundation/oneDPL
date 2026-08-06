@@ -105,21 +105,6 @@ check_values(Iterator first, Iterator last, const T& val)
     return ::std::all_of(first, last, [&val](const T& x) { return x == val; });
 }
 
-auto async_handler = [](sycl::exception_list ex_list) {
-    for (auto& ex : ex_list)
-    {
-        try
-        {
-            ::std::rethrow_exception(ex);
-        }
-        catch (sycl::exception& ex)
-        {
-            std::cerr << ex.what() << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-    }
-};
-
 #if ONEDPL_FPGA_DEVICE
 inline auto default_selector =
 #    if ONEDPL_FPGA_EMULATOR
@@ -149,7 +134,7 @@ sycl::queue get_test_queue()
     try
     {
         // create the queue with custom asynchronous exceptions handler
-        static sycl::queue my_queue(default_selector, async_handler);
+        static sycl::queue my_queue(default_selector, oneapi::dpl::execution::__dpl::__internal::__async_exception_handler);
 
 #if _ONEDPL_DEBUG_SYCL
 
