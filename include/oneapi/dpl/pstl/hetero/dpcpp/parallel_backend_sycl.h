@@ -68,7 +68,6 @@ namespace dpl
 namespace __par_backend_hetero
 {
 
-
 // set of class templates to name kernels
 
 template <typename... _Name>
@@ -403,10 +402,9 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                           _BinaryOperation __binary_op, _Inclusive)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    using _Type = typename _InitType::__value_type;
 
     sycl::queue __q_local = __exec.queue();
-
-    using _Type = typename _InitType::__value_type;
 
     // The single work-group implementation requires a fundamental type which must be trivially copyable.
     if constexpr (std::is_trivially_copyable_v<_Type>)
@@ -436,15 +434,18 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
             }
         }
     }
-    using _GenInput =
-        oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation, typename _InitType::__value_type>;
+    using _GenInput = oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation, _Type>;
     using _ScanInputTransform = oneapi::dpl::identity;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
 
     _GenInput __gen_transform{__unary_op};
 
+    // Each work-item iteration reads a single input element and applies __unary_op to it. The input element size, not
+    // the size of the scanned type produced by __unary_op, is what determines the input footprint of a block.
+    constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(oneapi::dpl::__internal::__value_t<_Range1>);
+
     auto&& [__event, __payload] = __parallel_transform_reduce_then_scan<
-        /*_Bounded*/ false, sizeof(typename _InitType::__value_type), _CustomName>(
+        /*_Bounded*/ false, __bytes_per_work_item_iter, _CustomName>(
         __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform, __binary_op,
         __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
         /*_IsUniquePattern=*/std::false_type{});
@@ -463,9 +464,10 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask, _Size>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
-    constexpr std::uint32_t __bytes_per_iter = sizeof(oneapi::dpl::__internal::__value_t<_InRng>);
+    // Each work-item iteration reads a single input element to evaluate the mask and to copy it to the output.
+    constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(oneapi::dpl::__internal::__value_t<_InRng>);
 
-    return __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_iter, _CustomName>(
+    return __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
         __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask},
         _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{}, __is_unique_pattern,
@@ -538,12 +540,18 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
     using _ScanInputTransform = __get_zeroth_element;
     // Writes current segment's output reduction and the next segment's output key
     using _WriteOp = __write_red_by_seg<_BinaryPredicate>;
+    using _KeyType = oneapi::dpl::__internal::__value_t<_Range1>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
     std::size_t __n = oneapi::dpl::__ranges::__size(__keys);
     // __gen_red_by_seg_scan_input requires that __n > 1
     assert(__n > 1);
+
+    // Each work-item iteration reads one key and one value from the zipped input. The comparison against the previous
+    // key is not counted separately, as that key is read by the adjacent index's iteration.
+    constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(_KeyType) + sizeof(_ValueType);
+
     auto&& [__event, __payload] = __parallel_transform_reduce_then_scan<
-        /*_Bounded*/ false, sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>), _CustomName>(
+        /*_Bounded*/ false, __bytes_per_work_item_iter, _CustomName>(
         __q, __n, oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values)),
         _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{__binary_pred, __n},
@@ -574,9 +582,10 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
         oneapi::dpl::__internal::make_tuple(std::forward<_Range2>(__out_true), std::forward<_Range3>(__out_false));
 
     sycl::queue __q_local = __exec.queue();
-    constexpr std::uint32_t __bytes_per_iter = sizeof(oneapi::dpl::__internal::__value_t<_Range1>);
+    // Each work-item iteration reads a single input element to evaluate the mask and to copy it to the output.
+    constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(oneapi::dpl::__internal::__value_t<_Range1>);
 
-    std::tuple __res = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_iter, _CustomName>(
+    std::tuple __res = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
         __q_local, __n, std::forward<_Range1>(__rng), std::move(__zipped_output), _GenReduceInput{_GenMask{__pred}},
         std::plus<diff_t>{}, _GenScanInput{_GenMask{__pred}}, _ScanInputTransform{}, _WriteOp{__n_out1, __n_out2},
         oneapi::dpl::unseq_backend::__no_init_value<diff_t>{}, /*_Inclusive=*/std::true_type{},
@@ -733,9 +742,6 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
         __partition_event);
 }
 
-template <typename _CustomName>
-struct reduce_then_scan_wrapper;
-
 template <bool _Bounded, typename _SetTag, typename _ExecutionPolicy, typename _Range1, typename _Range2,
           typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
 __set_op_impl_return_t<_Bounded, _Range1, _Range2, _Range3>
@@ -747,7 +753,7 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _SetTag __set_t
 
     sycl::queue __q_local = __exec.queue();
 
-    auto __res = __parallel_set_write_a_b_op<_Bounded, reduce_then_scan_wrapper<_CustomName>>(
+    auto __res = __parallel_set_write_a_b_op<_Bounded, _CustomName>(
         __set_tag, __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
         std::forward<_Range3>(__result), __comp, __proj1, __proj2);
 
@@ -1705,6 +1711,7 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
     using _ReduceOp = __scan_by_seg_op<_BinaryOperator>;
     using _GenScanInput = __gen_scan_by_seg_scan_input<_BinaryPredicate>;
     using _ScanInputTransform = __get_zeroth_element;
+    using _KeyType = oneapi::dpl::__internal::__value_t<_Range1>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
     const std::size_t __n = oneapi::dpl::__ranges::__size(__keys);
     // TODO: A bool type may be used here for a smaller footprint in registers / temp storage but results in IGC crashes
@@ -1717,8 +1724,12 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
     // and functions differently than the typical scan init which is only applied once in a single location.
     oneapi::dpl::unseq_backend::__no_init_value<_PackedFlagValueType> __placeholder_no_init{};
     using _WriteOp = __write_scan_by_seg<__is_inclusive, _InitType, _BinaryOperator>;
+
+    // Each work-item iteration reads one key and one value from the zipped input.
+    constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(_KeyType) + sizeof(_ValueType);
+
     auto&& [__event, __payload] = __parallel_transform_reduce_then_scan<
-        /*_Bounded*/ false, sizeof(_PackedFlagValueType), _CustomName>(
+        /*_Bounded*/ false, __bytes_per_work_item_iter, _CustomName>(
         __q, __n, oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
         std::forward<_Range3>(__out_values), _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{},
         _ScanInputTransform{}, _WriteOp{__init, __binary_op}, __placeholder_no_init,
