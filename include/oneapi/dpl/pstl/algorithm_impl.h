@@ -2315,9 +2315,8 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                     // Two true leftovers in the mirror side
                     // Move __val1 true leftover closer to the middle by moving the adjacent block of
                     // correctly-placed elements right, swapping it with the true leftover.
-                    __merged_range.__true_leftover =
-                        __move_right(__val2.__true_leftover, __val1.__mirror_chunk_begin,
-                                     /*__target_region_end = */ __val1.__true_leftover);
+                    __merged_range.__true_leftover = __move_right(__val2.__true_leftover, __val1.__mirror_chunk_begin,
+                                                                  /*__target_region_end = */ __val1.__true_leftover);
                 }
                 else
                 {
@@ -2336,9 +2335,8 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
 
                         // Move remaining part of the true leftover closer to the middle by moving the adjacent
                         // block of correctly-placed elements right, swapping it with the true leftover.
-                        __merged_range.__true_leftover =
-                            __move_right(__val2.__mirror_chunk_begin, __val1.__mirror_chunk_begin,
-                                         /*__target_region_end = */ __swap_begin);
+                        __merged_range.__true_leftover = __move_right(__val2.__mirror_chunk_begin, __val1.__mirror_chunk_begin,
+                                                                      /*__target_region_end = */ __swap_begin);
                     }
                     else
                     {
@@ -2360,9 +2358,8 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
 
             // If the real chunk is the last chunk of the reduction, shift __mirror_chunk_begin to its end
             // to include the possibly uncovered middle element
-            _RandomAccessIterator __mirror_chunk_begin = __real_chunk_end == __first + __mid
-                ? __first + __mid
-                : __last - (__real_chunk_end - __first);
+            _RandomAccessIterator __mirror_chunk_begin =
+                __real_chunk_end == __first + __mid ? __first + __mid : __last - (__real_chunk_end - __first);
 
             _RandomAccessIterator __mirror_chunk_end = __last - (__real_chunk_begin - __first);
 
