@@ -1375,6 +1375,9 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
         sycl::event __event1;
         do
         {
+            std::chrono::steady_clock::time_point __start_time = std::chrono::steady_clock::now();
+            std::chrono::steady_clock::time_point __stop_time;
+
 #if _DEFINE_DEBUG_OUTPUT
             std::cerr << "\t\t\t__event1 = __q.submit(...) : __n = " << __n << std::endl;
 #endif
@@ -1402,11 +1405,16 @@ struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_Glo
                 std::cerr << "\t\t\t\t__event1.wait_and_throw()" << std::endl;
 #endif
                 __event1.wait_and_throw();
+                __stop_time = std::chrono::steady_clock::now();
+#if _DEFINE_DEBUG_OUTPUT
+                std::cerr << "\t\t\t\t\tok after " << std::chrono::duration_cast<std::chrono::milliseconds>(__stop_time - __start_time).count() << " ms" << std::endl;
+#endif
             }
             catch (const std::exception& e)
             {
+                __stop_time = std::chrono::steady_clock::now();
 #if _DEFINE_DEBUG_OUTPUT
-                std::cerr << "\t\t\t\t__event1.wait_and_throw() failed with exception: " << e.what() << std::endl;
+                std::cerr << "\t\t\t\t__event1.wait_and_throw() failed with exception: " << e.what() << " after " << std::chrono::duration_cast<std::chrono::milliseconds>(__stop_time - __start_time).count() << " ms" << std::endl;
 #endif
                 throw;
             }
