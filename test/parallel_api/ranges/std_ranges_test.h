@@ -933,29 +933,27 @@ struct host_subrange_impl
 
     using type = ViewType;
     ViewType view;
-    T* mem = nullptr;
 
-    std::allocator<T> alloc;
+    oneapi::dpl::__utils::__buffer_impl<T, std::allocator> buffer;
 
     template<typename Policy>
-    host_subrange_impl(Policy&&, T* data, int n): view(data, data + n) {}
+    host_subrange_impl(Policy&&, T* data, int n) : buffer(n)
+    {
+        view = ViewType(buffer.get(), buffer.get() + n);
+    }
 
     template<typename Policy, typename DataGen>
-    host_subrange_impl(Policy&&, int n, DataGen gen)
+    host_subrange_impl(Policy&&, int n, DataGen gen) : buffer(n)
     {
-        mem = alloc.allocate(n);
-        view = ViewType(mem, mem + n);
+        view = ViewType(buffer.get(), buffer.get() + n);
+
         for(int i = 0; i < n; ++i)
             view[i] = gen(i);
     }
+
     ViewType& operator()()
     {
         return view;
-    }
-    ~host_subrange_impl()
-    {
-        if(mem)
-            alloc.deallocate(mem, view.size());
     }
 };
 
