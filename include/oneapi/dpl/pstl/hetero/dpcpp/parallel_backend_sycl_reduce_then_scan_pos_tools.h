@@ -82,10 +82,10 @@ namespace __internal
 {
 // Describes whether we have a final-position type in the storage or not
 template <typename _StopPosStorage>
-constexpr bool __has_final_pos = false;
+inline constexpr bool __has_final_pos = false;
 
 template <typename _Range1, typename _Range2>
-constexpr bool __has_final_pos<_SetOpFinalAndOOBPosTypeImpl<_Range1, _Range2>> = true;
+inline constexpr bool __has_final_pos<_SetOpFinalAndOOBPosTypeImpl<_Range1, _Range2>> = true;
 
 // Temporary data stand-in which discards the stored values and instead captures
 // the source position of the element at a specific index during a reduce then scan operation.
@@ -132,7 +132,7 @@ struct __no_stop_pos_acc_tag
 // The second part of two-pass OOB processing: if the OOB position is reached in the first pass,
 // here we recover the source indexes for the diagonal where it happened and store the OOB position from them.
 template <typename _FinalPosT, typename _InRng, typename _OOBPositionT, typename _GenScanInput>
-static _FinalPosT
+_FinalPosT
 __finalize_oob_pos(_InRng&& __in_rng, _OOBPositionT __detected_oob_pos, const std::size_t __start_id_reached_on_oob,
                    _GenScanInput __gen_scan_input)
 {
