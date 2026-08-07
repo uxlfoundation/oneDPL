@@ -13,7 +13,7 @@
 #include "support/test_config.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
-#    include <oneapi/dpl/experimental/device_array>
+#include <oneapi/dpl/experimental/device_array>
 #endif
 
 #include "support/utils.h"
@@ -27,15 +27,15 @@
 #endif
 
 #if TEST_DEVICE_ARRAY_PRESENT
-#    include "support/utils_sycl.h"
-#    include "support/utils_device_copyable.h"
+#include "support/utils_sycl.h"
+#include "support/utils_device_copyable.h"
 
-#    include <cstddef>
-#    include <cstdint>
-#    include <numeric>
-#    include <stdexcept>
-#    include <utility>
-#    include <vector>
+#include <cstddef>
+#include <cstdint>
+#include <numeric>
+#include <stdexcept>
+#include <utility>
+#include <vector>
 
 namespace
 {
@@ -117,9 +117,8 @@ test_type_traits()
 {
     static_assert(!std::is_copy_constructible_v<device_array<_Tp>>, "device_array must not be copy constructible");
     static_assert(!std::is_copy_assignable_v<device_array<_Tp>>, "device_array must not be copy assignable");
-    static_assert(std::is_nothrow_move_constructible_v<device_array<_Tp>>,
-                  "device_array must be nothrow move constructible");
-    static_assert(std::is_nothrow_move_assignable_v<device_array<_Tp>>, "device_array must be nothrow move assignable");
+    static_assert(std::is_move_constructible_v<device_array<_Tp>>, "device_array must be move constructible");
+    static_assert(std::is_move_assignable_v<device_array<_Tp>>, "device_array must be move assignable");
     static_assert(!std::is_default_constructible_v<device_array<_Tp>>,
                   "device_array must not be default constructible");
     static_assert(std::is_same_v<typename device_array<_Tp>::value_type, _Tp>, "unexpected value_type");

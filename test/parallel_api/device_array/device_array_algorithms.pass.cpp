@@ -13,11 +13,11 @@
 #include "support/test_config.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
-#    include <oneapi/dpl/experimental/device_array>
-#    include _PSTL_TEST_HEADER(execution)
-#    include _PSTL_TEST_HEADER(algorithm)
-#    include _PSTL_TEST_HEADER(numeric)
-#    include _PSTL_TEST_HEADER(iterator)
+#include <oneapi/dpl/experimental/device_array>
+#include _PSTL_TEST_HEADER(execution)
+#include _PSTL_TEST_HEADER(algorithm)
+#include _PSTL_TEST_HEADER(numeric)
+#include _PSTL_TEST_HEADER(iterator)
 #endif
 
 #include "support/utils.h"
@@ -31,14 +31,14 @@
 #endif
 
 #if TEST_DEVICE_ARRAY_PRESENT
-#    include "support/utils_sycl.h"
-#    include "support/utils_invoke.h"
+#include "support/utils_sycl.h"
+#include "support/utils_invoke.h"
 
-#    include <algorithm>
-#    include <cstddef>
-#    include <functional>
-#    include <numeric>
-#    include <vector>
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <numeric>
+#include <vector>
 
 namespace
 {
