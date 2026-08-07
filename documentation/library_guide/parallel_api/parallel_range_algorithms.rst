@@ -119,6 +119,19 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202605L`` or a greater value,
 * ``starts_with``, ``ends_with``
 * C++26-conformant return values can be enabled for ``set_*`` algorithms with the ``ONEDPL_SET_RANGE_ALGS_CPP26_LIKE`` macro.
 
+.. _range-algorithms-202608L:
+
+If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202608L`` or a greater value, the following algorithms are provided:
+
+* ``inplace_merge``
+* ``is_heap``, ``is_heap_until``
+* ``nth_element``
+* ``is_partitioned``
+* ``partition``, ``stable_partition``, ``partition_copy``
+* ``rotate``, ``rotate_copy``
+* ``shift_left``, ``shift_right``
+* ``partial_sort``, ``partial_sort_copy``
+
 Usage Example for Parallel Range Algorithms
 -------------------------------------------
 
