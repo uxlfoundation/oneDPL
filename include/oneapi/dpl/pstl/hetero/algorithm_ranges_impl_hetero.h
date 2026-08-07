@@ -1512,6 +1512,9 @@ __pattern_partial_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
 {
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
+    if (__middle == __first)
+        return __last;
+
     oneapi::dpl::__internal::__pattern_partial_sort(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
         oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
