@@ -25,8 +25,8 @@
 
 // oneapi::dpl::span is an alias for std::span where the standard library provides it, and for
 // sycl::span otherwise. These two are not identical, despite the sycl 2020 specification
-// defining sycl::span as a drop-in replacement for std::span.  Surprisingly, with icpx, sycl::span
-// does not merely become an alias for std::span once it is available.
+// defining sycl::span as a drop-in replacement for std::span.  With icpx, the standalone sycl::span
+// implementation remains rather than becoming an alias for std::span once it is available.
 // - sycl::span has some issues when used with std ranges APIs, which are fixed in std::span.
 //   Since our ranges API is only available in c++20, this works around these issues, which would
 //   be commonly encountered in the context of oneDPL.
