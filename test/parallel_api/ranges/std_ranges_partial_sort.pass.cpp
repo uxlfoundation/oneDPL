@@ -19,7 +19,7 @@ enum class middle_pos
 };
 
 template <middle_pos Pos, std::ranges::range R>
-std::ranges::iterator_t<R>
+std::ranges::borrowed_iterator_t<R>
 get_middle(R&& r)
 {
     if constexpr (Pos == middle_pos::first)
