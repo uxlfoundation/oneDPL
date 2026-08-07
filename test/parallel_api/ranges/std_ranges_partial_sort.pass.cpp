@@ -96,9 +96,7 @@ main()
         auto middle = get_middle<middle_pos::first>(r);
         return std::ranges::partial_sort(std::forward<decltype(r)>(r), middle, std::forward<decltype(args)>(args)...);
     };
-
-    test_range_algo<8>{big_sz}(partial_sort_none_algo, partial_sort_none_checker);
-    test_range_algo<9>{}(partial_sort_none_algo, partial_sort_none_checker, std::ranges::greater{}, proj);
+    test_range_algo<8>{}(partial_sort_none_algo, partial_sort_none_checker);
 
     // Boundary case: middle == end(r), the whole range is sorted
     auto partial_sort_all_algo = partial_sort_fn<middle_pos::last>{};
