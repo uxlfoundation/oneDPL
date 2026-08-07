@@ -57,6 +57,8 @@ struct __stable_sort_leaf;
 struct __stable_sort_fn;
 struct __sort_leaf;
 struct __sort_fn;
+struct __partial_sort_fn;
+struct __partial_sort_copy_fn;
 struct __is_heap_fn;
 struct __is_heap_until_fn;
 struct __min_element_fn;
