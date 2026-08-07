@@ -14,12 +14,12 @@
 #include <type_traits>
 #include <utility>
 
-#include "common_config.h"
-#include "../pstl/onedpl_config.h"
+#include "../../../internal/common_config.h"
+#include "../../onedpl_config.h"
 
 #if _ONEDPL_BACKEND_SYCL
 
-#    include "../pstl/hetero/dpcpp/sycl_defs.h"
+#    include "sycl_defs.h"
 
 namespace oneapi::dpl::experimental
 {

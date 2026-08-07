@@ -15,12 +15,12 @@
 #include <utility>
 #include <type_traits>
 
-#include "common_config.h"
-#include "../pstl/onedpl_config.h"
+#include "../../../internal/common_config.h"
+#include "../../onedpl_config.h"
 
 #if _ONEDPL_BACKEND_SYCL
 
-#include "../pstl/hetero/dpcpp/sycl_defs.h"
+#include "sycl_defs.h"
 #include "span_impl.h"
 #include "device_allocator_impl.h"
 #include "device_storage_base_impl.h"

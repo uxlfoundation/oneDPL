@@ -12,13 +12,13 @@
 
 #include <cstddef>
 
-#include "common_config.h"
-#include "../pstl/onedpl_config.h"
+#include "../../../internal/common_config.h"
+#include "../../onedpl_config.h"
 
 #if _ONEDPL_CPP20_SPAN_PRESENT
 #    include <span>
 #elif _ONEDPL_BACKEND_SYCL
-#    include "../pstl/hetero/dpcpp/sycl_defs.h"
+#    include "sycl_defs.h"
 #endif
 
 // oneapi::dpl::span is an alias for std::span where the standard library provides it, and for
