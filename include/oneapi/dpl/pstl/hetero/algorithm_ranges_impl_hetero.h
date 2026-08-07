@@ -1529,11 +1529,11 @@ __pattern_partial_sort_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPo
 {
     auto [__first1, __last1] = oneapi::dpl::__ranges::__bounds(__r);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__out_r);
-    // __pattern_partial_sort_copy sorts after copying, so _Proj1 is not used
-    oneapi::dpl::__internal::__binary_op<_Comp, _Proj2, _Proj2> __comp_proj2{__comp, __proj2, __proj2};
 
+    // __pattern_partial_sort_copy sorts after copying, so _Proj1 is not used
     auto __out_finish = oneapi::dpl::__internal::__pattern_partial_sort_copy(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __out_it, __out_end, __comp_proj2);
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __out_it, __out_end,
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj2, _Proj2>{__comp, __proj2, __proj2});
 
     return {__last1, __out_finish};
 }
