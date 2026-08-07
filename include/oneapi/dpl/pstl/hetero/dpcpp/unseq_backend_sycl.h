@@ -36,22 +36,12 @@ namespace unseq_backend
 #if _ONEDPL_USE_GROUP_ALGOS
 #    if defined(SYCL_IMPLEMENTATION_INTEL)
 
-// When ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION is defined as non-zero, we avoid using known identity for 64-bit arithmetic data types
-template <typename _Tp>
-using __workaround_igpu_64_bit_reduction =
-#        if ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
-    std::bool_constant<!(::std::is_arithmetic_v<_Tp> && sizeof(_Tp) == sizeof(::std::uint64_t))>;
-#        else
-    std::true_type;
-#        endif // ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
-
 template <typename _BinaryOp, typename _Tp, template <typename> class... _Ops>
 using __is_one_of_ops = std::disjunction<std::is_same<std::decay_t<_BinaryOp>, _Ops<_Tp>>...,
                                          std::is_same<std::decay_t<_BinaryOp>, _Ops<void>>...>;
 
 template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan = std::conjunction<
-    __workaround_igpu_64_bit_reduction<_Tp>,
     std::negation<std::is_same<_Tp, bool>>, // group algorithms are not implemented for bool in icpx as of 2026.0
     std::disjunction<std::is_arithmetic<_Tp>, std::is_same<_Tp, sycl::half>>,
     __is_one_of_ops<_BinaryOp, _Tp,
