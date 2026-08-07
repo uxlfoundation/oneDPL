@@ -45,7 +45,7 @@ class __device_storage_base
     using allocator_type = _Allocator;
 
     __device_storage_base(size_type __count, sycl::context __ctx, sycl::device __dev, _Allocator __alloc)
-        : _M_context(std::move(__ctx)), _M_device(std::move(__dev)), _M_alloc(std::move(__alloc))
+        : _M_context(__ctx), _M_device(__dev), _M_alloc(std::move(__alloc))
     {
         if (__count != 0)
         {
@@ -130,37 +130,28 @@ class __device_storage_base
     // -- Blocking transfer helpers --
     //
     // __count arrives already clamped by the caller. A count of zero skips the submission entirely.
-
-    // A default-constructed __depends_on is a ready event, so it can be forwarded unconditionally.
-    // wait_and_throw() rather than wait(), so asynchronous errors surface at the transfer call site.
     void
     __copy_to_host(_Tp* __dst, size_type __count, size_type __src_offset, sycl::queue __q,
                    const sycl::event& __depends_on) const
     {
-        if (__count == 0)
-            return;
-
-        __q.memcpy(__dst, _M_data + __src_offset, __count * sizeof(_Tp), __depends_on).wait_and_throw();
+        if (__count > 0)
+            __q.memcpy(__dst, _M_data + __src_offset, __count * sizeof(_Tp), __depends_on).wait_and_throw();
     }
 
     void
     __copy_from_host(const _Tp* __src, size_type __count, size_type __dst_offset, sycl::queue __q,
                      const sycl::event& __depends_on)
     {
-        if (__count == 0)
-            return;
-
-        __q.memcpy(_M_data + __dst_offset, __src, __count * sizeof(_Tp), __depends_on).wait_and_throw();
+        if (__count > 0)
+            __q.memcpy(_M_data + __dst_offset, __src, __count * sizeof(_Tp), __depends_on).wait_and_throw();
     }
 
     void
     __fill_n(const _Tp& __value, size_type __count, size_type __offset, sycl::queue __q,
              const sycl::event& __depends_on)
     {
-        if (__count == 0)
-            return;
-
-        __q.fill(_M_data + __offset, __value, __count, __depends_on).wait_and_throw();
+        if (__count > 0)
+            __q.fill(_M_data + __offset, __value, __count, __depends_on).wait_and_throw();
     }
 
     // Precondition: __pos < size(), must be checked by __check_element_pos() in the caller.
@@ -174,8 +165,6 @@ class __device_storage_base
         __q.memcpy(&__space.__v, _M_data + __pos, sizeof(_Tp), __depends_on).wait_and_throw();
         return __space.__v;
     }
-
-    // -- Plumbing --
 
     sycl::queue
     __make_queue() const
