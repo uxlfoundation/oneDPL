@@ -518,12 +518,12 @@ __pattern_partial_sort_copy_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& _
 template <typename _IsVector, typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp, typename _Proj1,
           typename _Proj2>
 std::ranges::partial_sort_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
-__pattern_partial_sort_copy_ranges(__serial_tag<_IsVector>, _ExecutionPolicy&& __exec, _R&& __r,
-                                   _OutR&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_partial_sort_copy_ranges(__serial_tag<_IsVector>, _ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r,
+                                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     // Use the standard implementation for both seq and unseq policies
-    return std::ranges::partial_sort_copy(
-        std::forward<_R>(__r), std::forward<_OutR>(__out_r),__comp, __proj1, __proj2);
+    return std::ranges::partial_sort_copy(std::forward<_R>(__r), std::forward<_OutR>(__out_r), __comp, __proj1,
+                                          __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
