@@ -73,12 +73,9 @@ __order_preserving_cast(_Int __val)
 
 template <std::size_t __size>
 struct __uint_for_size;
-template <>
-struct __uint_for_size<2> { using type = std::uint16_t; };
-template <>
-struct __uint_for_size<4> { using type = std::uint32_t; };
-template <>
-struct __uint_for_size<8> { using type = std::uint64_t; };
+template <> struct __uint_for_size<2> { using type = std::uint16_t; };
+template <> struct __uint_for_size<4> { using type = std::uint32_t; };
+template <> struct __uint_for_size<8> { using type = std::uint64_t; };
 template <std::size_t __size>
 using __uint_for_size_t = typename __uint_for_size<__size>::type;
 
