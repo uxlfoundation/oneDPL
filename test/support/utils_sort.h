@@ -244,6 +244,14 @@ Equal(const sycl::half& x, const sycl::half& y, bool /*is_stable*/)
 {
     return x == y;
 }
+
+#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+inline bool
+Equal(const sycl::ext::oneapi::bfloat16& x, const sycl::ext::oneapi::bfloat16& y, bool /*is_stable*/)
+{
+    return x == y;
+}
+#endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
 #endif
 
 template <typename T, typename Compare>

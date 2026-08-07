@@ -1436,7 +1436,11 @@ struct __is_radix_sort_usable_for_type
 {
     static constexpr bool value =
 #if _ONEDPL_USE_RADIX_SORT
-        (::std::is_arithmetic_v<_T> || ::std::is_same_v<sycl::half, _T>) &&
+        (::std::is_arithmetic_v<_T> || ::std::is_same_v<sycl::half, _T>
+#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+         || ::std::is_same_v<sycl::ext::oneapi::bfloat16, _T>
+#endif
+         ) &&
             (__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value ||
             __internal::__is_comp_descending<::std::decay_t<_Compare>>::value);
 #else

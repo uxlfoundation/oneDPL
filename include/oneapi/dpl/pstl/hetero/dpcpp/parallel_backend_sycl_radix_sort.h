@@ -71,57 +71,41 @@ __order_preserving_cast(_Int __val)
     return __val ^ __mask;
 }
 
-template <bool __is_ascending>
-::std::uint16_t
-__order_preserving_cast(sycl::half __val)
-{
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
-    if (__val == sycl::half{0})
-        return 0x8000u;
-    std::uint16_t __uint16_val = oneapi::dpl::__internal::__dpl_bit_cast<std::uint16_t>(__val);
-    ::std::uint16_t __mask;
-    // __uint16_val >> 15 takes the sign bit of the original value
-    if constexpr (__is_ascending)
-        __mask = (__uint16_val >> 15 == 0) ? 0x8000u : 0xFFFFu;
-    else
-        __mask = (__uint16_val >> 15 == 0) ? 0x7FFFu : ::std::uint16_t(0);
-    return __uint16_val ^ __mask;
-}
+template <std::size_t __size>
+struct __uint_for_size;
+template <> struct __uint_for_size<2> { using type = std::uint16_t; };
+template <> struct __uint_for_size<4> { using type = std::uint32_t; };
+template <> struct __uint_for_size<8> { using type = std::uint64_t; };
+template <std::size_t __size>
+using __uint_for_size_t = typename __uint_for_size<__size>::type;
 
-template <bool __is_ascending, typename _Float,
-          ::std::enable_if_t<::std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(::std::uint32_t), int> = 0>
-::std::uint32_t
+template <typename _T>
+inline constexpr bool __is_radix_sort_float_v =
+    std::is_same_v<_T, sycl::half>
+#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+    || std::is_same_v<_T, sycl::ext::oneapi::bfloat16>
+#endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
+    || (std::is_floating_point_v<_T> && (sizeof(_T) == sizeof(std::uint32_t) || sizeof(_T) == sizeof(std::uint64_t)));
+
+template <bool __is_ascending, typename _Float, std::enable_if_t<__is_radix_sort_float_v<_Float>, int> = 0>
+__uint_for_size_t<sizeof(_Float)>
 __order_preserving_cast(_Float __val)
 {
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
-    if (__val == _Float{0})
-        return 0x80000000u;
-    std::uint32_t __uint32_val = oneapi::dpl::__internal::__dpl_bit_cast<std::uint32_t>(__val);
-    ::std::uint32_t __mask;
-    // __uint32_val >> 31 takes the sign bit of the original value
-    if constexpr (__is_ascending)
-        __mask = (__uint32_val >> 31 == 0) ? 0x80000000u : 0xFFFFFFFFu;
-    else
-        __mask = (__uint32_val >> 31 == 0) ? 0x7FFFFFFFu : ::std::uint32_t(0);
-    return __uint32_val ^ __mask;
-}
+    using _UInt = __uint_for_size_t<sizeof(_Float)>;
+    constexpr int __bits = std::numeric_limits<_UInt>::digits;
+    constexpr _UInt __sign_mask = _UInt(1) << (__bits - 1);
+    constexpr _UInt __magnitude_mask = _UInt(__sign_mask - 1);
 
-template <bool __is_ascending, typename _Float,
-          ::std::enable_if_t<::std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(::std::uint64_t), int> = 0>
-::std::uint64_t
-__order_preserving_cast(_Float __val)
-{
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
-    if (__val == _Float{0})
-        return 0x8000000000000000u;
-    std::uint64_t __uint64_val = oneapi::dpl::__internal::__dpl_bit_cast<std::uint64_t>(__val);
-    ::std::uint64_t __mask;
-    // __uint64_val >> 63 takes the sign bit of the original value
+    _UInt __uint_val = oneapi::dpl::__internal::__dpl_bit_cast<_UInt>(__val);
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation.
+    if ((__uint_val & __magnitude_mask) == 0)
+        return __sign_mask;
+    _UInt __mask;
     if constexpr (__is_ascending)
-        __mask = (__uint64_val >> 63 == 0) ? 0x8000000000000000u : 0xFFFFFFFFFFFFFFFFu;
+        __mask = ((__uint_val & __sign_mask) == 0) ? __sign_mask : std::numeric_limits<_UInt>::max();
     else
-        __mask = (__uint64_val >> 63 == 0) ? 0x7FFFFFFFFFFFFFFFu : ::std::uint64_t(0);
-    return __uint64_val ^ __mask;
+        __mask = ((__uint_val & __sign_mask) == 0) ? __magnitude_mask : _UInt(0);
+    return __uint_val ^ __mask;
 }
 
 //------------------------------------------------------------------------

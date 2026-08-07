@@ -127,72 +127,42 @@ __order_preserving_cast_scalar(_Int __src)
     return sycl::bit_cast<_UInt>(__src) ^ __mask;
 }
 
-// Order-preserving cast for 16-bit floats - scalar version
-template <bool __is_ascending>
-std::uint16_t
-__order_preserving_cast_scalar(sycl::half __src)
-{
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
-    if (__src == sycl::half{0})
-        return 0x8000u;
-    std::uint16_t __uint16_src = sycl::bit_cast<std::uint16_t>(__src);
-    std::uint16_t __mask;
-    bool __sign_bit_is_zero = (__uint16_src >> 15 == 0);
-    if constexpr (__is_ascending)
-    {
-        __mask = __sign_bit_is_zero ? 0x8000u : 0xFFFFu;
-    }
-    else
-    {
-        __mask = __sign_bit_is_zero ? 0x7FFFu : std::uint16_t(0);
-    }
-    return __uint16_src ^ __mask;
-}
+template <std::size_t __size>
+struct __uint_for_size;
+template <> struct __uint_for_size<2> { using type = std::uint16_t; };
+template <> struct __uint_for_size<4> { using type = std::uint32_t; };
+template <> struct __uint_for_size<8> { using type = std::uint64_t; };
+template <std::size_t __size>
+using __uint_for_size_t = typename __uint_for_size<__size>::type;
 
-// Order-preserving cast for 32-bit floats - scalar version
-template <bool __is_ascending, typename _Float,
-          std::enable_if_t<std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(std::uint32_t), int> = 0>
-std::uint32_t
+template <typename _T>
+inline constexpr bool __is_radix_sort_float_v =
+    std::is_same_v<_T, sycl::half>
+#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+    || std::is_same_v<_T, sycl::ext::oneapi::bfloat16>
+#endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
+    || (std::is_floating_point_v<_T> && (sizeof(_T) == sizeof(std::uint32_t) || sizeof(_T) == sizeof(std::uint64_t)));
+
+// Order-preserving cast for floating-point types - scalar version
+template <bool __is_ascending, typename _Float, std::enable_if_t<__is_radix_sort_float_v<_Float>, int> = 0>
+__uint_for_size_t<sizeof(_Float)>
 __order_preserving_cast_scalar(_Float __src)
 {
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
-    if (__src == _Float{0})
-        return 0x80000000u;
-    std::uint32_t __uint32_src = sycl::bit_cast<std::uint32_t>(__src);
-    std::uint32_t __mask;
-    bool __sign_bit_is_zero = (__uint32_src >> 31 == 0);
-    if constexpr (__is_ascending)
-    {
-        __mask = __sign_bit_is_zero ? 0x80000000u : 0xFFFFFFFFu;
-    }
-    else
-    {
-        __mask = __sign_bit_is_zero ? 0x7FFFFFFFu : std::uint32_t(0);
-    }
-    return __uint32_src ^ __mask;
-}
+    using _UInt = __uint_for_size_t<sizeof(_Float)>;
+    constexpr int __bits = std::numeric_limits<_UInt>::digits;
+    constexpr _UInt __sign_mask = _UInt(1) << (__bits - 1);
+    constexpr _UInt __magnitude_mask = _UInt(__sign_mask - 1);
 
-// Order-preserving cast for 64-bit floats - scalar version
-template <bool __is_ascending, typename _Float,
-          std::enable_if_t<std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(std::uint64_t), int> = 0>
-std::uint64_t
-__order_preserving_cast_scalar(_Float __src)
-{
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
-    if (__src == _Float{0})
-        return 0x8000000000000000u;
-    std::uint64_t __uint64_src = sycl::bit_cast<std::uint64_t>(__src);
-    std::uint64_t __mask;
-    bool __sign_bit_is_zero = (__uint64_src >> 63 == 0);
+    _UInt __uint_src = sycl::bit_cast<_UInt>(__src);
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation.
+    if ((__uint_src & __magnitude_mask) == 0)
+        return __sign_mask;
+    _UInt __mask;
     if constexpr (__is_ascending)
-    {
-        __mask = __sign_bit_is_zero ? 0x8000000000000000u : 0xFFFFFFFFFFFFFFFFu;
-    }
+        __mask = ((__uint_src & __sign_mask) == 0) ? __sign_mask : std::numeric_limits<_UInt>::max();
     else
-    {
-        __mask = __sign_bit_is_zero ? 0x7FFFFFFFFFFFFFFFu : std::uint64_t(0);
-    }
-    return __uint64_src ^ __mask;
+        __mask = ((__uint_src & __sign_mask) == 0) ? __magnitude_mask : _UInt(0);
+    return __uint_src ^ __mask;
 }
 
 //-----------------------------------------------------------------------------
@@ -213,36 +183,15 @@ __sort_identity()
 // They do not set the smallest exponent bit (i.e. the max is 7F7FFFFF for 32bit float),
 // thus such an identity is not guaranteed to be put at the end of the sorted sequence after each radix sort stage,
 // e.g. 00FF0000 numbers will be pushed out by 7F7FFFFF identities when sorting 16-23 bits.
-template <typename _T, bool __is_ascending, std::enable_if_t<std::is_same_v<_T, sycl::half>, int> = 0>
+template <typename _T, bool __is_ascending, std::enable_if_t<__is_radix_sort_float_v<_T>, int> = 0>
 constexpr _T
 __sort_identity()
 {
+    using _UInt = __uint_for_size_t<sizeof(_T)>;
     if constexpr (__is_ascending)
-        return sycl::bit_cast<_T>(std::uint16_t(0x7FFFu));
+        return sycl::bit_cast<_T>(_UInt(std::numeric_limits<_UInt>::max() >> 1));
     else
-        return sycl::bit_cast<_T>(std::uint16_t(0xFFFFu));
-}
-
-template <typename _T, bool __is_ascending,
-          std::enable_if_t<std::is_floating_point_v<_T> && sizeof(_T) == sizeof(std::uint32_t), int> = 0>
-constexpr _T
-__sort_identity()
-{
-    if constexpr (__is_ascending)
-        return sycl::bit_cast<_T>(0x7FFF'FFFFu);
-    else
-        return sycl::bit_cast<_T>(0xFFFF'FFFFu);
-}
-
-template <typename _T, bool __is_ascending,
-          std::enable_if_t<std::is_floating_point_v<_T> && sizeof(_T) == sizeof(std::uint64_t), int> = 0>
-constexpr _T
-__sort_identity()
-{
-    if constexpr (__is_ascending)
-        return sycl::bit_cast<_T>(0x7FFF'FFFF'FFFF'FFFFu);
-    else
-        return sycl::bit_cast<_T>(0xFFFF'FFFF'FFFF'FFFFu);
+        return sycl::bit_cast<_T>(std::numeric_limits<_UInt>::max());
 }
 
 template <std::uint16_t _N, typename _KeyT>
