@@ -11,7 +11,7 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 template <std::ranges::range R>
-auto
+std::ranges::iterator_t<R>
 get_middle(R&& r)
 {
     return std::ranges::begin(r) + std::ranges::size(r) / 2;
