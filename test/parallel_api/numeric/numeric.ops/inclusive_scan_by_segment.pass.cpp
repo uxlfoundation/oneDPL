@@ -197,6 +197,49 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
     }
 };
 
+#if TEST_DPCPP_BACKEND_PRESENT && defined(SYCL_IMPLEMENTATION_INTEL)
+void test_with_bfloat16(std::size_t n)
+{
+    using T = sycl::ext::oneapi::bfloat16;
+    // Truncate n to be a multiple of num_segments for simplicity
+    const std::size_t num_segments = n / 100;
+    const std::size_t row_n = n / num_segments;
+    const std::size_t total_n = row_n * num_segments;
+
+    auto q = TestUtils::get_test_queue();
+
+    std::vector<T> expected(n);
+    T* in = sycl::malloc_shared<T>(n, q);
+    T* out = sycl::malloc_shared<T>(n, q);
+
+    // Initialize and compute expected results
+    for (std::size_t seg = 0; seg < num_segments; ++seg)
+    {
+        T prefix = 0;
+        for (std::size_t i = 0; i < row_n; ++i)
+        {
+            T value = static_cast<T>(i % 3 + 1); // 1, 2, 3, 1, 2, 3, ...
+            in[seg * row_n + i] = value;
+            prefix += value;
+            expected[seg * row_n + i] = prefix;
+        }
+    }
+
+    auto policy = oneapi::dpl::execution::make_device_policy(q);
+    auto idx_iter = oneapi::dpl::counting_iterator<std::size_t>(0);
+    auto col_iter = oneapi::dpl::make_transform_iterator(
+        idx_iter, [n, num_segments, row_n](std::size_t i) { return i / row_n; }
+    );
+    oneapi::dpl::inclusive_scan_by_segment(
+        policy, col_iter, col_iter + n, in, out, std::equal_to<std::size_t>(), std::plus<T>()
+    );
+    EXPECT_EQ_N(expected.data(), out, total_n, "Wrong effect for bfloat16");
+
+    sycl::free(in, q);
+    sycl::free(out, q);
+}
+#endif
+
 int
 main()
 {
@@ -241,6 +284,11 @@ main()
         test_algo_three_sequences<ValueType, test_inclusive_scan_by_segment<BinaryPredicate, BinaryOperation>>();
 #endif // TEST_DPCPP_BACKEND_PRESENT
     }
+
+#if TEST_DPCPP_BACKEND_PRESENT && defined(SYCL_IMPLEMENTATION_INTEL)
+    test_with_bfloat16(1000);
+    test_with_bfloat16(35000);
+#endif
 
     return TestUtils::done();
 }

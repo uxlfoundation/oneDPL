@@ -66,8 +66,6 @@
 // Kernel bundle support is not expected in ACPP, see https://github.com/AdaptiveCpp/AdaptiveCpp/issues/1296.
 #define _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT                                                                        \
     (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300) && !_ONEDPL_ACPP_VERSION)
-#define _ONEDPL_SYCL2020_KNOWN_IDENTITY_PRESENT               (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
-#define _ONEDPL_SYCL2020_FUNCTIONAL_OBJECTS_PRESENT           (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_SYCL2020_REQD_SUB_GROUP_SIZE_PRESENT          (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_SYCL2020_TARGET_PRESENT                       (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50400))
 #define _ONEDPL_SYCL2020_TARGET_DEVICE_PRESENT                (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50400))
@@ -86,7 +84,6 @@
 // Feature macros for DPC++ SYCL runtime library alternatives to non-supported SYCL 2020 features
 #define _ONEDPL_LIBSYCL_COLLECTIVES_PRESENT                   (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_LIBSYCL_PROGRAM_PRESENT                       (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
-#define _ONEDPL_LIBSYCL_KNOWN_IDENTITY_PRESENT                (_ONEDPL_LIBSYCL_VERSION == 50200)
 #define _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT                                                                         \
     (SYCL_EXT_ONEAPI_SUB_GROUP_MASK >= 1 && _ONEDPL_LIBSYCL_VERSION >= 50700)
 
@@ -145,50 +142,6 @@ using __no_init =
 #else
 #    error "sycl::property::no_init is not supported, and no alternative is available"
 #endif
-
-#if _ONEDPL_SYCL2020_KNOWN_IDENTITY_PRESENT
-template <typename _BinaryOp, typename _T>
-using __known_identity = sycl::known_identity<_BinaryOp, _T>;
-
-template <typename _BinaryOp, typename _T>
-using __has_known_identity = sycl::has_known_identity<_BinaryOp, _T>;
-
-#elif _ONEDPL_LIBSYCL_KNOWN_IDENTITY_PRESENT
-template <typename _BinaryOp, typename _T>
-using __known_identity = sycl::ONEAPI::known_identity<_BinaryOp, _T>;
-
-template <typename _BinaryOp, typename _T>
-using __has_known_identity = sycl::ONEAPI::has_known_identity<_BinaryOp, _T>;
-
-#else
-#    error "sycl::__known_identity is not supported, and no alternative is available"
-#endif // _ONEDPL_SYCL2020_KNOWN_IDENTITY_PRESENT
-
-template <typename _BinaryOp, typename _T>
-inline constexpr auto __known_identity_v = __known_identity<_BinaryOp, _T>::value;
-
-#if _ONEDPL_SYCL2020_FUNCTIONAL_OBJECTS_PRESENT
-template <typename _T = void>
-using __plus = sycl::plus<_T>;
-
-template <typename _T = void>
-using __maximum = sycl::maximum<_T>;
-
-template <typename _T = void>
-using __minimum = sycl::minimum<_T>;
-#elif _ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300)
-template <typename _T>
-using __plus = sycl::ONEAPI::plus<_T>;
-
-template <typename _T>
-using __maximum = sycl::ONEAPI::maximum<_T>;
-
-template <typename _T>
-using __minimum = sycl::ONEAPI::minimum<_T>;
-
-#else
-#    error "sycl::plus, sycl::maximum, sycl::minimum are not supported, and no alternative is available"
-#endif // _ONEDPL_SYCL2020_FUNCTIONAL_OBJECTS_PRESENT
 
 #if _ONEDPL_SYCL2020_SUB_GROUP_PRESENT
 using __sub_group = sycl::sub_group;

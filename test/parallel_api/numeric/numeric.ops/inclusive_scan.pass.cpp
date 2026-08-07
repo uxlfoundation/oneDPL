@@ -91,6 +91,48 @@ test_with_plus(Init init, Out trash, Convert convert)
 #endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
 
+#if TEST_DPCPP_BACKEND_PRESENT && defined(SYCL_IMPLEMENTATION_INTEL)
+// Imitate segmented scan to avoid too large precision errors
+void test_with_bfloat16(std::size_t n)
+{
+    using T = sycl::ext::oneapi::bfloat16;
+    // Truncate n to be a multiple of num_segments for simplicity
+    const std::size_t num_segments = n / 100;
+    const std::size_t row_n = n / num_segments;
+    const std::size_t total_n = row_n * num_segments;
+
+    auto q = TestUtils::get_test_queue();
+
+    std::vector<T> expected(n);
+    T* in = sycl::malloc_shared<T>(n, q);
+    T* out = sycl::malloc_shared<T>(n, q);
+
+    // Initialize and compute expected results
+    for (std::size_t seg = 0; seg < num_segments; ++seg)
+    {
+        T prefix = 0;
+        for (std::size_t i = 0; i < row_n; ++i)
+        {
+            T value = static_cast<T>(i % 3 + 1); // 1, 2, 3, 1, 2, 3, ...
+            in[seg * row_n + i] = value;
+            prefix += value;
+            expected[seg * row_n + i] = prefix;
+        }
+    }
+
+    auto policy = oneapi::dpl::execution::make_device_policy(q);
+    for (std::size_t seg = 0; seg < num_segments; ++seg)
+    {
+        std::size_t offset = seg * row_n;
+        oneapi::dpl::inclusive_scan(policy, in + offset, in + offset + row_n, out + offset, std::plus<T>());
+    }
+    EXPECT_EQ_N(expected.data(), out, total_n, "Wrong effect for bfloat16");
+
+    sycl::free(in, q);
+    sycl::free(out, q);
+}
+#endif
+
 int
 main()
 {
@@ -104,6 +146,11 @@ main()
     // When testing from bool to uint32_t, we must give a uint32_t init type to scan over integers
     test_with_plus<bool, std::uint32_t, std::uint32_t>(0, 123456,
                                                        [](std::uint32_t k) { return std::uint32_t{k % 2 == 0}; });
+
+#if TEST_DPCPP_BACKEND_PRESENT && defined(SYCL_IMPLEMENTATION_INTEL)
+    test_with_bfloat16(1000);
+    test_with_bfloat16(35000);
+#endif
 
     return done();
 }
