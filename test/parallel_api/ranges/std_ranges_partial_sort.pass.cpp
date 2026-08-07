@@ -11,9 +11,6 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-// The position of "middle" within the tested range:
-// "first" and "last" are the boundary cases, required by [alg.sort.partial]:
-// with "first" the algorithm is a no-op, with "last" it performs a full sort.
 enum class middle_pos
 {
     first,
