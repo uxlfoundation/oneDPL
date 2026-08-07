@@ -19,7 +19,7 @@ enum class middle_pos
 };
 
 template <middle_pos Pos, std::ranges::range R>
-std::ranges::borrowed_iterator_t<R>
+auto
 get_middle(R&& r)
 {
     if constexpr (Pos == middle_pos::first)
@@ -73,7 +73,7 @@ main()
 
     auto partial_sort_algo = partial_sort_fn<middle_pos::half>{};
 
-    auto partial_sort_checker = [](auto&& r, auto&&... args) -> std::ranges::borrowed_iterator_t<decltype(r)> {
+    auto partial_sort_checker = [](auto&& r, auto&&... args) {
         auto middle = get_middle<middle_pos::half>(r);
         return std::ranges::partial_sort(std::forward<decltype(r)>(r), middle, std::forward<decltype(args)>(args)...);
     };
@@ -92,7 +92,7 @@ main()
 
     // Boundary case: middle == begin(r), the algorithm is a no-op
     auto partial_sort_none_algo = partial_sort_fn<middle_pos::first>{};
-    auto partial_sort_none_checker = [](auto&& r, auto&&... args) -> std::ranges::borrowed_iterator_t<decltype(r)> {
+    auto partial_sort_none_checker = [](auto&& r, auto&&... args) {
         auto middle = get_middle<middle_pos::first>(r);
         return std::ranges::partial_sort(std::forward<decltype(r)>(r), middle, std::forward<decltype(args)>(args)...);
     };
