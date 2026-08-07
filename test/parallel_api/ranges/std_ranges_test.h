@@ -161,6 +161,7 @@ struct B
 {
     int b;
     operator int() const { return b; }
+    B& operator=(const A& a) { b = int(a); return *this; }
 };
 
 auto proj_a = [](const A& a) { return a.a; };

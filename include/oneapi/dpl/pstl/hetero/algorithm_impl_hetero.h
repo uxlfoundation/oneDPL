@@ -1490,7 +1490,7 @@ _OutIterator
 __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InIterator __first,
                             _InIterator __last, _OutIterator __out_first, _OutIterator __out_last, _Compare __comp)
 {
-    using _ValueType = typename ::std::iterator_traits<_InIterator>::value_type;
+    using _ValueType = typename std::iterator_traits<_OutIterator>::value_type;
 
     auto __in_size = __last - __first;
     auto __out_size = __out_last - __out_first;
@@ -1519,8 +1519,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         // Use regular sort as partial_sort isn't required to be stable.
         //__pattern_sort is a blocking call.
         __pattern_sort(
-            __tag,
-            __par_backend_hetero::make_wrapped_policy<__partial_sort_1>(::std::forward<_ExecutionPolicy>(__exec)),
+            __tag, __par_backend_hetero::make_wrapped_policy<__partial_sort_1>(std::forward<_ExecutionPolicy>(__exec)),
             __out_first, __out_end, __comp);
 
         return __out_end;
@@ -1553,7 +1552,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
                                       /*_IsOutNoInitRequested=*/true>(
-            __tag, __par_backend_hetero::make_wrapped_policy<__copy_back>(::std::forward<_ExecutionPolicy>(__exec)),
+            __tag, __par_backend_hetero::make_wrapped_policy<__copy_back>(std::forward<_ExecutionPolicy>(__exec)),
             __buf_first, __buf_mid, __out_first, __brick_copy<__hetero_tag<_BackendTag>>{});
 
         // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore

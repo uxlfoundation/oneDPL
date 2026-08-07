@@ -1520,6 +1520,25 @@ __pattern_partial_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp, typename _Proj1,
+          typename _Proj2>
+std::ranges::partial_sort_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
+__pattern_partial_sort_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r,
+                                   _OutR&& __out_r, _Comp __comp, _Proj1, _Proj2 __proj2)
+{
+    auto [__first1, __last1] = oneapi::dpl::__ranges::__bounds(__r);
+    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__out_r);
+
+    // __pattern_partial_sort_copy sorts after copying, so _Proj1 is not used
+    auto __out_finish = oneapi::dpl::__internal::__pattern_partial_sort_copy(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __out_it, __out_end,
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj2, _Proj2>{__comp, __proj2, __proj2});
+
+    return {__last1, __out_finish};
+}
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
 //------------------------------------------------------------------------
 // min_element
 //------------------------------------------------------------------------

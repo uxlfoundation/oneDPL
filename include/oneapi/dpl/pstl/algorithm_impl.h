@@ -2525,7 +2525,7 @@ __pattern_partial_sort_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, 
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return ::std::partial_sort_copy(__first, __last, __d_first, __d_last, __comp);
+    return std::partial_sort_copy(__first, __last, __d_first, __d_last, __comp);
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
@@ -2547,7 +2547,7 @@ __pattern_partial_sort_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec
         if (__n2 >= __n1)
         {
             __par_backend::__parallel_stable_sort(
-                __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __d_first, __d_first + __n1, __comp,
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __d_first, __d_first + __n1, __comp,
                 [__first, __d_first](_RandomAccessIterator2 __i, _RandomAccessIterator2 __j, _Compare __comp) {
                     _RandomAccessIterator1 __i1 = __first + (__i - __d_first);
                     _RandomAccessIterator1 __j1 = __first + (__j - __d_first);
@@ -2555,48 +2555,47 @@ __pattern_partial_sort_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec
                     // 1. Copy elements from input to output
                     __brick_copy<__parallel_tag<_IsVector>>{}(__i1, __j1, __i, _IsVector{});
                     // 2. Sort elements in output sequence
-                    ::std::sort(__i, __j, __comp);
+                    std::sort(__i, __j, __comp);
                 },
                 __n1);
             return __d_first + __n1;
         }
         else
         {
-            using _T1 = typename std::iterator_traits<_RandomAccessIterator1>::value_type;
             using _T2 = typename std::iterator_traits<_RandomAccessIterator2>::value_type;
-            __par_backend::__buffer<_T1> __buf(__n1);
-            _T1* __r = __buf.get();
+            __par_backend::__buffer<_T2> __buf(__n1);
+            _T2* __r = __buf.get();
 
             __par_backend::__parallel_stable_sort(
-                __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n1, __comp,
-                [__n2, __first, __r](_T1* __i, _T1* __j, _Compare __comp) {
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __r, __r + __n1, __comp,
+                [__n2, __first, __r](_T2* __i, _T2* __j, _Compare __comp) {
                     _RandomAccessIterator1 __it = __first + (__i - __r);
 
                     // 1. Copy elements from input to raw memory
-                    for (_T1* __k = __i; __k != __j; ++__k, (void)++__it)
+                    for (_T2* __k = __i; __k != __j; ++__k, (void)++__it)
                     {
                         ::new (__k) _T2(*__it);
                     }
 
                     // 2. Sort elements in temporary buffer
                     if (__n2 < __j - __i)
-                        ::std::partial_sort(__i, __i + __n2, __j, __comp);
+                        std::partial_sort(__i, __i + __n2, __j, __comp);
                     else
-                        ::std::sort(__i, __j, __comp);
+                        std::sort(__i, __j, __comp);
                 },
                 __n2);
 
             // 3. Move elements from temporary buffer to output
-            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n2,
-                                          [__r, __d_first](_T1* __i, _T1* __j) {
+            __par_backend::__parallel_for(__backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __r, __r + __n2,
+                                          [__r, __d_first](_T2* __i, _T2* __j) {
                                               __brick_move_destroy<__parallel_tag<_IsVector>>{}(
                                                   __i, __j, __d_first + (__i - __r), _IsVector{});
                                           });
 
-            if constexpr (!::std::is_trivially_destructible_v<_T1>)
-                __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r + __n2,
+            if constexpr (!std::is_trivially_destructible_v<_T2>)
+                __par_backend::__parallel_for(__backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __r + __n2,
                                               __r + __n1,
-                                              [](_T1* __i, _T1* __j) { __brick_destroy(__i, __j, _IsVector{}); });
+                                              [](_T2* __i, _T2* __j) { __brick_destroy(__i, __j, _IsVector{}); });
 
             return __d_first + __n2;
         }
