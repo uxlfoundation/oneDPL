@@ -231,6 +231,24 @@ struct TypeInfo
         static const std::string TypeName = "double";
         return TypeName;
     }
+
+    template <>
+    const std::string&
+    name<sycl::half>()
+    {
+        static const std::string TypeName = "sycl::half";
+        return TypeName;
+    }
+
+#    if defined(SYCL_IMPLEMENTATION_INTEL)
+    template <>
+    const std::string&
+    name<sycl::ext::oneapi::bfloat16>()
+    {
+        static const std::string TypeName = "sycl::ext::oneapi::bfloat16";
+        return TypeName;
+    }
+#    endif
 };
 
 struct USMAllocPresentation

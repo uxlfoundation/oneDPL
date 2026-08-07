@@ -74,9 +74,12 @@ Parameters
 **Type Requirements**:
 
 - The element type of sequence to scan must be an 8-bit, 16-bit, 32-bit, or 64-bit C++ integral or floating-point
-  type.
+  type, ``sycl::half``, or ``sycl::ext::oneapi::bfloat16``.
 - The result is non-deterministic if the binary operator is non-associative (such as in floating-point addition)
-  or non-commutative.
+  or non-commutative. The algorithm reassociates the binary operator, so its intermediate results are reductions of
+  contiguous subsequences of the input. This is particularly noticeable for types with few mantissa bits, such as
+  ``sycl::half`` and ``sycl::ext::oneapi::bfloat16``, where the result may differ substantially from a sequential
+  scan.
 
 
 .. note::

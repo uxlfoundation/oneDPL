@@ -44,27 +44,87 @@ inline const std::vector<std::size_t> scan_sizes = {
     100'000, 1 << 17,   179'581, 250'000,   1 << 18,       (1 << 18) + 1, 500'000,
     888'235, 1'000'000, 1 << 20, 10'000'000};
 
+// sycl::half and sycl::ext::oneapi::bfloat16 hold only 11 and 8 mantissa bits respectively, so reductions of
+// arbitrary values are not exactly representable. These types therefore require data generated such that the result
+// is independent of the order of operations, see generate_low_mantissa_float_data.
+template <typename T>
+inline constexpr bool is_low_mantissa_float_v = false;
+
+template <>
+inline constexpr bool is_low_mantissa_float_v<sycl::half> = true;
+
+#if defined(SYCL_IMPLEMENTATION_INTEL)
+template <>
+inline constexpr bool is_low_mantissa_float_v<sycl::ext::oneapi::bfloat16> = true;
+#endif
+
+// The algorithm reassociates the scan across sub-groups, work-groups and tiles, so its intermediate results are
+// reductions of contiguous subranges of the input. Data is generated such that every one of those reductions is
+// exactly representable, which keeps the device result bit-exact with respect to the serial reference regardless of
+// the order in which the reductions are performed.
+template <typename BinOp, typename T>
+void
+generate_low_mantissa_float_data(T* input, std::size_t size, std::uint32_t seed)
+{
+    std::default_random_engine gen{seed};
+    if constexpr (std::is_same_v<std::multiplies<T>, BinOp>)
+    {
+        // Every element is a signed power of two and all but a handful are the identity, bounding the magnitude of
+        // any subrange product to 2^custom_item_count.
+        constexpr int magnitudes[] = {1, -1, 2, -2};
+        std::uniform_int_distribution<int> dist(0, 3);
+        const std::size_t custom_item_count = size < 5 ? size : 5;
+        std::fill(input, input + size, T(1.f));
+        std::generate(input, input + custom_item_count, [&] { return T(float(magnitudes[dist(gen)])); });
+        std::shuffle(input, input + size, gen);
+    }
+    else
+    {
+        // Adjacent (v, -v) pairs cancel, bounding every subrange sum to the magnitude of a single element. The pairs
+        // rather than the individual elements are shuffled to preserve that property.
+        std::uniform_int_distribution<int> dist(1, 8);
+        const std::size_t pair_count = size / 2;
+        std::vector<int> values(pair_count);
+        std::generate(values.begin(), values.end(), [&] { return dist(gen); });
+        std::shuffle(values.begin(), values.end(), gen);
+        for (std::size_t i = 0; i < pair_count; ++i)
+        {
+            input[2 * i] = T(float(values[i]));
+            input[2 * i + 1] = T(float(-values[i]));
+        }
+        if (size % 2 != 0)
+            input[size - 1] = T(float(dist(gen)));
+    }
+}
+
 template <typename BinOp, typename T>
 auto
 generate_scan_data(T* input, std::size_t size, std::uint32_t seed)
 {
-    // Integer numbers are generated even for floating point types in order to avoid rounding errors,
-    // and simplify the final check
-    using substitute_t = std::conditional_t<std::is_signed_v<T>, std::int64_t, std::uint64_t>;
-
-    const substitute_t start = std::is_signed_v<T> ? -10 : 0;
-    const substitute_t end = 10;
-
-    std::default_random_engine gen{seed};
-    std::uniform_int_distribution<substitute_t> dist(start, end);
-    std::generate(input, input + size, [&] { return dist(gen); });
-
-    if constexpr (std::is_same_v<std::multiplies<T>, BinOp>)
+    if constexpr (is_low_mantissa_float_v<T>)
     {
-        std::size_t custom_item_count = size < 5 ? size : 5;
-        std::fill(input + custom_item_count, input + size, 1);
-        std::replace(input, input + custom_item_count, 0, 2);
-        std::shuffle(input, input + size, gen);
+        generate_low_mantissa_float_data<BinOp>(input, size, seed);
+    }
+    else
+    {
+        // Integer numbers are generated even for floating point types in order to avoid rounding errors,
+        // and simplify the final check
+        using substitute_t = std::conditional_t<std::is_signed_v<T>, std::int64_t, std::uint64_t>;
+
+        const substitute_t start = std::is_signed_v<T> ? -10 : 0;
+        const substitute_t end = 10;
+
+        std::default_random_engine gen{seed};
+        std::uniform_int_distribution<substitute_t> dist(start, end);
+        std::generate(input, input + size, [&] { return dist(gen); });
+
+        if constexpr (std::is_same_v<std::multiplies<T>, BinOp>)
+        {
+            std::size_t custom_item_count = size < 5 ? size : 5;
+            std::fill(input + custom_item_count, input + size, 1);
+            std::replace(input, input + custom_item_count, 0, 2);
+            std::shuffle(input, input + size, gen);
+        }
     }
 }
 
@@ -226,7 +286,8 @@ main()
 
     constexpr oneapi::dpl::experimental::kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE> params;
     auto q = TestUtils::get_test_queue();
-    bool run_test = can_run_test<decltype(params), TEST_TYPE>(q, params);
+    bool run_test =
+        can_run_test<decltype(params), TEST_TYPE>(q, params) && TestUtils::has_type_support<TEST_TYPE>(q.get_device());
 
     if (run_test)
     {
