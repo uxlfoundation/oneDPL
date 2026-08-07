@@ -161,9 +161,9 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
     std::vector<_Tp>
     to_vector(sycl::queue __q, sycl::event __depends_on = {}) const
     {
-        std::vector<_Tp> __out(_Base::size());
-        copy_to(oneapi::dpl::span<_Tp>{__out.data(), __out.size()}, 0, __q, __depends_on);
-        return __out;
+        std::vector<_Tp> __host_out(_Base::size());
+        copy_to(oneapi::dpl::span<_Tp>{__host_out.data(), __host_out.size()}, 0, __q, __depends_on);
+        return __host_out;
     }
 
     std::vector<_Tp>
