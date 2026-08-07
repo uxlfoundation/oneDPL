@@ -18,7 +18,15 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
+// device_array is only available where oneapi::dpl::span is, which under C++17 requires the SYCL
+// implementation to provide sycl::span.
+#if TEST_DPCPP_BACKEND_PRESENT && TEST_SPAN_PRESENT
+#    define TEST_DEVICE_ARRAY_PRESENT 1
+#else
+#    define TEST_DEVICE_ARRAY_PRESENT 0
+#endif
+
+#if TEST_DEVICE_ARRAY_PRESENT
 #    include "support/utils_sycl.h"
 #    include "support/utils_device_copyable.h"
 
@@ -774,12 +782,12 @@ test_all_common(sycl::queue __q)
 }
 
 } // namespace
-#endif // TEST_DPCPP_BACKEND_PRESENT
+#endif // TEST_DEVICE_ARRAY_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DEVICE_ARRAY_PRESENT
     sycl::queue q = TestUtils::get_test_queue();
 
     test_device_allocator(q);
@@ -793,7 +801,7 @@ main()
     test_to_vector<float>(q);
 
     test_depends_on(q);
-#endif // TEST_DPCPP_BACKEND_PRESENT
+#endif // TEST_DEVICE_ARRAY_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(TEST_DEVICE_ARRAY_PRESENT);
 }

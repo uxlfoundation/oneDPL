@@ -163,6 +163,19 @@
 #   define TEST_CPP20_SPAN_PRESENT 0
 #endif // TEST_STD_FEATURE_MACROS_PRESENT
 
+// AdaptiveCpp does not provide sycl::span, although SYCL 2020 section 3.9.2 requires it.
+// This mirrors _ONEDPL_SYCL2020_SPAN_BROKEN in the library.
+#if defined(__ACPP__) || defined(__HIPSYCL__)
+#    define TEST_SYCL2020_SPAN_BROKEN 1
+#else
+#    define TEST_SYCL2020_SPAN_BROKEN 0
+#endif
+
+// oneapi::dpl::span is an alias for std::span where the standard library provides it, and for sycl::span
+// otherwise. Where neither is available there is no way to express the interface of the device containers,
+// so they are not defined. This mirrors _ONEDPL_SPAN_PRESENT in the library.
+#define TEST_SPAN_PRESENT (TEST_CPP20_SPAN_PRESENT || (TEST_DPCPP_BACKEND_PRESENT && !TEST_SYCL2020_SPAN_BROKEN))
+
 #define TEST_HAS_NO_INT128
 #define _PSTL_TEST_COMPLEX_NON_FLOAT_AVAILABLE (_MSVC_STL_VERSION < 143)
 

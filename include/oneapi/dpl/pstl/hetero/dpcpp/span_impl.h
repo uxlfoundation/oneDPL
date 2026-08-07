@@ -17,7 +17,9 @@
 
 #if _ONEDPL_CPP20_SPAN_PRESENT
 #    include <span>
-#elif _ONEDPL_BACKEND_SYCL
+#endif
+
+#if _ONEDPL_BACKEND_SYCL
 #    include "sycl_defs.h"
 #endif
 
@@ -28,8 +30,13 @@
 // - sycl::span has some issues when used with std ranges APIs, which are fixed in std::span.
 //   Since our ranges API is only available in c++20, this works around these issues, which would
 //   be commonly encountered in the context of oneDPL.
+//
+// Neither alternative is guaranteed: sycl::span is required by SYCL 2020 but is missing from some
+// implementations (see _ONEDPL_SYCL2020_SPAN_BROKEN), so under C++17 there may be no span to alias at
+// all. Dependents must guard on _ONEDPL_SPAN_PRESENT rather than assume oneapi::dpl::span is declared.
+#define _ONEDPL_SPAN_PRESENT (_ONEDPL_CPP20_SPAN_PRESENT || (_ONEDPL_BACKEND_SYCL && !_ONEDPL_SYCL2020_SPAN_BROKEN))
 
-#if _ONEDPL_CPP20_SPAN_PRESENT || _ONEDPL_BACKEND_SYCL
+#if _ONEDPL_SPAN_PRESENT
 
 namespace oneapi
 {
@@ -55,6 +62,6 @@ using span = sycl::span<_Tp, _Extent>;
 } // namespace dpl
 } // namespace oneapi
 
-#endif // _ONEDPL_CPP20_SPAN_PRESENT || _ONEDPL_BACKEND_SYCL
+#endif // _ONEDPL_SPAN_PRESENT
 
 #endif // _ONEDPL_SPAN_IMPL_H

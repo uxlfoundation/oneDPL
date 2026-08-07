@@ -22,7 +22,15 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
+// device_array is only available where oneapi::dpl::span is, which under C++17 requires the SYCL
+// implementation to provide sycl::span.
+#if TEST_DPCPP_BACKEND_PRESENT && TEST_SPAN_PRESENT
+#    define TEST_DEVICE_ARRAY_PRESENT 1
+#else
+#    define TEST_DEVICE_ARRAY_PRESENT 0
+#endif
+
+#if TEST_DEVICE_ARRAY_PRESENT
 #    include "support/utils_sycl.h"
 #    include "support/utils_invoke.h"
 
@@ -130,7 +138,7 @@ test_raw_kernels(sycl::queue __q)
 
 // The range algorithms take the span directly. Both gates are needed: the range algorithms are
 // C++20 only, and the C++17 sycl::span fallback is not a std::ranges view or borrowed range.
-#    if defined(ONEDPL_HAS_RANGE_ALGORITHMS) && _ONEDPL_CPP20_SPAN_PRESENT
+#    if defined(ONEDPL_HAS_RANGE_ALGORITHMS) && TEST_CPP20_SPAN_PRESENT
 void
 test_range_algorithms(sycl::queue __q)
 {
@@ -166,24 +174,24 @@ test_range_algorithms(sycl::queue __q)
         EXPECT_EQ_RANGES(__expected, __d.to_vector(__q), "ranges::sort over a subspan touched the tail");
     }
 }
-#    endif // ONEDPL_HAS_RANGE_ALGORITHMS && _ONEDPL_CPP20_SPAN_PRESENT
+#    endif // ONEDPL_HAS_RANGE_ALGORITHMS && TEST_CPP20_SPAN_PRESENT
 
 } // namespace
-#endif // TEST_DPCPP_BACKEND_PRESENT
+#endif // TEST_DEVICE_ARRAY_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DEVICE_ARRAY_PRESENT
     sycl::queue q = TestUtils::get_test_queue();
 
     test_sort(q);
     test_transform_and_reduce(q);
     test_raw_kernels(q);
-#    if defined(ONEDPL_HAS_RANGE_ALGORITHMS) && _ONEDPL_CPP20_SPAN_PRESENT
+#    if defined(ONEDPL_HAS_RANGE_ALGORITHMS) && TEST_CPP20_SPAN_PRESENT
     test_range_algorithms(q);
 #    endif
-#endif // TEST_DPCPP_BACKEND_PRESENT
+#endif // TEST_DEVICE_ARRAY_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(TEST_DEVICE_ARRAY_PRESENT);
 }
