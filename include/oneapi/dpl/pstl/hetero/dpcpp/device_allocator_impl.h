@@ -48,8 +48,7 @@ class device_allocator
 
     device_allocator() = delete;
 
-    explicit device_allocator(sycl::context __ctx, sycl::device __dev,
-                              const sycl::property_list& __prop_list = {})
+    explicit device_allocator(sycl::context __ctx, sycl::device __dev, const sycl::property_list& __prop_list = {})
         : _M_context(__ctx), _M_device(__dev), _M_prop_list(__prop_list)
     {
     }
