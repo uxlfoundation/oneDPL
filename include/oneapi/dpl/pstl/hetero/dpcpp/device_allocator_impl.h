@@ -29,8 +29,7 @@ namespace oneapi::dpl::experimental
 // The API mirrors sycl::usm_allocator, but provides USM device memory. For this
 // reason it does not satisfy std::allocator requirements and cannot be used with
 // standard containers. It is intended for use only with the oneDPL device containers.
-// Allocation failure surfaces as the sycl::exception thrown by the underlying USM,
-// sycl::malloc_device() or sycl::aligned_alloc_device().
+// Allocation failure surfaces as a sycl::exception with errc::memory_allocation.
 template <typename _Tp, std::size_t _Alignment = 0>
 class device_allocator
 {
@@ -80,15 +79,24 @@ class device_allocator
         if (__count == 0)
             return nullptr;
 
+        _Tp* __ptr = nullptr;
         if constexpr (_Alignment == 0)
         {
-            return sycl::malloc_device<_Tp>(__count, _M_device, _M_context, _M_prop_list);
+            __ptr = sycl::malloc_device<_Tp>(__count, _M_device, _M_context, _M_prop_list);
         }
         else
         {
             // aligned_alloc_device already raises the alignment to max(_Alignment, alignof(_Tp)).
-            return sycl::aligned_alloc_device<_Tp>(_Alignment, __count, _M_device, _M_context, _M_prop_list);
+            __ptr = sycl::aligned_alloc_device<_Tp>(_Alignment, __count, _M_device, _M_context, _M_prop_list);
         }
+
+        // The USM allocation functions return nullptr on failure rather than throwing, both when there
+        // are insufficient resources and, for the aligned form, when _Alignment is unsupported.
+        if (__ptr == nullptr)
+            throw sycl::exception(sycl::make_error_code(sycl::errc::memory_allocation),
+                                  "oneDPL device container: USM device allocation failed");
+
+        return __ptr;
     }
 
     // __count is accepted, and ignored, to match the allocator convention; USM deallocation needs only

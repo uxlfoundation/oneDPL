@@ -74,6 +74,21 @@ throws_out_of_range(_Fp __f)
     return false;
 }
 
+template <typename _Fp>
+bool
+throws_memory_allocation(_Fp __f)
+{
+    try
+    {
+        __f();
+    }
+    catch (const sycl::exception& __e)
+    {
+        return __e.code() == sycl::make_error_code(sycl::errc::memory_allocation);
+    }
+    return false;
+}
+
 template <typename _Tp>
 std::vector<_Tp>
 iota_host(std::size_t __n, int __start = 0)
@@ -171,6 +186,17 @@ test_device_allocator(sycl::queue __q)
     EXPECT_TRUE(__ap != nullptr, "the aligned device_allocator returned null");
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(__ap) % 256 == 0, "the aligned device_allocator ignored _Alignment");
     __aligned.deallocate(__ap, 64);
+
+    EXPECT_TRUE(throws_memory_allocation([&] { __a.allocate(std::size_t(1) << 50); }),
+                "device_allocator::allocate must throw errc::memory_allocation when allocation fails");
+
+    // An unsupported (non power of two) alignment.
+    oneapi::dpl::experimental::device_allocator<int, 3> __bad_alignment(__q);
+    EXPECT_TRUE(throws_memory_allocation([&] { __bad_alignment.allocate(16); }),
+                "the aligned device_allocator must throw when _Alignment is unsupported");
+
+    EXPECT_TRUE(throws_memory_allocation([&] { device_array<int> __d(std::size_t(1) << 50, __q); }),
+                "device_array construction must throw when its allocation fails");
 }
 
 // Uninitialized construction. The contents are deliberately never read
