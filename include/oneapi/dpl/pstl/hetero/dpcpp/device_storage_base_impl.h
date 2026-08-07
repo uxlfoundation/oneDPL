@@ -61,7 +61,7 @@ class __device_storage_base
     // The context, device and allocator are copied rather than moved so that a moved-from object
     // retains them, keeping its size() and empty() well-defined and it a legal move-assignment target. The SYCL
     // handles are shared_ptr wrappers, so retaining them is free.
-    __device_storage_base(__device_storage_base&& __other) noexcept
+    __device_storage_base(__device_storage_base&& __other)
         : _M_data(__other._M_data), _M_size(__other._M_size), _M_context(__other._M_context),
           _M_device(__other._M_device), _M_alloc(__other._M_alloc)
     {
@@ -70,7 +70,7 @@ class __device_storage_base
     }
 
     __device_storage_base&
-    operator=(__device_storage_base&& __other) noexcept
+    operator=(__device_storage_base&& __other)
     {
         if (this == &__other)
             return *this;
