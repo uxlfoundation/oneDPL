@@ -78,8 +78,8 @@ main()
         return std::ranges::partial_sort(std::forward<decltype(r)>(r), middle, std::forward<decltype(args)>(args)...);
     };
 
-    test_range_algo<0>{big_sz}(partial_sort_algo, partial_sort_checker);
-    test_range_algo<1>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{});
+    test_range_algo<0>{}(partial_sort_algo, partial_sort_checker);
+    test_range_algo<1>{big_sz}(partial_sort_algo, partial_sort_checker, std::ranges::greater{});
 
     test_range_algo<2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, proj);
     test_range_algo<3>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, proj);
