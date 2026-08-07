@@ -19,7 +19,7 @@
 
 #if _ONEDPL_BACKEND_SYCL
 
-#    include "sycl_defs.h"
+#include "sycl_defs.h"
 
 namespace oneapi::dpl::experimental
 {
@@ -48,13 +48,13 @@ class device_allocator
 
     device_allocator() = delete;
 
-    explicit device_allocator(const sycl::context& __ctx, const sycl::device& __dev,
+    explicit device_allocator(sycl::context __ctx, sycl::device __dev,
                               const sycl::property_list& __prop_list = {})
         : _M_context(__ctx), _M_device(__dev), _M_prop_list(__prop_list)
     {
     }
 
-    explicit device_allocator(const sycl::queue& __q, const sycl::property_list& __prop_list = {})
+    explicit device_allocator(sycl::queue __q, const sycl::property_list& __prop_list = {})
         : _M_context(__q.get_context()), _M_device(__q.get_device()), _M_prop_list(__prop_list)
     {
     }
@@ -91,7 +91,7 @@ class device_allocator
         }
 
         // The USM allocation functions return nullptr on failure rather than throwing, both when there
-        // are insufficient resources and, for the aligned form, when _Alignment is unsupported.
+        // are insufficient resources and when _Alignment is unsupported.
         if (__ptr == nullptr)
             throw sycl::exception(sycl::make_error_code(sycl::errc::memory_allocation),
                                   "oneDPL device container: USM device allocation failed");
