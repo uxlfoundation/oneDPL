@@ -102,8 +102,13 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
 
     // -- device transfers--
     //
-    // Argument order is uniform: what is being transferred, then optional offset into the container, then optional
-    // queue and optional event to depend on. Each operation comes in three forms:
+    // Argument order is uniform:
+    // - what is being transferred
+    // - optional offset into the container
+    // - optional queue
+    // - optional event to depend on.
+    //
+    //Each operation comes in three forms:
     //
     //   (data, offset)                 -- queue-less, uses a queue built from the stored context
     //   (data, queue, depends_on)      -- offset defaults to 0
@@ -118,7 +123,6 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
     // operations.
 
     // -- Device transfer out --
-
     size_type
     copy_to(oneapi::dpl::span<_Tp> __dst, size_type __src_offset, sycl::queue __q, sycl::event __depends_on = {}) const
     {
@@ -169,7 +173,6 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
     }
 
     // -- Device transfer in --
-
     size_type
     copy_from(oneapi::dpl::span<const _Tp> __src, size_type __dst_offset, sycl::queue __q,
               sycl::event __depends_on = {})
@@ -260,28 +263,28 @@ namespace dpl
 // reference (device_array is non-copyable).
 template <typename _Tp>
 _Tp*
-begin(experimental::device_array<_Tp>& __d)
+begin(oneapi::dpl::experimental::device_array<_Tp>& __d)
 {
     return __d.span().data();
 }
 
 template <typename _Tp>
 _Tp*
-end(experimental::device_array<_Tp>& __d)
+end(oneapi::dpl::experimental::device_array<_Tp>& __d)
 {
     return __d.span().data() + __d.size();
 }
 
 template <typename _Tp>
 const _Tp*
-begin(const experimental::device_array<_Tp>& __d)
+begin(const oneapi::dpl::experimental::device_array<_Tp>& __d)
 {
     return __d.span().data();
 }
 
 template <typename _Tp>
 const _Tp*
-end(const experimental::device_array<_Tp>& __d)
+end(const oneapi::dpl::experimental::device_array<_Tp>& __d)
 {
     return __d.span().data() + __d.size();
 }
