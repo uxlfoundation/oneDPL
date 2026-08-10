@@ -622,7 +622,7 @@ struct __get_sycl_range
         //      of a combination of fancy_iterators, sycl_iterators, and passed_directly types.
         //      Currently this relies on UB because the size of the accessor when handling sycl_iterators
         //      in recursion below this level is incorrect.
-        
+
         // no_init is dropped for the base sequence because all elements may not be written to
         auto res_src = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false>(__first.base(),
                                                                                    __first.base() + 1 /*source size*/);
