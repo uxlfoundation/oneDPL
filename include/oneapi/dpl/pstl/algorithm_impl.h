@@ -2237,8 +2237,10 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             }
             else
             {
+                // __exec is passed as an lvalue: this lambda is called many times, including after
+                // __exec has been forwarded into __parallel_reduce below
                 __par_backend::__parallel_for(
-                    __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __begin, __end,
+                    __backend_tag{}, __exec, __begin, __end,
                     [__begin, __target](_RandomAccessIterator __chunk_begin, _RandomAccessIterator __chunk_end) {
                         _RandomAccessIterator __chunk_target = __target + (__chunk_begin - __begin);
                         __internal::__brick_swap_ranges(__chunk_begin, __chunk_end, __chunk_target, _IsVector{});
