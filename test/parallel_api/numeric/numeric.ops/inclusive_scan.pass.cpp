@@ -131,7 +131,7 @@ void test_with_bfloat16(std::size_t n)
     sycl::free(in, q);
     sycl::free(out, q);
 }
-#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT && defined(SYCL_IMPLEMENTATION_INTEL)
 
 int
 main()

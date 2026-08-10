@@ -208,9 +208,9 @@ void test_with_bfloat16(std::size_t n)
 
     auto q = TestUtils::get_test_queue();
 
-    std::vector<T> expected(n);
-    T* in = sycl::malloc_shared<T>(n, q);
-    T* out = sycl::malloc_shared<T>(n, q);
+    std::vector<T> expected(total_n);
+    T* in = sycl::malloc_shared<T>(total_n, q);
+    T* out = sycl::malloc_shared<T>(total_n, q);
 
     // Initialize and compute expected results
     for (std::size_t seg = 0; seg < num_segments; ++seg)
@@ -228,17 +228,17 @@ void test_with_bfloat16(std::size_t n)
     auto policy = oneapi::dpl::execution::make_device_policy(q);
     auto idx_iter = oneapi::dpl::counting_iterator<std::size_t>(0);
     auto col_iter = oneapi::dpl::make_transform_iterator(
-        idx_iter, [n, num_segments, row_n](std::size_t i) { return i / row_n; }
+        idx_iter, [row_n](std::size_t i) { return i / row_n; }
     );
     oneapi::dpl::inclusive_scan_by_segment(
-        policy, col_iter, col_iter + n, in, out, std::equal_to<std::size_t>(), std::plus<T>()
+        policy, col_iter, col_iter + total_n, in, out, std::equal_to<std::size_t>(), std::plus<T>()
     );
     EXPECT_EQ_N(expected.data(), out, total_n, "Wrong effect for bfloat16");
 
     sycl::free(in, q);
     sycl::free(out, q);
 }
-#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT && defined(SYCL_IMPLEMENTATION_INTEL)
 
 int
 main()
