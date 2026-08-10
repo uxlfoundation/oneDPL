@@ -517,7 +517,7 @@ struct __get_sycl_range
         assert(__first < __last);
 
         // no_init is dropped for the base sequence because all elements may not be written to for transform iterator.
-        // The unary functor many not expose the underlying references for writing for instance.
+        // The unary functor may not expose the underlying references for writing for instance.
         auto res = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false>(__first.base(), __last.base());
         auto rng = oneapi::dpl::__ranges::transform_view_simple<decltype(res.all_view()), decltype(__first.functor())>{
             res.all_view(), __first.functor()};
