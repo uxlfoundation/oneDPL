@@ -34,7 +34,6 @@ namespace unseq_backend
 {
 
 #if _ONEDPL_USE_GROUP_ALGOS
-#    if defined(SYCL_IMPLEMENTATION_INTEL)
 
 // When ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION is defined as non-zero, we avoid using known identity for 64-bit arithmetic data types
 template <typename _Tp>
@@ -49,6 +48,7 @@ template <typename _BinaryOp, typename _Tp, template <typename> class... _Ops>
 using __is_one_of_ops = std::disjunction<std::is_same<std::decay_t<_BinaryOp>, _Ops<_Tp>>...,
                                          std::is_same<std::decay_t<_BinaryOp>, _Ops<void>>...>;
 
+#    if defined(SYCL_IMPLEMENTATION_INTEL)
 template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan = std::conjunction<
     __workaround_igpu_64_bit_reduction<_Tp>,
@@ -60,9 +60,9 @@ using __can_use_group_reduce_scan = std::conjunction<
                     std::bit_and, sycl::bit_and,
                     std::bit_or, sycl::bit_or,
                     std::bit_xor, sycl::bit_xor,
-                    // std::logical_and and std::logical_or are not accepted by icpx
-                    sycl::logical_and,
-                    sycl::logical_or,
+                    // std::logical_<and|or> are not accepted by icpx,
+                    // sycl::logical_<and|or> are off until group algorithms support bool.
+                    //
                     // no std::minimum and std::maximum exist
                     sycl::minimum,
                     sycl::maximum>>;
@@ -72,7 +72,7 @@ template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan = std::conjunction<
     std::is_arithmetic<_Tp>,
     __is_one_of_ops<_BinaryOp, _Tp,
-                    std::plus,
+                    sycl::plus,
                     sycl::multiplies,
                     sycl::bit_and,
                     sycl::bit_or,
