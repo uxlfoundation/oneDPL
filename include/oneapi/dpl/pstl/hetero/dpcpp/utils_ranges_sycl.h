@@ -516,7 +516,9 @@ struct __get_sycl_range
     {
         assert(__first < __last);
 
-        auto res = __process_input_iter<_LocalAccMode, _LocalNoInit>(__first.base(), __last.base());
+        // no_init is dropped for the base sequence because all elements may not be written to for transform iterator.
+        // The unary functor many not expose the underlying references for writing for instance.
+        auto res = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false>(__first.base(), __last.base());
         auto rng = oneapi::dpl::__ranges::transform_view_simple<decltype(res.all_view()), decltype(__first.functor())>{
             res.all_view(), __first.functor()};
 
@@ -574,7 +576,8 @@ struct __get_sycl_range
         //   offset, and use that to recurse as a sycl_iterator over the __base_buffer.
         auto __base_iter = __first.base();
         auto __base_buffer = __base_iter.get_buffer();
-        auto res_src = __process_input_iter<_LocalAccMode, _LocalNoInit>(
+        // no_init is dropped for the base sequence because all elements may not be written to for permutation iterator
+        auto res_src = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false>(
             oneapi::dpl::begin(__base_buffer) + __base_iter.get_idx(), oneapi::dpl::end(__base_buffer));
 
         //_Map is handled by recursively calling __get_sycl_range() in __get_permutation_view.
@@ -619,7 +622,10 @@ struct __get_sycl_range
         //      of a combination of fancy_iterators, sycl_iterators, and passed_directly types.
         //      Currently this relies on UB because the size of the accessor when handling sycl_iterators
         //      in recursion below this level is incorrect.
-        auto res_src = this->operator()(__first.base(), __first.base() + 1 /*source size*/);
+        
+        // no_init is dropped for the base sequence because all elements may not be written to
+        auto res_src = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false>(__first.base(),
+                                                                                   __first.base() + 1 /*source size*/);
 
         auto rng = __get_permutation_view(res_src.all_view(), __first.map(), __n);
 
