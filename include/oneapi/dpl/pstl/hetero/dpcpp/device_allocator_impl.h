@@ -36,16 +36,6 @@ class device_allocator
   public:
     using value_type = _Tp;
 
-    using propagate_on_container_copy_assignment = std::true_type;
-    using propagate_on_container_move_assignment = std::true_type;
-    using propagate_on_container_swap = std::true_type;
-
-    template <typename _Up>
-    struct rebind
-    {
-        using other = device_allocator<_Up, _Alignment>;
-    };
-
     device_allocator() = delete;
 
     explicit device_allocator(sycl::context __ctx, sycl::device __dev, const sycl::property_list& __prop_list = {})

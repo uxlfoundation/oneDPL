@@ -161,11 +161,6 @@ test_device_allocator(sycl::queue __q)
     static_assert(!std::is_default_constructible_v<alloc_t>, "device_allocator must not be default constructible");
     static_assert(std::is_copy_constructible_v<alloc_t>, "device_allocator must be copy constructible");
     static_assert(std::is_copy_assignable_v<alloc_t>, "device_allocator must be copy assignable");
-    static_assert(std::is_same_v<alloc_t::rebind<float>::other, oneapi::dpl::experimental::device_allocator<float>>,
-                  "device_allocator::rebind");
-    static_assert(alloc_t::propagate_on_container_copy_assignment::value, "propagate_on_container_copy_assignment");
-    static_assert(alloc_t::propagate_on_container_move_assignment::value, "propagate_on_container_move_assignment");
-    static_assert(alloc_t::propagate_on_container_swap::value, "propagate_on_container_swap");
 
     // Both constructor forms, as on usm_allocator.
     alloc_t __a(__q);
