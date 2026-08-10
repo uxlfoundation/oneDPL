@@ -177,16 +177,9 @@ class __device_storage_base
     size_type
     __checked_count(size_type __requested, size_type __offset) const
     {
-        __check_offset(__offset);
-        return std::min(__requested, _M_size - __offset);
-    }
-
-    // For the bulk transfers, where an offset of exactly size() names the end of the range.
-    void
-    __check_offset(size_type __offset) const
-    {
         if (__offset > _M_size)
             throw std::out_of_range("oneDPL device container: transfer offset is past the end of the container");
+        return std::min(__requested, _M_size - __offset);
     }
 
     // For the single-element operations, which address one element and so cannot accept __pos == size().
