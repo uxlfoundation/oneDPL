@@ -132,6 +132,24 @@ class device_allocator
     sycl::property_list _M_prop_list;
 };
 
+// Two device allocators compare equal if they share an alignment, a context and a device, following the
+// requirement SYCL 2020 section 4.8.3.1 places on sycl::usm_allocator. As with sycl::usm_allocator, the value type
+// and the property list do not participate in the comparison.
+template <typename _Tp, std::size_t _AlignmentT, typename _Up, std::size_t _AlignmentU>
+bool
+operator==(const device_allocator<_Tp, _AlignmentT>& __lhs, const device_allocator<_Up, _AlignmentU>& __rhs) noexcept
+{
+    return _AlignmentT == _AlignmentU && __lhs.get_context() == __rhs.get_context() &&
+           __lhs.get_device() == __rhs.get_device();
+}
+
+template <typename _Tp, std::size_t _AlignmentT, typename _Up, std::size_t _AlignmentU>
+bool
+operator!=(const device_allocator<_Tp, _AlignmentT>& __lhs, const device_allocator<_Up, _AlignmentU>& __rhs) noexcept
+{
+    return !(__lhs == __rhs);
+}
+
 } // namespace oneapi::dpl::experimental
 
 #endif // _ONEDPL_BACKEND_SYCL

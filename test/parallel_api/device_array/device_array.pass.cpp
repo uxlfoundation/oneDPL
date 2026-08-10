@@ -175,6 +175,22 @@ test_device_allocator(sycl::queue __q)
     EXPECT_TRUE(__converted.get_context() == __q.get_context(), "the converting ctor lost the context");
     EXPECT_TRUE(__converted.get_device() == __q.get_device(), "the converting ctor lost the device");
 
+    // Equality spans the value type and ignores the property list, but distinguishes the alignment, as
+    // SYCL 2020 section 4.8.3.1 requires of usm_allocator.
+    oneapi::dpl::experimental::device_allocator<int, 256> __aligned_a(__q);
+    oneapi::dpl::experimental::device_allocator<double, 256> __aligned_b(__q);
+    EXPECT_TRUE(__a == __b, "allocators on the same context and device must compare equal");
+    EXPECT_TRUE(!(__a != __b), "operator!= must be the negation of operator==");
+    EXPECT_TRUE(__a == __converted, "equality must span the value type");
+    EXPECT_TRUE(__a != __aligned_a, "allocators with different alignments must compare unequal");
+    EXPECT_TRUE(__aligned_a == __aligned_b, "equality must span the value type for a nonzero alignment");
+
+    // A distinct context over the same device makes the allocators non interchangeable.
+    sycl::context __other_ctx(__q.get_device());
+    alloc_t __other(__other_ctx, __q.get_device());
+    EXPECT_TRUE(__a != __other, "allocators on different contexts must compare unequal");
+    EXPECT_TRUE(!(__a == __other), "operator== must be the negation of operator!=");
+
     // allocate/deallocate round trip, and the count == 0 short circuit.
     int* __p = __a.allocate(128);
     EXPECT_TRUE(__p != nullptr, "device_allocator::allocate returned null for a nonzero count");
