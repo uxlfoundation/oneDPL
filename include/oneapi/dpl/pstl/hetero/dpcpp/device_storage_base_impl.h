@@ -208,14 +208,14 @@ class __device_storage_base
     }
 
     void
-    __deallocate() noexcept
+    __deallocate()
     {
         if (_M_data != nullptr)
         {
             _M_alloc.deallocate(_M_data, _M_size);
             _M_data = nullptr;
+            _M_size = 0;
         }
-        _M_size = 0;
     }
 
     _Tp* _M_data = nullptr;
