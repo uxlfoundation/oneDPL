@@ -110,63 +110,18 @@ expect(bool expected, bool condition, const char* file, std::int32_t line, const
     }
 }
 
-template <typename T>
-bool
-is_close(T a, T b)
-{
-    // abs_tol is for rounding errors near zero.
-    // It is a multiple of an epsilon to tolerate accumulated errors.
-    // The larger the type, the larger the multiple to allow for more accumulations.
-    // rel_tol is selected intuitively.
-    T rel_tol = T(0.001); // 0.1%
-    T abs_tol = T(1e-5); // ~100x of the epsilon for float
-    if constexpr (sizeof(T) > sizeof(float))
-    {
-        rel_tol = T(0.0001); // 0.01%, 10x of the relative difference of any nearest number
-        abs_tol = T(1e-12); // ~1000x of the epsilon
-    }
-#if TEST_DPCPP_BACKEND_PRESENT
-    else if constexpr (std::is_same_v<T, sycl::half>)
-    {
-        rel_tol = T(0.005); // 0.5%
-        abs_tol = T(1e-3); // ~10x of the epsilon
-    }
-#if defined(SYCL_IMPLEMENTATION_INTEL)
-    else if constexpr (std::is_same_v<T, sycl::ext::oneapi::bfloat16>)
-    {
-        rel_tol = T(0.02); // 2%
-        abs_tol = T(1e-2); // ~10x of the epsilon
-    }
-#endif
-#endif
-    const T tol = std::max(rel_tol * std::max(std::fabs(a), std::fabs(b)), abs_tol);
-    return std::fabs(a - b) < tol;
-}
-
-template <typename T>
-constexpr bool is_non_standard_float_v = false;
-
-#if TEST_DPCPP_BACKEND_PRESENT
-template <>
-constexpr bool is_non_standard_float_v<sycl::half> = true;
-#if defined(SYCL_IMPLEMENTATION_INTEL)
-template <>
-constexpr bool is_non_standard_float_v<sycl::ext::oneapi::bfloat16> = true;
-#endif
-#endif
-
 // Do not change signature to const T&.
 // Function must be able to detect const differences between expected and actual.
 template <typename T1, typename T2>
-// TODO: alongside the close comparison of floats, allow the exact comparison for non-numeric algorithms.
 bool
 is_equal_val(const T1& val1, const T2& val2)
 {
     using T = std::common_type_t<T1, T2>;
 
-    if constexpr (std::is_floating_point_v<T> || is_non_standard_float_v<T>)
+    if constexpr (std::is_floating_point_v<T>)
     {
-        return is_close<T>(val1, val2);
+        const auto eps = std::numeric_limits<T>::epsilon();
+        return std::fabs(T(val1) - T(val2)) < eps;
     }
     else if constexpr (std::is_same_v<T1, T2>)
     {
