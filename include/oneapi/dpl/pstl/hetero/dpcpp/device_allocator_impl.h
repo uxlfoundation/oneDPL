@@ -36,8 +36,6 @@ class device_allocator
   public:
     using value_type = _Tp;
 
-    device_allocator() = delete;
-
     explicit device_allocator(sycl::context __ctx, sycl::device __dev, const sycl::property_list& __prop_list = {})
         : _M_context(__ctx), _M_device(__dev), _M_prop_list(__prop_list)
     {
