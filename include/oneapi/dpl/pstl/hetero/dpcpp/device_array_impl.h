@@ -272,8 +272,7 @@ template <typename _Tp>
 _Tp*
 end(oneapi::dpl::experimental::device_array<_Tp>& __d)
 {
-    _Tp* __data = __d.span().data();
-    return __d.empty() ? __data : __data + __d.size();
+    return __d.span().data() + __d.size();
 }
 
 template <typename _Tp>
