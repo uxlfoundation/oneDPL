@@ -2266,6 +2266,12 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
 
         auto __merge = [__move_right, __swap_ranges](_PartitionRange __val1,
                                                      _PartitionRange __val2) -> _PartitionRange {
+            // The reduction identity carries no elements and no leftovers
+            if (__val1.__empty())
+                return __val2;
+            if (__val2.__empty())
+                return __val1;
+
             // Merged range initialized with __val2's leftovers, which are already adjacent to the middle.
             // If __val1 has no leftover, this initial state is already the correct result.
             _PartitionRange __merged_range{__val1.__real_chunk_begin,   __val2.__real_chunk_end,
@@ -2409,7 +2415,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             _PartitionRange __range{__real_chunk_begin, __real_chunk_end, __mirror_chunk_begin,
                                     __mirror_chunk_end, __false_leftover, __true_leftover};
 
-            return __value.__empty() ? __range : __merge(__value, __range);
+            return __merge(__value, __range);
         }; // reduce leaf
 
         _PartitionRange __init{__last, __last, __last, __last, __last, __last};
