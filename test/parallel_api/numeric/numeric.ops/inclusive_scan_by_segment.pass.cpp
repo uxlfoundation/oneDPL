@@ -237,7 +237,7 @@ void test_with_bfloat16(std::size_t n)
     // Validation
     // EXPECT* utilities cannot be used because their precision requirements are too strict for bfloat16
     // 2% relative tolerance, 0.02 absolute tolerance for values near zero
-    auto approx_equal = [](float act, float exp) {return std::fabs(act - exp) <= std::max(0.02 * std::fabs(exp), 0.02f); };
+    auto approx_equal = [](float act, float exp) {return std::fabs(act - exp) <= std::max(0.02f * std::fabs(exp), 0.02f); };
     for (std::size_t i = 0; i < total_n; ++i)
     {
         if (!approx_equal(static_cast<float>(out[i]), static_cast<float>(expected[i])))
