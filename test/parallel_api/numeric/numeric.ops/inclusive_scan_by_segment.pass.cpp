@@ -242,9 +242,10 @@ void test_with_bfloat16(std::size_t n)
     {
         if (!approx_equal(static_cast<float>(out[i]), static_cast<float>(expected[i])))
         {
-            std::cout << "inclusive_scan_by_segment failed for bfloat16 at index " << i
-                      << ": expected " << static_cast<float>(expected[i])
-                      << ", got " << static_cast<float>(out[i]) << "\n";
+            std::string message = "inclusive_scan_by_segment failed for bfloat16 at index " + std::to_string(i) +
+                                  ": expected " + std::to_string(static_cast<float>(expected[i])) +
+                                  ", got " + std::to_string(static_cast<float>(out[i]));
+            EXPECT_TRUE(false, message.c_str());
         }
     }
     sycl::free(in, q);
