@@ -158,6 +158,7 @@ constexpr bool is_non_standard_float_v<sycl::ext::oneapi::bfloat16> = true;
 // Do not change signature to const T&.
 // Function must be able to detect const differences between expected and actual.
 template <typename T1, typename T2>
+// TODO: alongside the close comparison of floats, allow the exact comparison for non-numeric algorithms.
 bool
 is_equal_val(const T1& val1, const T2& val2)
 {
