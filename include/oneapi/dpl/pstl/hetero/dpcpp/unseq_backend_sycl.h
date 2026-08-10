@@ -53,7 +53,7 @@ template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan = std::conjunction<
     __workaround_igpu_64_bit_reduction<_Tp>,
     std::negation<std::is_same<_Tp, bool>>, // group algorithms are not implemented for bool in icpx as of 2026.0
-    sycl::has_known_identity<_Tp, _BinaryOp>,
+    sycl::has_known_identity<_BinaryOp, _Tp>,
     std::disjunction<std::is_arithmetic<_Tp>, std::is_same<_Tp, sycl::half>>,
     __is_one_of_ops<_BinaryOp, _Tp,
                     std::plus, sycl::plus,
@@ -71,8 +71,9 @@ using __can_use_group_reduce_scan = std::conjunction<
 // TODO: check acpp - it should support std::* ops as sycl::* ops are aliases to std::* ops.
 template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan = std::conjunction<
+    __workaround_igpu_64_bit_reduction<_Tp>,
     std::is_arithmetic<_Tp>,
-    sycl::has_known_identity<_Tp, _BinaryOp>,
+    sycl::has_known_identity<_BinaryOp, _Tp>,
     __is_one_of_ops<_BinaryOp, _Tp,
                     sycl::plus,
                     sycl::multiplies,

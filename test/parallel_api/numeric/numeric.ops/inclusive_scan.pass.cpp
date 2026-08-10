@@ -103,9 +103,9 @@ void test_with_bfloat16(std::size_t n)
 
     auto q = TestUtils::get_test_queue();
 
-    std::vector<T> expected(n);
-    T* in = sycl::malloc_shared<T>(n, q);
-    T* out = sycl::malloc_shared<T>(n, q);
+    std::vector<T> expected(total_n);
+    T* in = sycl::malloc_shared<T>(total_n, q);
+    T* out = sycl::malloc_shared<T>(total_n, q);
 
     // Initialize and compute expected results
     for (std::size_t seg = 0; seg < num_segments; ++seg)
