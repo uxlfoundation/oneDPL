@@ -450,19 +450,20 @@ struct __get_sycl_range
         _LocalAccMode == sycl::access::mode::read_write || _LocalAccMode == sycl::access::mode::write;
 
   private:
-    // Pass through the provided {mode, no_init}. When _DeferToUserHint is true and _Iter is a sycl_iterator,
+    // Pass through the provided {mode, no_init}. When _LocalDeferToUserHint is true and _Iter is a sycl_iterator,
     // the specialization below instead resolves them from the iterator's embedded user hint (the inverse of
     // __access_mode_resolver).
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename /*_Iter*/, typename = void>
+    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, bool _LocalDeferToUserHint, typename /*_Iter*/,
+              typename = void>
     struct __resolve_access_mode
     {
         static constexpr sycl::access::mode __value = _LocalAccMode;
         static constexpr bool __no_init = _LocalNoInit;
     };
 
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
-    struct __resolve_access_mode<_LocalAccMode, _LocalNoInit, _Iter,
-                                 std::enable_if_t<_DeferToUserHint && is_sycl_iterator<_Iter>::value>>
+    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, bool _LocalDeferToUserHint, typename _Iter>
+    struct __resolve_access_mode<_LocalAccMode, _LocalNoInit, _LocalDeferToUserHint, _Iter,
+                                 std::enable_if_t<_LocalDeferToUserHint && is_sycl_iterator<_Iter>::value>>
         : oneapi::dpl::__internal::__extracted_access_mode<_Iter::mode>
     {
     };
@@ -480,36 +481,36 @@ struct __get_sycl_range
     template <typename It>
     static constexpr bool __is_addressable_v = decltype(__is_addressable<It>(0))::value;
 
-    template <typename _F, typename _It, typename _DiffType>
-    static auto
-    __gen_view(_F& __f, _It __it, _DiffType __n) -> decltype(__f(__it, __it + __n))
-    {
-        return __f(__it, __it + __n);
-    }
-
-    template <typename _TupleType, typename _DiffType, ::std::size_t... _Ip>
+    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, bool _LocalDeferToUserHint, typename _TupleType,
+              typename _DiffType, std::size_t... _Ip>
     auto
     gen_zip_view(_TupleType __t, _DiffType __n, ::std::index_sequence<_Ip...>)
     {
-        // Send each zipped iterator to `gen_view` which recursively calls __get_sycl_range() to process them.
-        auto tmp = oneapi::dpl::__internal::make_tuple(__gen_view(*this, ::std::get<_Ip>(__t), __n)...);
+        // Each zipped iterator is processed recursively, propagating the {access mode, no_init, user hint deference}
+        // of the zip_iterator itself to each of its constituent iterators.
+        auto tmp = oneapi::dpl::__internal::make_tuple(
+            __process_input_iter<_LocalAccMode, _LocalNoInit, _LocalDeferToUserHint>(std::get<_Ip>(__t),
+                                                                                     std::get<_Ip>(__t) + __n)...);
         return oneapi::dpl::__ranges::make_zip_view(::std::get<_Ip>(tmp).all_view()...);
     }
 
     //zip iterators
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename... Iters>
+    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, bool _LocalDeferToUserHint = _DeferToUserHint,
+              typename... Iters>
     auto
     __process_input_iter(oneapi::dpl::zip_iterator<Iters...> __first, oneapi::dpl::zip_iterator<Iters...> __last)
     {
         assert(__first < __last);
 
         const ::std::size_t __num_it = sizeof...(Iters);
-        auto rng = gen_zip_view(__first.base(), __last - __first, ::std::make_index_sequence<__num_it>());
+        auto rng = gen_zip_view<_LocalAccMode, _LocalNoInit, _LocalDeferToUserHint>(
+            __first.base(), __last - __first, std::make_index_sequence<__num_it>());
         return __range_holder<decltype(rng)>{rng};
     }
 
     //specialization for transform_iterator
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter, typename _UnaryFunction>
+    template <sycl::access::mode _LocalAccMode, bool /*_LocalNoInit*/,
+              bool /*_LocalDeferToUserHint*/ = _DeferToUserHint, typename _Iter, typename _UnaryFunction>
     auto
     __process_input_iter(oneapi::dpl::transform_iterator<_Iter, _UnaryFunction> __first,
                          oneapi::dpl::transform_iterator<_Iter, _UnaryFunction> __last)
@@ -518,7 +519,10 @@ struct __get_sycl_range
 
         // no_init is dropped for the base sequence because all elements may not be written to for transform iterator.
         // The unary functor may not expose the underlying references for writing for instance.
-        auto res = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false>(__first.base(), __last.base());
+        // For the same reason, any access mode hint the user embedded into the base iterator is overridden, the
+        // adapter, not the user, dictates how the base sequence is accessed.
+        auto res = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false, /*_LocalDeferToUserHint=*/false>(
+            __first.base(), __last.base());
         auto rng = oneapi::dpl::__ranges::transform_view_simple<decltype(res.all_view()), decltype(__first.functor())>{
             res.all_view(), __first.functor()};
 
@@ -526,13 +530,15 @@ struct __get_sycl_range
     }
 
     //specialization for std::reverse_iterator
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
+    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, bool _LocalDeferToUserHint = _DeferToUserHint,
+              typename _Iter>
     auto
-    __process_input_iter(::std::reverse_iterator<_Iter> __first, ::std::reverse_iterator<_Iter> __last)
+    __process_input_iter(std::reverse_iterator<_Iter> __first, std::reverse_iterator<_Iter> __last)
     {
         assert(__first < __last);
 
-        auto __res = __process_input_iter<_LocalAccMode, _LocalNoInit>(__last.base(), __first.base());
+        auto __res =
+            __process_input_iter<_LocalAccMode, _LocalNoInit, _LocalDeferToUserHint>(__last.base(), __first.base());
         auto __rng = oneapi::dpl::__ranges::reverse_view_simple<decltype(__res.all_view())>{__res.all_view()};
 
         return __range_holder<decltype(__rng)>{__rng};
@@ -551,14 +557,17 @@ struct __get_sycl_range
     auto
     __get_permutation_view(_R __r, _Map __m, _Size __s)
     {
-        //For permutation iterator, the Map iterator is always read (only) without no_init
-        auto view_map =
-            __process_input_iter<sycl::access_mode::read, /*_LocalNoInit=*/false>(__m, __m + __s).all_view();
+        //For permutation iterator, the Map iterator is always read (only) without no_init, regardless of any access
+        // mode hint the user may have embedded into it
+        auto view_map = __process_input_iter<sycl::access_mode::read, /*_LocalNoInit=*/false,
+                                             /*_LocalDeferToUserHint=*/false>(__m, __m + __s)
+                            .all_view();
         return oneapi::dpl::__ranges::permutation_view_simple<_R, decltype(view_map)>{__r, view_map};
     }
 
     //specialization for permutation_iterator using sycl_iterator as source
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _It, typename _Map,
+    template <sycl::access::mode _LocalAccMode, bool /*_LocalNoInit*/,
+              bool /*_LocalDeferToUserHint*/ = _DeferToUserHint, typename _It, typename _Map,
               std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_It>, int> = 0>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<_It, _Map> __first,
@@ -576,8 +585,10 @@ struct __get_sycl_range
         //   offset, and use that to recurse as a sycl_iterator over the __base_buffer.
         auto __base_iter = __first.base();
         auto __base_buffer = __base_iter.get_buffer();
-        // no_init is dropped for the base sequence because all elements may not be written to for permutation iterator
-        auto res_src = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false>(
+        // no_init is dropped for the base sequence because all elements may not be written to for permutation iterator.
+        // For the same reason, any access mode hint the user embedded into the base iterator is overridden, the
+        // adapter, not the user, dictates how the base sequence is accessed.
+        auto res_src = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false, /*_LocalDeferToUserHint=*/false>(
             oneapi::dpl::begin(__base_buffer) + __base_iter.get_idx(), oneapi::dpl::end(__base_buffer));
 
         //_Map is handled by recursively calling __get_sycl_range() in __get_permutation_view.
@@ -587,7 +598,8 @@ struct __get_sycl_range
     }
 
     //specialization for permutation_iterator using USM pointer or direct pass object as source
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter, typename _Map,
+    template <sycl::access::mode /*_LocalAccMode*/, bool /*_LocalNoInit*/,
+              bool /*_LocalDeferToUserHint*/ = _DeferToUserHint, typename _Iter, typename _Map,
               std::enable_if_t<!oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> &&
                                    oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>,
                                int> = 0>
@@ -607,7 +619,8 @@ struct __get_sycl_range
 
     // specialization for general case, permutation_iterator with base iterator that is not sycl_iterator or
     // device accessible content iterators.
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter, typename _Map,
+    template <sycl::access::mode _LocalAccMode, bool /*_LocalNoInit*/,
+              bool /*_LocalDeferToUserHint*/ = _DeferToUserHint, typename _Iter, typename _Map,
               std::enable_if_t<!oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> &&
                                    !oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>,
                                int> = 0>
@@ -623,9 +636,10 @@ struct __get_sycl_range
         //      Currently this relies on UB because the size of the accessor when handling sycl_iterators
         //      in recursion below this level is incorrect.
 
-        // no_init is dropped for the base sequence because all elements may not be written to
-        auto res_src = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false>(__first.base(),
-                                                                                   __first.base() + 1 /*source size*/);
+        // no_init is dropped for the base sequence because all elements may not be written to. For the same reason, any
+        // access mode hint the user embedded into the base iterator is overridden.
+        auto res_src = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false, /*_LocalDeferToUserHint=*/false>(
+            __first.base(), __first.base() + 1 /*source size*/);
 
         auto rng = __get_permutation_view(res_src.all_view(), __first.map(), __n);
 
@@ -633,7 +647,8 @@ struct __get_sycl_range
     }
 
     //specialization for permutation discard iterator
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Map>
+    template <sycl::access::mode /*_LocalAccMode*/, bool /*_LocalNoInit*/,
+              bool /*_LocalDeferToUserHint*/ = _DeferToUserHint, typename _Map>
     auto
     __process_input_iter(oneapi::dpl::permutation_iterator<oneapi::dpl::discard_iterator, _Map> __first,
                          oneapi::dpl::permutation_iterator<oneapi::dpl::discard_iterator, _Map> __last)
@@ -647,7 +662,8 @@ struct __get_sycl_range
     }
 
     // for raw pointers and direct pass objects (for example, counting_iterator, iterator of USM-containers)
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
+    template <sycl::access::mode /*_LocalAccMode*/, bool /*_LocalNoInit*/,
+              bool /*_LocalDeferToUserHint*/ = _DeferToUserHint, typename _Iter>
     std::enable_if_t<!oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> &&
                          oneapi::dpl::__ranges::__is_passed_directly_device_ready_v<_Iter>,
                      __range_holder<oneapi::dpl::__ranges::guard_view<_Iter>>>
@@ -659,17 +675,18 @@ struct __get_sycl_range
     }
 
     //specialization for hetero iterator
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
+    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, bool _LocalDeferToUserHint = _DeferToUserHint,
+              typename _Iter>
     auto
-    __process_input_iter(_Iter __first, _Iter __last)
-        -> std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter>,
-                            __range_holder<oneapi::dpl::__ranges::all_view<
-                                val_t<_Iter>, __resolve_access_mode<_LocalAccMode, _LocalNoInit, _Iter>::__value,
-                                __resolve_access_mode<_LocalAccMode, _LocalNoInit, _Iter>::__no_init>>>
+    __process_input_iter(_Iter __first, _Iter __last) -> std::enable_if_t<
+        oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter>,
+        __range_holder<oneapi::dpl::__ranges::all_view<
+            val_t<_Iter>, __resolve_access_mode<_LocalAccMode, _LocalNoInit, _LocalDeferToUserHint, _Iter>::__value,
+            __resolve_access_mode<_LocalAccMode, _LocalNoInit, _LocalDeferToUserHint, _Iter>::__no_init>>>
     {
-        constexpr sycl::access::mode __resolved_mode =
-            __resolve_access_mode<_LocalAccMode, _LocalNoInit, _Iter>::__value;
-        constexpr bool __resolved_no_init = __resolve_access_mode<_LocalAccMode, _LocalNoInit, _Iter>::__no_init;
+        using __resolver = __resolve_access_mode<_LocalAccMode, _LocalNoInit, _LocalDeferToUserHint, _Iter>;
+        constexpr sycl::access::mode __resolved_mode = __resolver::__value;
+        constexpr bool __resolved_no_init = __resolver::__no_init;
 
         static_assert(!(__resolved_mode == sycl::access::mode::read && __resolved_no_init),
                       "Read mode cannot be used with no_init property.");
@@ -694,7 +711,8 @@ struct __get_sycl_range
     }
 
     //SFINAE-overload for a contiguous host iterator
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
+    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, bool /*_LocalDeferToUserHint*/ = _DeferToUserHint,
+              typename _Iter>
     auto
     __process_input_iter(_Iter __first, _Iter __last)
         -> std::enable_if_t<is_temp_buff<_Iter>::value && __is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
@@ -725,7 +743,8 @@ struct __get_sycl_range
     }
 
     //SFINAE-overload for non-contiguous host iterator
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
+    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, bool /*_LocalDeferToUserHint*/ = _DeferToUserHint,
+              typename _Iter>
     auto
     __process_input_iter(_Iter __first, _Iter __last)
         -> std::enable_if_t<is_temp_buff<_Iter>::value && !__is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
@@ -783,8 +802,9 @@ struct __get_sycl_range
     auto
     operator()(_ArgTypes... __args)
     {
-        //when called using operator(), use access mode and no_init flag provided by the struct template parameters
-        return __process_input_iter<AccMode, _IsNoInitRequested>(std::forward<_ArgTypes>(__args)...);
+        //when called using operator(), use access mode, no_init flag and user hint deference provided by the struct
+        // template parameters
+        return __process_input_iter<AccMode, _IsNoInitRequested, _DeferToUserHint>(std::forward<_ArgTypes>(__args)...);
     }
 };
 
