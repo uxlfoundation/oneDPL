@@ -65,6 +65,58 @@ else()
             "Select one of the following values: AUTO, ALWAYS")
 endif()
 
+# testing level (amount/size of test data)
+set(ONEDPL_TEST_LEVEL DEFAULT CACHE STRING "Testing level used in tests")
+set_property(CACHE ONEDPL_TEST_LEVEL PROPERTY STRINGS SMOKE DEFAULT STRESS)
+message(STATUS "Testing level: ONEDPL_TEST_LEVEL=${ONEDPL_TEST_LEVEL}")
+if (${ONEDPL_TEST_LEVEL} STREQUAL SMOKE)
+    set(_onedpl_test_level_value 0)
+elseif (${ONEDPL_TEST_LEVEL} STREQUAL DEFAULT)
+    set(_onedpl_test_level_value 1)
+elseif (${ONEDPL_TEST_LEVEL} STREQUAL STRESS)
+    set(_onedpl_test_level_value 2)
+else()
+    message(FATAL_ERROR "Unsupported testing level: ${ONEDPL_TEST_LEVEL}.\n"
+            "Select one of the following values: SMOKE, DEFAULT, STRESS")
+endif()
+message(STATUS "    #define ONEDPL_TEST_LEVEL ${_onedpl_test_level_value}")
+
+set(_build_type_in_lower "unknown")
+if (CMAKE_BUILD_TYPE)
+    string(TOLOWER "${CMAKE_BUILD_TYPE}" _build_type_in_lower)
+endif()
+
+# Precompiled header shared by the std_ranges tests. It is built once by a donor target
+# and reused by the tests, which noticeably reduces the cost of parsing the common headers.
+option(ONEDPL_TEST_USE_PCH "Use a precompiled header for the std_ranges tests" OFF)
+message(STATUS "Usage of a precompiled header in tests: ONEDPL_TEST_USE_PCH=${ONEDPL_TEST_USE_PCH}")
+if (ONEDPL_TEST_USE_PCH)
+    add_library(onedpl_std_ranges_pch OBJECT EXCLUDE_FROM_ALL
+        "${CMAKE_CURRENT_LIST_DIR}/parallel_api/ranges/std_ranges_pch.cpp")
+    target_compile_definitions(onedpl_std_ranges_pch PRIVATE _PSTL_TEST_SUCCESSFUL_KEYWORD=1)
+    target_compile_definitions(onedpl_std_ranges_pch PRIVATE ONEDPL_TEST_LEVEL=${_onedpl_test_level_value})
+    if (MSVC)
+        target_compile_options(onedpl_std_ranges_pch PRIVATE /bigobj)
+    endif()
+    # The std_ranges tests are registered with the checked iterators switched off,
+    # the donor has to be built with the very same options, otherwise the header is rejected.
+    if (WIN32 AND ${_build_type_in_lower} STREQUAL "debug")
+        target_compile_definitions(onedpl_std_ranges_pch PRIVATE _ITERATOR_DEBUG_LEVEL=0)
+        target_compile_options(onedpl_std_ranges_pch PRIVATE "/MD$<$<CONFIG:Debug>:>")
+    endif()
+    target_include_directories(onedpl_std_ranges_pch PRIVATE "${CMAKE_CURRENT_LIST_DIR}")
+    target_link_libraries(onedpl_std_ranges_pch PRIVATE oneDPL)
+    if (_gcc_link_tbb)
+        target_link_libraries(onedpl_std_ranges_pch PRIVATE TBB::tbb)
+    endif()
+    set_target_properties(onedpl_std_ranges_pch PROPERTIES CXX_EXTENSIONS NO)
+    target_precompile_headers(onedpl_std_ranges_pch PRIVATE
+        "${CMAKE_CURRENT_LIST_DIR}/parallel_api/ranges/std_ranges_test.h")
+
+    # Tests that define macros before including the shared header cannot reuse the precompiled one
+    set(_onedpl_pch_excluded_tests "std_ranges_zip_view_algo.pass")
+endif()
+
 add_custom_target(build-onedpl-tests
     COMMENT "Build all oneDPL tests")
 
@@ -91,6 +143,7 @@ macro(onedpl_construct_exec test_source_file _test_name switch_off_checked_itera
     else()
         add_executable(${_test_name} EXCLUDE_FROM_ALL "${test_source_file}")
         target_compile_definitions(${_test_name} PRIVATE _PSTL_TEST_SUCCESSFUL_KEYWORD=1)
+        target_compile_definitions(${_test_name} PRIVATE ONEDPL_TEST_LEVEL=${_onedpl_test_level_value})
 
         if (NOT ${custom_define} STREQUAL "")
             target_compile_definitions(${_test_name} PRIVATE ${custom_define})
@@ -116,6 +169,11 @@ macro(onedpl_construct_exec test_source_file _test_name switch_off_checked_itera
             target_link_libraries(${_test_name} PRIVATE TBB::tbb)
         endif()
         set_target_properties(${_test_name} PROPERTIES CXX_EXTENSIONS NO)
+
+        if (ONEDPL_TEST_USE_PCH AND test_source_file MATCHES "test/parallel_api/ranges/"
+            AND "${custom_define}" STREQUAL "" AND NOT _test_name IN_LIST _onedpl_pch_excluded_tests)
+            target_precompile_headers(${_test_name} REUSE_FROM onedpl_std_ranges_pch)
+        endif()
 
         add_test(NAME ${_test_name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${_test_name})
 
