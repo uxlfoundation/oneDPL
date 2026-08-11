@@ -358,6 +358,16 @@
 #    define _ONEDPL_HIDDEN_FRIENDS_SIBLING_ACCESS_BROKEN 0
 #endif
 
+// sycl::property::no_init on a ranged accessor (one covering only a sub-range of its buffer) discards the contents
+// of the whole buffer in the DPC++ runtime, rather than only the elements within the accessor's range as specified.
+// Known broken in all released icpx versions to date; bump the bound once a fixed version ships.
+// version ships.
+#if __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER <= 20260100
+#    define _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN 1
+#else
+#    define _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN 0
+#endif
+
 // -- Configure heterogeneous backends --
 
 #if !defined(ONEDPL_ALLOW_DEFERRED_WAITING)
