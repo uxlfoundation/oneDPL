@@ -19,6 +19,10 @@ New Features
   ``is_heap``, ``is_heap_until``, ``is_partitioned``, ``nth_element``, ``partial_sort``, ``partial_sort_copy``,
   ``partition``, ``partition_copy``, ``rotate``, ``rotate_copy``, ``shift_left,``, ``shift_right``,
   ``stable_partition``
+- Added experimental ``device_array`` in ``namespace oneapi::dpl::experimental``: a fixed-size RAII container
+  which simplifies device memory allocation, deallocation, and transfers.
+- Added the ``oneapi::dpl::span`` alias, used in the ``device_array`` interface. It is defined as ``std::span``
+  where available (C++20 and later), and to ``sycl::span`` as a fallback where it is available.
 
 Known Issues and Limitations
 ----------------------------
