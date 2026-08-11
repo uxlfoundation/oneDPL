@@ -15,6 +15,10 @@ New in 2022.14.0
 
 New Features
 ------------
+- Added more parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``inplace_merge``,
+  ``is_heap``, ``is_heap_until``, ``is_partitioned``, ``nth_element``, ``partial_sort``, ``partial_sort_copy``,
+  ``partition``, ``partition_copy``, ``rotate``, ``rotate_copy``, ``shift_left,``, ``shift_right``,
+  ``stable_partition``
 
 Known Issues and Limitations
 ----------------------------
