@@ -14,6 +14,7 @@ The following variables are provided for oneDPL configuration:
 | ONEDPL_CMAKE_QUIET_CHECKS                | BOOL   | Silence compiler/header check output during CMake configuration. Set to OFF to see verbose output for debugging | ON            |
 | ONEDPL_TEST_EXPLICIT_KERNEL_NAMES   | STRING | Control kernel naming. Affects only oneDPL test targets. Supported values: AUTO, ALWAYS. AUTO: rely on the compiler if "Unnamed SYCL lambda kernels" feature is on, otherwise provide kernel names explicitly; ALWAYS: provide kernel names explicitly | AUTO          |
 | ONEDPL_TEST_WIN_ICX_FIXES     | BOOL   | Affects only oneDPL test targets.  Enable icx, icx-cl workarounds to fix issues in CMake for Windows.                      | ON            |
+| ONEDPL_TEST_LEVEL                        | STRING | Coverage of oneDPL test targets, see [Test level](#test-level). Supported values: SMOKE, DEFAULT, STRESS | DEFAULT       |
 | ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION | BOOL | Use as a workaround for incorrect results, which may be produced by reduction algorithms with 64-bit data types compiled by the Intel&reg; oneAPI DPC++/C++ Compiler and executed on GPU devices. |               |
 
 Some useful CMake variables ([here](https://cmake.org/cmake/help/latest/manual/cmake-variables.7.html) you can find a full list of CMake variables for the latest version):
@@ -42,6 +43,28 @@ The following targets are available for build system after configuration:
 
 Sudirectories are added as labels for each test and can be used with `ctest -L <label>`.
 For example, `<root>/test/path/to/test.pass.cpp` will have `path` and `to` labels.
+
+### Test level
+
+`ONEDPL_TEST_LEVEL` controls how much coverage the tests provide. It is a compile-time setting,
+so it has to be specified at the configuration step. Currently it affects the `std_ranges` tests.
+
+| Value   | Coverage                                                                                                              |
+|---------|-----------------------------------------------------------------------------------------------------------------------|
+| SMOKE   | The fastest to build and to run: a single range/view permutation, `par_unseq` as the only host policy, small data sizes |
+| DEFAULT | All the range/view permutations, all the host policies, moderate data sizes                                             |
+| STRESS  | All the range/view permutations, all the host policies, the biggest data sizes                                          |
+
+For example:
+
+```
+cmake -DONEDPL_TEST_LEVEL=SMOKE <...> <root>
+cmake --build . --target build-onedpl-ranges-tests
+ctest -L ^ranges$
+```
+
+**NOTE**: `ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS` is derived from the test level, but an explicitly
+specified value of that macro takes priority over the level.
 
 ## Using oneDPL with NVIDIA and AMD GPUs with the oneAPI DPC++ compiler
 

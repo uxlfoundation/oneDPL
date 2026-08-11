@@ -24,6 +24,29 @@
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Compile-time testing levels.
+//
+// ONEDPL_TEST_LEVEL_SMOKE   - minimal coverage, the fastest to build and to run
+// ONEDPL_TEST_LEVEL_DEFAULT - the default coverage
+// ONEDPL_TEST_LEVEL_STRESS  - the widest coverage with the biggest data sizes
+//
+// The level is selected with -DONEDPL_TEST_LEVEL=<value> and must be an integral
+// preprocessor constant, so that it can be used in #if directives.
+
+#define ONEDPL_TEST_LEVEL_SMOKE 0
+#define ONEDPL_TEST_LEVEL_DEFAULT 1
+#define ONEDPL_TEST_LEVEL_STRESS 2
+
+#ifndef ONEDPL_TEST_LEVEL
+#    define ONEDPL_TEST_LEVEL ONEDPL_TEST_LEVEL_DEFAULT
+#endif
+
+#if ONEDPL_TEST_LEVEL != ONEDPL_TEST_LEVEL_SMOKE && ONEDPL_TEST_LEVEL != ONEDPL_TEST_LEVEL_DEFAULT &&                  \
+    ONEDPL_TEST_LEVEL != ONEDPL_TEST_LEVEL_STRESS
+#    error "Invalid ONEDPL_TEST_LEVEL value; expected 0 (smoke), 1 (default) or 2 (stress)"
+#endif
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // *** When updating we must audit each usage to ensure that the issue still exists in the latest version ***
 
 //

@@ -29,8 +29,8 @@
 static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202608L);
 
 #if TEST_CPP20_SPAN_PRESENT
-#include <span>
-#endif
+#   include <span>
+#endif // TEST_CPP20_SPAN_PRESENT
 #include <vector>
 #include <typeinfo>
 #include <type_traits>
@@ -47,8 +47,15 @@ static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202608L);
 // this to 0 for the bulk of the std_ranges tests when building with the dpcpp
 // backend; a couple of representative tests force it back to 1 so full
 // permutation coverage is still exercised in that CI.
+// If it is not set explicitly (an explicit setting has priority to keep the CI behavior),
+// it is derived from ONEDPL_TEST_LEVEL: smoke level builds a single permutation,
+// default and stress levels build all the permutations.
 #    ifndef ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
-#        define ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS 1
+#        if ONEDPL_TEST_LEVEL == ONEDPL_TEST_LEVEL_SMOKE
+#            define ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS 0
+#        else
+#            define ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS 1
+#        endif
 #    endif
 
 namespace test_std_ranges
@@ -63,7 +70,7 @@ inline constexpr int big_size = (1<<22) + 37; //4M
 #else
 // The largest specializations of algorithms with device policies handle 16M+ elements.
 inline constexpr int big_size = (1<<24) + 10; //16M
-#endif
+#endif // PSTL_USE_DEBUG
 
 // Cap used for the device tier of scan-based std_ranges tests when the dpcpp
 // backend targets a CPU device.
@@ -96,7 +103,7 @@ get_scan_big_sz()
 {
     return {/*serial*/ small_size, /*par*/ medium_size};
 }
-#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 enum TestDataMode
 {
@@ -341,10 +348,15 @@ struct test
     void
     host_policies(int n_serial, int n_parallel, auto algo, auto& checker, auto... args)
     {
+#if ONEDPL_TEST_LEVEL == ONEDPL_TEST_LEVEL_SMOKE
+        //at the smoke level only one representative host policy is tested
+        operator()(n_parallel, oneapi::dpl::execution::par_unseq, algo, checker, args...);
+#else
         operator()(n_serial,   oneapi::dpl::execution::seq,       algo, checker, args...);
         operator()(n_serial,   oneapi::dpl::execution::unseq,     algo, checker, args...);
         operator()(n_parallel, oneapi::dpl::execution::par,       algo, checker, args...);
         operator()(n_parallel, oneapi::dpl::execution::par_unseq, algo, checker, args...);
+#endif
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
@@ -966,7 +978,7 @@ using  host_subrange = host_subrange_impl<T, std::ranges::subrange<T*>>;
 #if TEST_CPP20_SPAN_PRESENT
 template<typename T>
 using  host_span = host_subrange_impl<T, std::span<T>>;
-#endif
+#endif // TEST_CPP20_SPAN_PRESENT
 
 template<typename T>
 struct host_vector
@@ -1081,7 +1093,7 @@ using  usm_subrange = usm_subrange_impl<T, std::ranges::subrange<T*>>;
 #if TEST_CPP20_SPAN_PRESENT
 template<typename T>
 using  usm_span = usm_subrange_impl<T, std::span<T>>;
-#endif
+#endif // TEST_CPP20_SPAN_PRESENT
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
@@ -1103,35 +1115,60 @@ struct span_view_fo
         return std::span(v);
     }
 };
-#endif
+#endif // TEST_CPP20_SPAN_PRESENT
 
 template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
 struct test_range_algo
 {
+#    if ONEDPL_TEST_LEVEL == ONEDPL_TEST_LEVEL_SMOKE
     const int n_serial = small_size;
-    const int n_parallel = medium_size/8; // 16K
-#if TEST_DPCPP_BACKEND_PRESENT
+    const int n_parallel = small_size;
+#        if TEST_DPCPP_BACKEND_PRESENT
+    const int n_device = small_size;
+#        endif // TEST_DPCPP_BACKEND_PRESENT
+#    elif ONEDPL_TEST_LEVEL == ONEDPL_TEST_LEVEL_STRESS
+    const int n_serial = medium_size;
+    const int n_parallel = medium_size;
+#        if TEST_DPCPP_BACKEND_PRESENT
+    const int n_device = big_size;
+#        endif // TEST_DPCPP_BACKEND_PRESENT
+#    else
+    const int n_serial = small_size;
+    const int n_parallel = medium_size / 8; // 16K
+#        if TEST_DPCPP_BACKEND_PRESENT
     const int n_device = medium_size;
-#endif
+#        endif // TEST_DPCPP_BACKEND_PRESENT
+#    endif     // ONEDPL_TEST_LEVEL
 
     test_range_algo() = default;
 
+    // At the smoke level the explicitly requested sizes are capped to keep the run time low
+    static constexpr int
+    adjust_n(int n)
+    {
+#if ONEDPL_TEST_LEVEL == ONEDPL_TEST_LEVEL_SMOKE
+        return std::min(n, small_size);
+#else
+        return n;
+#endif
+    }
+
     // Mode with a uniform number of elements for each policy type
 #if TEST_DPCPP_BACKEND_PRESENT
-    test_range_algo(int n) : n_serial(n), n_parallel(n), n_device(n) {}
+    test_range_algo(int n) : n_serial(adjust_n(n)), n_parallel(adjust_n(n)), n_device(adjust_n(n)) {}
 #else
-    test_range_algo(int n) : n_serial(n), n_parallel(n) {}
+    test_range_algo(int n) : n_serial(adjust_n(n)), n_parallel(adjust_n(n)) {}
 #endif
 
     // Mode that tests different policy types with different sizes.
     // Serial (seq/unseq), parallel (par/par_unseq), and device policies
     // specialize algorithms for different number of elements, which this mode covers.
 #if TEST_DPCPP_BACKEND_PRESENT
-    test_range_algo(std::array<int, 3> sizes) : n_serial(sizes[0]), n_parallel(sizes[1]), n_device(sizes[2]) {}
+    test_range_algo(std::array<int, 3> sizes) : n_serial(adjust_n(sizes[0])), n_parallel(adjust_n(sizes[1])), n_device(adjust_n(sizes[2])) {}
 #else
-    test_range_algo(std::array<int, 2> sizes) : n_serial(sizes[0]), n_parallel(sizes[1]) {}
-#endif
+    test_range_algo(std::array<int, 2> sizes) : n_serial(adjust_n(sizes[0])), n_parallel(adjust_n(sizes[1])) {}
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     void test_view_host(auto view, auto algo, auto& checker, auto... args)
     {
@@ -1150,19 +1187,18 @@ struct test_range_algo
     test_range_algo_impl_host(auto algo, auto& checker, auto... args)
     {
         auto subrange_view = subrange_view_fo{};
-#    if TEST_CPP20_SPAN_PRESENT && ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
-        auto span_view = span_view_fo{};
-#endif
 
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, subrange_view,    std::identity{}, args...);
+        test<T,   host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker,   subrange_view, std::identity{}, args...);
 #    if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{}, std::identity{}, args...);
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
-        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
-#if TEST_CPP20_SPAN_PRESENT
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, span_view,        std::identity{}, args...);
-        test<T, host_span<T>,     mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
-#endif
+        test<T,   host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{}, std::identity{}, args...);
+        test<T,   host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
+        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
+
+#        if TEST_CPP20_SPAN_PRESENT
+        auto span_view = span_view_fo{};
+        test<T,   host_vector<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker,       span_view, std::identity{}, args...);
+        test<T,     host_span<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all, std::identity{}, args...);
+#        endif // TEST_CPP20_SPAN_PRESENT
 #    endif // ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     }
 
@@ -1171,24 +1207,23 @@ struct test_range_algo
     void test_range_algo_impl_hetero(Policy&& exec, auto algo, auto& checker, auto... args)
     {
         auto subrange_view = subrange_view_fo{};
-#        if TEST_CPP20_SPAN_PRESENT && ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
-        auto span_view = span_view_fo{};
-#endif
 
         //Skip the cases with pointer-to-function and hetero policy because pointer-to-function is not supported within kernel code.
         if constexpr(!std::disjunction_v<std::is_member_function_pointer<decltype(args)>...>)
         {
 #if _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
-#endif
+#endif // _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN
             {
                 test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
 #        if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
                 test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
-#if TEST_CPP20_SPAN_PRESENT
+
+#           if TEST_CPP20_SPAN_PRESENT
+                auto span_view = span_view_fo{};
                 test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
                 test<T, usm_span<T>,     mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
-#endif
+#            endif // TEST_CPP20_SPAN_PRESENT
 #        endif // ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
             }
         }
@@ -1204,9 +1239,9 @@ struct test_range_algo
         auto policy = TestUtils::get_dpcpp_test_policy();
         test_range_algo_impl_hetero(policy, algo, checker, args...);
 
-#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+#       if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
         TestUtils::check_compilation(policy, [&](auto&& policy) { test_range_algo_impl_hetero(policy, algo, checker, args...); });
-#endif
+#        endif // TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
 #endif // TEST_DPCPP_BACKEND_PRESENT
     }
 };
