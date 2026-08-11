@@ -54,16 +54,18 @@ struct Elem_0
 template<typename>
 constexpr int test_mode_id = 0;
 
-template<typename Elem, int no_init_val>
+template<typename Elem, int no_init_val, typename OutElem = Elem>
 struct test_memory_algo
 {
     void run_host(auto algo, auto checker, auto&&... args)
     {
         std::allocator<Elem> alloc;
-        run_one_policy(alloc, oneapi::dpl::execution::seq, algo, checker, args...);
-        run_one_policy(alloc, oneapi::dpl::execution::unseq, algo, checker, args...);
-        run_one_policy(alloc, oneapi::dpl::execution::par, algo, checker, args...);
-        run_one_policy(alloc, oneapi::dpl::execution::par_unseq, algo, checker, std::forward<decltype(args)>(args)...);
+        std::allocator<OutElem> out_alloc;
+        run_one_policy(alloc, out_alloc, oneapi::dpl::execution::seq, algo, checker, args...);
+        run_one_policy(alloc, out_alloc, oneapi::dpl::execution::unseq, algo, checker, args...);
+        run_one_policy(alloc, out_alloc, oneapi::dpl::execution::par, algo, checker, args...);
+        run_one_policy(alloc, out_alloc, oneapi::dpl::execution::par_unseq, algo, checker,
+                       std::forward<decltype(args)>(args)...);
     }
 #if TEST_DPCPP_BACKEND_PRESENT
     void run_device(auto algo, auto checker, auto&&... args)
@@ -71,8 +73,9 @@ struct test_memory_algo
         //sycl::usm::alloc _alloc_type
         auto policy = TestUtils::get_dpcpp_test_policy();
         sycl::usm_allocator<Elem, sycl::usm::alloc::shared> q_alloc{policy.queue()};
+        sycl::usm_allocator<OutElem, sycl::usm::alloc::shared> q_out_alloc{policy.queue()};
 
-        run_one_policy(q_alloc, policy, algo, checker, std::forward<decltype(args)>(args)...);
+        run_one_policy(q_alloc, q_out_alloc, policy, algo, checker, std::forward<decltype(args)>(args)...);
     }
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
@@ -86,7 +89,7 @@ struct test_memory_algo
 
 private:
     // Tests both subrange and span
-    void run_one_policy(auto& alloc, auto&& policy, auto algo, auto checker, auto&&... args)
+    void run_one_policy(auto& alloc, auto& out_alloc, auto&& policy, auto algo, auto checker, auto&&... args)
     {
         const std::size_t n_in = medium_size;
         Elem* data_in1 = alloc.allocate(n_in);
@@ -100,12 +103,12 @@ private:
         if constexpr (test_mode_id<std::remove_cvref_t<decltype(algo)>> == 1)
         {
             const std::size_t n_out = n_in / 2; // to check minimal size logic
-            Elem* data_out1 = alloc.allocate(n_out);
-            Elem* data_out2 = alloc.allocate(n_out);
+            OutElem* data_out1 = out_alloc.allocate(n_out);
+            OutElem* data_out2 = out_alloc.allocate(n_out);
             std::ranges::subrange subrange_out(data_out1, data_out1 + n_out);
             std::span span_out(data_out2, n_out);
-            std::memset(reinterpret_cast<void*>(data_out1), no_init_val, n_out*sizeof(Elem));
-            std::memset(reinterpret_cast<void*>(data_out2), no_init_val, n_out*sizeof(Elem));
+            std::memset(reinterpret_cast<void*>(data_out1), no_init_val, n_out*sizeof(OutElem));
+            std::memset(reinterpret_cast<void*>(data_out2), no_init_val, n_out*sizeof(OutElem));
 
             std::uninitialized_fill(data_in1, data_in1 + n_in, 5);
             std::uninitialized_fill(data_in2, data_in2 + n_in, 5);
@@ -115,8 +118,8 @@ private:
             run_impl(CLONE_TEST_POLICY_IDX(policy, 1), algo, checker, std::move(span_in), std::move(span_out),
                      std::forward<decltype(args)>(args)...);
 #endif
-            alloc.deallocate(data_out1, n_out);
-            alloc.deallocate(data_out2, n_out);
+            out_alloc.deallocate(data_out1, n_out);
+            out_alloc.deallocate(data_out2, n_out);
         }
         // One range: destroy, uninitialized_fill, uninitialized_default_construct, uninitialized_value_construct
         else
