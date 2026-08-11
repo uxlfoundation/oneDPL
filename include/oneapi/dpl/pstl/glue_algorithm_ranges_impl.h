@@ -51,6 +51,28 @@ namespace dpl
 namespace ranges
 {
 
+namespace __internal
+{
+// The algorithms taking a value build an internal functor keeping that value. For device policies
+// the functor is captured into a kernel by copy, so the value has to be device copyable. Checking it
+// here gives a readable diagnostic instead of an error from the depths of the backend.
+template <typename _ExecutionPolicy, typename _T>
+constexpr void
+__check_value_device_copyable()
+{
+#if _ONEDPL_BACKEND_SYCL
+    if constexpr (oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<_ExecutionPolicy>>)
+    {
+        static_assert(std::is_copy_constructible_v<std::remove_cv_t<_T>>,
+                      "The value passed to the algorithm is captured into a kernel by copy, so it must be copy "
+                      "constructible to use a device policy");
+        static_assert(sycl::is_device_copyable_v<std::remove_cv_t<_T>>,
+                      "The value passed to the algorithm must be device copyable to use a device policy");
+    }
+#endif
+}
+} // namespace __internal
+
 // [alg.foreach]
 
 struct __internal::__for_each_fn
@@ -175,8 +197,14 @@ struct __internal::__find_fn
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
+        __internal::__check_value_device_copyable<_ExecutionPolicy, _T>();
+
         // TODO: make sure std::ranges::equal_to is used for comparison
-        return oneapi::dpl::ranges::find_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+        // The pattern is called directly: __equal_value is an implementation detail and is not
+        // required to satisfy std::indirect_unary_predicate, which find_if would additionally check.
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_find_if(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>
                 (__value), __proj);
     }
@@ -231,9 +259,20 @@ struct __internal::__find_last_fn
     std::ranges::borrowed_subrange_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
-        return oneapi::dpl::ranges::find_last_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+        __internal::__check_value_device_copyable<_ExecutionPolicy, _T>();
+
+        // TODO: make sure std::ranges::equal_to is used for comparison
+        // See the comment in __find_fn on why the pattern is called directly.
+        std::ranges::reverse_view __reverse_r{__r};
+
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        auto __res = oneapi::dpl::__internal::__ranges::__pattern_find_if(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), __reverse_r,
             oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>
                 (__value), __proj);
+
+        auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
+        return {(__res == __reverse_r.end()) ? __last : __res.base() - 1, __last};
     }
 }; //__find_last_fn
 inline constexpr __internal::__find_last_fn find_last;
@@ -461,6 +500,8 @@ struct __internal::__count_fn
     std::ranges::range_difference_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
+        __internal::__check_value_device_copyable<_ExecutionPolicy, _T>();
+
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         // TODO: make sure std::ranges::equal_to is used for comparison
         return oneapi::dpl::__internal::__ranges::__pattern_count(__dispatch_tag,
@@ -1108,12 +1149,20 @@ struct __internal::__replace_if_fn
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, const _T& __new_value, _Proj __proj = {}) const
     {
-        return oneapi::dpl::ranges::for_each(
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+        __internal::__check_value_device_copyable<_ExecutionPolicy, _T>();
+
+        // The pattern is called directly: __replace_functor is an implementation detail and is not
+        // required to satisfy std::indirectly_unary_invocable, which for_each would additionally check.
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        oneapi::dpl::__internal::__ranges::__pattern_for_each(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __r,
             oneapi::dpl::__internal::__replace_functor<
                 oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>,
                 oneapi::dpl::__internal::__unary_op<_Pred, _Proj>>(
-                __new_value, oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj}));
+                __new_value, oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj}),
+            std::identity{});
+
+        return {std::ranges::begin(__r) + std::ranges::size(__r)};
     }
 }; //__replace_if_fn
 inline constexpr __internal::__replace_if_fn replace_if;
@@ -1132,12 +1181,24 @@ struct __internal::__replace_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T1& __old_value, const _T2& __new_value,
                _Proj __proj = {}) const
     {
+        __internal::__check_value_device_copyable<_ExecutionPolicy, _T1>();
+        __internal::__check_value_device_copyable<_ExecutionPolicy, _T2>();
+
         // TODO: make sure std::ranges::equal_to is used for comparison
-        return oneapi::dpl::ranges::replace_if(
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>>(
-                __old_value),
-            __new_value, __proj);
+        // See the comment in __replace_if_fn on why the pattern is called directly.
+        using _Pred =
+            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>>;
+
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        oneapi::dpl::__internal::__ranges::__pattern_for_each(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __r,
+            oneapi::dpl::__internal::__replace_functor<
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T2>,
+                oneapi::dpl::__internal::__unary_op<_Pred, _Proj>>(
+                __new_value, oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{_Pred(__old_value), __proj}),
+            std::identity{});
+
+        return {std::ranges::begin(__r) + std::ranges::size(__r)};
     }
 }; //__replace_fn
 inline constexpr __internal::__replace_fn replace;
@@ -1158,6 +1219,8 @@ struct __internal::__replace_copy_if_fn
     operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r, _Pred __pred, const _T& __new_value,
                _Proj __proj = {}) const
     {
+        __internal::__check_value_device_copyable<_ExecutionPolicy, _T>();
+
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         const oneapi::dpl::__ranges::__common_size_t<_InRange, _OutRange> __size =
             oneapi::dpl::__ranges::__min_size_calc{}(__in_r, __out_r);
@@ -1190,11 +1253,23 @@ struct __internal::__replace_copy_fn
     operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r, const _T1& __old_value,
                const _T2& __new_value, _Proj __proj = {}) const
     {
-        return oneapi::dpl::ranges::replace_copy_if(
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r),
+        __internal::__check_value_device_copyable<_ExecutionPolicy, _T1>();
+        __internal::__check_value_device_copyable<_ExecutionPolicy, _T2>();
+
+        // TODO: make sure std::ranges::equal_to is used for comparison
+        // See the comment in __find_fn on why the pattern is called directly.
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        const oneapi::dpl::__ranges::__common_size_t<_InRange, _OutRange> __size =
+            oneapi::dpl::__ranges::__min_size_calc{}(__in_r, __out_r);
+
+        oneapi::dpl::__internal::__ranges::__pattern_replace_copy_if(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::take_view(__in_r, __size),
+            std::ranges::take_view(__out_r, __size),
             oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>>(
                 __old_value),
-            __new_value, __proj);
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T2>{__new_value}, __proj);
+
+        return {std::ranges::begin(__in_r) + __size, std::ranges::begin(__out_r) + __size};
     }
 }; //__replace_copy_fn
 inline constexpr __internal::__replace_copy_fn replace_copy;
@@ -1508,9 +1583,14 @@ struct __internal::__remove_fn
     std::ranges::borrowed_subrange_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
-        // TODO: change lambda to a special functor
-        return oneapi::dpl::ranges::remove_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            [__value](auto&& __a) { return std::ranges::equal_to{}(__a, __value);}, __proj);
+        __internal::__check_value_device_copyable<_ExecutionPolicy, _T>();
+
+        // TODO: make sure std::ranges::equal_to is used for comparison
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        return oneapi::dpl::__internal::__ranges::__pattern_remove_if(__dispatch_tag,
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>(
+                __value), __proj);
     }
 }; //__remove_fn
 inline constexpr __internal::__remove_fn remove;
@@ -1549,8 +1629,13 @@ struct __internal::__remove_copy_fn
     std::ranges::remove_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r, const _T& __value, _Proj __proj = {}) const
     {
+        __internal::__check_value_device_copyable<_ExecutionPolicy, _T>();
+
         // TODO: make sure std::ranges::equal_to is used for comparison
-        return oneapi::dpl::ranges::copy_if(
+        // See the comment in __find_fn on why the pattern is called directly.
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        // No minimum common size is calculated here, because the size of the output range is unknown
+        return oneapi::dpl::__internal::__ranges::__pattern_copy_if_ranges(__dispatch_tag,
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), std::forward<_OutR>(__out_r),
             oneapi::dpl::__internal::__not_equal_value<
                 oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>(__value), __proj);
