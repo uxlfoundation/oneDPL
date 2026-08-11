@@ -678,11 +678,12 @@ struct __get_sycl_range
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, bool _LocalDeferToUserHint = _DeferToUserHint,
               typename _Iter>
     auto
-    __process_input_iter(_Iter __first, _Iter __last) -> std::enable_if_t<
-        oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter>,
-        __range_holder<oneapi::dpl::__ranges::all_view<
-            val_t<_Iter>, __resolve_access_mode<_LocalAccMode, _LocalNoInit, _LocalDeferToUserHint, _Iter>::__value,
-            __resolve_access_mode<_LocalAccMode, _LocalNoInit, _LocalDeferToUserHint, _Iter>::__no_init>>>
+    __process_input_iter(_Iter __first, _Iter __last)
+        -> std::enable_if_t<
+            oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter>,
+            __range_holder<oneapi::dpl::__ranges::all_view<
+                val_t<_Iter>, __resolve_access_mode<_LocalAccMode, _LocalNoInit, _LocalDeferToUserHint, _Iter>::__value,
+                __resolve_access_mode<_LocalAccMode, _LocalNoInit, _LocalDeferToUserHint, _Iter>::__no_init>>>
     {
         using __resolver = __resolve_access_mode<_LocalAccMode, _LocalNoInit, _LocalDeferToUserHint, _Iter>;
         constexpr sycl::access::mode __resolved_mode = __resolver::__value;
