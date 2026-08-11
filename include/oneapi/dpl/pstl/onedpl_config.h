@@ -362,7 +362,7 @@
 // of the whole buffer in the DPC++ runtime, rather than only the elements within the accessor's range as specified.
 // Known broken in all released icpx versions to date; bump the bound once a fixed version ships.
 // version ships.
-#if __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER <= 20260100
+#if __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER
 #    define _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN 1
 #else
 #    define _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN 0
