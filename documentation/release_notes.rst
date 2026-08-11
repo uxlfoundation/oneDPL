@@ -8,6 +8,31 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
+New in 2022.14.0
+================
+- Removed requirement that the output range has sufficient size to hold all resulting elements for ``set_union``,
+  ``set_intersection``, ``set_difference``, and ``set_symmetric_difference`` algorithms when used with device policies.
+
+New Features
+------------
+
+Known Issues and Limitations
+----------------------------
+Existing Issues
+^^^^^^^^^^^^^^^
+See oneDPL Guide for other `restrictions and known limitations`_.
+
+- ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
+  when used with a device policy on hardware that does not support 64-bit atomic operations.
+- For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
+  it is required that the provided input and destination iterators are equality comparable.
+  Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
+  If these conditions are not met, the result of these algorithm calls is undefined.
+- ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
+  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
+  to the device compiler.
+
 New in 2022.13.0
 ================
 
