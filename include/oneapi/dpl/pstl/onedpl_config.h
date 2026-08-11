@@ -98,6 +98,18 @@
 #    define _ONEDPL_CLANG_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 #endif
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// *** When updating we must audit each usage to ensure that the issue still exists in the latest version ***
+//
+// This section contains macros representing the "Latest" version of compilers, STL implementations, etc. for use in
+// broken macros to represent the latest version of something which still has an ongoing issue. The intention is to
+// update this section regularly to reflect the latest version.
+//
+// When such an issue is fixed, we must replace the usage of these "Latest" macros with the appropriate version number
+// before updating to the newest version in this section.
+#define _ONEDPL_LATEST_INTEL_LLVM_COMPILER 20260200
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // Enable SIMD for compilers that support OpenMP 4.0
 #if (_OPENMP >= 201307) || __INTEL_LLVM_COMPILER || (__INTEL_COMPILER >= 1600) ||                                      \
     (!defined(__INTEL_LLVM_COMPILER) && !defined(__INTEL_COMPILER) && _ONEDPL_GCC_VERSION >= 40900)
@@ -360,9 +372,8 @@
 
 // sycl::property::no_init on a ranged accessor (one covering only a sub-range of its buffer) discards the contents
 // of the whole buffer in the DPC++ runtime, rather than only the elements within the accessor's range as specified.
-// Known broken in all released icpx versions to date; bump the bound once a fixed version ships.
-// version ships.
-#if __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER
+// Known broken in all released icpx versions to date.
+#if __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER <= _ONEDPL_LATEST_INTEL_LLVM_COMPILER
 #    define _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN 1
 #else
 #    define _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN 0
