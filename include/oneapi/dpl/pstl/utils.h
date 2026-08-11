@@ -296,13 +296,36 @@ class __pstl_max
 };
 
 //! Like a polymorphic lambda for ==value
+// _Tp is either a value type or a reference type: the callers use __ref_or_copy to keep a reference
+// for host policies and a copy for device policies, where the functor is captured into a kernel.
 template <typename _Tp>
 class __equal_value
 {
-    const _Tp _M_value;
+    _Tp _M_value;
 
   public:
     explicit __equal_value(const _Tp& __value) : _M_value(__value) {}
+
+    // The copy and move constructors must not be explicit: the functor is required to model
+    // std::copy_constructible, which needs implicit conversion from the same type.
+    __equal_value(const __equal_value& __other) : _M_value(__other._M_value) {}
+    __equal_value(__equal_value&& __other) : _M_value(std::move(__other._M_value)) {}
+
+    __equal_value&
+    operator=(const __equal_value& __other)
+    {
+        if (this != &__other)
+            _M_value = __other._M_value;
+        return *this;
+    }
+
+    __equal_value&
+    operator=(__equal_value&& __other)
+    {
+        if (this != &__other)
+            _M_value = std::move(__other._M_value);
+        return *this;
+    }
 
     template <typename _Arg>
     bool
@@ -316,7 +339,7 @@ class __equal_value
 template <typename _Tp>
 class __not_equal_value
 {
-    const _Tp _M_value;
+    _Tp _M_value;
 
   public:
     explicit __not_equal_value(const _Tp& __value) : _M_value(__value) {}
@@ -332,7 +355,7 @@ class __not_equal_value
 template <typename _Tp>
 class __set_value
 {
-    const _Tp _M_value;
+    _Tp _M_value;
 
   public:
     explicit __set_value(const _Tp& __value) : _M_value(__value) {}
