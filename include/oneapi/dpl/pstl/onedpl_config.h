@@ -98,17 +98,9 @@
 #    define _ONEDPL_CLANG_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 #endif
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// *** When updating we must audit each usage to ensure that the issue still exists in the latest version ***
-//
-// This section contains macros representing the "Latest" version of compilers, STL implementations, etc. for use in
-// broken macros to represent the latest version of something which still has an ongoing issue. The intention is to
-// update this section regularly to reflect the latest version.
-//
-// When such an issue is fixed, we must replace the usage of these "Latest" macros with the appropriate version number
-// before updating to the newest version in this section.
+// This macro represents the "latest" version of the intel llvm compiler, and is used in workarounds gated to the compiler version.
+// We must update this with the compiler and re-evaluate if the workarounds are still necessary each time.
 #define _ONEDPL_LATEST_INTEL_LLVM_COMPILER 20260200
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Enable SIMD for compilers that support OpenMP 4.0
 #if (_OPENMP >= 201307) || __INTEL_LLVM_COMPILER || (__INTEL_COMPILER >= 1600) ||                                      \
