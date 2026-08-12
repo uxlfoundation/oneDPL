@@ -18,6 +18,9 @@
 #define _ONEDPL_UNSEQ_BACKEND_SYCL_H
 
 #include <type_traits>
+#if defined(SYCL_EXT_ONEAPI_COMPLEX_ALGORITHMS)
+#    include <complex>
+#endif
 
 #include "../../onedpl_config.h"
 #include "../../utils.h"
@@ -49,12 +52,31 @@ using __is_one_of_ops = std::disjunction<std::is_same<std::decay_t<_BinaryOp>, _
                                          std::is_same<std::decay_t<_BinaryOp>, _Ops<void>>...>;
 
 #    if defined(SYCL_IMPLEMENTATION_INTEL)
+
+// Intel SYCL implementation provides correct results only for std::complex with plus.
+// It also works well with sycl::vec, fundamental types and a subset of functors,
+// but it is not included into __can_use_group_reduce_scan until documented and tested by the implementers.
+// See more details in https://github.com/uxlfoundation/oneDPL/pull/2762.
+#    if defined(SYCL_EXT_ONEAPI_COMPLEX_ALGORITHMS)
+template <typename _Tp>
+using __is_complex_float_or_double =
+    std::disjunction<std::is_same<_Tp, std::complex<float>>, std::is_same<_Tp, std::complex<double>>>;
+
+template <typename _BinaryOp, typename _Tp>
+using __can_use_group_reduce_scan_for_complex =
+    std::conjunction<__is_complex_float_or_double<_Tp>, __is_one_of_ops<_BinaryOp, _Tp, std::plus, sycl::plus>>;
+#    else
+template <typename _BinaryOp, typename _Tp>
+using __can_use_group_reduce_scan_for_complex = std::false_type;
+#    endif // defined(SYCL_EXT_ONEAPI_COMPLEX_ALGORITHMS)
+
 template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan = std::conjunction<
     __workaround_igpu_64_bit_reduction<_Tp>,
     std::negation<std::is_same<_Tp, bool>>, // group algorithms are not implemented for bool in icpx as of 2026.0
     sycl::has_known_identity<_BinaryOp, _Tp>,
-    std::disjunction<std::is_arithmetic<_Tp>, std::is_same<_Tp, sycl::half>>,
+    std::disjunction<std::is_arithmetic<_Tp>, std::is_same<_Tp, sycl::half>,
+                      __can_use_group_reduce_scan_for_complex<_BinaryOp, _Tp>>,
     __is_one_of_ops<_BinaryOp, _Tp,
                     std::plus, sycl::plus,
                     std::multiplies, sycl::multiplies,
@@ -67,6 +89,7 @@ using __can_use_group_reduce_scan = std::conjunction<
                     // no std::minimum and std::maximum exist
                     sycl::minimum,
                     sycl::maximum>>;
+
 #    else  // Other SYCL implementations, assuming they are SYCL 2020 compliant
 // TODO: check acpp - it should support std::* ops as sycl::* ops are aliases to std::* ops.
 template <typename _BinaryOp, typename _Tp>
