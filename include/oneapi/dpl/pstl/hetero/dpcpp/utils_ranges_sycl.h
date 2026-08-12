@@ -43,10 +43,10 @@ namespace __internal
 {
 template <typename _AccessorType, typename _BufferType, typename _DiffType>
 static _AccessorType
-__create_accessor(_BufferType& __buf, _DiffType __offset, _DiffType __n, bool __no_init = false)
+__create_accessor(_BufferType& __buf, _DiffType __offset, _DiffType __n, bool __no_init_requested = false)
 {
-    auto __n_buf = __dpl_sycl::__get_buffer_size(__buf);
-    auto __n_acc = (__n > 0 ? __n : __n_buf);
+    _DiffType __n_buf = __dpl_sycl::__get_buffer_size(__buf);
+    _DiffType __n_acc = (__n > 0 ? __n : __n_buf);
 
     assert(__offset + __n_acc <= __n_buf &&
            "The sum of accessRange and accessOffset should not exceed the range of buffer");
@@ -55,12 +55,12 @@ __create_accessor(_BufferType& __buf, _DiffType __offset, _DiffType __n, bool __
     // Only request no_init when the accessor spans the entire buffer, where discarding the whole buffer is what
     // was asked for anyway. Dropping the property is always functionally safe: it merely costs a copy-in which
     // no_init would have permitted the runtime to skip it.
-    if (__offset != 0 || _DiffType(__n_acc) != _DiffType(__n_buf))
-        __no_init = false;
+    if (__offset != 0 || __n_acc != __n_buf)
+        __no_init_requested = false;
 #endif
 
     const sycl::property_list __properties =
-        __no_init ? sycl::property_list{__dpl_sycl::__no_init{}} : sycl::property_list{};
+        __no_init_requested ? sycl::property_list{__dpl_sycl::__no_init{}} : sycl::property_list{};
 
     return {__buf, sycl::range<1>(__n_acc), __offset, __properties};
 }
