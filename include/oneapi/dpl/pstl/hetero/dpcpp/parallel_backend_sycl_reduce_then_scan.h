@@ -83,14 +83,14 @@ struct __temp_data_array
 // where no temporary register data is needed within reduce then scan kern
 struct __noop_temp_data
 {
-    static constexpr std::uint16_t __max_outputs_per_input = 1;
+    static constexpr __temp_data_array_idx_t __max_outputs_per_input = 1;
 
     // We don't capture source data indexes in this structure
     static constexpr bool __capture_indexes_flag = false;
 
     template <typename _ValueT>
     void
-    set(std::uint16_t, const _ValueT&) const
+    set(__temp_data_array_idx_t, const _ValueT&) const
     {
     }
 };
