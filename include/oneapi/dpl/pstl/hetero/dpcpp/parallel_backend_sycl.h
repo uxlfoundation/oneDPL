@@ -329,14 +329,14 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
     std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q);
 
     // Specialization for devices that have a max work-group size of 1024
-    constexpr ::std::uint16_t __targeted_wg_size = 1024;
+    constexpr std::uint16_t __targeted_wg_size = 1024;
 
     if (__max_wg_size >= __targeted_wg_size)
     {
         auto __single_group_scan_f = [&](auto __size_constant) {
-            constexpr ::std::uint16_t __size = decltype(__size_constant)::value;
-            constexpr ::std::uint16_t __wg_size = ::std::min(__size, __targeted_wg_size);
-            constexpr ::std::uint16_t __num_elems_per_item =
+            constexpr std::uint16_t __size = decltype(__size_constant)::value;
+            constexpr std::uint16_t __wg_size = std::min(__size, __targeted_wg_size);
+            constexpr std::uint16_t __num_elems_per_item =
                 oneapi::dpl::__internal::__dpl_ceiling_div(__size, __wg_size);
 
             return __parallel_transform_scan_static_single_group_submitter<
@@ -353,9 +353,9 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
         for (std::uint16_t __size : __supported_sizes)
         {
             if (__n <= __size)
-                return __single_group_scan_f(std::integral_constant<::std::uint16_t, __size>{});
+                return __single_group_scan_f(std::integral_constant<std::uint16_t, __size>{});
         }
-        return __single_group_scan_f(std::integral_constant<::std::uint16_t, 16384>{});
+        return __single_group_scan_f(std::integral_constant<std::uint16_t, 16384>{});
     }
     else
     {
