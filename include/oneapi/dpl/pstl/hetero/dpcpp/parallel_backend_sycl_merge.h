@@ -816,7 +816,9 @@ template <typename _Tp>
 constexpr std::size_t
 __get_starting_size_limit_for_large_submitter()
 {
-    return 4 * 1'048'576; // 4 MB
+    // TEMPORARY, TESTING ONLY: lowered so the upstream test suite (max_n = 100000) actually reaches the large
+    // submitter on real hardware. Never merge this branch.
+    return 1024;
 }
 
 template <>
