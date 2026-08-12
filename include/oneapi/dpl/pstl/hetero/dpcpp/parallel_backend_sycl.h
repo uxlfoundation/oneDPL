@@ -348,28 +348,14 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
                 __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
                 __unary_op);
         };
-        if (__n <= 16)
-            return __single_group_scan_f(std::integral_constant<::std::uint16_t, 16>{});
-        else if (__n <= 32)
-            return __single_group_scan_f(std::integral_constant<::std::uint16_t, 32>{});
-        else if (__n <= 64)
-            return __single_group_scan_f(std::integral_constant<::std::uint16_t, 64>{});
-        else if (__n <= 128)
-            return __single_group_scan_f(std::integral_constant<::std::uint16_t, 128>{});
-        else if (__n <= 256)
-            return __single_group_scan_f(std::integral_constant<::std::uint16_t, 256>{});
-        else if (__n <= 512)
-            return __single_group_scan_f(std::integral_constant<::std::uint16_t, 512>{});
-        else if (__n <= 1024)
-            return __single_group_scan_f(std::integral_constant<::std::uint16_t, 1024>{});
-        else if (__n <= 2048)
-            return __single_group_scan_f(std::integral_constant<::std::uint16_t, 2048>{});
-        else if (__n <= 4096)
-            return __single_group_scan_f(std::integral_constant<::std::uint16_t, 4096>{});
-        else if (__n <= 8192)
-            return __single_group_scan_f(std::integral_constant<::std::uint16_t, 8192>{});
-        else
-            return __single_group_scan_f(std::integral_constant<::std::uint16_t, 16384>{});
+
+        static constexpr std::array<std::uint16_t, 10> __supported_sizes = {16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192};
+        for (std::uint16_t __size : __supported_sizes)
+        {
+            if (__n <= __size)
+                return __single_group_scan_f(std::integral_constant<::std::uint16_t, __size>{});
+        }
+        return __single_group_scan_f(std::integral_constant<::std::uint16_t, 16384>{});
     }
     else
     {
