@@ -355,7 +355,8 @@ struct __write_scan_by_seg
 // of elements to write. Used for __parallel_set_write_a_b_op.
 struct __write_multiple_to_id
 {
-    using __position_type = std::size_t;
+    // The OOB position reported by this write operation is an offset within the temporary data of a diagonal.
+    using __position_type = __temp_data_array_idx_t;
 
     template <typename _ValueType>
     friend _ValueType
