@@ -714,7 +714,8 @@ struct __set_operation
 
 template <bool __return_star, typename _Rng, typename _IdxT>
 auto
-__decode_balanced_path_temp_data_impl(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
+__decode_balanced_path_temp_data_impl(const _Rng& __rng, const _IdxT __id,
+                                      const __temp_data_array_idx_t __diagonal_spacing)
 {
     using SizeT = decltype(oneapi::dpl::__ranges::__size(__rng));
     using SignedSizeT = std::make_signed_t<decltype(oneapi::dpl::__ranges::__size(__rng))>;
