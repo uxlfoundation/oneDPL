@@ -384,11 +384,13 @@ struct __write_multiple_to_id
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
-        const std::size_t __n = std::get<1>(__v);
-        for (std::size_t __i = 0; __i < __n; ++__i)
+
+        const std::size_t __out_idx_base = std::get<0>(__v) - std::get<1>(__v);
+        const __temp_data_array_idx_t __n = std::get<1>(__v);
+        for (__temp_data_array_idx_t __i = 0; __i < __n; ++__i)
         {
             __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
-                     __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
+                     __out_rng[__out_idx_base + __i]);
         }
     }
 
@@ -403,8 +405,10 @@ struct __write_multiple_to_id
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
-        const std::size_t __n = std::get<1>(__v);
-        for (std::size_t __i = 0; __i < __n; ++__i)
+
+        const std::size_t __out_idx_base = std::get<0>(__v) - std::get<1>(__v);
+        const __temp_data_array_idx_t __n = std::get<1>(__v);
+        for (__temp_data_array_idx_t __i = 0; __i < __n; ++__i)
         {
             // Retrieve and destroy the temporary slot unconditionally, before the bounds check. Each slot was
             // constructed by the generator via placement-new (__temp_data_array::set) and requires an explicit
@@ -413,7 +417,7 @@ struct __write_multiple_to_id
             // and let the next set() placement-new over a still-live object.
             auto&& __val = __temp_data.get_and_destroy(__i);
 
-            const std::size_t __out_idx = std::get<0>(__v) - std::get<1>(__v) + __i;
+            const std::size_t __out_idx = __out_idx_base + __i;
             if (__out_idx < __out_size)
                 __assign(static_cast<_ConvertedTupleType>(std::forward<decltype(__val)>(__val)), __out_rng[__out_idx]);
 
