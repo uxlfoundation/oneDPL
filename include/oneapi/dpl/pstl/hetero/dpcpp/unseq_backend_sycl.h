@@ -57,7 +57,7 @@ using __is_one_of_ops = std::disjunction<std::is_same<std::decay_t<_BinaryOp>, _
 // It also works well with sycl::vec, fundamental types and a subset of functors,
 // but it is not included into __can_use_group_reduce_scan until documented and tested by the implementers.
 // See more details in https://github.com/uxlfoundation/oneDPL/pull/2762.
-#    if defined(SYCL_EXT_ONEAPI_COMPLEX_ALGORITHMS)
+#        if defined(SYCL_EXT_ONEAPI_COMPLEX_ALGORITHMS)
 template <typename _Tp>
 using __is_complex_float_or_double =
     std::disjunction<std::is_same<_Tp, std::complex<float>>, std::is_same<_Tp, std::complex<double>>>;
@@ -65,10 +65,10 @@ using __is_complex_float_or_double =
 template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan_for_complex =
     std::conjunction<__is_complex_float_or_double<_Tp>, __is_one_of_ops<_BinaryOp, _Tp, std::plus, sycl::plus>>;
-#    else
+#        else
 template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan_for_complex = std::false_type;
-#    endif // defined(SYCL_EXT_ONEAPI_COMPLEX_ALGORITHMS)
+#        endif // defined(SYCL_EXT_ONEAPI_COMPLEX_ALGORITHMS)
 
 template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan = std::conjunction<
@@ -76,7 +76,7 @@ using __can_use_group_reduce_scan = std::conjunction<
     std::negation<std::is_same<_Tp, bool>>, // group algorithms are not implemented for bool in icpx as of 2026.0
     sycl::has_known_identity<_BinaryOp, _Tp>,
     std::disjunction<std::is_arithmetic<_Tp>, std::is_same<_Tp, sycl::half>,
-                      __can_use_group_reduce_scan_for_complex<_BinaryOp, _Tp>>,
+                     __can_use_group_reduce_scan_for_complex<_BinaryOp, _Tp>>,
     __is_one_of_ops<_BinaryOp, _Tp,
                     std::plus, sycl::plus,
                     std::multiplies, sycl::multiplies,
