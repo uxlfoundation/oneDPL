@@ -49,26 +49,26 @@ namespace __par_backend_hetero
 // *** Utilities ***
 
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
-template <std::uint16_t elements, typename _ValueT>
+template <__temp_data_array_idx_t elements, typename _ValueT>
 struct __temp_data_array
 {
     // The maximum number of output elements a single scanned element may emit through this temporary data.
     // For set operations a scanned element is a diagonal which can produce up to `elements` outputs, so the
     // bounded-write estimate must account for this many writes per scanned element.
-    static constexpr std::uint16_t __max_outputs_per_input = elements;
+    static constexpr __temp_data_array_idx_t __max_outputs_per_input = elements;
 
     // We don't capture source data indexes in this structure
     static constexpr bool __capture_indexes_flag = false;
 
     template <typename _ValueT2>
     void
-    set(std::uint16_t __idx, const _ValueT2& __ele)
+    set(__temp_data_array_idx_t __idx, const _ValueT2& __ele)
     {
         __data[__idx].__setup(__ele);
     }
 
     _ValueT
-    get_and_destroy(std::uint16_t __idx)
+    get_and_destroy(__temp_data_array_idx_t __idx)
     {
         // Setting up temporary value to be destroyed as this function exits. The __scoped_destroyer calls destroy when
         // it leaves scope.
