@@ -326,7 +326,7 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
                                        _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op,
                                        _Inclusive)
 {
-    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q);
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q);
 
     // Specialization for devices that have a max work-group size of 1024
     constexpr std::uint16_t __targeted_wg_size = 1024;
