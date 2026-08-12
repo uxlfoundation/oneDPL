@@ -667,7 +667,7 @@ __transform_reduce_then_scan_result_t<_Bounded, oneapi::dpl::__internal::__diffe
 __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                             _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    constexpr std::uint16_t __diagonal_spacing = 32;
+    constexpr __temp_data_array_idx_t __diagonal_spacing = 32;
 
     using _SetOperation = __set_operation<_SetTag>;
     using _In1ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
