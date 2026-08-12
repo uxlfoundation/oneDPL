@@ -736,7 +736,8 @@ __decode_balanced_path_temp_data_impl(const _Rng& __rng, const _IdxT __id,
 
 template <typename _Rng, typename _IdxT>
 std::tuple<_IdxT, _IdxT>
-__decode_balanced_path_temp_data_no_star(const _Rng& __rng, const _IdxT __id, const __temp_data_array_idx_t __diagonal_spacing)
+__decode_balanced_path_temp_data_no_star(const _Rng& __rng, const _IdxT __id,
+                                         const __temp_data_array_idx_t __diagonal_spacing)
 {
     return __decode_balanced_path_temp_data_impl<false>(__rng, __id, __diagonal_spacing);
 }
