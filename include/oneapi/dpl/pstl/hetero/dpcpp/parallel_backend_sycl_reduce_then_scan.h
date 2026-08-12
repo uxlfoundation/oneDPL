@@ -999,7 +999,7 @@ struct __gen_set_balanced_path
                               __comp, __proj1, __proj2, __final_pos_saver);
     }
     _SetOpCount __set_op_count;
-    std::uint16_t __diagonal_spacing;
+    __temp_data_array_idx_t __diagonal_spacing;
     _BoundsProvider __get_bounds;
     _Compare __comp;
     _Proj1 __proj1;
