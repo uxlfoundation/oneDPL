@@ -743,7 +743,7 @@ __decode_balanced_path_temp_data_no_star(const _Rng& __rng, const _IdxT __id, co
 
 template <typename _Rng, typename _IdxT>
 std::tuple<_IdxT, _IdxT, decltype(oneapi::dpl::__ranges::__size(std::declval<_Rng>()))>
-__decode_balanced_path_temp_data(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
+__decode_balanced_path_temp_data(const _Rng& __rng, const _IdxT __id, const __temp_data_array_idx_t __diagonal_spacing)
 {
     return __decode_balanced_path_temp_data_impl<true>(__rng, __id, __diagonal_spacing);
 }
@@ -791,7 +791,7 @@ struct __get_bounds_partitioned
             __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
         return std::make_tuple(_SizeType{begin_rng1}, _SizeType{end_rng1}, _SizeType{begin_rng2}, _SizeType{end_rng2});
     }
-    std::uint16_t __diagonal_spacing;
+    __temp_data_array_idx_t __diagonal_spacing;
     std::size_t __tile_size;
     std::size_t __partition_threshold;
 };
