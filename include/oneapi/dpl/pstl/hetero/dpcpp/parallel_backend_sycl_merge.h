@@ -477,6 +477,251 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
     }
 };
 
+//------------------------------------------------------------------------------------------------------------------//
+// SLM-buffered merge
+//------------------------------------------------------------------------------------------------------------------//
+// In __parallel_merge_submitter_large every work-item binary-searches to its own merge-path position and then reads
+// its 'chunk' inputs from there. Neighbouring lanes therefore read from unrelated addresses, so the input reads are
+// strided rather than coalesced, which on discrete Intel GPUs costs roughly half of the available read bandwidth.
+//
+// The submitter below keeps exactly that merge-path decomposition but sizes the base diagonals so that one
+// base-diagonal interval covers one work-group tile, and then stages both input tiles into local memory with a
+// cooperative, fully coalesced load before merging. Because a merge-path diagonal interval of 'tile' output elements
+// consumes exactly 'tile' input elements in total (split between the two sequences), a single local buffer of 'tile'
+// elements always suffices.
+//
+// Note that sizing the base diagonals from the local memory available per work-group is what the TODO in
+// __parallel_merge_submitter_large::eval_nd_range_params asks for, and it matches the convention already used by
+// __parallel_sort_submitter's get_max_base_diags_count() in parallel_backend_sycl_merge_sort.h.
+
+// Local-memory budget per work-group used to derive the tile size.
+inline constexpr std::size_t __merge_slm_tile_bytes = 32 * 1'024;
+
+// Preferred work-group size for the SLM-buffered merge; lowered at run time if local memory is scarce.
+inline constexpr std::uint16_t __merge_slm_wg_size = 256;
+
+// Number of output elements each work-item merges. Chosen so that a work-group tile fits the budget above.
+template <typename _Tp>
+constexpr std::uint16_t
+__merge_slm_items_per_wi()
+{
+    return __merge_slm_tile_bytes / (sizeof(_Tp) * __merge_slm_wg_size);
+}
+
+// The staged tile must leave each work-item a reasonable amount of work; wide value types are left to the
+// non-buffered submitter.
+template <typename _Tp>
+constexpr bool
+__merge_slm_supported_type()
+{
+    return __merge_slm_items_per_wi<_Tp>() >= 4;
+}
+
+// Presents a sub-range of the local-memory tile with the same interface that __find_start_point() and
+// __serial_merge() expect from an input range.
+template <typename _Tp, typename _Index>
+struct __merge_slm_view
+{
+    _Tp* __data;
+    _Index __offset;
+
+    _Tp&
+    operator[](_Index __i) const
+    {
+        return __data[__offset + __i];
+    }
+};
+
+template <typename _IdType, typename _CustomName, typename _DiagonalsKernelName, typename _MergeKernelName>
+struct __parallel_merge_submitter_large_slm;
+
+template <typename _IdType, typename _CustomName, typename... _DiagonalsKernelName, typename... _MergeKernelName>
+struct __parallel_merge_submitter_large_slm<_IdType, _CustomName,
+                                           __internal::__optional_kernel_name<_DiagonalsKernelName...>,
+                                           __internal::__optional_kernel_name<_MergeKernelName...>>
+{
+  private:
+    struct nd_range_params
+    {
+        std::size_t base_diag_count = 0; // number of work-groups, one per staged tile
+        _IdType wg_size = 0;
+        _IdType chunk = 0;           // output elements merged per work-item
+        _IdType base_diag_chunk = 0; // output elements per tile == wg_size * chunk
+    };
+
+    // Calculate nd-range parameters
+    template <typename _ValueType>
+    static nd_range_params
+    eval_nd_range_params(const sycl::queue& __q, const std::size_t __n)
+    {
+        constexpr _IdType __chunk = __merge_slm_items_per_wi<_ValueType>();
+
+        // Shrink the work-group (and therefore the tile) if the device cannot back the full budget.
+        const _IdType __wg_size = static_cast<_IdType>(oneapi::dpl::__internal::__slm_adjusted_work_group_size(
+            __q, static_cast<std::size_t>(__chunk) * sizeof(_ValueType), std::size_t{__merge_slm_wg_size}));
+
+        const _IdType __base_diag_chunk = __wg_size * __chunk;
+        const std::size_t __base_diag_count = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __base_diag_chunk);
+
+        return {__base_diag_count, __wg_size, __chunk, __base_diag_chunk};
+    }
+
+    // Calculation of split points on each base diagonal, i.e. on each tile boundary
+    template <typename _Range1, typename _Range2, typename _Compare, typename _Proj1, typename _Proj2,
+              typename _Storage>
+    sycl::event
+    eval_split_points_for_groups(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _IdType __n, _Compare __comp,
+                                 _Proj1 __proj1, _Proj2 __proj2, const nd_range_params& __nd_range_params,
+                                 _Storage& __base_diagonals_sp_global_storage) const
+    {
+        const _IdType __n1 = oneapi::dpl::__ranges::__size(__rng1);
+        const _IdType __n2 = oneapi::dpl::__ranges::__size(__rng2);
+
+        const _IdType __base_diag_chunk = __nd_range_params.base_diag_chunk;
+
+        return __q.submit([&__rng1, &__rng2, __comp, __proj1, __proj2, __nd_range_params,
+                           __base_diagonals_sp_global_storage, __n1, __n2, __n,
+                           __base_diag_chunk](sycl::handler& __cgh) {
+            oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2);
+            auto __base_diagonals_sp_global_acc =
+                __base_diagonals_sp_global_storage.template __get_scratch_acc<sycl::access_mode::write>(
+                    __cgh, __dpl_sycl::__no_init{});
+
+            __cgh.parallel_for<_DiagonalsKernelName...>(
+                sycl::range</*dim=*/1>(__nd_range_params.base_diag_count + 1), [=](sycl::item</*dim=*/1> __item) {
+                    auto __global_idx = __item.get_linear_id();
+                    auto __base_diagonals_sp_global_ptr =
+                        _Storage::__get_usm_or_buffer_accessor_ptr(__base_diagonals_sp_global_acc);
+
+                    const _IdType __i_elem = __global_idx * __base_diag_chunk;
+
+                    __base_diagonals_sp_global_ptr[__global_idx] =
+                        __i_elem == 0 ? _split_point_t<_IdType>{0, 0}
+                                      : (__i_elem < __n ? __find_start_point(__rng1, _IdType{0}, __n1, __rng2,
+                                                                             _IdType{0}, __n2, __i_elem, __comp,
+                                                                             __proj1, __proj2)
+                                                        : _split_point_t<_IdType>{__n1, __n2});
+                });
+        });
+    }
+
+    // Process parallel merge, staging both input tiles through local memory
+    template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _Proj1,
+              typename _Proj2, typename _Storage>
+    sycl::event
+    run_parallel_merge(const sycl::event& __event, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2,
+                       _Range3&& __rng3, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
+                       const nd_range_params& __nd_range_params,
+                       const _Storage& __base_diagonals_sp_global_storage) const
+    {
+        using __value_t = oneapi::dpl::__internal::__value_t<_Range3>;
+
+        const _IdType __n1 = oneapi::dpl::__ranges::__size(__rng1);
+        const _IdType __n2 = oneapi::dpl::__ranges::__size(__rng2);
+        const _IdType __n = std::min<_IdType>(__n1 + __n2, oneapi::dpl::__ranges::__size(__rng3));
+
+        const _IdType __wg_size = __nd_range_params.wg_size;
+        const _IdType __chunk = __nd_range_params.chunk;
+        const _IdType __base_diag_chunk = __nd_range_params.base_diag_chunk;
+
+        return __q.submit([&__event, &__rng1, &__rng2, &__rng3, __n, __comp, __proj1, __proj2, __nd_range_params,
+                           __base_diagonals_sp_global_storage, __wg_size, __chunk,
+                           __base_diag_chunk](sycl::handler& __cgh) {
+            oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
+            auto __base_diagonals_sp_global_acc =
+                __base_diagonals_sp_global_storage.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
+
+            __dpl_sycl::__local_accessor<__value_t> __slm(__base_diag_chunk, __cgh);
+
+            __cgh.depends_on(__event);
+
+            __cgh.parallel_for<_MergeKernelName...>(
+                sycl::nd_range</*dim=*/1>(__nd_range_params.base_diag_count * __wg_size, __wg_size),
+                [=](sycl::nd_item</*dim=*/1> __item) {
+                    const std::size_t __group_id = __item.get_group_linear_id();
+                    const _IdType __local_id = __item.get_local_linear_id();
+
+                    auto __base_diagonals_sp_global_ptr =
+                        _Storage::__get_usm_or_buffer_accessor_ptr(__base_diagonals_sp_global_acc);
+
+                    // Bounds of this tile in both input sequences.
+                    const _split_point_t<_IdType> __sp_left = __base_diagonals_sp_global_ptr[__group_id];
+                    const _split_point_t<_IdType> __sp_right = __base_diagonals_sp_global_ptr[__group_id + 1];
+
+                    const _IdType __n1_local = __sp_right.first - __sp_left.first;
+                    const _IdType __n2_local = __sp_right.second - __sp_left.second;
+
+                    __value_t* __slm_ptr = &__slm[0];
+
+                    // Cooperative, fully coalesced staging of both input tiles: lane t reads offset t and then
+                    // strides by the work-group size, so each read request covers consecutive addresses.
+                    for (_IdType __i = __local_id; __i < __n1_local; __i += __wg_size)
+                        __slm_ptr[__i] = __rng1[__sp_left.first + __i];
+                    for (_IdType __i = __local_id; __i < __n2_local; __i += __wg_size)
+                        __slm_ptr[__n1_local + __i] = __rng2[__sp_left.second + __i];
+
+                    sycl::group_barrier(__item.get_group());
+
+                    // The two staged sequences share one local buffer, back to back.
+                    const __merge_slm_view<__value_t, _IdType> __view1{__slm_ptr, _IdType{0}};
+                    const __merge_slm_view<__value_t, _IdType> __view2{__slm_ptr, __n1_local};
+
+                    const _IdType __i_elem_local = __local_id * __chunk;
+                    // The last tile is partial: work-items past its output end have nothing to merge.
+                    if (__i_elem_local < __n1_local + __n2_local)
+                    {
+                        const _split_point_t<_IdType> __start =
+                            __find_start_point(__view1, _IdType{0}, __n1_local, __view2, _IdType{0}, __n2_local,
+                                               __i_elem_local, __comp, __proj1, __proj2);
+
+                        __serial_merge(__view1, __view2, __rng3, __start.first, __start.second,
+                                       static_cast<_IdType>(__group_id * __base_diag_chunk + __i_elem_local), __chunk,
+                                       __n1_local, __n2_local, __comp, __proj1, __proj2, __n);
+                    }
+                });
+        });
+    }
+
+  public:
+    template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _Proj1,
+              typename _Proj2>
+    __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _Proj1 __proj1,
+               _Proj2 __proj2) const
+    {
+        using __value_t = oneapi::dpl::__internal::__value_t<_Range3>;
+
+        const _IdType __n1 = oneapi::dpl::__ranges::__size(__rng1);
+        const _IdType __n2 = oneapi::dpl::__ranges::__size(__rng2);
+        assert(__n1 > 0 || __n2 > 0);
+
+        const _IdType __n = std::min<_IdType>(__n1 + __n2, oneapi::dpl::__ranges::__size(__rng3));
+
+        _PRINT_INFO_IN_DEBUG_MODE(__q);
+
+        const nd_range_params __nd_range_params = eval_nd_range_params<__value_t>(__q, __n);
+
+        // Create storage to save split-points on each tile boundary + 1 (for the right bound of the last tile)
+        using __val_t = _split_point_t<_IdType>;
+        using __result_and_scratch_storage_t = __result_and_scratch_storage<__val_t, 0>;
+        auto __p_base_diagonals_sp_global_storage =
+            new __result_and_scratch_storage_t(__q, __nd_range_params.base_diag_count + 1);
+
+        // Save the raw pointer into a shared_ptr to return it in __future and extend the lifetime of the storage.
+        std::shared_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base(
+            static_cast<__result_and_scratch_storage_base*>(__p_base_diagonals_sp_global_storage));
+
+        sycl::event __event =
+            eval_split_points_for_groups(__q, __rng1, __rng2, __n, __comp, __proj1, __proj2, __nd_range_params,
+                                         *__p_base_diagonals_sp_global_storage);
+
+        __event = run_parallel_merge(__event, __q, __rng1, __rng2, __rng3, __comp, __proj1, __proj2, __nd_range_params,
+                                     *__p_base_diagonals_sp_global_storage);
+
+        return __future{std::move(__event), std::move(__p_result_and_scratch_storage_base)};
+    }
+};
+
 template <typename... _Name>
 class __merge_kernel_name;
 
@@ -484,7 +729,13 @@ template <typename... _Name>
 class __merge_kernel_name_large;
 
 template <typename... _Name>
+class __merge_kernel_name_large_slm;
+
+template <typename... _Name>
 class __diagonals_kernel_name;
+
+template <typename... _Name>
+class __diagonals_kernel_name_slm;
 
 template <typename _Tp>
 constexpr std::size_t
@@ -523,9 +774,34 @@ __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
     }
     else
     {
+        // The SLM-buffered submitter converts the strided per-work-item input reads into cooperative coalesced
+        // loads. It only covers the plain (not output-size-limited) merge, and only value types narrow enough for a
+        // work-group tile to fit local memory.
+        [[maybe_unused]] const bool __use_slm = !_OutSizeLimit{} && __merge_slm_supported_type<__value_type>() &&
+#if defined(_ONEDPL_TEST_FORCE_MERGE_SLM)
+                               true;
+#else
+                               // The CPU device uses a much larger chunk and gains nothing from local memory.
+                               !__q.get_device().is_cpu();
+#endif
         if (__n <= std::numeric_limits<std::uint32_t>::max())
         {
             using _WiIndex = std::uint32_t;
+            if constexpr (!_OutSizeLimit{} && __merge_slm_supported_type<__value_type>())
+            {
+                if (__use_slm)
+                {
+                    using _DiagonalsKernelName =
+                        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+                            __diagonals_kernel_name_slm<_CustomName, _WiIndex>>;
+                    using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+                        __merge_kernel_name_large_slm<_CustomName, _WiIndex>>;
+                    return __parallel_merge_submitter_large_slm<_WiIndex, _CustomName, _DiagonalsKernelName,
+                                                                _MergeKernelName>()(
+                        __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                        std::forward<_Range3>(__rng3), __comp, __proj1, __proj2);
+                }
+            }
             using _DiagonalsKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __diagonals_kernel_name<_CustomName, _WiIndex>>;
             using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -538,6 +814,21 @@ __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
         else
         {
             using _WiIndex = std::uint64_t;
+            if constexpr (!_OutSizeLimit{} && __merge_slm_supported_type<__value_type>())
+            {
+                if (__use_slm)
+                {
+                    using _DiagonalsKernelName =
+                        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+                            __diagonals_kernel_name_slm<_CustomName, _WiIndex>>;
+                    using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+                        __merge_kernel_name_large_slm<_CustomName, _WiIndex>>;
+                    return __parallel_merge_submitter_large_slm<_WiIndex, _CustomName, _DiagonalsKernelName,
+                                                                _MergeKernelName>()(
+                        __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                        std::forward<_Range3>(__rng3), __comp, __proj1, __proj2);
+                }
+            }
             using _DiagonalsKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __diagonals_kernel_name<_CustomName, _WiIndex>>;
             using _MergeKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
