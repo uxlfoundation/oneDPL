@@ -566,8 +566,8 @@ struct __set_operation
         const auto __size1 = oneapi::dpl::__ranges::__size(__in_rng1);
         const auto __size2 = oneapi::dpl::__ranges::__size(__in_rng2);
 
-        auto __write_temp_element = [&](const _SizeType __count_arg, const auto& __value, std::size_t __idx1,
-                                        std::size_t __idx2) {
+        auto __write_temp_element = [&](const __temp_data_array_idx_t __count_arg, const auto& __value,
+                                        std::size_t __idx1, std::size_t __idx2) {
             if constexpr (_TempOutput::__capture_indexes_flag)
                 __temp_out.set(__count_arg, __value, {__idx1, __idx2});
             else
