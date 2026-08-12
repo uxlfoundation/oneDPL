@@ -29,6 +29,9 @@ namespace dpl
 namespace __par_backend_hetero
 {
 
+// Index type within the temporary data array used to store per-diagonal results in registers.
+using __temp_data_array_idx_t = std::uint16_t;
+
 // Describe final and OOB positions in source ranges together for bounded set operations
 // (where tracking of OOB position is needed to determine the effective final position
 // in source ranges based on output range size).

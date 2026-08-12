@@ -48,8 +48,6 @@ namespace __par_backend_hetero
 // *** Reduce then scan functional building blocks ***
 // *** Utilities ***
 
-using __temp_data_array_idx_t = std::uint16_t;
-
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
 template <std::uint16_t elements, typename _ValueT>
 struct __temp_data_array
