@@ -1053,7 +1053,7 @@ struct __gen_set_op_from_known_balanced_path
         return __result_t<_InRng>{__count, __count};
     }
     _SetOpCount __set_op_count;
-    std::uint16_t __diagonal_spacing;
+    __temp_data_array_idx_t __diagonal_spacing;
     _Compare __comp;
     _Proj1 __proj1;
     _Proj2 __proj2;
