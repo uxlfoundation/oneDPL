@@ -23,6 +23,8 @@ New Features
   which simplifies device memory allocation, deallocation, and transfers.
 - Added the ``oneapi::dpl::span`` alias, used in the ``device_array`` interface. It is defined as ``std::span``
   where available (C++20 and later), and to ``sycl::span`` as a fallback where it is available.
+- Added support for ``sycl::half`` as a key type in ``kt::gpu::radix_sort``, ``kt::gpu::radix_sort_by_key``,
+  ``kt::gpu::esimd::radix_sort``, and ``kt::gpu::esimd::radix_sort_by_key``.
 
 Known Issues and Limitations
 ----------------------------
