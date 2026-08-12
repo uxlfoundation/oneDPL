@@ -490,6 +490,14 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
 // consumes exactly 'tile' input elements in total (split between the two sequences), a single local buffer of 'tile'
 // elements always suffices.
 //
+// A tile is much larger than what one work-item should merge on its own, so the work-group walks it in several rounds
+// of 'chunk' output elements per work-item. Keeping 'chunk' small matters twice over, and both effects are large
+// enough to swamp the coalescing this submitter exists to gain:
+//  - the output writes of neighbouring lanes are 'chunk' elements apart, so a wide chunk makes every store touch one
+//    cache line per lane instead of one per several lanes;
+//  - a work-item's merge walks its own run of the staged tile sequentially, so the lanes of a sub-group read local
+//    memory 'chunk' elements apart, and local memory is banked (see __merge_slm_bank_period).
+//
 // Note that sizing the base diagonals from the local memory available per work-group is what the TODO in
 // __parallel_merge_submitter_large::eval_nd_range_params asks for, and it matches the convention already used by
 // __parallel_sort_submitter's get_max_base_diags_count() in parallel_backend_sycl_merge_sort.h.
@@ -500,21 +508,69 @@ inline constexpr std::size_t __merge_slm_tile_bytes = 32 * 1'024;
 // Preferred work-group size for the SLM-buffered merge; lowered at run time if local memory is scarce.
 inline constexpr std::uint16_t __merge_slm_wg_size = 256;
 
-// Number of output elements each work-item merges. Chosen so that a work-group tile fits the budget above.
+// Number of output elements each work-item merges per round; the same empirical value the non-buffered submitter
+// uses on GPU.
+inline constexpr std::uint16_t __merge_slm_chunk = 4;
+
+// Local memory is banked in 4-byte words, and the lanes of a sub-group read it __merge_slm_chunk elements apart (see
+// above). Since the bank count is a power of two that this stride divides, the pattern would leave all but every
+// fourth bank idle and each read would serialize. Storing one padding element roughly every 64 bytes shifts each
+// lane's run by a further, lane-dependent word, which spreads the lanes back over all banks.
 template <typename _Tp>
-constexpr std::uint16_t
-__merge_slm_items_per_wi()
+constexpr std::size_t
+__merge_slm_bank_period()
 {
-    return __merge_slm_tile_bytes / (sizeof(_Tp) * __merge_slm_wg_size);
+    std::size_t __period = 2;
+    while (__period * sizeof(_Tp) < 64)
+        __period *= 2;
+    return __period;
 }
 
-// The staged tile must leave each work-item a reasonable amount of work; wide value types are left to the
-// non-buffered submitter.
+// Logical index within the staged tile -> index in the padded local-memory buffer. Strictly increasing, so distinct
+// elements never share a slot.
+template <typename _Tp, typename _Index>
+constexpr _Index
+__merge_slm_padded_idx(_Index __i)
+{
+    return __i + __i / static_cast<_Index>(__merge_slm_bank_period<_Tp>());
+}
+
+// Size of the padded local-memory buffer holding a tile of __tile_size elements.
+template <typename _Tp, typename _Index>
+constexpr _Index
+__merge_slm_padded_size(_Index __tile_size)
+{
+    return __merge_slm_padded_idx<_Tp>(__tile_size);
+}
+
+// Number of elements each work-item stages into local memory, i.e. the tile size per work-item. Chosen so that the
+// padded tile fits the budget above, and so that the rounds tile the staged data exactly. The padding is paid for out
+// of the same budget rather than on top of it: exceeding it would cost a resident work-group per Xe-core, which is a
+// steeper price than the slightly smaller tile.
+template <typename _Tp>
+constexpr std::uint16_t
+__merge_slm_staged_per_wi()
+{
+    std::size_t __staged = __merge_slm_tile_bytes / (sizeof(_Tp) * __merge_slm_wg_size);
+    __staged -= __staged % __merge_slm_chunk;
+    while (__staged > __merge_slm_chunk &&
+           __merge_slm_padded_size<_Tp>(__staged * __merge_slm_wg_size) * sizeof(_Tp) > __merge_slm_tile_bytes)
+    {
+        __staged -= __merge_slm_chunk;
+    }
+    return static_cast<std::uint16_t>(__staged);
+}
+
+// A work-item needs at least one full round of work and the padded tile has to fit the budget; wider value types are
+// left to the non-buffered submitter.
 template <typename _Tp>
 constexpr bool
 __merge_slm_supported_type()
 {
-    return __merge_slm_items_per_wi<_Tp>() >= 4;
+    return __merge_slm_staged_per_wi<_Tp>() >= __merge_slm_chunk &&
+           __merge_slm_padded_size<_Tp>(std::size_t{__merge_slm_staged_per_wi<_Tp>()} * __merge_slm_wg_size) *
+                   sizeof(_Tp) <=
+               __merge_slm_tile_bytes;
 }
 
 // Presents a sub-range of the local-memory tile with the same interface that __find_start_point() and
@@ -523,12 +579,12 @@ template <typename _Tp, typename _Index>
 struct __merge_slm_view
 {
     _Tp* __data;
-    _Index __offset;
+    _Index __offset; // logical offset of this sub-range within the staged tile
 
     _Tp&
     operator[](_Index __i) const
     {
-        return __data[__offset + __i];
+        return __data[__merge_slm_padded_idx<_Tp>(_Index(__offset + __i))];
     }
 };
 
@@ -545,8 +601,9 @@ struct __parallel_merge_submitter_large_slm<_IdType, _CustomName,
     {
         std::size_t base_diag_count = 0; // number of work-groups, one per staged tile
         _IdType wg_size = 0;
-        _IdType chunk = 0;           // output elements merged per work-item
-        _IdType base_diag_chunk = 0; // output elements per tile == wg_size * chunk
+        _IdType chunk = 0;           // output elements merged per work-item and per round
+        _IdType base_diag_chunk = 0; // output elements per tile == wg_size * staged elements per work-item
+        _IdType slm_size = 0;        // padded local-memory buffer size, in elements
     };
 
     // Calculate nd-range parameters
@@ -554,16 +611,25 @@ struct __parallel_merge_submitter_large_slm<_IdType, _CustomName,
     static nd_range_params
     eval_nd_range_params(const sycl::queue& __q, const std::size_t __n)
     {
-        constexpr _IdType __chunk = __merge_slm_items_per_wi<_ValueType>();
+        constexpr _IdType __staged_per_wi = __merge_slm_staged_per_wi<_ValueType>();
 
-        // Shrink the work-group (and therefore the tile) if the device cannot back the full budget.
-        const _IdType __wg_size = static_cast<_IdType>(oneapi::dpl::__internal::__slm_adjusted_work_group_size(
-            __q, static_cast<std::size_t>(__chunk) * sizeof(_ValueType), std::size_t{__merge_slm_wg_size}));
+        // Shrink the work-group (and therefore the tile) if the device cannot back the full budget. The padding that
+        // spreads the tile over the local-memory banks has to be paid for out of the same budget.
+        const std::size_t __local_mem_per_wi = oneapi::dpl::__internal::__dpl_ceiling_div(
+            __merge_slm_padded_size<_ValueType>(std::size_t{__staged_per_wi} * __merge_slm_wg_size) *
+                sizeof(_ValueType),
+            std::size_t{__merge_slm_wg_size});
+        const std::size_t __wg_size_limit =
+            std::min(oneapi::dpl::__internal::__max_work_group_size(__q), std::size_t{__merge_slm_wg_size});
+        const _IdType __wg_size = static_cast<_IdType>(std::max(
+            std::size_t{1},
+            oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, __local_mem_per_wi, __wg_size_limit)));
 
-        const _IdType __base_diag_chunk = __wg_size * __chunk;
+        const _IdType __base_diag_chunk = __wg_size * __staged_per_wi;
         const std::size_t __base_diag_count = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __base_diag_chunk);
 
-        return {__base_diag_count, __wg_size, __chunk, __base_diag_chunk};
+        return {__base_diag_count, __wg_size, _IdType{__merge_slm_chunk}, __base_diag_chunk,
+                __merge_slm_padded_size<_ValueType>(__base_diag_chunk)};
     }
 
     // Calculation of split points on each base diagonal, i.e. on each tile boundary
@@ -631,7 +697,7 @@ struct __parallel_merge_submitter_large_slm<_IdType, _CustomName,
             auto __base_diagonals_sp_global_acc =
                 __base_diagonals_sp_global_storage.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
 
-            __dpl_sycl::__local_accessor<__value_t> __slm(__base_diag_chunk, __cgh);
+            __dpl_sycl::__local_accessor<__value_t> __slm(__nd_range_params.slm_size, __cgh);
 
             __cgh.depends_on(__event);
 
@@ -656,9 +722,10 @@ struct __parallel_merge_submitter_large_slm<_IdType, _CustomName,
                     // Cooperative, fully coalesced staging of both input tiles: lane t reads offset t and then
                     // strides by the work-group size, so each read request covers consecutive addresses.
                     for (_IdType __i = __local_id; __i < __n1_local; __i += __wg_size)
-                        __slm_ptr[__i] = __rng1[__sp_left.first + __i];
+                        __slm_ptr[__merge_slm_padded_idx<__value_t>(__i)] = __rng1[__sp_left.first + __i];
                     for (_IdType __i = __local_id; __i < __n2_local; __i += __wg_size)
-                        __slm_ptr[__n1_local + __i] = __rng2[__sp_left.second + __i];
+                        __slm_ptr[__merge_slm_padded_idx<__value_t>(_IdType(__n1_local + __i))] =
+                            __rng2[__sp_left.second + __i];
 
                     sycl::group_barrier(__item.get_group());
 
@@ -666,10 +733,18 @@ struct __parallel_merge_submitter_large_slm<_IdType, _CustomName,
                     const __merge_slm_view<__value_t, _IdType> __view1{__slm_ptr, _IdType{0}};
                     const __merge_slm_view<__value_t, _IdType> __view2{__slm_ptr, __n1_local};
 
-                    const _IdType __i_elem_local = __local_id * __chunk;
-                    // The last tile is partial: work-items past its output end have nothing to merge.
-                    if (__i_elem_local < __n1_local + __n2_local)
+                    const _IdType __n_local = __n1_local + __n2_local;
+                    const _IdType __round_chunk = __wg_size * __chunk;
+
+                    // The work-group walks the staged tile in rounds of __chunk output elements per work-item.
+                    for (_IdType __round_start = 0; __round_start < __base_diag_chunk; __round_start += __round_chunk)
                     {
+                        const _IdType __i_elem_local = __round_start + __local_id * __chunk;
+                        // The last tile is partial: rounds past its output end have nothing to merge. Later rounds
+                        // start even further out, so there is no work left for this work-item at all.
+                        if (__i_elem_local >= __n_local)
+                            break;
+
                         const _split_point_t<_IdType> __start =
                             __find_start_point(__view1, _IdType{0}, __n1_local, __view2, _IdType{0}, __n2_local,
                                                __i_elem_local, __comp, __proj1, __proj2);
