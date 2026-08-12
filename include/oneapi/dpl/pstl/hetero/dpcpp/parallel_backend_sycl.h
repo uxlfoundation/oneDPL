@@ -349,13 +349,12 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
                 __unary_op);
         };
 
-        static constexpr std::array<std::uint16_t, 10> __supported_sizes = {16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192};
+        static constexpr std::array<std::uint16_t, 11> __supported_sizes = {16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384};
         for (std::uint16_t __size : __supported_sizes)
         {
-            if (__n <= __size)
+            if (__n <= __size || __size == 16384)
                 return __single_group_scan_f(std::integral_constant<std::uint16_t, __size>{});
         }
-        return __single_group_scan_f(std::integral_constant<std::uint16_t, 16384>{});
     }
     else
     {
