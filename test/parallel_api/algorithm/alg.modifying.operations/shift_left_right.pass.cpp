@@ -286,19 +286,14 @@ main()
     test_shift_by_type<std::uint8_t>(large_n, quarter_shift);
     test_shift_by_type<std::uint8_t>(large_n, three_quarters_shift);
     test_shift_by_type<std::uint16_t>(large_n, quarter_shift);
-    // A shift small enough that one work-item per shifted position cannot fill the device: the SYCL
-    // backend stages these through a temporary instead. Whether that path is reachable depends on
-    // the device, so derive the sizes from it rather than hard-coding them - a fixed size large
-    // enough for a small GPU silently misses the path on a large one. The backend gates staging on
-    // '128 * n <= width' and a serial depth of 'size - n >= 4096 * n', so straddle the parallelism
-    // bound at a size that clears the depth bound either way: shifts under it are staged, and a
-    // shift over it takes the in-place chain walk, which is the fallback. Shifts are deliberately
+    // A shift too narrow for one work-item per shifted position to fill the device: the SYCL backend
+    // stages these through a temporary. Whether that path is reachable depends on the device, so
+    // derive the sizes from it - a size large enough to reach the path on a small GPU misses it on a
+    // large one. Staging needs '128 * n <= width' and a depth of 'size - n >= 4096 * n', so straddle
+    // the parallelism bound at a size clearing the depth bound either way. Shifts are deliberately
     // not multiples of the vector size, and both a vectorizable and a non-vectorizable type are
-    // covered.
-    // Ask the backend for the width rather than recomputing it here: a test that duplicates the
-    // formula keeps passing while silently testing something else once the backend's definition
-    // changes. A device the backend does not stage on reports 0, which also skips this block - so
-    // the coverage is only paid for where the path exists.
+    // covered. The width comes from the backend rather than being recomputed here, so the test cannot
+    // silently drift from the gate.
     sycl::queue __q = TestUtils::get_test_queue();
     auto __policy = oneapi::dpl::execution::make_device_policy(__q);
     const std::size_t width = oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(
@@ -311,9 +306,7 @@ main()
         // Just past the parallelism bound, so this one must take the in-place chain walk.
         test_shift_by_type_hetero<ValueType>(staged_size, width / 128 + 1);
         // A std::tuple element type: the staged path is the only one that puts the element type in a
-        // temporary buffer, and the backend rebinds std::tuple to its own tuple type there, so this
-        // is the only shape of element that exercises that rebind. Kept small - it only has to
-        // instantiate and run, and the paths themselves are covered by the cases above.
+        // temporary, where the backend rebinds std::tuple to its own tuple. Kept small deliberately.
         test_shift_by_type_hetero<std::tuple<std::int32_t, float>>(staged_size, std::size_t{1});
     }
 #endif

@@ -1898,33 +1898,20 @@ struct __shift_left_stage;
 template <typename _Name>
 struct __shift_left_unstage;
 
-// Whether a shift of '__n' over a range whose moved part is '__size_res' long should be staged
-// through a temporary rather than shifted in place.
+// Whether a shift of '__n' should be staged through a temporary rather than shifted in place.
 //
-// The in-place shift uses '__n' independent chains of copies, so its parallelism is '__n' and each
-// chain walks 'size/__n' elements in order: a narrow shift leaves most of the device idle no matter
-// how long the range is. Staging replaces it with two passes that each run at full parallelism, but
-// moves 4x(size - n) bytes rather than 2x, so it can only win while the in-place walk achieves under
-// half of peak bandwidth - past that point it is a ~2x loss. Measured on BMG and PVC, the in-place
-// walk reaches bandwidth saturation at '__n' around a sixteenth of the occupancy width, so the
-// parallelism test below stays an order of magnitude clear of that crossover instead of approaching
-// it.
+// In place, the shift walks '__n' independent chains of 'size_res / __n' ordered copies: parallelism
+// is '__n', so a narrow shift starves the device however long the range is. Staging runs two
+// full-width passes instead at 2x the traffic, so it wins only while the chain walk is latency-bound
+// - the parallelism bound below stays an order of magnitude clear of the measured crossover.
 //
-// The second test covers the fixed cost of the temporary and the extra launch. What that cost has to
-// be weighed against is the in-place walk's *serial depth*, 'size_res / __n' dependent moves - not
-// the range length on its own, since a longer range with a proportionally wider shift is no slower.
-// So the bound is on the depth. '4096' is chosen to be uniformly conservative: it is where the
-// parallelism test's own most permissive point lands ('32 * width' elements over 'width / 128'
-// chains, in which the width cancels), and it sits an order of magnitude above both platforms'
-// measured break-even depths - ~504 moves on BMG, ~89 on PVC - so staging is only selected well
-// inside the region where it was measured to win.
+// What pays for the temporary and the extra launch is the walk's serial depth, 'size_res / __n', not
+// the range length: a longer range with a proportionally wider shift is no slower. '4096' is where
+// the parallelism bound's most permissive point lands ('32 * width' elements over 'width / 128'
+// chains, the width cancelling), an order of magnitude above the measured break-even depths of ~504
+// moves on BMG and ~89 on PVC.
 //
-// Staging also allocates and moves 'size_res * sizeof(element)' extra bytes, so the last test bounds
-// that against the device's memory. Without it the element count alone decides, and a large element
-// type turns a working in-place shift into a failed allocation.
-//
-// A device that cannot profit from a wider launch reports an occupancy width of 0, which fails the
-// parallelism test and keeps the cheaper in-place path.
+// A device that cannot profit from a wider launch reports width 0, so fails the parallelism bound.
 template <typename _Tp, typename _BackendTag, typename _ExecutionPolicy, typename _DiffType>
 bool
 __should_stage_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _DiffType __size_res)
@@ -1932,13 +1919,10 @@ __should_stage_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _Dif
     const std::size_t __n_u = static_cast<std::size_t>(__n);
     const std::size_t __size_res_u = static_cast<std::size_t>(__size_res);
 
-    //The bounds are written as divisions rather than as '4096 * __n' and '128 * __n': the products
-    //overflow std::size_t for a large enough '__n' - reachable where the difference type is 32 bits -
-    //and a wrapped product silently admits staging at a depth that cannot pay for it.
-
-    //All three tests below are necessary, but the last two query the device, so screen them off with
-    //the one that does not: staging cannot pay for itself at a shallower depth than this whatever the
-    //device.
+    //Written as divisions rather than '4096 * __n' and '128 * __n': the products overflow for a large
+    //enough '__n', reachable where the difference type is 32 bits, and a wrapped product silently
+    //admits staging at a depth that cannot pay for it. The device-free bound goes first, to screen
+    //off the two device queries.
     if (__size_res_u / 4096 < __n_u)
         return false;
     const std::size_t __occupancy_width =
@@ -1946,10 +1930,9 @@ __should_stage_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _Dif
     if (__n_u > __occupancy_width / 128)
         return false;
 
-    //The temporary holds 'size_res' elements. Keep it to a modest fraction of device memory: a
-    //shift that fits in place must not start failing because staging asked for an allocation the
-    //device cannot serve. Measure it in the element type the temporary will really hold - the
-    //rebound std::tuple is wider than the std::tuple it came from, so '_Tp' would understate it.
+    //A shift that fits in place must not start failing because staging asked for an allocation the
+    //device cannot serve. Size the temporary in the type it will really hold: __buffer rebinds
+    //std::tuple to __internal::tuple, which is wider, so '_Tp' would understate the allocation.
     using _TempTp =
         typename oneapi::dpl::__par_backend_hetero::__internal::__local_buffer<sycl::buffer<_Tp>>::type::value_type;
     return __size_res_u <= oneapi::dpl::__par_backend_hetero::__max_temporary_elements<_TempTp>(_BackendTag{}, __exec);
@@ -1990,17 +1973,15 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
         using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
 
         auto __temp_buf = oneapi::dpl::__par_backend_hetero::__buffer<_Tp>(__size_res);
-        //__buffer rebinds a std::tuple element type to oneapi::dpl::__internal::tuple (allocator
-        //included), so the temporary's element type is not always '_Tp'. Spell the views over it in
-        //terms of what the buffer actually holds: 'all_view<_Tp>' would not accept that buffer.
+        //__buffer rebinds a std::tuple element type to oneapi::dpl::__internal::tuple, so the
+        //temporary's element type is not always '_Tp' and 'all_view<_Tp>' would not accept the buffer.
         using _TempTp = typename decltype(__temp_buf.get_buffer())::value_type;
         auto __src = oneapi::dpl::__ranges::drop_view_simple<_Range, _DiffType>(__rng, __n);
         auto __dst = oneapi::dpl::__ranges::take_view_simple<_Range, _DiffType>(__rng, __size_res);
         auto __brick =
             unseq_backend::walk_n_vectors_or_scalars<_Function>{_Function{}, static_cast<std::size_t>(__size_res)};
 
-        //The first kernel overwrites every element of the temporary, so its previous contents need
-        //not be fetched: request no-init access.
+        //The first kernel overwrites the whole temporary, so its previous contents need not be fetched.
         auto __temp_rng_w =
             oneapi::dpl::__ranges::all_view<_TempTp, __par_backend_hetero::access_mode::write, /*_NoInit*/ true>(
                 __temp_buf.get_buffer());
@@ -2008,16 +1989,14 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
             _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_stage>(__exec), __brick,
             __size_res, __src, __temp_rng_w);
 
-        //An explicit wait isn't required between the two kernels: they communicate through a
-        //temporary sycl::buffer, and the SYCL runtime orders them via its dependency graph.
+        //No explicit wait between the kernels: they communicate through the temporary buffer, which
+        //the SYCL runtime orders through its dependency graph.
 
-        //Both kernels need their own wrapped policy: with explicit kernel names, case 1 submits the
-        //same brick and the same iteration count, so reusing the unwrapped policy here would mangle
-        //to a kernel name already claimed by that case.
-        //The temporary is read with "read_write" rather than "read" access: a "read" view hands the
-        //brick a 'const _Tp&', which makes its 'std::move' select copy assignment, so an element
-        //type that is move-assignable but not copy-assignable would fail to compile. std::shift_left
-        //only requires the former.
+        //Each kernel needs its own wrapped policy: case 1 submits the same brick and iteration count,
+        //so an unwrapped policy here would mangle to a kernel name that case has already claimed.
+        //"read_write" rather than "read": a "read" view hands the brick a 'const _Tp&', making its
+        //'std::move' select copy assignment, which fails to compile for an element type that is
+        //move-assignable but not copy-assignable - all std::shift_left requires.
         auto __temp_rng_r = oneapi::dpl::__ranges::all_view<_TempTp, __par_backend_hetero::access_mode::read_write>(
             __temp_buf.get_buffer());
         oneapi::dpl::__par_backend_hetero::__parallel_for(
@@ -2026,10 +2005,6 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
                 std::forward<_ExecutionPolicy>(__exec)),
             __brick, __size_res, __temp_rng_r, __dst)
             .__checked_deferrable_wait();
-
-        //The temporary buffer does not block on destruction; freeing its storage is deferred until
-        //the kernels using it retire. The wait above is this pattern's usual completion handshake,
-        //matching what the other two cases do.
     }
     else //3. n < size/2; 'n' parallel copying
     {
