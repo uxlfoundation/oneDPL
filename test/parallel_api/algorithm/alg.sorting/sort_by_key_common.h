@@ -299,7 +299,7 @@ test_device_policy(Policy&& exec, StabilityTag stability_tag)
                                                                                             large_size, stability_tag);
     test_with_buffers<sycl::ext::oneapi::bfloat16, sycl::ext::oneapi::bfloat16, 11>(CLONE_TEST_POLICY(exec),
                                                                                     small_size, stability_tag,
-                                                                                    custom_greater);
+                                                                                    std::greater{});
 #endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
 
     if constexpr (std::is_same_v<StabilityTag, StableSortTag>)
