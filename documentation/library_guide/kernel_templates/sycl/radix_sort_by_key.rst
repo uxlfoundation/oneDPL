@@ -107,7 +107,7 @@ Parameters
 
    - A C++ integral or floating-point type other than ``bool`` with a width of up to 64 bits.
    - ``sycl::half``.
-   - ``sycl::ext::oneapi::bfloat16``.
+   - ``sycl::ext::oneapi::bfloat16`` (requires Intel® oneAPI DPC++/C++ Compiler 2026.0 or greater).
 
 .. note::
 
