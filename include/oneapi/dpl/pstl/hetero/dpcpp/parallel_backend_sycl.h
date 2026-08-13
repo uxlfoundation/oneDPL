@@ -411,8 +411,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     {
         // TODO: Consider re-implementing single group scan to support types without known identities. This could also
         // allow us to use single wg scan for the last block of reduce-then-scan if it is sufficiently small.
-        constexpr bool __can_use_group_scan = unseq_backend::__has_known_identity<_BinaryOperation, _Type>::value;
-        if constexpr (__can_use_group_scan)
+        if constexpr (unseq_backend::__can_use_group_reduce_scan<_BinaryOperation, _Type>::value)
         {
             // Next power of 2 greater than or equal to __n
             std::size_t __n_uniform = oneapi::dpl::__internal::__dpl_bit_ceil(__n);
@@ -786,7 +785,7 @@ struct __parallel_find_forward_tag
     using _AtomicType = _IndexType;
 #endif
 
-    using _LocalResultsReduceOp = __dpl_sycl::__minimum<_AtomicType>;
+    using _LocalResultsReduceOp = sycl::minimum<_AtomicType>;
 
     // The template parameter is intended to unify __init_value in tags.
     template <typename _SrcDataSize>
@@ -825,7 +824,7 @@ struct __parallel_find_backward_tag
     using _AtomicType = _IndexType;
 #endif
 
-    using _LocalResultsReduceOp = __dpl_sycl::__maximum<_AtomicType>;
+    using _LocalResultsReduceOp = sycl::maximum<_AtomicType>;
 
     template <typename _SrcDataSize>
     constexpr static _AtomicType
@@ -1062,8 +1061,8 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
                     __pred(__item, __rng_n, __iters_per_work_item, __wgroup_size, __found_local, __brick_tag,
                            __rngs...);
 
-                    // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
-                    // find __dpl_sycl::__maximum (for the __parallel_find_backward_tag)
+                    // 3. Reduce over group: find sycl::minimum (for the __parallel_find_forward_tag),
+                    // find sycl::maximum (for the __parallel_find_backward_tag)
                     // or update state with __dpl_sycl::__any_of_group (for the __parallel_or_tag)
                     // inside all our group items
                     if constexpr (__or_tag_check)
@@ -1151,8 +1150,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                     __pred(__item, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
                            __brick_tag, __rngs...);
 
-                    // 3. Reduce over group: find __dpl_sycl::__minimum (for the __parallel_find_forward_tag),
-                    // find __dpl_sycl::__maximum (for the __parallel_find_backward_tag)
+                    // 3. Reduce over group: find sycl::minimum (for the __parallel_find_forward_tag),
+                    // find sycl::maximum (for the __parallel_find_backward_tag)
                     // or update state with __dpl_sycl::__any_of_group (for the __parallel_or_tag)
                     // inside all our group items
                     if constexpr (__or_tag_check)
@@ -1560,7 +1559,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                       _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
                                       _Range4&& __out_values, _BinaryPredicate __binary_pred,
                                       _BinaryOperator __binary_op,
-                                      /*known_identity=*/std::false_type)
+                                      /*__can_use_group_reduce_scan*/ std::false_type)
 {
     const auto __n = oneapi::dpl::__ranges::__size(__keys);
     assert(__n > 0);
@@ -1692,7 +1691,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
         oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
         std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
         std::forward<_Range4>(__out_values), __binary_pred, __binary_op,
-        oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, __val_type>{});
+        oneapi::dpl::unseq_backend::__can_use_group_reduce_scan<_BinaryOperator, __val_type>{});
 #endif
 }
 
