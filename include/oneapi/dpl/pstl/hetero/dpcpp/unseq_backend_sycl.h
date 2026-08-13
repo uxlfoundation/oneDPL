@@ -54,9 +54,6 @@ using __is_one_of_ops = std::disjunction<std::is_same<std::decay_t<_BinaryOp>, _
 #    if defined(SYCL_IMPLEMENTATION_INTEL)
 
 // Intel SYCL implementation provides correct results only for std::complex with plus.
-// It also works well with sycl::vec, fundamental types and a subset of functors,
-// but it is not included into __can_use_group_reduce_scan until documented and tested by the implementers.
-// See more details in https://github.com/uxlfoundation/oneDPL/pull/2762.
 #        if defined(SYCL_EXT_ONEAPI_COMPLEX_ALGORITHMS)
 template <typename _Tp>
 using __is_complex_float_or_double =
