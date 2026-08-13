@@ -265,7 +265,7 @@ main()
     test_shift_by_type<std::uint8_t>(three_quarters_shift, large_n);
     test_shift_by_type<std::uint16_t>(large_n, quarter_shift);
 
-    // The SYCL backend rotates a narrow shift when 'size - n >= 64 * n' and 'n <= width / 128'. Both
+    // The SYCL backend rotates a narrow shift when 'size - n >= 64 * n' and 'n <= width / 64'. Both
     // sizes and width derive from the device, so these cases cannot drift away from the gate.
     sycl::queue q = TestUtils::get_test_queue();
     auto policy = oneapi::dpl::execution::make_device_policy(q);
@@ -273,8 +273,10 @@ main()
         oneapi::dpl::__internal::__device_backend_tag{}, policy);
     if (width > 0)
     {
-        const std::size_t n_max = width / 128;
-        const std::size_t rot_size = width + 3; // deep enough that 'n_max + 1' still clears the depth bound
+        const std::size_t n_max = width / 64;
+        // 65 * (n_max + 1) leaves 'size - n' at 64 * (n_max + 1), so the depth bound clears for
+        // 'n_max + 1' too and it is the parallelism bound alone that rejects it below.
+        const std::size_t rot_size = 65 * (n_max + 1) + 1;
         test_shift_by_type_hetero<ValueType>(rot_size, std::size_t{1}); // rotate's single-position branch
         test_shift_by_type_hetero<std::uint16_t>(rot_size, std::size_t{7});
         test_shift_by_type_hetero<ValueType>(rot_size, n_max);
