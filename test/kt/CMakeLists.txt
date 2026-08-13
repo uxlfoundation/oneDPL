@@ -15,6 +15,13 @@
 option(ONEDPL_TEST_ENABLE_KT_ESIMD "Enable ESIMD-based kernel template tests")
 option(ONEDPL_TEST_ENABLE_KT_SYCL "Enable SYCL-based kernel template tests")
 
+# SYCL_EXT_ONEAPI_BFLOAT16 feature test macro was added only in 2026.0
+if (NOT INTEL_LLVM_COMPILER OR NOT INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2026.0)
+    set(_bfloat16_key_type_supported TRUE)
+else()
+    set(_bfloat16_key_type_supported FALSE) # Skip silently in order not to spam the output
+endif()
+
 function(_generate_test _target_name _test_path)
     add_executable(${_target_name} EXCLUDE_FROM_ALL ${_test_path})
 
@@ -110,7 +117,10 @@ function(_generate_sort_tests _variant _key_value_pairs)
     if ("${_variant}" STREQUAL "kt_sycl")
         set(_data_per_work_item_all "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" "13" "14" "15" "16")
         set(_work_group_size_all "1024" "512")
-        set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double" "sycl::half" "sycl::ext::oneapi::bfloat16")
+        set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double" "sycl::half")
+        if (_bfloat16_key_type_supported)
+            list(APPEND _type_all "sycl::ext::oneapi::bfloat16")
+        endif()
     else() # kt_esimd
         set(_data_per_work_item_all "32" "64" "96" "128" "160" "192" "224" "256" "288" "320" "352" "384" "416" "448" "480" "512")
         set(_work_group_size_all "64")
@@ -156,7 +166,9 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     _generate_sort_test("kt_sycl" "radix_sort_by_key_out_of_place" "3" "1024" "uint32_t" "uint32_t" 1000)
     _generate_sort_test("kt_sycl" "radix_sort_by_key" "5" "512" "float" "uint32_t" 1000)
     _generate_sort_test("kt_sycl" "radix_sort" "12" "1024" "int32_t" "" 1000)
-    _generate_sort_test("kt_sycl" "radix_sort_by_key" "7" "512" "sycl::ext::oneapi::bfloat16" "uint32_t" 1000)
+    if (_bfloat16_key_type_supported)
+        _generate_sort_test("kt_sycl" "radix_sort_by_key" "7" "512" "sycl::ext::oneapi::bfloat16" "uint32_t" 1000)
+    endif()
 endif()
 
 function (_generate_gpu_scan_test _data_per_work_item _work_group_size _type _probability_permille)
