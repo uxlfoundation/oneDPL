@@ -93,9 +93,10 @@ __get_bucket_scalar(_T __value, std::uint32_t __radix_offset)
 }
 
 // Order-preserving cast for bool - scalar version
-template <bool __is_ascending>
+// Do not use bool directly - other unsupported types may be implicitly converted to bool
+template <bool __is_ascending, typename _BoolT, std::enable_if_t<std::is_same_v<_BoolT, bool>, int> = 0>
 bool
-__order_preserving_cast_scalar(bool __src)
+__order_preserving_cast_scalar(_BoolT __src)
 {
     if constexpr (__is_ascending)
         return __src;
@@ -104,7 +105,8 @@ __order_preserving_cast_scalar(bool __src)
 }
 
 // Order-preserving cast for unsigned integers - scalar version
-template <bool __is_ascending, typename _UInt, std::enable_if_t<std::is_unsigned_v<_UInt>, int> = 0>
+template <bool __is_ascending, typename _UInt,
+          std::enable_if_t<std::is_unsigned_v<_UInt> && !std::is_same_v<_UInt, bool>, int> = 0>
 _UInt
 __order_preserving_cast_scalar(_UInt __src)
 {
