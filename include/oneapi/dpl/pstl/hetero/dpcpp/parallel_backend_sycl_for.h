@@ -341,27 +341,21 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
                                                                                std::forward<_Ranges>(__rngs)...);
 }
 
-// The launch width a pattern should aim for when choosing between a strategy whose parallelism is
-// fixed by the problem and a costlier one that can fill the machine. Returns 0 when widening cannot
-// pay off, so that the usual "is my launch narrow" test keeps the cheaper strategy: on a CPU a
-// work-item is a slice of a hardware thread rather than a lane, so even a narrow launch occupies a
-// useful share of the device, and other device classes are uncalibrated.
-// Note the unit: max_compute_units reports EUs on Intel GPUs, not Xe cores. Callers' thresholds were
-// fitted against this same quantity, so a caller deriving a figure another way has to convert.
+// The launch width a pattern should aim for when choosing between a strategy whose parallelism the
+// problem fixes and a costlier one that can fill the machine.
 template <typename _ExecutionPolicy>
 std::size_t
 __parallel_for_occupancy_width(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec)
 {
     sycl::queue __q_local = __exec.queue();
     if (!__q_local.get_device().is_gpu())
-        return 0;
+        return 0; //width 0 fails any "is my launch narrow" test, keeping the cheaper strategy
+    //max_compute_units reports EUs on Intel GPUs, not Xe cores; callers' thresholds assume EUs.
     return oneapi::dpl::__internal::__max_work_group_size(__q_local, __parallel_for_work_group_size_limit) *
            oneapi::dpl::__internal::__max_compute_units(__q_local);
 }
 
-// How many elements of type _Tp a pattern may put in a device temporary. A bound in elements alone
-// will not do: the same count is a modest buffer for a char and an impossible one for a large struct.
-// A fraction of device memory rather than all of it, since the input already occupies some.
+// How many elements of type _Tp a pattern may put in a device temporary.
 template <typename _Tp, typename _ExecutionPolicy>
 std::size_t
 __max_temporary_elements(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec)

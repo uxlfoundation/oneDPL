@@ -241,8 +241,7 @@ shift_fill_value(std::size_t v)
         return T(v);
 }
 
-// The paths worth checking at these sizes exist only in the SYCL backend, and the sizes are large
-// enough that running them through every host policy as well would dominate the test's runtime.
+// Hetero-only: these sizes would dominate the test's runtime run through every host policy too.
 template <typename T, typename Size>
 void
 test_shift_by_type_hetero(Size m, Size n)
@@ -286,14 +285,8 @@ main()
     test_shift_by_type<std::uint8_t>(large_n, quarter_shift);
     test_shift_by_type<std::uint8_t>(large_n, three_quarters_shift);
     test_shift_by_type<std::uint16_t>(large_n, quarter_shift);
-    // A shift too narrow for one work-item per shifted position to fill the device: the SYCL backend
-    // stages these through a temporary. Whether that path is reachable depends on the device, so
-    // derive the sizes from it - a size large enough to reach the path on a small GPU misses it on a
-    // large one. Staging needs '128 * n <= width' and a depth of 'size - n >= 4096 * n', so straddle
-    // the parallelism bound at a size clearing the depth bound either way. Shifts are deliberately
-    // not multiples of the vector size, and both a vectorizable and a non-vectorizable type are
-    // covered. The width comes from the backend rather than being recomputed here, so the test cannot
-    // silently drift from the gate.
+    // The SYCL backend stages a narrow shift when '128 * n <= width' and 'size - n >= 4096 * n'.
+    // Sizes derive from the device, and the width from the backend, so the test cannot drift.
     sycl::queue __q = TestUtils::get_test_queue();
     auto __policy = oneapi::dpl::execution::make_device_policy(__q);
     const std::size_t width = oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(
@@ -305,8 +298,7 @@ main()
         test_shift_by_type_hetero<ValueType>(staged_size, std::size_t{1});
         // Just past the parallelism bound, so this one must take the in-place chain walk.
         test_shift_by_type_hetero<ValueType>(staged_size, width / 128 + 1);
-        // A std::tuple element type: the staged path is the only one that puts the element type in a
-        // temporary, where the backend rebinds std::tuple to its own tuple. Kept small deliberately.
+        // Only the staged path puts the element type in a temporary, where std::tuple is rebound.
         test_shift_by_type_hetero<std::tuple<std::int32_t, float>>(staged_size, std::size_t{1});
     }
 #endif

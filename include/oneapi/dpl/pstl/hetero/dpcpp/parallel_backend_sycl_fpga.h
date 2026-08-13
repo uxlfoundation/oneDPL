@@ -110,8 +110,7 @@ __parallel_for_occupancy_width(oneapi::dpl::__internal::__fpga_backend_tag, _Exe
     return 0;
 }
 
-// The width above already keeps widening strategies off this backend; defined so that a caller
-// testing this bound first still compiles for the FPGA tag.
+// Never reached - the width above opts this backend out - but needed for a caller to compile.
 template <typename _Tp, typename _ExecutionPolicy>
 std::size_t
 __max_temporary_elements(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&&)
