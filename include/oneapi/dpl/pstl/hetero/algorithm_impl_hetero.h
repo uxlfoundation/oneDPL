@@ -1921,10 +1921,12 @@ __should_rotate_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _Di
 
     const std::size_t __occupancy_width =
         oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(_BackendTag{}, __exec);
-    //A chain per work item, so '__n' work items; 128 of them per available lane is still narrow. The
-    //second, byte-denominated form of the same bound only binds above 4-byte elements, whose rotate
-    //pays for the bytes while the walk stays latency-bound.
-    return __n_u <= __occupancy_width / 128 && __n_u * sizeof(_Tp) <= __occupancy_width / 32;
+    //A chain per work item, so '__n' work items; 64 of them per available lane is still narrow. The
+    //rotate's cost does not depend on '__n' (measured: within 3% from '__n' of 8 to 1,024), while the
+    //walk's grows as 'size_res / __n' hops, so the bound only has to stay clear of the '__n' wide
+    //enough to reach full bandwidth. The second, byte-denominated form of the same bound only binds
+    //above 4-byte elements, whose rotate pays for the bytes while the walk stays latency-bound.
+    return __n_u <= __occupancy_width / 64 && __n_u * sizeof(_Tp) <= __occupancy_width / 16;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range>
