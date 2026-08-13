@@ -105,11 +105,6 @@ __sort_identity()
         return std::numeric_limits<_T>::lowest();
 }
 
-// std::numeric_limits<_T>::max and std::numeric_limits<_T>::lowest cannot be used as an identity for
-// performing radix sort of floating point numbers.
-// They do not set the smallest exponent bit (i.e. the max is 7F7FFFFF for 32bit float),
-// thus such an identity is not guaranteed to be put at the end of the sorted sequence after each radix sort stage,
-// e.g. 00FF0000 numbers will be pushed out by 7F7FFFFF identities when sorting 16-23 bits.
 template <typename _T, bool __is_ascending,
           std::enable_if_t<oneapi::dpl::__internal::__is_radix_sort_float_v<_T>, int> = 0>
 constexpr _T

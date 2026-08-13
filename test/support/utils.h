@@ -1090,9 +1090,11 @@ generate_arithmetic_data(sycl::half* input, std::size_t size, std::uint32_t seed
 #if defined(SYCL_EXT_ONEAPI_BFLOAT16)
 // Convert raw uint16 bits to a valid sycl::ext::oneapi::bfloat16, avoiding NaN values which
 // need a custom comparator due to: (x < NaN = false) and (NaN < x = false).
-// Also avoids denormals: bfloat16 shares float's 8-bit exponent, so a denormal bfloat16 widens to a genuine
-// float32 subnormal, which some compilers/devices flush to zero, making distinct keys compare as equal
-// under a floating-point reference comparator even though the library sorts them correctly by their bits.
+// Also avoids denormals: this compiler's bfloat16::operator< converts both operands to float
+// by reinterpreting the raw bits as float32 (bfloat16 is defined as float32's top 16 bits), so
+// a denormal bfloat16 becomes a denormal float32 during every comparison. Some compilers/devices
+// flush float32 denormals to zero, making distinct keys compare as equal even though
+// oneDPL sorts them correctly by their bits.
 inline sycl::ext::oneapi::bfloat16
 sycl_bfloat16_convert(std::uint16_t raw)
 {
