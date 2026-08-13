@@ -750,7 +750,7 @@ __order_preserving_cast(_Float __val)
 
     _UInt __uint_val = __dpl_bit_cast<_UInt>(__val);
     // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation.
-    if ((__uint_val & __magnitude_mask) == 0)
+    if (__val == _Float{0})
         return __sign_mask;
     _UInt __mask;
     if constexpr (__is_ascending)

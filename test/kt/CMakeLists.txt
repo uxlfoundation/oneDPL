@@ -16,7 +16,7 @@ option(ONEDPL_TEST_ENABLE_KT_ESIMD "Enable ESIMD-based kernel template tests")
 option(ONEDPL_TEST_ENABLE_KT_SYCL "Enable SYCL-based kernel template tests")
 
 # SYCL_EXT_ONEAPI_BFLOAT16 feature test macro was added only in 2026.0
-if (NOT INTEL_LLVM_COMPILER OR NOT INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2026.0)
+if (INTEL_LLVM_COMPILER AND NOT INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2026.0)
     set(_bfloat16_key_type_supported TRUE)
 else()
     set(_bfloat16_key_type_supported FALSE) # Skip silently in order not to spam the output
