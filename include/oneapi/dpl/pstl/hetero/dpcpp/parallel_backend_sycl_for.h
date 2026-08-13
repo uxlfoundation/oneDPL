@@ -146,14 +146,16 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
     }
 };
 
+// Limit the work-group size to 512 which has empirically yielded the best results across different architectures.
+inline constexpr std::uint16_t __parallel_for_work_group_size_limit = 512;
+
 template <typename _KernelName>
 struct __parallel_for_large_submitter;
 
 template <typename... _Name>
 struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name...>>
 {
-    // Limit the work-group size to 512 which has empirically yielded the best results across different architectures.
-    static constexpr std::uint16_t __work_group_size_limit = 512;
+    static constexpr std::uint16_t __work_group_size_limit = __parallel_for_work_group_size_limit;
 
     template <typename _Fp>
     static std::size_t
@@ -337,6 +339,20 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
     sycl::queue __q_local = __exec.queue();
     return oneapi::dpl::__par_backend_hetero::__parallel_for_impl<_CustomName>(__q_local, __brick, __count,
                                                                                std::forward<_Ranges>(__rngs)...);
+}
+
+// The launch width a pattern should aim for when choosing between a strategy whose parallelism the
+// problem fixes and a costlier one that can fill the machine.
+template <typename _ExecutionPolicy>
+std::size_t
+__parallel_for_occupancy_width(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec)
+{
+    sycl::queue __q_local = __exec.queue();
+    if (!__q_local.get_device().is_gpu())
+        return 0; //width 0 fails any "is my launch narrow" test, keeping the cheaper strategy
+    //max_compute_units reports EUs on Intel GPUs, not Xe cores; callers' thresholds assume EUs.
+    return oneapi::dpl::__internal::__max_work_group_size(__q_local, __parallel_for_work_group_size_limit) *
+           oneapi::dpl::__internal::__max_compute_units(__q_local);
 }
 
 } // namespace __par_backend_hetero

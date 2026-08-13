@@ -219,6 +219,24 @@ test_shift_by_type(Size m, Size n)
 #endif
 }
 
+#if TEST_DPCPP_BACKEND_PRESENT
+// Hetero-only: run through every host policy too, these sizes would dominate the test's runtime.
+template <typename T, typename Size>
+void
+test_shift_by_type_hetero(Size m, Size n)
+{
+    TestUtils::Sequence<T> orig(m, [](::std::size_t v) -> T { return T(v); }); //fill data
+    TestUtils::Sequence<T> in(m, [](::std::size_t v) -> T { return T(v); });   //fill data
+
+#    ifdef _PSTL_TEST_SHIFT_LEFT
+    TestUtils::invoke_on_all_hetero_policies<>()(test_shift(), in.begin(), m, orig.begin(), n, shift_left_algo{});
+#    endif
+#    ifdef _PSTL_TEST_SHIFT_RIGHT
+    TestUtils::invoke_on_all_hetero_policies<>()(test_shift(), in.begin(), m, orig.begin(), n, shift_right_algo{});
+#    endif
+}
+#endif
+
 int
 main()
 {
@@ -246,6 +264,26 @@ main()
     test_shift_by_type<std::uint8_t>(large_n, quarter_shift);
     test_shift_by_type<std::uint8_t>(three_quarters_shift, large_n);
     test_shift_by_type<std::uint16_t>(large_n, quarter_shift);
+
+    // The SYCL backend rotates a narrow shift when 'size - n >= 64 * n' and 'n <= width / 128'. Both
+    // sizes and width derive from the device, so these cases cannot drift away from the gate.
+    sycl::queue q = TestUtils::get_test_queue();
+    auto policy = oneapi::dpl::execution::make_device_policy(q);
+    const std::size_t width = oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(
+        oneapi::dpl::__internal::__device_backend_tag{}, policy);
+    if (width > 0)
+    {
+        const std::size_t n_max = width / 128;
+        const std::size_t rot_size = width + 3; // deep enough that 'n_max + 1' still clears the depth bound
+        test_shift_by_type_hetero<ValueType>(rot_size, std::size_t{1}); // rotate's single-position branch
+        test_shift_by_type_hetero<std::uint16_t>(rot_size, std::size_t{7});
+        test_shift_by_type_hetero<ValueType>(rot_size, n_max);
+        // Just past the parallelism bound, so this one must take the in-place chain walk.
+        test_shift_by_type_hetero<ValueType>(rot_size, n_max + 1);
+        // Straddles the depth bound: 'size - n' is 8 * 64 - 1 and then 8 * 64.
+        test_shift_by_type_hetero<ValueType>(std::size_t{519}, std::size_t{8});
+        test_shift_by_type_hetero<ValueType>(std::size_t{520}, std::size_t{8});
+    }
 #endif
 
     return TestUtils::done();

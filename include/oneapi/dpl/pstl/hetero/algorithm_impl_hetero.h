@@ -1902,9 +1902,34 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
 template <typename _Name>
 struct __shift_left_right;
 
+template <typename _Name>
+struct __shift_via_rotate;
+
+// Rotate instead of walking in place when the walk - '__n' chains of 'size_res / __n' dependent moves -
+// is too narrow to fill the device and long enough to pay for a second full-width pass.
+template <typename _Tp, typename _BackendTag, typename _ExecutionPolicy, typename _DiffType>
+bool
+__should_rotate_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _DiffType __size_res)
+{
+    const std::size_t __n_u = static_cast<std::size_t>(__n);
+
+    //Divisions, not products: '64 * __n' overflows a 32-bit difference type. The modelled crossover is
+    //27 chained moves on BMG and 15 on PVC - one extra kernel launch against the per-hop latency - so
+    //64 is the next power of two clear of both.
+    if (static_cast<std::size_t>(__size_res) / 64 < __n_u)
+        return false;
+
+    const std::size_t __occupancy_width =
+        oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(_BackendTag{}, __exec);
+    //A chain per work item, so '__n' work items; 128 of them per available lane is still narrow. The
+    //second, byte-denominated form of the same bound only binds above 4-byte elements, whose rotate
+    //pays for the bytes while the walk stays latency-bound.
+    return __n_u <= __occupancy_width / 128 && __n_u * sizeof(_Tp) <= __occupancy_width / 32;
+}
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__difference_t<_Range>
-__pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range __rng,
+__pattern_shift_left(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range __rng,
                      oneapi::dpl::__internal::__difference_t<_Range> __n)
 {
     //If (n > 0 && n < m), returns first + (m - n). Otherwise, if n  > 0, returns first. Otherwise, returns last.
@@ -1932,7 +1957,16 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
                                                           __brick, __size_res, __src, __dst)
             .__checked_deferrable_wait();
     }
-    else //2. n < size/2; 'n' parallel copying
+    //2. A rotate by '__n' produces the required prefix and leaves the original head in the tail, whose
+    //content [alg.shift] does not specify. See __should_rotate_shift.
+    else if (__should_rotate_shift<oneapi::dpl::__internal::__value_t<_Range>>(_BackendTag{}, __exec, __n, __size_res))
+    {
+        __pattern_rotate(__tag,
+                         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_via_rotate>(
+                             std::forward<_ExecutionPolicy>(__exec)),
+                         __rng, static_cast<std::size_t>(__n));
+    }
+    else //3. n < size/2; 'n' parallel copying
     {
         auto __brick = unseq_backend::__brick_shift_left<_DiffType>{__size, __n};
         oneapi::dpl::__par_backend_hetero::__parallel_for(
