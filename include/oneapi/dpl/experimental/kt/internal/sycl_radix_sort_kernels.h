@@ -129,7 +129,8 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
                 for (std::uint32_t __i = 0; __i < __hist_data_per_work_item; ++__i)
                 {
                     _BinT __bucket = __get_bucket_scalar<__mask>(
-                        __order_preserving_cast_scalar<__is_ascending>(__keys[__i]), __stage * __radix_bits);
+                        oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(__keys[__i]),
+                        __stage * __radix_bits);
                     _GlobOffsetT __bin = __stage * __bin_count + __bucket;
                     using _SLMAtomicRef =
                         sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::work_group,
@@ -662,8 +663,8 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         {
             _LocIdxT __slm_idx = __keys_slm_offset + __i * __sub_group_size + __sub_group_local_id;
             _KeyT __key = __slm_keys[__slm_idx];
-            _LocIdxT __bin = __get_bucket_scalar<__mask>(__order_preserving_cast_scalar<__is_ascending>(__key),
-                                                         __stage * __radix_bits);
+            _LocIdxT __bin = __get_bucket_scalar<__mask>(
+                oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(__key), __stage * __radix_bits);
             _GlobOffsetT __global_fix = __slm_global_fix[__bin];
             _GlobOffsetT __out_idx = __global_fix + __slm_idx;
 
@@ -710,7 +711,8 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
             {
-                const auto __ordered = __order_preserving_cast_scalar<__is_ascending>(__values_pack.__keys[__i]);
+                const auto __ordered =
+                    oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(__values_pack.__keys[__i]);
                 __bins[__i] = __get_bucket_scalar<__mask>(__ordered, __stage * __radix_bits);
             }
 

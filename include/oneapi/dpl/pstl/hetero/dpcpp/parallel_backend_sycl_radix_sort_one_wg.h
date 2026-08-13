@@ -223,7 +223,7 @@ struct __subgroup_radix_sort
                                     const std::uint16_t __bin =
                                         __idx < __n
                                             ? __get_bucket</*mask*/ __bin_count - 1>(
-                                                  __order_preserving_cast<__is_asc>(
+                                                  oneapi::dpl::__internal::__order_preserving_cast<__is_asc>(
                                                       std::invoke(__proj, __values.__v[__i])),
                                                   __begin_bit)
                                             : __bin_count - 1 /*default bin for out of range elements (when idx >= n)*/;

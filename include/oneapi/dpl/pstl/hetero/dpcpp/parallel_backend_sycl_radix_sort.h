@@ -26,6 +26,7 @@
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
 #include "execution_sycl_defs.h"
+#include "../../utils.h" // for __order_preserving_cast, __dpl_ceiling_div
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
@@ -35,81 +36,6 @@ namespace dpl
 {
 namespace __par_backend_hetero
 {
-//------------------------------------------------------------------------
-// radix sort: bitwise order-preserving conversions to unsigned integrals
-//------------------------------------------------------------------------
-
-// Do not use bool directly - other unsupported types may be implicitly converted to bool
-template <bool __is_ascending, typename _BoolT, ::std::enable_if_t<::std::is_same_v<_BoolT, bool>, int> = 0>
-bool
-__order_preserving_cast(_BoolT __val)
-{
-    if constexpr (__is_ascending)
-        return __val;
-    else
-        return !__val;
-}
-
-template <bool __is_ascending, typename _UInt,
-          ::std::enable_if_t<::std::is_unsigned_v<_UInt> && !::std::is_same_v<_UInt, bool>, int> = 0>
-_UInt
-__order_preserving_cast(_UInt __val)
-{
-    if constexpr (__is_ascending)
-        return __val;
-    else
-        return ~__val; //bitwise inversion
-}
-
-template <bool __is_ascending, typename _Int,
-          ::std::enable_if_t<::std::is_integral_v<_Int> && ::std::is_signed_v<_Int>, int> = 0>
-::std::make_unsigned_t<_Int>
-__order_preserving_cast(_Int __val)
-{
-    using _UInt = ::std::make_unsigned_t<_Int>;
-    // mask: 100..0 for ascending, 011..1 for descending
-    constexpr _UInt __mask =
-        (__is_ascending) ? _UInt(1) << ::std::numeric_limits<_Int>::digits : ::std::numeric_limits<_UInt>::max() >> 1;
-    return __val ^ __mask;
-}
-
-template <std::size_t __size>
-struct __uint_for_size;
-template <> struct __uint_for_size<2> { using type = std::uint16_t; };
-template <> struct __uint_for_size<4> { using type = std::uint32_t; };
-template <> struct __uint_for_size<8> { using type = std::uint64_t; };
-template <std::size_t __size>
-using __uint_for_size_t = typename __uint_for_size<__size>::type;
-
-template <typename _T>
-inline constexpr bool __is_radix_sort_float_v =
-    std::is_same_v<_T, sycl::half>
-#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
-    || std::is_same_v<_T, sycl::ext::oneapi::bfloat16>
-#endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
-    || (std::is_floating_point_v<_T> && (sizeof(_T) == sizeof(std::uint32_t) || sizeof(_T) == sizeof(std::uint64_t)));
-
-template <bool __is_ascending, typename _Float, std::enable_if_t<__is_radix_sort_float_v<_Float>, int> = 0>
-__uint_for_size_t<sizeof(_Float)>
-__order_preserving_cast(_Float __val)
-{
-    using _UInt = __uint_for_size_t<sizeof(_Float)>;
-    constexpr int __bits = std::numeric_limits<_UInt>::digits;
-    constexpr _UInt __sign_mask = _UInt(1) << (__bits - 1);
-    constexpr _UInt __magnitude_mask = _UInt(__sign_mask - 1);
-
-    _UInt __uint_val = oneapi::dpl::__internal::__dpl_bit_cast<_UInt>(__val);
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation.
-    if ((__uint_val & __magnitude_mask) == 0)
-        return __sign_mask;
-    _UInt __mask;
-    if constexpr (__is_ascending)
-        __mask = ((__uint_val & __sign_mask) == 0) ? __sign_mask : std::numeric_limits<_UInt>::max();
-    else
-        __mask = ((__uint_val & __sign_mask) == 0) ? __magnitude_mask : _UInt(0);
-    return __uint_val ^ __mask;
-}
-
 //------------------------------------------------------------------------
 // radix sort: bucket functions
 //------------------------------------------------------------------------
@@ -204,7 +130,7 @@ __radix_sort_count_impl(_InputRange& __input, _Proj __proj, std::uint32_t __radi
         _ONEDPL_PRAGMA_UNROLL
         for (std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
         {
-            auto __val = __order_preserving_cast<__is_ascending>(
+            auto __val = oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(
                 std::invoke(__proj, __input[__base_idx + __unroll * __sg_size]));
             std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
             ++__slm_buckets[__views.__get_bucket_idx(__bucket, __self_lidx)];
@@ -221,7 +147,8 @@ __radix_sort_count_impl(_InputRange& __input, _Proj __proj, std::uint32_t __radi
             std::size_t __curr_idx = __base_idx + __unroll * __sg_size;
             if (__curr_idx < __sg_chunk_end)
             {
-                auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__curr_idx]));
+                auto __val = oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(
+                    std::invoke(__proj, __input[__curr_idx]));
                 std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
                 ++__slm_buckets[__views.__get_bucket_idx(__bucket, __self_lidx)];
             }
@@ -543,7 +470,8 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
         std::uint32_t __local_counts[__radix_states] = {0};
         for (std::size_t __idx = __wi_start; __idx < __wi_end; ++__idx)
         {
-            auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__idx]));
+            auto __val =
+                oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__idx]));
             ++__local_counts[__get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset)];
         }
 
@@ -612,7 +540,8 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
     {
         auto __in_val = __input[__idx];
         std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(
-            __order_preserving_cast<__is_ascending>(std::invoke(__proj, __in_val)), __radix_offset);
+            oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(std::invoke(__proj, __in_val)),
+            __radix_offset);
         __output[__offsets[__bucket]++] = std::move(__in_val);
     }
 }

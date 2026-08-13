@@ -92,81 +92,6 @@ __get_bucket_scalar(_T __value, std::uint32_t __radix_offset)
     return std::uint16_t(__value >> __radix_offset) & __radix_mask;
 }
 
-// Order-preserving cast for bool - scalar version
-// Do not use bool directly - other unsupported types may be implicitly converted to bool
-template <bool __is_ascending, typename _BoolT, std::enable_if_t<std::is_same_v<_BoolT, bool>, int> = 0>
-bool
-__order_preserving_cast_scalar(_BoolT __src)
-{
-    if constexpr (__is_ascending)
-        return __src;
-    else
-        return !__src;
-}
-
-// Order-preserving cast for unsigned integers - scalar version
-template <bool __is_ascending, typename _UInt,
-          std::enable_if_t<std::is_unsigned_v<_UInt> && !std::is_same_v<_UInt, bool>, int> = 0>
-_UInt
-__order_preserving_cast_scalar(_UInt __src)
-{
-    if constexpr (__is_ascending)
-        return __src;
-    else
-        return ~__src; // bitwise inversion
-}
-
-// Order-preserving cast for signed integers - scalar version
-template <bool __is_ascending, typename _Int,
-          std::enable_if_t<std::is_integral_v<_Int> && std::is_signed_v<_Int>, int> = 0>
-std::make_unsigned_t<_Int>
-__order_preserving_cast_scalar(_Int __src)
-{
-    using _UInt = std::make_unsigned_t<_Int>;
-    // __mask: 100..0 for ascending, 011..1 for descending
-    constexpr _UInt __mask =
-        (__is_ascending) ? _UInt(1) << std::numeric_limits<_Int>::digits : std::numeric_limits<_UInt>::max() >> 1;
-    return sycl::bit_cast<_UInt>(__src) ^ __mask;
-}
-
-template <std::size_t __size>
-struct __uint_for_size;
-template <> struct __uint_for_size<2> { using type = std::uint16_t; };
-template <> struct __uint_for_size<4> { using type = std::uint32_t; };
-template <> struct __uint_for_size<8> { using type = std::uint64_t; };
-template <std::size_t __size>
-using __uint_for_size_t = typename __uint_for_size<__size>::type;
-
-template <typename _T>
-inline constexpr bool __is_radix_sort_float_v =
-    std::is_same_v<_T, sycl::half>
-#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
-    || std::is_same_v<_T, sycl::ext::oneapi::bfloat16>
-#endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
-    || (std::is_floating_point_v<_T> && (sizeof(_T) == sizeof(std::uint32_t) || sizeof(_T) == sizeof(std::uint64_t)));
-
-// Order-preserving cast for floating-point types - scalar version
-template <bool __is_ascending, typename _Float, std::enable_if_t<__is_radix_sort_float_v<_Float>, int> = 0>
-__uint_for_size_t<sizeof(_Float)>
-__order_preserving_cast_scalar(_Float __src)
-{
-    using _UInt = __uint_for_size_t<sizeof(_Float)>;
-    constexpr int __bits = std::numeric_limits<_UInt>::digits;
-    constexpr _UInt __sign_mask = _UInt(1) << (__bits - 1);
-    constexpr _UInt __magnitude_mask = _UInt(__sign_mask - 1);
-
-    _UInt __uint_src = sycl::bit_cast<_UInt>(__src);
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation.
-    if ((__uint_src & __magnitude_mask) == 0)
-        return __sign_mask;
-    _UInt __mask;
-    if constexpr (__is_ascending)
-        __mask = ((__uint_src & __sign_mask) == 0) ? __sign_mask : std::numeric_limits<_UInt>::max();
-    else
-        __mask = ((__uint_src & __sign_mask) == 0) ? __magnitude_mask : _UInt(0);
-    return __uint_src ^ __mask;
-}
-
 //-----------------------------------------------------------------------------
 // Sort identity values - used to pad incomplete blocks during sorting
 //-----------------------------------------------------------------------------
@@ -185,11 +110,12 @@ __sort_identity()
 // They do not set the smallest exponent bit (i.e. the max is 7F7FFFFF for 32bit float),
 // thus such an identity is not guaranteed to be put at the end of the sorted sequence after each radix sort stage,
 // e.g. 00FF0000 numbers will be pushed out by 7F7FFFFF identities when sorting 16-23 bits.
-template <typename _T, bool __is_ascending, std::enable_if_t<__is_radix_sort_float_v<_T>, int> = 0>
+template <typename _T, bool __is_ascending,
+          std::enable_if_t<oneapi::dpl::__internal::__is_radix_sort_float_v<_T>, int> = 0>
 constexpr _T
 __sort_identity()
 {
-    using _UInt = __uint_for_size_t<sizeof(_T)>;
+    using _UInt = oneapi::dpl::__internal::__uint_for_size_t<sizeof(_T)>;
     if constexpr (__is_ascending)
         return sycl::bit_cast<_T>(_UInt(std::numeric_limits<_UInt>::max() >> 1));
     else
