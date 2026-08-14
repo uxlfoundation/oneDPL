@@ -45,7 +45,7 @@ template <typename _AccessorType, typename _BufferType, typename _DiffType>
 static _AccessorType
 __create_accessor(_BufferType& __buf, _DiffType __offset, _DiffType __n, bool __no_init_requested = false)
 {
-    _DiffType __n_buf = __dpl_sycl::__get_buffer_size(__buf);
+    _DiffType __n_buf = static_cast<_DiffType>(__dpl_sycl::__get_buffer_size(__buf));
     _DiffType __n_acc = (__n > 0 ? __n : __n_buf);
 
     assert(__offset + __n_acc <= __n_buf &&
