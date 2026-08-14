@@ -349,7 +349,7 @@ __parallel_for_occupancy_width(oneapi::dpl::__internal::__device_backend_tag, _E
 {
     sycl::queue __q_local = __exec.queue();
     if (!__q_local.get_device().is_gpu())
-        return 0; //width 0 fails any "is my launch narrow" test, keeping the cheaper strategy
+        return 0; //0 fails any "is my launch narrower than this" test, keeping the cheaper strategy
     //max_compute_units reports EUs on Intel GPUs, not Xe cores; callers' thresholds assume EUs.
     return oneapi::dpl::__internal::__max_work_group_size(__q_local, __parallel_for_work_group_size_limit) *
            oneapi::dpl::__internal::__max_compute_units(__q_local);
