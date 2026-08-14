@@ -748,10 +748,11 @@ __order_preserving_cast(_Float __val)
     constexpr _UInt __sign_mask = _UInt(1) << (__bits - 1);
     constexpr _UInt __magnitude_mask = _UInt(__sign_mask - 1);
 
-    _UInt __uint_val = __dpl_bit_cast<_UInt>(__val);
     // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation.
     if (__val == _Float{0})
         return __sign_mask;
+
+    _UInt __uint_val = __dpl_bit_cast<_UInt>(__val);
     _UInt __mask;
     if constexpr (__is_ascending)
         __mask = ((__uint_val & __sign_mask) == 0) ? __sign_mask : std::numeric_limits<_UInt>::max();
