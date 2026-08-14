@@ -1086,6 +1086,37 @@ generate_arithmetic_data(sycl::half* input, std::size_t size, std::uint32_t seed
     for (std::uint32_t i = 0, j = unique_threshold; j < size; ++i, ++j)
         input[j] = input[i];
 }
+
+#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+// Convert raw uint16 bits to a valid sycl::ext::oneapi::bfloat16, avoiding NaN values which
+// need a custom comparator due to: (x < NaN = false) and (NaN < x = false).
+inline sycl::ext::oneapi::bfloat16
+sycl_bfloat16_convert(std::uint16_t raw)
+{
+    constexpr std::uint16_t exp_mask = 0x7F80u;
+    constexpr std::uint16_t frac_mask = 0x007Fu;
+    bool is_nan = ((raw & exp_mask) == exp_mask) && ((raw & frac_mask) > 0);
+    if (is_nan)
+    {
+        constexpr std::uint16_t smallest_exp_bit = 0x0080u;
+        raw = raw & (~smallest_exp_bit);
+    }
+    return sycl::bit_cast<sycl::ext::oneapi::bfloat16>(raw);
+}
+
+inline void
+generate_arithmetic_data(sycl::ext::oneapi::bfloat16* input, std::size_t size, std::uint32_t seed)
+{
+    std::default_random_engine gen{seed};
+    std::size_t unique_threshold = 75 * size / 100;
+    std::uniform_int_distribution<std::uint16_t> dist(0, 0xFFFFu);
+
+    assert(unique_threshold >= size / 2 && unique_threshold < size);
+    std::generate(input, input + unique_threshold, [&]() { return sycl_bfloat16_convert(dist(gen)); });
+    for (std::uint32_t i = 0, j = unique_threshold; j < size; ++i, ++j)
+        input[j] = input[i];
+}
+#endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 // Utility that models __estimate_best_start_size in the SYCL backend parallel_for to ensure large enough inputs are

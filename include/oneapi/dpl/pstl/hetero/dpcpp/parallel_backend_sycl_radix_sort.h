@@ -26,6 +26,7 @@
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
 #include "execution_sycl_defs.h"
+#include "../../utils.h" // for __order_preserving_cast, __dpl_ceiling_div
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
@@ -35,95 +36,6 @@ namespace dpl
 {
 namespace __par_backend_hetero
 {
-//------------------------------------------------------------------------
-// radix sort: bitwise order-preserving conversions to unsigned integrals
-//------------------------------------------------------------------------
-
-template <bool __is_ascending>
-bool
-__order_preserving_cast(bool __val)
-{
-    if constexpr (__is_ascending)
-        return __val;
-    else
-        return !__val;
-}
-
-template <bool __is_ascending, typename _UInt, ::std::enable_if_t<::std::is_unsigned_v<_UInt>, int> = 0>
-_UInt
-__order_preserving_cast(_UInt __val)
-{
-    if constexpr (__is_ascending)
-        return __val;
-    else
-        return ~__val; //bitwise inversion
-}
-
-template <bool __is_ascending, typename _Int,
-          ::std::enable_if_t<::std::is_integral_v<_Int> && ::std::is_signed_v<_Int>, int> = 0>
-::std::make_unsigned_t<_Int>
-__order_preserving_cast(_Int __val)
-{
-    using _UInt = ::std::make_unsigned_t<_Int>;
-    // mask: 100..0 for ascending, 011..1 for descending
-    constexpr _UInt __mask =
-        (__is_ascending) ? _UInt(1) << ::std::numeric_limits<_Int>::digits : ::std::numeric_limits<_UInt>::max() >> 1;
-    return __val ^ __mask;
-}
-
-template <bool __is_ascending>
-::std::uint16_t
-__order_preserving_cast(sycl::half __val)
-{
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
-    if (__val == sycl::half{0})
-        return 0x8000u;
-    std::uint16_t __uint16_val = oneapi::dpl::__internal::__dpl_bit_cast<std::uint16_t>(__val);
-    ::std::uint16_t __mask;
-    // __uint16_val >> 15 takes the sign bit of the original value
-    if constexpr (__is_ascending)
-        __mask = (__uint16_val >> 15 == 0) ? 0x8000u : 0xFFFFu;
-    else
-        __mask = (__uint16_val >> 15 == 0) ? 0x7FFFu : ::std::uint16_t(0);
-    return __uint16_val ^ __mask;
-}
-
-template <bool __is_ascending, typename _Float,
-          ::std::enable_if_t<::std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(::std::uint32_t), int> = 0>
-::std::uint32_t
-__order_preserving_cast(_Float __val)
-{
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
-    if (__val == _Float{0})
-        return 0x80000000u;
-    std::uint32_t __uint32_val = oneapi::dpl::__internal::__dpl_bit_cast<std::uint32_t>(__val);
-    ::std::uint32_t __mask;
-    // __uint32_val >> 31 takes the sign bit of the original value
-    if constexpr (__is_ascending)
-        __mask = (__uint32_val >> 31 == 0) ? 0x80000000u : 0xFFFFFFFFu;
-    else
-        __mask = (__uint32_val >> 31 == 0) ? 0x7FFFFFFFu : ::std::uint32_t(0);
-    return __uint32_val ^ __mask;
-}
-
-template <bool __is_ascending, typename _Float,
-          ::std::enable_if_t<::std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(::std::uint64_t), int> = 0>
-::std::uint64_t
-__order_preserving_cast(_Float __val)
-{
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
-    if (__val == _Float{0})
-        return 0x8000000000000000u;
-    std::uint64_t __uint64_val = oneapi::dpl::__internal::__dpl_bit_cast<std::uint64_t>(__val);
-    ::std::uint64_t __mask;
-    // __uint64_val >> 63 takes the sign bit of the original value
-    if constexpr (__is_ascending)
-        __mask = (__uint64_val >> 63 == 0) ? 0x8000000000000000u : 0xFFFFFFFFFFFFFFFFu;
-    else
-        __mask = (__uint64_val >> 63 == 0) ? 0x7FFFFFFFFFFFFFFFu : ::std::uint64_t(0);
-    return __uint64_val ^ __mask;
-}
-
 //------------------------------------------------------------------------
 // radix sort: bucket functions
 //------------------------------------------------------------------------
@@ -218,7 +130,7 @@ __radix_sort_count_impl(_InputRange& __input, _Proj __proj, std::uint32_t __radi
         _ONEDPL_PRAGMA_UNROLL
         for (std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
         {
-            auto __val = __order_preserving_cast<__is_ascending>(
+            auto __val = oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(
                 std::invoke(__proj, __input[__base_idx + __unroll * __sg_size]));
             std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
             ++__slm_buckets[__views.__get_bucket_idx(__bucket, __self_lidx)];
@@ -235,7 +147,8 @@ __radix_sort_count_impl(_InputRange& __input, _Proj __proj, std::uint32_t __radi
             std::size_t __curr_idx = __base_idx + __unroll * __sg_size;
             if (__curr_idx < __sg_chunk_end)
             {
-                auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__curr_idx]));
+                auto __val = oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(
+                    std::invoke(__proj, __input[__curr_idx]));
                 std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
                 ++__slm_buckets[__views.__get_bucket_idx(__bucket, __self_lidx)];
             }
@@ -557,7 +470,8 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
         std::uint32_t __local_counts[__radix_states] = {0};
         for (std::size_t __idx = __wi_start; __idx < __wi_end; ++__idx)
         {
-            auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__idx]));
+            auto __val =
+                oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__idx]));
             ++__local_counts[__get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset)];
         }
 
@@ -626,7 +540,8 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
     {
         auto __in_val = __input[__idx];
         std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(
-            __order_preserving_cast<__is_ascending>(std::invoke(__proj, __in_val)), __radix_offset);
+            oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(std::invoke(__proj, __in_val)),
+            __radix_offset);
         __output[__offsets[__bucket]++] = std::move(__in_val);
     }
 }

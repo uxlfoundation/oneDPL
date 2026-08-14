@@ -294,6 +294,14 @@ test_device_policy(Policy&& exec, StabilityTag stability_tag)
     test_with_buffers<Particle::energy_type, Particle, 4>(CLONE_TEST_POLICY(exec), large_size, stability_tag, custom_greater);
     test_with_buffers<Particle::energy_type, Particle, 5>(CLONE_TEST_POLICY(exec), small_size, stability_tag);
 
+#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+    test_with_usm<sycl::ext::oneapi::bfloat16, std::uint32_t, sycl::usm::alloc::shared, 10>(CLONE_TEST_POLICY(exec),
+                                                                                            large_size, stability_tag);
+    test_with_buffers<sycl::ext::oneapi::bfloat16, sycl::ext::oneapi::bfloat16, 11>(CLONE_TEST_POLICY(exec),
+                                                                                    small_size, stability_tag,
+                                                                                    std::greater{});
+#endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
+
     if constexpr (std::is_same_v<StabilityTag, StableSortTag>)
     {
         test_negative_zero_stability<float, std::uint32_t, sycl::usm::alloc::shared, 6>(CLONE_TEST_POLICY(exec),
@@ -309,6 +317,10 @@ test_device_policy(Policy&& exec, StabilityTag stability_tag)
             test_negative_zero_stability<sycl::half, std::uint32_t, sycl::usm::alloc::shared, 8>(
                 CLONE_TEST_POLICY(exec), small_size);
         }
+#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+        test_negative_zero_stability<sycl::ext::oneapi::bfloat16, std::uint32_t, sycl::usm::alloc::shared, 9>(
+            CLONE_TEST_POLICY(exec), small_size);
+#endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
     }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT

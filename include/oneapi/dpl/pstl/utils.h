@@ -22,7 +22,8 @@
 #include <new>
 #include <tuple>
 #include <utility>
-#include <climits>
+#include <limits>
+#include <climits> // for CHAR_BIT
 #include <iterator>
 #include <functional>
 #include <type_traits>
@@ -666,6 +667,98 @@ __dpl_signbit(const _T& __x)
     static_assert(std::is_signed_v<_T>, "Only signed types have a signbit.");
     constexpr __unsigned_type __mask = (__unsigned_type{1} << (sizeof(_T) * 8 - 1));
     return (__x & __mask) != 0;
+}
+
+//-----------------------------------------------------------------------
+// Order-preserving bitwise casts to unsigned integrals, used by radix sort
+//-----------------------------------------------------------------------
+
+template <std::size_t __size>
+struct __uint_for_size;
+template <>
+struct __uint_for_size<2>
+{
+    using type = std::uint16_t;
+};
+template <>
+struct __uint_for_size<4>
+{
+    using type = std::uint32_t;
+};
+template <>
+struct __uint_for_size<8>
+{
+    using type = std::uint64_t;
+};
+template <std::size_t __size>
+using __uint_for_size_t = typename __uint_for_size<__size>::type;
+
+// The floating-point types __order_preserving_cast is defined for: the ones with an unsigned integer of the same
+// size to map onto. A wider type, e.g. a 128-bit long double, is not supported.
+template <typename _T>
+inline constexpr bool __is_radix_sort_float_v =
+#if _ONEDPL_BACKEND_SYCL
+    std::is_same_v<_T, sycl::half> ||
+#    if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+    std::is_same_v<_T, sycl::ext::oneapi::bfloat16> ||
+#    endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
+#endif     // _ONEDPL_BACKEND_SYCL
+    (std::is_floating_point_v<_T> && (sizeof(_T) == sizeof(std::uint32_t) || sizeof(_T) == sizeof(std::uint64_t)));
+
+// Do not use bool directly - other unsupported types may be implicitly converted to bool
+template <bool __is_ascending, typename _BoolT, std::enable_if_t<std::is_same_v<_BoolT, bool>, int> = 0>
+bool
+__order_preserving_cast(_BoolT __val)
+{
+    if constexpr (__is_ascending)
+        return __val;
+    else
+        return !__val;
+}
+
+template <bool __is_ascending, typename _UInt,
+          std::enable_if_t<std::is_unsigned_v<_UInt> && !std::is_same_v<_UInt, bool>, int> = 0>
+_UInt
+__order_preserving_cast(_UInt __val)
+{
+    if constexpr (__is_ascending)
+        return __val;
+    else
+        return ~__val; //bitwise inversion
+}
+
+template <bool __is_ascending, typename _Int,
+          std::enable_if_t<std::is_integral_v<_Int> && std::is_signed_v<_Int>, int> = 0>
+std::make_unsigned_t<_Int>
+__order_preserving_cast(_Int __val)
+{
+    using _UInt = std::make_unsigned_t<_Int>;
+    // mask: 100..0 for ascending, 011..1 for descending
+    constexpr _UInt __mask =
+        (__is_ascending) ? _UInt(1) << std::numeric_limits<_Int>::digits : std::numeric_limits<_UInt>::max() >> 1;
+    return __val ^ __mask;
+}
+
+template <bool __is_ascending, typename _Float, std::enable_if_t<__is_radix_sort_float_v<_Float>, int> = 0>
+__uint_for_size_t<sizeof(_Float)>
+__order_preserving_cast(_Float __val)
+{
+    using _UInt = __uint_for_size_t<sizeof(_Float)>;
+    constexpr int __bits = std::numeric_limits<_UInt>::digits;
+    constexpr _UInt __sign_mask = _UInt(1) << (__bits - 1);
+    constexpr _UInt __magnitude_mask = _UInt(__sign_mask - 1);
+
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation.
+    if (__val == _Float{0})
+        return __sign_mask;
+
+    _UInt __uint_val = __dpl_bit_cast<_UInt>(__val);
+    _UInt __mask;
+    if constexpr (__is_ascending)
+        __mask = ((__uint_val & __sign_mask) == 0) ? __sign_mask : std::numeric_limits<_UInt>::max();
+    else
+        __mask = ((__uint_val & __sign_mask) == 0) ? __magnitude_mask : _UInt(0);
+    return __uint_val ^ __mask;
 }
 
 template <typename _Size, typename _Comparator>
