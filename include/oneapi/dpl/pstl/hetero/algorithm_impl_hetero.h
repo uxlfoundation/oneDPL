@@ -1912,20 +1912,23 @@ bool
 __should_rotate_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _DiffType __size_res)
 {
     const std::size_t __n_u = static_cast<std::size_t>(__n);
+    //The ranges entry point does not screen '__n', so a non-positive one reaches here and casts to a
+    //huge unsigned. Rejecting zero up front also keeps a width of 0 rejecting every call.
+    if (__n_u == 0)
+        return false;
 
-    //Divisions, not products: '64 * __n' overflows a 32-bit difference type. The modelled crossover is
-    //27 chained moves on BMG and 15 on PVC - one extra kernel launch against the per-hop latency - so
-    //64 is the next power of two clear of both.
+    //Divisions rather than 'size_res >= 64 * __n' so that a '__n' near the unsigned maximum is
+    //rejected instead of wrapping the product. 64 dependent moves clears the modelled crossover
+    //between one extra kernel launch and the per-hop latency.
     if (static_cast<std::size_t>(__size_res) / 64 < __n_u)
         return false;
 
     const std::size_t __occupancy_width =
         oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(_BackendTag{}, __exec);
-    //A chain per work item, so '__n' work items; 64 of them per available lane is still narrow. The
-    //rotate's cost does not depend on '__n' (measured: within 3% from '__n' of 8 to 1,024), while the
-    //walk's grows as 'size_res / __n' hops, so the bound only has to stay clear of the '__n' wide
-    //enough to reach full bandwidth. The second, byte-denominated form of the same bound only binds
-    //above 4-byte elements, whose rotate pays for the bytes while the walk stays latency-bound.
+    //One chain per work item, so the walk is '__n' work items wide; it counts as too narrow while
+    //there are 64 lanes per chain. The rotate's cost does not depend on '__n' but the walk's grows
+    //with 'size_res / __n', so the bound only has to stay below the '__n' that saturates bandwidth.
+    //The byte-denominated form of the same bound binds only above 4-byte elements.
     return __n_u <= __occupancy_width / 64 && __n_u * sizeof(_Tp) <= __occupancy_width / 16;
 }
 
@@ -1958,26 +1961,32 @@ __pattern_shift_left(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
         oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                           __brick, __size_res, __src, __dst)
             .__checked_deferrable_wait();
+        return __size_res;
     }
+
     //2. A rotate by '__n' produces the required prefix and leaves the original head in the tail, whose
-    //content [alg.shift] does not specify. See __should_rotate_shift.
-    else if (__should_rotate_shift<oneapi::dpl::__internal::__value_t<_Range>>(_BackendTag{}, __exec, __n, __size_res))
+    //content [alg.shift] does not specify. It reverses by swapping, which shift_left does not itself
+    //require of its element type, so the branch exists only where that holds.
+    if constexpr (std::is_swappable_v<oneapi::dpl::__internal::__value_t<_Range>>)
     {
-        __pattern_rotate(__tag,
-                         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_via_rotate>(
-                             std::forward<_ExecutionPolicy>(__exec)),
-                         __rng, static_cast<std::size_t>(__n));
+        if (__should_rotate_shift<oneapi::dpl::__internal::__value_t<_Range>>(_BackendTag{}, __exec, __n, __size_res))
+        {
+            __pattern_rotate(__tag,
+                             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_via_rotate>(
+                                 std::forward<_ExecutionPolicy>(__exec)),
+                             __rng, static_cast<std::size_t>(__n));
+            return __size_res;
+        }
     }
-    else //3. n < size/2; 'n' parallel copying
-    {
-        auto __brick = unseq_backend::__brick_shift_left<_DiffType>{__size, __n};
-        oneapi::dpl::__par_backend_hetero::__parallel_for(
-            _BackendTag{},
-            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_right>(
-                ::std::forward<_ExecutionPolicy>(__exec)),
-            __brick, __n, __rng)
-            .__checked_deferrable_wait();
-    }
+
+    //3. n < size/2; 'n' parallel copying
+    auto __brick = unseq_backend::__brick_shift_left<_DiffType>{__size, __n};
+    oneapi::dpl::__par_backend_hetero::__parallel_for(
+        _BackendTag{},
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_right>(
+            ::std::forward<_ExecutionPolicy>(__exec)),
+        __brick, __n, __rng)
+        .__checked_deferrable_wait();
 
     return __size_res;
 }
