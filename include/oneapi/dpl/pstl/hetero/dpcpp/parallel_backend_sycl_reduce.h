@@ -279,7 +279,7 @@ __parallel_transform_reduce_mid_impl(sycl::queue& __q, const _Size __n, const _S
     // number of buffer elements processed within workgroup
     const _Size __size_per_work_group = __iters_per_work_item_device_kernel * __work_group_size;
     const _Size __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
-    __combined_storage<_Tp> __result{__q, __n_groups, 1};
+    __combined_storage<_Tp> __result{__q, static_cast<std::size_t>(__n_groups), 1};
 
     sycl::event __reduce_event =
         __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _VecSize, _ReduceDeviceKernel>()(
