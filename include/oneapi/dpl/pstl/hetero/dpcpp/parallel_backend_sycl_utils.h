@@ -581,7 +581,7 @@ struct __copyable_storage_state
 };
 
 // This base class is provided to allow same-typed shared pointer return values from kernels in
-// a `__future` for keeping alive temporary data, while allowing run-time branches to lead to
+// a `std::tuple` for keeping alive temporary data, while allowing run-time branches to lead to
 // differently typed temporary storage for kernels. Virtual destructor is required to call
 // derived class destructor when leaving scope.
 struct __result_and_scratch_storage_base
@@ -707,18 +707,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         return __combi_accessor<_T, _AccessMode>(__cgh, __sycl_buf, __scratch_buf.get(), __prop_list);
     }
 
-    _T
-    __wait_and_get_value(sycl::event __event) const
-    {
-        static_assert(_NResults == 1);
-
-        if (is_USM())
-            __event.wait_and_throw();
-
-        return __get_value();
-    }
-
-    // Note: this member function assumes the result is *ready*, since the __future has already
+    // Note: this member function assumes the result is *ready*, since the std::tuple has already
     // waited on the relevant event.
     template <std::size_t _Idx = 0>
     _T
@@ -834,7 +823,7 @@ struct __device_storage
         {
             auto& __q_proxy = __usm_buf.get_deleter();
             assert(__q_proxy.__q.has_value());
-            __q_proxy.__q->memcpy(__dst, __usm_buf.get() + __offset, __n * sizeof(_T)).wait();
+            __q_proxy.__q->memcpy(__dst, __usm_buf.get() + __offset, __n * sizeof(_T)).wait_and_throw();
         }
         else
         {
@@ -899,6 +888,7 @@ struct __combined_storage : public __device_storage<_T>
     std::size_t __result_sz = 0;
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
 
+    __combined_storage() = default;
     __combined_storage(const sycl::queue& __q, std::size_t __scratch_n, std::size_t __result_n)
         : __sz(__scratch_n), __result_sz(__result_n)
     {
@@ -949,6 +939,26 @@ struct __combined_storage : public __device_storage<_T>
     }
 };
 
+template <typename _T, typename = void>
+struct __wait_required_of_finalize_sycl_call : std::false_type
+{
+};
+
+template <typename _T>
+struct __wait_required_of_finalize_sycl_call<__device_storage<_T>> : std::true_type
+{
+};
+
+template <typename _T>
+struct __wait_required_of_finalize_sycl_call<__result_storage<_T>> : std::true_type
+{
+};
+
+template <typename _T>
+struct __wait_required_of_finalize_sycl_call<__combined_storage<_T>> : std::true_type
+{
+};
+
 template <typename _T, template <typename> typename _Storage>
 std::enable_if_t<std::is_default_constructible_v<_T>, _T>
 __load_result(_Storage<_T>& __storage)
@@ -972,114 +982,53 @@ struct __deferrable_mode
 {
 };
 
-//A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __usm_host_or_buffer_storage>
-//Impl details: inheritance (private) instead of aggregation for enabling the empty base optimization.
-template <typename _Event, typename... _Args>
-class __future : private std::tuple<_Args...>
+template <typename _WaitModeTag = __sync_mode, typename _Event>
+std::enable_if_t<std::is_same_v<std::decay_t<_Event>, sycl::event>>
+__finalize_sycl_call(_Event&& __event)
 {
-    _Event __my_event;
-
-    template <typename _T>
-    _T
-    __wait_and_get_value(const sycl::buffer<_T>& __buf)
+    if constexpr (std::is_same_v<_WaitModeTag, __async_mode>)
     {
-        //according to a contract, returned value is one-element sycl::buffer
-        return __buf.get_host_access(sycl::read_only)[0];
+        // no op
     }
-
-    template <typename _T, std::size_t _NResults>
-    _T
-    __wait_and_get_value(const __result_and_scratch_storage<_T, _NResults>& __storage)
+    else if constexpr (std::is_same_v<_WaitModeTag, __sync_mode>)
     {
-        return __storage.__wait_and_get_value(__my_event);
+        __event.wait_and_throw();
     }
-
-    std::pair<std::size_t, std::size_t>
-    __wait_and_get_value(const std::shared_ptr<__result_and_scratch_storage_base>& __p_storage)
+    else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
     {
-        std::size_t __buf[2] = {0, 0};
-        [[maybe_unused]] auto __n = __p_storage->__get_data(__my_event, __buf);
-        assert(__n == 2);
-
-        return {__buf[0], __buf[1]};
+#    if !ONEDPL_ALLOW_DEFERRED_WAITING
+        __event.wait_and_throw();
+#    endif
     }
-
-    template <typename _T>
-    _T
-    __wait_and_get_value(const _T& __val)
+    else
     {
-        wait();
-        return __val;
+        static_assert(sizeof(_WaitModeTag) == 0, "Unknown _WaitModeTag");
     }
+}
 
-  public:
-    __future(_Event __e, _Args... __args) : std::tuple<_Args...>(__args...), __my_event(__e) {}
-    __future(_Event __e, std::tuple<_Args...> __t) : std::tuple<_Args...>(__t), __my_event(__e) {}
-
-    auto
-    event() const
-    {
-        return __my_event;
-    }
-    operator _Event() const { return event(); }
-    void
-    wait()
-    {
-        __my_event.wait_and_throw();
-    }
-    template <typename _WaitModeTag>
-    void
-    wait(_WaitModeTag)
-    {
-        if constexpr (std::is_same_v<_WaitModeTag, __sync_mode>)
-            wait();
-        else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
-            __checked_deferrable_wait();
-    }
-
-    void
-    __checked_deferrable_wait()
-    {
-#if !ONEDPL_ALLOW_DEFERRED_WAITING
-        wait();
-#else
-        if constexpr (sizeof...(_Args) > 0)
-        {
-            // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
-            wait();
-        }
-#endif
-    }
-
-    auto
-    get()
-    {
-        if constexpr (sizeof...(_Args) > 0)
-        {
-            auto& __val = std::get<0>(*this);
-            return __wait_and_get_value(__val);
-        }
-        else
-            wait();
-    }
-
-    //The internal API. There are cases where the implementation specifies return value  "higher" than SYCL backend,
-    //where a future is created.
-    template <typename _T>
-    __future<_Event, _T, _Args...>
-    __make_future(_T __t) const
-    {
-        auto new_val = std::tuple<_T>(__t);
-        auto new_tuple = std::tuple_cat(new_val, (std::tuple<_Args...>)*this);
-        return __future<_Event, _T, _Args...>(__my_event, new_tuple);
-    }
-};
-
-template <typename _ValueType>
-auto
-__create_future(sycl::event&& __event, __combined_storage<_ValueType>&& __payload)
+template <typename... _Args>
+constexpr bool
+__is_wait_required_of_finalize_sycl_call()
 {
-    return __future(std::move(__event), __result_and_scratch_storage<_ValueType>(std::move(__payload).__move_state()));
+    return (__wait_required_of_finalize_sycl_call<std::decay_t<_Args>>::value || ...);
+}
+
+template <typename _WaitModeTag = __sync_mode, template <typename...> typename _Tuple, typename... _Args>
+void
+__finalize_sycl_call(_Tuple<_Args...>& __tuple)
+{
+    static_assert(std::is_same_v<sycl::event, std::decay_t<std::tuple_element_t<0, _Tuple<_Args...>>>>,
+                  "The first element of the tuple must be sycl::event");
+
+    if constexpr (__is_wait_required_of_finalize_sycl_call<_Args...>())
+    {
+        // The result has to be read on the host, so a synchronous wait is required
+        __finalize_sycl_call<__sync_mode>(std::get<0>(__tuple));
+    }
+    else
+    {
+        __finalize_sycl_call<_WaitModeTag>(std::get<0>(__tuple));
+    }
 }
 
 struct __scalar_load_op
