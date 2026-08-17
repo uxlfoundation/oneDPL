@@ -27,6 +27,7 @@ New Features
 - Improved performance of multiple algorithms (including ``copy_if``, ``remove``, ``remove_if``, ``unique_copy``,
   scan algorithms, and set operations) for input sizes below approximately 8000 elements per thread
   when the oneTBB backend is used for ``par`` and ``par_unseq`` execution policies.
+- Improved performance of ``rotate`` algorithm when used with device policies.
 - Enabled use of native SYCL group reduce and scan algorithms with compilers other than Intel® oneAPI DPC++/C++
   Compiler, which might improve performance of some algorithms in ``<oneapi/dpl/numeric>``.
 
@@ -37,6 +38,7 @@ Fixed Issues
 - Fixed a compilation error in ``reduce``, ``transform_reduce``, ``inclusive_scan``, ``exclusive_scan``,
   ``transform_inclusive_scan``, and ``transform_exclusive_scan`` algorithms when using a device policy to
   process ``sycl::ext::oneapi::bfloat16`` elements.
+- Fixed a data race in ``reverse`` algorithm when used with device policies and 1- or 2-byte data types.
 
 Known Issues and Limitations
 ----------------------------
