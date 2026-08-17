@@ -12,7 +12,10 @@ New in 2022.14.0
 ================
 - Removed requirement that the output range has sufficient size to hold all resulting elements for ``set_union``,
   ``set_intersection``, ``set_difference``, and ``set_symmetric_difference`` algorithms when used with device policies.
-
+- ``radix_sort`` and ``radix_sort_by_key`` algorithms from the ``oneapi::dpl::experimental::kt::gpu``
+  namespace now support the ``sycl::ext::oneapi::bfloat16`` type.
+- ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` algorithms with device policies
+  now use Radix sort [#fnote1]_ for sorting elements of the ``sycl::ext::oneapi::bfloat16`` type.
 New Features
 ------------
 - Added more parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``inplace_merge``,
@@ -1213,7 +1216,10 @@ Known Issues and Limitations
 
 .. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types and
   ``sycl::half`` (since oneDPL 2022.6) compared with ``less`` or ``greater`` from
-  the ``std`` and ``std::ranges`` (since oneDPL 2022.13) namespaces, otherwise Merge sort.
+.. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types,
+  ``sycl::half`` (since oneDPL 2022.6), and ``sycl::ext::oneapi::bfloat16`` (since oneDPL 2022.14)
+  compared with ``less`` or ``greater`` from the ``std`` and ``std::ranges`` (since oneDPL 2022.13)
+  namespaces, otherwise Merge sort.
 .. _`oneDPL Guide`: https://uxlfoundation.github.io/oneDPL/library_guide/index.html
 .. _`Intel® oneAPI Threading Building Blocks (oneTBB) Release Notes`: https://www.intel.com/content/www/us/en/developer/articles/release-notes/intel-oneapi-threading-building-blocks-release-notes.html
 .. _`restrictions and known limitations`: https://uxlfoundation.github.io/oneDPL/library_guide/introduction.html#restrictions.
