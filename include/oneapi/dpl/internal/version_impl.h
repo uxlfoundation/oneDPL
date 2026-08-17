@@ -16,7 +16,7 @@
 #define ONEDPL_VERSION_PATCH 0
 
 // The oneAPI Specification version this implementation is compliant with
-#define ONEDPL_SPEC_VERSION 104
+#define ONEDPL_SPEC_VERSION 105
 
 // -- Check for C++ standard library feature macros --
 #if __has_include(<version>)
@@ -47,7 +47,7 @@
 // -- Define oneDPL feature macros --
 #define ONEDPL_HAS_RANDOM_NUMBERS         202603L
 #if _ONEDPL_CPP20_RANGES_PRESENT
-#    define ONEDPL_HAS_RANGE_ALGORITHMS   202605L
+#    define ONEDPL_HAS_RANGE_ALGORITHMS   202608L
 #endif
 
 #endif // _ONEDPL_VERSION_IMPL_H
