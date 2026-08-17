@@ -51,7 +51,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     using _Functor = unseq_backend::walk_n<_BinaryOperation2>;
     using _RepackedTp = oneapi::dpl::__par_backend_hetero::__repacked_tuple_t<_Tp>;
 
-    auto __res =
+    std::tuple __res =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp, std::true_type /*is_commutative*/>(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __binary_op1, _Functor{__binary_op2},
             unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
@@ -78,7 +78,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     using _Functor = unseq_backend::walk_n<_UnaryOperation>;
     using _RepackedTp = oneapi::dpl::__par_backend_hetero::__repacked_tuple_t<_Tp>;
 
-    auto __res =
+    std::tuple __res =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp, std::true_type /*is_commutative*/>(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __binary_op, _Functor{__unary_op},
             unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
@@ -103,7 +103,7 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     if (__n == 0)
         return 0;
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
+    std::tuple __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
         std::forward<_Range2>(__rng2), __n, __unary_op, __init, __binary_op, _Inclusive{});
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
