@@ -1651,7 +1651,7 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
 
-    [[maybe_unused]] auto [__idx_min, __idx_max, __min, __max] = __load_result(std::get<1>(__res));
+    auto [__idx_min, __idx_max, __min, __max] = __load_result(std::get<1>(__res));
     return {{__idx_min, __min}, {__idx_max, __max}};
 }
 
