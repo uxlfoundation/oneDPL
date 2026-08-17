@@ -92,8 +92,6 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
     device_array&
     operator=(const device_array&) = delete;
 
-    // A moved-from device_array is empty but retains its context and device, so it stays a valid
-    // move-assignment target. Move assignment is self-move safe.
     device_array(device_array&&) = default;
     device_array&
     operator=(device_array&&) = default;

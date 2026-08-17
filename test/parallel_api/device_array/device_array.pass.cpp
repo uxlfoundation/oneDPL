@@ -336,9 +336,6 @@ test_move_ctor(sycl::queue __q)
     EXPECT_TRUE(__src.empty(), "move ctor: the source is not empty");
     EXPECT_EQ(std::size_t(0), __src.size(), "move ctor: the source size is not zero");
     EXPECT_TRUE(oneapi::dpl::begin(__src) == nullptr, "move ctor: the source still holds a pointer");
-    // A moved-from device_array deliberately retains its context and device.
-    EXPECT_TRUE(__src.get_context() == __q.get_context(), "move ctor: the source lost its context");
-    EXPECT_TRUE(__src.get_device() == __q.get_device(), "move ctor: the source lost its device");
 }
 
 // Move assignment, with differently sized operands so the contents prove the steal.
@@ -360,8 +357,6 @@ test_move_assign(sycl::queue __q)
 
     EXPECT_TRUE(__src.empty(), "move assign: the source is not empty");
     EXPECT_TRUE(oneapi::dpl::begin(__src) == nullptr, "move assign: the source still holds a pointer");
-    EXPECT_TRUE(__src.get_context() == __q.get_context(), "move assign: the source lost its context");
-    EXPECT_TRUE(__src.get_device() == __q.get_device(), "move assign: the source lost its device");
 
     // Move assigning into a moved-from object is legal.
     device_array<_Tp> __other(__host_dst, __q);

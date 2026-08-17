@@ -44,8 +44,8 @@ class __device_storage_base
     using size_type = std::size_t;
     using allocator_type = _Allocator;
 
-    __device_storage_base(size_type __count, sycl::context __ctx, sycl::device __dev, _Allocator __alloc)
-        : __context(__ctx), __device(__dev), __alloc(std::move(__alloc))
+    __device_storage_base(size_type __count, sycl::context __ctx, sycl::device __dev, _Allocator __alloc_arg)
+        : __context(__ctx), __device(__dev), __alloc(std::move(__alloc_arg))
     {
         if (__count != 0)
         {
@@ -58,12 +58,9 @@ class __device_storage_base
     __device_storage_base&
     operator=(const __device_storage_base&) = delete;
 
-    // The context, device and allocator are copied rather than moved so that a moved-from object
-    // retains them, keeping its size() and empty() well-defined and it a legal move-assignment target. The SYCL
-    // handles are shared_ptr wrappers, so retaining them is free.
     __device_storage_base(__device_storage_base&& __other)
-        : __data(__other.__data), __size(__other.__size), __context(__other.__context),
-          __device(__other.__device), __alloc(__other.__alloc)
+        : __data(__other.__data), __size(__other.__size), __context(std::move(__other.__context)),
+          __device(std::move(__other.__device)), __alloc(std::move(__other.__alloc))
     {
         __other.__data = nullptr;
         __other.__size = 0;
@@ -79,9 +76,9 @@ class __device_storage_base
 
         __data = __other.__data;
         __size = __other.__size;
-        __context = __other.__context;
-        __device = __other.__device;
-        __alloc = __other.__alloc;
+        __context = std::move(__other.__context);
+        __device = std::move(__other.__device);
+        __alloc = std::move(__other.__alloc);
 
         __other.__data = nullptr;
         __other.__size = 0;
