@@ -33,11 +33,11 @@ main()
     using data_gen_shifted = decltype(lam);
 
     launcher<0, int>{big_sz}(dpl_ranges::search, search_checker, binary_pred);
-    launcher<1, int>{}(dpl_ranges::search, search_checker);
-    launcher<2, int>{}(dpl_ranges::search, search_checker, binary_pred_const, proj);
+    launcher<1, int, data_gen_shifted>{big_sz}(dpl_ranges::search, search_checker, binary_pred_const, proj, proj);
 
 #if TEST_LONG_RUN
-    launcher<3, int, data_gen_shifted>{big_sz}(dpl_ranges::search, search_checker, binary_pred_const, proj, proj);
+    launcher<2, int>{}(dpl_ranges::search, search_checker);
+    launcher<3, int>{}(dpl_ranges::search, search_checker, binary_pred_const, proj);
     launcher<4, P3, data_gen_shifted>{}(dpl_ranges::search, search_checker, binary_pred, &P3::x, &P3::proj);
     launcher<5, P3>{}(dpl_ranges::search, search_checker, std::equal_to<>{}, &P3::proj, &P3::y);
 #endif

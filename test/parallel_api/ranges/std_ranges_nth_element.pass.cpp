@@ -266,7 +266,6 @@ class A_PM
         return a;
     }
 };
-auto proj_apm = [](const A_PM& a) { return a.get(); };
 
 #endif // _ENABLE_STD_RANGES_TESTING
 
@@ -294,6 +293,7 @@ main()
     test_nth_element<6, P2>{}(dpl_ranges::nth_element, std::ranges::greater{}, &P2::proj);
 
     // External projection proj_apm: exercised on host and device.
+    auto proj_apm = [](const A_PM& a) { return a.get(); };
     test_nth_element<7, A_PM>{}(dpl_ranges::nth_element, std::ranges::greater{}, proj_apm);
 
     // Degenerate data distributions: all-equal, ascending, descending.

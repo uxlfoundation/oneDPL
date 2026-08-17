@@ -47,10 +47,6 @@ main()
         return late_violation_test_sz - val > 41 ? -val : late_violation_test_sz - val;
     };
 
-    // Valid min-heap w.r.t. greater but not sorted: element i has value i, except every 17th element
-    // (i % 17 == 1) drops to its parent's value (i - 1) / 2, adding parent == child ties along heap paths.
-    auto non_desc_heap_gen = [](auto i) { return (i % 17 == 1) ? (i - 1) / 2 : i; };
-
     // big_sz: stop at a mid-range position (index 42) within a large range (multi-WG device path)
     test_range_algo<0, int, data_in, decltype(spike_gen)>{big_sz}(
         dpl_ranges::is_heap_until, is_heap_until_checker, std::ranges::less{});
@@ -72,6 +68,9 @@ main()
     // ascending default data is a valid min-heap w.r.t. greater; is_heap_until returns end()
     test_range_algo<4, P2>{}(dpl_ranges::is_heap_until, is_heap_until_checker, std::ranges::greater{}, &P2::proj);
 
+    // Valid min-heap w.r.t. greater but not sorted: element i has value i, except every 17th element
+    // (i % 17 == 1) drops to its parent's value (i - 1) / 2, adding parent == child ties along heap paths.
+    auto non_desc_heap_gen = [](auto i) { return (i % 17 == 1) ? (i - 1) / 2 : i; };
     // non_desc_heap_gen: valid min-heap w.r.t. greater with parent == child ties; is_heap_until returns end()
     test_range_algo<5, int, data_in, decltype(non_desc_heap_gen)>{}(
         dpl_ranges::is_heap_until, is_heap_until_checker, std::ranges::greater{});

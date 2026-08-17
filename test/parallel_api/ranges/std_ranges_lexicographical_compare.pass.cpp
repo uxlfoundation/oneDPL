@@ -28,9 +28,9 @@ main()
     using data_gen_needle = decltype(almost_always_i);
 
     launcher<0, int>{big_sz}(dpl_ranges::lexicographical_compare, checker);
+    launcher<1, int>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::greater{}, plus_one);
 
 #if TEST_LONG_RUN
-    launcher<1, int>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::greater{}, plus_one);
     launcher<2, P2>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::greater{}, &P2::x, &P2::proj);
     launcher<3, P2>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::less{}, &P2::proj, &P2::x);
     launcher<4, int, decltype(plus_one)>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::less{}, plus_one);
