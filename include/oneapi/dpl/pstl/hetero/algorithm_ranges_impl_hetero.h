@@ -1158,7 +1158,7 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
         auto __res = oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy1_wrapper>(
-                ::std::forward<_ExecutionPolicy>(__exec)),
+                std::forward<_ExecutionPolicy>(__exec)),
             oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range3>(__rng3)));
@@ -1178,7 +1178,7 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
     }
 
     auto __res = __par_backend_hetero::__parallel_merge<true /*out size limit*/>(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range3>(__rng3)), __comp, __proj1, __proj2);
@@ -1556,7 +1556,7 @@ __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&
 {
     assert(oneapi::dpl::__ranges::__size(__rng) > 0);
 
-    using _IteratorValueType = typename ::std::iterator_traits<decltype(__rng.begin())>::value_type;
+    using _IteratorValueType = typename std::iterator_traits<decltype(__rng.begin())>::value_type;
     using _IndexValueType = oneapi::dpl::__internal::__difference_t<_Range>;
     using _ReduceValueType = oneapi::dpl::__internal::tuple<_IndexValueType, _IteratorValueType>;
 
@@ -1567,7 +1567,7 @@ __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&
 
     auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
                                                                                 std::false_type /*is_commutative*/>(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+        __tag, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
         unseq_backend::__no_init_value{}, // no initial value
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
@@ -1629,7 +1629,7 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
 {
     assert(oneapi::dpl::__ranges::__size(__rng) > 0);
 
-    using _IteratorValueType = typename ::std::iterator_traits<decltype(__rng.begin())>::value_type;
+    using _IteratorValueType = typename std::iterator_traits<decltype(__rng.begin())>::value_type;
     using _IndexValueType = oneapi::dpl::__internal::__difference_t<_Range>;
     using _ReduceValueType =
         oneapi::dpl::__internal::tuple<_IndexValueType, _IndexValueType, _IteratorValueType, _IteratorValueType>;
@@ -1645,7 +1645,7 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
 
     auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
                                                                                 std::false_type /*is_commutative*/>(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
         unseq_backend::__no_init_value{}, // no initial value
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);

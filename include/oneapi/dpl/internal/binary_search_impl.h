@@ -186,7 +186,7 @@ lower_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
                  InputIterator2 value_start, InputIterator2 value_end, OutputIterator result, StrictWeakOrdering comp)
 {
     namespace __bknd = __par_backend_hetero;
-    const auto size = ::std::distance(start, end);
+    const auto size = std::distance(start, end);
 
     if (size <= 0)
         return result;
@@ -256,7 +256,7 @@ binary_search_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, Input
                    InputIterator2 value_start, InputIterator2 value_end, OutputIterator result, StrictWeakOrdering comp)
 {
     namespace __bknd = __par_backend_hetero;
-    const auto size = ::std::distance(start, end);
+    const auto size = std::distance(start, end);
 
     if (size <= 0)
         return result;

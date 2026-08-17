@@ -124,7 +124,7 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
     //If there are no histogram bins there is nothing to do
     if (__num_bins > 0)
     {
-        using _global_histogram_type = typename ::std::iterator_traits<_RandomAccessIterator2>::value_type;
+        using _global_histogram_type = typename std::iterator_traits<_RandomAccessIterator2>::value_type;
         const auto __n = __last - __first;
 
         // Use read_write with no_init to avoid copying data in unnecessarily while still allowing kernel reads.
@@ -148,13 +148,13 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
         {
             //need __binhash_manager to stay in scope until the kernel completes to keep the buffer alive
             // __make_binhash_manager will call __get_sycl_range for any data which requires it within __func
-            auto __binhash_manager = __make_binhash_manager(::std::forward<_BinHash>(__func));
+            auto __binhash_manager = __make_binhash_manager(std::forward<_BinHash>(__func));
             auto __keep_input =
                 oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read>();
             auto __input_buf = __keep_input(__first, __last);
 
             auto __res = oneapi::dpl::__par_backend_hetero::__parallel_histogram(
-                _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __init_event, __input_buf.all_view(),
+                _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __init_event, __input_buf.all_view(),
                 std::move(__bins), __binhash_manager);
             oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
         }

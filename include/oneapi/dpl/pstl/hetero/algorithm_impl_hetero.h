@@ -446,14 +446,14 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
     if (__first == __last)
         return __last;
 
-    using _IteratorValueType = typename ::std::iterator_traits<_Iterator>::value_type;
-    using _IndexValueType = ::std::make_unsigned_t<typename ::std::iterator_traits<_Iterator>::difference_type>;
+    using _IteratorValueType = typename std::iterator_traits<_Iterator>::value_type;
+    using _IndexValueType = std::make_unsigned_t<typename std::iterator_traits<_Iterator>::difference_type>;
     using _ReduceValueType = tuple<_IndexValueType, _IteratorValueType>;
     // Commutativity of the reduction operator depends on the compilation target (see __reduce_fn below);
     // __spirv_target_conditional postpones deciding on commutativity to the device code where the
     // target can be correctly tested.
-    using _Commutative = oneapi::dpl::__internal::__spirv_target_conditional</*_SpirvT*/ ::std::false_type,
-                                                                             /*_NonSpirvT*/ ::std::true_type>;
+    using _Commutative = oneapi::dpl::__internal::__spirv_target_conditional</*_SpirvT*/ std::false_type,
+                                                                             /*_NonSpirvT*/ std::true_type>;
     __pattern_min_element_reduce_fn<_ReduceValueType, _Compare> __reduce_fn{__comp};
     oneapi::dpl::__internal::__pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
 
@@ -461,7 +461,7 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
     auto __buf = __keep(__first, __last);
 
     auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType, _Commutative>(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
         unseq_backend::__no_init_value{}, // no initial value
         __buf.all_view());
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
@@ -496,11 +496,11 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
                          _Compare __comp)
 {
     if (__first == __last)
-        return ::std::make_pair(__first, __first);
+        return std::make_pair(__first, __first);
 
-    using _IteratorValueType = typename ::std::iterator_traits<_Iterator>::value_type;
-    using _IndexValueType = ::std::make_unsigned_t<typename ::std::iterator_traits<_Iterator>::difference_type>;
-    using _ReduceValueType = ::std::tuple<_IndexValueType, _IndexValueType, _IteratorValueType, _IteratorValueType>;
+    using _IteratorValueType = typename std::iterator_traits<_Iterator>::value_type;
+    using _IndexValueType = std::make_unsigned_t<typename std::iterator_traits<_Iterator>::difference_type>;
+    using _ReduceValueType = std::tuple<_IndexValueType, _IndexValueType, _IteratorValueType, _IteratorValueType>;
 
     // This operator doesn't track the lowest found index in case of equal min. values and the highest found index in
     // case of equal max. values. Thus, this operator is not commutative.
@@ -582,9 +582,9 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator 
     if (__first == __last)
         return 0;
 
-    using _ReduceValueType = typename ::std::iterator_traits<_Iterator>::difference_type;
+    using _ReduceValueType = typename std::iterator_traits<_Iterator>::difference_type;
 
-    auto __reduce_fn = ::std::plus<_ReduceValueType>{};
+    auto __reduce_fn = std::plus<_ReduceValueType>{};
     // int is being implicitly casted to difference_type
     // otherwise we can only pass the difference_type as a functor template parameter
     oneapi::dpl::__internal::__pattern_count_transform_fn<_Predicate> __transform_fn{__predicate};
@@ -1201,13 +1201,13 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
         oneapi::dpl::__internal::__pattern_walk2_brick(
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(
-                ::std::forward<_ExecutionPolicy>(__exec)),
+                std::forward<_ExecutionPolicy>(__exec)),
             __first2, __last2, __d_first, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     else if (__n2 == 0)
         oneapi::dpl::__internal::__pattern_walk2_brick(
             __tag,
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<copy_back_wrapper2>(
-                ::std::forward<_ExecutionPolicy>(__exec)),
+                std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __d_first, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     else
     {
@@ -1389,13 +1389,13 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
     if (__first1 == __last1)
         return true;
 
-    using _Iterator1DifferenceType = typename ::std::iterator_traits<_Iterator1>::difference_type;
+    using _Iterator1DifferenceType = typename std::iterator_traits<_Iterator1>::difference_type;
     using _ReduceValueType = int32_t;
 
     __pattern_lexicographical_compare_reduce_fn<_ReduceValueType> __reduce_fn;
     __pattern_lexicographical_compare_transform_fn<_Compare, _ReduceValueType> __transform_fn{__comp};
 
-    auto __shared_size = ::std::min(__last1 - __first1, (_Iterator1DifferenceType)(__last2 - __first2));
+    auto __shared_size = std::min(__last1 - __first1, (_Iterator1DifferenceType)(__last2 - __first2));
 
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first1, __first1 + __shared_size);
@@ -1405,7 +1405,7 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
 
     auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
                                                                                 std::false_type /*is_commutative*/>(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
         unseq_backend::__no_init_value{}, // no initial value
         __buf1.all_view(), __buf2.all_view());
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
