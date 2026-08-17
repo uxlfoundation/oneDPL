@@ -51,16 +51,19 @@ main()
     };
 
     test_range_algo<0>{big_sz}(partial_sort_algo, partial_sort_checker);
-    test_range_algo<1>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{});
+    test_range_algo<1>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, proj);
 
-    test_range_algo<2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, proj);
-    test_range_algo<3>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, proj);
+#if TEST_LONG_RUN
+    test_range_algo<2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{});
+
+    test_range_algo<3>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, proj);
 
     test_range_algo<4, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::x);
     test_range_algo<5, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::x);
 
     test_range_algo<6, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::proj);
     test_range_algo<7, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::proj);
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

@@ -33,12 +33,12 @@ main()
 
     // expected to be found
     test_range_algo<0>{big_sz}(dpl_ranges::contains, contains_checker, small_size - 19);
-    test_range_algo<1>{}(dpl_ranges::contains, contains_checker, proj(small_size/2 + 28), proj);
-    test_range_algo<2, P2>{}(dpl_ranges::contains, contains_checker, 137, &P2::x);
-
-    // expected to be absent
-    test_range_algo<3, P2>{}(dpl_ranges::contains, contains_checker, -27, &P2::proj);
-    test_range_algo<4>{big_sz}(dpl_ranges::contains, contains_checker, -43);
+    test_range_algo<1>{big_sz}(dpl_ranges::contains, contains_checker, -43); // expected to be absent
+    test_range_algo<2>{}(dpl_ranges::contains, contains_checker, proj(small_size/2 + 28), proj);
+#if TEST_LONG_RUN
+    test_range_algo<3, P2>{}(dpl_ranges::contains, contains_checker, 137, &P2::x);
+    test_range_algo<4, P2>{}(dpl_ranges::contains, contains_checker, -27, &P2::proj); // expected to be absent
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

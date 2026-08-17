@@ -53,6 +53,7 @@ main()
     test_range_algo<0, int, data_in, decltype(desc_gen)>{big_sz}(
         dpl_ranges::is_heap, is_heap_checker, std::ranges::less{});
 
+#if TEST_LONG_RUN
     // custom comp + P2::x (member-data projection); descending x values form a max-heap
     test_range_algo<1, P2, data_in, decltype(desc_gen)>{}(
         dpl_ranges::is_heap, is_heap_checker, CustomLess{}, &P2::x);
@@ -63,6 +64,7 @@ main()
     // non_desc_heap_gen: valid min-heap w.r.t. greater with parent == child ties; is_heap returns true
     test_range_algo<3, int, data_in, decltype(non_desc_heap_gen)>{}(dpl_ranges::is_heap, is_heap_checker,
                                                                      std::ranges::greater{});
+#endif
 
     // --- returns false ---
 
@@ -70,9 +72,11 @@ main()
     test_range_algo<4, int, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
         dpl_ranges::is_heap, is_heap_checker, std::ranges::less{}, proj);
 
+#if TEST_LONG_RUN
     // same late-violation data with custom comp and P2::x projection; is_heap returns false
     test_range_algo<5, P2, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
         dpl_ranges::is_heap, is_heap_checker, CustomLess{}, &P2::x);
+#endif
 
     // default overload (comp = less, proj = identity): ascending data violates max-heap property
     test_range_algo<6>{}(dpl_ranges::is_heap, is_heap_checker);

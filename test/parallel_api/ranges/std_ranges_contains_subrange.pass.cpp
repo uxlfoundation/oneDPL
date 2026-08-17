@@ -42,11 +42,15 @@ main()
 
     // Sizes of both sequences vary in the test, so each call might test both successful and unsuccessful searches
     launcher<0, int>{big_sz}(dpl_ranges::contains_subrange, checker, binary_pred_const);
-    launcher<1, int>{}(dpl_ranges::contains_subrange, checker);
-    launcher<2, int>{}(dpl_ranges::contains_subrange, checker, binary_pred, dpl::identity{});
-    launcher<3, int, data_gen_shifted>{big_sz}(dpl_ranges::contains_subrange, checker, binary_pred, proj, proj);
+    launcher<1, int, data_gen_shifted>{big_sz}(dpl_ranges::contains_subrange, checker, binary_pred, proj, proj);
+    
+#if TEST_LONG_RUN
+    launcher<2, int>{}(dpl_ranges::contains_subrange, checker);
+    launcher<3, int>{}(dpl_ranges::contains_subrange, checker, binary_pred, dpl::identity{});
     launcher<4, P3, data_gen_shifted>{}(dpl_ranges::contains_subrange, checker, binary_pred_const, &P3::x, &P3::proj);
     launcher<5, P3>{}(dpl_ranges::contains_subrange, checker, std::equal_to<>{}, &P3::proj, &P3::y);
+#endif
+
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

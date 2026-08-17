@@ -52,13 +52,17 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    test_range_algo<0, int, data_in_out_out_lim>{217}(dpl_ranges::partition_copy, partition_copy_checker, pred);
-    test_range_algo<1, int, data_in_out_out_lim>{1234}(dpl_ranges::partition_copy, partition_copy_checker, even_odd);
+    test_range_algo<0, int, data_in_out_out_lim>{get_scan_big_sz()}(dpl_ranges::partition_copy, partition_copy_checker, even_odd);
+    test_range_algo<1, int, data_in_out_out_lim>{get_scan_big_sz()}(dpl_ranges::partition_copy, partition_copy_checker, select_many);
     test_range_algo<2, int, data_in_out_out_lim>{}(dpl_ranges::partition_copy, partition_copy_checker, select_many, proj);
-    test_range_algo<3, P2, data_in_out_out_lim>{}(dpl_ranges::partition_copy, partition_copy_checker, pred, &P2::x);
-    test_range_algo<4, P2, data_in_out_out_lim>{}(dpl_ranges::partition_copy, partition_copy_checker, even_odd, &P2::proj);
-    test_range_algo<5, int, data_in_out_out_lim>{get_scan_big_sz()}(dpl_ranges::partition_copy, partition_copy_checker, even_odd);
-    test_range_algo<6, int, data_in_out_out_lim>{get_scan_big_sz()}(dpl_ranges::partition_copy, partition_copy_checker, select_many);
+
+#if TEST_LONG_RUN   
+    test_range_algo<3, int, data_in_out_out_lim>{217}(dpl_ranges::partition_copy, partition_copy_checker, pred);
+    test_range_algo<4, int, data_in_out_out_lim>{1234}(dpl_ranges::partition_copy, partition_copy_checker, even_odd);
+    test_range_algo<5, P2, data_in_out_out_lim>{}(dpl_ranges::partition_copy, partition_copy_checker, pred, &P2::x);
+    test_range_algo<6, P2, data_in_out_out_lim>{}(dpl_ranges::partition_copy, partition_copy_checker, even_odd, &P2::proj);
+#endif
+
 #endif // _ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

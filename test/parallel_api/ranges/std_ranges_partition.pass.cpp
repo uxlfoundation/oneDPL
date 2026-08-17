@@ -44,20 +44,21 @@ main()
 
     // Different data generators with the same predicate: balanced, blocked and degenerate cases.
     test_range_algo<0, int, data_in, gen_alternate>{big_sz}(dpl_ranges::partition, partition_checker, pred1);
+#if TEST_LONG_RUN
     test_range_algo<1, int, data_in, gen_blocked>{}(dpl_ranges::partition, partition_checker, pred1);
     test_range_algo<2, int, data_in, gen_all_true>{}(dpl_ranges::partition, partition_checker, pred1);
     test_range_algo<3, int, data_in, gen_all_false>{}(dpl_ranges::partition, partition_checker, pred1);
     test_range_algo<4, int, data_in, gen_one_true>{}(dpl_ranges::partition, partition_checker, pred1);
     test_range_algo<5, int, data_in, gen_one_false>{}(dpl_ranges::partition, partition_checker, pred1);
 
-    // Other predicates.
-    test_range_algo<6, int, data_in, gen_eq4>{}(dpl_ranges::partition, partition_checker, pred2);
-    test_range_algo<7, int, data_in, gen_negative>{}(dpl_ranges::partition, partition_checker, pred3);
-
     // Projections: a callable one and the pointer-to-data-member/pointer-to-member-function ones.
-    test_range_algo<8, int, data_in, gen_eq4_proj>{}(dpl_ranges::partition, partition_checker, pred2, proj);
-    test_range_algo<9, P2, data_in, gen_alternate>{}(dpl_ranges::partition, partition_checker, pred1, &P2::x);
-    test_range_algo<10, P2, data_in, gen_blocked>{}(dpl_ranges::partition, partition_checker, pred1, &P2::proj);
+    test_range_algo<6, int, data_in, gen_eq4_proj>{}(dpl_ranges::partition, partition_checker, pred2, proj);
+    test_range_algo<7, P2, data_in, gen_alternate>{}(dpl_ranges::partition, partition_checker, pred1, &P2::x);
+    test_range_algo<8, P2, data_in, gen_blocked>{}(dpl_ranges::partition, partition_checker, pred1, &P2::proj);
+#endif
+    // Other predicates.
+    test_range_algo<9, int, data_in, gen_eq4>{}(dpl_ranges::partition, partition_checker, pred2);
+    test_range_algo<10, int, data_in, gen_negative>{}(dpl_ranges::partition, partition_checker, pred3);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

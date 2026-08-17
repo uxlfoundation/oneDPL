@@ -119,13 +119,16 @@ main()
     
     auto equal_tens = [](auto i, auto j) { return i/10 == j/10; };
 
-    test_range_algo<0, int, data_in_out_lim>{163}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
-    test_range_algo<1, int, data_in_out_lim, repeating_gen>{837}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens);
-    test_range_algo<2, int, data_in_out_lim>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::not_equal_to{}, proj);
-    test_range_algo<3, int, data_in_out_lim, repeating_gen>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
-    test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens, &P2::x);
-    test_range_algo<5, P2, data_in_out_lim>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, &P2::proj);
-    test_range_algo<6, int, data_in_out_lim, repeating_gen>{get_scan_big_sz()}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{});
+    test_range_algo<0, int, data_in_out_lim, repeating_gen>{get_scan_big_sz()}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{});
+    test_range_algo<1, int, data_in_out_lim>{163}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
+    test_range_algo<2, int, data_in_out_lim, repeating_gen>{837}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens);
+
+#if TEST_LONG_RUN
+    test_range_algo<3, int, data_in_out_lim>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::not_equal_to{}, proj);
+    test_range_algo<4, int, data_in_out_lim, repeating_gen>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
+    test_range_algo<5, P2, data_in_out_lim>{}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens, &P2::x);
+    test_range_algo<6, P2, data_in_out_lim>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, &P2::proj);
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

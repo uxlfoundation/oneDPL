@@ -41,8 +41,11 @@ main()
 
     const int test_sz = 13192;
     test_range_algo<0>{big_sz}(rotate_tester, rotate_checker);
+
+#if TEST_LONG_RUN
     test_range_algo<1, P2>{test_sz}(rotate_tester, rotate_checker, 0);
     test_range_algo<2>{}(rotate_tester, rotate_checker, 1);
+#endif
     test_range_algo<3, float>{test_sz}(rotate_tester, rotate_checker, test_sz - 1);
 #endif //_ENABLE_STD_RANGES_TESTING
 

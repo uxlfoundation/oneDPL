@@ -61,12 +61,15 @@ main()
     // [begin, middle) and [middle, end) are sorted with respect to std::ranges::less.
 
     test_range_algo<0>{big_sz}(inplace_merge_dpl, inplace_merge_checker);
+
+#if TEST_LONG_RUN
     test_range_algo<1>{}(inplace_merge_dpl, inplace_merge_checker, std::ranges::less{});
 
     test_range_algo<2>{}(inplace_merge_dpl, inplace_merge_checker, std::ranges::less{}, proj);
 
     test_range_algo<3, P2>{}(inplace_merge_dpl, inplace_merge_checker, std::ranges::less{}, &P2::x);
     test_range_algo<4, P2>{}(inplace_merge_dpl, inplace_merge_checker, std::ranges::less{}, &P2::proj);
+#endif
 
     // Stability check: equal projected keys with distinct payloads must preserve relative order.
     test_range_algo<5, P2, data_in, stable_data_gen_fn>{}(inplace_merge_dpl, inplace_merge_checker,

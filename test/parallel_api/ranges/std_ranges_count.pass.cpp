@@ -26,8 +26,11 @@ main()
 
     test_range_algo<0>{big_sz}(dpl_ranges::count, count_checker, 4);
     test_range_algo<1>{}(dpl_ranges::count, count_checker, 4, proj);
+
+#if TEST_LONG_RUN
     test_range_algo<2, P2>{}(dpl_ranges::count, count_checker, 4, &P2::x);
     test_range_algo<3, P2>{}(dpl_ranges::count, count_checker, 4, &P2::proj);
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

@@ -64,11 +64,13 @@ main()
 
     test_range_algo<0, int, data_in_in_out_lim, mul1_t, div3_t>{big_sz}(dpl_ranges::merge, merge_checker, std::ranges::less{}, std::identity{}, std::identity{});
 
+#if TEST_LONG_RUN
     test_range_algo<1, int, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::merge, merge_checker, std::ranges::less{}, proj);
     test_range_algo<2, P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::merge, merge_checker, std::ranges::less{}, &P2::x, &P2::x);
     test_range_algo<3, P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::merge, merge_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
     test_range_algo<7, int, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::merge, merge_checker);
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

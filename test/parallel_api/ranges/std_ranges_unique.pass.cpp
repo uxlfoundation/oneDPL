@@ -35,11 +35,14 @@ main()
     auto unique_checker = TEST_PREPARE_CALLABLE(std::ranges::unique);
 
     test_range_algo<0>{get_scan_big_sz()}(dpl_ranges::unique, unique_checker);
-    test_range_algo<1>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{});
-    test_range_algo<2>{}(dpl_ranges::unique, unique_checker, std::not_equal_to{});
-    test_range_algo<3>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, proj);
-    test_range_algo<4, P2>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, &P2::x);
-    test_range_algo<5, P2>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, &P2::proj);
+    test_range_algo<1>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, proj);
+
+#if TEST_LONG_RUN
+    test_range_algo<2>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{});
+    test_range_algo<3>{}(dpl_ranges::unique, unique_checker, std::not_equal_to{});
+    test_range_algo<5, P2>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, &P2::x);
+    test_range_algo<6, P2>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, &P2::proj);
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
