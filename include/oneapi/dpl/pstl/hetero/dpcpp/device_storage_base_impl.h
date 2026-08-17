@@ -194,11 +194,12 @@ class __device_storage_base
     void
     __swap(__device_storage_base& __other)
     {
-        std::swap(__data, __other.__data);
-        std::swap(__size, __other.__size);
-        std::swap(__context, __other.__context);
-        std::swap(__device, __other.__device);
-        std::swap(__alloc, __other.__alloc);
+        using std::swap;
+        swap(__data, __other.__data);
+        swap(__size, __other.__size);
+        swap(__context, __other.__context);
+        swap(__device, __other.__device);
+        swap(__alloc, __other.__alloc);
     }
 
     void
