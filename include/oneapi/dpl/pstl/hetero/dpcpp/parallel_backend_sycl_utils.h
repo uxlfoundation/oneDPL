@@ -783,9 +783,9 @@ __finalize_sycl_call(_Event&& __event)
     }
     else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
     {
-#    if !ONEDPL_ALLOW_DEFERRED_WAITING
+#if !ONEDPL_ALLOW_DEFERRED_WAITING
         __event.wait_and_throw();
-#    endif
+#endif
     }
     else
     {
