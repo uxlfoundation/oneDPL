@@ -1218,8 +1218,6 @@ Known Issues and Limitations
   (including ``std::ldexp``, ``std::frexp``, ``std::sqrt(std::complex<float>)``) require device support
   for double precision.
 
-.. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types and
-  ``sycl::half`` (since oneDPL 2022.6) compared with ``less`` or ``greater`` from
 .. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types,
   ``sycl::half`` (since oneDPL 2022.6), and ``sycl::ext::oneapi::bfloat16`` (since oneDPL 2022.14)
   compared with ``less`` or ``greater`` from the ``std`` and ``std::ranges`` (since oneDPL 2022.13)
