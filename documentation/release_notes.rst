@@ -27,6 +27,7 @@ New Features
 - Improved performance of multiple algorithms (including ``copy_if``, ``remove``, ``remove_if``, ``unique_copy``,
   scan algorithms, and set operations) for input sizes below approximately 8000 elements per thread
   when the oneTBB backend is used for ``par`` and ``par_unseq`` execution policies.
+- Improved performance of ``partition`` algorithm when used with ``par`` and ``par_unseq`` policies.  
 - Improved performance of ``rotate`` algorithm when used with device policies.
 - Enabled use of native SYCL group reduce and scan algorithms with compilers other than Intel® oneAPI DPC++/C++
   Compiler, which might improve performance of some algorithms in ``<oneapi/dpl/numeric>``.
