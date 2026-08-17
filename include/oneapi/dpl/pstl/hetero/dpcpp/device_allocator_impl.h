@@ -10,14 +10,14 @@
 #ifndef _ONEDPL_DEVICE_ALLOCATOR_IMPL_H
 #define _ONEDPL_DEVICE_ALLOCATOR_IMPL_H
 
-#include <cstddef>
-#include <type_traits>
-#include <utility>
-
 #include "../../../internal/common_config.h"
 #include "../../onedpl_config.h"
 
 #if _ONEDPL_BACKEND_SYCL
+
+#include <cstddef>
+#include <type_traits>
+#include <utility>
 
 #include "sycl_defs.h"
 
