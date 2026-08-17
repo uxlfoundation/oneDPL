@@ -56,12 +56,14 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
-                                                                          ::std::true_type /*is_commutative*/>(
-               _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __binary_op1, _Functor{__binary_op2},
-               unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
-               __buf1.all_view(), __buf2.all_view())
-        .get();
+    auto __res =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp, std::true_type /*is_commutative*/>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __binary_op1, _Functor{__binary_op2},
+            unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
+            __buf1.all_view(), __buf2.all_view());
+    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
+
+    return __load_result(std::get<1>(__res));
 }
 
 //------------------------------------------------------------------------
@@ -84,12 +86,14 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
-                                                                          ::std::true_type /*is_commutative*/>(
-               _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __binary_op, _Functor{__unary_op},
-               unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
-               __buf.all_view())
-        .get();
+    auto __res =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp, std::true_type /*is_commutative*/>(
+            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __binary_op, _Functor{__unary_op},
+            unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
+            __buf.all_view());
+    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
+
+    return __load_result(std::get<1>(__res));
 }
 
 //------------------------------------------------------------------------
@@ -137,10 +141,10 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__result, __result + __n);
 
-    oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __unary_op,
-        __init, __binary_op, _Inclusive{})
-        .__checked_deferrable_wait();
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __unary_op,
+        __init, __binary_op, _Inclusive{});
+    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
 
     return __result + __n;
 }
@@ -201,7 +205,7 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     if (__n == 1)
     {
         auto __wrapped_policy = __par_backend_hetero::make_wrapped_policy<adjacent_difference_wrapper>(
-            ::std::forward<_ExecutionPolicy>(__exec));
+            std::forward<_ExecutionPolicy>(__exec));
 
         __internal::__pattern_walk2_brick(__hetero_tag<_BackendTag>{}, __wrapped_policy, __first, __last, __d_first,
                                           __internal::__brick_copy<__hetero_tag<_BackendTag>>{});
@@ -219,10 +223,10 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
 
         using _Function = unseq_backend::walk_adjacent_difference<decltype(__fn)>;
 
-        oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, __exec,
-                                                          _Function{__fn, static_cast<std::size_t>(__n)}, __n,
-                                                          __buf1.all_view(), __buf2.all_view())
-            .__checked_deferrable_wait();
+        auto __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Function{__fn, static_cast<std::size_t>(__n)}, __n,
+            __buf1.all_view(), __buf2.all_view());
+        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
     }
 
     return __d_last;

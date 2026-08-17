@@ -168,10 +168,7 @@ __get_stop_pos_accessor_opt(_ModeTagT __mode, sycl::handler& __cgh, _StopPosStor
 // for unbounded case we need to return only the size of the result.
 template <bool _Bounded, typename _Range1, typename _Range2, typename _Range3>
 using __set_op_impl_return_t =
-    std::conditional_t<_Bounded,
-                       oneapi::dpl::__internal::tuple<oneapi::dpl::__internal::__difference_t<_Range1>,
-                                                      oneapi::dpl::__internal::__difference_t<_Range2>,
-                                                      oneapi::dpl::__internal::__difference_t<_Range3>>,
+    std::conditional_t<_Bounded, oneapi::dpl::__internal::__difference_tuple_t<_Range1, _Range2, _Range3>,
                        oneapi::dpl::__internal::__difference_t<_Range3>>;
 
 // Create the result of set operation implementation for bounded and unbounded cases

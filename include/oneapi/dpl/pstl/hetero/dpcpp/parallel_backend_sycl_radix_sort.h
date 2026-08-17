@@ -804,7 +804,7 @@ struct __parallel_multi_group_radix_sort
 // radix sort: main function
 //-----------------------------------------------------------------------
 template <bool __is_ascending, typename _Range, typename _ExecutionPolicy, typename _Proj>
-__future<sycl::event>
+sycl::event
 __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __in_rng,
                       _Proj __proj)
 {
@@ -845,27 +845,24 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
     {
         if (__n <= std::min<std::size_t>(std::size_t(__bs0) * 256u, __max_wg_size * __bs0))
         {
-            __event = __subgroup_radix_sort<_RadixSortKernel, __bs0, __radix_bits, __is_ascending>{}(
+            return __subgroup_radix_sort<_RadixSortKernel, __bs0, __radix_bits, __is_ascending>{}(
                 __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-            return __future{std::move(__event)};
         }
     }
     if constexpr (__bs1 >= __absolute_min_block_size)
     {
         if (__n <= std::min<std::size_t>(std::size_t(__bs1) * 256u, __max_wg_size * __bs1))
         {
-            __event = __subgroup_radix_sort<_RadixSortKernel, __bs1, __radix_bits, __is_ascending>{}(
+            return __subgroup_radix_sort<_RadixSortKernel, __bs1, __radix_bits, __is_ascending>{}(
                 __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-            return __future{std::move(__event)};
         }
     }
     if constexpr (__bs2 >= __absolute_min_block_size)
     {
         if (__n <= std::min<std::size_t>(std::size_t(__bs2) * 256u, __max_wg_size * __bs2))
         {
-            __event = __subgroup_radix_sort<_RadixSortKernel, __bs2, __radix_bits, __is_ascending>{}(
+            return __subgroup_radix_sort<_RadixSortKernel, __bs2, __radix_bits, __is_ascending>{}(
                 __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-            return __future{std::move(__event)};
         }
     }
     // In __subgroup_radix_sort, we request a sub-group size of 16 via _ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED
@@ -877,16 +874,13 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
     {
         if (__n <= std::min<std::size_t>(std::size_t(__bs3) * 512u, __max_wg_size * __bs3) && __dev_has_sg16)
         {
-            __event = __subgroup_radix_sort<_RadixSortKernel, __bs3, __radix_bits, __is_ascending>{}(
+            return __subgroup_radix_sort<_RadixSortKernel, __bs3, __radix_bits, __is_ascending>{}(
                 __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-            return __future{std::move(__event)};
         }
     }
     // Fall through to multi-group sort
-    __event = __parallel_multi_group_radix_sort<_RadixSortKernel, __radix_bits, __is_ascending>{}(
+    return __parallel_multi_group_radix_sort<_RadixSortKernel, __radix_bits, __is_ascending>{}(
         __q_local, std::forward<_Range>(__in_rng), __proj);
-
-    return __future{std::move(__event)};
 }
 
 } // namespace __par_backend_hetero
