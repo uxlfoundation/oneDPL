@@ -37,12 +37,12 @@ class device_allocator
     using value_type = _Tp;
 
     explicit device_allocator(sycl::context __ctx, sycl::device __dev, const sycl::property_list& __prop_list = {})
-        : _M_context(__ctx), _M_device(__dev), _M_prop_list(__prop_list)
+        : __context(__ctx), __device(__dev), __prop_list(__prop_list)
     {
     }
 
     explicit device_allocator(sycl::queue __q, const sycl::property_list& __prop_list = {})
-        : _M_context(__q.get_context()), _M_device(__q.get_device()), _M_prop_list(__prop_list)
+        : __context(__q.get_context()), __device(__q.get_device()), __prop_list(__prop_list)
     {
     }
 
@@ -56,7 +56,7 @@ class device_allocator
 
     template <typename _Up>
     device_allocator(const device_allocator<_Up, _Alignment>& __other) noexcept
-        : _M_context(__other._M_context), _M_device(__other._M_device), _M_prop_list(__other._M_prop_list)
+        : __context(__other.__context), __device(__other.__device), __prop_list(__other.__prop_list)
     {
     }
 
@@ -69,12 +69,12 @@ class device_allocator
         _Tp* __ptr = nullptr;
         if constexpr (_Alignment == 0)
         {
-            __ptr = sycl::malloc_device<_Tp>(__count, _M_device, _M_context, _M_prop_list);
+            __ptr = sycl::malloc_device<_Tp>(__count, __device, __context, __prop_list);
         }
         else
         {
             // aligned_alloc_device already raises the alignment to max(_Alignment, alignof(_Tp)).
-            __ptr = sycl::aligned_alloc_device<_Tp>(_Alignment, __count, _M_device, _M_context, _M_prop_list);
+            __ptr = sycl::aligned_alloc_device<_Tp>(_Alignment, __count, __device, __context, __prop_list);
         }
 
         // The USM allocation functions return nullptr on failure rather than throwing, both when there
@@ -92,42 +92,21 @@ class device_allocator
     deallocate(_Tp* __ptr, std::size_t /*__count*/) const
     {
         if (__ptr != nullptr)
-            sycl::free(__ptr, _M_context);
-    }
-
-    sycl::context
-    get_context() const
-    {
-        return _M_context;
-    }
-
-    sycl::device
-    get_device() const
-    {
-        return _M_device;
-    }
-
-    template <typename _Property>
-    bool
-    has_property() const noexcept
-    {
-        return _M_prop_list.has_property<_Property>();
-    }
-
-    template <typename _Property>
-    _Property
-    get_property() const
-    {
-        return _M_prop_list.get_property<_Property>();
+            sycl::free(__ptr, __context);
     }
 
   private:
     template <typename _Up, std::size_t _AlignmentU>
     friend class device_allocator;
 
-    sycl::context _M_context;
-    sycl::device _M_device;
-    sycl::property_list _M_prop_list;
+    template <typename _Tp2, std::size_t _AlignmentT2, typename _Up2, std::size_t _AlignmentU2>
+    friend bool
+    operator==(const device_allocator<_Tp2, _AlignmentT2>& __lhs,
+               const device_allocator<_Up2, _AlignmentU2>& __rhs) noexcept;
+
+    sycl::context __context;
+    sycl::device __device;
+    sycl::property_list __prop_list;
 };
 
 // Two device allocators compare equal if they share an alignment, a context and a device, following the
@@ -137,8 +116,8 @@ template <typename _Tp, std::size_t _AlignmentT, typename _Up, std::size_t _Alig
 bool
 operator==(const device_allocator<_Tp, _AlignmentT>& __lhs, const device_allocator<_Up, _AlignmentU>& __rhs) noexcept
 {
-    return _AlignmentT == _AlignmentU && __lhs.get_context() == __rhs.get_context() &&
-           __lhs.get_device() == __rhs.get_device();
+    return _AlignmentT == _AlignmentU && __lhs.__context == __rhs.__context &&
+           __lhs.__device == __rhs.__device;
 }
 
 template <typename _Tp, std::size_t _AlignmentT, typename _Up, std::size_t _AlignmentU>

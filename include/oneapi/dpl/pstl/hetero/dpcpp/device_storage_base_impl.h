@@ -45,12 +45,12 @@ class __device_storage_base
     using allocator_type = _Allocator;
 
     __device_storage_base(size_type __count, sycl::context __ctx, sycl::device __dev, _Allocator __alloc)
-        : _M_context(__ctx), _M_device(__dev), _M_alloc(std::move(__alloc))
+        : __context(__ctx), __device(__dev), __alloc(std::move(__alloc))
     {
         if (__count != 0)
         {
-            _M_data = _M_alloc.allocate(__count);
-            _M_size = __count;
+            __data = __alloc.allocate(__count);
+            __size = __count;
         }
     }
 
@@ -62,11 +62,11 @@ class __device_storage_base
     // retains them, keeping its size() and empty() well-defined and it a legal move-assignment target. The SYCL
     // handles are shared_ptr wrappers, so retaining them is free.
     __device_storage_base(__device_storage_base&& __other)
-        : _M_data(__other._M_data), _M_size(__other._M_size), _M_context(__other._M_context),
-          _M_device(__other._M_device), _M_alloc(__other._M_alloc)
+        : __data(__other.__data), __size(__other.__size), __context(__other.__context),
+          __device(__other.__device), __alloc(__other.__alloc)
     {
-        __other._M_data = nullptr;
-        __other._M_size = 0;
+        __other.__data = nullptr;
+        __other.__size = 0;
     }
 
     __device_storage_base&
@@ -77,14 +77,14 @@ class __device_storage_base
 
         __deallocate();
 
-        _M_data = __other._M_data;
-        _M_size = __other._M_size;
-        _M_context = __other._M_context;
-        _M_device = __other._M_device;
-        _M_alloc = __other._M_alloc;
+        __data = __other.__data;
+        __size = __other.__size;
+        __context = __other.__context;
+        __device = __other.__device;
+        __alloc = __other.__alloc;
 
-        __other._M_data = nullptr;
-        __other._M_size = 0;
+        __other.__data = nullptr;
+        __other.__size = 0;
 
         return *this;
     }
@@ -94,37 +94,37 @@ class __device_storage_base
     size_type
     size() const noexcept
     {
-        return _M_size;
+        return __size;
     }
 
     bool
     empty() const noexcept
     {
-        return _M_size == 0;
+        return __size == 0;
     }
 
     _Tp*
     data() noexcept
     {
-        return _M_data;
+        return __data;
     }
 
     const _Tp*
     data() const noexcept
     {
-        return _M_data;
+        return __data;
     }
 
     sycl::context
     get_context() const
     {
-        return _M_context;
+        return __context;
     }
 
     sycl::device
     get_device() const
     {
-        return _M_device;
+        return __device;
     }
 
     // -- Blocking transfer helpers --
@@ -135,7 +135,7 @@ class __device_storage_base
                    const sycl::event& __depends_on) const
     {
         if (__count > 0)
-            __q.memcpy(__dst, _M_data + __src_offset, __count * sizeof(_Tp), __depends_on).wait_and_throw();
+            __q.memcpy(__dst, __data + __src_offset, __count * sizeof(_Tp), __depends_on).wait_and_throw();
     }
 
     void
@@ -143,7 +143,7 @@ class __device_storage_base
                      const sycl::event& __depends_on)
     {
         if (__count > 0)
-            __q.memcpy(_M_data + __dst_offset, __src, __count * sizeof(_Tp), __depends_on).wait_and_throw();
+            __q.memcpy(__data + __dst_offset, __src, __count * sizeof(_Tp), __depends_on).wait_and_throw();
     }
 
     void
@@ -151,7 +151,7 @@ class __device_storage_base
              const sycl::event& __depends_on)
     {
         if (__count > 0)
-            __q.fill(_M_data + __offset, __value, __count, __depends_on).wait_and_throw();
+            __q.fill(__data + __offset, __value, __count, __depends_on).wait_and_throw();
     }
 
     // Precondition: __pos < size(), must be checked by __check_element_pos() in the caller.
@@ -162,14 +162,14 @@ class __device_storage_base
         // copy construction is a bitwise copy and __space.__v may be treated as constructed after the
         // memcpy; its destructor must have no effect, so there is nothing to destroy.
         oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __space;
-        __q.memcpy(&__space.__v, _M_data + __pos, sizeof(_Tp), __depends_on).wait_and_throw();
+        __q.memcpy(&__space.__v, __data + __pos, sizeof(_Tp), __depends_on).wait_and_throw();
         return __space.__v;
     }
 
     sycl::queue
     __make_queue() const
     {
-        return sycl::queue{_M_context, _M_device};
+        return sycl::queue{__context, __device};
     }
 
     // The element count a bulk transfer of __requested elements starting at __offset performs.
@@ -177,45 +177,45 @@ class __device_storage_base
     size_type
     __checked_count(size_type __requested, size_type __offset) const
     {
-        if (__offset > _M_size)
+        if (__offset > __size)
             throw std::out_of_range("oneDPL device container: transfer offset is past the end of the container");
-        return std::min(__requested, _M_size - __offset);
+        return std::min(__requested, __size - __offset);
     }
 
     // For the single-element operations, which address one element and so cannot accept __pos == size().
     void
     __check_element_pos(size_type __pos) const
     {
-        if (__pos >= _M_size)
+        if (__pos >= __size)
             throw std::out_of_range("oneDPL device container: element position is out of range");
     }
 
     void
     __swap(__device_storage_base& __other)
     {
-        std::swap(_M_data, __other._M_data);
-        std::swap(_M_size, __other._M_size);
-        std::swap(_M_context, __other._M_context);
-        std::swap(_M_device, __other._M_device);
-        std::swap(_M_alloc, __other._M_alloc);
+        std::swap(__data, __other.__data);
+        std::swap(__size, __other.__size);
+        std::swap(__context, __other.__context);
+        std::swap(__device, __other.__device);
+        std::swap(__alloc, __other.__alloc);
     }
 
     void
     __deallocate()
     {
-        if (_M_data != nullptr)
+        if (__data != nullptr)
         {
-            _M_alloc.deallocate(_M_data, _M_size);
-            _M_data = nullptr;
-            _M_size = 0;
+            __alloc.deallocate(__data, __size);
+            __data = nullptr;
+            __size = 0;
         }
     }
 
-    _Tp* _M_data = nullptr;
-    size_type _M_size = 0;
-    sycl::context _M_context;
-    sycl::device _M_device;
-    _Allocator _M_alloc;
+    _Tp* __data = nullptr;
+    size_type __size = 0;
+    sycl::context __context;
+    sycl::device __device;
+    _Allocator __alloc;
 };
 
 } // namespace oneapi::dpl::__internal

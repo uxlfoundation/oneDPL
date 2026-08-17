@@ -165,15 +165,9 @@ test_device_allocator(sycl::queue __q)
     // Both constructor forms, as on usm_allocator.
     alloc_t __a(__q);
     alloc_t __b(__q.get_context(), __q.get_device());
-    EXPECT_TRUE(__a.get_context() == __q.get_context(), "device_allocator(queue): wrong context");
-    EXPECT_TRUE(__a.get_device() == __q.get_device(), "device_allocator(queue): wrong device");
-    EXPECT_TRUE(__b.get_context() == __q.get_context(), "device_allocator(context, device): wrong context");
-    EXPECT_TRUE(__b.get_device() == __q.get_device(), "device_allocator(context, device): wrong device");
 
     // The converting constructor carries the allocation target over.
     oneapi::dpl::experimental::device_allocator<double> __converted(__a);
-    EXPECT_TRUE(__converted.get_context() == __q.get_context(), "the converting ctor lost the context");
-    EXPECT_TRUE(__converted.get_device() == __q.get_device(), "the converting ctor lost the device");
 
     // Equality spans the value type and ignores the property list, but distinguishes the alignment, as
     // SYCL 2020 section 4.8.3.1 requires of usm_allocator.
