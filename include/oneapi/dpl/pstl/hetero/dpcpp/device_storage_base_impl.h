@@ -44,7 +44,7 @@ class __device_storage_base
     using size_type = std::size_t;
     using allocator_type = _Allocator;
 
-    __device_storage_base(size_type __count, sycl::context __ctx, sycl::device __dev, _Allocator __alloc_arg)
+    __device_storage_base(size_type __count, sycl::context __ctx, sycl::device __dev, allocator_type __alloc_arg)
         : __context(__ctx), __device(__dev), __alloc(std::move(__alloc_arg))
     {
         if (__count != 0)
@@ -100,13 +100,13 @@ class __device_storage_base
         return __size == 0;
     }
 
-    _Tp*
+    value_type*
     data() noexcept
     {
         return __data;
     }
 
-    const _Tp*
+    const value_type*
     data() const noexcept
     {
         return __data;
@@ -128,23 +128,23 @@ class __device_storage_base
     //
     // __count arrives already clamped by the caller. A count of zero skips the submission entirely.
     void
-    __copy_to_host(_Tp* __dst, size_type __count, size_type __src_offset, sycl::queue __q,
+    __copy_to_host(value_type* __dst, size_type __count, size_type __src_offset, sycl::queue __q,
                    const sycl::event& __depends_on) const
     {
         if (__count > 0)
-            __q.memcpy(__dst, __data + __src_offset, __count * sizeof(_Tp), __depends_on).wait_and_throw();
+            __q.memcpy(__dst, __data + __src_offset, __count * sizeof(value_type), __depends_on).wait_and_throw();
     }
 
     void
-    __copy_from_host(const _Tp* __src, size_type __count, size_type __dst_offset, sycl::queue __q,
+    __copy_from_host(const value_type* __src, size_type __count, size_type __dst_offset, sycl::queue __q,
                      const sycl::event& __depends_on)
     {
         if (__count > 0)
-            __q.memcpy(__data + __dst_offset, __src, __count * sizeof(_Tp), __depends_on).wait_and_throw();
+            __q.memcpy(__data + __dst_offset, __src, __count * sizeof(value_type), __depends_on).wait_and_throw();
     }
 
     void
-    __fill_n(const _Tp& __value, size_type __count, size_type __offset, sycl::queue __q,
+    __fill_n(const value_type& __value, size_type __count, size_type __offset, sycl::queue __q,
              const sycl::event& __depends_on)
     {
         if (__count > 0)
@@ -152,15 +152,15 @@ class __device_storage_base
     }
 
     // Precondition: __pos < size(), must be checked by __check_element_pos() in the caller.
-    _Tp
+    value_type
     __read_at(size_type __pos, sycl::queue __q, const sycl::event& __depends_on) const
     {
-        // Lazy storage to avoid requiring _Tp to be default constructible. _Tp is device copyable, so
+        // Lazy storage to avoid requiring value_type to be default constructible. value_type is device copyable, so
         // copy construction is a bitwise copy and __space.__v may be treated as constructed after the
         // memcpy; its destructor must have no effect, so there is nothing to destroy.
-        oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __space;
-        __q.memcpy(&__space.__v, __data + __pos, sizeof(_Tp), __depends_on).wait_and_throw();
-        oneapi::dpl::__internal::__scoped_destroyer<_Tp> __destroy_when_leaving_scope{__space};
+        oneapi::dpl::__internal::__lazy_ctor_storage<value_type> __space;
+        __q.memcpy(&__space.__v, __data + __pos, sizeof(value_type), __depends_on).wait_and_throw();
+        oneapi::dpl::__internal::__scoped_destroyer<value_type> __destroy_when_leaving_scope{__space};
         return __space.__v;
     }
 
@@ -210,11 +210,11 @@ class __device_storage_base
         }
     }
 
-    _Tp* __data = nullptr;
+    value_type* __data = nullptr;
     size_type __size = 0;
     sycl::context __context;
     sycl::device __device;
-    _Allocator __alloc;
+    allocator_type __alloc;
 };
 
 } // namespace oneapi::dpl::__internal
