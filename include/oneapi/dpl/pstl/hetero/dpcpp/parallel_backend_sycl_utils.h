@@ -746,13 +746,22 @@ struct __wait_required_of_finalize_sycl_call<__combined_storage<_T>> : std::true
 {
 };
 
+// Load a single result value from the storage.
+// _T is not required to be default constructible: the caller provides an already constructed
+// object of the storage value type, which is overwritten with the result.
+template <typename _T, template <typename> typename _Storage>
+_T
+__load_result(_Storage<_T>& __storage, _T __result_holder)
+{
+    __storage.__copy_result(&__result_holder, 1);
+    return __result_holder;
+}
+
 template <typename _T, template <typename> typename _Storage>
 std::enable_if_t<std::is_default_constructible_v<_T>, _T>
 __load_result(_Storage<_T>& __storage)
 {
-    _T __result{};
-    __storage.__copy_result(&__result, 1);
-    return __result;
+    return __load_result(__storage, _T{});
 }
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
