@@ -28,6 +28,10 @@ New Features
   where available (C++20 and later), and to ``sycl::span`` as a fallback where it is available.
 - Added support for ``sycl::half`` as a key type in ``kt::gpu::radix_sort``, ``kt::gpu::radix_sort_by_key``,
   ``kt::gpu::esimd::radix_sort``, and ``kt::gpu::esimd::radix_sort_by_key``.
+- Improved performance of 16 algorithms (including ``copy_if``, ``remove``, ``remove_if``, ``unique_copy``,
+  scan algorithms, and set operations)
+  with ``par`` and ``par_unseq`` execution policies for small input sizes (approximately 8000 per thread)
+  when built with the oneTBB backend.
 
 Known Issues and Limitations
 ----------------------------
