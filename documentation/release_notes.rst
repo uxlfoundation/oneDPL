@@ -10,14 +10,14 @@ creating efficient heterogeneous applications.
 
 New in 2022.14.0
 ================
+New Features
+------------
 - Removed requirement that the output range has sufficient size to hold all resulting elements for ``set_union``,
   ``set_intersection``, ``set_difference``, and ``set_symmetric_difference`` algorithms when used with device policies.
 - ``radix_sort`` and ``radix_sort_by_key`` algorithms from the ``oneapi::dpl::experimental::kt::gpu``
   namespace now support the ``sycl::ext::oneapi::bfloat16`` type.
 - ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` algorithms with device policies
   now use Radix sort [#fnote1]_ for sorting elements of the ``sycl::ext::oneapi::bfloat16`` type.
-New Features
-------------
 - Added more parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``inplace_merge``,
   ``is_heap``, ``is_heap_until``, ``is_partitioned``, ``nth_element``, ``partial_sort``, ``partial_sort_copy``,
   ``partition``, ``partition_copy``, ``rotate``, ``rotate_copy``, ``shift_left,``, ``shift_right``,
