@@ -65,10 +65,6 @@
 #    include "oneapi/dpl/pstl/glue_numeric_ranges_impl.h"
 #endif // _ONEDPL_NUMERIC_RANGES_FORWARD_DECLARED
 
-#if _ONEDPL_ASYNC_FORWARD_DECLARED
-#    include "oneapi/dpl/internal/async_impl/glue_async_impl.h"
-#endif // _ONEDPL_ASYNC_FORWARD_DECLARED
-
 #if _ONEDPL_CPP17_EXECUTION_POLICIES_PRESENT
 _PSTL_PRAGMA_MESSAGE_POLICIES(
     "The <Parallel STL> execution policies are defined in the namespace oneapi::dpl::execution")
