@@ -802,12 +802,10 @@ __finalize_sycl_call(_Event&& __event)
     }
 }
 
-template <typename... _Args>
-constexpr bool
-__is_wait_required_on_finalize_sycl_call()
-{
-    return (__wait_required_of_finalize_sycl_call<std::decay_t<_Args>>::value || ...);
-}
+template <typename _WaitModeTag, typename... _Args>
+using __resolve_wait_mode =
+    std::conditional_t<(__wait_required_of_finalize_sycl_call<std::decay_t<_Args>>::value || ...), __sync_mode,
+                       _WaitModeTag>;
 
 template <typename _WaitModeTag = __sync_mode, template <typename...> typename _Tuple, typename... _Args>
 void
@@ -816,15 +814,7 @@ __finalize_sycl_call(_Tuple<_Args...>& __tuple)
     static_assert(std::is_same_v<sycl::event, std::decay_t<std::tuple_element_t<0, _Tuple<_Args...>>>>,
                   "The first element of the tuple must be sycl::event");
 
-    if constexpr (__is_wait_required_on_finalize_sycl_call<_Args...>())
-    {
-        // The result has to be read on the host, so a synchronous wait is required
-        __finalize_sycl_call<__sync_mode>(std::get<0>(__tuple));
-    }
-    else
-    {
-        __finalize_sycl_call<_WaitModeTag>(std::get<0>(__tuple));
-    }
+    __finalize_sycl_call<__resolve_wait_mode<_WaitModeTag, _Args...>>(std::get<0>(__tuple));
 }
 
 struct __scalar_load_op
