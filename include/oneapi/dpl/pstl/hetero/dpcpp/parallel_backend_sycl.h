@@ -1600,7 +1600,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         unseq_backend::__brick_assign_key_position{})[0];
 
     //reduce by segment
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    sycl::event __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce1_wrapper>(__exec),
         unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n)>(__binary_op, __n), __intermediate_result_end,
@@ -1638,7 +1638,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         unseq_backend::__brick_assign_key_position{})[0];
 
     //reduce by segment
-    auto __res2 = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    sycl::event __res2 = oneapi::dpl::__par_backend_hetero::__parallel_for(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(
             std::forward<_ExecutionPolicy>(__exec)),

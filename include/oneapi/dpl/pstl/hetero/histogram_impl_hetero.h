@@ -138,7 +138,7 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
             _global_histogram_type{0}};
         //fill histogram bins with zeros
 
-        auto __init_event = oneapi::dpl::__par_backend_hetero::__parallel_for(
+        sycl::event __init_event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__hist_fill_zeros_wrapper>(__exec),
             unseq_backend::walk_n_vectors_or_scalars<decltype(__fill_func)>{__fill_func,
                                                                             static_cast<std::size_t>(__num_bins)},
