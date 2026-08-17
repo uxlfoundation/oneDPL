@@ -918,32 +918,37 @@ struct __early_exit_find_or
         const auto __global_id = __item.get_global_linear_id();
 
         bool __something_was_found = false;
-        for (_SrcDataSize __i = 0; !__something_was_found && __i < __iters_per_work_item; ++__i)
+        // Elements processed between two sub-group votes. A vote after every element makes each load
+        // wait on the previous vote, leaving no loads in flight; a batch of independent loads can be
+        // unrolled and issued together. Early exit is correspondingly delayed by up to a batch.
+        constexpr _SrcDataSize __iters_per_vote = 8;
+        for (_SrcDataSize __i = 0; !__something_was_found && __i < __iters_per_work_item; __i += __iters_per_vote)
         {
-            auto __local_src_data_idx = __i;
-            if constexpr (__is_backward_tag(__brick_tag))
-                __local_src_data_idx = __iters_per_work_item - 1 - __i;
-
-            const auto __src_data_idx_current = __global_id + __local_src_data_idx * __iteration_data_size;
-            if (__src_data_idx_current < __source_data_size && __pred(__src_data_idx_current, __rngs...))
+            _ONEDPL_PRAGMA_UNROLL
+            for (_SrcDataSize __j = 0; __j < __iters_per_vote; ++__j)
             {
-                // Update local found state
-                _BrickTag::__save_state_to(__found_local, __src_data_idx_current);
+                const _SrcDataSize __iter = __i + __j;
 
-                // This break is mandatory from the performance point of view.
-                // This break is safe for all our cases:
-                // 1) __parallel_find_forward_tag : when we search for the first matching data entry,
-                //    we process data from start to end (forward direction).
-                //    This means that after first found entry there is no reason to process data anymore.
-                // 2) __parallel_find_backward_tag : when we search for the last matching data entry,
-                //    we process data from end to start (backward direction).
-                //    This means that after the first found entry there is no reason to process data anymore too.
-                // 3) __parallel_or_tag : when we search for any matching data entry,
-                //    we process data from start to end (forward direction).
-                //    This means that after the first found entry there is no reason to process data anymore too.
-                // But break statement here shows poor perf in some cases.
-                // So we use bool variable state check in the for-loop header.
-                __something_was_found = true;
+                auto __local_src_data_idx = __iter;
+                if constexpr (__is_backward_tag(__brick_tag))
+                {
+                    // Backward indexing underflows past the last iteration, so the source-size check
+                    // below cannot be relied on to reject it. Forward indexing needs no such guard:
+                    // __iter >= __iters_per_work_item implies __src_data_idx_current >= the size.
+                    if (__iter >= __iters_per_work_item)
+                        break;
+                    __local_src_data_idx = __iters_per_work_item - 1 - __iter;
+                }
+
+                const auto __src_data_idx_current = __global_id + __local_src_data_idx * __iteration_data_size;
+                if (__src_data_idx_current < __source_data_size && __pred(__src_data_idx_current, __rngs...))
+                {
+                    // Scanning continues to the end of the batch; __save_state_to keeps the first
+                    // match in the tag's direction (min forward, max backward), so a later match
+                    // within the batch cannot displace an earlier one.
+                    _BrickTag::__save_state_to(__found_local, __src_data_idx_current);
+                    __something_was_found = true;
+                }
             }
 
             // Share found into state between items in our sub-group to early exit if something was found
