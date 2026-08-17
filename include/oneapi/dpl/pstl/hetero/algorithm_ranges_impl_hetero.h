@@ -1572,8 +1572,7 @@ __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
 
-    [[maybe_unused]] auto [__idx, __val] = __load_result(std::get<1>(__res));
-
+    auto [__idx, __val] = __load_result(std::get<1>(__res));
     return {__idx, __val};
 }
 
