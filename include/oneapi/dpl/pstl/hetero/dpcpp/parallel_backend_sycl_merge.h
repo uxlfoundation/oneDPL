@@ -322,8 +322,8 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
 {
     template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
     __parallel_merge_return_data_t<_OutSizeLimit, _Range1, _Range2>
-    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp,
-               _Proj1 __proj1, _Proj2 __proj2) const
+    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _Proj1 __proj1,
+               _Proj2 __proj2) const
     {
         const _IdType __n1 = oneapi::dpl::__ranges::__size(__rng1);
         const _IdType __n2 = oneapi::dpl::__ranges::__size(__rng2);
@@ -338,7 +338,8 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
 
         const _IdType __steps = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk);
 
-        auto __result = __create_parallel_merge_return_data<_OutSizeLimit, _Range1, _Range2, _IdType>(__q, /*__split_points_count*/0);
+        auto __result = __create_parallel_merge_return_data<_OutSizeLimit, _Range1, _Range2, _IdType>(
+            __q, /*__split_points_count*/ 0);
 
         // Save sycl::event instance into the first element of __result
         std::get<0>(__result) = __q.submit([&](sycl::handler& __cgh) {
@@ -508,8 +509,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
   public:
     template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
     __parallel_merge_return_data_t<_OutSizeLimit, _Range1, _Range2>
-    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp,
-               _Proj1 __proj1, _Proj2 __proj2) const
+    operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _Proj1 __proj1,
+               _Proj2 __proj2) const
     {
         const _IdType __n1 = oneapi::dpl::__ranges::__size(__rng1);
         const _IdType __n2 = oneapi::dpl::__ranges::__size(__rng2);
@@ -562,8 +563,8 @@ __get_starting_size_limit_for_large_submitter<int>()
     return 16 * 1'048'576; // 16 MB
 }
 
-template <typename _CustomName, bool _OutSizeLimit = false, typename _Range1, typename _Range2,
-          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _CustomName, bool _OutSizeLimit = false, typename _Range1, typename _Range2, typename _Range3,
+          typename _Compare, typename _Proj1, typename _Proj2>
 __parallel_merge_return_data_t<_OutSizeLimit, _Range1, _Range2>
 __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp,
                       _Proj1 __proj1, _Proj2 __proj2)
@@ -612,8 +613,8 @@ __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
     }
 }
 
-template <bool _OutSizeLimit = false, typename _ExecutionPolicy, typename _Range1, typename _Range2,
-          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
+template <bool _OutSizeLimit = false, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
+          typename _Compare, typename _Proj1, typename _Proj2>
 __parallel_merge_return_data_t<_OutSizeLimit, _Range1, _Range2>
 __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng1,
                  _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
