@@ -1607,7 +1607,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx),
                                                 __intermediate_result_end),
         std::forward<_Range2>(__values), oneapi::dpl::__ranges::views::all_write(__tmp_out_values));
-    __finalize_sycl_call(__res);
+    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
 
     // Round 2: final reduction to get result for each segment of equal adjacent keys
     // create views over adjacent keys
@@ -1647,7 +1647,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         __result_end,
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx), __result_end),
         oneapi::dpl::__ranges::views::all_read(__tmp_out_values), std::forward<_Range4>(__out_values));
-    __finalize_sycl_call<__deferrable_mode>(__res2);
+    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<__deferrable_mode>(__res2);
 
     return __result_end;
 }
@@ -1677,7 +1677,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
     std::tuple __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
         __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
         std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
-    __finalize_sycl_call(__res);
+    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
 
     // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index.
     // Add 1 to return the past-the-end iterator pair of segmented reduction.
