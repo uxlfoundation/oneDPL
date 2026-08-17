@@ -163,6 +163,7 @@ class __device_storage_base
         // memcpy; its destructor must have no effect, so there is nothing to destroy.
         oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __space;
         __q.memcpy(&__space.__v, __data + __pos, sizeof(_Tp), __depends_on).wait_and_throw();
+        oneapi::dpl::__internal::__scoped_destroyer<_Tp> __destroy_when_leaving_scope{__space};
         return __space.__v;
     }
 
