@@ -689,8 +689,10 @@ class __sort_global_kernel2;
 template <typename... _Name>
 class __sort_copy_back_kernel;
 
+using __parallel_sort_return_t = std::tuple<sycl::event, _split_points_device_storage32_t, _split_points_device_storage64_t>;
+
 template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare, typename _LeafSorter>
-std::tuple<sycl::event, _split_points_device_storage32_t, _split_points_device_storage64_t>
+__parallel_sort_return_t
 __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter)
 {
     static_assert(std::is_same_v<_IndexT, std::uint32_t> || std::is_same_v<_IndexT, std::uint64_t>,
@@ -736,7 +738,7 @@ __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __l
 }
 
 template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare>
-std::tuple<sycl::event, _split_points_device_storage32_t, _split_points_device_storage64_t>
+__parallel_sort_return_t
 __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
 {
     using _Leaf = __leaf_sorter<std::decay_t<_Range>, _Compare>;
@@ -789,7 +791,7 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
 }
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
-std::tuple<sycl::event, _split_points_device_storage32_t, _split_points_device_storage64_t>
+__parallel_sort_return_t
 __parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                      _Compare __comp)
 {
