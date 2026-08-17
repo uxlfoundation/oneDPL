@@ -117,8 +117,7 @@ template <typename _Tp, std::size_t _AlignmentT, typename _Up, std::size_t _Alig
 bool
 operator==(const device_allocator<_Tp, _AlignmentT>& __lhs, const device_allocator<_Up, _AlignmentU>& __rhs) noexcept
 {
-    return _AlignmentT == _AlignmentU && __lhs.__context == __rhs.__context &&
-           __lhs.__device == __rhs.__device;
+    return _AlignmentT == _AlignmentU && __lhs.__context == __rhs.__context && __lhs.__device == __rhs.__device;
 }
 
 template <typename _Tp, std::size_t _AlignmentT, typename _Up, std::size_t _AlignmentU>

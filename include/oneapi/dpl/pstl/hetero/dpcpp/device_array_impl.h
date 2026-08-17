@@ -10,7 +10,6 @@
 #ifndef _ONEDPL_DEVICE_ARRAY_IMPL_H
 #define _ONEDPL_DEVICE_ARRAY_IMPL_H
 
-
 #include "../../../internal/common_config.h"
 #include "../../onedpl_config.h"
 
@@ -123,7 +122,8 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
 
     // -- Device transfer out --
     size_type
-    copy_to(oneapi::dpl::span<value_type> __dst, size_type __src_offset, sycl::queue __q, sycl::event __depends_on = {}) const
+    copy_to(oneapi::dpl::span<value_type> __dst, size_type __src_offset, sycl::queue __q,
+            sycl::event __depends_on = {}) const
     {
         const size_type __n = _Base::__checked_count(__dst.size(), __src_offset);
         _Base::__copy_to_host(__dst.data(), __n, __src_offset, __q, __depends_on);
