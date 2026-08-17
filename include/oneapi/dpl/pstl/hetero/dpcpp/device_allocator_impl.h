@@ -35,6 +35,7 @@ class device_allocator
 {
   public:
     using value_type = _Tp;
+    using size_type = std::size_t;
 
     explicit device_allocator(sycl::context __ctx, sycl::device __dev, const sycl::property_list& __prop_list = {})
         : __context(__ctx), __device(__dev), __prop_list(__prop_list)
@@ -61,7 +62,7 @@ class device_allocator
     }
 
     _Tp*
-    allocate(std::size_t __count) const
+    allocate(size_type __count) const
     {
         if (__count == 0)
             return nullptr;
@@ -89,7 +90,7 @@ class device_allocator
     // __count is accepted, and ignored, to match the allocator convention; USM deallocation needs only
     // the pointer and the context.
     void
-    deallocate(_Tp* __ptr, std::size_t /*__count*/) const
+    deallocate(_Tp* __ptr, size_type /*__count*/) const
     {
         if (__ptr != nullptr)
             sycl::free(__ptr, __context);
