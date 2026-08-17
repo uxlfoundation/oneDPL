@@ -10,16 +10,16 @@
 #ifndef _ONEDPL_DEVICE_STORAGE_BASE_IMPL_H
 #define _ONEDPL_DEVICE_STORAGE_BASE_IMPL_H
 
+#include "../../../internal/common_config.h"
+#include "../../onedpl_config.h"
+
+#if _ONEDPL_BACKEND_SYCL
+
 #include <algorithm>
 #include <cstddef>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
-
-#include "../../../internal/common_config.h"
-#include "../../onedpl_config.h"
-
-#if _ONEDPL_BACKEND_SYCL
 
 #include "sycl_defs.h"
 #include "../../utils.h"

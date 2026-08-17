@@ -10,15 +10,16 @@
 #ifndef _ONEDPL_DEVICE_ARRAY_IMPL_H
 #define _ONEDPL_DEVICE_ARRAY_IMPL_H
 
-#include <cstddef>
-#include <vector>
-#include <utility>
-#include <type_traits>
 
 #include "../../../internal/common_config.h"
 #include "../../onedpl_config.h"
 
 #if _ONEDPL_BACKEND_SYCL
+
+#include <cstddef>
+#include <vector>
+#include <utility>
+#include <type_traits>
 
 #include "sycl_defs.h"
 #include "span_impl.h"
