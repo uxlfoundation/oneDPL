@@ -160,7 +160,7 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
         }
         else
         {
-            __init_event.wait();
+            __init_event.wait_and_throw();
         }
     }
 }
