@@ -12,32 +12,28 @@ New in 2022.14.0
 ================
 New Features
 ------------
-- Removed requirement that the output range has sufficient size to hold all resulting elements for ``set_union``,
-  ``set_intersection``, ``set_difference``, and ``set_symmetric_difference`` algorithms when used with device policies.
-- Added support for ``sycl::half`` as a key type in ``kt::gpu::radix_sort``, ``kt::gpu::radix_sort_by_key``,
-  ``kt::gpu::esimd::radix_sort``, and ``kt::gpu::esimd::radix_sort_by_key``.
-- Added support for ``sycl::ext::oneapi::bfloat16`` as a key type in ``kt::gpu::radix_sort`` and
-  ``kt::gpu::radix_sort_by_key``.
-- Switched to using Radix sort [#fnote1]_ for sorting ``sycl::ext::oneapi::bfloat16`` elements in
-  ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` algorithms with device policies.
-- Added more parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``inplace_merge``,
+- Added remaining parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``inplace_merge``,
   ``is_heap``, ``is_heap_until``, ``is_partitioned``, ``nth_element``, ``partial_sort``, ``partial_sort_copy``,
   ``partition``, ``partition_copy``, ``rotate``, ``rotate_copy``, ``shift_left,``, ``shift_right``,
-  ``stable_partition``
-- Added experimental ``device_array`` in ``namespace oneapi::dpl::experimental``: a fixed-size RAII container
-  which simplifies device memory allocation, deallocation, and transfers.
-- Added the ``oneapi::dpl::span`` alias, used in the ``device_array`` interface. It is defined as ``std::span``
-  where available (C++20 and later), and to ``sycl::span`` as a fallback where it is available.
-- Improved performance of 16 algorithms (including ``copy_if``, ``remove``, ``remove_if``, ``unique_copy``,
-  scan algorithms, and set operations)
-  with ``par`` and ``par_unseq`` execution policies for small input sizes (approximately 8000 per thread)
-  when built with the oneTBB backend.
+  ``stable_partition``. With that, support for the oneDPL specification v1.5 is complete.
+- ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` algorithms with device policies
+  now use Radix sort [#fnote1]_ for ``sycl::ext::oneapi::bfloat16`` elements.
+- Added support for ``sycl::half`` and ``sycl::ext::oneapi::bfloat16`` as key types in ``kt::gpu::radix_sort`` and
+  ``kt::gpu::radix_sort_by_key`` functions, and also for ``sycl::half`` in their counterparts in ``kt::gpu::esimd``.
+- Added experimental ``device_array`` class template in ``namespace oneapi::dpl::experimental``:
+  a fixed-size RAII container which simplifies device memory allocation, deallocation, and transfers.
+- Added the ``oneapi::dpl::span`` type alias, used in the ``device_array`` interface. It is defined as ``std::span``
+  where available (C++20 and later), or to ``sycl::span`` as a fallback if that is available.
+- Improved performance of multiple algorithms (including ``copy_if``, ``remove``, ``remove_if``, ``unique_copy``,
+  scan algorithms, and set operations) for input sizes below approximately 8000 elements per thread
+  when the oneTBB backend is used for ``par`` and ``par_unseq`` execution policies.
 - Enabled use of native SYCL group reduce and scan algorithms with compilers other than Intel® oneAPI DPC++/C++
-  Compiler, which should improve the performance of 6 algorithms: ``reduce``, ``transform_reduce``,
-  ``inclusive_scan``, ``exclusive_scan``, ``transform_inclusive_scan``, and ``transform_exclusive_scan``.
+  Compiler, which might improve performance of some algorithms in ``<oneapi/dpl/numeric>``.
 
 Fixed Issues
 ------------
+- Removed requirement that the output range has sufficient size to hold all resulting elements for ``set_union``,
+  ``set_intersection``, ``set_difference``, and ``set_symmetric_difference`` algorithms when used with device policies.
 - Fixed a compilation error in ``reduce``, ``transform_reduce``, ``inclusive_scan``, ``exclusive_scan``,
   ``transform_inclusive_scan``, and ``transform_exclusive_scan`` algorithms when using a device policy to
   process ``sycl::ext::oneapi::bfloat16`` elements.
