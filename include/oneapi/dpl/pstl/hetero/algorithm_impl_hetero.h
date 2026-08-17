@@ -1520,7 +1520,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         // full sort on them.
         auto __out_end =
             __pattern_hetero_walk2<__par_backend_hetero::__sync_mode, __par_backend_hetero::access_mode::write,
-                                                /*_IsOutNoInitRequested=*/true>(
+                                   /*_IsOutNoInitRequested=*/true>(
                 __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_1>(__exec), __first, __last,
                 __out_first, __brick_copy<__hetero_tag<_BackendTag>>{});
 
@@ -1549,7 +1549,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         auto __buf_last =
             __pattern_hetero_walk2<__par_backend_hetero::__async_mode, __par_backend_hetero::access_mode::write,
-                                                 /*_IsOutNoInitRequested=*/true>(
+                                   /*_IsOutNoInitRequested=*/true>(
                 __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_2>(__exec), __first, __last,
                 __buf_first, __brick_copy<__hetero_tag<_BackendTag>>{});
 
@@ -1606,8 +1606,9 @@ __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf = __keep(__first, __last);
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                      unseq_backend::__reverse_functor{__n}, __n / 2, __buf.all_view());
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_functor{__n}, __n / 2,
+        __buf.all_view());
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
 }
 
