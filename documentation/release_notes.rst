@@ -14,10 +14,12 @@ New Features
 ------------
 - Removed requirement that the output range has sufficient size to hold all resulting elements for ``set_union``,
   ``set_intersection``, ``set_difference``, and ``set_symmetric_difference`` algorithms when used with device policies.
-- ``radix_sort`` and ``radix_sort_by_key`` algorithms from the ``oneapi::dpl::experimental::kt::gpu``
-  namespace now support the ``sycl::ext::oneapi::bfloat16`` type.
-- ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` algorithms with device policies
-  now use Radix sort [#fnote1]_ for sorting elements of the ``sycl::ext::oneapi::bfloat16`` type.
+- Added support for ``sycl::half`` as a key type in ``kt::gpu::radix_sort``, ``kt::gpu::radix_sort_by_key``,
+  ``kt::gpu::esimd::radix_sort``, and ``kt::gpu::esimd::radix_sort_by_key``.
+- Added support for ``sycl::ext::oneapi::bfloat16`` as a key type in ``kt::gpu::radix_sort`` and
+  ``kt::gpu::radix_sort_by_key``.
+- Switched to using Radix sort [#fnote1]_ for sorting ``sycl::ext::oneapi::bfloat16`` elements in
+  ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` algorithms with device policies.
 - Added more parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``inplace_merge``,
   ``is_heap``, ``is_heap_until``, ``is_partitioned``, ``nth_element``, ``partial_sort``, ``partial_sort_copy``,
   ``partition``, ``partition_copy``, ``rotate``, ``rotate_copy``, ``shift_left,``, ``shift_right``,
@@ -26,8 +28,6 @@ New Features
   which simplifies device memory allocation, deallocation, and transfers.
 - Added the ``oneapi::dpl::span`` alias, used in the ``device_array`` interface. It is defined as ``std::span``
   where available (C++20 and later), and to ``sycl::span`` as a fallback where it is available.
-- Added support for ``sycl::half`` as a key type in ``kt::gpu::radix_sort``, ``kt::gpu::radix_sort_by_key``,
-  ``kt::gpu::esimd::radix_sort``, and ``kt::gpu::esimd::radix_sort_by_key``.
 - Improved performance of 16 algorithms (including ``copy_if``, ``remove``, ``remove_if``, ``unique_copy``,
   scan algorithms, and set operations)
   with ``par`` and ``par_unseq`` execution policies for small input sizes (approximately 8000 per thread)
