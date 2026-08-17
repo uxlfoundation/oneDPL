@@ -32,6 +32,15 @@ New Features
   scan algorithms, and set operations)
   with ``par`` and ``par_unseq`` execution policies for small input sizes (approximately 8000 per thread)
   when built with the oneTBB backend.
+- Enabled use of native SYCL group reduce and scan algorithms with compilers other than Intel® oneAPI DPC++/C++
+  Compiler, which should improve the performance of 6 algorithms: ``reduce``, ``transform_reduce``,
+  ``inclusive_scan``, ``exclusive_scan``, ``transform_inclusive_scan``, and ``transform_exclusive_scan``.
+
+Fixed Issues
+------------
+- Fixed a compilation error in ``reduce``, ``transform_reduce``, ``inclusive_scan``, ``exclusive_scan``,
+  ``transform_inclusive_scan``, and ``transform_exclusive_scan`` algorithms when using a device policy to
+  process ``sycl::ext::oneapi::bfloat16`` elements.
 
 Known Issues and Limitations
 ----------------------------
