@@ -2226,8 +2226,6 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
         if (__n < __diff_type(2))
             return __internal::__brick_partition(__first, __last, __pred, _IsVector{});
 
-        const __diff_type __mid = __n / 2;
-
         auto __swap_ranges = [&__exec](_RandomAccessIterator __begin, _RandomAccessIterator __end,
                                        _RandomAccessIterator __target) {
             constexpr __diff_type __serial_swap_ranges_cutoff = 8192;
@@ -2271,7 +2269,6 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
 
         auto __merge = [__flip_partition, __partial_swap](_PartitionRange __val1, _PartitionRange __val2)
                                                          -> _PartitionRange {
-            // The reduction identity carries no elements and no leftovers
             if (__val1.__empty())
                 return __val2;
             if (__val2.__empty())
@@ -2314,11 +2311,13 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             return __merged_range;
         }; // merge
 
+        const __diff_type __mid = __n / 2;
+
         auto __reduce_leaf = [&__pred, __merge, __first, __last, __mid](_RandomAccessIterator __real_chunk_begin,
                                                                         _RandomAccessIterator __real_chunk_end,
                                                                         _PartitionRange __value) -> _PartitionRange {
-            // If the real chunk is the last chunk of the reduction, shift __mirror_chunk_begin to its end
-            // to include the possibly uncovered middle element
+            // If the real chunk is the last chunk of the reduction, __mirror_chunk_begin starts right after
+            // to cover the middle element that would otherwise be skipped when __n is odd
             _RandomAccessIterator __mirror_chunk_begin =
                 __real_chunk_end == __first + __mid ? __first + __mid : __last - (__real_chunk_end - __first);
             _RandomAccessIterator __mirror_chunk_end = __last - (__real_chunk_begin - __first);
@@ -2356,11 +2355,13 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             return __merge(__value, __range);
         }; // reduce leaf
 
+        // The reduction identity carries no elements and no leftovers
         _PartitionRange __init{__last, __last, __last, __last, __last, __last};
         _PartitionRange __final_range =
             __par_backend::__parallel_reduce(__backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __first,
                                              __first + __mid, __init, __reduce_leaf, __merge);
 
+        // The partition point is the start of the surviving leftover
         return __final_range.__has_true_leftover() ? __final_range.__true_leftover : __final_range.__false_leftover;
     });
 }
