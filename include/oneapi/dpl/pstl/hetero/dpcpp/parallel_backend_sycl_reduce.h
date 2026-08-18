@@ -142,7 +142,7 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
         auto __reduce_pattern = unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op};
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
 
-        __combined_storage<_Tp> __result(__q, /*__scratch_n*/ 0, 1);
+        __combined_storage<_Tp> __result(__q, /*__scratch_n, ==1 just for compatibility*/ 1, 1);
 
         sycl::event __reduce_event = __q.submit([&, __n](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...); // get an access to data under SYCL buffer
