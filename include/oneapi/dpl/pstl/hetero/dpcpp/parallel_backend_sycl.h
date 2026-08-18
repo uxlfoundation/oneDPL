@@ -907,52 +907,81 @@ struct __early_exit_find_or
 {
     _Pred __pred;
 
+    // Elements scanned between two sub-group votes. With a vote after every element the next load
+    // waits on the vote, so a work item never has more than one load in flight; the loads of one
+    // batch are independent and get issued together.
+    static constexpr std::size_t __iters_per_vote = 8;
+    // Batching delays the early exit by up to one batch, which is only affordable when a batch is a
+    // small part of the work of one item.
+    static constexpr std::size_t __min_iters_to_batch = 32 * __iters_per_vote;
+
     template <typename _NDItemId, typename _SrcDataSize, typename _IterationDataSize, typename _LocalFoundState,
               typename _BrickTag, typename... _Ranges>
     void
     operator()(const _NDItemId __item, const _SrcDataSize __source_data_size, const std::size_t __iters_per_work_item,
-               const _IterationDataSize __iteration_data_size, _LocalFoundState& __found_local, _BrickTag __brick_tag,
+               const _IterationDataSize __iteration_data_size, _LocalFoundState& __found_local, _BrickTag,
                _Ranges&&... __rngs) const
     {
         // Return the index of this item in the kernel's execution range
         const auto __global_id = __item.get_global_linear_id();
 
-        bool __something_was_found = false;
-        // Elements processed between two sub-group votes. A vote after every element makes each load
-        // wait on the previous vote, leaving no loads in flight; a batch of independent loads can be
-        // unrolled and issued together. Early exit is correspondingly delayed by up to a batch.
-        constexpr _SrcDataSize __iters_per_vote = 8;
-        for (_SrcDataSize __i = 0; !__something_was_found && __i < __iters_per_work_item; __i += __iters_per_vote)
-        {
-            _ONEDPL_PRAGMA_UNROLL
-            for (_SrcDataSize __j = 0; __j < __iters_per_vote; ++__j)
+        constexpr bool __backward = __is_backward_tag(_BrickTag{});
+
+        // Source index scanned on iteration __iter of this item; descending for a backward tag.
+        auto __src_idx = [=](std::size_t __iter) {
+            if constexpr (__backward)
+                return __global_id + (__iters_per_work_item - 1 - __iter) * __iteration_data_size;
+            else
+                return __global_id + __iter * __iteration_data_size;
+        };
+        // __save_state_to keeps the extreme index in the tag's direction (min forward, max backward),
+        // so a match found out of order cannot displace an earlier one.
+        auto __scan = [&](auto __idx) {
+            if (__pred(__idx, __rngs...))
             {
-                const _SrcDataSize __iter = __i + __j;
-
-                auto __local_src_data_idx = __iter;
-                if constexpr (__is_backward_tag(__brick_tag))
-                {
-                    // Backward indexing underflows past the last iteration, so the source-size check
-                    // below cannot be relied on to reject it. Forward indexing needs no such guard:
-                    // __iter >= __iters_per_work_item implies __src_data_idx_current >= the size.
-                    if (__iter >= __iters_per_work_item)
-                        break;
-                    __local_src_data_idx = __iters_per_work_item - 1 - __iter;
-                }
-
-                const auto __src_data_idx_current = __global_id + __local_src_data_idx * __iteration_data_size;
-                if (__src_data_idx_current < __source_data_size && __pred(__src_data_idx_current, __rngs...))
-                {
-                    // Scanning continues to the end of the batch; __save_state_to keeps the first
-                    // match in the tag's direction (min forward, max backward), so a later match
-                    // within the batch cannot displace an earlier one.
-                    _BrickTag::__save_state_to(__found_local, __src_data_idx_current);
-                    __something_was_found = true;
-                }
+                _BrickTag::__save_state_to(__found_local, __idx);
+                return true;
             }
+            return false;
+        };
+        auto __scan_guarded = [&](std::size_t __iter) {
+            const auto __idx = __src_idx(__iter);
+            return __idx < __source_data_size && __scan(__idx);
+        };
 
-            // Share found into state between items in our sub-group to early exit if something was found
-            //  - the update of __found_local state isn't required here because it updates later on the caller side
+        bool __something_was_found = false;
+        std::size_t __iter = 0;
+
+        if (__iters_per_work_item >= __min_iters_to_batch)
+        {
+            const std::size_t __batched_iters = (__iters_per_work_item / __iters_per_vote) * __iters_per_vote;
+            for (; !__something_was_found && __iter < __batched_iters; __iter += __iters_per_vote)
+            {
+                // A batch scans in one direction, so one check of its last index covers all of them.
+                // Hoisting it out of the batch is the point of batching: the loads are then
+                // unconditional, and none of them has to wait on a branch of a preceding element.
+                if (__src_idx(__backward ? __iter : __iter + __iters_per_vote - 1) < __source_data_size)
+                {
+                    _ONEDPL_PRAGMA_UNROLL
+                    for (std::size_t __j = 0; __j < __iters_per_vote; ++__j)
+                        __something_was_found |= __scan(__src_idx(__iter + __j));
+                }
+                else
+                {
+                    for (std::size_t __j = 0; __j < __iters_per_vote; ++__j)
+                        __something_was_found |= __scan_guarded(__iter + __j);
+                }
+
+                // Share found into state between items in our sub-group to early exit if something was found
+                //  - the update of __found_local state isn't required here because it updates later on the caller side
+                __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
+            }
+        }
+
+        // Tail of the batched scan, and the whole scan when batching is not used.
+        for (; !__something_was_found && __iter < __iters_per_work_item; ++__iter)
+        {
+            __something_was_found = __scan_guarded(__iter);
             __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
         }
     }
