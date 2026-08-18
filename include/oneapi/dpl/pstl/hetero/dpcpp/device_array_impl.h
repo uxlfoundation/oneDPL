@@ -51,41 +51,38 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
     // device it passes to the base.
 
     // Allocates without initializing. No memset, no fill, no kernel launch.
-    device_array(size_type __count, sycl::queue __q)
-        : _Base(__count, __q.get_context(), __q.get_device(), _Allocator(__q))
-    {
-    }
-
     device_array(size_type __count, sycl::context __ctx, sycl::device __dev)
         : _Base(__count, __ctx, __dev, _Allocator(__ctx, __dev))
     {
     }
 
-    // Allocates and fills every element with __value.
-    device_array(size_type __count, const value_type& __value, sycl::queue __q)
-        : _Base(__count, __q.get_context(), __q.get_device(), _Allocator(__q))
-    {
-        _Base::__fill_n(__value, __count, 0, __q, sycl::event{});
-    }
+    device_array(size_type __count, sycl::queue __q) : device_array(__count, __q.get_context(), __q.get_device()) {}
 
+    // Allocates and fills every element with __value.
     device_array(size_type __count, const value_type& __value, sycl::context __ctx, sycl::device __dev)
-        : _Base(__count, __ctx, __dev, _Allocator(__ctx, __dev))
+        : device_array(__count, __ctx, __dev)
     {
         _Base::__fill_n(__value, __count, 0, _Base::__make_queue(), sycl::event{});
     }
 
-    // Allocates __src.size() elements and copies __src into them. __src may be host memory or USM
-    // accessible on this context.
-    device_array(oneapi::dpl::span<const value_type> __src, sycl::queue __q, sycl::event __depends_on = {})
-        : _Base(__src.size(), __q.get_context(), __q.get_device(), _Allocator(__q))
+    device_array(size_type __count, const value_type& __value, sycl::queue __q)
+        : device_array(__count, __q.get_context(), __q.get_device())
     {
-        _Base::__copy_from_host(__src.data(), __src.size(), 0, __q, __depends_on);
+        _Base::__fill_n(__value, __count, 0, __q, sycl::event{});
     }
 
+    // Allocates __src.size() elements and copies __src into them. __src may be host memory or USM
+    // accessible on this context.
     device_array(oneapi::dpl::span<const value_type> __src, sycl::context __ctx, sycl::device __dev)
-        : _Base(__src.size(), __ctx, __dev, _Allocator(__ctx, __dev))
+        : device_array(__src.size(), __ctx, __dev)
     {
         _Base::__copy_from_host(__src.data(), __src.size(), 0, _Base::__make_queue(), sycl::event{});
+    }
+
+    device_array(oneapi::dpl::span<const value_type> __src, sycl::queue __q, sycl::event __depends_on = {})
+        : device_array(__src.size(), __q.get_context(), __q.get_device())
+    {
+        _Base::__copy_from_host(__src.data(), __src.size(), 0, __q, __depends_on);
     }
 
     device_array(const device_array&) = delete;
