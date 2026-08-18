@@ -514,11 +514,12 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
 
-    std::tuple __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                                std::false_type /*is_commutative*/>(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-        unseq_backend::__no_init_value{}, // no initial value
-        __buf.all_view());
+    std::tuple __res =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+                                                                       std::false_type /*is_commutative*/>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+            unseq_backend::__no_init_value{}, // no initial value
+            __buf.all_view());
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
 
     const _ReduceValueType __result = __load_result(std::get<1>(__res));
@@ -592,11 +593,12 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
 
-    std::tuple __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                                std::true_type /*is_commutative*/>(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-        unseq_backend::__no_init_value{}, // no initial value
-        __buf.all_view());
+    std::tuple __res =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+                                                                       std::true_type /*is_commutative*/>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+            unseq_backend::__no_init_value{}, // no initial value
+            __buf.all_view());
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
 
     return __load_result(std::get<1>(__res));
@@ -1106,11 +1108,12 @@ __pattern_is_partitioned(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
 
-    std::tuple __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                                std::false_type /*is_commutative*/>(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-        unseq_backend::__no_init_value{}, // no initial value
-        __buf.all_view());
+    std::tuple __res =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+                                                                       std::false_type /*is_commutative*/>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+            unseq_backend::__no_init_value{}, // no initial value
+            __buf.all_view());
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
 
     const _IsPartitionedReduceType __val = __load_result(std::get<1>(__res));
@@ -1274,8 +1277,8 @@ __stable_sort_with_projection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf = __keep(__first, __last);
 
-    std::tuple __res = __par_backend_hetero::__parallel_stable_sort(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                              __buf.all_view(), __comp, __proj);
+    std::tuple __res = __par_backend_hetero::__parallel_stable_sort(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf.all_view(), __comp, __proj);
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
 }
 
@@ -1403,11 +1406,12 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf2 = __keep2(__first2, __first2 + __shared_size);
 
-    std::tuple __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                                std::false_type /*is_commutative*/>(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-        unseq_backend::__no_init_value{}, // no initial value
-        __buf1.all_view(), __buf2.all_view());
+    std::tuple __res =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+                                                                       std::false_type /*is_commutative*/>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+            unseq_backend::__no_init_value{}, // no initial value
+            __buf1.all_view(), __buf2.all_view());
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
 
     const _ReduceValueType __ret_idx = __load_result(std::get<1>(__res));
@@ -1463,8 +1467,8 @@ __pattern_partial_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _It
     if (__mid == __first)
         return;
 
-    std::tuple __res = __par_backend_hetero::__parallel_partial_sort(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                               __first, __mid, __last, __comp);
+    std::tuple __res = __par_backend_hetero::__parallel_partial_sort(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __first, __mid, __last, __comp);
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
 }
 
@@ -1946,7 +1950,8 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
 
         sycl::event __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __brick, __size_res, __src, __dst);
-        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
+        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(
+            __event);
     }
     else //2. n < size/2; 'n' parallel copying
     {
@@ -1957,7 +1962,8 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_right>(
                 std::forward<_ExecutionPolicy>(__exec)),
             __brick, __n, __rng);
-        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
+        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(
+            __event);
     }
 
     return __size_res;

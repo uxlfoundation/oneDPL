@@ -279,12 +279,13 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
     __pattern_lexicographical_compare_transform_fn<__binary_op<_Comp, _Proj1, _Proj2>, _ReduceValueType>
         __transform_fn{__binary_op{__comp, __proj1, __proj2}};
 
-    std::tuple __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                                std::false_type /*is_commutative*/>(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-        unseq_backend::__no_init_value{},
-        __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R1>(__r1)), __shared_size),
-        __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R2>(__r2)), __shared_size));
+    std::tuple __res =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+                                                                       std::false_type /*is_commutative*/>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+            unseq_backend::__no_init_value{},
+            __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R1>(__r1)), __shared_size),
+            __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R2>(__r2)), __shared_size));
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
 
     const _ReduceValueType __ret_idx = __load_result(std::get<1>(__res)); // blocking
@@ -1566,11 +1567,12 @@ __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&
     __pattern_min_element_reduce_fn<_ReduceValueType, _Compare> __reduce_fn{__comp};
     oneapi::dpl::__internal::__pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
 
-    std::tuple __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                                std::false_type /*is_commutative*/>(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-        unseq_backend::__no_init_value{}, // no initial value
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
+    std::tuple __res =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+                                                                       std::false_type /*is_commutative*/>(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+            unseq_backend::__no_init_value{}, // no initial value
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
 
     auto [__idx, __val] = __load_result(std::get<1>(__res));
@@ -1644,11 +1646,12 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
     //       a `tuple` of `difference_type`, not the `difference_type` itself.
     oneapi::dpl::__internal::__pattern_minmax_element_transform_fn<_ReduceValueType> __transform_fn;
 
-    std::tuple __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                                std::false_type /*is_commutative*/>(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
-        unseq_backend::__no_init_value{}, // no initial value
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
+    std::tuple __res =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+                                                                       std::false_type /*is_commutative*/>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+            unseq_backend::__no_init_value{}, // no initial value
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
     oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
 
     auto [__idx_min, __idx_max, __min, __max] = __load_result(std::get<1>(__res));
