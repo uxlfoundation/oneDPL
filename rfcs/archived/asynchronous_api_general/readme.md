@@ -170,6 +170,20 @@ The [device algorithms in CUB](https://nvidia.github.io/cccl/cub/developer_overv
 implicitly asynchronous. Unlike Thrust, these do not return any waitable and require synchronization
 with the device. There are notably more `cub::Device*` algorithms than those in `thrust::async`.
 
+### oneDPL experimental asynchronous algorithms
+
+As mentioned before, [the asynchronous algorithms](https://oneapi-src.github.io/oneDPL/parallel_api/async_api.html)
+in oneDPL are intended to allow the underlying SYCL implementation proceed without blocking
+the calling thread. These functions return a future that can be used to synchronize and obtain
+the computed value at a later time. The functions can also accept a list of `sycl::event` objects
+as *input dependencies* (though the implementation has not advanced beyond immediate wait on these events).
+The `wait_for_all` function waits for completion of a given list of events or futures.
+
+The second goal of this API was to allow functional mapping for `thrust::async` algorithms,
+facilitating support for SYCL in applications that use Thrust.
+
+So far, we know of only a few projects that use these algorithms.
+
 ### C++ async & future
 
 The C++ standard provides several ways for a program to use asynchrony, but [`std::future` and
