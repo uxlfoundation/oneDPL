@@ -959,10 +959,14 @@ struct __early_exit_find_or
             const std::size_t __end = std::min<std::size_t>(__until, __iters_per_work_item);
             for (; !__something_was_found && __iter + __len <= __end; __iter += __len)
             {
+                if constexpr (__len == 1)
+                {
+                    __something_was_found |= __scan_guarded(__iter);
+                }
                 // A batch scans in one direction, so one check of its extreme index covers all of
                 // them. Hoisting it out of the batch is the point of batching: the loads are then
                 // unconditional, and none of them has to wait on a branch of a preceding element.
-                if (__src_idx(__backward ? __iter : __iter + __len - 1) < __source_data_size)
+                else if (__src_idx(__backward ? __iter : __iter + __len - 1) < __source_data_size)
                 {
                     _ONEDPL_PRAGMA_UNROLL
                     for (std::size_t __j = 0; __j < __len; ++__j)
