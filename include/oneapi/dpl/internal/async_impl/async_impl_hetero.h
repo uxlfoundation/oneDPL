@@ -153,7 +153,7 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& _
             __buf1.all_view(), __buf2.all_view());
     // skip __finalize_sycl_call() here, because we want to return future object to the user
 
-    return __create_future(std::move(__res));
+    return oneapi::dpl::__par_backend_hetero::__create_future(std::move(__res));
 }
 
 //------------------------------------------------------------------------
@@ -184,7 +184,7 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& _
             __buf.all_view());
     // skip __finalize_sycl_call() here, because we want to return future object to the user
 
-    return __create_future(std::move(__res));
+    return oneapi::dpl::__par_backend_hetero::__create_future(std::move(__res));
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _T>
@@ -223,7 +223,7 @@ __pattern_transform_scan_base_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&
         __init, __binary_op, _Inclusive{});
     // skip __finalize_sycl_call() here, because we want to return future object to the user
 
-    return __create_future(std::move(__res), __result + __n);
+    return oneapi::dpl::__par_backend_hetero::__create_future(std::move(__res), __result + __n);
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
