@@ -474,7 +474,7 @@ __parallel_reduce_by_segment_fallback_with_group_algorithms(sycl::queue& __q, _R
                     }
                 });
         })
-        .wait_and_throw();
+        .wait();
 
     return __end_idx.get_host_access()[0] + 1;
 }
