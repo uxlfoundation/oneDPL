@@ -26,6 +26,7 @@
 #include <iostream>
 #include <iomanip>
 #include <numeric>
+#include <type_traits>
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #include "support/sycl_alloc_utils.h"
@@ -142,6 +143,12 @@ void test1_with_buffers(Policy&& exec)
         std::multiplies<int>()); // epsilon = 1 * 2 * 3 * 4 = 24
 
     oneapi::dpl::experimental::wait_for_all(sycl::event{}, beta, gamma, delta, epsilon);
+
+    // The future returned by sort_async carries a lifetime-only payload: it must stay copyable
+    // and its get() must not expose any internal storage.
+    auto delta_copy = delta;
+    static_assert(std::is_void_v<decltype(delta_copy.get())>, "sort_async future must return void from get()");
+    delta_copy.get();
 
     const int expected1 = (n * (n + 1) / 2) * ((n + 3) * (n + 4) / 2 - 6);
     const int expected2 = (n * (n + 1) / 2) * 10;
