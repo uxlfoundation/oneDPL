@@ -44,7 +44,7 @@ main()
     launcher<0, int>{big_sz}(dpl_ranges::contains_subrange, checker, binary_pred_const);
     launcher<1, int, data_gen_shifted>{big_sz}(dpl_ranges::contains_subrange, checker, binary_pred, proj, proj);
     
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     launcher<2, int>{}(dpl_ranges::contains_subrange, checker);
     launcher<3, int>{}(dpl_ranges::contains_subrange, checker, binary_pred, dpl::identity{});
     launcher<4, P3, data_gen_shifted>{}(dpl_ranges::contains_subrange, checker, binary_pred_const, &P3::x, &P3::proj);

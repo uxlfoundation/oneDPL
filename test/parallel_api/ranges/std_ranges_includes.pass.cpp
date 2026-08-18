@@ -81,7 +81,7 @@ main()
 
     test_range_algo<0,  int, data_in_in>{big_sz}(dpl_ranges::includes, includes_checker);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<1,  int, data_in_in>{      }(dpl_ranges::includes, includes_checker, std::ranges::less{});
     test_range_algo<2,  int, data_in_in>{      }(dpl_ranges::includes, includes_checker, std::ranges::less{}, proj);
     test_range_algo<3 , int, data_in_in>{      }(dpl_ranges::includes, includes_checker, std::ranges::less{}, proj, proj);
@@ -95,7 +95,7 @@ main()
     auto x3 = [](auto&& v) { return v * 3; };
     test_range_algo<4, int, data_in_in, decltype(x3), decltype(x1)>{medium_size}(dpl_ranges::includes, includes_checker, std::ranges::less{}, x1, x3);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<5, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::x, &P2::x);
     test_range_algo<6, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 #endif

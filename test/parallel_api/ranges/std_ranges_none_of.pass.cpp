@@ -27,7 +27,7 @@ main()
     test_range_algo<0>{big_sz}(dpl_ranges::none_of, none_of_checker, pred3);
     test_range_algo<1>{}(dpl_ranges::none_of, none_of_checker, pred2, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<2, P2>{}(dpl_ranges::none_of, none_of_checker, pred3, &P2::x);
     test_range_algo<3, P2>{}(dpl_ranges::none_of, none_of_checker, pred3, &P2::proj);
 #endif

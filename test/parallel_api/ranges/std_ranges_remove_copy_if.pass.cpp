@@ -115,7 +115,7 @@ main()
     test_range_algo<1, int, data_in_out_lim, repeating_gen>{get_scan_big_sz()}(dpl_ranges::remove_copy_if, remove_copy_if_checker, select_many);
     test_range_algo<2, int, data_in_out_lim>{}(dpl_ranges::remove_copy_if, remove_copy_if_checker, select_many, proj);
     
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     auto modulo_3_is_1 = [](int val) { return (val % 3) == 1; };
     test_range_algo<3, int, data_in_out_lim>{239}(dpl_ranges::remove_copy_if, remove_copy_if_checker, pred);
     test_range_algo<4, int, data_in_out_lim>{1471}(dpl_ranges::remove_copy_if, remove_copy_if_checker, select_many);

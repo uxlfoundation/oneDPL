@@ -52,7 +52,7 @@ main()
     test_range_algo<0, int, data_in_out_lim>{217}(dpl_ranges::copy_if, copy_if_checker, pred);
     test_range_algo<1, int, data_in_out_lim>{1234}(dpl_ranges::copy_if, copy_if_checker, select_many);
     test_range_algo<2, int, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, select_many, proj);
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<3, P2, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::x);
     test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::proj);
     test_range_algo<5, int, data_in_out_lim>{get_scan_big_sz()}(dpl_ranges::copy_if, copy_if_checker, pred);

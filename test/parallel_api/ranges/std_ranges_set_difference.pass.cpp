@@ -469,7 +469,7 @@ main()
     // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
     test_range_algo<2, int, data_in_in_out_lim, div3_t, mul1_t>{100}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, proj, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<3,  P2, data_in_in_out_lim, div3_t, mul1_t>{}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, &P2::x, &P2::x);
     test_range_algo<4,  P2, data_in_in_out_lim, div3_t, mul1_t>{}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 

@@ -62,7 +62,7 @@ main()
 
     test_range_algo<0>{big_sz}(inplace_merge_dpl, inplace_merge_checker);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<1>{}(inplace_merge_dpl, inplace_merge_checker, std::ranges::less{});
 
     test_range_algo<2>{}(inplace_merge_dpl, inplace_merge_checker, std::ranges::less{}, proj);

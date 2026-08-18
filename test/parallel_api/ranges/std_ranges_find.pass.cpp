@@ -36,7 +36,7 @@ main()
     test_range_algo<1>{}(dpl_ranges::find, find_checker, -1); //not found case
     test_range_algo<2>{}(dpl_ranges::find, find_checker, 4, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<3, P2>{}(dpl_ranges::find, find_checker, 4, &P2::x);
     test_range_algo<4, P2>{}(dpl_ranges::find, find_checker, 4, &P2::proj);
 #endif

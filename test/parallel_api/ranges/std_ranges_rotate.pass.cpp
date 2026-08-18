@@ -42,7 +42,7 @@ main()
     const int test_sz = 13192;
     test_range_algo<0>{big_sz}(rotate_tester, rotate_checker);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<1, P2>{test_sz}(rotate_tester, rotate_checker, 0);
     test_range_algo<2>{}(rotate_tester, rotate_checker, 1);
 #endif

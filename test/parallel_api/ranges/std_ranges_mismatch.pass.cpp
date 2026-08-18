@@ -27,7 +27,7 @@ main()
     test_range_algo<0, int, data_in_in>{big_sz}(dpl_ranges::mismatch, mismatch_checker, binary_pred);
     test_range_algo<1, int, data_in_in>{}(dpl_ranges::mismatch, mismatch_checker, binary_pred, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<2, int, data_in_in>{}(dpl_ranges::mismatch, mismatch_checker, binary_pred_const);
     test_range_algo<3, P2, data_in_in>{}(dpl_ranges::mismatch, mismatch_checker, binary_pred, &P2::x, &P2::x);
     test_range_algo<4, P2, data_in_in>{}(dpl_ranges::mismatch, mismatch_checker, binary_pred, &P2::proj, &P2::proj);

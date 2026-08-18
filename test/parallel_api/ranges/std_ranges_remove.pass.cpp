@@ -37,7 +37,7 @@ main()
     test_range_algo<0>{get_scan_big_sz()}(dpl_ranges::remove, remove_checker, 0);
     test_range_algo<1>{}(dpl_ranges::remove, remove_checker, 0, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<2, P2>{}(dpl_ranges::remove, remove_checker, 0, &P2::x);
     test_range_algo<3, P2>{}(dpl_ranges::remove, remove_checker, 0, &P2::proj);
 #endif

@@ -27,7 +27,7 @@ main()
     test_range_algo<0>{big_sz}(dpl_ranges::stable_sort, sort_stable_checker);
     test_range_algo<1>{}(dpl_ranges::stable_sort, sort_stable_checker, std::ranges::greater{}, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<2>{}(dpl_ranges::stable_sort, sort_stable_checker, std::ranges::less{});
 
     test_range_algo<3>{}(dpl_ranges::stable_sort, sort_stable_checker, std::ranges::less{}, proj);

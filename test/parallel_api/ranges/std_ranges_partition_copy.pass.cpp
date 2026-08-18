@@ -56,7 +56,7 @@ main()
     test_range_algo<1, int, data_in_out_out_lim>{get_scan_big_sz()}(dpl_ranges::partition_copy, partition_copy_checker, select_many);
     test_range_algo<2, int, data_in_out_out_lim>{}(dpl_ranges::partition_copy, partition_copy_checker, select_many, proj);
 
-#if TEST_LONG_RUN   
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS   
     test_range_algo<3, int, data_in_out_out_lim>{217}(dpl_ranges::partition_copy, partition_copy_checker, pred);
     test_range_algo<4, int, data_in_out_out_lim>{1234}(dpl_ranges::partition_copy, partition_copy_checker, even_odd);
     test_range_algo<5, P2, data_in_out_out_lim>{}(dpl_ranges::partition_copy, partition_copy_checker, pred, &P2::x);

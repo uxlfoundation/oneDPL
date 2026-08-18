@@ -1204,7 +1204,7 @@ struct test_range_algo
         auto policy = TestUtils::get_dpcpp_test_policy();
         test_range_algo_impl_hetero(policy, algo, checker, args...);
 
-#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY && ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
         TestUtils::check_compilation(policy, [&](auto&& policy) { test_range_algo_impl_hetero(policy, algo, checker, args...); });
 #endif
 #endif // TEST_DPCPP_BACKEND_PRESENT

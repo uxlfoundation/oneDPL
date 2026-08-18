@@ -56,11 +56,11 @@ main()
     test_range_algo<1, int, data_in, decltype(desc_gen)>{big_sz}(
         dpl_ranges::is_heap_until, is_heap_until_checker, std::ranges::less{});
 
-        // large range with heap violation near the end: is_heap_until stops before end()
+    // large range with heap violation near the end: is_heap_until stops before end()
     test_range_algo<2, int, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
         dpl_ranges::is_heap_until, is_heap_until_checker, std::ranges::less{}, proj);
             
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     // same late-violation data with custom comp and P2::x projection; is_heap_until stops before end()
     test_range_algo<3, P2, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
         dpl_ranges::is_heap_until, is_heap_until_checker, CustomLess{}, &P2::x);

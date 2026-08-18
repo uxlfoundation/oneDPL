@@ -38,7 +38,7 @@ main()
     test_range_algo<0>{big_sz}(dpl_ranges::minmax, minmax_checker, std::ranges::less{});
     test_range_algo<1>{}(dpl_ranges::minmax, minmax_checker, std::ranges::greater{}, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<2>{}(dpl_ranges::minmax, minmax_checker, std::ranges::less{}, proj);
     test_range_algo<3, P2>{}(dpl_ranges::minmax, minmax_checker, std::ranges::less{}, &P2::x);
     test_range_algo<4, P2>{}(dpl_ranges::minmax, minmax_checker, std::ranges::less{}, &P2::proj);

@@ -42,7 +42,7 @@ main()
     launcher<1, int>{}(dpl_ranges::starts_with, checker, binary_pred, proj);
     launcher<2, int, data_gen_needle>{}(dpl_ranges::starts_with, checker);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     launcher<3, int, decltype(proj)>{}(dpl_ranges::starts_with, checker, binary_pred, proj);
     launcher<4, P2>{}(dpl_ranges::starts_with, checker, binary_pred_const, &P2::x, &P2::proj);
     launcher<5, P2>{}(dpl_ranges::starts_with, checker, binary_pred, &P2::proj, &P2::x);

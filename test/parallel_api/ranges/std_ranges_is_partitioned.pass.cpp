@@ -25,7 +25,7 @@ main()
     // Partitioned (false): default ascending data [0,1,2,...] violates pred1 (>0).
     test_range_algo<1>{}(dpl_ranges::is_partitioned, is_partitioned_checker, pred1, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<2, P2>{}(dpl_ranges::is_partitioned, is_partitioned_checker, pred1, &P2::x);
     test_range_algo<3, P2>{}(dpl_ranges::is_partitioned, is_partitioned_checker, pred1, &P2::proj);
 #endif

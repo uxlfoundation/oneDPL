@@ -276,7 +276,7 @@ main()
     // comp = less/greater/CustomLess, proj = identity: plain integer keys.
     test_nth_element<0, int>{}(dpl_ranges::nth_element);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_nth_element<1, int>{}(dpl_ranges::nth_element, std::ranges::greater{});
     test_nth_element<2, int>{}(dpl_ranges::nth_element, CustomLess{});
 #endif
@@ -284,7 +284,7 @@ main()
     // Projection applied to integer keys.
     test_nth_element<3, int>{}(dpl_ranges::nth_element, std::ranges::less{}, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     // Member-data projection (P2::x): exercised on host and device.
     test_nth_element<4, P2>{}(dpl_ranges::nth_element, std::ranges::less{}, &P2::x);
     test_nth_element<5, P2>{}(dpl_ranges::nth_element, CustomLess{}, &P2::x);

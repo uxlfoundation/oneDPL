@@ -65,7 +65,7 @@ main()
     test_range_algo<0, int, data_in_out_lim>{big_sz}(rotate_copy_tester, rotate_copy_checker);
     test_range_algo<1, float, data_in_out_lim>{test_sz}(rotate_copy_tester, rotate_copy_checker, test_sz - 1);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<2, std::size_t, data_in_out_lim>{test_sz}(rotate_copy_tester, rotate_copy_checker, test_sz/2);
     test_range_algo<3, P2, data_in_out_lim>{test_sz/11}(rotate_copy_tester, rotate_copy_checker, 0);
     test_range_algo<4, int, data_in_out_lim>{test_sz/17}(rotate_copy_tester, rotate_copy_checker, 1);

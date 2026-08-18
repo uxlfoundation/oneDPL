@@ -53,7 +53,7 @@ main()
     test_range_algo<0>{big_sz}(partial_sort_algo, partial_sort_checker);
     test_range_algo<1>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{});
 
     test_range_algo<3>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, proj);

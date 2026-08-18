@@ -123,7 +123,7 @@ main()
     test_range_algo<1, int, data_in_out_lim>{163}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
     test_range_algo<2, int, data_in_out_lim, repeating_gen>{837}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<3, int, data_in_out_lim>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::not_equal_to{}, proj);
     test_range_algo<4, int, data_in_out_lim, repeating_gen>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
     test_range_algo<5, P2, data_in_out_lim>{}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens, &P2::x);

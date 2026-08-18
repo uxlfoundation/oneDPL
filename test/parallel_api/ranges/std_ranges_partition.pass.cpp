@@ -44,7 +44,7 @@ main()
 
     // Different data generators with the same predicate: balanced, blocked and degenerate cases.
     test_range_algo<0, int, data_in, gen_alternate>{big_sz}(dpl_ranges::partition, partition_checker, pred1);
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<1, int, data_in, gen_blocked>{}(dpl_ranges::partition, partition_checker, pred1);
     test_range_algo<2, int, data_in, gen_all_true>{}(dpl_ranges::partition, partition_checker, pred1);
     test_range_algo<3, int, data_in, gen_all_false>{}(dpl_ranges::partition, partition_checker, pred1);

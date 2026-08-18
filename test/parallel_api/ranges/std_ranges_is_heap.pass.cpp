@@ -40,7 +40,7 @@ main()
     test_range_algo<0, int, data_in, decltype(desc_gen)>{big_sz}(
         dpl_ranges::is_heap, is_heap_checker, std::ranges::less{});
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     // custom comp + P2::x (member-data projection); descending x values form a max-heap
     test_range_algo<1, P2, data_in, decltype(desc_gen)>{}(
         dpl_ranges::is_heap, is_heap_checker, CustomLess{}, &P2::x);
@@ -71,7 +71,7 @@ main()
     test_range_algo<4, int, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
         dpl_ranges::is_heap, is_heap_checker, std::ranges::less{}, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     // same late-violation data with custom comp and P2::x projection; is_heap returns false
     test_range_algo<5, P2, data_in, decltype(late_violation_gen)>{late_violation_test_sz}(
         dpl_ranges::is_heap, is_heap_checker, CustomLess{}, &P2::x);

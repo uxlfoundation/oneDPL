@@ -62,7 +62,7 @@ main()
     test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::partial_sort_copy, checker);
     test_range_algo<1, int, data_in_out_lim>{}(dpl_ranges::partial_sort_copy, checker, std::greater{}, proj, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<2, P2, data_in_out_lim>{}(dpl_ranges::partial_sort_copy, checker, std::less{}, &P2::proj, &P2::x);
     test_range_algo<3, P2, data_in_out_lim>{}(dpl_ranges::partial_sort_copy, checker, std::greater{}, &P2::x, &P2::proj);
 #endif

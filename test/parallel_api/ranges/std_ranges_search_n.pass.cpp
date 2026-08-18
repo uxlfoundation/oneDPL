@@ -27,7 +27,7 @@ main()
     test_range_algo<0>{big_sz}(dpl_ranges::search_n, search_n_checker, 1, 5, binary_pred);
     test_range_algo<1>{}(dpl_ranges::search_n, search_n_checker, 3, 5, binary_pred, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<2, P2>{}(dpl_ranges::search_n, search_n_checker, 1, 2, binary_pred, &P2::x);
     test_range_algo<3, P2>{}(dpl_ranges::search_n, search_n_checker, 3, 5, binary_pred, &P2::proj);
 #endif

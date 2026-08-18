@@ -111,7 +111,7 @@ main()
     test_range_algo<1, int, data_in_out_lim, many_twos>{1127}(dpl_ranges::remove_copy, remove_copy_checker, 2);
     test_range_algo<2, int, data_in_out_lim>{}(dpl_ranges::remove_copy, remove_copy_checker, 1, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<3, P2, data_in_out_lim, many_twos>{}(dpl_ranges::remove_copy, remove_copy_checker, 2, &P2::x);
     test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::remove_copy, remove_copy_checker, 0, &P2::proj);
     test_range_algo<5, int, data_in_out_lim>{get_scan_big_sz()}(dpl_ranges::remove_copy, remove_copy_checker, 1);

@@ -45,7 +45,7 @@ main()
     test_range_algo<0>{big_sz}(dpl_ranges::find_last_if_not, checker, less397);
     test_range_algo<1, P2>{}(dpl_ranges::find_last_if_not, checker, pred1, &P2::x); // not found
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<2>{}(dpl_ranges::find_last_if_not, checker, less397, proj);
     test_range_algo<3, P2>{}(dpl_ranges::find_last_if_not, checker, less397, &P2::proj);
 #endif

@@ -39,7 +39,7 @@ main()
     launcher<0, int>{big_sz}(dpl_ranges::ends_with, checker, binary_pred_const);
     launcher<1, int>{}(dpl_ranges::ends_with, checker, binary_pred, proj);
 
-#if TEST_LONG_RUN
+#if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     launcher<2, int, decltype(proj)>{}(dpl_ranges::ends_with, checker, binary_pred, proj);
     launcher<3, P2>{}(dpl_ranges::ends_with, checker, binary_pred_const, &P2::x, &P2::proj);
     launcher<4, P2>{}(dpl_ranges::ends_with, checker, binary_pred, &P2::proj, &P2::x);
