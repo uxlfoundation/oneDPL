@@ -2325,6 +2325,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             // Partition the pair of chunks
             _RandomAccessIterator __left = __real_chunk_begin;
             _RandomAccessIterator __right = __mirror_chunk_end;
+            bool __both_valid;
             do
             {
                 while (__left != __real_chunk_end && std::invoke(__pred, *__left))
@@ -2332,7 +2333,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                 while (__right != __mirror_chunk_begin && !std::invoke(__pred, *(__right - 1)))
                     --__right;
 
-                bool __both_valid = __left != __real_chunk_end && __right != __mirror_chunk_begin;
+                __both_valid = __left != __real_chunk_end && __right != __mirror_chunk_begin;
                 if (__both_valid)
                 {
                     iter_swap(__left, __right - 1);
