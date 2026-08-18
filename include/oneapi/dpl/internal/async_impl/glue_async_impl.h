@@ -111,7 +111,7 @@ sort_async(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last, _Comp
         __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __buf.all_view(), __comp, oneapi::dpl::identity{});
     // skip __finalize_sycl_call() here, because we want to return future object to the user
 
-    return __create_future(std::move(__res));
+    return oneapi::dpl::__par_backend_hetero::__create_future(std::move(__res));
 }
 
 template <class _ExecutionPolicy, class _RandomAccessIterator, class... _Events,
