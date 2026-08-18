@@ -64,7 +64,7 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
             unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n,
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Ranges>(__rngs))...);
-        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
+        oneapi::dpl::__par_backend_hetero::__finalize_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
     }
     return __n;
 }
@@ -181,7 +181,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
             unseq_backend::__brick_swap<_Function>{_Function{}, __n1}, __n1,
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)));
-        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
+        oneapi::dpl::__par_backend_hetero::__finalize_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
 
         return __n1;
     }
@@ -192,7 +192,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
         unseq_backend::__brick_swap<_Function>{_Function{}, __n2}, __n2,
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)));
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
+    oneapi::dpl::__par_backend_hetero::__finalize_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
 
     return __n2;
 }
@@ -286,7 +286,7 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
             unseq_backend::__no_init_value{},
             __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R1>(__r1)), __shared_size),
             __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R2>(__r2)), __shared_size));
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
+    oneapi::dpl::__par_backend_hetero::__finalize_call(__res);
 
     const _ReduceValueType __ret_idx = __load_result(std::get<1>(__res)); // blocking
     return __ret_idx ? __ret_idx == 1 : __n1 < __n2;
@@ -659,7 +659,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& _
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
+    oneapi::dpl::__par_backend_hetero::__finalize_call(__res);
 
     return __load_result(std::get<1>(__res));
 }
@@ -922,7 +922,7 @@ __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r
     auto __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_functor{__n}, __n / 2,
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r)));
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
+    oneapi::dpl::__par_backend_hetero::__finalize_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
 }
 
 //------------------------------------------------------------------------
@@ -943,7 +943,7 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _In
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_copy<decltype(__n)>{__n}, __n,
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_InRange>(__in_r)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_OutRange>(__out_r)));
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
+    oneapi::dpl::__par_backend_hetero::__finalize_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
 }
 
 //------------------------------------------------------------------------
@@ -1008,7 +1008,7 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
             unseq_backend::walk_n_vectors_or_scalars<_CopyBrick>{_CopyBrick{}, static_cast<std::size_t>(__n)}, __n,
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng)),
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__result)));
-        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__event);
+        oneapi::dpl::__par_backend_hetero::__finalize_call(__event);
 
         return 1;
     }
@@ -1184,7 +1184,7 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range3>(__rng3)), __comp, __proj1, __proj2);
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
+    oneapi::dpl::__par_backend_hetero::__finalize_call(__res);
 
     const auto __stop_pos = oneapi::dpl::__par_backend_hetero::__load_result(std::get<1>(__res));
 
@@ -1495,7 +1495,7 @@ __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
         std::tuple __res = __par_backend_hetero::__parallel_stable_sort(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)), __comp, __proj);
-        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
+        oneapi::dpl::__par_backend_hetero::__finalize_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
     }
 }
 
@@ -1573,7 +1573,7 @@ __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&
             __tag, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
+    oneapi::dpl::__par_backend_hetero::__finalize_call(__res);
 
     auto [__idx, __val] = __load_result(std::get<1>(__res));
     return {__idx, __val};
@@ -1652,7 +1652,7 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
+    oneapi::dpl::__par_backend_hetero::__finalize_call(__res);
 
     auto [__idx_min, __idx_max, __min, __max] = __load_result(std::get<1>(__res));
     return {{__idx_min, __min}, {__idx_max, __max}};

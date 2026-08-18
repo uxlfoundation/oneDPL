@@ -502,7 +502,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         std::tuple __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
             _WriteOp{std::size_t(__n_out)}, /*_IsUniquePattern=*/std::true_type{});
-        __finalize_sycl_call(__res);
+        __finalize_call(__res);
 
         std::get<1>(__res).__copy_result(__ret.data(), 1);
         if constexpr (_Bounded)
@@ -585,7 +585,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
         std::plus<diff_t>{}, _GenScanInput{_GenMask{__pred}}, _ScanInputTransform{}, _WriteOp{__n_out1, __n_out2},
         oneapi::dpl::unseq_backend::__no_init_value<diff_t>{}, /*_Inclusive=*/std::true_type{},
         /*_IsUniquePattern=*/std::false_type{}, __write_partitioned::__position_type{__n, __n_out1});
-    __finalize_sycl_call(__res);
+    __finalize_call(__res);
 
     std::array<diff_t, 2> __ret{};
     std::get<1>(__res).__copy_result(__ret.data(), 1);
@@ -639,7 +639,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         std::tuple __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
             _WriteOp{std::size_t(__n_out), __assign}, /*_IsUniquePattern=*/std::false_type{});
-        __finalize_sycl_call(__res);
+        __finalize_call(__res);
 
         std::get<1>(__res).__copy_result(__ret.data(), 1);
         if constexpr (_Bounded)
@@ -751,7 +751,7 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _SetTag __set_t
     std::tuple __res = __parallel_set_write_a_b_op<_Bounded, _CustomName>(
         __set_tag, __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
         std::forward<_Range3>(__result), __comp, __proj1, __proj2);
-    __finalize_sycl_call(__res);
+    __finalize_call(__res);
 
     // Load stop position in the output range
     const oneapi::dpl::__internal::__difference_t<_Range3> __stop_pos3 = __load_result(std::get<1>(__res));
@@ -1607,7 +1607,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx),
                                                 __intermediate_result_end),
         std::forward<_Range2>(__values), oneapi::dpl::__ranges::views::all_write(__tmp_out_values));
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__event);
+    oneapi::dpl::__par_backend_hetero::__finalize_call(__event);
 
     // Round 2: final reduction to get result for each segment of equal adjacent keys
     // create views over adjacent keys
@@ -1647,7 +1647,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         __result_end,
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx), __result_end),
         oneapi::dpl::__ranges::views::all_read(__tmp_out_values), std::forward<_Range4>(__out_values));
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<__deferrable_mode>(__res2);
+    oneapi::dpl::__par_backend_hetero::__finalize_call<__deferrable_mode>(__res2);
 
     return __result_end;
 }
@@ -1677,7 +1677,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
     std::tuple __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
         __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
         std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
+    oneapi::dpl::__par_backend_hetero::__finalize_call(__res);
 
     // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index.
     // Add 1 to return the past-the-end iterator pair of segmented reduction.
@@ -1748,7 +1748,7 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
     std::tuple __res = __parallel_scan_by_segment_reduce_then_scan<_CustomName, __is_inclusive>(
         __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
         __binary_pred, __binary_op, __init);
-    __finalize_sycl_call(__res);
+    __finalize_call(__res);
 }
 
 } // namespace __par_backend_hetero

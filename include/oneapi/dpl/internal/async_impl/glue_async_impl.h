@@ -109,7 +109,7 @@ sort_async(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last, _Comp
     // std::tuple<sycl::event, __device_storage<_split_point_t<std::uint32_t>>, __device_storage<_split_point_t<std::uint64_t>>>;
     std::tuple __res = __par_backend_hetero::__parallel_stable_sort(
         __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __buf.all_view(), __comp, oneapi::dpl::identity{});
-    // skip __finalize_sycl_call() here, because we want to return future object to the user
+    // skip __finalize_call() here, because we want to return future object to the user
 
     return oneapi::dpl::__par_backend_hetero::__create_future(std::move(__res));
 }

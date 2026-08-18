@@ -876,7 +876,7 @@ struct __deferrable_mode
 
 template <typename _WaitModeTag = __sync_mode, typename _Event>
 std::enable_if_t<std::is_same_v<std::decay_t<_Event>, sycl::event>>
-__finalize_sycl_call(_Event&& __event)
+__finalize_call(_Event&& __event)
 {
     if constexpr (std::is_same_v<_WaitModeTag, __async_mode>)
     {
@@ -908,12 +908,12 @@ using __resolve_wait_mode =
 // so passing a temporary tuple here is prohibited.
 template <typename _WaitModeTag = __sync_mode, template <typename...> typename _Tuple, typename... _Args>
 void
-__finalize_sycl_call(_Tuple<_Args...>& __tuple)
+__finalize_call(_Tuple<_Args...>& __tuple)
 {
     static_assert(std::is_same_v<sycl::event, std::decay_t<std::tuple_element_t<0, _Tuple<_Args...>>>>,
                   "The first element of the tuple must be sycl::event");
 
-    __finalize_sycl_call<__resolve_wait_mode<_WaitModeTag, _Args...>>(std::get<0>(__tuple));
+    __finalize_call<__resolve_wait_mode<_WaitModeTag, _Args...>>(std::get<0>(__tuple));
 }
 
 // A copyable wrapper for a payload which has to be kept alive until the kernel completes

@@ -156,11 +156,11 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
             auto __event = oneapi::dpl::__par_backend_hetero::__parallel_histogram(
                 _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __init_event, __input_buf.all_view(),
                 std::move(__bins), __binhash_manager);
-            oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
+            oneapi::dpl::__par_backend_hetero::__finalize_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
         }
         else
         {
-            oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__sync_mode>(__init_event);
+            oneapi::dpl::__par_backend_hetero::__finalize_call<oneapi::dpl::__par_backend_hetero::__sync_mode>(__init_event);
         }
     }
 }
