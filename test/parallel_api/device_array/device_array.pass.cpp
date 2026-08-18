@@ -302,10 +302,10 @@ test_empty(sycl::queue __q)
     EXPECT_EQ_RANGES(iota_host<_Tp>(4), __host, "transfers on an empty device_array modified the host buffer");
 
     // The single-element operations have no in-range position on an empty container: even 0 throws.
-    EXPECT_TRUE(throws_out_of_range([&] { __d0.copy_from(make_value<_Tp>(1), __q); }),
-                "copy_from(value, queue) on an empty device_array must throw");
-    EXPECT_TRUE(throws_out_of_range([&] { __d0.copy_from(make_value<_Tp>(1)); }),
-                "copy_from(value) on an empty device_array must throw");
+    EXPECT_TRUE(throws_out_of_range([&] { __d0.write_at(make_value<_Tp>(1), __q); }),
+                "write_at(value, queue) on an empty device_array must throw");
+    EXPECT_TRUE(throws_out_of_range([&] { __d0.write_at(make_value<_Tp>(1)); }),
+                "write_at(value) on an empty device_array must throw");
     EXPECT_TRUE(throws_out_of_range([&] { __d0.read_at(0, __q); }),
                 "read_at(0, queue) on an empty device_array must throw");
     EXPECT_TRUE(throws_out_of_range([&] { __d0.read_at(0); }), "read_at(0) on an empty device_array must throw");
@@ -618,28 +618,28 @@ test_single_element_write(sycl::queue __q)
     const _Tp __v1 = make_value<_Tp>(11);
     const _Tp __v2 = make_value<_Tp>(22);
 
-    __d.copy_from(__v1, 5, __q);
-    __d.copy_from(__v2, 6);
+    __d.write_at(__v1, 5, __q);
+    __d.write_at(__v2, 6);
     // The queue overload with a defaulted offset writes element 0.
     const _Tp __v0 = make_value<_Tp>(33);
-    __d.copy_from(__v0, __q);
+    __d.write_at(__v0, __q);
 
     const std::vector<_Tp> __got = to_host(__d);
-    EXPECT_TRUE(__got[0] == __v0, "copy_from(value, queue): wrong value written");
-    EXPECT_TRUE(__got[5] == __v1, "copy_from(value, offset, queue): wrong value written");
-    EXPECT_TRUE(__got[6] == __v2, "copy_from(value, offset): wrong value written");
+    EXPECT_TRUE(__got[0] == __v0, "write_at(value, queue): wrong value written");
+    EXPECT_TRUE(__got[5] == __v1, "write_at(value, offset, queue): wrong value written");
+    EXPECT_TRUE(__got[6] == __v2, "write_at(value, offset): wrong value written");
     for (std::size_t __i = 0; __i < __n; ++__i)
     {
         if (__i != 0 && __i != 5 && __i != 6)
-            EXPECT_TRUE(__got[__i] == __background, "copy_from(value, offset) disturbed a neighbor");
+            EXPECT_TRUE(__got[__i] == __background, "write_at(value, offset) disturbed a neighbor");
     }
 
     // A single element is addressed, so offset == size() is already out of range.
-    EXPECT_TRUE(throws_out_of_range([&] { __d.copy_from(make_value<_Tp>(99), __n, __q); }),
-                "copy_from(value, size(), queue) must throw");
-    EXPECT_TRUE(throws_out_of_range([&] { __d.copy_from(make_value<_Tp>(99), __n + 7); }),
-                "copy_from(value, offset) with an out-of-range offset must throw");
-    EXPECT_EQ_RANGES(__got, to_host(__d), "a throwing copy_from(value, offset) wrote something");
+    EXPECT_TRUE(throws_out_of_range([&] { __d.write_at(make_value<_Tp>(99), __n, __q); }),
+                "write_at(value, size(), queue) must throw");
+    EXPECT_TRUE(throws_out_of_range([&] { __d.write_at(make_value<_Tp>(99), __n + 7); }),
+                "write_at(value, offset) with an out-of-range offset must throw");
+    EXPECT_EQ_RANGES(__got, to_host(__d), "a throwing write_at(value, offset) wrote something");
 }
 
 // to_vector, both overloads. Requires a default-constructible element type.
@@ -679,7 +679,7 @@ test_device_to_device(sycl::queue __q)
     EXPECT_EQ_RANGES(__host, to_host(__copy), "the span ctor produced wrong contents");
 
     // Mutating the source must not be visible through the copy.
-    __d.copy_from(make_value<_Tp>(999), 0, __q);
+    __d.write_at(make_value<_Tp>(999), 0, __q);
     EXPECT_EQ_RANGES(__host, to_host(__copy), "the span ctor produced a shallow copy");
 
     // Subrange.
@@ -711,8 +711,8 @@ test_queueless_path(sycl::queue __q)
 
     EXPECT_TRUE(__d.read_at(3) == __host[3], "queue-less read_at: wrong value");
 
-    __d.copy_from(make_value<_Tp>(77), 3);
-    EXPECT_TRUE(__d.read_at(3) == make_value<_Tp>(77), "queue-less copy_from(value, offset) did not take effect");
+    __d.write_at(make_value<_Tp>(77), 3);
+    EXPECT_TRUE(__d.read_at(3) == make_value<_Tp>(77), "queue-less write_at(value, offset) did not take effect");
 
     if constexpr (std::is_default_constructible_v<_Tp>)
     {
