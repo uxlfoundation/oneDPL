@@ -1002,17 +1002,6 @@ __to_future_payload(__combined_storage<_T>&& __cst)
 
 // Additional payload items (__extra) are placed before the items of __res: the first payload item
 // is the one returned by __future::get()
-template <typename... _ExtraArgs>
-auto
-__create_future(sycl::event __event, _ExtraArgs&&... __extra)
-{
-    static_assert(sizeof...(_ExtraArgs) <= 1, "At most one additional payload item is expected");
-
-    return __future(std::move(__event), std::forward<_ExtraArgs>(__extra)...);
-}
-
-// Additional payload items (__extra) are placed before the items of __res: the first payload item
-// is the one returned by __future::get()
 template <typename... _Args, typename... _ExtraArgs>
 auto
 __create_future(std::tuple<sycl::event, _Args...> __res, _ExtraArgs&&... __extra)

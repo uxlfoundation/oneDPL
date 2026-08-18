@@ -47,7 +47,7 @@ __pattern_walk1_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
         unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n, __buf.all_view());
     // skip __finalize_sycl_call() here, because we want to return future object to the user
 
-    return oneapi::dpl::__par_backend_hetero::__create_future(std::move(__event));
+    return oneapi::dpl::__par_backend_hetero::__create_future(std::make_tuple(std::move(__event)));
 }
 
 template <__par_backend_hetero::access_mode __out_acc_mode, bool _IsOutNoInitRequested, typename _BackendTag,
@@ -71,7 +71,7 @@ __pattern_walk2_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
         __buf2.all_view());
     // skip __finalize_sycl_call() here, because we want to return future object to the user
 
-    return oneapi::dpl::__par_backend_hetero::__create_future(std::move(__event), __first2 + __n);
+    return oneapi::dpl::__par_backend_hetero::__create_future(std::make_tuple(std::move(__event)), __first2 + __n);
 }
 
 template <__par_backend_hetero::access_mode __output_acc_mode, bool _IsOutNoInitRequested, typename _BackendTag,
@@ -97,7 +97,7 @@ __pattern_walk3_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
         __buf2.all_view(), __buf3.all_view());
     // skip __finalize_sycl_call() here, because we want to return future object to the user
 
-    return oneapi::dpl::__par_backend_hetero::__create_future(std::move(__event), __first3 + __n);
+    return oneapi::dpl::__par_backend_hetero::__create_future(std::make_tuple(std::move(__event)), __first3 + __n);
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
