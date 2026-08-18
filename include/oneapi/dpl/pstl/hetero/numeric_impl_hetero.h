@@ -225,7 +225,7 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
 
         using _Function = unseq_backend::walk_adjacent_difference<decltype(__fn)>;
 
-        sycl::event __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
+        auto __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Function{__fn, static_cast<std::size_t>(__n)}, __n,
             __buf1.all_view(), __buf2.all_view());
         oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
