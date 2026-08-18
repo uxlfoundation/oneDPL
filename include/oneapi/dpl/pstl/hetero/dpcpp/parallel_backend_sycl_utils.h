@@ -910,7 +910,7 @@ __finalize_sycl_call(_Tuple<_Args...>& __tuple)
     __finalize_sycl_call<__resolve_wait_mode<_WaitModeTag, _Args...>>(std::get<0>(__tuple));
 }
 
-//A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __usm_host_or_buffer_storage>
+//A contract for future class: <sycl::event or other event, payload items: a value or __result_and_scratch_storage>
 //Impl details: inheritance (private) instead of aggregation for enabling the empty base optimization.
 template <typename _Event, typename... _Args>
 class __future : private std::tuple<_Args...>
@@ -945,29 +945,6 @@ class __future : private std::tuple<_Args...>
     wait()
     {
         __my_event.wait_and_throw();
-    }
-    template <typename _WaitModeTag>
-    void
-    wait(_WaitModeTag)
-    {
-        if constexpr (std::is_same_v<_WaitModeTag, __sync_mode>)
-            wait();
-        else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
-            __checked_deferrable_wait();
-    }
-
-    void
-    __checked_deferrable_wait()
-    {
-#if !ONEDPL_ALLOW_DEFERRED_WAITING
-        wait();
-#else
-        if constexpr (sizeof...(_Args) > 0)
-        {
-            // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
-            wait();
-        }
-#endif
     }
 
     auto
