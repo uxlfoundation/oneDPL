@@ -153,10 +153,10 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
                 oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read>();
             auto __input_buf = __keep_input(__first, __last);
 
-            sycl::event __res = oneapi::dpl::__par_backend_hetero::__parallel_histogram(
+            sycl::event __event = oneapi::dpl::__par_backend_hetero::__parallel_histogram(
                 _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __init_event, __input_buf.all_view(),
                 std::move(__bins), __binhash_manager);
-            oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
+            oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
         }
         else
         {

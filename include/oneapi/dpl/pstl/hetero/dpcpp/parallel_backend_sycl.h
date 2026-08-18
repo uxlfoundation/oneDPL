@@ -1600,14 +1600,14 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         unseq_backend::__brick_assign_key_position{})[0];
 
     //reduce by segment
-    sycl::event __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    sycl::event __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce1_wrapper>(__exec),
         unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n)>(__binary_op, __n), __intermediate_result_end,
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx),
                                                 __intermediate_result_end),
         std::forward<_Range2>(__values), oneapi::dpl::__ranges::views::all_write(__tmp_out_values));
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
+    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__event);
 
     // Round 2: final reduction to get result for each segment of equal adjacent keys
     // create views over adjacent keys

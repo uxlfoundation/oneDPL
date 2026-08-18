@@ -60,11 +60,11 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
     const auto __n = oneapi::dpl::__ranges::__min_size_calc{}(__rngs...);
     if (__n > 0)
     {
-        sycl::event __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
+        sycl::event __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
             unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n,
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Ranges>(__rngs))...);
-        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
+        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
     }
     return __n;
 }
@@ -174,25 +174,25 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
 
     if (__n1 <= __n2)
     {
-        sycl::event __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
+        sycl::event __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
             unseq_backend::__brick_swap<_Function>{_Function{}, __n1}, __n1,
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)));
-        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
+        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
 
         return __n1;
     }
 
-    sycl::event __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    sycl::event __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
         unseq_backend::__brick_swap<_Function>{_Function{}, __n2}, __n2,
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)));
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
+    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
 
     return __n2;
 }
@@ -918,10 +918,10 @@ __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r
     if (__n <= 1)
         return;
 
-    sycl::event __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    sycl::event __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_functor{__n}, __n / 2,
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r)));
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
+    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
 }
 
 //------------------------------------------------------------------------
@@ -938,11 +938,11 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _In
     if (__n == 0)
         return;
 
-    sycl::event __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    sycl::event __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_copy<decltype(__n)>{__n}, __n,
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_InRange>(__in_r)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_OutRange>(__out_r)));
-    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);
+    oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
 }
 
 //------------------------------------------------------------------------
@@ -1000,14 +1000,14 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     {
         // For a sequence of size 1, we can just copy the only element to the result.
         using _CopyBrick = oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>;
-        sycl::event __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
+        sycl::event __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
             unseq_backend::walk_n_vectors_or_scalars<_CopyBrick>{_CopyBrick{}, static_cast<std::size_t>(__n)}, __n,
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng)),
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__result)));
-        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__res);
+        oneapi::dpl::__par_backend_hetero::__finalize_sycl_call(__event);
 
         return 1;
     }
