@@ -2249,19 +2249,28 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             }
         }; // __swap_ranges
 
-        auto __move_right = [__swap_ranges](_RandomAccessIterator __block_begin, _RandomAccessIterator __block_end,
-                                            _RandomAccessIterator __target_region_end) -> _RandomAccessIterator {
-            __diff_type __block_size = __block_end - __block_begin;
-            __diff_type __gap = __target_region_end - __block_end;
-            __diff_type __swap_size  = std::min(__block_size, __gap);
+        auto __partial_swap = [__swap_ranges](_RandomAccessIterator __false_begin, _RandomAccessIterator __false_end,
+                                              _RandomAccessIterator __true_begin, _RandomAccessIterator __true_end)
+                                             -> __diff_type {
+            // Swap as many elements as possible, return how many
+            __diff_type __false_size = __false_end - __false_begin;
+            __diff_type __true_size  = __true_end - __true_begin;
+            __diff_type __swap_size  = std::min(__false_size, __true_size);
 
-            __swap_ranges(__block_begin, __block_begin + __swap_size, __target_region_end - __swap_size);
+            __swap_ranges(__false_begin, __false_begin + __swap_size, __true_end - __swap_size);
+            return __swap_size;
+        }; // __partial_swap
+
+        auto __flip_partition = [__partial_swap](_RandomAccessIterator __false_begin,
+                                                 _RandomAccessIterator __false_end,  // == __true_begin
+                                                 _RandomAccessIterator __block_end) -> _RandomAccessIterator {
+            __partial_swap(__false_begin, __false_end, __false_end, __block_end);
             // Return the new partition point
-            return __target_region_end - __block_size;
-        }; // __move_right
+            return __block_end - (__false_end - __false_begin);
+        }; // __flip_partition
 
-        auto __merge = [__move_right, __swap_ranges](_PartitionRange __val1,
-                                                     _PartitionRange __val2) -> _PartitionRange {
+        auto __merge = [__flip_partition, __partial_swap](_PartitionRange __val1, _PartitionRange __val2)
+                                                         -> _PartitionRange {
             // The reduction identity carries no elements and no leftovers
             if (__val1.__empty())
                 return __val2;
@@ -2279,38 +2288,29 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                 if (__val2.__has_true_leftover())
                 {
                     // Opposite-side leftovers: swap as many elements as possible
-                    __diff_type __false_leftover_size = __val1.__real_chunk_end - __val1.__false_leftover;
-                    __diff_type __true_leftover_size  = __val2.__true_leftover - __val2.__mirror_chunk_begin;
-                    __diff_type __swap_size = std::min(__false_leftover_size, __true_leftover_size);
-
-                    __swap_ranges(__val1.__false_leftover, __val1.__false_leftover + __swap_size,
-                                  __val2.__true_leftover - __swap_size);
-                    __val1.__false_leftover += __swap_size; // adjust the leftover position
+                    __diff_type __swap_size = __partial_swap(__val1.__false_leftover, __val1.__real_chunk_end,
+                                                             __val2.__mirror_chunk_begin, __val2.__true_leftover);
+                    __val1.__false_leftover += __swap_size;
                     __merged_range.__true_leftover = __val2.__true_leftover - __swap_size;
                 }
                 // Move the remaining false leftover toward the middle, if any
-                __merged_range.__false_leftover = __move_right(__val1.__false_leftover, __val1.__real_chunk_end,
-                                                               __val2.__false_leftover);
+                __merged_range.__false_leftover = __flip_partition(__val1.__false_leftover, __val1.__real_chunk_end,
+                                                                   __val2.__false_leftover);
             }
             else if (__val1.__has_true_leftover())
             {
                 if (__val2.__has_false_leftover())
                 {
                     // Opposite-side leftovers: swap as many elements as possible
-                    __diff_type __false_leftover_size = __val2.__real_chunk_end - __val2.__false_leftover;
-                    __diff_type __true_leftover_size  = __val1.__true_leftover - __val1.__mirror_chunk_begin;
-                    __diff_type __swap_size = std::min(__false_leftover_size, __true_leftover_size);
-
-                    __swap_ranges(__val2.__false_leftover, __val2.__false_leftover + __swap_size,
-                                  __val1.__true_leftover - __swap_size);
-                    __val1.__true_leftover -= __swap_size; // adjust the leftover position
+                    __diff_type __swap_size = __partial_swap(__val2.__false_leftover, __val2.__real_chunk_end,
+                                                             __val1.__mirror_chunk_begin, __val1.__true_leftover);
+                    __val1.__true_leftover -= __swap_size;
                     __merged_range.__false_leftover = __val2.__false_leftover + __swap_size;
                 }
                 // Move the remaining true leftover toward the middle, if any
-                __merged_range.__true_leftover = __move_right(__val2.__true_leftover, __val1.__mirror_chunk_begin,
-                                                              __val1.__true_leftover);
+                __merged_range.__true_leftover = __flip_partition(__val2.__true_leftover, __val1.__mirror_chunk_begin,
+                                                                  __val1.__true_leftover);
             }
-
             return __merged_range;
         }; // merge
 
