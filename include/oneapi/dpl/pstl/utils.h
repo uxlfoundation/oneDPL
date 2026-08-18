@@ -570,6 +570,9 @@ struct __next_to_last
     }
 };
 
+template <typename _T, class _Enable = void>
+class __future;
+
 // empty base class for type erasure
 struct __lifetime_keeper_base
 {

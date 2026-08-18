@@ -817,6 +817,116 @@ __finalize_sycl_call(_Tuple<_Args...>& __tuple)
     __finalize_sycl_call<__resolve_wait_mode<_WaitModeTag, _Args...>>(std::get<0>(__tuple));
 }
 
+//A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __usm_host_or_buffer_storage>
+//Impl details: inheritance (private) instead of aggregation for enabling the empty base optimization.
+template <typename _Event, typename... _Args>
+class __future : private std::tuple<_Args...>
+{
+    _Event __my_event;
+
+    template <typename _T>
+    _T
+    __wait_and_get_value(const sycl::buffer<_T>& __buf)
+    {
+        //according to a contract, returned value is one-element sycl::buffer
+        return __buf.get_host_access(sycl::read_only)[0];
+    }
+
+    template <typename _T, std::size_t _NResults>
+    _T
+    __wait_and_get_value(const __result_and_scratch_storage<_T, _NResults>& __storage)
+    {
+        return __storage.__wait_and_get_value(__my_event);
+    }
+
+    std::pair<std::size_t, std::size_t>
+    __wait_and_get_value(const std::shared_ptr<__result_and_scratch_storage_base>& __p_storage)
+    {
+        std::size_t __buf[2] = {0, 0};
+        [[maybe_unused]] auto __n = __p_storage->__get_data(__my_event, __buf);
+        assert(__n == 2);
+
+        return {__buf[0], __buf[1]};
+    }
+
+    template <typename _T>
+    _T
+    __wait_and_get_value(const _T& __val)
+    {
+        wait();
+        return __val;
+    }
+
+  public:
+    __future(_Event __e, _Args... __args) : std::tuple<_Args...>(__args...), __my_event(__e) {}
+    __future(_Event __e, std::tuple<_Args...> __t) : std::tuple<_Args...>(__t), __my_event(__e) {}
+
+    auto
+    event() const
+    {
+        return __my_event;
+    }
+    operator _Event() const { return event(); }
+    void
+    wait()
+    {
+        __my_event.wait_and_throw();
+    }
+    template <typename _WaitModeTag>
+    void
+    wait(_WaitModeTag)
+    {
+        if constexpr (std::is_same_v<_WaitModeTag, __sync_mode>)
+            wait();
+        else if constexpr (std::is_same_v<_WaitModeTag, __deferrable_mode>)
+            __checked_deferrable_wait();
+    }
+
+    void
+    __checked_deferrable_wait()
+    {
+#if !ONEDPL_ALLOW_DEFERRED_WAITING
+        wait();
+#else
+        if constexpr (sizeof...(_Args) > 0)
+        {
+            // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
+            wait();
+        }
+#endif
+    }
+
+    auto
+    get()
+    {
+        if constexpr (sizeof...(_Args) > 0)
+        {
+            auto& __val = std::get<0>(*this);
+            return __wait_and_get_value(__val);
+        }
+        else
+            wait();
+    }
+
+    //The internal API. There are cases where the implementation specifies return value  "higher" than SYCL backend,
+    //where a future is created.
+    template <typename _T>
+    __future<_Event, _T, _Args...>
+    __make_future(_T __t) const
+    {
+        auto new_val = std::tuple<_T>(__t);
+        auto new_tuple = std::tuple_cat(new_val, (std::tuple<_Args...>)*this);
+        return __future<_Event, _T, _Args...>(__my_event, new_tuple);
+    }
+};
+
+template <typename _ValueType>
+auto
+__create_future(sycl::event&& __event, __combined_storage<_ValueType>&& __payload)
+{
+    return __future(std::move(__event), __result_and_scratch_storage<_ValueType>(std::move(__payload).__move_state()));
+}
+
 struct __scalar_load_op
 {
     oneapi::dpl::__internal::__pstl_assign __assigner;
