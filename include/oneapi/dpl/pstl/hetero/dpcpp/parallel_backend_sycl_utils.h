@@ -724,6 +724,12 @@ struct __combined_storage : public __device_storage<_T>
                 __cgh, __st.__sycl_buf, __st.__usm_buf.get(), /*offset*/ __st.__sz, __st.__result_sz, __prop_list);
         }
     }
+
+    __copyable_storage_state<_T>
+    __move_state() &&
+    {
+        return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf), __sz, __kind};
+    }
 };
 
 template <typename _T, typename = void>
