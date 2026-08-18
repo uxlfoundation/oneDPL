@@ -210,16 +210,16 @@ using _split_points_device_storage_t = __device_storage<_split_point_t<_IndexT>>
 using _split_points_device_storage32_t = _split_points_device_storage_t<std::uint32_t>;
 using _split_points_device_storage64_t = _split_points_device_storage_t<std::uint64_t>;
 
-template <bool _OutSizeLimit, typename _Range1, typename _Range2>
+template <typename _OutSizeLimit, typename _Range1, typename _Range2>
 using __parallel_merge_return_data_t = std::conditional_t<
-    _OutSizeLimit,
+    _OutSizeLimit{},
     std::tuple<sycl::event,
                __result_storage<oneapi::dpl::__internal::__difference_tuple_t<_Range1, _Range2>>,
                _split_points_device_storage32_t, _split_points_device_storage64_t>,
     std::tuple<sycl::event,
                _split_points_device_storage32_t, _split_points_device_storage64_t>>;
 
-template <bool _OutSizeLimit, typename _Range1, typename _Range2, typename _IdType>
+template <typename _OutSizeLimit, typename _Range1, typename _Range2, typename _IdType>
 __parallel_merge_return_data_t<_OutSizeLimit, _Range1, _Range2>
 __create_parallel_merge_return_data(sycl::queue& __q, std::size_t __split_points_count)
 {
@@ -228,7 +228,7 @@ __create_parallel_merge_return_data(sycl::queue& __q, std::size_t __split_points
 
     // Optional create result storage for merge operations
     auto __create_result_storage = [&]() {
-        if constexpr (_OutSizeLimit)
+        if constexpr (_OutSizeLimit{})
             return __result_storage<oneapi::dpl::__internal::__difference_tuple_t<_Range1, _Range2>>(__q, 1);
     };
 
@@ -250,7 +250,7 @@ __create_parallel_merge_return_data(sycl::queue& __q, std::size_t __split_points
             return _split_points_device_storage64_t();
     };
 
-    if constexpr (_OutSizeLimit)
+    if constexpr (_OutSizeLimit{})
         return {sycl::event(), __create_result_storage(), __create_sp_storage_32(), __create_sp_storage_64()};
     else
         return {sycl::event(), __create_sp_storage_32(), __create_sp_storage_64()};
@@ -262,29 +262,29 @@ struct __no_parallel_merge_stop_pos_acc_tag
 };
 
 // Get the accessor to the result storage for merge operations if it is created, otherwise return __no_stop_pos_acc_tag
-template <bool _OutSizeLimit, typename _Range1, typename _Range2, typename _ModeTagT>
+template <typename _OutSizeLimit, typename _Range1, typename _Range2, typename _ModeTagT>
 auto
 __get_parallel_merge_stop_pos_accessor_opt(_ModeTagT __mode, sycl::handler& __cgh,
                                            __parallel_merge_return_data_t<_OutSizeLimit, _Range1, _Range2>& __data,
                                            const sycl::property_list& __prop_list = {})
 {
-    if constexpr (_OutSizeLimit)
+    if constexpr (_OutSizeLimit{})
         return __get_accessor(__mode, std::get<1>(__data), __cgh, __prop_list);
     else
         return __no_parallel_merge_stop_pos_acc_tag{};
 }
 
-template <bool _OutSizeLimit>
+template <typename _OutSizeLimit>
 constexpr std::size_t
 __get_parallel_merge_sp_storage_first_idx()
 {
-    if constexpr (_OutSizeLimit)
+    if constexpr (_OutSizeLimit{})
         return 2;
     else
         return 1;
 }
 
-template <bool _OutSizeLimit, typename _IdType, typename _Range1, typename _Range2>
+template <typename _OutSizeLimit, typename _IdType, typename _Range1, typename _Range2>
 auto&
 __get_parallel_merge_sp_storage(__parallel_merge_return_data_t<_OutSizeLimit, _Range1, _Range2>& __data)
 {
@@ -300,7 +300,7 @@ __get_parallel_merge_sp_storage(__parallel_merge_return_data_t<_OutSizeLimit, _R
 }
 
 // Get the accessor to the split points storage for merge operations
-template <bool _OutSizeLimit, typename _ModeTagT, typename _Range1, typename _Range2, typename _IdType>
+template <typename _OutSizeLimit, typename _ModeTagT, typename _Range1, typename _Range2, typename _IdType>
 auto
 __get_parallel_merge_sp_accessor(_ModeTagT __mode, sycl::handler& __cgh,
                                  __parallel_merge_return_data_t<_OutSizeLimit, _Range1, _Range2>& __data,
@@ -314,10 +314,10 @@ __get_parallel_merge_sp_accessor(_ModeTagT __mode, sycl::handler& __cgh,
 }
 
 // Please see the comment for __parallel_for_small_submitter for optional kernel name explanation
-template <bool _OutSizeLimit, typename _IdType, typename _Name>
+template <typename _OutSizeLimit, typename _IdType, typename _Name>
 struct __parallel_merge_submitter;
 
-template <bool _OutSizeLimit, typename _IdType, typename... _Name>
+template <typename _OutSizeLimit, typename _IdType, typename... _Name>
 struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional_kernel_name<_Name...>>
 {
     template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
@@ -361,7 +361,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
                     __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem, __n_merge, __n1,
                                    __n2, __comp, __proj1, __proj2, __n);
 
-                if constexpr (_OutSizeLimit)
+                if constexpr (_OutSizeLimit{})
                 {
                     // The last WI does additional work
                     if (__id == __steps - 1)
@@ -374,11 +374,11 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
     }
 };
 
-template <bool _OutSizeLimit, typename _IdType, typename _CustomName, typename _DiagonalsKernelName,
+template <typename _OutSizeLimit, typename _IdType, typename _CustomName, typename _DiagonalsKernelName,
           typename _MergeKernelName>
 struct __parallel_merge_submitter_large;
 
-template <bool _OutSizeLimit, typename _IdType, typename _CustomName, typename... _DiagonalsKernelName,
+template <typename _OutSizeLimit, typename _IdType, typename _CustomName, typename... _DiagonalsKernelName,
           typename... _MergeKernelName>
 struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
                                         __internal::__optional_kernel_name<_DiagonalsKernelName...>,
@@ -496,7 +496,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
                         __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem,
                                        __nd_range_params.chunk, __n1, __n2, __comp, __proj1, __proj2, __n);
 
-                    if constexpr (_OutSizeLimit)
+                    if constexpr (_OutSizeLimit{})
                     {
                         // The last WI does additional work
                         if (__global_idx == __nd_range_params.steps - 1)
@@ -563,8 +563,8 @@ __get_starting_size_limit_for_large_submitter<int>()
     return 16 * 1'048'576; // 16 MB
 }
 
-template <typename _CustomName, bool _OutSizeLimit = false, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _CustomName, typename _OutSizeLimit = std::false_type, typename _Range1, typename _Range2,
+          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
 __parallel_merge_return_data_t<_OutSizeLimit, _Range1, _Range2>
 __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp,
                       _Proj1 __proj1, _Proj2 __proj2)
@@ -613,8 +613,8 @@ __parallel_merge_impl(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Ran
     }
 }
 
-template <bool _OutSizeLimit = false, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _OutSizeLimit = std::false_type, typename _ExecutionPolicy, typename _Range1, typename _Range2,
+          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
 __parallel_merge_return_data_t<_OutSizeLimit, _Range1, _Range2>
 __parallel_merge(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng1,
                  _Range2&& __rng2, _Range3&& __rng3, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)

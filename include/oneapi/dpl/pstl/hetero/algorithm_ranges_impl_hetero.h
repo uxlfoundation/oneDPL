@@ -1179,7 +1179,7 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
         return {__res, 0};
     }
 
-    std::tuple __res = __par_backend_hetero::__parallel_merge<true /*out size limit*/>(
+    std::tuple __res = __par_backend_hetero::__parallel_merge<std::true_type /*out size limit*/>(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
