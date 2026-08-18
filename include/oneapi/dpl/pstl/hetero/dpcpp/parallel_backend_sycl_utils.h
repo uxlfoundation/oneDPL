@@ -897,6 +897,9 @@ using __resolve_wait_mode =
     std::conditional_t<(__wait_required_of_finalize_sycl_call<std::decay_t<_Args>>::value || ...), __sync_mode,
                        _WaitModeTag>;
 
+// The tuple is taken by a non-const lvalue reference on purpose:
+// sycl::event::wait_and_throw() is non-const, and the payload of the tuple must outlive the waiting,
+// so passing a temporary tuple here is prohibited.
 template <typename _WaitModeTag = __sync_mode, template <typename...> typename _Tuple, typename... _Args>
 void
 __finalize_sycl_call(_Tuple<_Args...>& __tuple)
