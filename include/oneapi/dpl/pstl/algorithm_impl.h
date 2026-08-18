@@ -2248,8 +2248,8 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
         }; // __swap_ranges
 
         auto __partial_swap = [__swap_ranges](_RandomAccessIterator __false_begin, _RandomAccessIterator __false_end,
-                                              _RandomAccessIterator __true_begin, _RandomAccessIterator __true_end)
-                                             -> __diff_type {
+                                              _RandomAccessIterator __true_begin,
+                                              _RandomAccessIterator __true_end) -> __diff_type {
             // Swap as many elements as possible, return how many
             __diff_type __false_size = __false_end - __false_begin;
             __diff_type __true_size  = __true_end - __true_begin;
@@ -2260,15 +2260,15 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
         }; // __partial_swap
 
         auto __flip_partition = [__partial_swap](_RandomAccessIterator __false_begin,
-                                                 _RandomAccessIterator __false_end,  // == __true_begin
+                                                 _RandomAccessIterator __false_end, // == __true_begin
                                                  _RandomAccessIterator __block_end) -> _RandomAccessIterator {
             __partial_swap(__false_begin, __false_end, __false_end, __block_end);
             // Return the new partition point
             return __block_end - (__false_end - __false_begin);
         }; // __flip_partition
 
-        auto __merge = [__flip_partition, __partial_swap](_PartitionRange __val1, _PartitionRange __val2)
-                                                         -> _PartitionRange {
+        auto __merge = [__flip_partition, __partial_swap](_PartitionRange __val1,
+                                                          _PartitionRange __val2) -> _PartitionRange {
             if (__val1.__empty())
                 return __val2;
             if (__val2.__empty())
@@ -2291,8 +2291,8 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                     __merged_range.__true_leftover = __val2.__true_leftover - __swap_size;
                 }
                 // Move the remaining false leftover toward the middle, if any
-                __merged_range.__false_leftover = __flip_partition(__val1.__false_leftover, __val1.__real_chunk_end,
-                                                                   __val2.__false_leftover);
+                __merged_range.__false_leftover =
+                    __flip_partition(__val1.__false_leftover, __val1.__real_chunk_end, __val2.__false_leftover);
             }
             else if (__val1.__has_true_leftover())
             {
@@ -2305,8 +2305,8 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                     __merged_range.__false_leftover = __val2.__false_leftover + __swap_size;
                 }
                 // Move the remaining true leftover toward the middle, if any
-                __merged_range.__true_leftover = __flip_partition(__val2.__true_leftover, __val1.__mirror_chunk_begin,
-                                                                  __val1.__true_leftover);
+                __merged_range.__true_leftover =
+                    __flip_partition(__val2.__true_leftover, __val1.__mirror_chunk_begin, __val1.__true_leftover);
             }
             return __merged_range;
         }; // merge
