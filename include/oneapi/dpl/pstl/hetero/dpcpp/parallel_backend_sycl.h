@@ -910,10 +910,11 @@ struct __early_exit_find_or
     // Elements scanned between two sub-group votes. With a vote after every element the next load
     // waits on the vote, so a work item never has more than one load in flight; the loads of one
     // batch are independent and get issued together.
-    static constexpr std::size_t __iters_per_vote = 8;
-    // Batching delays the early exit by up to one batch, which is only affordable when a batch is a
-    // small part of the work of one item.
-    static constexpr std::size_t __min_iters_to_batch = 32 * __iters_per_vote;
+    static constexpr std::size_t __max_iters_per_vote = 8;
+    // A batch runs past the first match by up to its own length, so a length is only used once this
+    // many times that length has already been scanned, bounding the overshoot at that fraction of
+    // the iterations already scanned rather than at a fixed count.
+    static constexpr std::size_t __iters_scanned_per_batch_iter = 32;
 
     template <typename _NDItemId, typename _SrcDataSize, typename _IterationDataSize, typename _LocalFoundState,
               typename _BrickTag, typename... _Ranges>
@@ -952,23 +953,24 @@ struct __early_exit_find_or
         bool __something_was_found = false;
         std::size_t __iter = 0;
 
-        if (__iters_per_work_item >= __min_iters_to_batch)
-        {
-            const std::size_t __batched_iters = (__iters_per_work_item / __iters_per_vote) * __iters_per_vote;
-            for (; !__something_was_found && __iter < __batched_iters; __iter += __iters_per_vote)
+        // Scan in batches of __len, voting once per batch, until iteration __until.
+        auto __scan_batches = [&](auto __len_c, std::size_t __until) {
+            constexpr std::size_t __len = decltype(__len_c)::value;
+            const std::size_t __end = std::min<std::size_t>(__until, __iters_per_work_item);
+            for (; !__something_was_found && __iter + __len <= __end; __iter += __len)
             {
-                // A batch scans in one direction, so one check of its last index covers all of them.
-                // Hoisting it out of the batch is the point of batching: the loads are then
+                // A batch scans in one direction, so one check of its extreme index covers all of
+                // them. Hoisting it out of the batch is the point of batching: the loads are then
                 // unconditional, and none of them has to wait on a branch of a preceding element.
-                if (__src_idx(__backward ? __iter : __iter + __iters_per_vote - 1) < __source_data_size)
+                if (__src_idx(__backward ? __iter : __iter + __len - 1) < __source_data_size)
                 {
                     _ONEDPL_PRAGMA_UNROLL
-                    for (std::size_t __j = 0; __j < __iters_per_vote; ++__j)
+                    for (std::size_t __j = 0; __j < __len; ++__j)
                         __something_was_found |= __scan(__src_idx(__iter + __j));
                 }
                 else
                 {
-                    for (std::size_t __j = 0; __j < __iters_per_vote; ++__j)
+                    for (std::size_t __j = 0; __j < __len; ++__j)
                         __something_was_found |= __scan_guarded(__iter + __j);
                 }
 
@@ -976,14 +978,20 @@ struct __early_exit_find_or
                 //  - the update of __found_local state isn't required here because it updates later on the caller side
                 __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
             }
-        }
+        };
 
-        // Tail of the batched scan, and the whole scan when batching is not used.
-        for (; !__something_was_found && __iter < __iters_per_work_item; ++__iter)
-        {
-            __something_was_found = __scan_guarded(__iter);
-            __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
-        }
+        // Grow the batch with the iterations already behind us: a length is used until iteration
+        // 2 * N * itself, for N = __iters_scanned_per_batch_iter, so the length in use never exceeds
+        // 1/N of the iterations already scanned and neither does the overshoot past a match. A work
+        // item exiting within its first 2 * N iterations scans element-at-a-time exactly as it would
+        // with no batching, as does every item when no item's share of the input reaches 2 * N.
+        auto __grow = [](std::size_t __len) { return 2 * __iters_scanned_per_batch_iter * __len; };
+        __scan_batches(std::integral_constant<std::size_t, 1>{}, __grow(1));
+        __scan_batches(std::integral_constant<std::size_t, 2>{}, __grow(2));
+        __scan_batches(std::integral_constant<std::size_t, 4>{}, __grow(4));
+        __scan_batches(std::integral_constant<std::size_t, __max_iters_per_vote>{}, __iters_per_work_item);
+        // An incomplete final batch, and indices past the end of the source.
+        __scan_batches(std::integral_constant<std::size_t, 1>{}, __iters_per_work_item);
     }
 };
 
