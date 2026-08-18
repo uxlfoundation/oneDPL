@@ -2321,49 +2321,34 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
             // to include the possibly uncovered middle element
             _RandomAccessIterator __mirror_chunk_begin =
                 __real_chunk_end == __first + __mid ? __first + __mid : __last - (__real_chunk_end - __first);
-
             _RandomAccessIterator __mirror_chunk_end = __last - (__real_chunk_begin - __first);
 
             // Partition the pair of chunks
             _RandomAccessIterator __left = __real_chunk_begin;
             _RandomAccessIterator __right = __mirror_chunk_end;
-
-            while (true)
+            do
             {
                 while (__left != __real_chunk_end && std::invoke(__pred, *__left))
-                {
                     ++__left;
-                }
-
                 while (__right != __mirror_chunk_begin && !std::invoke(__pred, *(__right - 1)))
-                {
                     --__right;
-                }
 
-                if (__left != __real_chunk_end && __right != __mirror_chunk_begin)
+                bool __both_valid = __left != __real_chunk_end && __right != __mirror_chunk_begin;
+                if (__both_valid)
                 {
                     iter_swap(__left, __right - 1);
                     ++__left;
                     --__right;
-                    continue;
                 }
-                else
-                {
-                    break;
-                }
-            } // while (true)
+            } while (__both_valid);
 
+            // Partition the remainder and calculate leftover boundaries
             _RandomAccessIterator __false_leftover = __real_chunk_end;
             _RandomAccessIterator __true_leftover = __mirror_chunk_begin;
-
             if (__left != __real_chunk_end)
-            {
                 __false_leftover = __internal::__brick_partition(__left, __real_chunk_end, __pred, _IsVector{});
-            }
             else
-            {
                 __true_leftover = __internal::__brick_partition(__mirror_chunk_begin, __right, __pred, _IsVector{});
-            }
 
             _PartitionRange __range{__real_chunk_begin, __real_chunk_end, __mirror_chunk_begin,
                                     __mirror_chunk_end, __false_leftover, __true_leftover};
