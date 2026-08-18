@@ -42,10 +42,12 @@ __pattern_walk1_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode, _IsNoInitRequested, _DeferToUserHint>();
     auto __buf = __keep(__first, __last);
 
-    auto __future_obj = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    sycl::event __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n, __buf.all_view());
-    return __future_obj;
+    // skip __finalize_sycl_call() here, because we want to return future object to the user
+
+    return __future(__res);
 }
 
 template <__par_backend_hetero::access_mode __out_acc_mode, bool _IsOutNoInitRequested, typename _BackendTag,
@@ -63,12 +65,13 @@ __pattern_walk2_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__out_acc_mode, _IsOutNoInitRequested>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
-    auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    sycl::event __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n, __buf1.all_view(),
         __buf2.all_view());
+    // skip __finalize_sycl_call() here, because we want to return future object to the user
 
-    return __future.__make_future(__first2 + __n);
+    return __future(__res, __first2 + __n);
 }
 
 template <__par_backend_hetero::access_mode __output_acc_mode, bool _IsOutNoInitRequested, typename _BackendTag,
@@ -88,12 +91,13 @@ __pattern_walk3_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
     auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__output_acc_mode, _IsOutNoInitRequested>();
     auto __buf3 = __keep3(__first3, __first3 + __n);
 
-    auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    sycl::event __res = oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<size_t>(__n)}, __n, __buf1.all_view(),
         __buf2.all_view(), __buf3.all_view());
+    // skip __finalize_sycl_call() here, because we want to return future object to the user
 
-    return __future.__make_future(__first3 + __n);
+    return __future(__res, __first3 + __n);
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
@@ -140,11 +144,16 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& _
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
-                                                                          ::std::true_type /*is_commutative*/>(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __binary_op1, _Functor{__binary_op2},
-        unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
-        __buf1.all_view(), __buf2.all_view());
+    // std::tuple<sycl::event, __combined_storage<_Tp>>
+    std::tuple __res =
+        __oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
+                                                                         std::true_type /*is_commutative*/>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __binary_op1, _Functor{__binary_op2},
+            unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
+            __buf1.all_view(), __buf2.all_view());
+    // skip __finalize_sycl_call() here, because we want to return future object to the user
+
+    return __create_future(std::move(__res));
 }
 
 //------------------------------------------------------------------------
@@ -166,11 +175,16 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& _
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
-                                                                          ::std::true_type /*is_commutative*/>(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __binary_op, _Functor{__unary_op},
-        unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
-        __buf.all_view());
+    // std::tuple<sycl::event, __combined_storage<_Tp>>
+    std::tuple __res =
+        __oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
+                                                                         std::true_type /*is_commutative*/>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __binary_op, _Functor{__unary_op},
+            unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
+            __buf.all_view());
+    // skip __finalize_sycl_call() here, because we want to return future object to the user
+
+    return __create_future(std::move(__res));
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _T>
@@ -203,10 +217,13 @@ __pattern_transform_scan_base_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__result, __result + __n);
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __unary_op,
+    // std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
+    std::tuple __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __unary_op,
         __init, __binary_op, _Inclusive{});
-    return __res.__make_future(__result + __n);
+    // skip __finalize_sycl_call() here, because we want to return future object to the user
+
+    return __create_future(std::move(__res), __result + __n);
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
