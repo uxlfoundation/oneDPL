@@ -160,7 +160,7 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
         }
         else
         {
-            __init_event.wait();
+            oneapi::dpl::__par_backend_hetero::__finalize_sycl_call<oneapi::dpl::__par_backend_hetero::__sync_mode>(__init_event);
         }
     }
 }
