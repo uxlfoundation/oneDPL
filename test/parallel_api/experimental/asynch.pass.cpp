@@ -90,6 +90,17 @@ struct MultiplyByTenFO
     }
 };
 
+// A comparator which is not recognized by the radix sort, so the merge sort path is always used.
+struct GreaterFO
+{
+    template <typename T>
+    bool
+    operator()(const T& x, const T& y) const
+    {
+        return x > y;
+    }
+};
+
 
 template <typename Policy>
 void test1_with_buffers(Policy&& exec)
@@ -132,8 +143,10 @@ void test1_with_buffers(Policy&& exec)
         CLONE_TEST_POLICY_NAME(exec, Scan<0>), oneapi::dpl::begin(x), oneapi::dpl::end(x), oneapi::dpl::begin(y),
         std::plus<int>(), MultiplyByTenFO{}, 0);
 
+    // GreaterFO is used instead of std::greater<int> to avoid the radix sort path:
+    // only the merge sort returns a lifetime-only payload which is checked below.
     auto delta = oneapi::dpl::experimental::sort_async(CLONE_TEST_POLICY_NAME(exec, Sort), oneapi::dpl::begin(y),
-                                                       oneapi::dpl::end(y), std::greater<int>(), gamma);
+                                                       oneapi::dpl::end(y), GreaterFO{}, gamma);
 
     int small_nonzero_values[3] = {2, 3, 4};
     sycl::buffer small_nonzero{small_nonzero_values, sycl::range{3}};
