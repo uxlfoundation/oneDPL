@@ -910,7 +910,16 @@ __finalize_sycl_call(_Tuple<_Args...>& __tuple)
     __finalize_sycl_call<__resolve_wait_mode<_WaitModeTag, _Args...>>(std::get<0>(__tuple));
 }
 
-//A contract for future class: <sycl::event or other event, payload items: a value or __result_and_scratch_storage>
+// A copyable wrapper for a payload which has to be kept alive until the kernel completes
+// but which carries no algorithm result
+template <typename _T>
+struct __lifetime_payload
+{
+    std::shared_ptr<_T> __data;
+};
+
+//A contract for future class: <sycl::event or other event, payload items: a value, __result_and_scratch_storage
+//or __lifetime_payload>
 //Impl details: inheritance (private) instead of aggregation for enabling the empty base optimization.
 template <typename _Event, typename... _Args>
 class __future : private std::tuple<_Args...>
@@ -922,6 +931,14 @@ class __future : private std::tuple<_Args...>
     __wait_and_get_value(const __result_and_scratch_storage<_T, _NResults>& __storage)
     {
         return __storage.__wait_and_get_value(__my_event);
+    }
+
+    // A lifetime-only payload carries no algorithm result, so only the waiting is required here
+    template <typename _T>
+    void
+    __wait_and_get_value(const __lifetime_payload<_T>&)
+    {
+        wait();
     }
 
     template <typename _T>
@@ -967,13 +984,13 @@ __to_future_payload(_SrcDataT&& __data)
     return std::forward<_SrcDataT>(__data);
 }
 
-// __device_storage is a move-only lifetime-only payload, but __future must stay copyable,
-// so such a payload is kept by a shared ownership
+// __device_storage is a move-only payload which is required to keep the data alive until the kernel completes.
+// It carries no algorithm result, but __future must stay copyable, so such a payload is kept by a shared ownership.
 template <typename _T>
-std::shared_ptr<__device_storage<_T>>
+__lifetime_payload<__device_storage<_T>>
 __to_future_payload(__device_storage<_T>&& __ds)
 {
-    return std::make_shared<__device_storage<_T>>(std::move(__ds));
+    return __lifetime_payload<__device_storage<_T>>{std::make_shared<__device_storage<_T>>(std::move(__ds))};
 }
 
 template <typename _T>
