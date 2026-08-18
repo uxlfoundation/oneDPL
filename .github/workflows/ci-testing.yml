@@ -422,7 +422,7 @@ jobs:
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..
           if !errorlevel! neq 0 set exit_code=!errorlevel!
           for %%t in (%ninja_targets%) do (
-            ninja -j 2 -v "%%t" >> build.log 2>&1
+            ninja -j %BUILD_CONCURRENCY% -v "%%t" >> build.log 2>&1
             if !errorlevel! neq 0 set exit_code=!errorlevel!
           )
           set ONEAPI_DEVICE_SELECTOR=*:${{ matrix.device_type }}
