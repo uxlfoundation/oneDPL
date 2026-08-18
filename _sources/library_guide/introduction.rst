@@ -2,8 +2,7 @@
 #######################################
 
 The |onedpl_long| (|onedpl_short|) is implemented in accordance with the |onedpl_specification|_.
-The current implementation supports the version 1.4-rev1 in full, as well as most of the functionality
-added to the version 1.5-rev1.
+The current implementation supports the version 1.5-rev1 in full.
 
 To support heterogeneity, |onedpl_short| uses `SYCL <https://registry.khronos.org/SYCL/>`_.
 More information about SYCL can be found in the `SYCL Specification`_.
@@ -107,7 +106,9 @@ Difference with Standard C++ Parallel Algorithms
   ``set_symmetric_difference``, ``set_union``, ``stable_partition``, ``unique``.
 * The following algorithms require additional O(n) memory space for parallel execution:
   ``copy_if``, ``inplace_merge``, ``partial_sort``, ``partial_sort_copy``, ``partition_copy``,
-  ``remove``, ``remove_if``, ``rotate``, ``sort``, ``stable_sort``, ``unique``, ``unique_copy``.
+  ``remove``, ``remove_if``, ``rotate``, ``sort``, ``stable_sort``,
+  ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union``,
+  ``unique``, ``unique_copy``.
 
 Restrictions
 ************
@@ -162,9 +163,11 @@ Known Limitations
   ``std::sqrt`` require device support for double precision.
 * STL algorithm functions (such as ``std::for_each``) used in DPC++ kernels do not compile with the debug version of
   the Microsoft Visual C++ standard library.
-* ``std::array`` cannot be swapped in DPC++ kernels with ``std::swap`` function or ``swap`` member function
-  in the Microsoft Visual C++ standard library. For a workaround, define the
-  ``_USE_STD_VECTOR_ALGORITHMS`` macro to `` 0`` to the source file before including any headers.
+* Some Microsoft* Visual C++ standard library functions use manual vectorization,
+  which may cause a "SYCL kernel cannot call undefined functions without the SYCL_EXTERNAL attribute" compilation error.
+  To disable it, define ``_USE_STD_VECTOR_ALGORITHMS`` as ``0`` before including any headers.
+  This affects ``std::swap``, the ``swap`` member function, comparison operators for ``std::array`` objects,
+  and the `Vectorized MSVC STL Algorithms <https://learn.microsoft.com/en-us/cpp/standard-library/vectorized-stl-algorithms?view=msvc-180>`_.
 * ``exclusive_scan``, ``inclusive_scan``, ``exclusive_scan_by_segment``,
   ``inclusive_scan_by_segment``, ``transform_exclusive_scan``, ``transform_inclusive_scan``,
   when used with C++ standard aligned policies, impose limitations on the initial value type if an
@@ -190,11 +193,6 @@ Known Limitations
   or cause a segmentation fault when used with a device execution policy on a CPU device. To avoid this issue, pass the
   ``-fsycl-device-code-split=per_kernel`` option to the compiler or use Intel® oneAPI DPC++/C++ Compiler version 2025.1
   or newer.
-* ``esimd::radix_sort`` and ``esimd::radix_sort_by_key`` kernel templates fail to compile when a program
-  is built with ``-g``, ``-O0``, ``-O1`` compiler options and a Linux General Purpose Intel GPUs Driver version older
-  than ``2423.32`` (Rolling) and ``2350.61`` (LTS) is used.
-  See the `Release Types <https://dgpu-docs.intel.com/releases/releases.html>`_
-  to find information about the relevant Rolling and LTS releases.
 * ``std::ranges::drop_view`` from libstdc++ version 10 may throw exceptions.
   This can lead to a "SYCL kernel cannot use exceptions" compilation error
   when it is used to pass data to a range-based algorithm with a device policy.
@@ -203,7 +201,7 @@ Known Limitations
   As a result, customizations targeting ``std::ranges::iter_swap`` will not be respected.
 * Passing rvalue views to ``ranges::zip_view`` requires standard library support for views with ownership (P2415R2).
   This can be detected using the ``__cpp_lib_ranges`` feature macro (value ``202110L`` or higher).
-- Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
+* Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
   ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``
   with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler 2024.1 or earlier
   with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.

@@ -7,8 +7,9 @@
 
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Get Started with the oneAPI DPC++ Library &#8212; oneDPL Documentation 2022.12.0 documentation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Get Started with the oneAPI DPC++ Library &#8212; oneDPL Documentation 2022.13.0 documentation</title>
   
   
   
@@ -18,12 +19,12 @@
   </script>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=e353d410970836974a52" rel="stylesheet" />
-<link href="../_static/styles/bootstrap.css?digest=e353d410970836974a52" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=e353d410970836974a52" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=12da95d707ffb74b382d" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=12da95d707ffb74b382d" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=12da95d707ffb74b382d" rel="stylesheet" />
 
   
-  <link href="../_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=e353d410970836974a52" rel="stylesheet" />
+  <link href="../_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=12da95d707ffb74b382d" rel="stylesheet" />
   <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2" />
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2" />
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2" />
@@ -33,8 +34,8 @@
     <link rel="stylesheet" type="text/css" href="../_static/custom.css" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=e353d410970836974a52" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=12da95d707ffb74b382d" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=12da95d707ffb74b382d" />
 
     <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
@@ -45,8 +46,6 @@
     <link rel="shortcut icon" href="../_static/favicons.png"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="oneDPL Specification" href="../specification/index.html" />
-    <link rel="prev" title="Release Notes" href="release_notes.html" />
 
     <script defer type="text/javascript" src="https://www.intel.com/content/dam/www/global/wap/performance-config.js" ></script>
     <script type="text/javascript">
@@ -129,7 +128,7 @@
         <div class="sidebar-primary-item">
   
 
-<a class="navbar-brand logo" href="../index.html">
+<a class="navbar-brand logo" href="#">
   
   
   
@@ -146,87 +145,7 @@
 </a></div>
         <div class="sidebar-primary-item"><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
-        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
-<ul class="current nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="release_notes.html">Release Notes</a></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">Get Started with the oneAPI DPC++ Library</a></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">oneDPL Specification</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="../specification/index.html">Latest Revision</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../specification/common.html">General Information</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../specification/parallel_api.html">Parallel API</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="../specification/parallel_api/execution_policies.html">Execution Policies</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../specification/parallel_api/buffer_wrappers.html">Buffer Wrappers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../specification/parallel_api/iterators.html">Iterators</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../specification/parallel_api/algorithms.html">Parallel Algorithms</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../specification/parallel_api/parallel_range_api.html">Parallel Range Algorithms</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="../specification/sycl_kernels_api.html">SYCL Kernels API</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../specification/spec_versions.html">Version History</a></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Core Functionality Guide</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../library_guide/introduction.html">oneAPI DPC++ Library Introduction</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../library_guide/parallel_api_main.html">Parallel API</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-3"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../library_guide/parallel_api/execution_policies.html">Execution Policies</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../library_guide/parallel_api/parallel_range_algorithms.html">Parallel Range Algorithms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../library_guide/parallel_api/additional_algorithms.html">Additional Algorithms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../library_guide/parallel_api/pass_data_algorithms.html">Pass Data to Algorithms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../library_guide/parallel_api/iterators.html">Iterators</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../library_guide/parallel_api/range_based_api.html">Experimental Range-Based API</a></li>
-</ul>
-</li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../library_guide/api_for_sycl_kernels_main.html">API for SYCL* Kernels</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../library_guide/api_for_sycl_kernels/tested_standard_cpp_api.html">Tested Standard C++ APIs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../library_guide/api_for_sycl_kernels/random.html">Random Number Generators</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../library_guide/api_for_sycl_kernels/utility_function_object_classes.html">Utility Function Object Classes</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../library_guide/macros.html">Macros</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../library_guide/cmake_support.html">CMake Support</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../library_guide/oneDPL_2022.0_changes.html">oneDPL 2022 Breaking Changes</a></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Technology Preview</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../library_guide/parallel_api/async_api.html">Asynchronous Algorithms</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../library_guide/dynamic_selection_api_main.html">Dynamic Selection API</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../library_guide/dynamic_selection_api/functions.html">Functions</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../library_guide/dynamic_selection_api/policies.html">Policies</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-6"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="../library_guide/dynamic_selection_api/fixed_resource_policy.html">Fixed-Resource Policy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../library_guide/dynamic_selection_api/round_robin_policy.html">Round-Robin Policy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../library_guide/dynamic_selection_api/dynamic_load_policy.html">Dynamic Load Policy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../library_guide/dynamic_selection_api/auto_tune_policy.html">Auto-Tune Policy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../library_guide/dynamic_selection_api/custom_policies.html">Custom Policies</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="../library_guide/dynamic_selection_api/backends.html">Backends</a></li>
-</ul>
-</li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../library_guide/kernel_templates_main.html">Kernel Templates API</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-7"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../library_guide/kernel_templates/kernel_configuration.html">Kernel Configuration</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../library_guide/kernel_templates/esimd_main.html">ESIMD-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-8"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="../library_guide/kernel_templates/esimd/radix_sort.html">Radix Sort</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../library_guide/kernel_templates/esimd/radix_sort_by_key.html">Radix Sort By Key</a></li>
-</ul>
-</li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../library_guide/kernel_templates/sycl_main.html">SYCL-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-9"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="../library_guide/kernel_templates/sycl/radix_sort.html">Radix Sort</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../library_guide/kernel_templates/sycl/radix_sort_by_key.html">Radix Sort By Key</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../library_guide/kernel_templates/sycl/single_pass_scan.html">Inclusive Scan</a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Notices and Disclaimers</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../notices_disclaimers.html">Notices and Disclaimers</a></li>
-</ul>
-
+        
     </div>
 </nav></div>
     </div>
@@ -449,16 +368,16 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article" role="main">
                   
-  <div class="section" id="get-started-with-the-onedpl-long">
+  <section id="get-started-with-the-onedpl-long">
 <h1>Get Started with the oneAPI DPC++ Library<a class="headerlink" href="#get-started-with-the-onedpl-long" title="Permalink to this headline">#</a></h1>
 <p>oneAPI DPC++ Library (oneDPL) works with the <a class="reference external" href="https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/get-started-guide/2025-2/overview.html">Intel® oneAPI DPC++/C++ Compiler</a>
 to provide high-productivity APIs to developers, which can minimize SYCL*
 programming efforts across devices for high performance parallel applications.</p>
 <p>For general information about oneDPL, visit the <a class="reference external" href="https://github.com/uxlfoundation/oneDPL">oneDPL GitHub* repository</a>,
-or visit the <a class="reference internal" href="../library_guide/introduction.html"><span class="doc">oneAPI DPC++ Library Guide</span></a> and the <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-library.html">Intel® oneAPI DPC++ Library main page</a>.</p>
-<div class="section" id="quick-start">
+or visit the <span class="xref std std-doc">oneAPI DPC++ Library Guide</span> and the <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-library.html">Intel® oneAPI DPC++ Library main page</a>.</p>
+<section id="quick-start">
 <h2>Quick Start<a class="headerlink" href="#quick-start" title="Permalink to this headline">#</a></h2>
-<div class="section" id="installation">
+<section id="installation">
 <h3>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">#</a></h3>
 <p>Visit the oneDPL <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/articles/release-notes/intel-oneapi-dpcpp-library-release-notes.html">Release Notes</a>
 page for:</p>
@@ -474,21 +393,21 @@ to use oneDPL.</p>
 <p>Additionally, to use oneDPL and other Base Kit components on non-Intel GPUs install either the
 <a class="reference external" href="https://developer.codeplay.com/products/oneapi/nvidia/home/">oneAPI for NVIDIA® GPUs plugin</a> or the
 <a class="reference external" href="https://developer.codeplay.com/products/oneapi/amd/home/">oneAPI for AMD GPUs plugin</a>.</p>
-<p>See the <a class="reference internal" href="../library_guide/introduction.html#library-requirements"><span class="std std-ref">oneDPL System Requirements</span></a> for details on the compiler support required to compile applications using oneDPL
+<p>See the <span class="xref std std-ref">oneDPL System Requirements</span> for details on the compiler support required to compile applications using oneDPL
 on CPU using OpenMP* or oneAPI Threading Building Blocks (oneTBB).</p>
 <p>To use Parallel API, include the corresponding header files in your source code.</p>
 <p>All oneDPL header files are in the <code class="docutils literal notranslate"><span class="pre">oneapi/dpl</span></code> directory. Use <code class="docutils literal notranslate"><span class="pre">#include</span> <span class="pre">&lt;oneapi/dpl/…&gt;</span></code> to include them.
 oneDPL uses the namespace <code class="docutils literal notranslate"><span class="pre">oneapi::dpl</span></code> for most its classes and functions.</p>
 <p>To use tested C++ standard APIs, you need to include the corresponding C++ standard header files
 and use the <code class="docutils literal notranslate"><span class="pre">std</span></code> namespace.</p>
-</div>
-<div class="section" id="cmake-support">
+</section>
+<section id="cmake-support">
 <h3>CMake Support<a class="headerlink" href="#cmake-support" title="Permalink to this headline">#</a></h3>
 <p><a class="reference external" href="https://cmake.org/cmake/help/latest/index.html">CMake</a> generates build scripts which can then be used
 to build and link your application. oneDPL can be added to your project via CMake.</p>
 <p>A simple example for Linux is provided below. For more detailed usage and options including details specific to Windows,
 please look to the <a class="reference external" href="https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/2025-2/use-cmake-with-the-compiler.html">CMake support documentation for the Intel® oneAPI DPC++/C++ Compiler</a>.</p>
-<div class="section" id="simple-example-cmake-file">
+<section id="simple-example-cmake-file">
 <h4>Simple Example CMake File<a class="headerlink" href="#simple-example-cmake-file" title="Permalink to this headline">#</a></h4>
 <p>To use oneDPL with CMake, create a CMakeLists.txt file for your project’s base directory and use
 <a class="reference external" href="https://cmake.org/cmake/help/latest/command/find_package.html">find_package</a>
@@ -504,28 +423,28 @@ For example:</p>
 <span class="n">target_link_libraries</span><span class="p">(</span><span class="n">foo</span><span class="w"> </span><span class="n">oneDPL</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="simple-example-cmake-invocation">
+</section>
+<section id="simple-example-cmake-invocation">
 <h4>Simple Example CMake Invocation<a class="headerlink" href="#simple-example-cmake-invocation" title="Permalink to this headline">#</a></h4>
 <p>The following is an example CMake invocation which generates build scripts for the project in the parent directory:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span><span class="w"> </span><span class="n">build</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">cd</span><span class="w"> </span><span class="n">build</span>
 <span class="n">cmake</span><span class="w"> </span><span class="o">-</span><span class="n">DCMAKE_CXX_COMPILER</span><span class="o">=</span><span class="n">icpx</span><span class="w"> </span><span class="o">-</span><span class="n">DCMAKE_BUILD_TYPE</span><span class="o">=</span><span class="n">release</span><span class="w"> </span><span class="p">..</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="example-build-command">
+</section>
+<section id="example-build-command">
 <h4>Example Build Command<a class="headerlink" href="#example-build-command" title="Permalink to this headline">#</a></h4>
 <p>Once build scripts have been generated for your desired configuration following the instruction above, a <a class="reference external" href="https://cmake.org/cmake/help/latest/manual/cmake.1.html#build-a-project">build command</a> can be issued to build your project:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">cmake</span><span class="w"> </span><span class="o">--</span><span class="n">build</span><span class="w"> </span><span class="p">.</span>
 </pre></div>
 </div>
-</div>
-</div>
-<div class="section" id="pkg-config-support">
+</section>
+</section>
+<section id="pkg-config-support">
 <h3>pkg-config Support<a class="headerlink" href="#pkg-config-support" title="Permalink to this headline">#</a></h3>
 <p>The pkg-config program is used to retrieve information about your installed libraries, and
 to compile and link against one or more libraries.</p>
-<div class="section" id="use-pkg-config-with-onedpl-short">
+<section id="use-pkg-config-with-onedpl-short">
 <h4>Use pkg-config with oneDPL<a class="headerlink" href="#use-pkg-config-with-onedpl-short" title="Permalink to this headline">#</a></h4>
 <p>Use pkg-config with the <code class="docutils literal notranslate"><span class="pre">--cflags</span></code> flag to get the include path to the oneDPL directory:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">icpx</span><span class="w"> </span><span class="o">-</span><span class="n">fsycl</span><span class="w"> </span><span class="n">foo</span><span class="p">.</span><span class="n">cpp</span><span class="w"> </span><span class="n">$</span><span class="p">(</span><span class="n">pkg</span><span class="o">-</span><span class="n">config</span><span class="w"> </span><span class="o">--</span><span class="n">cflags</span><span class="w"> </span><span class="n">dpl</span><span class="p">)</span>
@@ -540,14 +459,14 @@ This flag converts your compiling and linking flags to the appropriate form:</p>
 <p class="admonition-title">Note</p>
 <p>Use the pkg-config tool to get rid of large hard-coded paths and make compilation more portable.</p>
 </div>
-</div>
-</div>
-<div class="section" id="usage-examples">
+</section>
+</section>
+<section id="usage-examples">
 <h3>Usage Examples<a class="headerlink" href="#usage-examples" title="Permalink to this headline">#</a></h3>
 <p>oneDPL sample code is available from the
 <a class="reference external" href="https://github.com/oneapi-src/oneAPI-samples/tree/master/Libraries/oneDPL">oneAPI GitHub samples repository</a>.
 Each sample includes a readme with build instructions.</p>
-<div class="section" id="oneapi-dpl-random-header-usage-example">
+<section id="oneapi-dpl-random-header-usage-example">
 <h4>&lt;oneapi/dpl/random&gt; Header Usage Example<a class="headerlink" href="#oneapi-dpl-random-header-usage-example" title="Permalink to this headline">#</a></h4>
 <p>This example illustrates oneDPL random number generator usage.
 The sample below shows you how to create an random number generator engine object (the source of pseudo-randomness),
@@ -575,8 +494,8 @@ to improve the speed of your computations.</p>
 <span class="p">}</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="pi-benchmark-usage-example">
+</section>
+<section id="pi-benchmark-usage-example">
 <h4>Pi Benchmark Usage Example<a class="headerlink" href="#pi-benchmark-usage-example" title="Permalink to this headline">#</a></h4>
 <p>This example uses a Monte Carlo method to estimate the value of π.
 The basic idea is to generate random points within a square, and to check what
@@ -587,9 +506,9 @@ You can take the observed fraction of points in the quarter-circle as an estimat
 a distribution object (specifying the desired probability distribution), generate the
 random numbers themselves, and then perform a reduction to count quantity of points that
 fit into the square <em>S</em>. Random number generation is performed in scalar manner to simplify your code.</p>
-<div class="figure align-default">
+<figure class="align-default">
 <img alt="An image of pi chart." src="../_images/pi_benchmark.png" />
-</div>
+</figure>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="kt">float</span><span class="w"> </span><span class="n">estimated_pi</span><span class="p">;</span>
 <span class="p">{</span>
 <span class="w">    </span><span class="n">sycl</span><span class="o">::</span><span class="n">queue</span><span class="w"> </span><span class="nf">q</span><span class="p">(</span><span class="n">sycl</span><span class="o">::</span><span class="n">gpu_selector_v</span><span class="p">);</span>
@@ -617,10 +536,10 @@ fit into the square <em>S</em>. Random number generation is performed in scalar 
 <span class="p">}</span>
 </pre></div>
 </div>
-</div>
-</div>
-</div>
-<div class="section" id="find-more">
+</section>
+</section>
+</section>
+<section id="find-more">
 <h2>Find More<a class="headerlink" href="#find-more" title="Permalink to this headline">#</a></h2>
 <table class="colwidths-given table">
 <colgroup>
@@ -633,7 +552,7 @@ fit into the square <em>S</em>. Random number generation is performed in scalar 
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><a class="reference internal" href="../library_guide/introduction.html"><span class="doc">oneAPI DPC++ Library Guide</span></a></p></td>
+<tr class="row-even"><td><p><span class="xref std std-doc">oneAPI DPC++ Library Guide</span></p></td>
 <td><p>Refer to the oneDPL guide for  more in depth information.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference external" href="https://www.intel.com/content/www/us/en/developer/articles/system-requirements/intel-oneapi-dpcpp-system-requirements.html">System Requirements</a></p></td>
@@ -651,8 +570,8 @@ These samples were designed to help you develop, offload, and optimize multiarch
 </tr>
 </tbody>
 </table>
-</div>
-</div>
+</section>
+</section>
 
 
                 </article>
@@ -661,33 +580,9 @@ These samples were designed to help you develop, offload, and optimize multiarch
               
               
                 <footer class="bd-footer-article">
-                  
-<div class="footer-article-items footer-article__inner">
-  
-    <div class="footer-article-item"><!-- Previous / next buttons -->
+                  <!-- Previous / next buttons -->
 <div class="prev-next-area">
-    <a class="left-prev"
-       href="release_notes.html"
-       title="previous page">
-      <i class="fa-solid fa-angle-left"></i>
-      <div class="prev-next-info">
-        <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Release Notes</p>
-      </div>
-    </a>
-    <a class="right-next"
-       href="../specification/index.html"
-       title="next page">
-      <div class="prev-next-info">
-        <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">oneDPL Specification</p>
-      </div>
-      <i class="fa-solid fa-angle-right"></i>
-    </a>
-</div></div>
-  
 </div>
-
                 </footer>
               
             </div>
@@ -730,7 +625,7 @@ These samples were designed to help you develop, offload, and optimize multiarch
             
           </div>
           <footer class="bd-footer-content">
-            
+            <div class="bd-footer-content__inner">
 <div class="bd-footer-content__inner container">
   
   <div class="footer-item">
@@ -763,7 +658,7 @@ By Intel
 </div>
   </div>
   
-</div>
+</div></div>
           </footer>
         
 
@@ -772,8 +667,8 @@ By Intel
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script src="../_static/scripts/bootstrap.js?digest=e353d410970836974a52"></script>
-<script src="../_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52"></script>
+  <script src="../_static/scripts/bootstrap.js?digest=12da95d707ffb74b382d"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=12da95d707ffb74b382d"></script>
 
   <footer class="bd-footer">
   </footer>

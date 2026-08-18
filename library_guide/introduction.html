@@ -7,8 +7,9 @@
 
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>oneAPI DPC++ Library Introduction &#8212; oneDPL Documentation 2022.12.0 documentation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>oneAPI DPC++ Library Introduction &#8212; oneDPL Documentation 2022.13.0 documentation</title>
   
   
   
@@ -18,12 +19,12 @@
   </script>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=e353d410970836974a52" rel="stylesheet" />
-<link href="../_static/styles/bootstrap.css?digest=e353d410970836974a52" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=e353d410970836974a52" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=12da95d707ffb74b382d" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=12da95d707ffb74b382d" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=12da95d707ffb74b382d" rel="stylesheet" />
 
   
-  <link href="../_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=e353d410970836974a52" rel="stylesheet" />
+  <link href="../_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=12da95d707ffb74b382d" rel="stylesheet" />
   <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2" />
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2" />
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2" />
@@ -33,8 +34,8 @@
     <link rel="stylesheet" type="text/css" href="../_static/custom.css" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=e353d410970836974a52" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=12da95d707ffb74b382d" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=12da95d707ffb74b382d" />
 
     <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
@@ -46,7 +47,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Parallel API" href="parallel_api_main.html" />
-    <link rel="prev" title="oneDPL Specification Version History" href="../specification/spec_versions.html" />
+    <link rel="prev" title="oneAPI DPC++ Library Developer Guide" href="index.html" />
 
     <script defer type="text/javascript" src="https://www.intel.com/content/dam/www/global/wap/performance-config.js" ></script>
     <script type="text/javascript">
@@ -129,7 +130,7 @@
         <div class="sidebar-primary-item">
   
 
-<a class="navbar-brand logo" href="../index.html">
+<a class="navbar-brand logo" href="index.html">
   
   
   
@@ -146,32 +147,10 @@
 </a></div>
         <div class="sidebar-primary-item"><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
-        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../get_started/release_notes.html">Release Notes</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../get_started/onedpl_gsg.html">Get Started with the oneAPI DPC++ Library</a></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">oneDPL Specification</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="../specification/index.html">Latest Revision</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../specification/common.html">General Information</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../specification/parallel_api.html">Parallel API</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="../specification/parallel_api/execution_policies.html">Execution Policies</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../specification/parallel_api/buffer_wrappers.html">Buffer Wrappers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../specification/parallel_api/iterators.html">Iterators</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../specification/parallel_api/algorithms.html">Parallel Algorithms</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../specification/parallel_api/parallel_range_api.html">Parallel Range Algorithms</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="../specification/sycl_kernels_api.html">SYCL Kernels API</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../specification/spec_versions.html">Version History</a></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Core Functionality Guide</span></p>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Core Functionality Guide</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">oneAPI DPC++ Library Introduction</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="parallel_api_main.html">Parallel API</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-3"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="parallel_api_main.html">Parallel API</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="parallel_api/execution_policies.html">Execution Policies</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parallel_api/parallel_range_algorithms.html">Parallel Range Algorithms</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parallel_api/additional_algorithms.html">Additional Algorithms</a></li>
@@ -180,7 +159,7 @@
 <li class="toctree-l2"><a class="reference internal" href="parallel_api/range_based_api.html">Experimental Range-Based API</a></li>
 </ul>
 </li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="api_for_sycl_kernels_main.html">API for SYCL* Kernels</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="api_for_sycl_kernels_main.html">API for SYCL* Kernels</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="api_for_sycl_kernels/tested_standard_cpp_api.html">Tested Standard C++ APIs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_for_sycl_kernels/random.html">Random Number Generators</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_for_sycl_kernels/utility_function_object_classes.html">Utility Function Object Classes</a></li>
@@ -193,9 +172,9 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Technology Preview</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="parallel_api/async_api.html">Asynchronous Algorithms</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="dynamic_selection_api_main.html">Dynamic Selection API</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="dynamic_selection_api_main.html">Dynamic Selection API</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-3"><i class="fa-solid fa-chevron-down"></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="dynamic_selection_api/functions.html">Functions</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="dynamic_selection_api/policies.html">Policies</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-6"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="dynamic_selection_api/policies.html">Policies</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="dynamic_selection_api/fixed_resource_policy.html">Fixed-Resource Policy</a></li>
 <li class="toctree-l3"><a class="reference internal" href="dynamic_selection_api/round_robin_policy.html">Round-Robin Policy</a></li>
 <li class="toctree-l3"><a class="reference internal" href="dynamic_selection_api/dynamic_load_policy.html">Dynamic Load Policy</a></li>
@@ -206,14 +185,14 @@
 <li class="toctree-l2"><a class="reference internal" href="dynamic_selection_api/backends.html">Backends</a></li>
 </ul>
 </li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="kernel_templates_main.html">Kernel Templates API</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-7"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="kernel_templates_main.html">Kernel Templates API</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="kernel_templates/kernel_configuration.html">Kernel Configuration</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="kernel_templates/esimd_main.html">ESIMD-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-8"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="kernel_templates/esimd_main.html">ESIMD-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-6"><i class="fa-solid fa-chevron-down"></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="kernel_templates/esimd/radix_sort.html">Radix Sort</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kernel_templates/esimd/radix_sort_by_key.html">Radix Sort By Key</a></li>
 </ul>
 </li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="kernel_templates/sycl_main.html">SYCL-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-9"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="kernel_templates/sycl_main.html">SYCL-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-7"><i class="fa-solid fa-chevron-down"></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="kernel_templates/sycl/radix_sort.html">Radix Sort</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kernel_templates/sycl/radix_sort_by_key.html">Radix Sort By Key</a></li>
 <li class="toctree-l3"><a class="reference internal" href="kernel_templates/sycl/single_pass_scan.html">Inclusive Scan</a></li>
@@ -221,10 +200,6 @@
 </li>
 </ul>
 </li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Notices and Disclaimers</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../notices_disclaimers.html">Notices and Disclaimers</a></li>
 </ul>
 
     </div>
@@ -441,14 +416,13 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article" role="main">
                   
-  <div class="section" id="onedpl-long-introduction">
+  <section id="onedpl-long-introduction">
 <h1>oneAPI DPC++ Library Introduction<a class="headerlink" href="#onedpl-long-introduction" title="Permalink to this headline">#</a></h1>
 <p>The oneAPI DPC++ Library (oneDPL) is implemented in accordance with the <a class="reference external" href="https://uxlfoundation.github.io/oneDPL/specification/index.html">oneDPL Specification</a>.
-The current implementation supports the version 1.4-rev1 in full, as well as most of the functionality
-added to the version 1.5-rev1.</p>
+The current implementation supports the version 1.5-rev1 in full.</p>
 <p>To support heterogeneity, oneDPL uses <a class="reference external" href="https://registry.khronos.org/SYCL/">SYCL</a>.
 More information about SYCL can be found in the <a class="reference external" href="https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html">SYCL Specification</a>.</p>
-<div class="section" id="before-you-begin">
+<section id="before-you-begin">
 <h2>Before You Begin<a class="headerlink" href="#before-you-begin" title="Permalink to this headline">#</a></h2>
 <p>Visit the oneDPL <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/articles/release-notes/intel-oneapi-dpcpp-library-release-notes.html">Release Notes</a>
 page for:</p>
@@ -463,10 +437,10 @@ page for:</p>
 </ul>
 <p>Install the <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html">Intel® oneAPI Base Toolkit (Base Kit)</a>
 to use oneDPL.</p>
-</div>
-<div class="section" id="system-requirements">
+</section>
+<section id="system-requirements">
 <span id="library-requirements"></span><h2>System Requirements<a class="headerlink" href="#system-requirements" title="Permalink to this headline">#</a></h2>
-<div class="section" id="prerequisites">
+<section id="prerequisites">
 <h3>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">#</a></h3>
 <p>C++17 is the minimal supported version of the C++ standard.
 That means, any use of oneDPL may require a C++17 compiler.
@@ -486,9 +460,9 @@ While some APIs of the library may accidentally work with earlier versions of th
 <ul class="simple">
 <li><p>A C++ compiler with support for SYCL 2020.</p></li>
 </ul>
-</div>
-</div>
-<div class="section" id="develop-and-build-your-code-with-onedpl-short">
+</section>
+</section>
+<section id="develop-and-build-your-code-with-onedpl-short">
 <h2>Develop and Build Your Code with oneDPL<a class="headerlink" href="#develop-and-build-your-code-with-onedpl-short" title="Permalink to this headline">#</a></h2>
 <p>All oneDPL header files are in the <code class="docutils literal notranslate"><span class="pre">oneapi/dpl</span></code> directory. To use the oneDPL API,
 include the corresponding header in your source code with the <code class="docutils literal notranslate"><span class="pre">#include</span> <span class="pre">&lt;oneapi/dpl/…&gt;</span></code> directive.
@@ -515,10 +489,10 @@ to build the standard C++ code for execution on a SYCL device:</p>
 <p>This option redirects C++ parallel algorithms invoked with the <code class="docutils literal notranslate"><span class="pre">std::execution::par_unseq</span></code> policy
 to oneDPL algorithms. It does not change the behavior of the oneDPL algorithms and
 execution policies that are directly used in the code.</p>
-</div>
-<div class="section" id="useful-information">
+</section>
+<section id="useful-information">
 <h2>Useful Information<a class="headerlink" href="#useful-information" title="Permalink to this headline">#</a></h2>
-<div class="section" id="difference-with-standard-c-parallel-algorithms">
+<section id="difference-with-standard-c-parallel-algorithms">
 <span id="library-restrictions"></span><h3>Difference with Standard C++ Parallel Algorithms<a class="headerlink" href="#difference-with-standard-c-parallel-algorithms" title="Permalink to this headline">#</a></h3>
 <ul class="simple">
 <li><p>oneDPL execution policies only result in parallel execution if random access iterators are provided,
@@ -536,10 +510,12 @@ in practice. Insufficient type requirements for numeric algorithms are discussed
 <code class="docutils literal notranslate"><span class="pre">set_symmetric_difference</span></code>, <code class="docutils literal notranslate"><span class="pre">set_union</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">unique</span></code>.</p></li>
 <li><p>The following algorithms require additional O(n) memory space for parallel execution:
 <code class="docutils literal notranslate"><span class="pre">copy_if</span></code>, <code class="docutils literal notranslate"><span class="pre">inplace_merge</span></code>, <code class="docutils literal notranslate"><span class="pre">partial_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">partial_sort_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">partition_copy</span></code>,
-<code class="docutils literal notranslate"><span class="pre">remove</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_if</span></code>, <code class="docutils literal notranslate"><span class="pre">rotate</span></code>, <code class="docutils literal notranslate"><span class="pre">sort</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">unique</span></code>, <code class="docutils literal notranslate"><span class="pre">unique_copy</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">remove</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_if</span></code>, <code class="docutils literal notranslate"><span class="pre">rotate</span></code>, <code class="docutils literal notranslate"><span class="pre">sort</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code>,
+<code class="docutils literal notranslate"><span class="pre">set_difference</span></code>, <code class="docutils literal notranslate"><span class="pre">set_intersection</span></code>, <code class="docutils literal notranslate"><span class="pre">set_symmetric_difference</span></code>, <code class="docutils literal notranslate"><span class="pre">set_union</span></code>,
+<code class="docutils literal notranslate"><span class="pre">unique</span></code>, <code class="docutils literal notranslate"><span class="pre">unique_copy</span></code>.</p></li>
 </ul>
-</div>
-<div class="section" id="restrictions">
+</section>
+<section id="restrictions">
 <h3>Restrictions<a class="headerlink" href="#restrictions" title="Permalink to this headline">#</a></h3>
 <p>When called with device execution policies, oneDPL algorithms apply the same restrictions as
 SYCL does (see the DPC++ documentation and the SYCL specification for details), such as:</p>
@@ -557,8 +533,8 @@ whose type meets SYCL requirements for use in kernels and for data transfer, res
 </ul>
 <p>Please see <a class="reference internal" href="parallel_api/pass_data_algorithms.html#pass-data-algorithms"><span class="std std-ref">Pass Data to Algorithms</span></a> for more details on how to pass data to algorithms, and the
 restrictions on the data types that can be passed to algorithms executed with device execution policies.</p>
-</div>
-<div class="section" id="known-limitations">
+</section>
+<section id="known-limitations">
 <h3>Known Limitations<a class="headerlink" href="#known-limitations" title="Permalink to this headline">#</a></h3>
 <ul class="simple">
 <li><p>The <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::execution::par_unseq</span></code> policy is affected by <code class="docutils literal notranslate"><span class="pre">-fsycl-pstl-offload</span></code> option of oneAPI DPC++ Compiler
@@ -591,9 +567,11 @@ as argument(s):  <code class="docutils literal notranslate"><span class="pre">st
 <code class="docutils literal notranslate"><span class="pre">std::sqrt</span></code> require device support for double precision.</p></li>
 <li><p>STL algorithm functions (such as <code class="docutils literal notranslate"><span class="pre">std::for_each</span></code>) used in DPC++ kernels do not compile with the debug version of
 the Microsoft Visual C++ standard library.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">std::array</span></code> cannot be swapped in DPC++ kernels with <code class="docutils literal notranslate"><span class="pre">std::swap</span></code> function or <code class="docutils literal notranslate"><span class="pre">swap</span></code> member function
-in the Microsoft Visual C++ standard library. For a workaround, define the
-<code class="docutils literal notranslate"><span class="pre">_USE_STD_VECTOR_ALGORITHMS</span></code> macro to `` 0`` to the source file before including any headers.</p></li>
+<li><p>Some Microsoft* Visual C++ standard library functions use manual vectorization,
+which may cause a “SYCL kernel cannot call undefined functions without the SYCL_EXTERNAL attribute” compilation error.
+To disable it, define <code class="docutils literal notranslate"><span class="pre">_USE_STD_VECTOR_ALGORITHMS</span></code> as <code class="docutils literal notranslate"><span class="pre">0</span></code> before including any headers.
+This affects <code class="docutils literal notranslate"><span class="pre">std::swap</span></code>, the <code class="docutils literal notranslate"><span class="pre">swap</span></code> member function, comparison operators for <code class="docutils literal notranslate"><span class="pre">std::array</span></code> objects,
+and the <a class="reference external" href="https://learn.microsoft.com/en-us/cpp/standard-library/vectorized-stl-algorithms?view=msvc-180">Vectorized MSVC STL Algorithms</a>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">exclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">inclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">exclusive_scan_by_segment</span></code>,
 <code class="docutils literal notranslate"><span class="pre">inclusive_scan_by_segment</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_exclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_inclusive_scan</span></code>,
 when used with C++ standard aligned policies, impose limitations on the initial value type if an
@@ -619,11 +597,6 @@ the <code class="docutils literal notranslate"><span class="pre">sort</span></co
 or cause a segmentation fault when used with a device execution policy on a CPU device. To avoid this issue, pass the
 <code class="docutils literal notranslate"><span class="pre">-fsycl-device-code-split=per_kernel</span></code> option to the compiler or use Intel® oneAPI DPC++/C++ Compiler version 2025.1
 or newer.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">esimd::radix_sort</span></code> and <code class="docutils literal notranslate"><span class="pre">esimd::radix_sort_by_key</span></code> kernel templates fail to compile when a program
-is built with <code class="docutils literal notranslate"><span class="pre">-g</span></code>, <code class="docutils literal notranslate"><span class="pre">-O0</span></code>, <code class="docutils literal notranslate"><span class="pre">-O1</span></code> compiler options and a Linux General Purpose Intel GPUs Driver version older
-than <code class="docutils literal notranslate"><span class="pre">2423.32</span></code> (Rolling) and <code class="docutils literal notranslate"><span class="pre">2350.61</span></code> (LTS) is used.
-See the <a class="reference external" href="https://dgpu-docs.intel.com/releases/releases.html">Release Types</a>
-to find information about the relevant Rolling and LTS releases.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">std::ranges::drop_view</span></code> from libstdc++ version 10 may throw exceptions.
 This can lead to a “SYCL kernel cannot use exceptions” compilation error
 when it is used to pass data to a range-based algorithm with a device policy.</p></li>
@@ -632,17 +605,15 @@ use <code class="docutils literal notranslate"><span class="pre">std::swap</span
 As a result, customizations targeting <code class="docutils literal notranslate"><span class="pre">std::ranges::iter_swap</span></code> will not be respected.</p></li>
 <li><p>Passing rvalue views to <code class="docutils literal notranslate"><span class="pre">ranges::zip_view</span></code> requires standard library support for views with ownership (P2415R2).
 This can be detected using the <code class="docutils literal notranslate"><span class="pre">__cpp_lib_ranges</span></code> feature macro (value <code class="docutils literal notranslate"><span class="pre">202110L</span></code> or higher).</p></li>
-</ul>
-<ul class="simple">
 <li><p>Incorrect results may be produced by <code class="docutils literal notranslate"><span class="pre">exclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">inclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_exclusive_scan</span></code>,
 <code class="docutils literal notranslate"><span class="pre">transform_inclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">exclusive_scan_by_segment</span></code>, <code class="docutils literal notranslate"><span class="pre">inclusive_scan_by_segment</span></code>, <code class="docutils literal notranslate"><span class="pre">reduce_by_segment</span></code>
 with <code class="docutils literal notranslate"><span class="pre">unseq</span></code> or <code class="docutils literal notranslate"><span class="pre">par_unseq</span></code> policy when compiled by Intel® oneAPI DPC++/C++ Compiler 2024.1 or earlier
 with <code class="docutils literal notranslate"><span class="pre">-fiopenmp</span></code>, <code class="docutils literal notranslate"><span class="pre">-fiopenmp-simd</span></code>, <code class="docutils literal notranslate"><span class="pre">-qopenmp</span></code>, <code class="docutils literal notranslate"><span class="pre">-qopenmp-simd</span></code> options on Linux.
 To avoid the issue, pass <code class="docutils literal notranslate"><span class="pre">-fopenmp</span></code> or <code class="docutils literal notranslate"><span class="pre">-fopenmp-simd</span></code> option instead.</p></li>
 </ul>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
                 </article>
@@ -651,18 +622,15 @@ To avoid the issue, pass <code class="docutils literal notranslate"><span class=
               
               
                 <footer class="bd-footer-article">
-                  
-<div class="footer-article-items footer-article__inner">
-  
-    <div class="footer-article-item"><!-- Previous / next buttons -->
+                  <!-- Previous / next buttons -->
 <div class="prev-next-area">
     <a class="left-prev"
-       href="../specification/spec_versions.html"
+       href="index.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">oneDPL Specification Version History</p>
+        <p class="prev-next-title">oneAPI DPC++ Library Developer Guide</p>
       </div>
     </a>
     <a class="right-next"
@@ -674,10 +642,7 @@ To avoid the issue, pass <code class="docutils literal notranslate"><span class=
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
-</div></div>
-  
 </div>
-
                 </footer>
               
             </div>
@@ -712,7 +677,7 @@ To avoid the issue, pass <code class="docutils literal notranslate"><span class=
             
           </div>
           <footer class="bd-footer-content">
-            
+            <div class="bd-footer-content__inner">
 <div class="bd-footer-content__inner container">
   
   <div class="footer-item">
@@ -745,7 +710,7 @@ By Intel
 </div>
   </div>
   
-</div>
+</div></div>
           </footer>
         
 
@@ -754,8 +719,8 @@ By Intel
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script src="../_static/scripts/bootstrap.js?digest=e353d410970836974a52"></script>
-<script src="../_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52"></script>
+  <script src="../_static/scripts/bootstrap.js?digest=12da95d707ffb74b382d"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=12da95d707ffb74b382d"></script>
 
   <footer class="bd-footer">
   </footer>
