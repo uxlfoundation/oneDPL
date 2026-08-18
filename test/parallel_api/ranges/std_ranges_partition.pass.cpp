@@ -52,10 +52,11 @@ main()
     test_range_algo<5, int, data_in, gen_one_false>{}(dpl_ranges::partition, partition_checker, pred1);
 
     // Projections: a callable one and the pointer-to-data-member/pointer-to-member-function ones.
-    test_range_algo<6, int, data_in, gen_eq4_proj>{}(dpl_ranges::partition, partition_checker, pred2, proj);
-    test_range_algo<7, P2, data_in, gen_alternate>{}(dpl_ranges::partition, partition_checker, pred1, &P2::x);
-    test_range_algo<8, P2, data_in, gen_blocked>{}(dpl_ranges::partition, partition_checker, pred1, &P2::proj);
+    test_range_algo<6, P2, data_in, gen_alternate>{}(dpl_ranges::partition, partition_checker, pred1, &P2::x);
+    test_range_algo<7, P2, data_in, gen_blocked>{}(dpl_ranges::partition, partition_checker, pred1, &P2::proj);
 #endif
+    test_range_algo<8, int, data_in, gen_eq4_proj>{}(dpl_ranges::partition, partition_checker, pred2, proj);
+
     // Other predicates.
     test_range_algo<9, int, data_in, gen_eq4>{}(dpl_ranges::partition, partition_checker, pred2);
     test_range_algo<10, int, data_in, gen_negative>{}(dpl_ranges::partition, partition_checker, pred3);

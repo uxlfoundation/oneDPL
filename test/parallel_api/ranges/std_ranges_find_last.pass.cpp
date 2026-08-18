@@ -41,11 +41,12 @@ main()
     namespace dpl_ranges = oneapi::dpl::ranges;
 
     test_range_algo<0>{big_sz}(dpl_ranges::find_last, checker, 314);
-    test_range_algo<1, P2>{}(dpl_ranges::find_last, checker, -359, &P2::proj); // not found
+    test_range_algo<1>{}(dpl_ranges::find_last, checker, -359); // not found
 
 #if ONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS
     test_range_algo<2>{}(dpl_ranges::find_last, checker, 271, proj);
     test_range_algo<3, P2>{}(dpl_ranges::find_last, checker, 99, &P2::x);
+    test_range_algo<1, P2>{}(dpl_ranges::find_last, checker, -359, &P2::proj); // not found
 #endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
