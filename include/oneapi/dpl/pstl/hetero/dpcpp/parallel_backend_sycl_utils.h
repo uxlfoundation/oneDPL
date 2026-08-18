@@ -576,7 +576,7 @@ struct __copyable_storage_state
     std::shared_ptr<_T> __result_buf;
     std::shared_ptr<_T> __scratch_buf;
     sycl::buffer<_T, 1> __sycl_buf;
-    std::size_t         __result_sz = 0;
+    std::size_t __result_sz = 0;
     std::size_t         __scratch_sz = 0;
     sycl::usm::alloc    __kind = sycl::usm::alloc::unknown;
 };
@@ -848,10 +848,16 @@ __load_result(_Storage<_T>& __storage, _T __result_holder)
 }
 
 template <typename _T, template <typename> typename _Storage>
-std::enable_if_t<std::is_default_constructible_v<_T>, _T>
+_T
 __load_result(_Storage<_T>& __storage)
 {
-    return __load_result(__storage, _T{});
+    // Avoid the default constructor for _T. Since _T is device copyable, copy construction
+    // is equivalent to a bitwise copy and we may treat __space.__v as constructed after the data transfer.
+    // There is no need to destroy it afterwards, as the destructor must have no effect.
+    oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
+    __storage.__copy_result(&__space.__v, 1);
+
+    return __space.__v;
 }
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
