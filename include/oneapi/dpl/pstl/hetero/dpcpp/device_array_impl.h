@@ -192,22 +192,16 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
 
     // Writes a single element, so unlike the bulk overloads __dst_offset == size() throws.
     void
-    write_at(const value_type& __value, size_type __dst_offset, sycl::queue __q, sycl::event __depends_on = {})
+    write_at(size_type __dst_offset, const value_type& __value, sycl::queue __q, sycl::event __depends_on = {})
     {
         _Base::__check_element_pos(__dst_offset);
         _Base::__fill_n(__value, 1, __dst_offset, __q, __depends_on);
     }
 
     void
-    write_at(const value_type& __value, sycl::queue __q, sycl::event __depends_on = {})
+    write_at(size_type __dst_offset, const value_type& __value)
     {
-        write_at(__value, 0, __q, __depends_on);
-    }
-
-    void
-    write_at(const value_type& __value, size_type __dst_offset = 0)
-    {
-        write_at(__value, __dst_offset, _Base::__make_queue());
+        write_at(__dst_offset, __value, _Base::__make_queue());
     }
 
     // -- Observers --
