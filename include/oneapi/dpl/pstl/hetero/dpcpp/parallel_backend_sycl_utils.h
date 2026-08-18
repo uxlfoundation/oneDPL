@@ -967,6 +967,15 @@ __to_future_payload(_SrcDataT&& __data)
     return std::forward<_SrcDataT>(__data);
 }
 
+// __device_storage is a move-only lifetime-only payload, but __future must stay copyable,
+// so such a payload is kept by a shared ownership
+template <typename _T>
+std::shared_ptr<__device_storage<_T>>
+__to_future_payload(__device_storage<_T>&& __ds)
+{
+    return std::make_shared<__device_storage<_T>>(std::move(__ds));
+}
+
 template <typename _T>
 __result_and_scratch_storage<_T>
 __to_future_payload(__combined_storage<_T>&& __cst)
