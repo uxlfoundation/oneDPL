@@ -986,6 +986,15 @@ __to_future_payload(__combined_storage<_T>&& __cst)
     return __result_and_scratch_storage<_T>(std::move(__data));
 }
 
+// This overload prevents a silent slicing to the __device_storage base class,
+// which would lose the __result_storage state required to read the result on the host
+template <typename _T>
+void
+__to_future_payload(__result_storage<_T>&&)
+{
+    static_assert(sizeof(_T) == 0, "__result_storage is not supported as a __future payload");
+}
+
 // Additional payload items (__extra) are placed before the items of __res: the first payload item
 // is the one returned by __future::get()
 template <typename... _Args, typename... _ExtraArgs>
