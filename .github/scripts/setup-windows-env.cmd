@@ -17,6 +17,8 @@ REM
 :: Sets up the build environment on a Windows runner, via oneAPI's setvars.bat
 :: if available, otherwise falling back to MSVC's vcvarsall.bat.
 
+SETLOCAL ENABLEDELAYEDEXPANSION
+
 if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
   call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
   if !errorlevel! neq 0 exit /b !errorlevel!
