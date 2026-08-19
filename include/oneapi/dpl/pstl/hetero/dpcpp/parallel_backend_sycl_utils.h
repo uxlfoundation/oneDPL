@@ -860,6 +860,69 @@ __load_result(_Storage<_T>& __storage)
     return __space.__v;
 }
 
+template <typename _BackendTag>
+struct __hetero_event;
+
+template <>
+struct __hetero_event<oneapi::dpl::__internal::__device_backend_tag>
+{
+    using __type = sycl::event;
+
+    sycl::event __event;
+
+    __hetero_event() = default;
+    __hetero_event(sycl::event&& __event) : __event(std::move(__event)) {}
+
+    void
+    wait()
+    {
+        __event.wait();
+    }
+
+    void
+    wait_and_throw()
+    {
+        __event.wait_and_throw();
+    }
+
+    operator sycl::event() const { return __event; }
+};
+
+template <typename = void>
+struct __is_hetero_event : std::false_type
+{
+};
+
+template <>
+struct __is_hetero_event<sycl::event> : std::true_type
+{
+};
+
+template <>
+struct __is_hetero_event<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>> : std::true_type
+{
+};
+
+#if _ONEDPL_FPGA_DEVICE
+template <>
+struct __hetero_event<oneapi::dpl::__internal::__fpga_backend_tag>
+    : public __hetero_event<oneapi::dpl::__internal::__device_backend_tag>
+{
+    using __base = __hetero_event<oneapi::dpl::__internal::__device_backend_tag>;
+
+    using __base::__base;
+    using __base::operator=;
+};
+
+template <>
+struct __is_hetero_event<__hetero_event<oneapi::dpl::__internal::__fpga_backend_tag>> : std::true_type
+{
+};
+#endif // _ONEDPL_FPGA_DEVICE
+
+template <typename _TEvent>
+constexpr bool __is_hetero_event_v = __is_hetero_event<std::decay_t<_TEvent>>::value;
+
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
 {
@@ -874,9 +937,9 @@ struct __deferrable_mode
 {
 };
 
-template <typename _WaitModeTag = __sync_mode, typename _Event>
-std::enable_if_t<std::is_same_v<std::decay_t<_Event>, sycl::event>>
-__finalize_call(_Event&& __event)
+template <typename _WaitModeTag = __sync_mode, typename _TEvent>
+std::enable_if_t<__is_hetero_event_v<_TEvent>>
+__finalize_call(_TEvent&& __event)
 {
     if constexpr (std::is_same_v<_WaitModeTag, __async_mode>)
     {
@@ -907,12 +970,9 @@ using __resolve_wait_mode =
 // sycl::event::wait_and_throw() is non-const, and the payload of the tuple must outlive the waiting,
 // so passing a temporary tuple here is prohibited.
 template <typename _WaitModeTag = __sync_mode, template <typename...> typename _Tuple, typename... _Args>
-void
+std::enable_if_t<!__is_hetero_event_v<_Tuple<_Args...>>>
 __finalize_call(_Tuple<_Args...>& __tuple)
 {
-    static_assert(std::is_same_v<sycl::event, std::decay_t<std::tuple_element_t<0, _Tuple<_Args...>>>>,
-                  "The first element of the tuple must be sycl::event");
-
     __finalize_call<__resolve_wait_mode<_WaitModeTag, _Args...>>(std::get<0>(__tuple));
 }
 
@@ -927,10 +987,10 @@ struct __lifetime_payload
 //A contract for future class: <sycl::event or other event, payload items: a value, __result_and_scratch_storage
 //or __lifetime_payload>
 //Impl details: inheritance (private) instead of aggregation for enabling the empty base optimization.
-template <typename _Event, typename... _Args>
+template <typename _BackendTag, typename... _Args>
 class __future : private std::tuple<_Args...>
 {
-    _Event __my_event;
+    __hetero_event<_BackendTag> __my_event;
 
     template <typename _T, std::size_t _NResults>
     _T
@@ -956,14 +1016,20 @@ class __future : private std::tuple<_Args...>
     }
 
   public:
-    __future(_Event __e, _Args... __args) : std::tuple<_Args...>(__args...), __my_event(__e) {}
+    __future(__hetero_event<_BackendTag> __e, _Args... __args)
+        : std::tuple<_Args...>(__args...), __my_event(std::move(__e))
+    {
+    }
 
     auto
     event() const
     {
         return __my_event;
     }
-    operator _Event() const { return event(); }
+
+    using __native_event_t = typename __hetero_event<_BackendTag>::__type;
+    operator __native_event_t() const { return event(); }
+
     void
     wait()
     {
@@ -1020,9 +1086,9 @@ __to_future_payload(__result_storage<_T>&&)
 
 // Additional payload items (__extra) are placed before the items of __res: the first payload item
 // is the one returned by __future::get()
-template <typename... _Args, typename... _ExtraArgs>
+template <typename _BackendTag, typename... _Args, typename... _ExtraArgs>
 auto
-__create_future(std::tuple<sycl::event, _Args...> __res, _ExtraArgs&&... __extra)
+__create_future(std::tuple<__hetero_event<_BackendTag>, _Args...> __res, _ExtraArgs&&... __extra)
 {
     static_assert(sizeof...(_ExtraArgs) <= 1, "At most one additional payload item is expected");
 

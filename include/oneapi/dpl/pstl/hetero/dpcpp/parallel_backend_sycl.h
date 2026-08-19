@@ -396,7 +396,8 @@ __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
-std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
+std::tuple<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>,
+           __combined_storage<typename _InitType::__value_type>>
 __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __in_rng,
                           _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op, _InitType __init,
                           _BinaryOperation __binary_op, _Inclusive)
@@ -520,7 +521,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
 
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
-std::tuple<sycl::event,
+std::tuple<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>,
            __combined_storage<oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
 __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
                                               _Range3&& __out_keys, _Range4&& __out_values,
@@ -1443,7 +1444,7 @@ template <
     typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
     std::enable_if_t<__is_radix_sort_usable_for_type<oneapi::dpl::__internal::__key_t<_Proj, _Range>, _Compare>::value,
                      int> = 0>
-std::tuple<sycl::event>
+std::tuple<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                        _Compare, _Proj __proj)
 {
@@ -1474,7 +1475,7 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _Execution
 // TODO: consider changing __partial_merge_kernel to make it compatible with
 //       __full_merge_kernel in order to use __parallel_sort_impl routine
 template <typename _ExecutionPolicy, typename _Iterator, typename _Compare>
-sycl::event
+__hetero_event<oneapi::dpl::__internal::__device_backend_tag>
 __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Iterator __first,
                         _Iterator __mid, _Iterator __last, _Compare __comp)
 {
@@ -1600,13 +1601,15 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         unseq_backend::__brick_assign_key_position{})[0];
 
     //reduce by segment
-    sycl::event __event = oneapi::dpl::__par_backend_hetero::__parallel_for(
-        oneapi::dpl::__internal::__device_backend_tag{},
-        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce1_wrapper>(__exec),
-        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n)>(__binary_op, __n), __intermediate_result_end,
-        oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx),
-                                                __intermediate_result_end),
-        std::forward<_Range2>(__values), oneapi::dpl::__ranges::views::all_write(__tmp_out_values));
+    oneapi::dpl::__par_backend_hetero::__hetero_event<oneapi::dpl::__internal::__device_backend_tag> __event =
+        oneapi::dpl::__par_backend_hetero::__parallel_for(
+            oneapi::dpl::__internal::__device_backend_tag{},
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce1_wrapper>(__exec),
+            unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__n)>(__binary_op, __n),
+            __intermediate_result_end,
+            oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx),
+                                                    __intermediate_result_end),
+            std::forward<_Range2>(__values), oneapi::dpl::__ranges::views::all_write(__tmp_out_values));
     oneapi::dpl::__par_backend_hetero::__finalize_call(__event);
 
     // Round 2: final reduction to get result for each segment of equal adjacent keys
@@ -1638,16 +1641,17 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         unseq_backend::__brick_assign_key_position{})[0];
 
     //reduce by segment
-    sycl::event __res2 = oneapi::dpl::__par_backend_hetero::__parallel_for(
-        oneapi::dpl::__internal::__device_backend_tag{},
-        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(
-            std::forward<_ExecutionPolicy>(__exec)),
-        unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__intermediate_result_end)>(
-            __binary_op, __intermediate_result_end),
-        __result_end,
-        oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx), __result_end),
-        oneapi::dpl::__ranges::views::all_read(__tmp_out_values), std::forward<_Range4>(__out_values));
-    oneapi::dpl::__par_backend_hetero::__finalize_call<__deferrable_mode>(__res2);
+    oneapi::dpl::__par_backend_hetero::__hetero_event<oneapi::dpl::__internal::__device_backend_tag> __event2 =
+        oneapi::dpl::__par_backend_hetero::__parallel_for(
+            oneapi::dpl::__internal::__device_backend_tag{},
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__reduce2_wrapper>(
+                std::forward<_ExecutionPolicy>(__exec)),
+            unseq_backend::__brick_reduce_idx<_BinaryOperator, decltype(__intermediate_result_end)>(
+                __binary_op, __intermediate_result_end),
+            __result_end,
+            oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx), __result_end),
+            oneapi::dpl::__ranges::views::all_read(__tmp_out_values), std::forward<_Range4>(__out_values));
+    oneapi::dpl::__par_backend_hetero::__finalize_call<__deferrable_mode>(__event2);
 
     return __result_end;
 }
@@ -1698,8 +1702,9 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 //------------------------------------------------------------------------
 template <typename _CustomName, bool __is_inclusive, typename _Range1, typename _Range2, typename _Range3,
           typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
-std::tuple<sycl::event, __combined_storage<
-                            oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
+std::tuple<
+    __hetero_event<oneapi::dpl::__internal::__device_backend_tag>,
+    __combined_storage<oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
 __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
                                             _Range3&& __out_values, _BinaryPredicate __binary_pred,
                                             _BinaryOperator __binary_op, [[maybe_unused]] _InitType __init)

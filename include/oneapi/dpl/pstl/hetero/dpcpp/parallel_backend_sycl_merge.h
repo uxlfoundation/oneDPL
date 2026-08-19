@@ -210,6 +210,8 @@ using _split_points_device_storage_t = __device_storage<_split_point_t<_IndexT>>
 using _split_points_device_storage32_t = _split_points_device_storage_t<std::uint32_t>;
 using _split_points_device_storage64_t = _split_points_device_storage_t<std::uint64_t>;
 
+using __parallel_merge_return_data_event_t = __hetero_event<oneapi::dpl::__internal::__device_backend_tag>;
+
 // Item 0 : event,
 // Item 1 : split points storage for merge operations with _IdType = std::uint32_t
 // Item 2 : split points storage for merge operations with _IdType = std::uint64_t
@@ -217,10 +219,10 @@ using _split_points_device_storage64_t = _split_points_device_storage_t<std::uin
 template <typename _OutSizeLimit, typename _Range1, typename _Range2>
 using __parallel_merge_return_data_t = std::conditional_t<
     _OutSizeLimit{},
-    std::tuple<sycl::event,
+    std::tuple<__parallel_merge_return_data_event_t,
                _split_points_device_storage32_t, _split_points_device_storage64_t,
                __result_storage<oneapi::dpl::__internal::__difference_tuple_t<_Range1, _Range2>>>,
-    std::tuple<sycl::event,
+    std::tuple<__parallel_merge_return_data_event_t,
                _split_points_device_storage32_t, _split_points_device_storage64_t>>;
 
 template <typename _OutSizeLimit, typename _Range1, typename _Range2, typename _IdType>
@@ -255,9 +257,9 @@ __create_parallel_merge_return_data(sycl::queue& __q, std::size_t __split_points
     };
 
     if constexpr (_OutSizeLimit{})
-        return {sycl::event(), __create_sp_storage_32(), __create_sp_storage_64(), __create_result_storage()};
+        return {__hetero_event<oneapi::dpl::__internal::__device_backend_tag>(), __create_sp_storage_32(), __create_sp_storage_64(), __create_result_storage()};
     else
-        return {sycl::event(), __create_sp_storage_32(), __create_sp_storage_64()};
+        return {__hetero_event<oneapi::dpl::__internal::__device_backend_tag>(), __create_sp_storage_32(), __create_sp_storage_64()};
 }
 
 // Sentinel type used as a stand-in for the stop-position accessor when _OutSizeLimit=false.
@@ -320,7 +322,7 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
             __q, /*__split_points_count*/ 0);
 
         // Save sycl::event instance into the first element of __result
-        std::get<0>(__result) = __q.submit([&](sycl::handler& __cgh) {
+        sycl::event __event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2, __rng3);
 
             auto __stop_pos_acc = __get_parallel_merge_stop_pos_accessor_opt<_OutSizeLimit, _Range1, _Range2>(
@@ -346,6 +348,8 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
                 }
             });
         });
+
+        std::get<0>(__result) = __parallel_merge_return_data_event_t(std::move(__event));
 
         return std::move(__result);
     }
@@ -509,9 +513,10 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
             __get_parallel_merge_sp_storage<_OutSizeLimit, _IdType, _Range1, _Range2>(__result));
 
         // Merge data using split points on each diagonal
-        // Save sycl::event instance into the first element of __result
-        std::get<0>(__result) = run_parallel_merge(__event, __q, __rng1, __rng2, __rng3, __comp, __proj1, __proj2,
-                                                   __nd_range_params, __result);
+        __event = run_parallel_merge(__event, __q, __rng1, __rng2, __rng3, __comp, __proj1, __proj2, __nd_range_params,
+                                     __result);
+
+        std::get<0>(__result) = __parallel_merge_return_data_event_t(std::move(__event));
 
         return std::move(__result);
     }

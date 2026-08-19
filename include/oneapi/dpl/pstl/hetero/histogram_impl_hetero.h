@@ -138,11 +138,13 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
             _global_histogram_type{0}};
         //fill histogram bins with zeros
 
-        auto __init_event = oneapi::dpl::__par_backend_hetero::__parallel_for(
-            _BackendTag{}, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__hist_fill_zeros_wrapper>(__exec),
-            unseq_backend::walk_n_vectors_or_scalars<decltype(__fill_func)>{__fill_func,
-                                                                            static_cast<std::size_t>(__num_bins)},
-            __num_bins, __bins);
+        oneapi::dpl::__par_backend_hetero::__hetero_event<_BackendTag> __init_event =
+            oneapi::dpl::__par_backend_hetero::__parallel_for(
+                _BackendTag{},
+                oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__hist_fill_zeros_wrapper>(__exec),
+                unseq_backend::walk_n_vectors_or_scalars<decltype(__fill_func)>{__fill_func,
+                                                                                static_cast<std::size_t>(__num_bins)},
+                __num_bins, __bins);
 
         if (__n > 0)
         {
@@ -153,9 +155,10 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
                 oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read>();
             auto __input_buf = __keep_input(__first, __last);
 
-            auto __event = oneapi::dpl::__par_backend_hetero::__parallel_histogram(
-                _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __init_event, __input_buf.all_view(),
-                std::move(__bins), __binhash_manager);
+            oneapi::dpl::__par_backend_hetero::__hetero_event<_BackendTag> __event =
+                oneapi::dpl::__par_backend_hetero::__parallel_histogram(
+                    _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __init_event, __input_buf.all_view(),
+                    std::move(__bins), __binhash_manager);
             oneapi::dpl::__par_backend_hetero::__finalize_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__event);
         }
         else

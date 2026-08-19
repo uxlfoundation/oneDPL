@@ -132,7 +132,7 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
                                                    __internal::__optional_kernel_name<_Name...>>
 {
     template <typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
-    std::tuple<sycl::event, __combined_storage<_Tp>>
+    std::tuple<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>, __combined_storage<_Tp>>
     operator()(sycl::queue& __q, const _Size __n, const _Size __work_group_size, const _Size __iters_per_work_item,
                _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs) const
     {
@@ -164,7 +164,7 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
 
 template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _Size,
           typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
-std::tuple<sycl::event, __combined_storage<_Tp>>
+std::tuple<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>, __combined_storage<_Tp>>
 __parallel_transform_reduce_small_impl(sycl::queue& __q, const _Size __n, const _Size __work_group_size,
                                        const _Size __iters_per_work_item, _ReduceOp __reduce_op,
                                        _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
@@ -230,7 +230,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
                                                                __internal::__optional_kernel_name<_KernelName...>>
 {
     template <typename _Size, typename _ReduceOp, typename _InitType>
-    std::tuple<sycl::event, __combined_storage<_Tp>>
+    std::tuple<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>, __combined_storage<_Tp>>
     operator()(sycl::queue& __q, const sycl::event& __reduce_event, const _Size __n, const _Size __work_group_size,
                const _Size __iters_per_work_item, _ReduceOp __reduce_op, _InitType __init,
                __combined_storage<_Tp>&& __scratch_container) const
@@ -265,7 +265,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
 
 template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _Size,
           typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
-std::tuple<sycl::event, __combined_storage<_Tp>>
+std::tuple<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>, __combined_storage<_Tp>>
 __parallel_transform_reduce_mid_impl(sycl::queue& __q, const _Size __n, const _Size __work_group_size,
                                      const _Size __iters_per_work_item_device_kernel,
                                      const _Size __iters_per_work_item_work_group_kernel, _ReduceOp __reduce_op,
@@ -298,7 +298,7 @@ template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_
 struct __parallel_transform_reduce_impl
 {
     template <typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
-    static std::tuple<sycl::event, __combined_storage<_Tp>>
+    static std::tuple<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>, __combined_storage<_Tp>>
     submit(sycl::queue& __q, _Size __n, _Size __work_group_size, const _Size __iters_per_work_item,
            _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
     {
@@ -422,7 +422,7 @@ struct __parallel_transform_reduce_impl
 // reduced in each step.
 template <typename _Tp, typename _Commutative, typename _ExecutionPolicy, typename _ReduceOp, typename _TransformOp,
           typename _InitType, typename... _Ranges>
-std::tuple<sycl::event, __combined_storage<_Tp>>
+std::tuple<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>, __combined_storage<_Tp>>
 __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                             _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
 {
