@@ -1329,7 +1329,7 @@ struct __internal::__shift_left_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
-                 std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
+                 std::ranges::sized_range<_R> && std::permutable<std::ranges::iterator_t<_R>>
 
     std::ranges::borrowed_subrange_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, std::ranges::range_difference_t<_R> __shift) const
