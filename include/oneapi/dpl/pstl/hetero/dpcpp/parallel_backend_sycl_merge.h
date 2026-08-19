@@ -291,20 +291,6 @@ __get_parallel_merge_sp_storage(__parallel_merge_return_data_t<_OutSizeLimit, _R
         return std::get<2>(__data);
 }
 
-// Get the accessor to the split points storage for merge operations
-template <typename _OutSizeLimit, typename _ModeTagT, typename _Range1, typename _Range2, typename _IdType>
-auto
-__get_parallel_merge_sp_accessor(_ModeTagT __mode, sycl::handler& __cgh,
-                                 __parallel_merge_return_data_t<_OutSizeLimit, _Range1, _Range2>& __data,
-                                 const sycl::property_list& __prop_list = {})
-{
-    static_assert(std::is_same_v<_IdType, std::uint32_t> || std::is_same_v<_IdType, std::uint64_t>,
-                  "The _IdType must be either std::uint32_t or std::uint64_t");
-
-    return __get_accessor(__mode, __get_parallel_merge_sp_storage<_OutSizeLimit, _IdType, _Range1, _Range2>(__data),
-                          __cgh, __prop_list);
-}
-
 // Please see the comment for __parallel_for_small_submitter for optional kernel name explanation
 template <typename _OutSizeLimit, typename _IdType, typename _Name>
 struct __parallel_merge_submitter;
