@@ -105,10 +105,10 @@ struct __uninitialized_copy_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
               __nothrow_random_access_range _OutRange>
-        requires std::constructible_from<std::ranges::range_value_t<_OutRange>,
-                                         std::ranges::range_reference_t<_InRange>> &&
-                 oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
-                 std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange> &&
+                 std::constructible_from<std::ranges::range_value_t<_OutRange>,
+                                         std::ranges::range_reference_t<_InRange>>
 
     std::ranges::uninitialized_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
                                            std::ranges::borrowed_iterator_t<_OutRange>>
