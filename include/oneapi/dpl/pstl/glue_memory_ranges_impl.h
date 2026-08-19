@@ -156,9 +156,9 @@ namespace __internal
 struct __uninitialized_fill_fn
 {
     template <typename _ExecutionPolicy, __nothrow_random_access_range _R, typename _T = std::ranges::range_value_t<_R>>
-        requires std::constructible_from<std::ranges::range_value_t<_R>, const _T&> &&
-                 oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
-                 std::ranges::sized_range<_R>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R> &&
+                 std::constructible_from<std::ranges::range_value_t<_R>, const _T&>
 
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value) const
