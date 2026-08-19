@@ -16,8 +16,9 @@ REM
 
 :: Sets up the build environment on a Windows runner, via oneAPI's setvars.bat
 :: if available, otherwise falling back to MSVC's vcvarsall.bat.
-
-SETLOCAL ENABLEDELAYEDEXPANSION
+::
+:: The caller must call SETLOCAL ENABLEDELAYEDEXPANSION,
+:: adding it here will nullify setvars.bat/vcvarsall.bat effect on the caller side.
 
 if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
   call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
