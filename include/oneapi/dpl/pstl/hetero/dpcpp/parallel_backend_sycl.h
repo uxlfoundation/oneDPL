@@ -1254,179 +1254,6 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 }
 
 //------------------------------------------------------------------------
-// parallel_merge - async pattern
-//-----------------------------------------------------------------------
-
-// Partial merge implementation with O(log(k)) per routine complexity.
-// Note: the routine assumes that the 2nd sequence goes after the first one, meaning that end_1 == start_2.
-//
-// The picture below shows how the merge is performed:
-//
-// input:
-//    start_1     part_end_1   end_1  start_2     part_end_2   end_2
-//      |_____________|_________|       |_____________|_________|
-//      |______p1_____|___p2____|       |_____p3______|___p4____|
-//
-// Usual merge is performed on p1 and p3, the result is written to the beginning of the buffer.
-// p2 and p4 are just copied to the then of the buffer as pictured below:
-//
-//    start_3
-//      |_____________________________ __________________
-//      |______sorted p1 and p3_______|____p2___|___p4___|
-//
-// Only first k elements from sorted p1 and p3 are guaranteed to be less than(or according to __comp) elements
-// from p2 and p4. And these k elements are the only ones we care about.
-template <typename _Ksize>
-struct __partial_merge_kernel
-{
-    const _Ksize __k;
-    template <typename _Idx, typename _Acc1, typename _Size1, typename _Acc2, typename _Size2, typename _Acc3,
-              typename _Size3, typename _Compare>
-    void
-    operator()(_Idx __global_idx, const _Acc1& __in_acc1, _Size1 __start_1, _Size1 __end_1, const _Acc2& __in_acc2,
-               _Size2 __start_2, _Size2 __end_2, const _Acc3& __out_acc, _Size3 __out_shift, _Compare __comp) const
-    {
-        const auto __part_end_1 = sycl::min(__start_1 + __k, __end_1);
-        const auto __part_end_2 = sycl::min(__start_2 + __k, __end_2);
-
-        // Handle elements from p1
-        if (__global_idx >= __start_1 && __global_idx < __part_end_1)
-        {
-            const auto __shift =
-                /* index inside p1 */ __global_idx - __start_1 +
-                /* relative position in p3 */
-                oneapi::dpl::__internal::__pstl_lower_bound_idx(__in_acc2, __start_2, __part_end_2, __in_acc1,
-                                                                __global_idx, __comp, oneapi::dpl::identity{},
-                                                                oneapi::dpl::identity{}) -
-                __start_2;
-            __out_acc[__out_shift + __shift] = __in_acc1[__global_idx];
-        }
-        // Handle elements from p2
-        else if (__global_idx >= __part_end_1 && __global_idx < __end_1)
-        {
-            const auto __shift =
-                /* index inside p2 */ (__global_idx - __part_end_1) +
-                /* size of p1 + size of p3 */ (__part_end_1 - __start_1) + (__part_end_2 - __start_2);
-            __out_acc[__out_shift + __shift] = __in_acc1[__global_idx];
-        }
-        // Handle elements from p3
-        else if (__global_idx >= __start_2 && __global_idx < __part_end_2)
-        {
-            const auto __shift =
-                /* index inside p3 */ __global_idx - __start_2 +
-                /* relative position in p1 */
-                oneapi::dpl::__internal::__pstl_upper_bound_idx(__in_acc1, __start_1, __part_end_1, __in_acc2,
-                                                                __global_idx, __comp, oneapi::dpl::identity{},
-                                                                oneapi::dpl::identity{}) -
-                __start_1;
-            __out_acc[__out_shift + __shift] = __in_acc2[__global_idx];
-        }
-        // Handle elements from p4
-        else if (__global_idx >= __part_end_2 && __global_idx < __end_2)
-        {
-            const auto __shift =
-                /* index inside p4 + size of p3 */ __global_idx - __start_2 +
-                /* size of p1, p2 */ __end_1 - __start_1;
-            __out_acc[__out_shift + __shift] = __in_acc2[__global_idx];
-        }
-    }
-};
-
-// Please see the comment above __parallel_for_small_submitter for optional kernel name explanation
-template <typename _GlobalSortName, typename _CopyBackName>
-struct __parallel_partial_sort_submitter;
-
-template <typename... _GlobalSortName, typename... _CopyBackName>
-struct __parallel_partial_sort_submitter<__internal::__optional_kernel_name<_GlobalSortName...>,
-                                         __internal::__optional_kernel_name<_CopyBackName...>>
-{
-    template <typename _Range, typename _Merge, typename _Compare>
-    __future<sycl::event>
-    operator()(sycl::queue& __q, _Range&& __rng, _Merge __merge, _Compare __comp) const
-    {
-        using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
-        using _Size = oneapi::dpl::__internal::__difference_t<_Range>;
-
-        _Size __n = oneapi::dpl::__ranges::__size(__rng);
-        assert(__n > 1);
-
-        oneapi::dpl::__par_backend_hetero::__buffer<_Tp> __temp_buf(__n);
-        auto __temp = __temp_buf.get_buffer();
-        _PRINT_INFO_IN_DEBUG_MODE(__q);
-
-        _Size __k = 1;
-        bool __data_in_temp = false;
-        sycl::event __event1;
-        do
-        {
-            __event1 = __q.submit([&, __data_in_temp, __k](sycl::handler& __cgh) {
-                __cgh.depends_on(__event1);
-                oneapi::dpl::__ranges::__require_access(__cgh, __rng);
-                auto __temp_acc = __temp.template get_access<access_mode::read_write>(__cgh);
-                __cgh.parallel_for<_GlobalSortName...>(
-                    sycl::range</*dim=*/1>(__n), [=](sycl::item</*dim=*/1> __item) {
-                        auto __global_idx = __item.get_linear_id();
-
-                        _Size __start = 2 * __k * (__global_idx / (2 * __k));
-                        _Size __end_1 = sycl::min(__start + __k, __n);
-                        _Size __end_2 = sycl::min(__start + 2 * __k, __n);
-
-                        if (!__data_in_temp)
-                        {
-                            __merge(__global_idx, __rng, __start, __end_1, __rng, __end_1, __end_2, __temp_acc, __start,
-                                    __comp);
-                        }
-                        else
-                        {
-                            __merge(__global_idx, __temp_acc, __start, __end_1, __temp_acc, __end_1, __end_2, __rng,
-                                    __start, __comp);
-                        }
-                    });
-            });
-            __data_in_temp = !__data_in_temp;
-            __k *= 2;
-        } while (__k < __n);
-
-        // if results are in temporary buffer then copy back those
-        if (__data_in_temp)
-        {
-            __event1 = __q.submit([&](sycl::handler& __cgh) {
-                __cgh.depends_on(__event1);
-                oneapi::dpl::__ranges::__require_access(__cgh, __rng);
-                auto __temp_acc = __temp.template get_access<access_mode::read>(__cgh);
-                // we cannot use __cgh.copy here because of zip_iterator usage
-                __cgh.parallel_for<_CopyBackName...>(sycl::range</*dim=*/1>(__n), [=](sycl::item</*dim=*/1> __item) {
-                    __rng[__item.get_linear_id()] = __temp_acc[__item];
-                });
-            });
-        }
-        // return future and extend lifetime of temporary buffer
-        return __future{std::move(__event1)};
-    }
-};
-
-template <typename... _Name>
-class __sort_global_kernel;
-
-template <typename _ExecutionPolicy, typename _Range, typename _Merge, typename _Compare>
-__future<sycl::event>
-__parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
-                             _Merge __merge, _Compare __comp)
-{
-    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
-    using _GlobalSortKernel =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__sort_global_kernel<_CustomName>>;
-    using _CopyBackKernel =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__sort_copy_back_kernel<_CustomName>>;
-
-    sycl::queue __q_local = __exec.queue();
-
-    return __parallel_partial_sort_submitter<_GlobalSortKernel, _CopyBackKernel>()(
-        __q_local, std::forward<_Range>(__rng), __merge, __comp);
-}
-
-//------------------------------------------------------------------------
 // parallel_stable_sort - async pattern
 //-----------------------------------------------------------------------
 
@@ -1476,21 +1303,19 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _Execution
 //-----------------------------------------------------------------------
 
 // TODO: check if it makes sense to move these wrappers out of backend to a common place
-// TODO: consider changing __partial_merge_kernel to make it compatible with
-//       __full_merge_kernel in order to use __parallel_sort_impl routine
+// partial_sort leaves [__mid, __last) in an unspecified order and is not required to be stable, so
+// sorting the whole range satisfies its contract. A partial merge cannot use sorted leaves, so it has
+// to start from runs of one element and launch one kernel over the whole range per merge level.
 template <typename _ExecutionPolicy, typename _Iterator, typename _Compare>
-__future<sycl::event>
+__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Iterator __first,
-                        _Iterator __mid, _Iterator __last, _Compare __comp)
+                        _Iterator /*__mid*/, _Iterator __last, _Compare __comp)
 {
-    const auto __mid_idx = __mid - __first;
-
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf = __keep(__first, __last);
 
-    return __parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag{},
-                                        std::forward<_ExecutionPolicy>(__exec), __buf.all_view(),
-                                        __partial_merge_kernel<decltype(__mid_idx)>{__mid_idx}, __comp);
+    return __parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
+                                __buf.all_view(), __comp);
 }
 
 //------------------------------------------------------------------------
