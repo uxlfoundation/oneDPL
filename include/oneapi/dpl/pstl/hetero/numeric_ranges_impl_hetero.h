@@ -58,8 +58,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2));
     oneapi::dpl::__par_backend_hetero::__finalize_call(__res);
 
-    // The storage keeps _RepackedTp, so the result holder has to be of the same type
-    return __load_result(std::get<1>(__res), _RepackedTp{__init});
+    return __load_result(std::get<1>(__res));
 }
 
 //------------------------------------------------------------------------
@@ -85,8 +84,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
             std::forward<_Range>(__rng));
     oneapi::dpl::__par_backend_hetero::__finalize_call(__res);
 
-    // The storage keeps _RepackedTp, so the result holder has to be of the same type
-    return __load_result(std::get<1>(__res), _RepackedTp{__init});
+    return __load_result(std::get<1>(__res));
 }
 
 //------------------------------------------------------------------------

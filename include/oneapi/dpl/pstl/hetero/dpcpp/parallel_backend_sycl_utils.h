@@ -837,24 +837,11 @@ struct __wait_required_of_finalize_sycl_call<__combined_storage<_T>> : std::true
 };
 
 // Load a single result value from the storage.
-// _T is not required to be default constructible: the caller provides an already constructed
-// object of the storage value type, which is overwritten with the result.
-template <typename _T, template <typename> typename _Storage>
-_T
-__load_result(_Storage<_T>& __storage, _T __result_holder)
-{
-    __storage.__copy_result(&__result_holder, 1);
-    return __result_holder;
-}
-
 template <typename _T, template <typename> typename _Storage>
 _T
 __load_result(_Storage<_T>& __storage)
 {
-    // Avoid the default constructor for _T. Since _T is device copyable, copy construction
-    // is equivalent to a bitwise copy and we may treat __space.__v as constructed after the data transfer.
-    // There is no need to destroy it afterwards, as the destructor must have no effect.
-    oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
+    oneapi::dpl::__internal::__lazy_ctor_storage<typename _Storage::type> __space;
     __storage.__copy_result(&__space.__v, 1);
 
     return __space.__v;
