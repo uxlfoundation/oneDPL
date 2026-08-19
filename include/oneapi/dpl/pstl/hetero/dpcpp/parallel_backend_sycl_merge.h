@@ -469,7 +469,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
                         __start = __base_diagonals_sp_global_ptr[__diagonal_idx];
                     }
 
-                    [[maybe_unused]] const std::pair __ends =
+                    const std::pair __ends =
                         __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem,
                                        __nd_range_params.chunk, __n1, __n2, __comp, __proj1, __proj2, __n);
 
