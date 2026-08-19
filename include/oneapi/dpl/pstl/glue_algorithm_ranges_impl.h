@@ -1566,7 +1566,7 @@ struct __internal::__unique_fn
               std::indirect_equivalence_relation<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp =
                   std::ranges::equal_to>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
-                 std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
+                 std::ranges::sized_range<_R> && std::permutable<std::ranges::iterator_t<_R>>
 
     std::ranges::borrowed_subrange_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
