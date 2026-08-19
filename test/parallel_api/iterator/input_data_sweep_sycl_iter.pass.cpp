@@ -228,7 +228,7 @@ void
 test_impl(Policy&& exec)
 {
     constexpr size_t n = 10;
-
+    
     // baseline with no wrapping
     call_wrap_recurse<float, 0>(CLONE_TEST_POLICY_IDX(exec, 0), -666.0f, n, "float");
     call_wrap_recurse<double, 0>(CLONE_TEST_POLICY_IDX(exec, 1), -666.0, n, "double");
@@ -251,9 +251,9 @@ main()
     auto policy = TestUtils::get_dpcpp_test_policy();
     test_impl(policy);
 
-#    if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
     TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
-#    endif
+#endif
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
