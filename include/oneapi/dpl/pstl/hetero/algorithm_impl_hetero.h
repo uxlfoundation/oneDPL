@@ -1223,7 +1223,7 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
                                                                /*_IsNoInitRequested=*/true>();
         auto __buf3 = __keep3(__d_first, __d_first + __n);
 
-        std::tuple __res = __par_backend_hetero::__parallel_merge(
+        __par_backend_hetero::__parallel_merge_return_data_t __res = __par_backend_hetero::__parallel_merge(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
             __buf3.all_view(), __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
         oneapi::dpl::__par_backend_hetero::__finalize_call<oneapi::dpl::__par_backend_hetero::__deferrable_mode>(__res);

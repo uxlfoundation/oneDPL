@@ -210,12 +210,16 @@ using _split_points_device_storage_t = __device_storage<_split_point_t<_IndexT>>
 using _split_points_device_storage32_t = _split_points_device_storage_t<std::uint32_t>;
 using _split_points_device_storage64_t = _split_points_device_storage_t<std::uint64_t>;
 
+// Item 0 : event,
+// Item 1 : split points storage for merge operations with _IdType = std::uint32_t
+// Item 2 : split points storage for merge operations with _IdType = std::uint64_t
+// Item 3 : optional result storage for merge operations (only if _OutSizeLimit is true)
 template <typename _OutSizeLimit, typename _Range1, typename _Range2>
 using __parallel_merge_return_data_t = std::conditional_t<
     _OutSizeLimit{},
     std::tuple<sycl::event,
-               __result_storage<oneapi::dpl::__internal::__difference_tuple_t<_Range1, _Range2>>,
-               _split_points_device_storage32_t, _split_points_device_storage64_t>,
+               _split_points_device_storage32_t, _split_points_device_storage64_t,
+               __result_storage<oneapi::dpl::__internal::__difference_tuple_t<_Range1, _Range2>>>,
     std::tuple<sycl::event,
                _split_points_device_storage32_t, _split_points_device_storage64_t>>;
 
@@ -251,7 +255,7 @@ __create_parallel_merge_return_data(sycl::queue& __q, std::size_t __split_points
     };
 
     if constexpr (_OutSizeLimit{})
-        return {sycl::event(), __create_result_storage(), __create_sp_storage_32(), __create_sp_storage_64()};
+        return {sycl::event(), __create_sp_storage_32(), __create_sp_storage_64(), __create_result_storage()};
     else
         return {sycl::event(), __create_sp_storage_32(), __create_sp_storage_64()};
 }
@@ -269,19 +273,9 @@ __get_parallel_merge_stop_pos_accessor_opt(_ModeTagT __mode, sycl::handler& __cg
                                            const sycl::property_list& __prop_list = {})
 {
     if constexpr (_OutSizeLimit{})
-        return __get_accessor(__mode, std::get<1>(__data), __cgh, __prop_list);
+        return __get_accessor(__mode, std::get<3>(__data), __cgh, __prop_list);
     else
         return __no_parallel_merge_stop_pos_acc_tag{};
-}
-
-template <typename _OutSizeLimit>
-constexpr std::size_t
-__get_parallel_merge_sp_storage_first_idx()
-{
-    if constexpr (_OutSizeLimit{})
-        return 2;
-    else
-        return 1;
 }
 
 template <typename _OutSizeLimit, typename _IdType, typename _Range1, typename _Range2>
@@ -291,12 +285,10 @@ __get_parallel_merge_sp_storage(__parallel_merge_return_data_t<_OutSizeLimit, _R
     static_assert(std::is_same_v<_IdType, std::uint32_t> || std::is_same_v<_IdType, std::uint64_t>,
                   "The _IdType must be either std::uint32_t or std::uint64_t");
 
-    constexpr std::size_t __idx = __get_parallel_merge_sp_storage_first_idx<_OutSizeLimit>();
-
     if constexpr (std::is_same_v<_IdType, std::uint32_t>)
-        return std::get<__idx>(__data);
+        return std::get<1>(__data);
     else
-        return std::get<__idx + 1>(__data);
+        return std::get<2>(__data);
 }
 
 // Get the accessor to the split points storage for merge operations
