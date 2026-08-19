@@ -27,7 +27,7 @@ if [[ "${BACKEND}" == "dpcpp" ]]; then
   # set targets for dpcpp tests
   make_targets="build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests"
   tests_regex="(sycl_iterator_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)|(host_device_storage)"
-  if [[ "${DEVICE_TYPE}" != "acc" ]]; then
+  if [[ "${DEVICE_TYPE}" != "fpga" ]]; then
     make_targets+=" build-onedpl-ranges-tests"
     tests_regex+="|(std_ranges_.*)"
   fi
@@ -55,7 +55,7 @@ if [[ "${CXX_COMPILER}" == "icpx" ]]; then
   EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=recommended-option"
 fi
 
-if [[ "${DEVICE_TYPE}" == "acc" ]]; then
+if [[ "${DEVICE_TYPE}" == "fpga" ]]; then
   EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=deprecated-declarations -DONEDPL_FPGA_DEVICE -DONEDPL_FPGA_EMULATOR"
 fi
 

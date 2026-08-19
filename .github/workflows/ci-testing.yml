@@ -80,7 +80,7 @@ jobs:
             std: 17
             build_type: release
             backend: dpcpp
-            device_type: acc # FPGA emulator
+            device_type: fpga # FPGA emulator
           - os: ubuntu-latest
             cxx_compiler: icpx
             std: 17
@@ -152,9 +152,9 @@ jobs:
       - name: Set up Intel® oneAPI
         uses: ./.github/actions/setup-linux-oneapi
         with:
-          tbb: ${{ matrix.backend == 'tbb' || matrix.backend == 'dpcpp' }}
-          compiler: ${{ matrix.device_type != 'acc' && matrix.cxx_compiler == 'icpx' }}
-          fpga: ${{ matrix.device_type == 'acc' }}
+          tbb: ${{ (matrix.backend == 'tbb' || matrix.backend == 'dpcpp') && matrix.device_type != 'fpga' }}
+          compiler: ${{ matrix.device_type != 'fpga' && matrix.cxx_compiler == 'icpx' }}
+          fpga: ${{ matrix.device_type == 'fpga' }} # it will install compatible icpx and tbb on its own
       - name: Install OpenMP dependencies
         if: (matrix.os == 'ubuntu-latest' && matrix.cxx_compiler == 'clang++' && matrix.backend == 'omp')
         run: |
