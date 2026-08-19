@@ -74,13 +74,13 @@ jobs:
             std: 17
             build_type: release
             backend: dpcpp
-            device_type: CPU
+            device_type: cpu
           - os: ubuntu-latest
             cxx_compiler: icpx
             std: 17
             build_type: release
             backend: dpcpp
-            device_type: FPGA_EMU
+            device_type: acc # FPGA emulator
           - os: ubuntu-latest
             cxx_compiler: icpx
             std: 17
@@ -128,7 +128,7 @@ jobs:
             std: 20
             build_type: RelWithAsserts
             backend: dpcpp
-            device_type: CPU
+            device_type: cpu
           - os: ubuntu-latest
             cxx_compiler: icpx
             std: 20
@@ -153,8 +153,8 @@ jobs:
         uses: ./.github/actions/setup-linux-oneapi
         with:
           tbb: ${{ matrix.backend == 'tbb' || matrix.backend == 'dpcpp' }}
-          compiler: ${{ matrix.device_type != 'FPGA_EMU' && matrix.cxx_compiler == 'icpx' }}
-          fpga: ${{ matrix.device_type == 'FPGA_EMU' }}
+          compiler: ${{ matrix.device_type != 'acc' && matrix.cxx_compiler == 'icpx' }}
+          fpga: ${{ matrix.device_type == 'acc' }}
       - name: Install OpenMP dependencies
         if: (matrix.os == 'ubuntu-latest' && matrix.cxx_compiler == 'clang++' && matrix.backend == 'omp')
         run: |
@@ -194,7 +194,7 @@ jobs:
             std: 17
             build_type: release
             backend: dpcpp
-            device_type: CPU
+            device_type: cpu
           - os: windows-latest
             cxx_compiler: cl
             std: 20
@@ -212,7 +212,7 @@ jobs:
             std: 20
             build_type: RelWithAsserts
             backend: dpcpp
-            device_type: CPU
+            device_type: cpu
     steps:
       - uses: actions/checkout@v6
       - name: Set up Intel® oneAPI
@@ -292,8 +292,6 @@ jobs:
           brew install libomp
       - name: Run testing
         shell: bash
-        env:
-          CXX_COMPILER: ${{ matrix.cxx_compiler }}
         run: |
           set -x
           sysctl -a | grep machdep.cpu
@@ -310,4 +308,5 @@ jobs:
           make VERBOSE=1 build-onedpl-tests -j${MACOS_BUILD_CONCURRENCY} 2>&1 | tee build.log
           ctest --timeout ${TEST_TIMEOUT} --output-on-failure -E "${EXCLUDE_FROM_TESTING}" 2>&1 | tee ctest.log
 
-          ${GITHUB_WORKSPACE}/.github/scripts/generate-job-summary.sh
+          python ${GITHUB_WORKSPACE}/.github/scripts/job_summary.py --build-log build.log --ctest-log ctest.log \
+                                                                   --output-file summary.md --compiler ${{ matrix.cxx_compiler }}

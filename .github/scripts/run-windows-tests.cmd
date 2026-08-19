@@ -68,21 +68,8 @@ type ctest.log
 type build.log
 
 :: Generate a summary
-powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption" > os_name.txt
-set /p os_name=<os_name.txt
-powershell -command "cmake --version | Select-Object -First 1" > cmake_version.txt
-set /p cmake_version=<cmake_version.txt
-:: cl writes the version into stderr
-powershell -command "%CXX_COMPILER% --version | Select-Object -First 1" > compiler_version.txt 2>&1
-set /p compiler_version=<compiler_version.txt
-powershell -command "(Get-CimInstance -ClassName Win32_Processor).Name" > cpu_model.txt
-set /p cpu_model=<cpu_model.txt
 python %GITHUB_WORKSPACE%\.github\scripts\job_summary.py --build-log build.log ^
                                                          --ctest-log ctest.log ^
                                                          --output-file summary.md ^
-                                                         --os "%os_name%" ^
-                                                         --cmake-version "%cmake_version%" ^
-                                                         --compiler-version "%compiler_version%" ^
-                                                         --cpu-model "%cpu_model%"
-type summary.md > "%GITHUB_STEP_SUMMARY%"
+                                                         --compiler %CXX_COMPILER%
 exit /b !exit_code!
