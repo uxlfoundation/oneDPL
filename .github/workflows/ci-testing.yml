@@ -149,23 +149,12 @@ jobs:
             device_type: HOST
     steps:
       - uses: actions/checkout@v6
-      - name: Set up Intel APT repository
-        if: (matrix.backend == 'tbb' || matrix.backend == 'dpcpp' || matrix.cxx_compiler == 'icpx')
-        run: .github/scripts/install-intel-apt-repo.sh
-      - name: Install Intel® oneAPI Threading Building Blocks
-        if: (matrix.backend == 'tbb' || matrix.backend == 'dpcpp')
-        run: |
-          sudo apt-get install intel-oneapi-tbb-devel -y
-      - name: Install Intel® oneAPI DPC++/C++ Compiler
-        if: (matrix.device_type != 'FPGA_EMU' && matrix.cxx_compiler == 'icpx')
-        run: |
-          sudo apt-get install intel-oneapi-compiler-dpcpp-cpp -y
-          # Avoid accidental use of a released version, keeping libpstloffload.so
-          sudo rm -rf ${LINUX_ONEAPI_PATH}/dpl/latest/include
-      - name: Install Intel® oneAPI DPC++/C++ Compiler with SYCL* FPGA Emulator Runtime
-        if: (matrix.device_type == 'FPGA_EMU')
-        run: |
-          sudo apt-get install intel-oneapi-compiler-fpga -y
+      - name: Set up Intel® oneAPI
+        uses: ./.github/actions/setup-linux-oneapi
+        with:
+          tbb: ${{ matrix.backend == 'tbb' || matrix.backend == 'dpcpp' }}
+          compiler: ${{ matrix.device_type != 'FPGA_EMU' && matrix.cxx_compiler == 'icpx' }}
+          fpga: ${{ matrix.device_type == 'FPGA_EMU' }}
       - name: Install OpenMP dependencies
         if: (matrix.os == 'ubuntu-latest' && matrix.cxx_compiler == 'clang++' && matrix.backend == 'omp')
         run: |
@@ -226,14 +215,11 @@ jobs:
             device_type: CPU
     steps:
       - uses: actions/checkout@v6
-      - name: Install Intel® oneAPI Threading Building Blocks
-        if: (matrix.backend == 'tbb' || matrix.backend == 'dpcpp')
-        shell: cmd
-        run: call .github\scripts\install-windows-tbb.cmd
-      - name: Install Intel® oneAPI DPC++/C++ Compiler
-        shell: cmd
-        if: (matrix.cxx_compiler == 'icx-cl' || matrix.cxx_compiler == 'icx')
-        run: call .github\scripts\install-windows-compiler.cmd
+      - name: Set up Intel® oneAPI
+        uses: ./.github/actions/setup-windows-oneapi
+        with:
+          tbb: ${{ matrix.backend == 'tbb' || matrix.backend == 'dpcpp' }}
+          compiler: ${{ matrix.cxx_compiler == 'icx-cl' || matrix.cxx_compiler == 'icx' }}
       - name: Run testing
         shell: cmd
         env:
@@ -243,11 +229,8 @@ jobs:
           BUILD_TYPE: ${{ matrix.build_type }}
           CXX_COMPILER: ${{ matrix.cxx_compiler }}
         run: |
-          :: Set enable delayed expansion to allow proper resolution of errors in if statements and loops
-          SETLOCAL ENABLEDELAYEDEXPANSION
-
           call .github\scripts\run-windows-tests.cmd
-          exit /b !errorlevel!
+          exit /b %errorlevel%
 
   linux-examples-testing:
     name: examples,cmplr=icpx,ubuntu-latest,std=c++17,cfg=release
@@ -259,16 +242,11 @@ jobs:
       BUILD_TYPE: release
     steps:
       - uses: actions/checkout@v6
-      - name: Set up Intel APT repository
-        run: .github/scripts/install-intel-apt-repo.sh
-      - name: Install Intel® oneAPI Threading Building Blocks
-        run: |
-          sudo apt-get install intel-oneapi-tbb-devel -y
-      - name: Install Intel® oneAPI DPC++/C++ Compiler
-        run: |
-          sudo apt-get install intel-oneapi-compiler-dpcpp-cpp -y
-          # Avoid accidental use of a released version, keeping libpstloffload.so
-          sudo rm -rf ${LINUX_ONEAPI_PATH}/dpl/latest/include
+      - name: Set up Intel® oneAPI
+        uses: ./.github/actions/setup-linux-oneapi
+        with:
+          tbb: true
+          compiler: true
       - name: Build and run examples
         shell: bash
         run: .github/scripts/build-run-examples.sh
@@ -283,23 +261,16 @@ jobs:
       BUILD_TYPE: release
     steps:
       - uses: actions/checkout@v6
-      - name: Install Intel® oneAPI Threading Building Blocks
-        shell: cmd
-        run: call .github\scripts\install-windows-tbb.cmd
-      - name: Install Intel® oneAPI DPC++/C++ Compiler
-        shell: cmd
-        run: call .github\scripts\install-windows-compiler.cmd
+      - name: Set up Intel® oneAPI
+        uses: ./.github/actions/setup-windows-oneapi
+        with:
+          tbb: true
+          compiler: true
       - name: Build and run examples
         shell: cmd
         run: |
-          :: Set enable delayed expansion to allow proper resolution of errors in if statements and loops
-          SETLOCAL ENABLEDELAYEDEXPANSION
-
-          call .github\scripts\setup-windows-env.cmd
-          if !errorlevel! neq 0 exit /b !errorlevel!
-
           call .github\scripts\build-run-examples.cmd
-          exit /b !errorlevel!
+          exit /b %errorlevel%
 
   macos-testing:
     name: HOST,bknd=${{ matrix.backend }},cmplr=${{ matrix.cxx_compiler }},${{ matrix.os }},std=c++${{ matrix.std }},cfg=${{ matrix.build_type }}
@@ -321,6 +292,8 @@ jobs:
           brew install libomp
       - name: Run testing
         shell: bash
+        env:
+          CXX_COMPILER: ${{ matrix.cxx_compiler }}
         run: |
           set -x
           sysctl -a | grep machdep.cpu
@@ -337,4 +310,4 @@ jobs:
           make VERBOSE=1 build-onedpl-tests -j${MACOS_BUILD_CONCURRENCY} 2>&1 | tee build.log
           ctest --timeout ${TEST_TIMEOUT} --output-on-failure -E "${EXCLUDE_FROM_TESTING}" 2>&1 | tee ctest.log
 
-          ${GITHUB_WORKSPACE}/.github/scripts/generate-job-summary.sh ${{ matrix.cxx_compiler }}
+          ${GITHUB_WORKSPACE}/.github/scripts/generate-job-summary.sh

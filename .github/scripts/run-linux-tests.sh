@@ -1,8 +1,21 @@
 #!/bin/bash
+##===----------------------------------------------------------------------===##
+#
+# Copyright (C) Intel Corporation
+#
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# This file incorporates work covered by the following copyright and permission
+# notice:
+#
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+#
+##===----------------------------------------------------------------------===##
+
 # Configures, builds and tests oneDPL on Linux.
 # Requires BACKEND, DEVICE_TYPE, STD, BUILD_TYPE, CXX_COMPILER,
-# BUILD_CONCURRENCY, TEST_TIMEOUT and LINUX_ONEAPI_PATH to be set in the
-# environment.
+# BUILD_CONCURRENCY, TEST_TIMEOUT and LINUX_ONEAPI_PATH to be set in the environment.
 
 set -exo pipefail
 
@@ -49,7 +62,7 @@ fi
 cmake -DCMAKE_CXX_STANDARD="${STD}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
   -DCMAKE_CXX_COMPILER="${CXX_COMPILER}" -DONEDPL_BACKEND="${BACKEND}" -DCMAKE_CXX_FLAGS="${EXTRA_CXX_FLAGS}" ..
 make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
-ONEAPI_DEVICE_SELECTOR=*:${DEVICE_TYPE}
+export ONEAPI_DEVICE_SELECTOR=*:${DEVICE_TYPE}
 ctest --timeout "${TEST_TIMEOUT}" --output-on-failure ${ctest_flags} |& tee ctest.log
 
-"${GITHUB_WORKSPACE}/.github/scripts/generate-job-summary.sh" "${CXX_COMPILER}"
+"${GITHUB_WORKSPACE}/.github/scripts/generate-job-summary.sh"

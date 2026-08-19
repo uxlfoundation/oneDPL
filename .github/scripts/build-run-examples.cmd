@@ -1,10 +1,26 @@
+REM
+REM ===----------------------------------------------------------------------===
+REM
+REM Copyright (C) Intel Corporation
+REM
+REM SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+REM
+REM This file incorporates work covered by the following copyright and permission
+REM notice:
+REM
+REM Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+REM See https://llvm.org/LICENSE.txt for license information.
+REM
+REM ===----------------------------------------------------------------------===
+REM
+
 :: Builds and runs every example under %GITHUB_WORKSPACE%\examples on Windows.
-:: Requires CXX_COMPILER, STD, BUILD_TYPE and TEST_TIMEOUT to be set in the
-:: environment.
-::
-:: Must be `call`-ed from a script that has already run
-:: `SETLOCAL ENABLEDELAYEDEXPANSION`, so that !errorlevel! expands to the
-:: value at the time it is read rather than when the block was parsed.
+:: Requires CXX_COMPILER, STD, BUILD_TYPE, BUILD_CONCURRENCY, TEST_TIMEOUT and
+:: WINDOWS_ONEAPI_PATH to be set in the environment.
+
+SETLOCAL ENABLEDELAYEDEXPANSION
+call "%GITHUB_WORKSPACE%\.github\scripts\setup-windows-env.cmd"
+if !errorlevel! neq 0 exit /b !errorlevel!
 
 set exit_code=0
 set BASE_DIR=%cd%
@@ -14,7 +30,7 @@ for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
     mkdir build && cd build
     cmake -GNinja -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DCMAKE_CXX_STANDARD=%STD% -DCMAKE_CXX_COMPILER=%CXX_COMPILER% ..
     if !errorlevel! neq 0 set exit_code=!errorlevel!
-    ninja -v > build.log 2>&1
+    ninja -j %BUILD_CONCURRENCY% -v > build.log 2>&1
     if !errorlevel! neq 0 set exit_code=!errorlevel!
     ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest.log 2>&1
     if !errorlevel! neq 0 set exit_code=!errorlevel!
@@ -28,7 +44,7 @@ for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
       mkdir build_host && cd build_host
       cmake -GNinja -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DCMAKE_CXX_STANDARD=%STD% -DCMAKE_CXX_COMPILER=%CXX_COMPILER% -DCMAKE_CXX_FLAGS=-DBUILD_FOR_HOST ..
       if !errorlevel! neq 0 set exit_code=!errorlevel!
-      ninja -v > build.log 2>&1
+      ninja -j %BUILD_CONCURRENCY% -v > build.log 2>&1
       if !errorlevel! neq 0 set exit_code=!errorlevel!
       ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest.log 2>&1
       if !errorlevel! neq 0 set exit_code=!errorlevel!

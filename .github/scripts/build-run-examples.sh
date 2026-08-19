@@ -1,7 +1,21 @@
 #!/bin/bash
+##===----------------------------------------------------------------------===##
+#
+# Copyright (C) Intel Corporation
+#
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# This file incorporates work covered by the following copyright and permission
+# notice:
+#
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+#
+##===----------------------------------------------------------------------===##
+
 # Build and run every example under $GITHUB_WORKSPACE/examples on Linux.
-# Requires CXX_COMPILER, STD, BUILD_TYPE, TEST_TIMEOUT and LINUX_ONEAPI_PATH
-# to be set in the environment.
+# Requires CXX_COMPILER, STD, BUILD_TYPE, BUILD_CONCURRENCY, TEST_TIMEOUT and
+# LINUX_ONEAPI_PATH to be set in the environment.
 
 set -exo pipefail
 
@@ -14,7 +28,7 @@ fi
 build_and_run() {
   mkdir "$1" && cd "$1"
   cmake -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" -DCMAKE_CXX_STANDARD="${STD}" -DCMAKE_CXX_COMPILER="${CXX_COMPILER}" -DCMAKE_CXX_FLAGS="$2" ..
-  make VERBOSE=1 |& tee build.log
+  make VERBOSE=1 -j"${BUILD_CONCURRENCY}" |& tee build.log
   ctest --timeout "${TEST_TIMEOUT}" --output-on-failure |& tee ctest.log
   cd ..
 }

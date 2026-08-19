@@ -1,10 +1,21 @@
+REM
+REM ===----------------------------------------------------------------------===
+REM
+REM Copyright (C) Intel Corporation
+REM
+REM SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+REM
+REM This file incorporates work covered by the following copyright and permission
+REM notice:
+REM
+REM Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+REM See https://llvm.org/LICENSE.txt for license information.
+REM
+REM ===----------------------------------------------------------------------===
+REM
+
 :: Sets up the build environment on a Windows runner, via oneAPI's setvars.bat
 :: if available, otherwise falling back to MSVC's vcvarsall.bat.
-::
-:: Must be `call`-ed from a script that has already run
-:: `SETLOCAL ENABLEDELAYEDEXPANSION`, so that the environment changes made here
-:: (PATH, INCLUDE, LIB, ...) persist in the caller and !errorlevel! expands
-:: to the value at the time it is read rather than when the block was parsed.
 
 if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
   call "%WINDOWS_ONEAPI_PATH%\setvars.bat"

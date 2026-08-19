@@ -1,0 +1,64 @@
+##===----------------------------------------------------------------------===##
+#
+# Copyright (C) Intel Corporation
+#
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# This file incorporates work covered by the following copyright and permission
+# notice:
+#
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+#
+##===----------------------------------------------------------------------===##
+
+name: Set up Intel® oneAPI on Windows
+description: Downloads and installs the requested Intel oneAPI components
+
+inputs:
+  tbb:
+    description: Install Intel® oneAPI Threading Building Blocks
+    required: false
+    default: 'false'
+  compiler:
+    description: Install Intel® oneAPI DPC++/C++ Compiler
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Install Intel® oneAPI Threading Building Blocks
+      if: inputs.tbb == 'true'
+      shell: cmd
+      run: |
+        :: -f makes curl fail on an HTTP error instead of writing the error page
+        :: into the output file, -L lets it follow redirects.
+        curl -fL %WINDOWS_TBB_DOWNLOAD_LINK% --output tbb_install.exe
+        if %errorlevel% neq 0 exit /b %errorlevel%
+
+        tbb_install.exe -s -a --silent --eula accept -p=NEED_VS2019_INTEGRATION=0 -p=NEED_VS2022_INTEGRATION=0
+        if %errorlevel% neq 0 exit /b %errorlevel%
+
+        del tbb_install.exe
+    - name: Install Intel® oneAPI DPC++/C++ Compiler
+      if: inputs.compiler == 'true'
+      shell: cmd
+      run: |
+        :: Checked up front so that the removal of the released oneDPL below
+        :: cannot silently turn into a no-op.
+        if not defined WINDOWS_ONEAPI_PATH (
+          echo "Error: WINDOWS_ONEAPI_PATH is not set."
+          exit /b 1
+        )
+
+        curl -fL %WINDOWS_ICPX_DOWNLOAD_LINK% --output icpx_install.exe
+        if %errorlevel% neq 0 exit /b %errorlevel%
+
+        icpx_install.exe -s -a --silent --eula accept -p=NEED_VS2019_INTEGRATION=0 -p=NEED_VS2022_INTEGRATION=0
+        if %errorlevel% neq 0 exit /b %errorlevel%
+
+        del icpx_install.exe
+
+        :: Avoid accidental use of a released version
+        if exist "%WINDOWS_ONEAPI_PATH%\dpl" rd /s /q "%WINDOWS_ONEAPI_PATH%\dpl"

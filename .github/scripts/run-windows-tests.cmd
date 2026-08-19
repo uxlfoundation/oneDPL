@@ -1,14 +1,26 @@
+REM
+REM ===----------------------------------------------------------------------===
+REM
+REM Copyright (C) Intel Corporation
+REM
+REM SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+REM
+REM This file incorporates work covered by the following copyright and permission
+REM notice:
+REM
+REM Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+REM See https://llvm.org/LICENSE.txt for license information.
+REM
+REM ===----------------------------------------------------------------------===
+REM
+
 :: Configures, builds and tests oneDPL on Windows.
 :: Requires BACKEND, DEVICE_TYPE, STD, BUILD_TYPE, CXX_COMPILER,
 :: BUILD_CONCURRENCY, TEST_TIMEOUT and WINDOWS_ONEAPI_PATH to be set in the
 :: environment.
-::
-:: Must be `call`-ed from a script that has already run
-:: `SETLOCAL ENABLEDELAYEDEXPANSION`, so that the environment changes made by
-:: setup-windows-env.cmd persist in the caller and !errorlevel! expands to the
-:: value at the time it is read rather than when the block was parsed.
 
-call .github\scripts\setup-windows-env.cmd
+SETLOCAL ENABLEDELAYEDEXPANSION
+call "%GITHUB_WORKSPACE%\.github\scripts\setup-windows-env.cmd"
 if !errorlevel! neq 0 exit /b !errorlevel!
 
 set exit_code=0
@@ -72,5 +84,5 @@ python %GITHUB_WORKSPACE%\.github\scripts\job_summary.py --build-log build.log ^
                                                          --cmake-version "%cmake_version%" ^
                                                          --compiler-version "%compiler_version%" ^
                                                          --cpu-model "%cpu_model%"
-type summary.md > %GITHUB_STEP_SUMMARY%
+type summary.md > "%GITHUB_STEP_SUMMARY%"
 exit /b !exit_code!
