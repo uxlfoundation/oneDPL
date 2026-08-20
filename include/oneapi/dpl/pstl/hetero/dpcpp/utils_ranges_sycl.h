@@ -473,7 +473,7 @@ struct __get_sycl_range
     //SFINAE iterator type checks
     template <typename It>
     static constexpr auto
-    __is_addressable(int) -> decltype(std::addressof(*::std::declval<It&>()), std::true_type{});
+    __is_addressable(int) -> decltype(std::addressof(*std::declval<It&>()), std::true_type{});
     template <typename It>
     static constexpr std::false_type
     __is_addressable(...);
@@ -483,13 +483,13 @@ struct __get_sycl_range
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _TupleType, typename _DiffType,
               std::size_t... _Ip>
     auto
-    gen_zip_view(_TupleType __t, _DiffType __n, ::std::index_sequence<_Ip...>)
+    gen_zip_view(_TupleType __t, _DiffType __n, std::index_sequence<_Ip...>)
     {
         // Each zipped iterator is processed recursively, propagating the {access mode, no_init} of the zip_iterator
         // itself to each of its constituent iterators.
         auto tmp = oneapi::dpl::__internal::make_tuple(
             __process_input_iter<_LocalAccMode, _LocalNoInit>(std::get<_Ip>(__t), std::get<_Ip>(__t) + __n)...);
-        return oneapi::dpl::__ranges::make_zip_view(::std::get<_Ip>(tmp).all_view()...);
+        return oneapi::dpl::__ranges::make_zip_view(std::get<_Ip>(tmp).all_view()...);
     }
 
     //zip iterators
@@ -499,7 +499,7 @@ struct __get_sycl_range
     {
         assert(__first < __last);
 
-        const ::std::size_t __num_it = sizeof...(Iters);
+        const std::size_t __num_it = sizeof...(Iters);
         auto rng = gen_zip_view<_LocalAccMode, _LocalNoInit>(__first.base(), __last - __first,
                                                              std::make_index_sequence<__num_it>());
         return __range_holder<decltype(rng)>{rng};
@@ -536,7 +536,7 @@ struct __get_sycl_range
     }
 
     template <typename _R, typename _Map, typename _Size,
-              ::std::enable_if_t<oneapi::dpl::__internal::__is_functor<_Map>, int> = 0>
+              std::enable_if_t<oneapi::dpl::__internal::__is_functor<_Map>, int> = 0>
     static auto
     __get_permutation_view(_R __r, _Map __m, _Size __s)
     {
@@ -544,7 +544,7 @@ struct __get_sycl_range
     }
 
     template <typename _R, typename _Map, typename _Size,
-              ::std::enable_if_t<oneapi::dpl::__internal::__is_random_access_iterator_v<_Map>, int> = 0>
+              std::enable_if_t<oneapi::dpl::__internal::__is_random_access_iterator_v<_Map>, int> = 0>
     auto
     __get_permutation_view(_R __r, _Map __m, _Size __s)
     {
@@ -706,7 +706,7 @@ struct __get_sycl_range
             if constexpr (__is_copy_direct_v<_LocalAccMode, _LocalNoInit>)
             {
                 //wait and copy on a buffer destructor; an exclusive access buffer, good performance
-                return sycl::buffer<_T, 1>{::std::addressof(*__first), __last - __first};
+                return sycl::buffer<_T, 1>{std::addressof(*__first), __last - __first};
 
                 //No call to sycl::buffer::set_final_data() is required here because this sycl::buffer ctor
                 // guarantees by specification that data will be written back to this host data pointer upon destruction
@@ -715,7 +715,7 @@ struct __get_sycl_range
             else
             {
                 sycl::buffer<_T, 1> __buf(__last - __first);
-                __buf.set_final_data(::std::addressof(*__first)); //wait and fast copy on a buffer destructor
+                __buf.set_final_data(std::addressof(*__first)); //wait and fast copy on a buffer destructor
                 return __buf;
             }
         });
