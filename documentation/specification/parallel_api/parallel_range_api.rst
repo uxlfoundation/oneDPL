@@ -562,7 +562,7 @@ Sequence Transformation
     template <typename ExecutionPolicy, std::ranges::random_access_range R,
               std::ranges::random_access_range OutR,
               class T = std::ranges::range_value_t<OutR>, typename Proj = std::identity,
-              std::indirect_unary_predicate< std::projected<std::ranges::iterator_t<R>, Proj> > Pred,
+              std::indirect_unary_predicate< std::projected<std::ranges::iterator_t<R>, Proj> > Pred>
       requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<ExecutionPolicy>> &&
                std::ranges::sized_range<R> && std::ranges::sized_range<OutR> &&
                std::indirectly_copyable<std::ranges::iterator_t<R>, std::ranges::iterator_t<OutR>> &&
