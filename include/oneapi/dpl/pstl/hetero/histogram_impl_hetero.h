@@ -138,7 +138,7 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
             _global_histogram_type{0}};
         //fill histogram bins with zeros
 
-        oneapi::dpl::__par_backend_hetero::__hetero_event<_BackendTag> __init_event =
+        auto __init_event =
             oneapi::dpl::__par_backend_hetero::__parallel_for(
                 _BackendTag{},
                 oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__hist_fill_zeros_wrapper>(__exec),
@@ -155,7 +155,7 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
                 oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read>();
             auto __input_buf = __keep_input(__first, __last);
 
-            oneapi::dpl::__par_backend_hetero::__hetero_event<_BackendTag> __event =
+            auto __event =
                 oneapi::dpl::__par_backend_hetero::__parallel_histogram(
                     _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __init_event, __input_buf.all_view(),
                     std::move(__bins), __binhash_manager);

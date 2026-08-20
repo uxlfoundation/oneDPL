@@ -1921,10 +1921,10 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
 template <bool _Bounded, typename _ValueType, typename _StopPosType>
 using __transform_reduce_then_scan_result_t =
     std::conditional_t<_Bounded,
-                       std::tuple<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>,
+                       std::tuple<sycl::event,
                                   __combined_storage<_ValueType>,
                                   __result_storage<_StopPosType>>,
-                       std::tuple<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>,
+                       std::tuple<sycl::event,
                                   __combined_storage<_ValueType>>>;
 
 template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _ReduceOp,

@@ -324,7 +324,7 @@ __parallel_for_impl(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... 
 //General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
 //for some algorithms happens that size of processing range is n, but amount of iterations is n/2.
 template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
-__hetero_event<oneapi::dpl::__internal::__device_backend_tag>
+sycl::event
 __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Fp __brick, _Index __count,
                _Ranges&&... __rngs)
 {

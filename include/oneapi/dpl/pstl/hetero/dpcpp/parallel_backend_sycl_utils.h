@@ -758,68 +758,10 @@ __load_result(_Storage<_T>& __storage)
     return __space.__v;
 }
 
-template <typename _BackendTag>
-struct __hetero_event;
-
-template <>
-struct __hetero_event<oneapi::dpl::__internal::__device_backend_tag>
-{
-    using __type = sycl::event;
-
-    sycl::event __event;
-
-    __hetero_event() = default;
-    __hetero_event(sycl::event&& __event) : __event(std::move(__event)) {}
-
-    void
-    wait()
-    {
-        __event.wait();
-    }
-
-    void
-    wait_and_throw()
-    {
-        __event.wait_and_throw();
-    }
-
-    operator sycl::event() const { return __event; }
-};
-
 template <typename>
 struct __is_hetero_event : std::false_type
 {
 };
-
-template <>
-struct __is_hetero_event<sycl::event> : std::true_type
-{
-};
-
-template <>
-struct __is_hetero_event<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>> : std::true_type
-{
-};
-
-#if _ONEDPL_FPGA_DEVICE
-template <>
-struct __hetero_event<oneapi::dpl::__internal::__fpga_backend_tag>
-    : public __hetero_event<oneapi::dpl::__internal::__device_backend_tag>
-{
-    using __base = __hetero_event<oneapi::dpl::__internal::__device_backend_tag>;
-
-    using __base::__base;
-    using __base::operator=;
-};
-
-template <>
-struct __is_hetero_event<__hetero_event<oneapi::dpl::__internal::__fpga_backend_tag>> : std::true_type
-{
-};
-#endif // _ONEDPL_FPGA_DEVICE
-
-template <typename _TEvent>
-constexpr bool __is_hetero_event_v = __is_hetero_event<std::decay_t<_TEvent>>::value;
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
@@ -835,8 +777,11 @@ struct __deferrable_mode
 {
 };
 
+template <typename _TEvent>
+constexpr bool __is_sycl_event_v = std::is_same_v<std::decay_t<_TEvent>, sycl::event>;
+
 template <typename _WaitModeTag = __sync_mode, typename _TEvent>
-std::enable_if_t<__is_hetero_event_v<_TEvent>>
+std::enable_if_t<__is_sycl_event_v<_TEvent>>
 __finalize_call(_TEvent&& __event)
 {
     if constexpr (std::is_same_v<_WaitModeTag, __async_mode>)
@@ -868,7 +813,7 @@ using __resolve_wait_mode =
 // sycl::event::wait_and_throw() is non-const, and the payload of the tuple must outlive the waiting,
 // so passing a temporary tuple here is prohibited.
 template <typename _WaitModeTag = __sync_mode, template <typename...> typename _Tuple, typename... _Args>
-std::enable_if_t<!__is_hetero_event_v<_Tuple<_Args...>>>
+std::enable_if_t<!__is_sycl_event_v<_Tuple<_Args...>>>
 __finalize_call(_Tuple<_Args...>& __tuple)
 {
     __finalize_call<__resolve_wait_mode<_WaitModeTag, _Args...>>(std::get<0>(__tuple));
@@ -927,7 +872,7 @@ __find_first_true()
 template <typename _BackendTag, typename... _Args>
 class __future : private std::tuple<_Args...>
 {
-    __hetero_event<_BackendTag> __my_event;
+    sycl::event __my_event;
 
     // The index of the first payload item which is a plain value, i.e. not a payload kept alive for a kernel
     static constexpr std::size_t __value_index = __find_first_true<!__is_lifetime_payload_v<_Args>...>();
@@ -936,7 +881,7 @@ class __future : private std::tuple<_Args...>
     static constexpr std::size_t __result_index = __find_first_true<__is_result_payload_v<_Args>...>();
 
   public:
-    __future(__hetero_event<_BackendTag> __e, _Args... __args)
+    __future(sycl::event __e, _Args... __args)
         : std::tuple<_Args...>(__args...), __my_event(std::move(__e))
     {
     }
@@ -947,8 +892,7 @@ class __future : private std::tuple<_Args...>
         return __my_event;
     }
 
-    using __native_event_t = typename __hetero_event<_BackendTag>::__type;
-    operator __native_event_t() const { return event(); }
+    operator sycl::event() const { return event(); }
 
     void
     wait()
@@ -992,7 +936,7 @@ __to_future_payload(_Storage&& __storage)
 // is the one returned by __future::get()
 template <typename _BackendTag, typename... _Args, typename... _ExtraArgs>
 auto
-__create_future(std::tuple<__hetero_event<_BackendTag>, _Args...> __res, _ExtraArgs&&... __extra)
+__create_future(std::tuple<sycl::event, _Args...> __res, _ExtraArgs&&... __extra)
 {
     static_assert(sizeof...(_ExtraArgs) <= 1, "At most one additional payload item is expected");
 

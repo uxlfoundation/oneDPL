@@ -60,7 +60,7 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
     const auto __n = oneapi::dpl::__ranges::__min_size_calc{}(__rngs...);
     if (__n > 0)
     {
-        oneapi::dpl::__par_backend_hetero::__hetero_event<_BackendTag> __event =
+        auto __event =
             oneapi::dpl::__par_backend_hetero::__parallel_for(
                 _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
                 unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n,
@@ -175,7 +175,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
 
     if (__n1 <= __n2)
     {
-        oneapi::dpl::__par_backend_hetero::__hetero_event<_BackendTag> __event =
+        auto __event =
             oneapi::dpl::__par_backend_hetero::__parallel_for(
                 _BackendTag{},
                 oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
@@ -188,7 +188,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
         return __n1;
     }
 
-    oneapi::dpl::__par_backend_hetero::__hetero_event<_BackendTag> __event =
+    auto __event =
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(
@@ -923,7 +923,7 @@ __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r
     if (__n <= 1)
         return;
 
-    oneapi::dpl::__par_backend_hetero::__hetero_event<_BackendTag> __event =
+    auto __event =
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_functor{__n}, __n / 2,
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r)));
@@ -944,7 +944,7 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _In
     if (__n == 0)
         return;
 
-    oneapi::dpl::__par_backend_hetero::__hetero_event<_BackendTag> __event =
+    auto __event =
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_copy<decltype(__n)>{__n},
             __n, oneapi::dpl::__ranges::__get_subscription_view(std::forward<_InRange>(__in_r)),
@@ -1007,7 +1007,7 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     {
         // For a sequence of size 1, we can just copy the only element to the result.
         using _CopyBrick = oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>;
-        oneapi::dpl::__par_backend_hetero::__hetero_event<_BackendTag> __event =
+        auto __event =
             oneapi::dpl::__par_backend_hetero::__parallel_for(
                 _BackendTag{},
                 oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_wrapper>(

@@ -569,8 +569,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
   public:
     template <typename _Range, typename _Compare, typename _TempBuf, typename _LeafSizeT>
-    std::tuple<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>, bool,
-               _split_points_device_storage_t<_IndexT>>
+    std::tuple<sycl::event, bool, _split_points_device_storage_t<_IndexT>>
     operator()(sycl::queue& __q, _Range& __rng, _Compare __comp, _LeafSizeT __leaf_size, _TempBuf& __temp_buf,
                sycl::event __event_chain) const
     {
@@ -690,8 +689,8 @@ class __sort_global_kernel2;
 template <typename... _Name>
 class __sort_copy_back_kernel;
 
-using __parallel_sort_return_t = std::tuple<__hetero_event<oneapi::dpl::__internal::__device_backend_tag>,
-                                            _split_points_device_storage32_t, _split_points_device_storage64_t>;
+using __parallel_sort_return_t =
+    std::tuple<sycl::event, _split_points_device_storage32_t, _split_points_device_storage64_t>;
 
 template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare, typename _LeafSorter>
 __parallel_sort_return_t
