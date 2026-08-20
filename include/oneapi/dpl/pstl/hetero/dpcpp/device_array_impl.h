@@ -71,18 +71,18 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
         _Base::__fill_n(__value, __count, 0, __q, sycl::event{});
     }
 
-    // Allocates __src.size() elements and copies __src into them. __src may be host memory or USM
-    // accessible on this context.
+    // Allocates __src.size() elements and copies __src into them. __src may be host memory, or USM
+    // created from this context and accessible on this device
     device_array(oneapi::dpl::span<const value_type> __src, sycl::context __ctx, sycl::device __dev)
         : device_array(__src.size(), __ctx, __dev)
     {
-        _Base::__copy_from_host(__src.data(), __src.size(), 0, _Base::__make_queue(), sycl::event{});
+        _Base::__copy_from(__src.data(), __src.size(), 0, _Base::__make_queue(), sycl::event{});
     }
 
     device_array(oneapi::dpl::span<const value_type> __src, sycl::queue __q, sycl::event __depends_on = {})
         : device_array(__src.size(), __q.get_context(), __q.get_device())
     {
-        _Base::__copy_from_host(__src.data(), __src.size(), 0, __q, __depends_on);
+        _Base::__copy_from(__src.data(), __src.size(), 0, __q, __depends_on);
     }
 
     device_array(const device_array&) = delete;
@@ -116,6 +116,10 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
     // The element count between input and remaining container elements may be mismatched.
     // min(other.size(), size() - offset) elements are transferred, the count is returned for the bulk
     // operations.
+    //
+    // The data being transferred may be host memory, or USM created from the same context and accessible on
+    // the same device (multi-device unified addressing is an optional feature). Any queue passed must have
+    // been built from context.
 
     // -- Device transfer out --
     size_type
@@ -123,7 +127,7 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
             sycl::event __depends_on = {}) const
     {
         const size_type __n = _Base::__checked_count(__dst.size(), __src_offset);
-        _Base::__copy_to_host(__dst.data(), __n, __src_offset, __q, __depends_on);
+        _Base::__copy_to(__dst.data(), __n, __src_offset, __q, __depends_on);
         return __n;
     }
 
@@ -174,7 +178,7 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
               sycl::event __depends_on = {})
     {
         const size_type __n = _Base::__checked_count(__src.size(), __dst_offset);
-        _Base::__copy_from_host(__src.data(), __n, __dst_offset, __q, __depends_on);
+        _Base::__copy_from(__src.data(), __n, __dst_offset, __q, __depends_on);
         return __n;
     }
 

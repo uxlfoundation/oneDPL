@@ -124,17 +124,26 @@ class __device_storage_base
     // -- Blocking transfer helpers --
     //
     // __count arrives already clamped by the caller. A count of zero skips the submission entirely.
+    //
+    // __copy_to/from use queue::memcpy internally and have the same requirements.
+    // SYCL 2020 [4.9.4.3] requires each pointer passed to a memcpy to be either a host pointer or
+    // a pointer within a USM allocation that is both accessible on the queue's device and created from the
+    // queue's context. Since __data is device USM in __context on __device, that permits:
+    //   - a host pointer,
+    //   - host or shared USM created from __context,
+    //   - device USM on __device created from __context, which is accessible from __device.
+
     void
-    __copy_to_host(value_type* __dst, size_type __count, size_type __src_offset, sycl::queue __q,
-                   const sycl::event& __depends_on) const
+    __copy_to(value_type* __dst, size_type __count, size_type __src_offset, sycl::queue __q,
+              const sycl::event& __depends_on) const
     {
         if (__count > 0)
             __q.memcpy(__dst, __data + __src_offset, __count * sizeof(value_type), __depends_on).wait_and_throw();
     }
 
     void
-    __copy_from_host(const value_type* __src, size_type __count, size_type __dst_offset, sycl::queue __q,
-                     const sycl::event& __depends_on)
+    __copy_from(const value_type* __src, size_type __count, size_type __dst_offset, sycl::queue __q,
+                const sycl::event& __depends_on)
     {
         if (__count > 0)
             __q.memcpy(__data + __dst_offset, __src, __count * sizeof(value_type), __depends_on).wait_and_throw();
