@@ -1028,7 +1028,7 @@ Uninitialized Memory Algorithms
         uninitialized_value_construct (ExecutionPolicy&& pol, R&& r);
 
     // uninitialized_copy
-    template <typename ExecutionPolicy, std::random_access_range IR,
+    template <typename ExecutionPolicy, std::ranges::random_access_range IR,
               /*nothrow-random-access-range*/ OR>
       requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<ExecutionPolicy>> &&
                std::ranges::sized_range<IR> && std::ranges::sized_range<OR> &&
