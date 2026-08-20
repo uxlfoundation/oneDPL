@@ -750,7 +750,9 @@ template <typename _T, template <typename> typename _Storage>
 _T
 __load_result(_Storage<_T>& __storage)
 {
-    oneapi::dpl::__internal::__lazy_ctor_storage<typename _Storage<_T>::type> __space;
+    oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
+    oneapi::dpl::__internal::__scoped_destroyer<_T> __destroy_when_leaving_scope{__space};
+
     __storage.__copy_result(&__space.__v, 1);
 
     return __space.__v;
