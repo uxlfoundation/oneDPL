@@ -57,7 +57,9 @@ class alignas(sycl::queue) __queue_holder
     };
 
 #if _ONEDPL_PREDEFINED_POLICIES
-    // Avoid using 0 - some implementations may have uninitialized memory in the first bytes of sycl::queue
+    // Avoid using 0: some implementations may leave the first bytes of sycl::queue uninitialized.
+    // Those bytes may also hold a pointer (e.g. to the queue implementation), so the value is chosen to never be
+    // a valid address: its topmost bits mix 0 and 1 (non-canonical), and it is odd (not properly aligned).
     static constexpr std::uintptr_t __no_queue_flag = static_cast<std::uintptr_t>(0x5EA1ED005EA1ED01);
 #endif
 
