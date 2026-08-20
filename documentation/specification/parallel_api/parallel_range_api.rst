@@ -660,7 +660,7 @@ Sequence Filtering
               typename Proj = std::identity,
               typename T = /*projected-value-type*/<std::ranges::iterator_t<R>, Proj>>
       requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<ExecutionPolicy>> &&
-               std::ranges::sized_range<R> && std::permutable<std::ranges::iterator_t<R> &&
+               std::ranges::sized_range<R> && std::permutable<std::ranges::iterator_t<R>> &&
                std::indirect_binary_predicate< std::ranges::equal_to,
                                                std::projected<std::ranges::iterator_t<R>, Proj>,
                                                const T* >
