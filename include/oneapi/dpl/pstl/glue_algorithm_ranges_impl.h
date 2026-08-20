@@ -248,7 +248,6 @@ inline constexpr __internal::__find_last_fn find_last;
 
 struct __internal::__find_first_of_fn
 {
-
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
              typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
@@ -775,7 +774,6 @@ struct __internal::__min_fn
         return oneapi::dpl::__internal::__ranges::__pattern_min(__dispatch_tag,
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
     }
-
 }; //__min_fn
 inline constexpr __internal::__min_fn min;
 
@@ -794,7 +792,6 @@ struct __internal::__max_fn
         return oneapi::dpl::ranges::min(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             oneapi::dpl::__internal::__reorder_pred(__comp), __proj);
     }
-
 }; //__max_fn
 inline constexpr __internal::__max_fn max;
 
@@ -816,7 +813,6 @@ struct __internal::__minmax_fn
 
         return {__min, __max};
     }
-
 }; //__minmax_fn
 inline constexpr __internal::__minmax_fn minmax;
 
@@ -908,7 +904,6 @@ struct __internal::__inplace_merge_fn
         return oneapi::dpl::__internal::__ranges::__pattern_inplace_merge_ranges(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __middle, __comp, __proj);
     }
-
 }; //__inplace_merge_fn
 inline constexpr __internal::__inplace_merge_fn inplace_merge;
 
