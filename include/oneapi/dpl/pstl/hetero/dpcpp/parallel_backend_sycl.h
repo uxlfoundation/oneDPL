@@ -907,14 +907,20 @@ struct __early_exit_find_or
 {
     _Pred __pred;
 
-    // Elements scanned between two sub-group votes. The loads of one batch do not depend on each
-    // other, so they can all be in flight at once, where a vote between two elements makes the
-    // second load wait on it. Empirically found values, tuned on Battlemage and Ponte Vecchio.
+    // Consecutive elements one work item scans per iteration: they are contiguous per item, so the
+    // unrolled loads of an iteration coalesce into one wide load per lane rather than a 4-byte one,
+    // which is what a read stream needs to reach memory bandwidth on Ponte Vecchio.
+    //
+    // Iterations scanned between two sub-group votes. The loads of one batch do not depend on each
+    // other, so they can all be in flight at once, where a vote between two of them makes the second
+    // load wait on it. Both values were found empirically on Battlemage and Ponte Vecchio.
     // TODO: need to re-evaluate both, and whether they should depend on the device.
 #if _ONEDPL_FPGA_DEVICE
     // No data for FPGA, and unrolling the predicate costs area, so scan element-at-a-time there.
+    static constexpr std::size_t __elems_per_iter = 1;
     static constexpr std::size_t __max_iters_per_vote = 1;
 #else
+    static constexpr std::size_t __elems_per_iter = 4;
     static constexpr std::size_t __max_iters_per_vote = 8;
 #endif
     // A batch runs past a match by up to its own length, so a length is used only once this many
@@ -937,20 +943,22 @@ struct __early_exit_find_or
 
         constexpr bool __backward = __is_backward_tag(__brick_tag);
 
-        // Source index scanned on iteration __i of this item; descending for a backward tag.
-        // __iteration_data_size is the total number of work items, so __global_id is below it and
-        // iteration __i covers exactly the index band [__i * size, (__i + 1) * size). Every index an
-        // item has not yet reached therefore lies in a later band than every index any item has
-        // scanned, which is what makes exiting on a shared vote safe: what is skipped is beyond the
-        // match in the tag's direction. Overshooting a match within a batch is safe for the same
-        // reason, plus __save_state_to keeping the extreme index rather than the first one written.
-        auto __src_idx = [=](std::size_t __i) {
-            if constexpr (__backward)
-                return __global_id + (__iters_per_work_item - 1 - __i) * __iteration_data_size;
-            else
-                return __global_id + __i * __iteration_data_size;
+        const std::size_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item, __elems_per_iter);
+        const std::size_t __stride = __iteration_data_size * __elems_per_iter;
+
+        // Lowest source index of the __elems_per_iter consecutive elements this item scans on
+        // iteration __i, descending for a backward tag. __iteration_data_size is the total number of
+        // work items, so iteration __i covers exactly the index band [__i * __stride, (__i + 1) *
+        // __stride). Every index an item has not yet reached therefore lies in a later band than
+        // every index any item has scanned, which is what makes exiting on a shared vote safe: what
+        // is skipped is beyond the match in the tag's direction. Overshooting a match within an
+        // iteration or a batch is safe for the same reason, plus __save_state_to keeping the extreme
+        // index rather than the first one written.
+        auto __iter_base = [=](std::size_t __i) {
+            const std::size_t __band = __backward ? __iters - 1 - __i : __i;
+            return __global_id * __elems_per_iter + __band * __stride;
         };
-        auto __scan = [&](auto __idx) {
+        auto __scan = [&](std::size_t __idx) {
             if (__pred(__idx, __rngs...))
             {
                 _BrickTag::__save_state_to(__found_local, __idx);
@@ -958,9 +966,25 @@ struct __early_exit_find_or
             }
             return false;
         };
-        auto __scan_guarded = [&](std::size_t __i) {
-            const auto __idx = __src_idx(__i);
-            return __idx < __source_data_size && __scan(__idx);
+        // The elements of one iteration, in the tag's direction. Unconditional loads: the caller has
+        // checked the highest index of the batch against the source size.
+        auto __scan_iter = [&](std::size_t __i) {
+            const std::size_t __base = __iter_base(__i);
+            bool __found = false;
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::size_t __j = 0; __j < __elems_per_iter; ++__j)
+                __found |= __scan(__base + (__backward ? __elems_per_iter - 1 - __j : __j));
+            return __found;
+        };
+        auto __scan_iter_guarded = [&](std::size_t __i) {
+            const std::size_t __base = __iter_base(__i);
+            bool __found = false;
+            for (std::size_t __j = 0; __j < __elems_per_iter; ++__j)
+            {
+                const std::size_t __idx = __base + (__backward ? __elems_per_iter - 1 - __j : __j);
+                __found |= __idx < __source_data_size && __scan(__idx);
+            }
+            return __found;
         };
 
         bool __something_was_found = false;
@@ -969,25 +993,22 @@ struct __early_exit_find_or
         // Scan in batches of __len, voting once per batch, until iteration __until.
         auto __scan_batches = [&](auto __len_c, std::size_t __until) {
             constexpr std::size_t __len = decltype(__len_c)::value;
-            const std::size_t __end = std::min<std::size_t>(__until, __iters_per_work_item);
+            const std::size_t __end = std::min<std::size_t>(__until, __iters);
             for (; !__something_was_found && __iter + __len <= __end; __iter += __len)
             {
-                // A batch scans in one direction, so its extreme index bounds all of the others and
+                // A batch scans in one direction, so its highest index bounds all of the others and
                 // one check covers the whole batch, leaving the loads unconditional.
-                if constexpr (__len == 1)
-                {
-                    __something_was_found |= __scan_guarded(__iter);
-                }
-                else if (__src_idx(__backward ? __iter : __iter + __len - 1) < __source_data_size)
+                if (__iter_base(__backward ? __iter : __iter + __len - 1) + __elems_per_iter - 1 <
+                    __source_data_size)
                 {
                     _ONEDPL_PRAGMA_UNROLL
                     for (std::size_t __j = 0; __j < __len; ++__j)
-                        __something_was_found |= __scan(__src_idx(__iter + __j));
+                        __something_was_found |= __scan_iter(__iter + __j);
                 }
                 else
                 {
                     for (std::size_t __j = 0; __j < __len; ++__j)
-                        __something_was_found |= __scan_guarded(__iter + __j);
+                        __something_was_found |= __scan_iter_guarded(__iter + __j);
                 }
 
                 // Share found into state between items in our sub-group to early exit if something was found
@@ -1010,11 +1031,11 @@ struct __early_exit_find_or
                 __self(__self, std::integral_constant<std::size_t, 2 * __len>{});
             }
             else
-                __scan_batches(__len_c, __iters_per_work_item);
+                __scan_batches(__len_c, __iters);
         };
         __scan_growing(__scan_growing, std::integral_constant<std::size_t, 1>{});
         // An incomplete final batch, and indices past the end of the source.
-        __scan_batches(std::integral_constant<std::size_t, 1>{}, __iters_per_work_item);
+        __scan_batches(std::integral_constant<std::size_t, 1>{}, __iters);
     }
 };
 
