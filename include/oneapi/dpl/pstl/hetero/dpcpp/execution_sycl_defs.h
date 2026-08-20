@@ -58,7 +58,7 @@ class alignas(sycl::queue) __queue_holder
 
 #if _ONEDPL_PREDEFINED_POLICIES
     // Avoid using 0 - some implementations may have uninitialized memory in the first bytes of sycl::queue
-    static constexpr std::uintptr_t __no_queue_flag = static_cast<std::uintptr_t>(0x05EA1ED005EA1ED0);
+    static constexpr std::uintptr_t __no_queue_flag = static_cast<std::uintptr_t>(0x5EA1ED005EA1ED01);
 #endif
 
     bool
