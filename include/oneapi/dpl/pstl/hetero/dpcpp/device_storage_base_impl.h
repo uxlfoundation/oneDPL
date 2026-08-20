@@ -47,11 +47,8 @@ class __device_storage_base
     __device_storage_base(size_type __count, sycl::context __ctx, sycl::device __dev, allocator_type __alloc_arg)
         : __context(__ctx), __device(__dev), __alloc(std::move(__alloc_arg))
     {
-        if (__count != 0)
-        {
-            __data = __alloc.allocate(__count);
-            __size = __count;
-        }
+        __data = __alloc.allocate(__count);
+        __size = __count;
     }
 
     __device_storage_base(const __device_storage_base&) = delete;
