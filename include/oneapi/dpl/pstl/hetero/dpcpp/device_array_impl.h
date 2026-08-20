@@ -118,7 +118,7 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
     // operations.
     //
     // The data being transferred may be host memory, or USM created from the same context and accessible on
-    // the same device (multi-device unified addressing is an optional feature). Any queue passed must have
+    // the same device (cross-device access to device USM is optional (P2P)). Any queue passed must have
     // been built from context.
 
     // -- Device transfer out --
