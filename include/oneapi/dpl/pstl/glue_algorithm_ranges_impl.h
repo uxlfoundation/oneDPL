@@ -1135,11 +1135,10 @@ struct __internal::__replace_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T1& __old_value, const _T2& __new_value,
                _Proj __proj = {}) const
     {
-        // TODO: make sure std::ranges::equal_to is used for comparison
         return oneapi::dpl::ranges::replace_if(
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>>(
-                __old_value),
+            oneapi::dpl::__internal::__ranges_equal_to_pred<
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>>{__old_value},
             __new_value, __proj);
     }
 }; //__replace_fn
