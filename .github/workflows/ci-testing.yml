@@ -17,7 +17,6 @@ on:
       - 'examples/**/*'
 
 
-
 permissions: read-all
 
 env:
@@ -75,13 +74,13 @@ jobs:
             std: 17
             build_type: release
             backend: dpcpp
-            device_type: CPU
+            device_type: cpu
           - os: ubuntu-latest
             cxx_compiler: icpx
             std: 17
             build_type: release
             backend: dpcpp
-            device_type: FPGA_EMU
+            device_type: fpga # FPGA emulator
           - os: ubuntu-latest
             cxx_compiler: icpx
             std: 17
@@ -129,7 +128,7 @@ jobs:
             std: 20
             build_type: RelWithAsserts
             backend: dpcpp
-            device_type: CPU
+            device_type: cpu
           - os: ubuntu-latest
             cxx_compiler: icpx
             std: 20
@@ -150,131 +149,25 @@ jobs:
             device_type: HOST
     steps:
       - uses: actions/checkout@v6
-      - name: Set up Intel APT repository
-        if: (matrix.backend == 'tbb' || matrix.backend == 'dpcpp' || matrix.cxx_compiler == 'icpx' || matrix.cxx_compiler == 'icx' || matrix.cxx_compiler == 'icx-cl' || matrix.cxx_compiler == 'dpcpp' || matrix.cxx_compiler == 'dpcpp-cl')
-        run: |
-          # https://www.intel.com/content/www/us/en/docs/oneapi/installation-guide-linux/2024-0/apt.html
-          success=false
-          for i in 1 2 3 4 5; do
-            if wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
-            | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null; then
-              success=true
-              break
-            fi
-            if [ "$i" -lt 5 ]; then
-              echo "Attempt $i failed, retrying in 10s..."
-              sleep 10
-            else
-              echo "Attempt $i failed; no more retries left."
-            fi
-          done
-          if [ "$success" = false ]; then
-            echo "Failed to download Intel GPG key after 5 attempts"
-            exit 1
-          fi
-          echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
-          sudo apt-get update -y
-      - name: Install Intel® oneAPI Threading Building Blocks
-        if: (matrix.backend == 'tbb' || matrix.backend == 'dpcpp')
-        run: |
-          sudo apt-get install intel-oneapi-tbb-devel -y
-      - name: Install Intel® oneAPI DPC++/C++ Compiler
-        if: (matrix.device_type != 'FPGA_EMU' &&
-              (matrix.cxx_compiler == 'icpx'  ||
-               matrix.cxx_compiler == 'icx'   ||
-               matrix.cxx_compiler == 'icx-cl'||
-               matrix.cxx_compiler == 'dpcpp' ||
-               matrix.cxx_compiler == 'dpcpp-cl'))
-        run: |
-          sudo apt-get install intel-oneapi-compiler-dpcpp-cpp -y
-          # Avoid accidental use of a released version, keeping libpstloffload.so
-          sudo rm -rf ${LINUX_ONEAPI_PATH}/dpl/latest/include
-      - name: Install Intel® oneAPI DPC++/C++ Compiler with SYCL* FPGA Emulator Runtime
-        if: (matrix.device_type == 'FPGA_EMU')
-        run: |
-          sudo apt-get install intel-oneapi-compiler-fpga -y
+      - name: Set up Intel® oneAPI
+        uses: ./.github/actions/setup-linux-oneapi
+        with:
+          tbb: ${{ (matrix.backend == 'tbb' || matrix.backend == 'dpcpp') && matrix.device_type != 'fpga' }}
+          compiler: ${{ matrix.device_type != 'fpga' && matrix.cxx_compiler == 'icpx' }}
+          fpga: ${{ matrix.device_type == 'fpga' }} # it will install compatible icpx and tbb on its own
       - name: Install OpenMP dependencies
         if: (matrix.os == 'ubuntu-latest' && matrix.cxx_compiler == 'clang++' && matrix.backend == 'omp')
         run: |
           sudo apt-get install libomp5 libomp-dev -y
       - name: Run testing
         shell: bash
-        run: |
-          set -x
-          if [[ -f "${LINUX_ONEAPI_PATH}/setvars.sh" ]]; then
-            source ${LINUX_ONEAPI_PATH}/setvars.sh
-          fi
-
-          if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
-            # build and run the examples
-            example_dirs=()
-            for example_dir in ${GITHUB_WORKSPACE}/examples/*; do
-              if [[ -d "$example_dir" && -f "$example_dir/CMakeLists.txt" ]]; then
-                example_dirs+=("$example_dir")
-              fi
-            done
-            for example_dir in "${example_dirs[@]}"; do
-              cd "$example_dir"
-              mkdir build && cd build
-              cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
-              make VERBOSE=1 |& tee build.log
-              ctest --timeout ${TEST_TIMEOUT} --output-on-failure |& tee ctest.log
-            done
-
-            # set targets for dpcpp tests
-            make_targets="build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests"
-            tests_regex="(sycl_iterator_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)|(host_device_storage)"
-            if [[ "${{ matrix.device_type }}" != "FPGA_EMU" ]]; then
-              make_targets+=" build-onedpl-ranges-tests"
-              tests_regex+="|(std_ranges_.*)"
-            fi
-            ctest_flags="-R ${tests_regex}\.pass"
-          else
-            make_targets="build-onedpl-tests"
-          fi
-
-          cd ${GITHUB_WORKSPACE}
-          mkdir build && cd build
-          lscpu
-
-          # TODO: fix or justify the excluded warnings
-          EXTRA_CXX_FLAGS="-Wall -Wextra-semi -Werror -Wno-error=sign-compare"
-          if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
-            # Reduce std_ranges view-type permutations in per-commit CI to keep
-            # build time under the job limit. A couple of representative tests
-            # force full coverage back on regardless of this flag.
-            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -DONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS=0"
-          fi
-          if [[ "${{ matrix.cxx_compiler }}" != "g++" ]]; then
-            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=pass-failed"
-          fi
-          if [[ "${{ matrix.cxx_compiler }}" == "icpx" ]]; then
-            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=recommended-option"
-          fi
-
-          if [[ "${{ matrix.device_type }}" == "FPGA_EMU" ]]; then
-            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=deprecated-declarations -DONEDPL_FPGA_DEVICE -DONEDPL_FPGA_EMULATOR"
-          fi
-
-          cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_CXX_FLAGS="${EXTRA_CXX_FLAGS}" ..
-          make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
-          ONEAPI_DEVICE_SELECTOR=*:${{ matrix.device_type }}
-          ctest --timeout ${TEST_TIMEOUT} --output-on-failure ${ctest_flags} |& tee ctest.log
-
-          # Generate a summary
-          os_name=$(uname -a | head -n 1)
-          cmake_version=$(cmake --version | head -n 1)
-          compiler_version=$(${{ matrix.cxx_compiler }} --version | head -n 1)
-          cpu_model=$(lscpu | grep "Model name")
-          python ${GITHUB_WORKSPACE}/.github/scripts/job_summary.py --build-log build.log \
-                                                                    --ctest-log ctest.log \
-                                                                    --output-file summary.md \
-                                                                    --os "${os_name}" \
-                                                                    --cmake-version "${cmake_version}" \
-                                                                    --compiler-version "${compiler_version}" \
-                                                                    --cpu-model "${cpu_model}"
-          cat summary.md > $GITHUB_STEP_SUMMARY
+        env:
+          BACKEND: ${{ matrix.backend }}
+          DEVICE_TYPE: ${{ matrix.device_type }}
+          STD: ${{ matrix.std }}
+          BUILD_TYPE: ${{ matrix.build_type }}
+          CXX_COMPILER: ${{ matrix.cxx_compiler }}
+        run: .github/scripts/run-linux-tests.sh
 
   windows-testing:
     name: ${{ matrix.device_type }},bknd=${{ matrix.backend }},cmplr=${{ matrix.cxx_compiler }},${{ matrix.os }},std=c++${{ matrix.std }},cfg=${{ matrix.build_type }}
@@ -301,7 +194,7 @@ jobs:
             std: 17
             build_type: release
             backend: dpcpp
-            device_type: CPU
+            device_type: cpu
           - os: windows-latest
             cxx_compiler: cl
             std: 20
@@ -319,139 +212,65 @@ jobs:
             std: 20
             build_type: RelWithAsserts
             backend: dpcpp
-            device_type: CPU
+            device_type: cpu
     steps:
       - uses: actions/checkout@v6
-      - name: Install Intel® oneAPI Threading Building Blocks
-        if: (matrix.backend == 'tbb' || matrix.backend == 'dpcpp')
-        shell: cmd
-        run: |
-          curl %WINDOWS_TBB_DOWNLOAD_LINK% --output tbb_install.exe
-          tbb_install.exe -s -a --silent --eula accept -p=NEED_VS2019_INTEGRATION=0 -p=NEED_VS2022_INTEGRATION=0
-          del tbb_install.exe
-      - name: Install Intel® oneAPI DPC++/C++ Compiler
-        shell: cmd
-        if: (matrix.cxx_compiler == 'icx-cl' || matrix.cxx_compiler == 'icx')
-        run: |
-          curl %WINDOWS_ICPX_DOWNLOAD_LINK% --output icpx_install.exe
-          icpx_install.exe -s -a --silent --eula accept -p=NEED_VS2019_INTEGRATION=0 -p=NEED_VS2022_INTEGRATION=0
-          del icpx_install.exe
-          :: Avoid accidental use of a released version
-          rd /s /q "%WINDOWS_ONEAPI_PATH%\dpl"
+      - name: Set up Intel® oneAPI
+        uses: ./.github/actions/setup-windows-oneapi
+        with:
+          tbb: ${{ matrix.backend == 'tbb' || matrix.backend == 'dpcpp' }}
+          compiler: ${{ matrix.cxx_compiler == 'icx-cl' || matrix.cxx_compiler == 'icx' }}
       - name: Run testing
         shell: cmd
+        env:
+          BACKEND: ${{ matrix.backend }}
+          DEVICE_TYPE: ${{ matrix.device_type }}
+          STD: ${{ matrix.std }}
+          BUILD_TYPE: ${{ matrix.build_type }}
+          CXX_COMPILER: ${{ matrix.cxx_compiler }}
         run: |
-          :: Set enable delayed expansion to allow proper resolution of errors in if statements and loops
-          SETLOCAL ENABLEDELAYEDEXPANSION
+          call .github\scripts\run-windows-tests.cmd
+          exit /b %errorlevel%
 
-          if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
-            call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
-            if !errorlevel! neq 0 exit /b !errorlevel!
-          ) else (
-            if not exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" (
-              echo "Error: vswhere.exe not found."
-              exit /b 1
-            )
-            set "VS_PATH="
-            for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VS_PATH=%%i"
-            if defined VS_PATH (
-              if not exist "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" (
-                echo "Error: vcvarsall.bat not found under !VS_PATH!\VC\Auxiliary\Build\"
-                exit /b 1
-              )
-              call "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" amd64
-              if !errorlevel! neq 0 exit /b !errorlevel!
-            ) else (
-              echo "Error: Could not find oneAPI install nor Visual Studio installation with MSVC tools via vswhere.exe."
-              exit /b 1
-            )
-          )
+  linux-examples-testing:
+    name: examples,cmplr=icpx,ubuntu-latest,std=c++17,cfg=release
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CXX_COMPILER: icpx
+      STD: 17
+      BUILD_TYPE: release
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Intel® oneAPI
+        uses: ./.github/actions/setup-linux-oneapi
+        with:
+          tbb: true
+          compiler: true
+      - name: Build and run examples
+        shell: bash
+        run: .github/scripts/build-run-examples.sh
 
-          set exit_code=0
-          :: Preserve the code of an unsuccessful command if any.
-          :: By default, CMD shell only reports the error level of the final command.
-
-          :: cache the path to the current directory
-          set BASE_DIR=%cd%
-          if "${{ matrix.backend }}" == "dpcpp" (
-            :: Build and run examples
-            set "example_dirs="
-            for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
-              if exist "%%i\CMakeLists.txt" (
-                set "example_dirs=!example_dirs! "%%i""
-              )
-            )
-            for %%d in (!example_dirs!) do (
-              cd "%%d"
-              mkdir build && cd build
-              cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
-              if !errorlevel! neq 0 set exit_code=!errorlevel!
-              ninja -v > build_ex.log 2>&1
-              if !errorlevel! neq 0 set exit_code=!errorlevel!
-              ctest --timeout %TEST_TIMEOUT% --output-on-failure > ctest_ex.log 2>&1
-              if !errorlevel! neq 0 set exit_code=!errorlevel!
-              type ctest_ex.log
-              type build_ex.log
-              if !exit_code! neq 0 exit /b !exit_code!
-              cd %BASE_DIR%
-            )
-
-            set ninja_targets=build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests build-onedpl-ranges-tests
-            set ctest_flags=-R "(sycl_iterator_.*)|(std_ranges_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)|(host_device_storage)\.pass"
-          ) else (
-            set ninja_targets=build-onedpl-tests
-          )
-
-          cd %BASE_DIR%
-          mkdir build && cd build
-
-          :: TODO: fix or justify the excluded warnings
-          if "${{ matrix.cxx_compiler }}" == "cl" (
-            set warning_flags=/W4 /WX /wd4018 /wd4100 /wd4146 /wd4244 /wd4245 /wd4267 /wd4310 /wd4389 /wd4805 /wd4996
-          ) else (
-            set warning_flags=-Wall -Werror -Wno-error=sign-compare -Wno-error=pass-failed
-          )
-
-          :: Reduce std_ranges view-type permutations in per-commit CI to keep
-          :: build time under the job limit. A couple of representative tests
-          :: force full coverage back on regardless of this flag.
-          if "${{ matrix.backend }}" == "dpcpp" (
-            set warning_flags=!warning_flags! -DONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS=0
-          )
-
-          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..
-          if !errorlevel! neq 0 set exit_code=!errorlevel!
-          for %%t in (%ninja_targets%) do (
-            ninja -j %BUILD_CONCURRENCY% -v "%%t" >> build.log 2>&1
-            if !errorlevel! neq 0 set exit_code=!errorlevel!
-          )
-          set ONEAPI_DEVICE_SELECTOR=*:${{ matrix.device_type }}
-          ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1
-          if !errorlevel! neq 0 set exit_code=!errorlevel!
-          type ctest.log
-
-          :: Display the results after executing all tests because "tee" alternative is unavailable in CMD.
-          type build.log
-
-          :: Generate a summary
-          powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption" > os_name.txt
-          set /p os_name=<os_name.txt
-          powershell -command "cmake --version | Select-Object -First 1" > cmake_version.txt
-          set /p cmake_version=<cmake_version.txt
-          :: cl writes the version into stderr
-          powershell -command "${{ matrix.cxx_compiler }} --version | Select-Object -First 1" > compiler_version.txt 2>&1
-          set /p compiler_version=<compiler_version.txt
-          powershell -command "(Get-CimInstance -ClassName Win32_Processor).Name" > cpu_model.txt
-          set /p cpu_model=<cpu_model.txt
-          python %GITHUB_WORKSPACE%\.github\scripts\job_summary.py --build-log build.log ^
-                                                                   --ctest-log ctest.log ^
-                                                                   --output-file summary.md ^
-                                                                   --os "%os_name%" ^
-                                                                   --cmake-version "%cmake_version%" ^
-                                                                   --compiler-version "%compiler_version%" ^
-                                                                   --cpu-model "%cpu_model%"
-          type summary.md > %GITHUB_STEP_SUMMARY%
-          exit /b !exit_code!
+  windows-examples-testing:
+    name: examples,cmplr=icx,windows-latest,std=c++17,cfg=release
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      CXX_COMPILER: icx
+      STD: 17
+      BUILD_TYPE: release
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Intel® oneAPI
+        uses: ./.github/actions/setup-windows-oneapi
+        with:
+          tbb: true
+          compiler: true
+      - name: Build and run examples
+        shell: cmd
+        run: |
+          call .github\scripts\build-run-examples.cmd
+          exit /b %errorlevel%
 
   macos-testing:
     name: HOST,bknd=${{ matrix.backend }},cmplr=${{ matrix.cxx_compiler }},${{ matrix.os }},std=c++${{ matrix.std }},cfg=${{ matrix.build_type }}
@@ -489,16 +308,5 @@ jobs:
           make VERBOSE=1 build-onedpl-tests -j${MACOS_BUILD_CONCURRENCY} 2>&1 | tee build.log
           ctest --timeout ${TEST_TIMEOUT} --output-on-failure -E "${EXCLUDE_FROM_TESTING}" 2>&1 | tee ctest.log
 
-          # Generate a summary
-          os_name=$(uname -a | head -n 1)
-          cmake_version=$(cmake --version | head -n 1)
-          compiler_version=$(${{ matrix.cxx_compiler }} --version | head -n 1)
-          cpu_model=$(sysctl -n machdep.cpu.brand_string)
-          python ${GITHUB_WORKSPACE}/.github/scripts/job_summary.py --build-log build.log \
-                                                                    --ctest-log ctest.log \
-                                                                    --output-file summary.md \
-                                                                    --os "${os_name}" \
-                                                                    --cmake-version "${cmake_version}" \
-                                                                    --compiler-version "${compiler_version}" \
-                                                                    --cpu-model "${cpu_model}"
-          cat summary.md > $GITHUB_STEP_SUMMARY
+          python ${GITHUB_WORKSPACE}/.github/scripts/job_summary.py --build-log build.log --ctest-log ctest.log \
+                                                                   --output-file summary.md --compiler ${{ matrix.cxx_compiler }}
