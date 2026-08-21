@@ -177,8 +177,8 @@ struct __internal::__find_fn
     {
         return oneapi::dpl::ranges::find_if(
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__ranges_equal_to_pred<
-                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>{__value},
+            oneapi::dpl::__internal::__count_fn_pred<
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>, std::identity>{__value},
             __proj);
     }
 }; //__find_fn
@@ -234,8 +234,8 @@ struct __internal::__find_last_fn
     {
         return oneapi::dpl::ranges::find_last_if(
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__ranges_equal_to_pred<
-                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>{__value},
+            oneapi::dpl::__internal::__count_fn_pred<
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>, std::identity>{__value},
             __proj);
     }
 }; //__find_last_fn
@@ -1143,8 +1143,8 @@ struct __internal::__replace_fn
     {
         return oneapi::dpl::ranges::replace_if(
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__ranges_equal_to_pred<
-                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>>{__old_value},
+            oneapi::dpl::__internal::__count_fn_pred<
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>, std::identity>{__old_value},
             __new_value, __proj);
     }
 }; //__replace_fn
@@ -1200,8 +1200,8 @@ struct __internal::__replace_copy_fn
     {
         return oneapi::dpl::ranges::replace_copy_if(
             std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r),
-            oneapi::dpl::__internal::__ranges_equal_to_pred<
-                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>>{__old_value},
+            oneapi::dpl::__internal::__count_fn_pred<
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>, std::identity>{__old_value},
             __new_value, __proj);
     }
 }; //__replace_copy_fn
@@ -1518,8 +1518,8 @@ struct __internal::__remove_fn
     {
         return oneapi::dpl::ranges::remove_if(
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__ranges_equal_to_pred<
-                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>{__value},
+            oneapi::dpl::__internal::__count_fn_pred<
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>, std::identity>{__value},
             __proj);
     }
 }; //__remove_fn
@@ -1559,8 +1559,8 @@ struct __internal::__remove_copy_fn
     std::ranges::remove_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r, const _T& __value, _Proj __proj = {}) const
     {
-        using __equal_to_pred_t = oneapi::dpl::__internal::__ranges_equal_to_pred<
-            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>;
+        using __equal_to_pred_t = oneapi::dpl::__internal::__count_fn_pred<
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>, std::identity>;
 
         return oneapi::dpl::ranges::copy_if(
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), std::forward<_OutR>(__out_r),
