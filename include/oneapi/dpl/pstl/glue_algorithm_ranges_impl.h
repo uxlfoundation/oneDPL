@@ -465,7 +465,6 @@ struct __internal::__count_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        // TODO: make sure std::ranges::equal_to is used for comparison
         return oneapi::dpl::__internal::__ranges::__pattern_count(__dispatch_tag,
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __value, __proj);
     }
