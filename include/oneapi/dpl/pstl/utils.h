@@ -1286,6 +1286,19 @@ struct __count_fn_pred
         return std::ranges::equal_to{}(std::invoke(__proj, std::forward<_TValue>(__val)), __value);
     }
 };
+
+template <typename _T>
+struct __ranges_equal_to_pred
+{
+    _T __value;
+
+    template <typename _TValue>
+    bool
+    operator()(_TValue&& __val) const
+    {
+        return std::ranges::equal_to{}(std::forward<_TValue>(__val), __value);
+    }
+};
 #endif
 
 template <typename _ValueType, typename _FlagType, typename _BinaryOp>
