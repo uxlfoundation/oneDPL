@@ -56,7 +56,9 @@ class device_allocator
     ~device_allocator() = default;
 
     template <typename _Up>
-    device_allocator(const device_allocator<_Up, _Alignment>& __other) noexcept
+    device_allocator(const device_allocator<_Up, _Alignment>& __other) noexcept(
+        std::is_nothrow_copy_constructible_v<sycl::context> && std::is_nothrow_copy_constructible_v<sycl::device> &&
+        std::is_nothrow_copy_constructible_v<sycl::property_list>)
         : __context(__other.__context), __device(__other.__device), __prop_list(__other.__prop_list)
     {
     }

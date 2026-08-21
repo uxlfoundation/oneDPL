@@ -55,7 +55,10 @@ class __device_storage_base
     __device_storage_base&
     operator=(const __device_storage_base&) = delete;
 
-    __device_storage_base(__device_storage_base&& __other)
+    // sycl specification does not guarantee noexcept move for context and device
+    __device_storage_base(__device_storage_base&& __other) noexcept(
+        std::is_nothrow_move_constructible_v<sycl::context> && std::is_nothrow_move_constructible_v<sycl::device> &&
+        std::is_nothrow_move_constructible_v<allocator_type>)
         : __data(__other.__data), __size(__other.__size), __context(std::move(__other.__context)),
           __device(std::move(__other.__device)), __alloc(std::move(__other.__alloc))
     {
@@ -64,10 +67,13 @@ class __device_storage_base
     }
 
     __device_storage_base&
-    operator=(__device_storage_base&& __other)
+    operator=(__device_storage_base&& __other) noexcept(std::is_nothrow_move_assignable_v<sycl::context> &&
+                                                        std::is_nothrow_move_assignable_v<sycl::device> &&
+                                                        std::is_nothrow_move_assignable_v<allocator_type>)
     {
         if (this != &__other)
         {
+            // deallocation explicitly catches and silences exceptions, so this will not throw
             __deallocate();
 
             __data = __other.__data;
@@ -204,14 +210,25 @@ class __device_storage_base
         swap(__alloc, __other.__alloc);
     }
 
+    // Releasing the storage never throws. An implementation of sycl::free may report a failed release as a
+    // synchronous exception. However, here we silence exceptions, so deallocation can be used within the destructor
+    // and noexcept move assignment operator. This may result in a silent resource leak if deallocation fails.
     void
-    __deallocate()
+    __deallocate() noexcept
     {
         if (__data != nullptr)
         {
-            __alloc.deallocate(__data, __size);
-            __data = nullptr;
-            __size = 0;
+            // The ownership is dropped before the allocator call, so that a failed release will still reset size and
+            // pointer to nullptr
+            value_type* __to_free = std::exchange(__data, nullptr);
+            size_type __count = std::exchange(__size, size_type{0});
+            try
+            {
+                __alloc.deallocate(__to_free, __count);
+            }
+            catch (...)
+            {
+            }
         }
     }
 
