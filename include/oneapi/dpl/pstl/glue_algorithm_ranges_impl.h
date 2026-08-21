@@ -1508,9 +1508,8 @@ struct __internal::__remove_fn
     std::ranges::borrowed_subrange_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
-        // TODO: change lambda to a special functor
         return oneapi::dpl::ranges::remove_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            [__value](auto&& __a) { return std::ranges::equal_to{}(__a, __value);}, __proj);
+                                              oneapi::dpl::__internal::__ranges_equal_to_pred<_T>{__value}, __proj);
     }
 }; //__remove_fn
 inline constexpr __internal::__remove_fn remove;
