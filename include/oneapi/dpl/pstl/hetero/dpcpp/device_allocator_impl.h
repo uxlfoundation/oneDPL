@@ -47,14 +47,6 @@ class device_allocator
     {
     }
 
-    device_allocator(const device_allocator&) = default;
-    device_allocator(device_allocator&&) = default;
-    device_allocator&
-    operator=(const device_allocator&) = default;
-    device_allocator&
-    operator=(device_allocator&&) = default;
-    ~device_allocator() = default;
-
     template <typename _Up>
     device_allocator(const device_allocator<_Up, _Alignment>& __other) noexcept(
         std::is_nothrow_copy_constructible_v<sycl::context> && std::is_nothrow_copy_constructible_v<sycl::device> &&

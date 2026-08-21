@@ -203,6 +203,8 @@ test_device_allocator(sycl::queue __q)
     static_assert(!std::is_default_constructible_v<alloc_t>, "device_allocator must not be default constructible");
     static_assert(std::is_copy_constructible_v<alloc_t>, "device_allocator must be copy constructible");
     static_assert(std::is_copy_assignable_v<alloc_t>, "device_allocator must be copy assignable");
+    static_assert(std::is_move_constructible_v<alloc_t>, "device_allocator must be move constructible");
+    static_assert(std::is_move_assignable_v<alloc_t>, "device_allocator must be move assignable");
 
     // Both constructor forms, as on usm_allocator.
     alloc_t __a(__q);
