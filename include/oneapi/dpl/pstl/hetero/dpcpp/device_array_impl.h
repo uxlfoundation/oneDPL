@@ -210,9 +210,9 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
 
     // -- Observers --
     //
-    // data() is deliberately not re-exposed. sycl::span's container constructor is unconstrained in
-    // C++17, so any class with public data() and size() converts implicitly to sycl::span<const value_type>,
-    // which would make an expression such as d2.copy_from(d) compile under C++17 and fail under C++20.
+    // data() is deliberately not re-exposed. sycl::span's C++17 container constructor only needs
+    // data() and size() to be findable by ADL, so for a value_type from std a public data() would
+    // make an expression such as d2.copy_from(d) compile under C++17 and fail under C++20.
     // Users may obtain a raw pointer from oneapi::dpl::begin(d) or d.span().data().
     using _Base::empty;
     using _Base::get_context;

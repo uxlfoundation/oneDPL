@@ -111,10 +111,40 @@ iota_host(std::size_t __n, int __start = 0)
     return __host_out;
 }
 
+// Detection idioms for what device_array deliberately does not expose. Access control is part of
+// substitution, so a protected or private data() is not detected.
+template <typename _Tp, typename = void>
+struct has_data : std::false_type
+{
+};
+template <typename _Tp>
+struct has_data<_Tp, std::void_t<decltype(std::declval<_Tp&>().data())>> : std::true_type
+{
+};
+
+template <typename _Tp, typename _Src, typename = void>
+struct has_copy_from : std::false_type
+{
+};
+template <typename _Tp, typename _Src>
+struct has_copy_from<_Tp, _Src, std::void_t<decltype(std::declval<_Tp&>().copy_from(std::declval<_Src&>()))>>
+    : std::true_type
+{
+};
+
 template <typename _Tp>
 void
 test_type_traits()
 {
+    // data() must not be reachable; see also test_no_span_conversion().
+    static_assert(has_data<std::vector<_Tp>>::value, "the has_data detector must find a public data()");
+    static_assert(!has_data<device_array<_Tp>>::value, "device_array must not expose a public data()");
+    static_assert(!has_data<const device_array<_Tp>>::value, "device_array must not expose a public const data()");
+    static_assert(has_copy_from<device_array<_Tp>, oneapi::dpl::span<const _Tp>>::value,
+                  "the has_copy_from detector must find copy_from on a span");
+    static_assert(!has_copy_from<device_array<_Tp>, device_array<_Tp>>::value,
+                  "a device_array must not implicitly convert to a span in copy_from");
+
     static_assert(!std::is_copy_constructible_v<device_array<_Tp>>, "device_array must not be copy constructible");
     static_assert(!std::is_copy_assignable_v<device_array<_Tp>>, "device_array must not be copy assignable");
     static_assert(std::is_move_constructible_v<device_array<_Tp>>, "device_array must be move constructible");
@@ -150,6 +180,18 @@ test_type_traits()
     static_assert(oneapi::dpl::is_indirectly_device_accessible_v<decltype(oneapi::dpl::begin(
                       std::declval<const device_array<_Tp>&>()))>,
                   "oneapi::dpl::begin on a const device_array must yield a device accessible iterator");
+}
+
+// sycl::span's C++17 container constructor finds data()/size() by ADL, so the conversion is only
+// reachable for an element type from std. The types in test_type_traits() are all outside std.
+void
+test_no_span_conversion()
+{
+    using std_elem = std::pair<int, int>;
+    static_assert(has_data<std::vector<std_elem>>::value, "the has_data detector must find a public data()");
+    static_assert(!has_data<device_array<std_elem>>::value, "device_array must not expose a public data()");
+    static_assert(!has_copy_from<device_array<std_elem>, device_array<std_elem>>::value,
+                  "device_array must not implicitly convert to a span, not even for an element type from std");
 }
 
 void
@@ -801,6 +843,7 @@ main()
 #if TEST_DEVICE_ARRAY_PRESENT
     sycl::queue q = TestUtils::get_test_queue();
 
+    test_no_span_conversion();
     test_device_allocator(q);
 
     test_all_common<int>(q);
