@@ -383,7 +383,7 @@ __histogram_general_private_global_atomics(sycl::queue& __q, const sycl::event& 
 
 template <typename _CustomName, std::uint16_t __iters_per_work_item, typename _Range1, typename _Range2,
           typename _BinHashMgr>
-__future<sycl::event>
+sycl::event
 __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_event, _Range1&& __input,
                                    _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
@@ -434,9 +434,9 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
 
     if (__num_slm_copies > 0)
     {
-        return __future(__histogram_general_local_atomics<_CustomName, __iters_per_work_item>(
+        return __histogram_general_local_atomics<_CustomName, __iters_per_work_item>(
             __q, __init_event, __work_group_size, __num_slm_copies, std::forward<_Range1>(__input),
-            std::forward<_Range2>(__bins), __binhash_manager));
+            std::forward<_Range2>(__bins), __binhash_manager);
     }
     else // otherwise, use global atomics (private copies per workgroup)
     {
@@ -445,14 +445,14 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
         // suggestion which but global memory limitations may increase this value to be able to fit the workgroup
         // private copies of the histogram bins in global memory.  No unrolling is taken advantage of here because it
         // is a runtime argument.
-        return __future(__histogram_general_private_global_atomics<_CustomName>(
+        return __histogram_general_private_global_atomics<_CustomName>(
             __q, __init_event, __iters_per_work_item, __work_group_size, std::forward<_Range1>(__input),
-            std::forward<_Range2>(__bins), __binhash_manager));
+            std::forward<_Range2>(__bins), __binhash_manager);
     }
 }
 
 template <typename _ExecutionPolicy, typename _Event, typename _Range1, typename _Range2, typename _BinHashMgr>
-__future<sycl::event>
+sycl::event
 __parallel_histogram(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                      const _Event& __init_event, _Range1&& __input, _Range2&& __bins,
                      const _BinHashMgr& __binhash_manager)
