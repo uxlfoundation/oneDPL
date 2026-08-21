@@ -5,7 +5,7 @@ compatibility namespace. Adds `device_pointer`, `device_reference`, and
 implicit host-access semantics on top of `device_array`'s explicit API.
 
 See the [usage study](usage_pattern_study.md) for evidence on which Thrust APIs
-are actually used, and [device_array](device_array.md) for the underlying
+are actually used, and [device_array](../../experimental/device_array/README.md) for the underlying
 container.
 
 The goal is a near drop-in replacement for `thrust::device_vector`, covering
@@ -13,7 +13,7 @@ the functionality that is actually used in practice, adapted to fit within SYCL.
 
 ## Relationship to the shared base
 
-`compat::device_vector<T, Alloc>` and [`device_array`](device_array.md) share
+`compat::device_vector<T, Alloc>` and [`device_array`](../../experimental/device_array/README.md) share
 their implementation through a non-public base,
 `oneapi::dpl::__internal::__device_storage_base<T, Alloc>`, which
 owns the device allocation and its lifetime, the size, the associated
@@ -283,22 +283,27 @@ device memory allocation. The default allocator wraps `sycl::malloc_device` /
 `sycl::free`. (`device_array` fixes this to the default and does not expose it;
 pluggable allocation is a `device_vector` feature.)
 
-The default `device_allocator` lives in `oneapi::dpl::experimental`, alongside
-`device_array`, and is implemented as part of it. It deliberately mirrors
-`sycl::usm_allocator`: it is stateful, carrying the `sycl::context`, `sycl::device` and
-`sycl::property_list` to allocate against, so `allocate()` takes only an element count. It
-also matches `usm_allocator`'s alignment template parameter, its converting constructor,
-and its equality semantics.
+The default allocator, `oneapi::dpl::experimental::device_allocator`, is already
+implemented and released as an experimental feature alongside `device_array`; it is
+specified in the
+[device_array RFC](../../experimental/device_array/README.md#device_allocator). It is
+stateful, carrying the `sycl::context`, `sycl::device` and `sycl::property_list` to
+allocate against, mirroring `sycl::usm_allocator`, so `allocate()` takes only an element
+count.
 
-It does **not** currently provide `rebind` or the `propagate_on_container_*` members.
-Nothing in `device_array` needs them, so they are deferred to `device_vector`, which is
-where a container-level allocator contract first becomes observable.
+What remains *proposed* here is the `DeviceAllocator` contract below — the requirements a
+user-supplied allocator must meet to be used as `device_vector`'s `Alloc` parameter.
 
-`sycl::usm_allocator` itself cannot serve this role: it contains
-`static_assert(AllocKind != sycl::usm::alloc::device)`, because device memory is not
-host-accessible and so cannot satisfy the `std::allocator` named requirements that
-`usm_allocator` is built to satisfy. `device_allocator` provides only
-`allocate`/`deallocate` and imposes none of those requirements.
+`device_allocator` does not currently provide `rebind` or the
+`propagate_on_container_*` members, because `device_array` has no use for them. They are
+deferred to this proposal, where a container-level allocator contract first becomes
+observable: `device_vector` is copyable, assignable and swappable, so it has to decide
+whether an allocator travels with the container on those operations. Device memory is
+never host-accessible, so a container can never relocate elements on the host;
+propagating on all three operations keeps a container's allocator consistent with the
+memory it holds, and matches `sycl::usm_allocator`. Whether the members must therefore be
+*required* of every `DeviceAllocator`, or only honored when present, is
+[open](#open-questions).
 
 ### Allocator Requirements
 
@@ -327,52 +332,13 @@ The allocator is not required to support `construct`, `destroy`, or any of the
 memory is not host-accessible, so construction and destruction happen via
 kernel launches or memcpy, managed by the container itself.
 
-The allocator must be copy-constructible and copy-assignable.
-```cpp
-namespace oneapi::dpl::experimental {
+The allocator must be copy-constructible and copy-assignable. It should signal allocation
+failure by throwing; the default `device_allocator` throws a `sycl::exception` carrying
+`sycl::errc::memory_allocation`, and `device_vector` propagates whatever it gets rather
+than translating it.
 
-// Default allocator
-template <typename T, std::size_t Alignment = 0>
-class device_allocator {
-public:
-    using value_type = T;
-    using size_type  = std::size_t;
-
-
-    explicit device_allocator(sycl::context ctx, sycl::device dev,
-                              const sycl::property_list& prop_list = {});
-    explicit device_allocator(sycl::queue q,
-                              const sycl::property_list& prop_list = {});
-
-    // Converting constructor; carries the allocation target over. Conditionally noexcept:
-    // SYCL does not guarantee noexcept copies of context, device or property_list.
-    template <typename U>
-    device_allocator(const device_allocator<U, Alignment>& other) noexcept(/* see above */);
-
-    // Alignment == 0 uses sycl::malloc_device; otherwise sycl::aligned_alloc_device,
-    // which itself raises the alignment to max(Alignment, alignof(T)).
-    T*   allocate(size_type count) const;
-    void deallocate(T* ptr, size_type count) const;
-};
-
-// Two device allocators compare equal if they share an alignment, a context and a device,
-// following the requirement SYCL 2020 section 4.8.3.1 places on sycl::usm_allocator. As
-// with sycl::usm_allocator, the value type and the property list do not participate.
-template <typename T, std::size_t AlignmentT, typename U, std::size_t AlignmentU>
-bool operator==(const device_allocator<T, AlignmentT>&,
-                const device_allocator<U, AlignmentU>&) noexcept;
-template <typename T, std::size_t AlignmentT, typename U, std::size_t AlignmentU>
-bool operator!=(const device_allocator<T, AlignmentT>&,
-                const device_allocator<U, AlignmentU>&) noexcept;
-
-} // namespace oneapi::dpl::experimental
-```
-
-Allocation failure surfaces as a `sycl::exception` carrying
-`sycl::errc::memory_allocation` when `sycl::malloc_device` and
-`sycl::aligned_alloc_device` return `nullptr` on failure.  This occurs when
-resources are insufficient and when the requested alignment is unsupported.
-
+For the declaration of the default allocator, see the
+[device_array RFC](../../experimental/device_array/README.md#device_allocator).
 
 ### C++20 Concept (informational; enforced via SFINAE on C++17)
 
@@ -383,3 +349,11 @@ concept DeviceAllocator = requires(Alloc a, T* p, std::size_t n) {
     { a.deallocate(p, n) } -> std::same_as<void>;
 };
 ```
+
+## Open Questions
+
+- **Must a `DeviceAllocator` provide `rebind` and the `propagate_on_container_*`
+  members, or are they only honored when present?**
+  Further, should we provide our own `oneapi::dpl::device_allocator_traits`, or
+  should we use `std::allocator_traits` despite not satisfying std::allocator. Decisions 
+  must be made here to expose the allocator as a public interface.

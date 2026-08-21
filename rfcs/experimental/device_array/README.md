@@ -10,14 +10,20 @@ asynchronous access.
 This focus provides support for the main usage pattern for users of `device_vector`,
 and fits nicely within SYCL while avoiding much of the complexity of `device_vector`.
 
-See the [device_vector RFC](README.md) for
-full motivation, usage study, and comparison of existing implementations. This
-document only describes `device_array`.
+`device_array` and its default allocator, `device_allocator`, are released as
+experimental features in `oneapi::dpl::experimental`. They are the first part of the
+broader device container direction described by the
+[device containers RFC](../../proposed/device_vector/README.md), which holds the full
+motivation, the [usage study](../../proposed/device_vector/usage_pattern_study.md), the
+comparison of existing implementations, and the design decisions shared with
+[`compat::device_vector`](../../proposed/device_vector/device_vector_compat.md). That
+companion type is still only *proposed* and is not implemented; this document covers
+`device_array` and `device_allocator` only.
 
 ## Relationship to the shared base
 
-`device_array` and `compat::device_vector` share their implementation through a
-non-public base, `oneapi::dpl::__internal::__device_storage_base<T, Alloc>`,
+`device_array` and the proposed `compat::device_vector` share their implementation through
+a non-public base, `oneapi::dpl::__internal::__device_storage_base<T, Alloc>`,
 which owns the device allocation and its lifetime, the size, the associated
 `sycl::context` / `sycl::device`, the allocator instance, resizing, and the
 host-device transfer helpers.
@@ -28,8 +34,11 @@ declarations) only the fixed-size subset of that interface. The allocator type
 is fixed to the default `device_allocator<T>` and is not part of
 `device_array`'s public API; resizing, `reserve`, `capacity`, and `clear` are
 not re-exposed. This lets `device_array` present a simplified interface while
-`compat::device_vector` reuses the same base to offer a resizable,
+`compat::device_vector` can later reuse the same base to offer a resizable,
 allocator-aware container.
+
+Only the parts of the base that `device_array` needs are implemented so far; the resizing
+machinery listed above is part of the `device_vector` proposal, not of this feature.
 
 ## Availability
 
@@ -201,21 +210,87 @@ public `data()` would make an expression such as `d2.copy_from(d)` — passing a
 where `std::span`'s corresponding constructor is constrained. A raw pointer is available
 as `oneapi::dpl::begin(d)` or `d.span().data()`.
 
-## Allocator
+## `device_allocator`
 
-`device_array` fixes its allocator to the default
-`oneapi::dpl::experimental::device_allocator<T>` and does not expose it. Pluggable
-allocation via the `DeviceAllocator` concept is available on
-[`compat::device_vector`](device_vector_compat.md#allocator).
+`device_array` fixes its allocator to `device_allocator<T>` and does not expose it.
+Pluggable allocation via the proposed `DeviceAllocator` concept is a `device_vector`
+feature; see the
+[device_vector allocator requirements](../../proposed/device_vector/device_vector_compat.md#allocator).
+`device_allocator` itself, however, ships with `device_array` and is public, so it is
+specified here.
 
 Because the allocator is stateful and not default constructible, each `device_array`
-constructor builds one from the same context and device it is given. A failed allocation
-during construction surfaces as a `sycl::exception` carrying
-`sycl::errc::memory_allocation`.
+constructor builds one from the same context and device it is given.
 
-Deallocation, in contrast, cannot fail observably: the destructor and the move assignment
-operator catch and discard any exception from `sycl::free`, which is what lets them be
-(conditionally) `noexcept`. See the [open question](#open-questions) on this.
+```cpp
+namespace oneapi::dpl::experimental {
+
+template <typename T, std::size_t Alignment = 0>
+class device_allocator {
+public:
+    using value_type = T;
+    using size_type  = std::size_t;
+
+
+    explicit device_allocator(sycl::context ctx, sycl::device dev,
+                              const sycl::property_list& prop_list = {});
+    explicit device_allocator(sycl::queue q,
+                              const sycl::property_list& prop_list = {});
+
+    // Converting constructor; carries the allocation target over. Conditionally noexcept:
+    // SYCL does not guarantee noexcept copies of context, device or property_list.
+    template <typename U>
+    device_allocator(const device_allocator<U, Alignment>& other) noexcept(/* see above */);
+
+    // Alignment == 0 uses sycl::malloc_device; otherwise sycl::aligned_alloc_device,
+    // which itself raises the alignment to max(Alignment, alignof(T)).
+    T*   allocate(size_type count) const;
+    void deallocate(T* ptr, size_type count) const;
+};
+
+// Two device allocators compare equal if they share an alignment, a context and a device,
+// following the requirement SYCL 2020 section 4.8.3.1 places on sycl::usm_allocator. As
+// with sycl::usm_allocator, the value type and the property list do not participate.
+template <typename T, std::size_t AlignmentT, typename U, std::size_t AlignmentU>
+bool operator==(const device_allocator<T, AlignmentT>&,
+                const device_allocator<U, AlignmentU>&) noexcept;
+template <typename T, std::size_t AlignmentT, typename U, std::size_t AlignmentU>
+bool operator!=(const device_allocator<T, AlignmentT>&,
+                const device_allocator<U, AlignmentU>&) noexcept;
+
+} // namespace oneapi::dpl::experimental
+```
+
+The API deliberately mirrors `sycl::usm_allocator`: stateful, carrying the `sycl::context`,
+`sycl::device` and `sycl::property_list` to allocate against, so `allocate()` takes only an
+element count. `sycl::usm_allocator` itself cannot serve this role — it contains
+`static_assert(AllocKind != sycl::usm::alloc::device)`, because device memory is not
+host-accessible and so cannot satisfy the `std::allocator` named requirements that
+`usm_allocator` is built to satisfy. `device_allocator` provides only
+`allocate`/`deallocate`, imposes none of those requirements, and correspondingly cannot be
+used with the standard containers.
+
+`rebind` and the `propagate_on_container_*` members are **not** provided. Nothing in
+`device_array` needs them, so they are deferred to when `device_vector` is implemented,
+where a container-level allocator contract first becomes observable.
+
+Other behavior:
+
+- `allocate(0)` returns `nullptr` and allocates nothing. `sycl::malloc_device(0)` is
+  unspecified, and some backends return a non-null pointer that cannot be freed.
+- `deallocate(nullptr, n)` is a no-op. The count is accepted to match the allocator
+  convention and is ignored, USM deallocation needs only the pointer and the context.
+- Allocation failure surfaces as a `sycl::exception` carrying
+  `sycl::errc::memory_allocation`. The exception is raised by `device_allocator`, not
+  propagated: `sycl::malloc_device` and `sycl::aligned_alloc_device` return `nullptr` on
+  failure rather than throwing, both when resources are insufficient and when the
+  requested alignment is unsupported, so a null result is translated into the exception.
+  It is deliberately not translated to `std::bad_alloc`, which would discard the
+  backend's diagnostics.
+- Deallocation cannot fail observably: the destructor and the move assignment 
+  operator catch and discard any exception from `sycl::free`, which is what
+  lets them be (conditionally) `noexcept`. See the [open question](#open-questions)
+   on this.
 
 ## `oneapi::dpl::span`
 
@@ -405,6 +480,23 @@ d.copy_from(host_data);
   destructor. The alternatives:
   1) Remove noexcept from move operator, allow the exception to result in a crash for destructor
   2) Catch and report the error, at least in debug mode, but continue on without interruption
-  3) Add a finalize() / free() method. This defeats a main motivation for the container (convenient RAII 
+  3) Add a finalize() / free() method. This defeats a main motivation for the container (convenient RAII
      allocation/deallocation) to handle what should be a rare occurance, and one which may not be
      otherwise recoverable, like a lost device in many cases.
+
+## Exit Criteria
+
+`device_array` and `device_allocator` should become fully supported if:
+
+- The open question above is resolved, or has a justification recorded for keeping the
+  current behavior.
+- There is positive adoption feedback, in particular that the explicit transfer interface
+  (`copy_to` / `copy_from` / `read_at` / `write_at` plus `span()`) covers the
+  construct / bulk-transfer / raw-pointer pattern the
+  [usage study](../../proposed/device_vector/usage_pattern_study.md) identified as
+  dominant.
+- The interface for `device_allocator` has held up against the
+  [`compat::device_vector`](../../proposed/device_vector/device_vector_compat.md)
+  implementation. Implementing it is a real test of whether the shared base
+  and the `DeviceAllocator` contract. Changes needed there may change `device_allocator`
+  and/or `device_array`.
