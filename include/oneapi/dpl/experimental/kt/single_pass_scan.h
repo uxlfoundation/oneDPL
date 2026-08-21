@@ -300,7 +300,7 @@ __single_pass_scan(sycl::queue __queue, _InRange&& __in_rng, _OutRange&& __out_r
     }
     else
     {
-        __prev_event.wait();
+        __prev_event.wait_and_throw();
         sycl::free(__device_mem, __queue);
         return __prev_event;
     }
