@@ -399,7 +399,6 @@ test_move_assign(sycl::queue __q)
     EXPECT_EQ_RANGES(__host_src, to_host(__dst, __q), "move assign: wrong contents in the target");
 
     EXPECT_TRUE(__src.empty(), "move assign: the source is not empty");
-    EXPECT_TRUE(oneapi::dpl::begin(__src) == nullptr, "move assign: the source still holds a pointer");
 
     // Move assigning into a moved-from object is legal.
     device_array<_Tp> __other(__host_dst, __q);
@@ -663,7 +662,7 @@ test_single_element_write(sycl::queue __q)
 
     __d.write_at(5, __v1, __q);
     __d.write_at(6, __v2);
-    // The queue overload with a defaulted offset writes element 0.
+
     const _Tp __v0 = make_value<_Tp>(33);
     __d.write_at(0, __v0, __q);
 

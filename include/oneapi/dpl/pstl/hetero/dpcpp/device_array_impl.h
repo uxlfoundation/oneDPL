@@ -93,6 +93,8 @@ class device_array : private oneapi::dpl::__internal::__device_storage_base<_Tp,
     device_array&
     operator=(device_array&&) = default;
 
+    ~device_array() = default;
+
     // -- device transfers--
     //
     // Argument order is uniform:
