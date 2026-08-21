@@ -732,6 +732,8 @@ test_depends_on(sycl::queue __q)
     const std::size_t __n = 4096;
     const int __iterations = 50;
 
+    device_array<int> __span_src(__n, -1, __ooo_q);
+
     for (int __it = 0; __it < __iterations; ++__it)
     {
         device_array<int> __d(__n, -1, __ooo_q);
@@ -757,6 +759,15 @@ test_depends_on(sycl::queue __q)
         const std::vector<int> __host(__n, 42);
         __d.copy_from(oneapi::dpl::span<const int>{__host.data(), __host.size()}, 0, __ooo_q, __e3);
         EXPECT_EQ_RANGES(__host, __d.to_vector(__ooo_q), "copy_from did not take effect after its dependency");
+
+        // The span constructor's deep copy must wait for the kernel that filled its source, which is
+        // device memory here rather than a host range.
+        sycl::event __e4 = __ooo_q.parallel_for<writer_kernel<int, 3>>(
+            sycl::range<1>(__n),
+            [__s = __span_src.span(), __it](sycl::id<1> __i) { __s[__i] = int(__i.get(0)) + 7 + __it; });
+        device_array<int> __from_span(__span_src.span(), __ooo_q, __e4);
+        EXPECT_EQ_RANGES(iota_host<int>(__n, 7 + __it), __from_span.to_vector(__ooo_q),
+                         "the span ctor did not wait for the event it depends on");
     }
 }
 
