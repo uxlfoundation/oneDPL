@@ -513,8 +513,10 @@ struct __get_sycl_range
     {
         assert(__first < __last);
 
-        // no_init is dropped for the base sequence because all elements may not be written to for transform iterator.
+        // no_init property coming from algorithmic "knowledge", (example: copy() should write all elements of output)
+        // is dropped for the base sequence because all elements may not be written to for transform iterator.
         // The unary functor may not expose the underlying references for writing for instance.
+        // note: User hints of no_init for sycl_iterators are still respected
         auto res = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false>(__first.base(), __last.base());
         auto rng = oneapi::dpl::__ranges::transform_view_simple<decltype(res.all_view()), decltype(__first.functor())>{
             res.all_view(), __first.functor()};
@@ -574,6 +576,7 @@ struct __get_sycl_range
         auto __base_iter = __first.base();
         auto __base_buffer = __base_iter.get_buffer();
         // no_init is dropped for the base sequence because all elements may not be written to for permutation iterator
+        // note: this only applies to algorithmic "knowledge" no_init, user no_init hints are still respected
         auto res_src = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false>(
             oneapi::dpl::begin(__base_buffer) + __base_iter.get_idx(), oneapi::dpl::end(__base_buffer));
 
@@ -621,6 +624,7 @@ struct __get_sycl_range
         //      in recursion below this level is incorrect.
 
         // no_init is dropped for the base sequence because all elements may not be written to
+        // note: this only applies to algorithmic "knowledge" no_init, user no_init hints are still respected
         auto res_src = __process_input_iter<_LocalAccMode, /*_LocalNoInit=*/false>(__first.base(),
                                                                                    __first.base() + 1 /*source size*/);
 
