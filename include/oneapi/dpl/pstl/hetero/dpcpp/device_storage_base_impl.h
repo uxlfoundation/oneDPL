@@ -66,20 +66,19 @@ class __device_storage_base
     __device_storage_base&
     operator=(__device_storage_base&& __other)
     {
-        if (this == &__other)
-            return *this;
+        if (this != &__other)
+        {
+            __deallocate();
 
-        __deallocate();
+            __data = __other.__data;
+            __size = __other.__size;
+            __context = std::move(__other.__context);
+            __device = std::move(__other.__device);
+            __alloc = std::move(__other.__alloc);
 
-        __data = __other.__data;
-        __size = __other.__size;
-        __context = std::move(__other.__context);
-        __device = std::move(__other.__device);
-        __alloc = std::move(__other.__alloc);
-
-        __other.__data = nullptr;
-        __other.__size = 0;
-
+            __other.__data = nullptr;
+            __other.__size = 0;
+        }
         return *this;
     }
 
