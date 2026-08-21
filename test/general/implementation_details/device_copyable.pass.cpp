@@ -289,6 +289,10 @@ test_device_copyable()
     //__ranges_equal_to_pred
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__ranges_equal_to_pred<int_device_copyable>>,
                   "__ranges_equal_to_pred is not device copyable with device copyable types");
+    //__count_fn_pred
+    static_assert(sycl::is_device_copyable_v<
+                      oneapi::dpl::__internal::__count_fn_pred<int_device_copyable, noop_device_copyable>>,
+                  "__count_fn_pred is not device copyable with device copyable types");
 #endif
     //__transform_functor
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__transform_functor<noop_device_copyable>>,
@@ -600,6 +604,14 @@ test_non_device_copyable()
     //__ranges_equal_to_pred
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__ranges_equal_to_pred<int_non_device_copyable>>,
                   "__ranges_equal_to_pred is device copyable with non device copyable types");
+
+    //__count_fn_pred
+    static_assert(!sycl::is_device_copyable_v<
+                      oneapi::dpl::__internal::__count_fn_pred<int_non_device_copyable, noop_device_copyable>>,
+                  "__count_fn_pred is device copyable with non device copyable types");
+    static_assert(!sycl::is_device_copyable_v<
+                      oneapi::dpl::__internal::__count_fn_pred<int_device_copyable, noop_non_device_copyable>>,
+                  "__count_fn_pred is device copyable with non device copyable types");
 #endif
 
     //__transform_functor
