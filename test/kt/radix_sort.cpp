@@ -192,6 +192,31 @@ test_general_cases(sycl::queue q, std::size_t size, KernelParam param)
 #endif // _ENABLE_RANGES_TESTING
 }
 
+// Test with constrained-range data to exercise the single-bin direct-copy optimization on the upper
+// radix stages while the lower stages still reorder. See generate_constrained_range_data for details.
+template <typename T, bool IsAscending, std::uint8_t RadixBits, typename KernelParam>
+void
+test_constrained_range(sycl::queue q, std::size_t size, KernelParam param)
+{
+#if LOG_TEST_INFO
+    std::cout << "\t\ttest_constrained_range<" << TypeInfo().name<T>() << ", " << IsAscending << ">(" << size << ");"
+              << std::endl;
+#endif
+    std::vector<T> expected(size);
+    generate_constrained_range_data(expected.data(), size, 73);
+
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, T> dt_input(q, expected.begin(), expected.end());
+    std::stable_sort(expected.begin(), expected.end(), Compare<T, IsAscending>{});
+
+    kt_ns::radix_sort<IsAscending, RadixBits>(q, dt_input.get_data(), dt_input.get_data() + size, param).wait();
+
+    std::vector<T> actual(size);
+    dt_input.retrieve_data(actual.begin());
+
+    std::string msg = "wrong results with constrained range, n: " + std::to_string(size);
+    EXPECT_EQ_N(expected.begin(), actual.begin(), size, msg.c_str());
+}
+
 int
 main()
 {
@@ -213,6 +238,15 @@ main()
             }
             test_small_sizes<TEST_KEY_TYPE, Ascending, TestRadixBits>(
                 q, TestUtils::create_new_kernel_param_idx<3>(params));
+
+            // Constrained-range tests to exercise the single-bin direct-copy optimization, for all key types.
+            for (auto size : {std::size_t(1000), std::size_t(67543), std::size_t(100'000)})
+            {
+                test_constrained_range<TEST_KEY_TYPE, Ascending, TestRadixBits>(
+                    q, size, TestUtils::create_new_kernel_param_idx<4>(params));
+                test_constrained_range<TEST_KEY_TYPE, Descending, TestRadixBits>(
+                    q, size, TestUtils::create_new_kernel_param_idx<5>(params));
+            }
         }
         catch (const ::std::exception& exc)
         {

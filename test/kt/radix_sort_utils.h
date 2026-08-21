@@ -15,11 +15,13 @@
 #include <tuple>
 #include <random>
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <iostream>
 #include <cstdint>
 #include <vector>
 #include <type_traits>
+#include <algorithm>
 
 #if __has_include(<sycl/sycl.hpp>)
 #    include <sycl/sycl.hpp>
@@ -132,6 +134,44 @@ struct CompareKey<false>
 constexpr bool Ascending = true;
 constexpr bool Descending = false;
 constexpr std::uint8_t TestRadixBits = 8;
+
+// Generate data to test optimizations for when a tile's input falls into a single bin.
+// Only generate random data for the first stage and zero out the bits for the upper stages
+// where the optimization is applied. For a single stage radix sort, generate a constant range
+// of a non-zero value.
+template <typename T>
+void
+generate_constrained_range_data(T* data, std::size_t size, std::uint32_t seed)
+{
+    static_assert(std::is_arithmetic_v<T> || std::is_same_v<sycl::half, T>);
+    std::default_random_engine gen{seed};
+    if constexpr (std::is_integral_v<T>)
+    {
+        std::uniform_int_distribution<std::uint32_t> dist;
+        if constexpr (sizeof(T) <= TestRadixBits / 8)
+        {
+            dist = std::uniform_int_distribution<std::uint32_t>{42, 42};
+        }
+        else
+        {
+            dist = std::uniform_int_distribution<std::uint32_t>{0, (1 << TestRadixBits) - 1};
+        }
+        std::generate(data, data + size, [&] { return static_cast<T>(dist(gen)); });
+    }
+    else
+    {
+        using UIntT = std::conditional_t<sizeof(T) == 2, std::uint16_t,
+                                         std::conditional_t<sizeof(T) == 4, std::uint32_t, std::uint64_t>>;
+        static_assert(sizeof(UIntT) == sizeof(T));
+        std::uniform_int_distribution<std::uint32_t> dist{0, (1 << TestRadixBits) - 1};
+        std::generate(data, data + size, [&] {
+            UIntT bits = static_cast<UIntT>(dist(gen));
+            T value;
+            std::memcpy(&value, &bits, sizeof(T));
+            return value;
+        });
+    }
+}
 
 #if LOG_TEST_INFO
 struct TypeInfo
