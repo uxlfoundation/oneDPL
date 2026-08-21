@@ -127,7 +127,7 @@ call_check_unwritten_elements_preserved(Policy&& exec, std::size_t n, const std:
         TestUtils::unsupported_types_notifier(exec.queue().get_device());
         return;
     }
-    #    if _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN
+#    if _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN
     // A guard region past the end would make the accessor cover only a sub-range of the buffer, and no_init is then
     // dropped anyway by the workaround for the broken ranged accessor no_init, leaving nothing for these checks to
     // observe. Cover the whole buffer instead, so that no_init is genuinely requested and the drop performed for the
