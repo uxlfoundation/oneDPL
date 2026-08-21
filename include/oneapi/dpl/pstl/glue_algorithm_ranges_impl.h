@@ -391,9 +391,6 @@ struct __internal::__search_n_fn
                _Pred __pred = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        // TODO: __pattern_search_n stores __value into a predicate by value, which requires the value type to be
-        // copy constructible even for the host policies. Pass oneapi::dpl::__internal::__ref_or_copy down to the
-        // pattern to keep a reference for the host policies and to make a copy for the device policies only.
         return oneapi::dpl::__internal::__ranges::__pattern_search_n(__dispatch_tag,
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __count, __value, __pred, __proj);
     }
