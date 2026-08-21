@@ -347,7 +347,7 @@ __pattern_count(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __val
     return oneapi::dpl::__internal::__pattern_count(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r),
-        oneapi::dpl::__internal::__ranges_equal_value<_T, _Proj>{__value, __proj});
+        oneapi::dpl::__internal::__ranges_equal_value<const _T&, _Proj>{__value, __proj});
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _T, typename _Proj>

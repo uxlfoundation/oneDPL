@@ -465,10 +465,6 @@ struct __internal::__count_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        // TODO: __pattern_count builds oneapi::dpl::__internal::__ranges_equal_value, which stores __value by value and
-        // so requires the value type to be copy constructible even for the host policies. Pass
-        // oneapi::dpl::__internal::__ref_or_copy down to the pattern to keep a reference for the host policies and
-        // to make a copy for the device policies only.
         return oneapi::dpl::__internal::__ranges::__pattern_count(__dispatch_tag,
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __value, __proj);
     }
