@@ -129,6 +129,9 @@ struct __binary_search_impl_fn;
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _T, typename _Proj>
 struct __count_fn_pred;
+
+template <typename _T>
+struct __ranges_equal_to_pred;
 #endif
 
 template <typename _ReduceValueType, typename _Compare>
@@ -312,6 +315,12 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 template <typename _T, typename _Proj>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__count_fn_pred, _T, _Proj)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_T, _Proj>
+{
+};
+
+template <typename _T>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__ranges_equal_to_pred, _T)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_T>
 {
 };
 #endif
