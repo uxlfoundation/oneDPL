@@ -1303,9 +1303,8 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _Execution
 //-----------------------------------------------------------------------
 
 // TODO: check if it makes sense to move these wrappers out of backend to a common place
-// partial_sort leaves [__mid, __last) in an unspecified order and is not required to be stable, so
-// sorting the whole range satisfies its contract. A partial merge cannot use sorted leaves, so it has
-// to start from runs of one element and launch one kernel over the whole range per merge level.
+// partial_sort's tail is unspecified and need not be stable, so a full sort satisfies the contract.
+// __parallel_sort_impl, not __parallel_stable_sort: the radix path the latter selects is slower here.
 template <typename _ExecutionPolicy, typename _Iterator, typename _Compare>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Iterator __first,

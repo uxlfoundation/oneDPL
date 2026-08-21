@@ -1542,9 +1542,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         auto __buf_mid = __buf_first + __out_size;
 
-        // The sort's temporary sycl::buffer and accessors let the SYCL runtime order it against the two
-        // __pattern_hetero_walk2 calls, but its future also owns scratch USM which must outlive the
-        // kernels using it, so it has to be waited on rather than discarded.
+        // The returned future owns scratch USM that must outlive its kernels, so it cannot be discarded.
         __par_backend_hetero::__parallel_partial_sort(
             _BackendTag{}, __par_backend_hetero::make_wrapped_policy<__partial_sort_2>(__exec), __buf_first, __buf_mid,
             __buf_last, __comp)

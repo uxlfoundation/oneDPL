@@ -109,6 +109,9 @@ Difference with Standard C++ Parallel Algorithms
   ``remove``, ``remove_if``, ``rotate``, ``sort``, ``stable_sort``,
   ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union``,
   ``unique``, ``unique_copy``.
+* With device execution policies, ``partial_sort``, ``partial_sort_copy``, and ``nth_element`` sort the
+  whole input range, so they perform more comparisons than the O(N log M) the C++ standard specifies,
+  where M is the number of elements requested. The results satisfy the standard's requirements.
 
 Restrictions
 ************
