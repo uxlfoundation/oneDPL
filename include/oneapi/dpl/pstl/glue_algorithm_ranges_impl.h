@@ -1508,8 +1508,11 @@ struct __internal::__remove_fn
     std::ranges::borrowed_subrange_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
-        return oneapi::dpl::ranges::remove_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-                                              oneapi::dpl::__internal::__ranges_equal_to_pred<_T>{__value}, __proj);
+        return oneapi::dpl::ranges::remove_if(
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__ranges_equal_to_pred<
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>{__value},
+            __proj);
     }
 }; //__remove_fn
 inline constexpr __internal::__remove_fn remove;
