@@ -1194,8 +1194,8 @@ struct __internal::__replace_copy_fn
     {
         return oneapi::dpl::ranges::replace_copy_if(
             std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r),
-            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>>(
-                __old_value),
+            oneapi::dpl::__internal::__ranges_equal_to_pred<
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>>{__old_value},
             __new_value, __proj);
     }
 }; //__replace_copy_fn
