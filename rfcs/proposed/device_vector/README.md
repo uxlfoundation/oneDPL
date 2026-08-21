@@ -54,7 +54,7 @@ This RFC proposes adding data containers to oneDPL for managing device memory an
 ## Proposal
 
 The proposal consists of two complementary public types that share a
-non-public base implementation, `internal::__device_storage_base`:
+non-public base implementation, `__internal::__device_storage_base`:
 
 1. **[`device_array<T>`](device_array.md)** — the primary API.
    A clean, explicit, **fixed-size** container for device memory with no proxy
@@ -69,7 +69,7 @@ non-public base implementation, `internal::__device_storage_base`:
    `thrust::device_vector`, along with a resizable, allocator-aware interface.
 
 Both types **privately inherit** from
-`internal::__device_storage_base<T, Alloc>`, which owns the shared machinery:
+`__internal::__device_storage_base<T, Alloc>`, which owns the shared machinery:
 the device allocation and its lifetime, size, associated `sycl::context` /
 `sycl::device`, the allocator instance, resizing, and the host-device transfer
 helpers. Each derived type re-exposes (via `using` declarations) only the
@@ -84,7 +84,7 @@ without duplicating the implementation that `device_vector` reuses.
 classDiagram
     direction LR
 
-    namespace internal {
+    namespace __internal {
         class __device_storage_base~T, Alloc~ {
             owns allocation + size + context/device + allocator
             resize / host transfers
@@ -95,7 +95,7 @@ classDiagram
         class device_array~T~ {
             fixed size, no allocator
             device access: span()
-            host access: copy_to() / copy_from() / read_at()
+            host access: copy_to / copy_from / read_at / write_at
         }
     }
 
@@ -169,7 +169,8 @@ classDiagram
   alias `std::span` when `__cpp_lib_span >= 202002L` and fall back to
   `sycl::span` otherwise. Both are device copyable per SYCL 2020 §3.13.1, but
   preferring the standard type where it exists lets these spans compose with
-  users' C++20 code and `std::ranges` without conversion. See
+  users' C++20 code and `std::ranges` without conversion. The data containers
+  are omitted where no span implementation is available. See
   [device_array](device_array.md#oneapidplspan).
 
 - **No `push_back`, `insert`, `erase`.**

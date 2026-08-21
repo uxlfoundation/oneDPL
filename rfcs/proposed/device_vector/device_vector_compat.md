@@ -136,7 +136,7 @@ public:
 // =========================================================================
 
 template <typename T, typename Alloc = device_allocator<T>>
-class device_vector : private internal::__device_storage_base<T, Alloc> {
+class device_vector : private __internal::__device_storage_base<T, Alloc> {
     // base stores context + device + allocator + allocation + size
 public:
     using value_type      = T;
@@ -283,11 +283,16 @@ device memory allocation. The default allocator wraps `sycl::malloc_device` /
 `sycl::free`. (`device_array` fixes this to the default and does not expose it;
 pluggable allocation is a `device_vector` feature.)
 
-The default `device_allocator` deliberately mirrors `sycl::usm_allocator`. It is
-stateful, carrying the `sycl::context`, `sycl::device` and `sycl::property_list` to
-allocate against, so `allocate()` takes only an element count. It also matches
-`usm_allocator`'s alignment template parameter, its `rebind` and
-`propagate_on_container_*` members, and its converting constructor.
+The default `device_allocator` lives in `oneapi::dpl::experimental`, alongside
+`device_array`, and is implemented as part of it. It deliberately mirrors
+`sycl::usm_allocator`: it is stateful, carrying the `sycl::context`, `sycl::device` and
+`sycl::property_list` to allocate against, so `allocate()` takes only an element count. It
+also matches `usm_allocator`'s alignment template parameter, its converting constructor,
+and its equality semantics.
+
+It does **not** currently provide `rebind` or the `propagate_on_container_*` members.
+Nothing in `device_array` needs them, so they are deferred to `device_vector`, which is
+where a container-level allocator contract first becomes observable.
 
 `sycl::usm_allocator` itself cannot serve this role: it contains
 `static_assert(AllocKind != sycl::usm::alloc::device)`, because device memory is not
@@ -310,6 +315,13 @@ The allocator is not required to be default constructible, and the default
 `device_allocator` deliberately is not. An allocation needs a context and a device, and
 there is no meaningful default for either.
 
+Additional requirements on the two expressions:
+
+- `allocate(0)` returns `nullptr` and allocates nothing. `sycl::malloc_device(0)` is
+  unspecified, and some backends return a non-null pointer that cannot be freed.
+- `deallocate(nullptr, n)` is a no-op. The count is accepted to match the allocator
+  convention and is ignored — USM deallocation needs only the pointer and the context.
+
 The allocator is not required to support `construct`, `destroy`, or any of the
 `std::allocator` named requirements beyond `allocate`/`deallocate`. Device
 memory is not host-accessible, so construction and destruction happen via
@@ -317,48 +329,49 @@ kernel launches or memcpy, managed by the container itself.
 
 The allocator must be copy-constructible and copy-assignable.
 ```cpp
+namespace oneapi::dpl::experimental {
+
 // Default allocator
 template <typename T, std::size_t Alignment = 0>
 class device_allocator {
 public:
     using value_type = T;
+    using size_type  = std::size_t;
 
-    // Device memory is never host-accessible, so a container can never relocate
-    // elements on the host; propagating on all three operations keeps a container's
-    // allocator consistent with the memory it holds. Matches sycl::usm_allocator.
-    using propagate_on_container_copy_assignment = std::true_type;
-    using propagate_on_container_move_assignment = std::true_type;
-    using propagate_on_container_swap            = std::true_type;
-
-    template <typename U> struct rebind { using other = device_allocator<U, Alignment>; };
-
-    // Not default constructible: an allocation needs a context and a device.
-    device_allocator() = delete;
 
     explicit device_allocator(sycl::context ctx, sycl::device dev,
                               const sycl::property_list& prop_list = {});
     explicit device_allocator(sycl::queue q,
                               const sycl::property_list& prop_list = {});
 
-    // Rebinding conversion; carries the allocation target over.
+    // Converting constructor; carries the allocation target over. Conditionally noexcept:
+    // SYCL does not guarantee noexcept copies of context, device or property_list.
     template <typename U>
-    device_allocator(const device_allocator<U, Alignment>& other) noexcept;
+    device_allocator(const device_allocator<U, Alignment>& other) noexcept(/* see above */);
 
     // Alignment == 0 uses sycl::malloc_device; otherwise sycl::aligned_alloc_device,
     // which itself raises the alignment to max(Alignment, alignof(T)).
-    T*   allocate(std::size_t count) const;
-    void deallocate(T* ptr, std::size_t count) const;
-
-    sycl::context get_context() const;
-    sycl::device  get_device()  const;
-
-    template <typename Property> bool     has_property() const noexcept;
-    template <typename Property> Property get_property() const;
-
+    T*   allocate(size_type count) const;
+    void deallocate(T* ptr, size_type count) const;
 };
+
+// Two device allocators compare equal if they share an alignment, a context and a device,
+// following the requirement SYCL 2020 section 4.8.3.1 places on sycl::usm_allocator. As
+// with sycl::usm_allocator, the value type and the property list do not participate.
+template <typename T, std::size_t AlignmentT, typename U, std::size_t AlignmentU>
+bool operator==(const device_allocator<T, AlignmentT>&,
+                const device_allocator<U, AlignmentU>&) noexcept;
+template <typename T, std::size_t AlignmentT, typename U, std::size_t AlignmentU>
+bool operator!=(const device_allocator<T, AlignmentT>&,
+                const device_allocator<U, AlignmentU>&) noexcept;
+
+} // namespace oneapi::dpl::experimental
 ```
 
-Allocation failure surfaces as the `sycl::exception` thrown by the underlying USM `sycl::malloc_device` or `sycl::aligned_alloc_device`.
+Allocation failure surfaces as a `sycl::exception` carrying
+`sycl::errc::memory_allocation` when `sycl::malloc_device` and
+`sycl::aligned_alloc_device` return `nullptr` on failure.  This occurs when
+resources are insufficient and when the requested alignment is unsupported.
 
 
 ### C++20 Concept (informational; enforced via SFINAE on C++17)
