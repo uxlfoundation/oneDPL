@@ -48,9 +48,11 @@ a `SYCL buffer`_ and return an object of an unspecified type that provides the f
   that satisfies the ``LegacyRandomAccessIterator``, a C++ named requirement.
 * It provides the ``get_buffer`` method, which returns the buffer passed to the ``begin`` and ``end`` functions.
 
-The ``begin`` and ``end`` functions can take SYCL 2020 deduction tags and ``sycl::no_init`` as arguments
-to explicitly control which access mode should be applied to a particular buffer when submitting
-a SYCL kernel to a device:
+By default, the objects returned by ``begin`` and ``end`` request ``read_write`` access to the buffer.
+The functions can also take SYCL 2020 deduction tags and ``sycl::no_init`` as arguments to provide access mode
+and ``no_init`` property hints to |onedpl_short| algorithms. |onedpl_short| may use these hints to optimize
+data access in cases where an algorithm does not inherently dictate the access mode, which can avoid
+unnecessary data transfers to and from the device:
 
 .. code:: cpp
 
@@ -58,6 +60,14 @@ a SYCL kernel to a device:
   auto first_ro = oneapi::dpl::begin(buf, sycl::read_only);
   auto first_wo = oneapi::dpl::begin(buf, sycl::write_only, sycl::no_init);
   auto first_ni = oneapi::dpl::begin(buf, sycl::no_init);
+
+The hints are currently used by ``for_each[_n]``. Other algorithms accept the returned objects but ignore the hints,
+because their access mode follows from the algorithm semantics. For example, the output sequence of ``copy`` is already
+accessed as write-only with the ``no_init`` property.
+
+A hint must be consistent with the way an algorithm and its callable objects actually use the data.
+In particular, ``sycl::no_init`` discards the previous content of the buffer, so every element that is read
+must be written first; otherwise the values that the algorithm operates on are unspecified.
 
 To use the functions, add ``#include <oneapi/dpl/iterator>`` to your code. For example:
 
@@ -67,10 +77,16 @@ To use the functions, add ``#include <oneapi/dpl/iterator>`` to your code. For e
   #include <oneapi/dpl/algorithm>
   #include <oneapi/dpl/iterator>
   #include <random>
+  #include <vector>
   #include <sycl/sycl.hpp>
 
+  struct Point { float x, y, z; };
+
+  struct proj_x { float& operator()(Point& p) const { return p.x; } };
+
   int main(){
-    std::vector<int> vec(1000);
+    const int n = 1000;
+    std::vector<int> vec(n);
     std::generate(vec.begin(), vec.end(), std::minstd_rand{});
 
     sycl::buffer<int> buf{ vec.data(), vec.size() };
@@ -78,6 +94,27 @@ To use the functions, add ``#include <oneapi/dpl/iterator>`` to your code. For e
     auto buf_end   = oneapi::dpl::end(buf);
 
     oneapi::dpl::sort(oneapi::dpl::execution::dpcpp_default, buf_begin, buf_end);
+
+    sycl::buffer<Point> pts{ sycl::range<1>(n) };
+
+    auto out_write_no_init_beg = oneapi::dpl::begin(pts, sycl::write_only, sycl::no_init);
+    auto out_write_no_init_end = oneapi::dpl::end(pts, sycl::write_only, sycl::no_init);
+
+    // Every element is fully overwritten, so no_init is appropriate:
+    // the previous content of the buffer does not need to be transferred to the device.
+    oneapi::dpl::for_each(oneapi::dpl::execution::dpcpp_default, out_write_no_init_beg, out_write_no_init_end,
+                          [](Point& point) { point = {1.f, 2.f, 3.f};});
+
+    // no_init is not appropriate here: a projection operation selects only the x component, so the
+    // existing y and z data of every element is preserved and must not be discarded.
+    auto out_write_beg = oneapi::dpl::begin(pts, sycl::write_only);
+    auto out_write_end = oneapi::dpl::end(pts, sycl::write_only);
+
+    oneapi::dpl::for_each(oneapi::dpl::execution::dpcpp_default,
+        oneapi::dpl::make_transform_iterator(out_write_beg, proj_x{}),
+        oneapi::dpl::make_transform_iterator(out_write_end, proj_x{}),
+        [](float& x) { x = 42.f; });
+
     return 0;
   }
 
