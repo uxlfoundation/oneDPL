@@ -991,8 +991,10 @@ struct __early_exit_find_or
         std::size_t __iter = 0;
 
         // Scan in batches of __len, voting once per batch, until iteration __until.
-        auto __scan_batches = [&](auto __len_c, std::size_t __until) {
-            constexpr std::size_t __len = decltype(__len_c)::value;
+        // __len is a runtime value, so this is one loop body for every batch length rather than one
+        // per length: the wide load and the vote are what the batching is for, and neither needs the
+        // length to be a constant.
+        auto __scan_batches = [&](std::size_t __len, std::size_t __until) {
             const std::size_t __end = std::min<std::size_t>(__until, __iters);
             for (; !__something_was_found && __iter + __len <= __end; __iter += __len)
             {
@@ -1001,7 +1003,6 @@ struct __early_exit_find_or
                 if (__iter_base(__backward ? __iter : __iter + __len - 1) + __elems_per_iter - 1 <
                     __source_data_size)
                 {
-                    _ONEDPL_PRAGMA_UNROLL
                     for (std::size_t __j = 0; __j < __len; ++__j)
                         __something_was_found |= __scan_iter(__iter + __j);
                 }
@@ -1019,23 +1020,13 @@ struct __early_exit_find_or
 
         // Double the batch length once __iters_scanned_per_batch_iter times the next length is
         // behind the item, so the length in use stays under 1 / __iters_scanned_per_batch_iter of the
-        // iterations already scanned. Recursing on the length keeps the lengths and their thresholds
-        // in one place: a different __max_iters_per_vote cannot loosen that bound. An item that exits
-        // early enough never leaves length 1, as does every item when no item's share of the input
-        // reaches the first threshold.
-        auto __scan_growing = [&](auto __self, auto __len_c) {
-            constexpr std::size_t __len = decltype(__len_c)::value;
-            if constexpr (__len < __max_iters_per_vote)
-            {
-                __scan_batches(__len_c, __iters_scanned_per_batch_iter * 2 * __len);
-                __self(__self, std::integral_constant<std::size_t, 2 * __len>{});
-            }
-            else
-                __scan_batches(__len_c, __iters);
-        };
-        __scan_growing(__scan_growing, std::integral_constant<std::size_t, 1>{});
+        // iterations already scanned. An item that exits early enough never leaves length 1, as does
+        // every item when no item's share of the input reaches the first threshold.
+        for (std::size_t __len = 1; __len < __max_iters_per_vote; __len *= 2)
+            __scan_batches(__len, __iters_scanned_per_batch_iter * 2 * __len);
+        __scan_batches(__max_iters_per_vote, __iters);
         // An incomplete final batch, and indices past the end of the source.
-        __scan_batches(std::integral_constant<std::size_t, 1>{}, __iters);
+        __scan_batches(1, __iters);
     }
 };
 
