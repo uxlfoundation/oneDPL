@@ -42,6 +42,8 @@ Fixed Issues
 - Fixed a data race in ``reverse`` algorithm when used with device policies and 1- or 2-byte data types.
 - Fixed an issue causing unnecessary host to device data transfers for SYCL buffers passed to algorithms with device
   policies through ``oneapi::dpl::begin`` and ``oneapi::dpl::end`` for write only sequences which are fully overwritten.
+ - Fixed sporadic crashes with AdaptiveCpp when an algorithm was called with a device execution policy,
+   related to the logic of getting a queue from the policy.
 
 Known Issues and Limitations
 ----------------------------
