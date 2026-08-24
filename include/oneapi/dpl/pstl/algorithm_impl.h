@@ -3160,11 +3160,44 @@ using _merge_path_out_lim_return_t = std::tuple<_ForwardIterator1, _ForwardItera
 template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _ForwardIterator3, typename _Comp, typename _Proj1, typename _Proj2>
 _merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _ForwardIterator3>
-__merge_path_out_lim(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+__pattern_merge_path(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
                      _ForwardIterator2 __first2, _ForwardIterator2 __last2, _ForwardIterator3 __first3,
                      _ForwardIterator3 __last3, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    if (__first3 == __last3)
+        return {__first1, __first2, __first3};
+
+    if (__first1 == __last1)
+    {
+        const auto __n_out = std::distance(__first3, __last3);
+        const auto __n2 = std::distance(__first2, __last2);
+        using _DifferenceType = std::common_type_t<decltype(__n_out), decltype(__n2)>;
+        const auto __n_to_copy = std::min<_DifferenceType>(__n_out, __n2);
+        auto __last2_tmp = __first2;
+        std::advance(__last2_tmp, __n_to_copy);
+
+        auto __last_out_res = __pattern_walk2_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2_tmp, __first3,
+            __brick_copy<_Tag>{});
+        return {__first1, __last2_tmp, __last_out_res};
+    }
+
+    if (__first2 == __last2)
+    {
+        const auto __n_out = std::distance(__first3, __last3);
+        const auto __n1 = std::distance(__first1, __last1);
+        using _DifferenceType = std::common_type_t<decltype(__n_out), decltype(__n1)>;
+        const auto __n_to_copy = std::min<_DifferenceType>(__n_out, __n1);
+        auto __last1_tmp = __first1;
+        std::advance(__last1_tmp, __n_to_copy);
+
+        auto __last_out_res = __pattern_walk2_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1_tmp, __first3,
+            __brick_copy<_Tag>{});
+        return {__last1_tmp, __first2, __last_out_res};
+    }
 
     return __serial_merge_out_lim(__first1, __last1, __first2, __last2, __first3, __last3, __comp, __proj1, __proj2);
 }
@@ -3178,7 +3211,7 @@ std::enable_if_t<__is_random_access_iterator_v<_RandomAccessIterator1> &&
                      __is_random_access_iterator_v<_RandomAccessIterator2> &&
                      __is_random_access_iterator_v<_RandomAccessIterator3>,
                  _merge_path_out_lim_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3>>
-__merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+__pattern_merge_path(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                      _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                      _RandomAccessIterator3 __first3, _RandomAccessIterator3 __last3, _Comp __comp, _Proj1 __proj1,
                      _Proj2 __proj2)
@@ -3197,9 +3230,28 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
     const _IndexCommon __n_2 = __last2 - __first2;
     const _IndexCommon __n_out = __last3 - __first3;
 
-    assert(__n_1 > 0);
-    assert(__n_2 > 0);
-    assert(__n_out > 0);
+    if (__n_out == 0)
+        return {__first1, __first2, __first3};
+
+    if (__n_1 == 0)
+    {
+        const _IndexCommon __n_to_copy = std::min(__n_out, __n_2);
+        auto __last2_tmp = __first2 + __n_to_copy;
+        auto __last_out_res = __pattern_walk2_brick(
+            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first2, __last2_tmp, __first3,
+            __brick_copy<__parallel_tag<_IsVector>>{});
+        return {__first1, __last2_tmp, __last_out_res};
+    }
+
+    if (__n_2 == 0)
+    {
+        const _IndexCommon __n_to_copy = std::min(__n_out, __n_1);
+        auto __last1_tmp = __first1 + __n_to_copy;
+        auto __last_out_res = __pattern_walk2_brick(
+            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first1, __last1_tmp, __first3,
+            __brick_copy<__parallel_tag<_IsVector>>{});
+        return {__last1_tmp, __first2, __last_out_res};
+    }
 
     _merge_path_out_lim_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3> __result{
         __first1, __first2, __first3};
@@ -3207,7 +3259,7 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
-            [=, &__result](_IndexCommon __i, _IndexCommon __j) {
+            [=, &__result](_IndexCommon __i, _IndexCommon __j) mutable {
                 //a start merging point on the merge path; for each thread
                 _IndexCommon __r = 0; //row index
                 _IndexCommon __c = 0; //column index
@@ -3269,17 +3321,11 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
                 _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                 _RandomAccessIterator3 __d_first, _Compare __comp)
 {
-    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
-
     return __internal::__except_handler([&]() {
-        __par_backend::__parallel_merge(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __d_first,
-            __comp,
-            [](_RandomAccessIterator1 __f1, _RandomAccessIterator1 __l1, _RandomAccessIterator2 __f2,
-               _RandomAccessIterator2 __l2, _RandomAccessIterator3 __f3, _Compare __comp) {
-                return __internal::__brick_merge(__f1, __l1, __f2, __l2, __f3, __comp, _IsVector{});
-            });
-        return __d_first + (__last1 - __first1) + (__last2 - __first2);
+        return std::get<2>(__pattern_merge_path(
+            __parallel_tag<_IsVector>{}, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+            __last2, __d_first, __d_first + (__last1 - __first1) + (__last2 - __first2), __comp,
+            oneapi::dpl::identity{}, oneapi::dpl::identity{}));
     });
 }
 

@@ -788,31 +788,7 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     if (__n3 == 0)
         return {__first1, __first2, __first3};
 
-    //{1} is empty
-    if (__n1 == 0)
-    {
-        __internal::__brick_copy<_Tag> __copy_range{};
-
-        auto __last2_tmp = __first2 + std::min(__n3, __n2);
-
-        auto __last_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2,
-                                                                __last2_tmp, __first3, __copy_range);
-        return {__first1, __last2_tmp, __last_out_res};
-    }
-
-    //{2} is empty
-    if (__n2 == 0)
-    {
-        __internal::__brick_copy<_Tag> __copy_range{};
-
-        auto __last1_tmp = __first1 + std::min(__n3, __n1);
-
-        auto __last_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                                __last1_tmp, __first3, __copy_range);
-        return {__last1_tmp, __first2, __last_out_res};
-    }
-
-    auto [__it1, __it2, __it3] = __merge_path_out_lim(
+    auto [__it1, __it2, __it3] = __pattern_merge_path(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n1, __first2, __first2 + __n2, __first3,
         __first3 + std::min<_IndexCommon>(__n1 + __n2, __n3), __comp, __proj1, __proj2);
 
