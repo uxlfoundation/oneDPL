@@ -28,6 +28,8 @@
 #include <cmath>
 #include <limits>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <array>
 #include <tuple>
 
@@ -1304,6 +1306,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
 
     _AtomicType __result;
+    try {
     if (__n_groups == 1)
     {
         // We shouldn't have any restrictions for _AtomicType type here
@@ -1332,6 +1335,25 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name_init, __find_or_kernel_name>()(
                 __q_local, __brick_tag, __rng_n, __n_groups, __wgroup_size, __init_value, __pred,
                 std::forward<_Ranges>(__rngs)...);
+    }
+    }
+    catch (const sycl::exception& __e)
+    {
+        std::fprintf(stderr, "DIAG find_or sycl::exception code=%d what=%s\n", (int)__e.code().value(), __e.what());
+        std::fflush(stderr);
+        std::exit(3);
+    }
+    catch (const std::exception& __e)
+    {
+        std::fprintf(stderr, "DIAG find_or std::exception what=%s\n", __e.what());
+        std::fflush(stderr);
+        std::exit(3);
+    }
+    catch (...)
+    {
+        std::fprintf(stderr, "DIAG find_or unknown exception\n");
+        std::fflush(stderr);
+        std::exit(3);
     }
 
     if constexpr (__or_tag_check)
