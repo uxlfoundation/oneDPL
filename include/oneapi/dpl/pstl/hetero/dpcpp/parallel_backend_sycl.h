@@ -921,7 +921,7 @@ struct __early_exit_find_or
     static constexpr std::size_t __max_iters_per_vote = 1;
 #else
     static constexpr std::size_t __elems_per_iter = 4;
-    static constexpr std::size_t __max_iters_per_vote = 8;
+    static constexpr std::size_t __max_iters_per_vote = 2;
 #endif
     // A batch runs past a match by up to its own length, so a length is used only once this many
     // times that length has been scanned. That bounds the overshoot at 1 / this of the iterations an
