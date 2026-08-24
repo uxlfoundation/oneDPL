@@ -40,6 +40,8 @@ Fixed Issues
   ``transform_inclusive_scan``, and ``transform_exclusive_scan`` algorithms when using a device policy to
   process ``sycl::ext::oneapi::bfloat16`` elements.
 - Fixed a data race in ``reverse`` algorithm when used with device policies and 1- or 2-byte data types.
+- Fixed an issue causing unnecessary host to device data transfers for SYCL buffers passed to algorithms with device
+  policies through ``oneapi::dpl::begin`` and ``oneapi::dpl::end`` for write only sequences which are fully overwritten.
 
 Known Issues and Limitations
 ----------------------------
