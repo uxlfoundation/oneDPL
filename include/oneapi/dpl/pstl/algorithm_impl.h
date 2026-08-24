@@ -3174,9 +3174,8 @@ __merge_path_intersection(_Index __diag, _Index __n_1, _Index __n_2, _RandomAcce
             assert(0 <= __r_tmp && __r_tmp < __n_1);
             assert(0 <= __c_tmp && __c_tmp < __n_2);
 
-            const auto __res =
-                std::invoke(__comp, std::invoke(__proj2, __first2[__c_tmp]),
-                            std::invoke(__proj1, __first1[__r_tmp])) ? 0 : 1;
+            const auto __res = std::invoke(__comp, std::invoke(__proj2, __first2[__c_tmp]),
+                                           std::invoke(__proj1, __first1[__r_tmp])) ? 0 : 1;
             return __res < __val;
         });
     const _Index __res_d = static_cast<_Index>( *__found);
@@ -3238,7 +3237,7 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
-            [=](_IndexCommon __i, _IndexCommon __j) mutable {
+            [=](_IndexCommon __i, _IndexCommon __j) {
                 const auto [__r, __c] =
                     __merge_path_intersection(__i, __n_1, __n_2, __first1, __first2, __comp, oneapi::dpl::identity{},
                                               oneapi::dpl::identity{});

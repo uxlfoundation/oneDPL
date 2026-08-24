@@ -821,7 +821,7 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
         oneapi::dpl::__internal::__except_handler([&]() {
             oneapi::dpl::__par_backend::__parallel_for(
                 __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
-                [=, &__result](_IndexCommon __i, _IndexCommon __j) mutable {
+                [=, &__result](_IndexCommon __i, _IndexCommon __j) {
                     const auto [__r, __c] = oneapi::dpl::__internal::__merge_path_intersection(
                         __i, __n1, __n2, __first1, __first2, __comp, __proj1, __proj2);
 
