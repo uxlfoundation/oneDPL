@@ -3141,6 +3141,49 @@ __brick_merge(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _
     return ::std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
 }
 
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator>
+using _merge_path_out_lim_return_t = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>;
+
+// Find the starting input positions (__r, __c) corresponding to output offset __diag; __r + __c = __diag
+template <typename _Index, typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _Comp,
+          typename _Proj1, typename _Proj2>
+std::pair<_Index, _Index>
+__merge_path_intersection(_Index __diag, _Index __n_1, _Index __n_2, _RandomAccessIterator1 __first1,
+                          _RandomAccessIterator2 __first2, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    if (__diag == 0)
+        return {0, 0};
+
+    const _Index __search_size = std::min(__diag, __n_1) - std::max(_Index{0}, __diag - __n_2);
+
+    auto __get_row = [__diag, __n_1](_Index __d) -> _Index {
+        return std::min(__diag, __n_1) - __d - 1;
+    };
+    auto __get_column = [__diag, __n_1](_Index __d) -> _Index {
+        return std::max(_Index{0}, __diag - __n_1) + __d;
+    };
+
+    using _CountingIterator = oneapi::dpl::counting_iterator<_Index>;
+    const _CountingIterator __it_d(0);
+
+    _CountingIterator __found =
+        std::lower_bound(__it_d, __it_d + __search_size, 1, [&](_Index __d, auto __val) {
+            const _Index __r_tmp = __get_row(__d);
+            const _Index __c_tmp = __get_column(__d);
+
+            assert(0 <= __r_tmp && __r_tmp < __n_1);
+            assert(0 <= __c_tmp && __c_tmp < __n_2);
+
+            const auto __res =
+                std::invoke(__comp, std::invoke(__proj2, __first2[__c_tmp]),
+                            std::invoke(__proj1, __first1[__r_tmp])) ? 0 : 1;
+            return __res < __val;
+        });
+    const _Index __res_d = static_cast<_Index>( *__found);
+
+    return {__get_row(__res_d) + 1, __get_column(__res_d)};
+}
+
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
           class _Compare>
 _OutputIterator
@@ -3154,67 +3197,14 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
                                      typename _Tag::__is_vector{});
 }
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator>
-using _merge_path_out_lim_return_t = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>;
-
-template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _ForwardIterator3, typename _Comp, typename _Proj1, typename _Proj2>
-_merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _ForwardIterator3>
-__pattern_merge_path(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                     _ForwardIterator2 __first2, _ForwardIterator2 __last2, _ForwardIterator3 __first3,
-                     _ForwardIterator3 __last3, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
-
-    if (__first3 == __last3)
-        return {__first1, __first2, __first3};
-
-    if (__first1 == __last1)
-    {
-        const auto __n_out = std::distance(__first3, __last3);
-        const auto __n2 = std::distance(__first2, __last2);
-        using _DifferenceType = std::common_type_t<decltype(__n_out), decltype(__n2)>;
-        const auto __n_to_copy = std::min<_DifferenceType>(__n_out, __n2);
-        auto __last2_tmp = __first2;
-        std::advance(__last2_tmp, __n_to_copy);
-
-        auto __last_out_res = __pattern_walk2_brick(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2_tmp, __first3,
-            __brick_copy<_Tag>{});
-        return {__first1, __last2_tmp, __last_out_res};
-    }
-
-    if (__first2 == __last2)
-    {
-        const auto __n_out = std::distance(__first3, __last3);
-        const auto __n1 = std::distance(__first1, __last1);
-        using _DifferenceType = std::common_type_t<decltype(__n_out), decltype(__n1)>;
-        const auto __n_to_copy = std::min<_DifferenceType>(__n_out, __n1);
-        auto __last1_tmp = __first1;
-        std::advance(__last1_tmp, __n_to_copy);
-
-        auto __last_out_res = __pattern_walk2_brick(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1_tmp, __first3,
-            __brick_copy<_Tag>{});
-        return {__last1_tmp, __first2, __last_out_res};
-    }
-
-    return __serial_merge_out_lim(__first1, __last1, __first2, __last2, __first3, __last3, __comp, __proj1, __proj2);
-}
-
 inline constexpr std::size_t __merge_path_cut_off = 2000;
 
-template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator1,
-          typename _RandomAccessIterator2, typename _RandomAccessIterator3, typename _Comp, typename _Proj1,
-          typename _Proj2>
-std::enable_if_t<__is_random_access_iterator_v<_RandomAccessIterator1> &&
-                     __is_random_access_iterator_v<_RandomAccessIterator2> &&
-                     __is_random_access_iterator_v<_RandomAccessIterator3>,
-                 _merge_path_out_lim_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3>>
-__pattern_merge_path(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
-                     _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                     _RandomAccessIterator3 __first3, _RandomAccessIterator3 __last3, _Comp __comp, _Proj1 __proj1,
-                     _Proj2 __proj2)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _RandomAccessIterator3, class _Compare>
+_RandomAccessIterator3
+__pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                _RandomAccessIterator3 __first3, _Compare __comp)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -3224,109 +3214,44 @@ __pattern_merge_path(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
     using _IndexCommon = std::common_type_t<_Index1, _Index2, _Index3>;
     static_assert(std::is_signed_v<_IndexCommon>);
 
-    using _counting_iterator_t = oneapi::dpl::counting_iterator<_IndexCommon>;
-
     const _IndexCommon __n_1 = __last1 - __first1;
     const _IndexCommon __n_2 = __last2 - __first2;
-    const _IndexCommon __n_out = __last3 - __first3;
+    const _IndexCommon __n_out = __n_1 + __n_2;
 
     if (__n_out == 0)
-        return {__first1, __first2, __first3};
+        return __first3;
 
     if (__n_1 == 0)
     {
-        const _IndexCommon __n_to_copy = std::min(__n_out, __n_2);
-        auto __last2_tmp = __first2 + __n_to_copy;
-        auto __last_out_res = __pattern_walk2_brick(
-            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first2, __last2_tmp, __first3,
+        return __pattern_walk2_brick(
+            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first2, __last2, __first3,
             __brick_copy<__parallel_tag<_IsVector>>{});
-        return {__first1, __last2_tmp, __last_out_res};
     }
 
     if (__n_2 == 0)
     {
-        const _IndexCommon __n_to_copy = std::min(__n_out, __n_1);
-        auto __last1_tmp = __first1 + __n_to_copy;
-        auto __last_out_res = __pattern_walk2_brick(
-            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first1, __last1_tmp, __first3,
+        return __pattern_walk2_brick(
+            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first3,
             __brick_copy<__parallel_tag<_IsVector>>{});
-        return {__last1_tmp, __first2, __last_out_res};
     }
-
-    _merge_path_out_lim_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3> __result{
-        __first1, __first2, __first3};
 
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
-            [=, &__result](_IndexCommon __i, _IndexCommon __j) mutable {
-                //a start merging point on the merge path; for each thread
-                _IndexCommon __r = 0; //row index
-                _IndexCommon __c = 0; //column index
+            [=](_IndexCommon __i, _IndexCommon __j) mutable {
+                const auto [__r, __c] =
+                    __merge_path_intersection(__i, __n_1, __n_2, __first1, __first2, __comp, oneapi::dpl::identity{},
+                                              oneapi::dpl::identity{});
 
-                if (__i > 0)
-                {
-                    //calc merge path intersection:
-                    const _IndexCommon __d_size =
-                        std::abs(std::max(_IndexCommon{0}, __i - __n_2) - (std::min(__i, __n_1) - 1)) + 1;
-
-                    auto __get_row = [__i, __n_1](_IndexCommon __d) -> _IndexCommon {
-                        return std::min(__i, __n_1) - __d - 1;
-                    };
-                    auto __get_column = [__i, __n_1](_IndexCommon __d) -> _IndexCommon {
-                        return std::max(_IndexCommon{0}, __i - __n_1) + __d;
-                    };
-
-                    const _counting_iterator_t __it_d(0);
-
-                    _counting_iterator_t __found =
-                        std::lower_bound(__it_d, __it_d + __d_size, 1, [&](_IndexCommon __d, auto __val) {
-                            const _IndexCommon __r_tmp = __get_row(__d);
-                            const _IndexCommon __c_tmp = __get_column(__d);
-
-                            assert(0 <= __r_tmp && __r_tmp < __n_1);
-                            assert(0 <= __c_tmp && __c_tmp < __n_2);
-
-                            const auto __res = std::invoke(__comp, std::invoke(__proj2, __first2[__c_tmp]),
-                                                           std::invoke(__proj1, __first1[__r_tmp])) ? 0 : 1;
-                            return __res < __val;
-                        });
-                    const _IndexCommon __res_d = *__found; // __found == end -> __d_size, which is intentional
-
-                    //intersection point
-                    __r = __get_row(__res_d);
-                    __c = __get_column(__res_d);
-
-                    ++__r; //to get a merge matrix ceil, lying on the current diagonal
-                }
-
-                //serial merge n elements, starting from input x and y, to [i, j) output range
-                const auto __merge_out_lim_res =
-                    __serial_merge_out_lim(__first1 + __r, __first1 + __n_1, __first2 + __c, __first2 + __n_2,
-                                           __first3 + __i, __first3 + __j, __comp, __proj1, __proj2);
-
-                if (__j == __n_out)
-                    __result = __merge_out_lim_res;
+                // Although the full output range has sufficient capacity, each parallel task must be limited to its
+                // assigned [__i, __j) output range to prevent overlapping writes by different tasks.
+                __serial_merge_out_lim(__first1 + __r, __last1, __first2 + __c, __last2, __first3 + __i,
+                                       __first3 + __j, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
-            __merge_path_cut_off); //grainsize
+            __merge_path_cut_off);
     });
 
-    return __result;
-}
-
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _RandomAccessIterator3, class _Compare>
-_RandomAccessIterator3
-__pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
-                _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                _RandomAccessIterator3 __d_first, _Compare __comp)
-{
-    return __internal::__except_handler([&]() {
-        return std::get<2>(__pattern_merge_path(
-            __parallel_tag<_IsVector>{}, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-            __last2, __d_first, __d_first + (__last1 - __first1) + (__last2 - __first2), __comp,
-            oneapi::dpl::identity{}, oneapi::dpl::identity{}));
-    });
+    return __first3 + __n_out;
 }
 
 //------------------------------------------------------------------------
