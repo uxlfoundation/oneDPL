@@ -95,7 +95,7 @@ To use the functions, add ``#include <oneapi/dpl/iterator>`` to your code. For e
 
     oneapi::dpl::sort(oneapi::dpl::execution::dpcpp_default, buf_begin, buf_end);
 
-    sycl::buffer<Point> pts( sycl::range<1>(n) );
+    sycl::buffer<Point> pts{ sycl::range<1>(n) };
 
     auto out_write_no_init_beg = oneapi::dpl::begin(pts, sycl::write_only, sycl::no_init);
     auto out_write_no_init_end = oneapi::dpl::end(pts, sycl::write_only, sycl::no_init);
