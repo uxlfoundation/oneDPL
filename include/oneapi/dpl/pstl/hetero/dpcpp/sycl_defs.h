@@ -100,6 +100,8 @@
 #endif
 
 #define _ONEDPL_SYCL_DEVICE_COPYABLE_SPECIALIZATION_BROKEN (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(70100))
+// SYCL 2020 section 3.9.2 pre-adopts std::span into the sycl namespace, but ACPP does not provide it.
+#define _ONEDPL_SYCL2020_SPAN_BROKEN (_ONEDPL_ACPP_VERSION != 0)
 // There are issues with some accessor constructors prior to DPC++ 2023.1 and with 2023.2.
 #define _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN                                                           \
     (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60100) || _ONEDPL_LIBSYCL_VERSION == 60200)

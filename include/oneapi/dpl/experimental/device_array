@@ -1,0 +1,30 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Copyright (C) Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _ONEDPL_DEVICE_ARRAY
+#define _ONEDPL_DEVICE_ARRAY
+
+#include "../internal/common_config.h"
+#include "../pstl/onedpl_config.h"
+
+#if _ONEDPL_BACKEND_SYCL
+
+// span_impl.h defines oneapi::dpl::span which device_array depends upon. It is an alias for std::span where it
+// is available and for sycl::span otherwise. Neither is guaranteed to exist, so it also defines
+// _ONEDPL_SPAN_PRESENT, which gates device_array: without a span there is no way to express its interface.
+#include "../pstl/hetero/dpcpp/span_impl.h"
+
+#if _ONEDPL_SPAN_PRESENT
+#include "../pstl/hetero/dpcpp/device_array_impl.h"
+namespace dpl = oneapi::dpl;
+#endif // _ONEDPL_SPAN_PRESENT
+
+#endif // _ONEDPL_BACKEND_SYCL
+
+#endif // _ONEDPL_DEVICE_ARRAY

@@ -285,6 +285,12 @@ test_device_copyable()
     //__not_equal_value
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__not_equal_value<int_device_copyable>>,
                   "__not_equal_value is not device copyable with device copyable types");
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    //__ranges_equal_value
+    static_assert(sycl::is_device_copyable_v<
+                      oneapi::dpl::__internal::__ranges_equal_value<int_device_copyable, noop_device_copyable>>,
+                  "__ranges_equal_value is not device copyable with device copyable types");
+#endif
     //__transform_functor
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__transform_functor<noop_device_copyable>>,
                   "__transform_functor is not device copyable with device copyable types");
@@ -590,6 +596,16 @@ test_non_device_copyable()
     //__not_equal_value
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__not_equal_value<int_non_device_copyable>>,
                   "__not_equal_value is device copyable with non device copyable types");
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    //__ranges_equal_value
+    static_assert(!sycl::is_device_copyable_v<
+                      oneapi::dpl::__internal::__ranges_equal_value<int_non_device_copyable, noop_device_copyable>>,
+                  "__ranges_equal_value is device copyable with non device copyable types");
+    static_assert(!sycl::is_device_copyable_v<
+                      oneapi::dpl::__internal::__ranges_equal_value<int_device_copyable, noop_non_device_copyable>>,
+                  "__ranges_equal_value is device copyable with non device copyable types");
+#endif
 
     //__transform_functor
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__transform_functor<noop_non_device_copyable>>,

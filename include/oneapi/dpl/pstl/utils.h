@@ -1274,7 +1274,7 @@ __get_last_arg(_T, _Rest... __args)
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _T, typename _Proj>
-struct __count_fn_pred
+struct __ranges_equal_value
 {
     _T __value;
     _Proj __proj;
