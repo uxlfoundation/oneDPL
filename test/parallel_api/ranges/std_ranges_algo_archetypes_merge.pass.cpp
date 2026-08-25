@@ -81,15 +81,61 @@ main()
         },
         [](auto&&, auto&&, auto res) { return res; }, "merge");
 
-    // KSATODO: add runtime coverage of set_union / set_intersection / set_difference /
-    // set_symmetric_difference. The current implementation default constructs and copy constructs
-    // the output element in set_algorithms_utils.h, which std::mergeable does not ask for, so it
-    // does not compile with merge_out_archetype.
+    // KSATODO: the set operations only require std::mergeable, i.e. indirectly_copyable from either
+    // input into the output, which is an assignment and not a construction. The implementation
+    // instead constructs the output element into raw memory, so the calls below do not compile:
+    //  - set_algorithms_utils.h:91 - placement new of _OutValueType from *__it_in, which also takes
+    //    the address of the element through std::addressof;
+    //  - set_algorithms_utils.h:127,133,206 / memory_impl.h:96,111 - __uninitialized_copy_or_discard
+    //    default constructs and copy constructs the output element type.
+    // Fixing this means assigning through the output iterator instead of constructing in place.
+    run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
+                std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res =
+                dpl_ranges::set_union(std::forward<decltype(policy)>(policy), view1, view2, out_view, merge_comp{});
+            // The two inputs hold the very same sequence, so the union is that sequence itself.
+            return std::ranges::begin(out_view)[7].val == 7 &&
+                   (std::size_t)(res.out - std::ranges::begin(out_view)) == archetype_test_size;
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "set_union");
 
-    // KSATODO: add runtime coverage of min / max / minmax. The vectorized path in
-    // unseq_backend_simd.h default constructs the element type, which
-    // std::indirectly_copyable_storable does not ask for, so it does not compile with
-    // storable_archetype.
+    run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
+                std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res = dpl_ranges::set_difference(std::forward<decltype(policy)>(policy), view1, view2, out_view,
+                                                  merge_comp{});
+            // The two inputs are equal, so the difference is empty.
+            return res.out == std::ranges::begin(out_view);
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "set_difference");
+
+    // KSATODO: min / max / minmax only require std::indirectly_copyable_storable, which needs a copy
+    // constructor and copy assignment, but no default constructor. The helpers of __simd_min_element
+    // and __simd_minmax_element at unseq_backend_simd.h:635 and :695 value initialize their
+    // _ValueType members in the default constructor, so the calls below do not compile with a
+    // non-default-constructible element type.
+    run_algo_host_policies<storable_archetype>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::min(std::forward<decltype(policy)>(policy), view, storable_comp{});
+        },
+        [](auto&&, auto res) { return res.val == 0; }, "min");
+
+    run_algo_host_policies<storable_archetype>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::max(std::forward<decltype(policy)>(policy), view, storable_comp{});
+        },
+        [](auto&&, auto res) { return res.val == (int)archetype_test_size - 1; }, "max");
+
+    run_algo_host_policies<storable_archetype>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::minmax(std::forward<decltype(policy)>(policy), view, storable_comp{});
+        },
+        [](auto&&, auto&& res) { return res.min.val == 0 && res.max.val == (int)archetype_test_size - 1; }, "minmax");
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
