@@ -1151,7 +1151,7 @@ union __lazy_ctor_storage
     void
     __setup(_U&& init)
     {
-        new (&__v) _Tp(std::forward<_U>(init));
+        __construct_from(std::addressof(__v), std::forward<_U>(init));
     }
     void
     __destroy()
