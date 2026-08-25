@@ -48,6 +48,30 @@ a `SYCL buffer`_ and return an object of an unspecified type that provides the f
   that satisfies the ``LegacyRandomAccessIterator``, a C++ named requirement.
 * It provides the ``get_buffer`` method, which returns the buffer passed to the ``begin`` and ``end`` functions.
 
+To use the functions, add ``#include <oneapi/dpl/iterator>`` to your code. For example:
+
+.. code:: cpp
+
+  #include <oneapi/dpl/execution>
+  #include <oneapi/dpl/algorithm>
+  #include <oneapi/dpl/iterator>
+  #include <random>
+  #include <vector>
+  #include <sycl/sycl.hpp>
+
+  int main(){
+    std::vector<int> vec(1000);
+    std::generate(vec.begin(), vec.end(), std::minstd_rand{});
+
+    sycl::buffer<int> buf( vec.data(), vec.size() );
+    auto buf_begin = oneapi::dpl::begin(buf);
+    auto buf_end   = oneapi::dpl::end(buf);
+
+    oneapi::dpl::sort(oneapi::dpl::execution::dpcpp_default, buf_begin, buf_end);
+
+    return 0;
+  }
+
 By default, the objects returned by ``begin`` and ``end`` request ``read_write`` access to the buffer.
 The functions can also take SYCL 2020 deduction tags and ``sycl::no_init`` as arguments to provide access mode
 and ``no_init`` property hints to |onedpl_short| algorithms. |onedpl_short| may use these hints to optimize
@@ -69,8 +93,6 @@ A hint must be consistent with the way an algorithm and its callable objects act
 In particular, ``sycl::no_init`` discards the previous content of the buffer, so every element that is read
 must be written first; otherwise the values that the algorithm operates on are unspecified.
 
-To use the functions, add ``#include <oneapi/dpl/iterator>`` to your code. For example:
-
 .. code:: cpp
 
   #include <oneapi/dpl/execution>
@@ -85,17 +107,7 @@ To use the functions, add ``#include <oneapi/dpl/iterator>`` to your code. For e
   struct proj_x { float& operator()(Point& p) const { return p.x; } };
 
   int main(){
-    const int n = 1000;
-    std::vector<int> vec(n);
-    std::generate(vec.begin(), vec.end(), std::minstd_rand{});
-
-    sycl::buffer<int> buf( vec.data(), vec.size() );
-    auto buf_begin = oneapi::dpl::begin(buf);
-    auto buf_end   = oneapi::dpl::end(buf);
-
-    oneapi::dpl::sort(oneapi::dpl::execution::dpcpp_default, buf_begin, buf_end);
-
-    sycl::buffer<Point> pts{ sycl::range<1>(n) };
+    sycl::buffer<Point> pts{ sycl::range<1>(1000) };
 
     auto out_write_no_init_beg = oneapi::dpl::begin(pts, sycl::write_only, sycl::no_init);
     auto out_write_no_init_end = oneapi::dpl::end(pts, sycl::write_only, sycl::no_init);
