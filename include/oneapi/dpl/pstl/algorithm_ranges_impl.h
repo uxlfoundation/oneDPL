@@ -797,18 +797,18 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     if (__n1 == 0)
     {
         auto __last2 = __first2 + std::min<_IndexCommon>(__n2, __n_out);
-        auto __last_out = oneapi::dpl::__internal::__pattern_walk2_brick(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2, __first3,
-            oneapi::dpl::__internal::__brick_copy<_Tag>{});
+        auto __last_out = oneapi::dpl::__internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                                         __first2, __last2, __first3,
+                                                                         oneapi::dpl::__internal::__brick_copy<_Tag>{});
         return {__first1, __last2, __last_out};
     }
 
     if (__n2 == 0)
     {
         auto __last1 = __first1 + std::min<_IndexCommon>(__n1, __n_out);
-        auto __last_out = oneapi::dpl::__internal::__pattern_walk2_brick(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first3,
-            oneapi::dpl::__internal::__brick_copy<_Tag>{});
+        auto __last_out = oneapi::dpl::__internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                                         __first1, __last1, __first3,
+                                                                         oneapi::dpl::__internal::__brick_copy<_Tag>{});
         return {__last1, __first2, __last_out};
     }
 
@@ -826,8 +826,8 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
                         __i, __n1, __n2, __first1, __first2, __comp, __proj1, __proj2);
 
                     const auto __merge_out_lim_res = oneapi::dpl::__internal::__serial_merge_out_lim(
-                        __first1 + __r, __first1 + __n1, __first2 + __c, __first2 + __n2,
-                        __first3 + __i, __first3 + __j, __comp, __proj1, __proj2);
+                        __first1 + __r, __first1 + __n1, __first2 + __c, __first2 + __n2, __first3 + __i,
+                        __first3 + __j, __comp, __proj1, __proj2);
 
                     if (__j == __n_out)
                         __result = __merge_out_lim_res;

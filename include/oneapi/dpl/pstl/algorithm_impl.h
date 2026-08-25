@@ -3166,19 +3166,18 @@ __merge_path_intersection(_Index __diag, _Index __n_1, _Index __n_2, _RandomAcce
     using _CountingIterator = oneapi::dpl::counting_iterator<_Index>;
     const _CountingIterator __it_d(0);
 
-    _CountingIterator __found =
-        std::lower_bound(__it_d, __it_d + __search_size, 1, [&](_Index __d, auto __val) {
-            const _Index __r_tmp = __get_row(__d);
-            const _Index __c_tmp = __get_column(__d);
+    _CountingIterator __found = std::lower_bound(__it_d, __it_d + __search_size, 1, [&](_Index __d, auto __val) {
+        const _Index __r_tmp = __get_row(__d);
+        const _Index __c_tmp = __get_column(__d);
 
-            assert(0 <= __r_tmp && __r_tmp < __n_1);
-            assert(0 <= __c_tmp && __c_tmp < __n_2);
+        assert(0 <= __r_tmp && __r_tmp < __n_1);
+        assert(0 <= __c_tmp && __c_tmp < __n_2);
 
-            const auto __res = std::invoke(__comp, std::invoke(__proj2, __first2[__c_tmp]),
-                                           std::invoke(__proj1, __first1[__r_tmp])) ? 0 : 1;
-            return __res < __val;
-        });
-    const _Index __res_d = static_cast<_Index>( *__found);
+        const auto __res = std::invoke(__comp, std::invoke(__proj2, __first2[__c_tmp]),
+                                               std::invoke(__proj1, __first1[__r_tmp])) ? 0 : 1;
+        return __res < __val;
+    });
+    const _Index __res_d = static_cast<_Index>(*__found);
 
     return {__get_row(__res_d) + 1, __get_column(__res_d)};
 }
@@ -3222,30 +3221,27 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
 
     if (__n_1 == 0)
     {
-        return __pattern_walk2_brick(
-            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first2, __last2, __first3,
-            __brick_copy<__parallel_tag<_IsVector>>{});
+        return __pattern_walk2_brick(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first2,
+                                     __last2, __first3, __brick_copy<__parallel_tag<_IsVector>>{});
     }
 
     if (__n_2 == 0)
     {
-        return __pattern_walk2_brick(
-            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first3,
-            __brick_copy<__parallel_tag<_IsVector>>{});
+        return __pattern_walk2_brick(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first1,
+                                     __last1, __first3, __brick_copy<__parallel_tag<_IsVector>>{});
     }
 
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
             [=](_IndexCommon __i, _IndexCommon __j) {
-                const auto [__r, __c] =
-                    __merge_path_intersection(__i, __n_1, __n_2, __first1, __first2, __comp, oneapi::dpl::identity{},
-                                              oneapi::dpl::identity{});
+                const auto [__r, __c] = __merge_path_intersection(__i, __n_1, __n_2, __first1, __first2, __comp,
+                                                                  oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
                 // Although the full output range has sufficient capacity, each parallel task must be limited to its
                 // assigned [__i, __j) output range to prevent overlapping writes by different tasks.
-                __serial_merge_out_lim(__first1 + __r, __last1, __first2 + __c, __last2, __first3 + __i,
-                                       __first3 + __j, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                __serial_merge_out_lim(__first1 + __r, __last1, __first2 + __c, __last2, __first3 + __i, __first3 + __j,
+                                       __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
             __merge_path_cut_off);
     });
