@@ -434,6 +434,8 @@ static_assert(std::indirect_unary_predicate<read_proj_pred, std::projected<read_
 // The value is passed to a device kernel by copy, so, unlike the other archetypes, it has to be
 // trivially copyable and thus device copyable. Everything else a "regular" type provides is still
 // missing: no default constructor, no ordering, no relation to the element type but equality.
+struct nocopy_search_value;
+
 struct search_value
 {
     int val;
@@ -460,6 +462,68 @@ struct searchable_archetype
     }
 
     friend bool operator==(const searchable_archetype& __e, const search_value& __v) { return __e.val == __v.val; }
+
+    friend bool operator==(const searchable_archetype& __e, const nocopy_search_value& __v);
+};
+
+// Family 2b: the very same constraint, but the search value is neither copyable nor movable.
+// std::indirect_binary_predicate<std::ranges::equal_to, std::projected<iterator_t<_R>, _Proj>,
+// const _T*> says nothing about copying _T, so a host policy must keep a reference to the value
+// instead of storing a copy of it. A device policy legitimately copies the value into the kernel,
+// so this archetype is only ever used with the host policies.
+struct nocopy_search_value
+{
+    int val;
+
+    explicit nocopy_search_value(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DELETED_OPERATIONS(nocopy_search_value)
+
+    friend bool operator==(const nocopy_search_value& __v1, const nocopy_search_value& __v2)
+    {
+        return __v1.val == __v2.val;
+    }
+};
+
+inline bool
+operator==(const searchable_archetype& __e, const nocopy_search_value& __v)
+{
+    return __e.val == __v.val;
+}
+
+// The element archetype of the removing algorithms. remove() requires
+//   std::permutable<iterator_t<_R>> && indirect_binary_predicate<std::ranges::equal_to, ...>
+// so the element has to be movable, but still not copyable and not default constructible.
+struct removable_archetype
+{
+    int val;
+
+    explicit removable_archetype(int __v) : val(__v) {}
+
+    removable_archetype(removable_archetype&& __other) : val(__other.val) {}
+
+    removable_archetype&
+    operator=(removable_archetype&& __other)
+    {
+        val = __other.val;
+        return *this;
+    }
+
+    removable_archetype(const removable_archetype&) = delete;
+    removable_archetype& operator=(const removable_archetype&) = delete;
+    TEST_ARCHETYPE_DELETED_ADDRESSOF
+
+    friend bool operator==(const removable_archetype& __e1, const removable_archetype& __e2)
+    {
+        return __e1.val == __e2.val;
+    }
+
+    friend bool operator==(const removable_archetype& __e, const nocopy_search_value& __v)
+    {
+        return __e.val == __v.val;
+    }
+
+    friend bool operator==(const removable_archetype& __e, const search_value& __v) { return __e.val == __v.val; }
 };
 
 // The common reference required by std::equality_comparable_with. It is only ever formed as a
@@ -469,7 +533,9 @@ struct search_common
     int val;
 
     search_common(const searchable_archetype& __e) : val(__e.val) {}
+    search_common(const removable_archetype& __e) : val(__e.val) {}
     search_common(const search_value& __v) : val(__v.val) {}
+    search_common(const nocopy_search_value& __v) : val(__v.val) {}
 
     friend bool operator==(const search_common& __v1, const search_common& __v2) { return __v1.val == __v2.val; }
 };
@@ -490,6 +556,42 @@ struct common_type<test_std_ranges::archetypes::search_value, test_std_ranges::a
 {
     using type = test_std_ranges::archetypes::search_common;
 };
+
+template <>
+struct common_type<test_std_ranges::archetypes::searchable_archetype, test_std_ranges::archetypes::nocopy_search_value>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::nocopy_search_value, test_std_ranges::archetypes::searchable_archetype>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::removable_archetype, test_std_ranges::archetypes::search_value>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::search_value, test_std_ranges::archetypes::removable_archetype>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::removable_archetype, test_std_ranges::archetypes::nocopy_search_value>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::nocopy_search_value, test_std_ranges::archetypes::removable_archetype>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
 } // namespace std
 
 namespace test_std_ranges
@@ -500,6 +602,20 @@ namespace archetypes
 using searchable_iterator_t = std::ranges::iterator_t<archetype_view<searchable_archetype>>;
 
 static_assert(std::indirect_binary_predicate<std::ranges::equal_to, searchable_iterator_t, const search_value*>);
+static_assert(
+    std::indirect_binary_predicate<std::ranges::equal_to, searchable_iterator_t, const nocopy_search_value*>);
+static_assert(!std::copy_constructible<nocopy_search_value>);
+static_assert(!std::move_constructible<nocopy_search_value>);
+static_assert(!std::default_initializable<nocopy_search_value>);
+
+using removable_iterator_t = std::ranges::iterator_t<archetype_view<removable_archetype>>;
+
+static_assert(std::permutable<removable_iterator_t>);
+static_assert(std::indirect_binary_predicate<std::ranges::equal_to, removable_iterator_t, const search_value*>);
+static_assert(std::indirect_binary_predicate<std::ranges::equal_to, removable_iterator_t, const nocopy_search_value*>);
+static_assert(!std::copy_constructible<removable_archetype>);
+static_assert(!std::default_initializable<removable_archetype>);
+static_assert(!std::totally_ordered<removable_archetype>);
 static_assert(!std::copy_constructible<searchable_archetype>);
 static_assert(!std::move_constructible<searchable_archetype>);
 static_assert(std::is_trivially_copyable_v<search_value>);

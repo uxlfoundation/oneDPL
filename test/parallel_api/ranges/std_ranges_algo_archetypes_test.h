@@ -72,6 +72,33 @@ run_algo2(_Alloc1 __alloc1, _Alloc2 __alloc2, _Policy&& __policy, _Algo __algo, 
     EXPECT_TRUE(__checker(__view1, __view2, __res), (std::string("wrong result from ") + __algo_name).c_str());
 }
 
+// Runs a one-range algorithm with the host policies only. A value argument which is neither
+// copyable nor movable cannot be passed to a device kernel, so such an archetype is meaningful for
+// the host policies only, where the implementation is required to keep a reference to the value.
+template <typename _Elem, typename _Algo, typename _Checker>
+void
+run_algo_host_policies(_Algo __algo, _Checker __checker, const char* __algo_name)
+{
+    std::allocator<_Elem> __alloc;
+    run_algo<_Elem>(__alloc, oneapi::dpl::execution::seq, __algo, __checker, __algo_name);
+    run_algo<_Elem>(__alloc, oneapi::dpl::execution::unseq, __algo, __checker, __algo_name);
+    run_algo<_Elem>(__alloc, oneapi::dpl::execution::par, __algo, __checker, __algo_name);
+    run_algo<_Elem>(__alloc, oneapi::dpl::execution::par_unseq, __algo, __checker, __algo_name);
+}
+
+// Runs a two-range algorithm with the host policies only, see run_algo_host_policies.
+template <typename _Elem1, typename _Elem2, typename _Algo, typename _Checker>
+void
+run_algo2_host_policies(_Algo __algo, _Checker __checker, const char* __algo_name)
+{
+    std::allocator<_Elem1> __alloc1;
+    std::allocator<_Elem2> __alloc2;
+    run_algo2<_Elem1, _Elem2>(__alloc1, __alloc2, oneapi::dpl::execution::seq, __algo, __checker, __algo_name);
+    run_algo2<_Elem1, _Elem2>(__alloc1, __alloc2, oneapi::dpl::execution::unseq, __algo, __checker, __algo_name);
+    run_algo2<_Elem1, _Elem2>(__alloc1, __alloc2, oneapi::dpl::execution::par, __algo, __checker, __algo_name);
+    run_algo2<_Elem1, _Elem2>(__alloc1, __alloc2, oneapi::dpl::execution::par_unseq, __algo, __checker, __algo_name);
+}
+
 // _CallId makes the SYCL kernel name of the device call unique: every instantiation of the harness
 // submits its own kernel, and with -fno-sycl-unnamed-lambda two kernels sharing a name are a
 // "definition with same mangled name" error.
