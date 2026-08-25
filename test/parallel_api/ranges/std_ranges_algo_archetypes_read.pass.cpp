@@ -96,31 +96,31 @@ main()
 
     // read_archetype is neither copyable, movable, default constructible nor comparable; the only
     // operations available are the ones the callables of the algorithm provide.
-    run_algo_all_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, 0>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_if(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "find_if");
 
-    run_algo_all_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, 1>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_if_not(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + 1; }, "find_if_not");
 
-    run_algo_all_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, 2>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::any_of(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
         [](auto&&, bool res) { return res; }, "any_of");
 
-    run_algo_all_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, 3>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::all_of(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
         [](auto&&, bool res) { return !res; }, "all_of");
 
-    run_algo_all_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, 4>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::count_if(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
@@ -129,7 +129,7 @@ main()
 
     // The projection returns an unrelated prvalue type, so the predicate can only ever be applied to
     // the projected value.
-    run_algo_all_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, 5>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::count_if(std::forward<decltype(policy)>(policy), view, read_proj_pred{}, read_proj{});
         },
@@ -142,13 +142,13 @@ main()
     // so a non-copyable element type does not compile with the unseq policies. The static_asserts
     // above still check that the call itself is well-formed.
 
-    run_algo_all_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, 6>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::is_sorted(std::forward<decltype(policy)>(policy), view, read_comp{});
         },
         [](auto&&, bool res) { return res; }, "is_sorted");
 
-    run_algo_all_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, 7>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::adjacent_find(std::forward<decltype(policy)>(policy), view, read_binary_pred{});
         },
@@ -156,26 +156,26 @@ main()
         "adjacent_find");
 
     // The search value type is unrelated to the element type.
-    run_algo_all_policies<searchable_archetype>(
+    run_algo_all_policies<searchable_archetype, 8>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, search_value{7});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + 7; }, "find");
 
-    run_algo_all_policies<searchable_archetype>(
+    run_algo_all_policies<searchable_archetype, 9>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, search_value{7});
         },
         [](auto&&, auto res) { return res == 1; }, "count");
 
     // Two ranges of unrelated element types, compared only through the user predicate.
-    run_algo2_all_policies<lhs_archetype, rhs_archetype>(
+    run_algo2_all_policies<lhs_archetype, rhs_archetype, 10>(
         [](auto&& policy, auto&& view1, auto&& view2) {
             return dpl_ranges::equal(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
         },
         [](auto&&, auto&&, bool res) { return res; }, "equal");
 
-    run_algo2_all_policies<lhs_archetype, rhs_archetype>(
+    run_algo2_all_policies<lhs_archetype, rhs_archetype, 11>(
         [](auto&& policy, auto&& view1, auto&& view2) {
             return dpl_ranges::mismatch(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
         },
