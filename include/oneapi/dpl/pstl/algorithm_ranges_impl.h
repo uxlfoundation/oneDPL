@@ -791,7 +791,9 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     if (__n3 == 0)
         return {__first1, __first2, __first3};
 
-    const _IndexCommon __n_out = std::min<_IndexCommon>(__n1 + __n2, __n3);
+    // equivalent of min(n1 + n2, n3) with no signed overflow risk
+    const _IndexCommon __n_out = (__n1 < __n3 - __n2) ? __n1 + __n2 : __n3;
+
     auto __last3 = __first3 + __n_out;
 
     if (__n1 == 0)
