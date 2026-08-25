@@ -54,7 +54,9 @@ struct Elem_0
 template<typename>
 constexpr int test_mode_id = 0;
 
-template<typename Elem, int no_init_val, typename OutElem = Elem>
+// OutElem is the element type of the output range of two-range algorithms (uninitialized_copy,
+// uninitialized_move); it may differ from the input element type Elem.
+template <typename Elem, int no_init_val, int call_id, typename OutElem = Elem>
 struct test_memory_algo
 {
     void run_host(auto algo, auto checker, auto&&... args)
@@ -71,7 +73,7 @@ struct test_memory_algo
     void run_device(auto algo, auto checker, auto&&... args)
     {
         //sycl::usm::alloc _alloc_type
-        auto policy = TestUtils::get_dpcpp_test_policy();
+        auto policy = TestUtils::get_dpcpp_test_policy<call_id>();
         sycl::usm_allocator<Elem, sycl::usm::alloc::shared> q_alloc{policy.queue()};
         sycl::usm_allocator<OutElem, sycl::usm::alloc::shared> q_out_alloc{policy.queue()};
 

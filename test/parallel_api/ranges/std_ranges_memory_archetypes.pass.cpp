@@ -66,7 +66,7 @@ run_over_archetype_view(Alloc& alloc, Policy&& policy, Algo algo, Checker checke
     alloc.deallocate(data, n);
 }
 
-template <typename Elem, typename Algo, typename Checker>
+template <typename Elem, int call_id, typename Algo, typename Checker>
 void
 run_archetype_view_all_policies(Algo algo, Checker checker, const char* algo_name)
 {
@@ -77,7 +77,7 @@ run_archetype_view_all_policies(Algo algo, Checker checker, const char* algo_nam
     run_over_archetype_view<Elem>(alloc, oneapi::dpl::execution::par_unseq, algo, checker, algo_name);
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    auto policy = TestUtils::get_dpcpp_test_policy();
+    auto policy = TestUtils::get_dpcpp_test_policy<call_id>();
     sycl::usm_allocator<Elem, sycl::usm::alloc::shared> q_alloc{policy.queue()};
     run_over_archetype_view<Elem>(q_alloc, policy, algo, checker, algo_name);
 #endif //TEST_DPCPP_BACKEND_PRESENT
@@ -105,8 +105,7 @@ main()
             return std::pair<bool, bool>{bres1, bres2};
         };
 
-    test_memory_algo<default_construct_archetype, -1>{}.run(dpl_ranges::uninitialized_default_construct,
-                                                            default_construct_checker);
+    test_memory_algo<default_construct_archetype, -1, 0>{}.run(dpl_ranges::uninitialized_default_construct, default_construct_checker);
 
     // The default constructor is defaulted on its first declaration, so value-initialization
     // zero-initializes the whole object, including val2.
@@ -119,8 +118,7 @@ main()
             return std::pair<bool, bool>{bres1, bres2};
         };
 
-    test_memory_algo<value_construct_archetype, -1>{}.run(dpl_ranges::uninitialized_value_construct,
-                                                          value_construct_checker);
+    test_memory_algo<value_construct_archetype, -1, 1>{}.run(dpl_ranges::uninitialized_value_construct, value_construct_checker);
 
     // The filler type differs from the range value type, so the only required operation is
     // std::constructible_from<fill_archetype, const fill_source&>.
@@ -134,7 +132,7 @@ main()
             return std::pair<bool, bool>{bres1, bres2};
         };
 
-    test_memory_algo<fill_archetype, -1>{}.run(dpl_ranges::uninitialized_fill, fill_checker, fill_source{2});
+    test_memory_algo<fill_archetype, -1, 2>{}.run(dpl_ranges::uninitialized_fill, fill_checker, fill_source{2});
 
     // Input and output element types are different, which the requires-clause of uninitialized_copy
     // and uninitialized_move explicitly allows. copy_archetype is constructible only from
@@ -158,8 +156,8 @@ main()
             return std::pair<bool, bool>{bres1, bres2};
         };
 
-    test_memory_algo<transfer_source, -1, copy_archetype>{}.run(dpl_ranges::uninitialized_copy, transfer_checker);
-    test_memory_algo<transfer_source, -1, move_archetype>{}.run(dpl_ranges::uninitialized_move, transfer_checker);
+    test_memory_algo<transfer_source, -1, 3, copy_archetype>{}.run(dpl_ranges::uninitialized_copy, transfer_checker);
+    test_memory_algo<transfer_source, -1, 4, move_archetype>{}.run(dpl_ranges::uninitialized_move, transfer_checker);
 
     // The single required operation is std::destructible.
     auto destroy_checker =
@@ -171,19 +169,19 @@ main()
             return std::pair<bool, bool>{bres1, bres2};
         };
 
-    test_memory_algo<destroy_archetype, -1>{}.run(dpl_ranges::destroy, destroy_checker);
+    test_memory_algo<destroy_archetype, -1, 5>{}.run(dpl_ranges::destroy, destroy_checker);
 
     // The same algorithms over a range which is random access and sized, but neither contiguous nor
     // common.
-    run_archetype_view_all_policies<default_construct_archetype>(
+    run_archetype_view_all_policies<default_construct_archetype, 6>(
         dpl_ranges::uninitialized_default_construct,
         [](const auto& v) { return v.val1 == 1 && v.val2 == -1; }, "uninitialized_default_construct");
 
-    run_archetype_view_all_policies<value_construct_archetype>(
+    run_archetype_view_all_policies<value_construct_archetype, 7>(
         dpl_ranges::uninitialized_value_construct,
         [](const auto& v) { return v.val1 == 0 && v.val2 == 0; }, "uninitialized_value_construct");
 
-    run_archetype_view_all_policies<destroy_archetype>(
+    run_archetype_view_all_policies<destroy_archetype, 8>(
         dpl_ranges::destroy, [](const auto& v) { return v.val1 == -1 && v.val2 == 3; }, "destroy");
 
 #endif //_ENABLE_STD_RANGES_TESTING
