@@ -1116,11 +1116,11 @@ __construct_from(_T* __dst, _U&& __src)
 #if _ONEDPL___cplusplus < 202002L
     ::new (__dst) _T(std::forward<_U>(__src));
 #else
-    if constexpr (std::constructible_from<_T, _U>)
+    if constexpr (std::constructible_from<_T, _U&&>)
     {
         std::construct_at(__dst, std::forward<_U>(__src));
     }
-    else if constexpr (std::default_initializable<_T> && std::is_assignable_v<_T&, _U>)
+    else if constexpr (std::default_initializable<_T> && std::is_assignable_v<_T&, _U&&>)
     {
         std::construct_at(__dst);
         *__dst = std::forward<_U>(__src);
