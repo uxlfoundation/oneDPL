@@ -31,7 +31,7 @@
 #include <cmath>
 #include <cstdint>
 #include <exception>
-#include <memory>
+#include <memory> // for std::construct_at
 
 #if _ONEDPL___cplusplus < 202002L
 #include <concepts> // for std::default_initializable
