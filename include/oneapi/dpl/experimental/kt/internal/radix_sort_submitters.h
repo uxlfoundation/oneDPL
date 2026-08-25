@@ -21,6 +21,7 @@
 #include "../../../pstl/hetero/dpcpp/sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
 #include "kt_utils.h"
+#include "rng_pack.h"
 #include "radix_sort_utils.h"
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
 #    include "sycl_radix_sort_kernels.h"

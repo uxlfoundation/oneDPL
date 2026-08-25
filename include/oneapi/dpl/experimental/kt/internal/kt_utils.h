@@ -21,6 +21,8 @@
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
 
+namespace syclex = sycl::ext::oneapi::experimental;
+
 // The number of groups that should be launched in a cooperative kernel.
 // Returns the min of the max groups supported by the HW and the tile count
 template <typename _Kernel>

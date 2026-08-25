@@ -21,6 +21,7 @@
 
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
 
+#include "rng_pack.h"
 #include "radix_sort_submitters.h"
 
 namespace oneapi::dpl::experimental::kt::gpu::__impl

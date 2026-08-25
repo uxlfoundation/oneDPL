@@ -20,9 +20,9 @@
 #include <type_traits>
 
 #include "../../../../pstl/utils.h"
+#include "../../../../pstl/iterator_impl.h" // for oneapi::dpl::internal::ignore_copyable
 #include "../../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "../../../../pstl/hetero/dpcpp/unseq_backend_sycl.h"
-#include "../../../../pstl/hetero/dpcpp/parallel_backend_sycl.h"
 
 namespace oneapi::dpl::experimental::kt
 {
