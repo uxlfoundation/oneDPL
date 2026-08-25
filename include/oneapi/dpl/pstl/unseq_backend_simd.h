@@ -671,6 +671,61 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     return __first + __init.__min_ind;
 }
 
+template <typename _RandomAccessIterator, typename _Size, typename _Compare>
+std::enable_if_t<!std::is_default_constructible_v<typename std::iterator_traits<_RandomAccessIterator>::value_type> &&
+                     oneapi::dpl::__internal::__is_random_access_iterator_v<_RandomAccessIterator>,
+                 _RandomAccessIterator>
+__simd_min_element(_RandomAccessIterator __first, _Size __n, _Compare __comp) noexcept
+{
+    if (__n == 0)
+    {
+        return __first;
+    }
+
+    using _ValueType = typename std::iterator_traits<_RandomAccessIterator>::value_type;
+    struct _ComplexTypeRandomAccess
+    {
+        _RandomAccessIterator __base;
+        _Size __min_ind = {};
+        _Compare* __min_comp = nullptr;
+
+        _ComplexTypeRandomAccess(_RandomAccessIterator __base, const _Compare* comp)
+            : __base(__base), __min_comp(const_cast<_Compare*>(comp))
+        {
+        }
+        _ComplexTypeRandomAccess(const _ComplexTypeRandomAccess& __obj) = default;
+
+        _ValueType
+        __get_min_val() const
+        {
+            return __base[__min_ind];
+        }
+
+        _ONEDPL_PRAGMA_DECLARE_SIMD
+        void
+        operator()(const _ComplexTypeRandomAccess& __obj)
+        {
+            if (!std::invoke(*__min_comp, __get_min_val(), __obj.__get_min_val()) &&
+                (std::invoke(*__min_comp, __obj.__get_min_val(), __get_min_val()) || __obj.__min_ind < __min_ind))
+            {
+                __min_ind = __obj.__min_ind;
+            }
+        }
+    };
+
+    _ComplexTypeRandomAccess __init(__first, &__comp);
+
+    _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexTypeRandomAccess)
+
+    _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
+    for (_Size __i = 1; __i < __n; ++__i)
+    {
+        __init.__min_ind = std::invoke(__comp, __first[__i], __init.__base[__init.__min_ind]) ? __i : __init.__min_ind;
+    }
+
+    return __first + __init.__min_ind;
+}
+
 // [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
