@@ -42,7 +42,11 @@ static_assert(std::invocable<decltype(dpl_ranges::find), seq_policy, searchable_
                              const archetypes::nocopy_search_value&>);
 static_assert(std::invocable<decltype(dpl_ranges::find_last), seq_policy, searchable_view&,
                              const archetypes::nocopy_search_value&>);
+static_assert(std::invocable<decltype(dpl_ranges::count), seq_policy, searchable_view&,
+                             const archetypes::nocopy_search_value&>);
 static_assert(std::invocable<decltype(dpl_ranges::contains), seq_policy, searchable_view&,
+                             const archetypes::nocopy_search_value&>);
+static_assert(std::invocable<decltype(dpl_ranges::remove), seq_policy, removable_view&,
                              const archetypes::nocopy_search_value&>);
 
 } //namespace test_std_ranges
@@ -111,14 +115,28 @@ main()
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last, noncopyable value");
 
-    // TODO: add count() with a noncopyable value once __pattern_count() stops storing a copy of the
-    // value in __count_fn_pred, and remove() once it stops copying the value into the predicate it
-    // builds internally.
+    // count() must refer to the value instead of storing a copy of it: the requires-clause never
+    // asks for a copyable value type.
+    run_algo_host_policies<searchable_archetype>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
+        },
+        [](auto&&, auto res) { return res == 1; }, "count, noncopyable value");
+
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
         [](auto&&, auto res) { return res; }, "contains, noncopyable value");
+
+    // Same for remove(): the predicate it builds internally must hold a reference to the value for
+    // the host policies.
+    run_algo_host_policies<removable_archetype>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
+        },
+        [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; },
+        "remove, noncopyable value");
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
