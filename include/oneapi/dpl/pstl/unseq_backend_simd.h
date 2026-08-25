@@ -695,7 +695,7 @@ __simd_min_element(_RandomAccessIterator __first, _Size __n, _Compare __comp) no
         }
         _ComplexTypeRandomAccess(const _ComplexTypeRandomAccess& __obj) = default;
 
-        _ValueType
+        auto&&
         __get_min_val() const
         {
             return __base[__min_ind];
@@ -809,6 +809,88 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         }
     }
     return ::std::make_pair(__first + __init.__min_ind, __first + __init.__max_ind);
+}
+
+template <typename _RandomAccessIterator, typename _Size, typename _Compare>
+std::enable_if_t<!std::is_default_constructible_v<typename std::iterator_traits<_RandomAccessIterator>::value_type> &&
+                     oneapi::dpl::__internal::__is_random_access_iterator_v<_RandomAccessIterator>,
+                 std::pair<_RandomAccessIterator, _RandomAccessIterator>>
+__simd_minmax_element(_RandomAccessIterator __first, _Size __n, _Compare __comp) noexcept
+{
+    using _ValueType = typename std::iterator_traits<_RandomAccessIterator>::value_type;
+
+    if (__n == 0)
+        return {__first, __first};
+
+    struct _ComplexTypeRandomAccess
+    {
+        _RandomAccessIterator __base;
+        _Size __min_ind = {};
+        _Size __max_ind = {};
+        _Compare* __minmax_comp = nullptr;
+
+        _ComplexTypeRandomAccess(_RandomAccessIterator __base, const _Compare* comp)
+            : __base(__base), __minmax_comp(const_cast<_Compare*>(comp))
+        {
+        }
+        _ComplexTypeRandomAccess(const _ComplexTypeRandomAccess& __obj) = default;
+
+        auto&&
+        __get_min_val() const
+        {
+            return __base[__min_ind];
+        }
+
+        auto&&
+        __get_max_val() const
+        {
+            return __base[__max_ind];
+        }
+
+        _ONEDPL_PRAGMA_DECLARE_SIMD
+        void
+        operator()(const _ComplexTypeRandomAccess& __obj)
+        {
+            // min
+            if (std::invoke(*__minmax_comp, __obj.__get_min_val(), __get_min_val()))
+            {
+                __min_ind = __obj.__min_ind;
+            }
+            else if (!std::invoke(*__minmax_comp, __get_min_val(), __obj.__get_min_val()))
+            {
+                __min_ind = __min_ind < __obj.__min_ind ? __min_ind : __obj.__min_ind;
+            }
+
+            // max
+            if (std::invoke(*__minmax_comp, __obj.__get_max_val(), __get_max_val()))
+            {
+                __max_ind = __obj.__max_ind;
+            }
+            else if (!std::invoke(*__minmax_comp, __get_max_val(), __obj.__get_max_val()))
+            {
+                __max_ind = __max_ind < __obj.__max_ind ? __max_ind : __obj.__max_ind;
+            }
+        }
+    };
+
+    _ComplexTypeRandomAccess __init(__first, &__comp);
+
+    _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexTypeRandomAccess);
+
+    _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
+    for (_Size __i = 1; __i < __n; ++__i)
+    {
+        if (std::invoke(__comp, __first[__i], __init.__get_min_val()))
+        {
+            __init.__min_ind = __i;
+        }
+        else if (!std::invoke(__comp, __first[__i], __init.__get_max_val()))
+        {
+            __init.__max_ind = __i;
+        }
+    }
+
+    return {__first + __init.__min_ind, __first + __init.__max_ind};
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator1, class _OutputIterator2,
