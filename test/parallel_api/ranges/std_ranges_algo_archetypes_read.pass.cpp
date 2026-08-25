@@ -136,7 +136,7 @@ main()
         [](auto&& view, auto res) { return res == (std::ranges::range_difference_t<decltype(view)>)
                                                       ((std::ranges::size(view) + 2) / 3); }, "count_if with proj");
 
-    // TODO: min_element/max_element/minmax_element are not run here. Their requires-clause only asks
+    // KSATODO: min_element/max_element/minmax_element are not run here. Their requires-clause only asks
     // for std::indirect_strict_weak_order, but the vectorized implementation
     // (__unseq_backend::__simd_min_element) stores a copy of the element in its _ComplexType helper,
     // so a non-copyable element type does not compile with the unseq policies. The static_asserts
