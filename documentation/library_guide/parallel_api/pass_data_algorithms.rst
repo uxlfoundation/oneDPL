@@ -105,6 +105,7 @@ must be written first; otherwise the values that the algorithm operates on are u
   int main(){
     sycl::buffer<Point> pts{ sycl::range<1>(1000) };
 
+    // begin and end calls whose returns are used together must match hints, mismatches result in undefined behavior
     auto out_write_no_init_beg = oneapi::dpl::begin(pts, sycl::write_only, sycl::no_init);
     auto out_write_no_init_end = oneapi::dpl::end(pts, sycl::write_only, sycl::no_init);
 
