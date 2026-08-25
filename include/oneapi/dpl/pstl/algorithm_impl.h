@@ -3197,6 +3197,10 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
 
 inline constexpr std::size_t __merge_path_cut_off = 2000;
 
+// This implementation is based on the Merge Path algorithm described in:
+// O. Green, S. Odeh, and Y. Birk,
+// "Merge Path - A Visually Intuitive Approach to Parallel Merging,"
+// arXiv:1406.2628, 2014.
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3

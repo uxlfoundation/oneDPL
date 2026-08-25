@@ -767,6 +767,10 @@ __pattern_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _
 // pattern_merge_ranges
 //---------------------------------------------------------------------------------------------------------------------
 
+// This implementation is based on the Merge Path algorithm described in:
+// O. Green, S. Odeh, and Y. Birk,
+// "Merge Path - A Visually Intuitive Approach to Parallel Merging,"
+// arXiv:1406.2628, 2014.
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
