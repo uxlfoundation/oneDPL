@@ -117,13 +117,11 @@ main()
 
     // count() must refer to the value instead of storing a copy of it: the requires-clause never
     // asks for a copyable value type.
-#if !TEST_STD_RANGES_BROKEN_REQUIRES_COUNT
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
         [](auto&&, auto res) { return res == 1; }, "count, noncopyable value");
-#endif // !TEST_STD_RANGES_BROKEN_REQUIRES_COUNT
 
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
@@ -133,14 +131,12 @@ main()
 
     // Same for remove(): the predicate it builds internally must hold a reference to the value for
     // the host policies.
-#if !TEST_STD_RANGES_BROKEN_REQUIRES_REMOVE
     run_algo_host_policies<removable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; },
         "remove, noncopyable value");
-#endif // !TEST_STD_RANGES_BROKEN_REQUIRES_REMOVE
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
