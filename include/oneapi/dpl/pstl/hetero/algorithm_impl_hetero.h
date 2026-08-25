@@ -1281,16 +1281,6 @@ __pattern_sort(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iter
 // sort_by_key
 //------------------------------------------------------------------------
 
-struct __pattern_sort_by_key_fn
-{
-    template <typename _Arg>
-    auto
-    operator()(const _Arg& __a) const
-    {
-        return std::get<0>(__a);
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Compare,
           typename _LeafSort = std::nullptr_t>
 void
@@ -1304,7 +1294,7 @@ __pattern_sort_by_key(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
     auto __beg = oneapi::dpl::make_zip_iterator(__keys_first, __values_first);
     auto __end = __beg + (__keys_last - __keys_first);
     __stable_sort_with_projection(__tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end, __comp,
-                                  __pattern_sort_by_key_fn{});
+                                  oneapi::dpl::__internal::__pattern_sort_by_key_fn{});
 }
 
 //------------------------------------------------------------------------

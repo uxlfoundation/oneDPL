@@ -203,6 +203,16 @@ using __value_t = decltype(oneapi::dpl::__internal::get_value_type<_R>(0));
 template <typename _Proj, typename _R>
 using __key_t = ::std::remove_cv_t<::std::remove_reference_t<::std::invoke_result_t<_Proj&, __value_t<_R>>>>;
 
+struct __pattern_sort_by_key_fn
+{
+    template <typename _Arg>
+    auto
+    operator()(const _Arg& __a) const
+    {
+        return std::get<0>(__a);
+    }
+};
+
 #if _ONEDPL_CPP20_RANGES_PRESENT
 //The following '__range_size' type trait should be used in only the context with std::common_type
 //together with a sized range.

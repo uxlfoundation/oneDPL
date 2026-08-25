@@ -59,6 +59,10 @@
 #    include "parallel_backend_sycl_radix_sort.h"
 #endif
 
+#if _ONEDPL_ENABLE_KT_RADIX_SORT_IN_SORT
+#    include "parallel_backend_sycl_radix_sort_kt.h"
+#endif
+
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
 namespace oneapi
@@ -1452,6 +1456,46 @@ __future<sycl::event>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                        _Compare, _Proj __proj)
 {
+#    if _ONEDPL_ENABLE_KT_RADIX_SORT_IN_SORT && _ONEDPL_KT_RADIX_SORT_IN_SORT_ACTIVE
+    // Attempt KT radix sort dispatch if eligible. Ineligible shapes, devices and sizes fall
+    // through to the legacy radix sort below.
+    constexpr bool __is_ascending = __internal::__is_comp_ascending<std::decay_t<_Compare>>::value;
+    constexpr auto __shape = __kt_radix::__kt_radix_sort_shape<std::decay_t<_Range>, _Proj>;
+
+    if constexpr (__shape != __kt_radix::__kt_sort_shape::__none)
+    {
+        sycl::queue __queue = __exec.queue();
+        const std::size_t __n = __rng.size();
+
+        // Runtime eligibility: size bounds, forward-progress capability and recognized
+        // architecture. __arch::__unknown means "use the legacy path".
+        const __kt_radix::__arch __a = __kt_radix::__kt_radix_sort_arch_for(__queue, __n);
+        if (__a != __kt_radix::__arch::__unknown)
+        {
+            try
+            {
+                sycl::event __event;
+                if constexpr (__shape == __kt_radix::__kt_sort_shape::__keys_only)
+                {
+                    __event = __kt_radix::__parallel_kt_radix_sort<__is_ascending>(__queue, __a, __rng);
+                }
+                else // __by_key
+                {
+                    // KT consumes keys and values as separate ranges, so decompose the zip_view.
+                    auto __base = __rng.base();
+                    __event = __kt_radix::__parallel_kt_radix_sort_by_key<__is_ascending>(
+                        __queue, __a, std::get<0>(__base), std::get<1>(__base));
+                }
+                return __future<sycl::event>{__event};
+            }
+            catch (const std::bad_alloc&)
+            {
+                // KT could not allocate its temporary storage; fall through to legacy radix sort.
+            }
+        }
+    }
+#    endif // _ONEDPL_ENABLE_KT_RADIX_SORT_IN_SORT && _ONEDPL_KT_RADIX_SORT_IN_SORT_ACTIVE
+
     return __parallel_radix_sort<__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value>(
         oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
         std::forward<_Range>(__rng), __proj);
