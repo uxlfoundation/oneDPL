@@ -31,6 +31,11 @@
 #include <cmath>
 #include <cstdint>
 #include <exception>
+#include <memory>
+
+#if _ONEDPL___cplusplus < 202002L
+#include <concepts> // for std::default_initializable
+#endif
 
 #if _ONEDPL_BACKEND_SYCL
 #    include "hetero/dpcpp/sycl_defs.h"
@@ -1103,6 +1108,31 @@ struct __is_type_with_iterator_traits<
 
 template <typename _T>
 static constexpr bool __is_type_with_iterator_traits_v = __is_type_with_iterator_traits<_T>::value;
+
+template <typename _T, typename _U>
+void
+__construct_from(_T* __dst, _U&& __src)
+{
+#if _ONEDPL___cplusplus < 202002L
+    ::new (__dst) _T(std::forward<_U>(__src));
+#else
+    if constexpr (std::constructible_from<_T, _U>)
+    {
+        std::construct_at(__dst, std::forward<_U>(__src));
+    }
+    else if constexpr (std::default_initializable<_T> && std::is_assignable_v<_T&, _U>)
+    {
+        std::construct_at(__dst);
+        *__dst = std::forward<_U>(__src);
+    }
+    else
+    {
+        static_assert(std::constructible_from<_T, _U&&> ||
+                          (std::default_initializable<_T> && std::is_assignable_v<_T&, _U&&>),
+                      "_T cannot be initialized from _U");
+    }
+#endif
+}
 
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>
