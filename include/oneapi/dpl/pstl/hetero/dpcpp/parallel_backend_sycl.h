@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <array>
 #include <tuple>
+#include <exception>
 
 #include "../../iterator_impl.h"
 #include "../../execution_impl.h"
@@ -1043,26 +1044,40 @@ struct __early_exit_find_or
 // parallel_find_or - sync pattern
 //------------------------------------------------------------------------
 
+struct __find_or_nd_range_params
+{
+    std::size_t __n_groups;
+    std::size_t __wgroup_size;
+};
+
+// The largest work-group size every tested device accepts for these kernels. A kernel's register demand
+// can put the device's own maximum out of reach, and the runtime reports that only at launch: Xe3
+// advertises 1024 but rejects it for the heavier find_or predicates.
+inline constexpr std::size_t __find_or_max_reliable_wgroup_size = 512;
+
 template <typename Tag>
 struct __parallel_find_or_nd_range_tuner
 {
     // Tune the amount of work-groups and work-group size
-    std::tuple<std::size_t, std::size_t>
+    __find_or_nd_range_params
     operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
-        // Work items resident on one compute unit, limited to prevent large sizes on CPUs. Empirically
-        // found value.
-        const std::size_t __items_per_compute_unit =
-            oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
-        // A kernel's register demand can put the device's maximum work-group size out of reach, and the
-        // runtime reports that only when the kernel is launched. Stay within a size every tested device
-        // accepts, and place proportionally more groups on each compute unit so that the number of resident
-        // work-items, which is what bounds the loads in flight, does not change.
-        const std::size_t __wgroup_size = std::min(__items_per_compute_unit, (std::size_t)512);
-        const std::size_t __groups_per_compute_unit = __items_per_compute_unit / __wgroup_size;
+        // TODO: find a way to generalize getting of reliable work-group size
+        // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
+        // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
+        const std::size_t __wgroup_size_limit = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
+        // Stay within a size every tested device accepts, and place proportionally more groups on each
+        // compute unit so that the number of resident work-items, which is what bounds the loads in
+        // flight, does not change.
+        const std::size_t __wgroup_size = std::min(__wgroup_size_limit, __find_or_max_reliable_wgroup_size);
+        const std::size_t __groups_per_compute_unit = __wgroup_size_limit / __wgroup_size;
+        // The single work-group path needs no global atomics, so capping the work-group size must not
+        // shrink its reach on a device that cannot provide the 64-bit atomics the multi-group path uses.
+        const std::size_t __single_group_size =
+            __q.get_device().has(sycl::aspect::atomic64) ? __wgroup_size : __wgroup_size_limit;
         std::size_t __n_groups = 1;
         // If no more than 32 data elements per work item, a single work group will be used
-        if (__rng_n > __wgroup_size * 32)
+        if (__rng_n > __single_group_size * 32)
         {
             // Compute the number of groups and limit by the work capacity of the compute units
             __n_groups =
@@ -1080,7 +1095,7 @@ template <>
 struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>
 {
     // Tune the amount of work-groups and work-group size
-    std::tuple<std::size_t, std::size_t>
+    __find_or_nd_range_params
     operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
         // Call common tuning function to get the work-group size
@@ -1091,24 +1106,22 @@ struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backe
             auto __iters_per_work_item =
                 oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __n_groups * __wgroup_size);
 
-            // If our work capacity is not enough to process all data in one iteration, will tune the number of work-groups
-            if (__iters_per_work_item > 1)
-            {
-                // Empirically found formula for GPU devices.
-                // TODO : need to re-evaluate this formula.
-                const float __rng_x = (float)__rng_n / 4096.f;
-                const float __desired_iters_per_work_item = std::max(std::sqrt(__rng_x), 1.f);
+            // Empirically found formula for GPU devices.
+            // TODO : need to re-evaluate this formula.
+            const float __rng_x = (float)__rng_n / 4096.f;
+            const float __desired_iters_per_work_item = std::max(std::sqrt(__rng_x), 1.f);
 
-                if (__iters_per_work_item < __desired_iters_per_work_item)
-                {
-                    // Multiply work per item by a power of 2 to reach the desired number of iterations.
-                    // __dpl_bit_ceil rounds the ratio up to the next power of 2.
-                    const std::size_t __k = oneapi::dpl::__internal::__dpl_bit_ceil(
-                        (std::size_t)std::ceil(__desired_iters_per_work_item / __iters_per_work_item));
-                    // Proportionally reduce the number of work groups.
-                    __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(
-                        __rng_n, __wgroup_size * __iters_per_work_item * __k);
-                }
+            // This applies at one element per work item as well, which is where it matters most: such an
+            // item has nothing to amortize its launch and voting overhead over, and cannot fill a wide load.
+            if (__iters_per_work_item < __desired_iters_per_work_item)
+            {
+                // Multiply work per item by a power of 2 to reach the desired number of iterations.
+                // __dpl_bit_ceil rounds the ratio up to the next power of 2.
+                const std::size_t __k = oneapi::dpl::__internal::__dpl_bit_ceil(
+                    (std::size_t)std::ceil(__desired_iters_per_work_item / __iters_per_work_item));
+                // Proportionally reduce the number of work groups.
+                __n_groups =
+                    oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size * __iters_per_work_item * __k);
             }
         }
 
@@ -1177,6 +1190,19 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
     }
 };
 
+// If the scope is left by an exception, the enqueued event must complete before the scratch storage it
+// writes is freed. The count is captured on entry because the scope may itself be entered during an unwind.
+struct __wait_event_on_unwind
+{
+    sycl::event& __event;
+    int __exceptions_on_entry = std::uncaught_exceptions();
+    ~__wait_event_on_unwind()
+    {
+        if (std::uncaught_exceptions() > __exceptions_on_entry)
+            __event.wait();
+    }
+};
+
 template <bool __or_tag_check, typename KernelNameInit, typename KernelName>
 struct __parallel_find_or_impl_multiple_wgs;
 
@@ -1216,6 +1242,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                 __scratch_ptr[1] = 0;
             });
         });
+        __wait_event_on_unwind __init_guard{__event_init};
 
         // main parallel_for
         __q.submit([&](sycl::handler& __cgh) {
@@ -1288,22 +1315,23 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 // size out of reach. Halve and retry: each submitter derives the work per item from the size it is handed,
 // so a smaller group still covers the whole input.
 template <typename _Launch>
-void
-__launch_with_wg_size_fallback(std::size_t __wgroup_size, _Launch __launch)
+auto
+__launch_with_wg_size_fallback(const sycl::queue& __q, std::size_t __wgroup_size, _Launch __launch)
 {
-    while (true)
+    for (;; __wgroup_size /= 2)
     {
+        _PRINT_INFO_IN_DEBUG_MODE(__q, __wgroup_size);
         try
         {
-            __launch(__wgroup_size);
-            return;
+            return __launch(__wgroup_size);
         }
         catch (const sycl::exception& __e)
         {
-            if (__e.code() != sycl::errc::nd_range || __wgroup_size == 1)
+            // Only an implementation that reports this synchronously with this code can be retried;
+            // elsewhere the rejection propagates as it did before.
+            if (__e.code() != sycl::errc::nd_range || __wgroup_size <= 1)
                 throw;
         }
-        __wgroup_size /= 2;
     }
 }
 
@@ -1321,14 +1349,9 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     assert(__rng_n > 0);
 
-    // Evaluate the amount of work-groups and work-group size. Not a structured binding: the launch below
-    // captures both, which C++17 does not allow for one.
-    const auto __nd_range_params =
+    // Evaluate the amount of work-groups and work-group size
+    const auto __params =
         __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(__q_local, __rng_n);
-    const std::size_t __n_groups = std::get<0>(__nd_range_params);
-    const std::size_t __wgroup_size = std::get<1>(__nd_range_params);
-
-    _PRINT_INFO_IN_DEBUG_MODE(__q_local, __wgroup_size);
 
     using _AtomicType = typename _BrickTag::_AtomicType;
     const _AtomicType __init_value = _BrickTag::__init_value(__rng_n);
@@ -1336,8 +1359,9 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
 
+    // The ranges are passed as lvalues: the fallback below may invoke the launch more than once.
     _AtomicType __result;
-    if (__n_groups == 1)
+    if (__params.__n_groups == 1)
     {
         // We shouldn't have any restrictions for _AtomicType type here
         // because we have a single work-group and we don't need to use atomics for inter-work-group communication.
@@ -1346,9 +1370,9 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_one_wg<_CustomName>>;
 
         // Single WG implementation
-        __launch_with_wg_size_fallback(__wgroup_size, [&](std::size_t __wg_size) {
-            __result = __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
-                __q_local, __brick_tag, __rng_n, __wg_size, __init_value, __pred, std::forward<_Ranges>(__rngs)...);
+        __result = __launch_with_wg_size_fallback(__q_local, __params.__wgroup_size, [&](std::size_t __wg_size) {
+            return __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
+                __q_local, __brick_tag, __rng_n, __wg_size, __init_value, __pred, __rngs...);
         });
     }
     else
@@ -1363,11 +1387,10 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel<_CustomName>>;
 
         // Multiple WG implementation
-        __launch_with_wg_size_fallback(__wgroup_size, [&](std::size_t __wg_size) {
-            __result = __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name_init,
-                                                           __find_or_kernel_name>()(
-                __q_local, __brick_tag, __rng_n, __n_groups, __wg_size, __init_value, __pred,
-                std::forward<_Ranges>(__rngs)...);
+        __result = __launch_with_wg_size_fallback(__q_local, __params.__wgroup_size, [&](std::size_t __wg_size) {
+            return __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name_init,
+                                                        __find_or_kernel_name>()(
+                __q_local, __brick_tag, __rng_n, __params.__n_groups, __wg_size, __init_value, __pred, __rngs...);
         });
     }
 
