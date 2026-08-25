@@ -89,13 +89,13 @@ To use the functions, add ``#include <oneapi/dpl/iterator>`` to your code. For e
     std::vector<int> vec(n);
     std::generate(vec.begin(), vec.end(), std::minstd_rand{});
 
-    sycl::buffer<int> buf{ vec.data(), vec.size() };
+    sycl::buffer<int> buf( vec.data(), vec.size() );
     auto buf_begin = oneapi::dpl::begin(buf);
     auto buf_end   = oneapi::dpl::end(buf);
 
     oneapi::dpl::sort(oneapi::dpl::execution::dpcpp_default, buf_begin, buf_end);
 
-    sycl::buffer<Point> pts{ sycl::range<1>(n) };
+    sycl::buffer<Point> pts( sycl::range<1>(n) );
 
     auto out_write_no_init_beg = oneapi::dpl::begin(pts, sycl::write_only, sycl::no_init);
     auto out_write_no_init_end = oneapi::dpl::end(pts, sycl::write_only, sycl::no_init);
