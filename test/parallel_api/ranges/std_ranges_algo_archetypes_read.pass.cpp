@@ -136,11 +136,38 @@ main()
         [](auto&& view, auto res) { return res == (std::ranges::range_difference_t<decltype(view)>)
                                                       ((std::ranges::size(view) + 2) / 3); }, "count_if with proj");
 
-    // KSATODO: min_element/max_element/minmax_element are not run here. Their requires-clause only asks
-    // for std::indirect_strict_weak_order, but the vectorized implementation
-    // (__unseq_backend::__simd_min_element) stores a copy of the element in its _ComplexType helper,
-    // so a non-copyable element type does not compile with the unseq policies. The static_asserts
-    // above still check that the call itself is well-formed.
+    // KSATODO: min_element/max_element/minmax_element only require std::indirect_strict_weak_order
+    // on the projected iterator, so the element type itself has to stay non-copyable and
+    // non-default-constructible. Both backends store the element by value instead of keeping an
+    // iterator to it, so the calls below do not compile:
+    //  - unseq_backend_simd.h:635,637,649,662,663,666 - the _ComplexType helper of
+    //    __simd_min_element holds a _ValueType member, value initializes it in its default
+    //    constructor and copy assigns it while scanning;
+    //  - algorithm_ranges_impl_hetero.h:1569 / utils_hetero.h:125 / tuple_impl.h:276 - the hetero
+    //    path builds a std::pair<difference_type, value_type> and copies the element into it.
+    // Fixing this means carrying the index only and dereferencing the iterator for the comparison.
+    run_algo_all_policies<read_archetype, 12>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::min_element(std::forward<decltype(policy)>(policy), view, read_comp{});
+        },
+        [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "min_element");
+
+    run_algo_all_policies<read_archetype, 13>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::max_element(std::forward<decltype(policy)>(policy), view, read_comp{});
+        },
+        [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view) - 1; },
+        "max_element");
+
+    run_algo_all_policies<read_archetype, 14>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::minmax_element(std::forward<decltype(policy)>(policy), view, read_comp{});
+        },
+        [](auto&& view, auto res) {
+            return res.min == std::ranges::begin(view) &&
+                   res.max == std::ranges::begin(view) + std::ranges::size(view) - 1;
+        },
+        "minmax_element");
 
     run_algo_all_policies<read_archetype, 6>(
         [](auto&& policy, auto&& view) {
