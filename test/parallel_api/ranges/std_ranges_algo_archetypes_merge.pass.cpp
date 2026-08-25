@@ -81,12 +81,12 @@ main()
         },
         [](auto&&, auto&&, auto res) { return res; }, "merge");
 
-    // TODO: add runtime coverage of set_union / set_intersection / set_difference /
+    // KSATODO: add runtime coverage of set_union / set_intersection / set_difference /
     // set_symmetric_difference. The current implementation default constructs and copy constructs
     // the output element in set_algorithms_utils.h, which std::mergeable does not ask for, so it
     // does not compile with merge_out_archetype.
 
-    // TODO: add runtime coverage of min / max / minmax. The vectorized path in
+    // KSATODO: add runtime coverage of min / max / minmax. The vectorized path in
     // unseq_backend_simd.h default constructs the element type, which
     // std::indirectly_copyable_storable does not ask for, so it does not compile with
     // storable_archetype.
