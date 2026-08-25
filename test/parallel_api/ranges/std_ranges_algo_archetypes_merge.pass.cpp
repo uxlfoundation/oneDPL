@@ -89,6 +89,7 @@ main()
     //  - set_algorithms_utils.h:127,133,206 / memory_impl.h:96,111 - __uninitialized_copy_or_discard
     //    default constructs and copy constructs the output element type.
     // Fixing this means assigning through the output iterator instead of constructing in place.
+#if !TEST_STD_RANGES_BROKEN_REQUIRES_SET_OP
     run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
         [](auto&& policy, auto&& view1, auto&& view2) {
             archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
@@ -113,12 +114,14 @@ main()
             return res.out == std::ranges::begin(out_view);
         },
         [](auto&&, auto&&, auto res) { return res; }, "set_difference");
+#endif // !TEST_STD_RANGES_BROKEN_REQUIRES_SET_OP
 
     // KSATODO: min / max / minmax only require std::indirectly_copyable_storable, which needs a copy
     // constructor and copy assignment, but no default constructor. The helpers of __simd_min_element
     // and __simd_minmax_element at unseq_backend_simd.h:635 and :695 value initialize their
     // _ValueType members in the default constructor, so the calls below do not compile with a
     // non-default-constructible element type.
+#if !TEST_STD_RANGES_BROKEN_REQUIRES_MIN_MAX_ELEMENT
     run_algo_host_policies<storable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::min(std::forward<decltype(policy)>(policy), view, storable_comp{});
@@ -136,6 +139,8 @@ main()
             return dpl_ranges::minmax(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto&& res) { return res.min.val == 0 && res.max.val == (int)archetype_test_size - 1; }, "minmax");
+#endif // !TEST_STD_RANGES_BROKEN_REQUIRES_MIN_MAX_ELEMENT
+
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
