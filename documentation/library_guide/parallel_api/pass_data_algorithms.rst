@@ -72,11 +72,11 @@ To use the functions, add ``#include <oneapi/dpl/iterator>`` to your code. For e
     return 0;
   }
 
-By default, the objects returned by ``begin`` and ``end`` request ``read_write`` access to the buffer.
-The functions can also take SYCL 2020 deduction tags and ``sycl::no_init`` as arguments to provide access mode
-and ``no_init`` property hints to |onedpl_short| algorithms. |onedpl_short| may use these hints to optimize
-data access in cases where an algorithm does not inherently dictate the access mode, which can avoid
-unnecessary data transfers to and from the device:
+In general, buffer data access modes are dictated by the algorithms which use them. However, some algorithms may
+gain additional efficiency when the access mode is explicitly specified. The ``begin`` and ``end`` functions can also
+take SYCL 2020 deduction tags and ``sycl::no_init`` as arguments to provide access mode  and ``no_init`` property hints
+to |onedpl_short| algorithms. |onedpl_short| may use these hints to optimize data access where semantics of the
+API rely on user provided operations like ``for_each[_n]``.
 
 .. code:: cpp
 
@@ -84,10 +84,6 @@ unnecessary data transfers to and from the device:
   auto first_ro = oneapi::dpl::begin(buf, sycl::read_only);
   auto first_wo = oneapi::dpl::begin(buf, sycl::write_only, sycl::no_init);
   auto first_ni = oneapi::dpl::begin(buf, sycl::no_init);
-
-The hints are currently used by ``for_each[_n]``. Other algorithms accept the returned objects but ignore the hints,
-because their access mode follows from the algorithm semantics. For example, the output sequence of ``copy`` is already
-accessed as write-only with the ``no_init`` property.
 
 A hint must be consistent with the way an algorithm and its callable objects actually use the data.
 In particular, ``sycl::no_init`` discards the previous content of the buffer, so every element that is read
