@@ -72,11 +72,10 @@ To use the functions, add ``#include <oneapi/dpl/iterator>`` to your code. For e
     return 0;
   }
 
-In general, buffer data access modes are dictated by the algorithms which use them. However, some algorithms may
-gain additional efficiency when the access mode is explicitly specified. The ``begin`` and ``end`` functions can also
-take SYCL 2020 deduction tags and ``sycl::no_init`` as arguments to provide access mode  and ``no_init`` property hints
-to |onedpl_short| algorithms. |onedpl_short| may use these hints to optimize data access where semantics of the
-API rely on user provided operations like ``for_each[_n]``.
+In general, buffer data access modes are determined by the algorithm semantics. However, for algorithms where 
+data access depends on user-provided operations - such as ``for_each`` - specifying the access mode explicitly
+might improve performance. The ``begin`` and ``end`` functions can take SYCL 2020 access mode deduction tags and
+the ``sycl::no_init`` property as arguments to hint oneDPL at a more efficient buffer access mode.
 
 .. code:: cpp
 
@@ -86,8 +85,8 @@ API rely on user provided operations like ``for_each[_n]``.
   auto first_ni = oneapi::dpl::begin(buf, sycl::no_init);
 
 A hint must be consistent with the way an algorithm and its callable objects actually use the data.
-In particular, ``sycl::no_init`` discards the previous content of the buffer, so every element that is read
-must be written first; otherwise the values that the algorithm operates on are unspecified.
+In particular, ``sycl::no_init`` indicates the previous content of the buffer can be discarded, so the operation
+must assign a proper value to every element before its further use; otherwise, the behavior is undefined.
 
 .. code:: cpp
 
@@ -114,8 +113,8 @@ must be written first; otherwise the values that the algorithm operates on are u
     oneapi::dpl::for_each(oneapi::dpl::execution::dpcpp_default, out_write_no_init_beg, out_write_no_init_end,
                           [](Point& point) { point = {1.f, 2.f, 3.f};});
 
-    // no_init is not appropriate here: a projection operation selects only the x component, so the
-    // existing y and z data of every element is preserved and must not be discarded.
+    // An example where no_init is not appropriate: the projection selects only the x component,
+    // while existing y and z data of every element must be preserved.
     auto out_write_beg = oneapi::dpl::begin(pts, sycl::write_only);
     auto out_write_end = oneapi::dpl::end(pts, sycl::write_only);
 
