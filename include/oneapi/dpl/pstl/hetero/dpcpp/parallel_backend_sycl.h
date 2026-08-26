@@ -1055,6 +1055,11 @@ struct __find_or_nd_range_params
 // advertises 1024 but rejects it for the heavier find_or predicates.
 inline constexpr std::size_t __find_or_max_reliable_wgroup_size = 512;
 
+// A single work group is used only while it can cover the input within this many iterations. One group's
+// worth of items is little parallelism, and a wider scan covers the same input in fewer iterations, so the
+// bound belongs on iterations rather than on elements.
+inline constexpr std::size_t __find_or_max_iters_in_one_wg = 8;
+
 #if _ONEDPL_FPGA_DEVICE
 // No data for FPGA, and unrolling the predicate costs area, so never scan wide there.
 inline constexpr std::size_t __find_or_wide_scan_min_size = std::numeric_limits<std::size_t>::max();
@@ -1069,7 +1074,7 @@ struct __parallel_find_or_nd_range_tuner
 {
     // Tune the amount of work-groups and work-group size
     __find_or_nd_range_params
-    operator()(const sycl::queue& __q, const std::size_t __rng_n) const
+    operator()(const sycl::queue& __q, const std::size_t __rng_n, const std::size_t __elems_per_iter) const
     {
         // TODO: find a way to generalize getting of reliable work-group size
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
@@ -1080,13 +1085,14 @@ struct __parallel_find_or_nd_range_tuner
         // flight, does not change.
         const std::size_t __wgroup_size = std::min(__wgroup_size_limit, __find_or_max_reliable_wgroup_size);
         const std::size_t __groups_per_compute_unit = __wgroup_size_limit / __wgroup_size;
-        // The single work-group path needs no global atomics, so capping the work-group size must not
-        // shrink its reach on a device that cannot provide the 64-bit atomics the multi-group path uses.
-        const std::size_t __single_group_size =
-            __q.get_device().has(sycl::aspect::atomic64) ? __wgroup_size : __wgroup_size_limit;
+        const std::size_t __one_wg_max_n = __wgroup_size * __elems_per_iter * __find_or_max_iters_in_one_wg;
+        // The single work-group path needs no global atomics, so on a device that cannot provide the 64-bit
+        // atomics the multi-group path uses, keep the reach it had rather than its parallelism.
+        const std::size_t __one_wg_limit = __q.get_device().has(sycl::aspect::atomic64)
+                                               ? __one_wg_max_n
+                                               : std::max(__one_wg_max_n, __wgroup_size_limit * 32);
         std::size_t __n_groups = 1;
-        // If no more than 32 data elements per work item, a single work group will be used
-        if (__rng_n > __single_group_size * 32)
+        if (__rng_n > __one_wg_limit)
         {
             // Compute the number of groups and limit by the work capacity of the compute units
             __n_groups =
@@ -1105,10 +1111,10 @@ struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backe
 {
     // Tune the amount of work-groups and work-group size
     __find_or_nd_range_params
-    operator()(const sycl::queue& __q, const std::size_t __rng_n) const
+    operator()(const sycl::queue& __q, const std::size_t __rng_n, const std::size_t __elems_per_iter) const
     {
         // Call common tuning function to get the work-group size
-        auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<int>{}(__q, __rng_n);
+        auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<int>{}(__q, __rng_n, __elems_per_iter);
 
         if (__n_groups > 1)
         {
@@ -1358,10 +1364,6 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     assert(__rng_n > 0);
 
-    // Evaluate the amount of work-groups and work-group size
-    const auto __params =
-        __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(__q_local, __rng_n);
-
     using _AtomicType = typename _BrickTag::_AtomicType;
     const _AtomicType __init_value = _BrickTag::__init_value(__rng_n);
 
@@ -1370,8 +1372,12 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     // The ranges are passed as lvalues: the fallback below may invoke the launch more than once.
     auto __dispatch = [&](auto __wide_c) {
         using _ScanWidth = __find_or_scan_width<decltype(__wide_c)::value>;
-        const auto __pred =
-            oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, decltype(__wide_c)::value>{__f};
+        using _EarlyExit = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, decltype(__wide_c)::value>;
+        const auto __pred = _EarlyExit{__f};
+
+        // Evaluate the amount of work-groups and work-group size
+        const auto __params = __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(
+            __q_local, __rng_n, _EarlyExit::__elems_per_iter);
 
         if (__params.__n_groups == 1)
         {
