@@ -31,7 +31,7 @@
 #include <cmath>
 #include <cstdint>
 #include <exception>
-#include <memory> // for std::construct_at
+#include <memory> // for std::construct_at, std::destroy_at
 
 #if _ONEDPL___cplusplus < 202002L
 #include <concepts> // for std::default_initializable
@@ -1134,6 +1134,17 @@ __construct_from(_T* __dst, _U&& __src)
 #endif
 }
 
+template <typename _T>
+void
+__destroy_at(_T* __ptr)
+{
+#if _ONEDPL___cplusplus < 202002L
+    (*__ptr).~_T();
+#else
+    std::destroy_at(__ptr);
+#endif
+}
+
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>
 union __lazy_ctor_storage
@@ -1156,7 +1167,7 @@ union __lazy_ctor_storage
     void
     __destroy()
     {
-        __v.~_Tp();
+        __destroy_at(std::addressof(__v));
     }
 };
 
