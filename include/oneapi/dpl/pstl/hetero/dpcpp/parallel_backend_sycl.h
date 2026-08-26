@@ -80,6 +80,10 @@ class __find_or_kernel_init;
 template <typename... _Name>
 class __find_or_kernel;
 
+// Distinguishes the two __early_exit_find_or configurations, which are separate kernels.
+template <bool __wide>
+class __find_or_scan_width;
+
 template <typename... _Name>
 class __scan_single_wg_kernel;
 
@@ -903,7 +907,9 @@ __is_backward_tag(_TagType)
 // early_exit (find_or)
 //------------------------------------------------------------------------
 
-template <typename _Pred>
+// __wide selects the configuration below. It buys memory bandwidth by loading and voting less often,
+// and pays for it with a coarser early exit and a larger unrolled body; only a large input amortizes that.
+template <typename _Pred, bool __wide>
 struct __early_exit_find_or
 {
     _Pred __pred;
@@ -914,16 +920,10 @@ struct __early_exit_find_or
     //
     // Iterations scanned between two sub-group votes. The loads of one batch do not depend on each
     // other, so they can all be in flight at once, where a vote between two of them makes the second
-    // load wait on it. Both values were found empirically on Battlemage and Ponte Vecchio.
+    // load wait on it. Both wide values were found empirically on Battlemage and Ponte Vecchio.
     // TODO: need to re-evaluate both, and whether they should depend on the device.
-#if _ONEDPL_FPGA_DEVICE
-    // No data for FPGA, and unrolling the predicate costs area, so scan element-at-a-time there.
-    static constexpr std::size_t __elems_per_iter = 1;
-    static constexpr std::size_t __max_iters_per_vote = 1;
-#else
-    static constexpr std::size_t __elems_per_iter = 4;
-    static constexpr std::size_t __max_iters_per_vote = 8;
-#endif
+    static constexpr std::size_t __elems_per_iter = __wide ? 4 : 1;
+    static constexpr std::size_t __max_iters_per_vote = __wide ? 8 : 1;
     // A batch runs past a match by up to its own length, so a length is used only once this many
     // times that length has been scanned. That bounds the overshoot at 1 / this of the iterations an
     // item has already spent, at every match position.
@@ -1054,6 +1054,15 @@ struct __find_or_nd_range_params
 // can put the device's own maximum out of reach, and the runtime reports that only at launch: Xe3
 // advertises 1024 but rejects it for the heavier find_or predicates.
 inline constexpr std::size_t __find_or_max_reliable_wgroup_size = 512;
+
+#if _ONEDPL_FPGA_DEVICE
+// No data for FPGA, and unrolling the predicate costs area, so never scan wide there.
+inline constexpr std::size_t __find_or_wide_scan_min_size = std::numeric_limits<std::size_t>::max();
+#else
+// Below this, a call is bound by its own launch overhead rather than by memory bandwidth, so the wide
+// scan has nothing to win and still pays its setup. Empirically found on Battlemage and Ponte Vecchio.
+inline constexpr std::size_t __find_or_wide_scan_min_size = 1 << 20;
+#endif
 
 template <typename Tag>
 struct __parallel_find_or_nd_range_tuner
@@ -1355,44 +1364,56 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     using _AtomicType = typename _BrickTag::_AtomicType;
     const _AtomicType __init_value = _BrickTag::__init_value(__rng_n);
-    const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick>{__f};
 
     constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
 
     // The ranges are passed as lvalues: the fallback below may invoke the launch more than once.
-    _AtomicType __result;
-    if (__params.__n_groups == 1)
-    {
-        // We shouldn't have any restrictions for _AtomicType type here
-        // because we have a single work-group and we don't need to use atomics for inter-work-group communication.
+    auto __dispatch = [&](auto __wide_c) {
+        using _ScanWidth = __find_or_scan_width<decltype(__wide_c)::value>;
+        const auto __pred =
+            oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, decltype(__wide_c)::value>{__f};
 
-        using __find_or_one_wg_kernel_name =
-            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_one_wg<_CustomName>>;
+        if (__params.__n_groups == 1)
+        {
+            // We shouldn't have any restrictions for _AtomicType type here
+            // because we have a single work-group and we don't need to use atomics for inter-work-group communication.
 
-        // Single WG implementation
-        __result = __launch_with_wg_size_fallback(__q_local, __params.__wgroup_size, [&](std::size_t __wg_size) {
-            return __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
-                __q_local, __brick_tag, __rng_n, __wg_size, __init_value, __pred, __rngs...);
-        });
-    }
-    else
-    {
-        assert("This device does not support 64-bit atomics" &&
-               (sizeof(_AtomicType) < 8 || __q_local.get_device().has(sycl::aspect::atomic64)));
+            using __find_or_one_wg_kernel_name = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+                __find_or_kernel_one_wg<_CustomName, _ScanWidth>>;
 
-        using __find_or_kernel_name_init =
-            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_init<_CustomName>>;
+            // Single WG implementation
+            return __launch_with_wg_size_fallback(__q_local, __params.__wgroup_size, [&](std::size_t __wg_size) {
+                return __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
+                    __q_local, __brick_tag, __rng_n, __wg_size, __init_value, __pred, __rngs...);
+            });
+        }
+        else
+        {
+            assert("This device does not support 64-bit atomics" &&
+                   (sizeof(_AtomicType) < 8 || __q_local.get_device().has(sycl::aspect::atomic64)));
 
-        using __find_or_kernel_name =
-            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel<_CustomName>>;
+            using __find_or_kernel_name_init = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+                __find_or_kernel_init<_CustomName, _ScanWidth>>;
 
-        // Multiple WG implementation
-        __result = __launch_with_wg_size_fallback(__q_local, __params.__wgroup_size, [&](std::size_t __wg_size) {
-            return __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name_init,
-                                                        __find_or_kernel_name>()(
-                __q_local, __brick_tag, __rng_n, __params.__n_groups, __wg_size, __init_value, __pred, __rngs...);
-        });
-    }
+            using __find_or_kernel_name = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+                __find_or_kernel<_CustomName, _ScanWidth>>;
+
+            // Multiple WG implementation
+            return __launch_with_wg_size_fallback(__q_local, __params.__wgroup_size, [&](std::size_t __wg_size) {
+                return __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name_init,
+                                                            __find_or_kernel_name>()(
+                    __q_local, __brick_tag, __rng_n, __params.__n_groups, __wg_size, __init_value, __pred, __rngs...);
+            });
+        }
+    };
+    // Where the two configurations coincide, instantiating both would only cost a second kernel.
+    const _AtomicType __result = [&]() {
+        if constexpr (__find_or_wide_scan_min_size == std::numeric_limits<std::size_t>::max())
+            return __dispatch(std::false_type{});
+        else
+            return __rng_n < __find_or_wide_scan_min_size ? __dispatch(std::false_type{})
+                                                          : __dispatch(std::true_type{});
+    }();
 
     if constexpr (__or_tag_check)
         return __result != __init_value; //return a bool type
