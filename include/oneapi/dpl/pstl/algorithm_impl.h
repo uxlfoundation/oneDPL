@@ -1088,10 +1088,17 @@ struct __brick_copy<_Tag, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
     }
 
     template <typename _ReferenceType1, typename _ReferenceType2>
-    void
+    std::enable_if_t<std::is_reference_v<_ReferenceType1>>
     operator()(_ReferenceType1 __val, _ReferenceType2&& __result) const
     {
-        __result = __val;
+        __result = std::forward<_ReferenceType1>(__val);
+    }
+
+    template <typename _InputIterator, typename _OutputIterator>
+    std::enable_if_t<!std::is_reference_v<_InputIterator>>
+    operator()(_InputIterator __input, _OutputIterator __result) const
+    {
+        *__result = *__input;
     }
 };
 
@@ -3623,6 +3630,7 @@ struct _ParallelSetOpCombinePred
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _SetOp,
+          typename _CopyConstructOp, typename _CopyConstructNOp,
           class _SizeFunction, typename _SetRange, bool _Bounded>
 struct _SetOpReachedPosEvaluator
 {
@@ -3638,10 +3646,12 @@ struct _SetOpReachedPosEvaluator
                               _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
                               _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                               _OutputIterator __result1, _OutputIterator __result2, _Compare __comp, _Proj1 __proj1,
-                              _Proj2 __proj2, _SetOp __set_op, _SizeFunction __size_func)
+                              _Proj2 __proj2, _SetOp __set_op, _CopyConstructOp __cc_op, _CopyConstructNOp __cc_n_op,
+                              _SizeFunction __size_func)
         : __tag(__tag), __exec(__exec), __first1(__first1), __last1(__last1), __first2(__first2), __last2(__last2),
           __result1(__result1), __result2(__result2), __comp(__comp), __proj1(__proj1), __proj2(__proj2),
-          __set_op(__set_op), __size_func(__size_func), __n_out(__result2 - __result1)
+          __set_op(__set_op), __cc_op(__cc_op), __cc_n_op(__cc_n_op), __size_func(__size_func),
+          __n_out(__result2 - __result1)
     {
     }
 
@@ -3816,7 +3826,8 @@ struct _SetOpReachedPosEvaluator
                 __set_op(__first1 + __offset1, __first1 + __offset1 + __size1, // First input range bounds
                          __first2 + __offset2, __first2 + __offset2 + __size2, // Second input range bounds
                          oneapi::dpl::discard_iterator{}, // No real output buffer, so using discard iterator
-                         __comp, __proj1, __proj2, __mask_bufs.data());
+                         __comp, __proj1, __proj2, __mask_bufs.data(),
+                        __cc_op, __cc_n_op);
 
             auto __mask_buffer_reached = std::get<3>(__set_op_res);
 
@@ -3901,6 +3912,8 @@ struct _SetOpReachedPosEvaluator
     _Proj1 __proj1;
     _Proj2 __proj2;
     _SetOp __set_op;
+    _CopyConstructOp __cc_op;
+    _CopyConstructNOp __cc_n_op;
     _SizeFunction __size_func;
 
     const _DifferenceTypeOut __n_out = {}; // Size of output range
@@ -4035,14 +4048,16 @@ struct _ParallelSetOpScanPred
 };
 
 template <bool _Bounded, typename _SetRange, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
-          typename _OutputIterator, typename _SizeFunction, typename _SetOp, typename _Compare, typename _Proj1,
-          typename _Proj2, typename _T>
+          typename _OutputIterator, typename _SetOp, typename _CopyConstructOp, typename _CopyConstructNOp,
+          typename _SizeFunction, typename _Compare, typename _Proj1, typename _Proj2, typename _T>
 struct _ParallelSetOpStrictReducePred
 {
     _RandomAccessIterator1 __first1, __last1;
     _RandomAccessIterator2 __first2, __last2;
-    _SizeFunction __size_func;
     _SetOp __set_op;
+    _CopyConstructOp __cc_op;
+    _CopyConstructNOp __cc_n_op;
+    _SizeFunction __size_func;
 
     _Compare __comp;
     _Proj1 __proj1;
@@ -4107,7 +4122,7 @@ struct _ParallelSetOpStrictReducePred
         const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
         _T* __buffer_b = __buf_raw_data_begin + __buf_pos;
         auto [__it1_reached, __it2_reached, __output_reached, __mask_reached] =
-            __set_op(__b, __e, __bb, __ee, __buffer_b, __comp, __proj1, __proj2, nullptr);
+            __set_op(__b, __e, __bb, __ee, __buffer_b, __comp, __proj1, __proj2, nullptr, __cc_op, __cc_n_op);
 
         // Prepare processed data info
         const _DataPart<_DifferenceType> __new_processing_data{0, __output_reached - __buffer_b, __buf_pos};
@@ -4149,12 +4164,12 @@ struct _ParallelSetOpApexPred
 
 template <bool _Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
           class _RandomAccessIterator2, class _OutputIterator, class _Compare, class _Proj1, class _Proj2,
-          class _SizeFunction, class _SetOp>
+          class _SizeFunction, class _SetOp, class _CopyConstructOp, class _CopyConstructNOp>
 oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                   _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                   _OutputIterator __result1, _OutputIterator __result2, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
-                  _SizeFunction __size_func, _SetOp __set_op)
+                  _SizeFunction __size_func, _SetOp __set_op, _CopyConstructOp __cc_op, _CopyConstructNOp __cc_n_op)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -4177,28 +4192,32 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         _SetRangeImpl<_Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __mask_difference_type_t>;
 
     return __internal::__except_handler([__tag, &__exec, __n1, __first1, __last1, __first2, __last2, __result1,
-                                         __result2, __comp, __proj1, __proj2, __size_func, __set_op, &__buf,
-                                         __buf_size]() {
+                                         __result2, __comp, __proj1, __proj2, __size_func, __set_op, __cc_op, __cc_n_op,
+                                         &__buf, __buf_size]() {
         // Buffer raw data begin/end pointers
         _T* __buf_raw_data_begin = __buf.get();
         _T* __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
         using _SetOpReachedPosEvaluatorT =
             _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
-                                      _OutputIterator, _Compare, _Proj1, _Proj2, _SetOp, _SizeFunction, _SetRange,
-                                      _Bounded>;
+                                      _OutputIterator, _Compare, _Proj1, _Proj2, _SetOp, _CopyConstructOp,
+                                      _CopyConstructNOp, _SizeFunction, _SetRange, _Bounded>;
         _SetOpReachedPosEvaluatorT __source_final_pos_evaluator(__tag, __exec, __first1, __last1, __first2, __last2,
                                                                 __result1, __result2, __comp, __proj1, __proj2,
-                                                                __set_op, __size_func);
+                                                                __set_op, __cc_op, __cc_n_op, __size_func);
 
         // Scan predicate
         _ParallelSetOpScanPred<_Bounded, _IsVector, _T*, _SetRange, _OutputIterator, _SetOpReachedPosEvaluatorT>
             __scan_pred{__tag, __buf_raw_data_begin, __buf_raw_data_end, __result1, __result2, __source_final_pos_evaluator};
 
         _ParallelSetOpStrictReducePred<_Bounded, _SetRange, _RandomAccessIterator1, _RandomAccessIterator2,
-                                       _OutputIterator, _SizeFunction, _SetOp, _Compare, _Proj1, _Proj2, _T>
-            __reduce_pred{__first1, __last1, __first2, __last2, __size_func,
-                          __set_op, __comp,  __proj1,  __proj2, __buf_raw_data_begin};
+                                       _OutputIterator, _SetOp, _CopyConstructOp, _CopyConstructNOp,
+                                       _SizeFunction, _Compare, _Proj1, _Proj2, _T>
+            __reduce_pred{__first1, __last1, __first2, __last2,
+                          __set_op, __cc_op, __cc_n_op,
+                          __size_func,
+                          __comp, __proj1, __proj2,
+                          __buf_raw_data_begin};
 
         _ParallelSetOpCombinePred __combine_pred;
 
@@ -4220,12 +4239,14 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
 template <bool _Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
-          class _RandomAccessIterator2, class _OutputIterator, class _Compare, class _Proj1, class _Proj2, class _SetOp>
+          class _RandomAccessIterator2, class _OutputIterator, class _Compare, class _Proj1, class _Proj2, class _SetOp,
+          typename _CopyConstructOp, typename _CopyConstructNOp>
 oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                         _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                         _OutputIterator __result1, _OutputIterator __result2, _Compare __comp, _Proj1 __proj1,
-                        _Proj2 __proj2, _SetOp __set_op)
+                        _Proj2 __proj2, _SetOp __set_op,
+                        _CopyConstructOp __cc_op, _CopyConstructNOp __cc_n_op)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -4352,7 +4373,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             [=, &__exec, &__finish] {
                 __finish = __internal::__parallel_set_op<_Bounded>(__tag, __exec, __left_bound_seq_1, __last1, __first2,
                                                                    __last2, __result1 + __to_copy, __result2, __comp,
-                                                                   __proj1, __proj2, __size_func, __set_op);
+                                                                   __proj1, __proj2, __size_func, __set_op, __cc_op, __cc_n_op);
             });
 
         return __finish;
@@ -4389,7 +4410,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             [=, &__exec, &__finish] {
                 __finish = __internal::__parallel_set_op<_Bounded>(__tag, __exec, __first1, __last1, __left_bound_seq_2,
                                                                    __last2, __result1 + __to_copy, __result2, __comp,
-                                                                   __proj1, __proj2, __size_func, __set_op);
+                                                                   __proj1, __proj2, __size_func, __set_op, __cc_op, __cc_n_op);
             });
 
         return __finish;
@@ -4397,7 +4418,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     return __internal::__parallel_set_op<_Bounded>(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                    __first2, __last2, __result1, __result2, __comp, __proj1, __proj2,
-                                                   __size_func, __set_op);
+                                                   __size_func, __set_op, __cc_op, __cc_n_op);
 }
 
 //------------------------------------------------------------------------
@@ -4412,20 +4433,6 @@ __brick_set_union(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Forwar
 {
     return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 }
-
-template <typename _IsVector>
-struct __BrickCopyConstruct
-{
-    template <typename _ForwardIterator, typename _OutputIterator>
-    _OutputIterator
-    operator()(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result)
-    {
-        if constexpr (!std::is_same_v<std::remove_cv_t<_OutputIterator>, oneapi::dpl::discard_iterator>)
-            return __brick_uninitialized_copy(__first, __last, __result, _IsVector());
-        else
-            return __result;
-    }
-};
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator, class _Compare>
 _OutputIterator
@@ -4467,13 +4474,18 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     if (__n1 + __n2 <= __set_algo_cut_off)
         return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
+    auto __cc_op = [](auto __it_from, auto __it_to) { __brick_uninitialized_copy_1(__it_from, __it_to); };
+    auto __cc_n_op = [](auto __it_from, auto __n, auto __it_to) {
+        return __brick_uninitialized_copy_n(_IsVector{}, __it_from, __n, __it_to);
+    };
+
     return __parallel_set_union_op</*_Bounded*/ false>(
                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
                __result + __n1 + __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
                [](auto&&... __args) {
-                   return oneapi::dpl::__utils::__set_union_construct<__BrickCopyConstruct<_IsVector>>(
-                       std::forward<decltype(__args)>(__args)...);
-               })
+                   return oneapi::dpl::__utils::__set_union_construct(std::forward<decltype(__args)>(__args)...);
+               },
+               __cc_op, __cc_n_op)
         .__it_out;
 }
 
@@ -4546,6 +4558,11 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 
     auto __size_func = [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); };
 
+    auto __cc_op = [](auto __it_from, auto __it_to) { __brick_uninitialized_copy_1(__it_from, __it_to); };
+    auto __cc_n_op = [](auto __it_from, auto __n, auto __it_to) {
+        return __brick_uninitialized_copy_n(_IsVector{}, __it_from, __n, __it_to);
+    };
+
     const _DifferenceType __m1 = __last1 - __left_bound_seq_1 + __n2;
     if (__m1 > __set_algo_cut_off)
     {
@@ -4558,7 +4575,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                        [](auto&&... __args) {
                            return oneapi::dpl::__utils::__set_intersection_construct(
                                std::forward<decltype(__args)>(__args)...);
-                       })
+                       },
+                       __cc_op, __cc_n_op)
                 .__it_out;
         });
     }
@@ -4575,7 +4593,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                        [](auto&&... __args) {
                            return oneapi::dpl::__utils::__set_intersection_construct(
                                std::forward<decltype(__args)>(__args)...);
-                       })
+                       },
+                       __cc_op, __cc_n_op)
                 .__it_out;
         });
     }
@@ -4659,15 +4678,21 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     if (__n1 + __n2 > __set_algo_cut_off)
     {
+        auto __cc_op = [](auto __it_from, auto __it_to) { __brick_uninitialized_copy_1(__it_from, __it_to); };
+        auto __cc_n_op = [](auto __it_from, auto __n, auto __it_to) {
+            return __brick_uninitialized_copy_n(_IsVector{}, __it_from, __n, __it_to);
+        };
+
         auto __size_func = [](_DifferenceType __n, _DifferenceType) { return __n; };
 
         return __parallel_set_op</*_Bounded*/ false>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
                    __result + __n1, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{}, __size_func,
                    [](auto&&... __args) {
-                       return oneapi::dpl::__utils::__set_difference_construct<__BrickCopyConstruct<_IsVector>>(
+                       return oneapi::dpl::__utils::__set_difference_construct(
                            std::forward<decltype(__args)>(__args)...);
-                   })
+                   },
+                   __cc_op, __cc_n_op)
             .__it_out;
     }
 
@@ -4730,14 +4755,20 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     if (__n1 + __n2 <= __set_algo_cut_off)
         return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
+    auto __cc_op = [](auto __it_from, auto __it_to) { __brick_uninitialized_copy_1(__it_from, __it_to); };
+    auto __cc_n_op = [](auto __it_from, auto __n, auto __it_to) {
+        return __brick_uninitialized_copy_n(_IsVector{}, __it_from, __n, __it_to);
+    };
+
     return __internal::__except_handler([&]() {
         return __internal::__parallel_set_union_op</*_Bounded*/ false>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
                    __result + __n1 + __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
                    [](auto&&... __args) {
-                       return oneapi::dpl::__utils::__set_symmetric_difference_construct<
-                           __BrickCopyConstruct<_IsVector>>(std::forward<decltype(__args)>(__args)...);
-                   })
+                       return oneapi::dpl::__utils::__set_symmetric_difference_construct(
+                           std::forward<decltype(__args)>(__args)...);
+                   },
+                   __cc_op, __cc_n_op)
             .__it_out;
     });
 }

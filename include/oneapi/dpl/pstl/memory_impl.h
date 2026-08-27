@@ -86,29 +86,40 @@ __brick_destroy(_RandomAccessIterator __first, _RandomAccessIterator __last, /*v
 //------------------------------------------------------------------------
 
 template <typename _ForwardIterator, typename _OutputIterator>
-_OutputIterator
-__brick_uninitialized_copy(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result,
-                           /*vector=*/::std::false_type) noexcept
+void
+__brick_uninitialized_copy_1(_ForwardIterator __first, _OutputIterator __result)
 {
     using _ValueType = typename ::std::iterator_traits<_OutputIterator>::value_type;
-    for (; __first != __last; ++__first, (void)++__result)
+
+    __construct_from(std::addressof(*__result), _ValueType(*__first));
+}
+
+template <typename _ForwardIterator, typename _Size, typename _OutputIterator>
+_OutputIterator
+__brick_uninitialized_copy_n(/*vector=*/std::false_type, _ForwardIterator __first, _Size __n,
+                             _OutputIterator __result) noexcept
+{
+    using _ValueType = typename ::std::iterator_traits<_OutputIterator>::value_type;
+
+    for (_Size __i = 0; __i < __n; ++__i, (void)++__first, (void)++__result)
     {
-        ::new (::std::addressof(*__result)) _ValueType(*__first);
+        __construct_from(std::addressof(*__result), _ValueType(*__first));
     }
+
     return __result;
 }
 
-template <typename _RandomAccessIterator, typename _OutputIterator>
+template <typename _RandomAccessIterator, typename _Size, typename _OutputIterator>
 _OutputIterator
-__brick_uninitialized_copy(_RandomAccessIterator __first, _RandomAccessIterator __last, _OutputIterator __result,
-                           /*vector=*/::std::true_type) noexcept
+__brick_uninitialized_copy_n(/*vector=*/std::true_type, _RandomAccessIterator __first, _Size __n,
+                             _OutputIterator __result) noexcept
 {
     using __ValueType = typename ::std::iterator_traits<_OutputIterator>::value_type;
     using _ReferenceType1 = typename ::std::iterator_traits<_RandomAccessIterator>::reference;
     using _ReferenceType2 = typename ::std::iterator_traits<_OutputIterator>::reference;
 
-    return __unseq_backend::__simd_walk_n(__last - __first,
-        [](_ReferenceType1 __x, _ReferenceType2 __y) { ::new (::std::addressof(__y)) __ValueType(__x); },
+    return __unseq_backend::__simd_walk_n(
+        __n, [](_ReferenceType1 __x, _ReferenceType2 __y) { __construct_from(std::addressof(__y), __ValueType(__x)); },
         __first, __result);
 }
 

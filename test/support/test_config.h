@@ -364,6 +364,4 @@
 // std::input_iterator and std::output_iterator on the same pre-P2325R3 implementations.
 #define _ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 
-#define TEST_STD_RANGES_BROKEN_REQUIRES_SET_OP 1
-
 #endif // _TEST_CONFIG_H

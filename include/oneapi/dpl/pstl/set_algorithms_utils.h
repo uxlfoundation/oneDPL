@@ -28,6 +28,7 @@
 
 #include "functional_impl.h"
 #include "iterator_impl.h" // for oneapi::dpl::discard_iterator
+#include "./../internal/function.h" // for oneapi::dpl::internal::is_discard_iterator
 
 namespace oneapi
 {
@@ -79,13 +80,6 @@ __set_iterator_mask_n(__parallel_set_op_mask* __mask, __parallel_set_op_mask __s
 
     return __mask + __count;
 }
-
-template <typename _OutputIterator>
-constexpr bool
-__is_discard_iterator(_OutputIterator)
-{
-    return oneapi::dpl::internal::is_discard_iterator<_OutputIterator>::value;
-}
 } // namespace __internal
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator>
@@ -112,7 +106,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
         if (__first2 == __last2)
         {
             __mask = __internal::__set_iterator_mask_n(__mask, __parallel_set_op_mask::data1_out, __last1 - __first1);
-            if constexpr (!oneapi::dpl::__internal::__is_discard_iterator(__result))
+            if constexpr (!oneapi::dpl::internal::is_discard_iterator<_OutputIterator>::value)
                 __result = __cc_n_op(__first1, __last1 - __first1, __result);
             else
                 __result += __last1 - __first1;
@@ -122,14 +116,14 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
 
         if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
-            if constexpr (!__internal::__is_discard_iterator(__result))
+            if constexpr (!oneapi::dpl::internal::is_discard_iterator<_OutputIterator>::value)
                 __cc_op(__first2, __result);
             ++__first2;
             __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::data2_out);
         }
         else
         {
-            if constexpr (!__internal::__is_discard_iterator(__result))
+            if constexpr (!oneapi::dpl::internal::is_discard_iterator<_OutputIterator>::value)
                 __cc_op(__first1, __result);
             if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
             {
@@ -145,7 +139,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
     }
 
     __mask = __internal::__set_iterator_mask_n(__mask, __parallel_set_op_mask::data2_out, __last2 - __first2);
-    if constexpr (!__internal::__is_discard_iterator(__result))
+    if constexpr (!oneapi::dpl::internal::is_discard_iterator<_OutputIterator>::value)
         __result = __cc_n_op(__first2, __last2 - __first2, __result);
     else
         __result += __last2 - __first2;
@@ -176,7 +170,7 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
         }
         else
         {
-            if constexpr (!__internal::__is_discard_iterator(__result))
+            if constexpr (!oneapi::dpl::internal::is_discard_iterator<_OutputIterator>::value)
                 __cc_op(__first1, __result);
             ++__first1;
             ++__first2;
@@ -202,7 +196,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
         if (__first2 == __last2)
         {
             __mask = __internal::__set_iterator_mask_n(__mask, __parallel_set_op_mask::data1_out, __last1 - __first1);
-            if constexpr (!__internal::__is_discard_iterator(__result))
+            if constexpr (!oneapi::dpl::internal::is_discard_iterator<_OutputIterator>::value)
                 __result = __cc_n_op(__first1, __last1 - __first1, __result);
             else
                 __result += __last1 - __first1;
@@ -212,7 +206,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
-            if constexpr (!__internal::__is_discard_iterator(__result))
+            if constexpr (!oneapi::dpl::internal::is_discard_iterator<_OutputIterator>::value)
                 __cc_op(__first1, __result);
             ++__result;
             ++__first1;
@@ -250,7 +244,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         if (__first2 == __last2)
         {
             __mask = __internal::__set_iterator_mask_n(__mask, __parallel_set_op_mask::data1_out, __last1 - __first1);
-            if constexpr (!__internal::__is_discard_iterator(__result))
+            if constexpr (!oneapi::dpl::internal::is_discard_iterator<_OutputIterator>::value)
                 __result = __cc_n_op(__first1, __last1 - __first1, __result);
             else
                 __result += __last1 - __first1;
@@ -260,7 +254,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
 
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
-            if constexpr (!oneapi::dpl::__internal::__is_discard_iterator(__result))
+            if constexpr (!oneapi::dpl::internal::is_discard_iterator<_OutputIterator>::value)
                 __cc_op(__first1, __result);
             ++__result;
             ++__first1;
@@ -270,7 +264,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         {
             if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
             {
-                if constexpr (!oneapi::dpl::__internal::__is_discard_iterator(__result))
+                if constexpr (!oneapi::dpl::internal::is_discard_iterator<_OutputIterator>::value)
                     __cc_op(__first2, __result);
                 ++__result;
                 __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::data2_out);
@@ -285,7 +279,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
     }
 
     __mask = __internal::__set_iterator_mask_n(__mask, __parallel_set_op_mask::data2_out, __last2 - __first2);
-    if constexpr (!__internal::__is_discard_iterator(__result))
+    if constexpr (!oneapi::dpl::internal::is_discard_iterator<_OutputIterator>::value)
         __result = __cc_n_op(__first2, __last2 - __first2, __result);
     else
         __result += __last2 - __first2;
