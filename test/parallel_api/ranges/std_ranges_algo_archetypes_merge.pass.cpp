@@ -121,7 +121,6 @@ main()
     // and __simd_minmax_element at unseq_backend_simd.h:635 and :695 value initialize their
     // _ValueType members in the default constructor, so the calls below do not compile with a
     // non-default-constructible element type.
-#if !TEST_STD_RANGES_BROKEN_REQUIRES_MIN_MAX_ELEMENT
     run_algo_host_policies<storable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::min(std::forward<decltype(policy)>(policy), view, storable_comp{});
@@ -139,7 +138,6 @@ main()
             return dpl_ranges::minmax(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto&& res) { return res.min.val == 0 && res.max.val == (int)archetype_test_size - 1; }, "minmax");
-#endif // !TEST_STD_RANGES_BROKEN_REQUIRES_MIN_MAX_ELEMENT
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
