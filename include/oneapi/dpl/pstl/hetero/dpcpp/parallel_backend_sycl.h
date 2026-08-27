@@ -601,16 +601,14 @@ __parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size _
         __par_backend_hetero::__gen_expand_count_mask<_GenMask, _Size, __par_backend_hetero::__get_first_range>;
     using _ScanInputTransform = __par_backend_hetero::__get_zeroth_element;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<__element_type> __temp_buf(__n);
+    oneapi::dpl::__par_backend_hetero::__buffer<__element_type> __tbuf(__n);
     auto __zipped_rng = oneapi::dpl::__ranges::make_zip_view(
-        std::forward<_InRng>(__in_rng),
-        oneapi::dpl::__ranges::all_view<__element_type, __par_backend_hetero::access_mode::read_write>(
-            __temp_buf.get_buffer()));
+        __in_rng, oneapi::dpl::__ranges::all_view<__element_type, sycl::access_mode::read_write>(__tbuf.get_buffer()));
 
     constexpr std::uint32_t __bytes_per_work_item_iter = 2 * sizeof(__element_type);
 
     return __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_work_item_iter, _CustomName>(
-        __q, __n, __zipped_rng, std::forward<_InRng>(__in_rng), _GenReduceInput{__generate_mask}, std::plus<_Size>{},
+        __q, __n, __zipped_rng, __in_rng, _GenReduceInput{__generate_mask}, std::plus<_Size>{},
         _GenScanInput{__generate_mask, __par_backend_hetero::__get_first_range{}}, _ScanInputTransform{}, __write_op,
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }
