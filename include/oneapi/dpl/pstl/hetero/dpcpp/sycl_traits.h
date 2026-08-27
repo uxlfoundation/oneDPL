@@ -450,6 +450,9 @@ struct __gen_unique_mask;
 template <typename _GenMask, typename _RetType>
 struct __gen_count_mask;
 
+template <typename _GenMask, typename _RetType>
+struct __gen_count_mask_and_copy;
+
 template <typename _GenMask, typename _RetType, typename _RangeTransform>
 struct __gen_expand_count_mask;
 
@@ -544,9 +547,17 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPredicate>
 {
 };
+
 template <typename _GenMask, typename _RetType>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_count_mask, _GenMask,
                                                        _RetType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
+{
+};
+
+template <typename _GenMask, typename _RetType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_count_mask_and_copy,
+                                                       _GenMask, _RetType)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
 {
 };

@@ -520,7 +520,7 @@ struct __parallel_compact_single_group_functor<__internal::__optional_kernel_nam
     _Size
     operator()(sycl::queue& __q, _Rng&& __rng, _Size __n, _IndexPred __pred, std::size_t __max_wg_size)
     {
-        using __element_type = std::decay_t<decltype(__rng[0])>;
+        using __element_type = oneapi::dpl::__internal::__value_t<_Rng>;
         constexpr std::size_t __element_size = sizeof(__element_type);
 
         return __execute</*__is_in_place=*/true, /*_NResults=*/1, _Size, _ScanKernelName...>(
@@ -574,7 +574,6 @@ __parallel_copy_if_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _OutRng
 {
     assert(oneapi::dpl::__ranges::__size(__in_rng) == __n);
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask, _Size>;
-    using _ReduceOp = std::plus<_Size>;
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask, _Size>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
@@ -583,9 +582,37 @@ __parallel_copy_if_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _OutRng
 
     return __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
         __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask},
-        _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
+        std::plus<_Size>{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{}, __is_unique_pattern,
         /*__stop_pos_initial_state=*/__n);
+}
+
+template <typename _CustomName, typename _InRng, typename _Size, typename _GenMask, typename _WriteOp,
+          typename _IsUniquePattern>
+__transform_reduce_then_scan_result_t</*_Bounded=*/false, _Size, _Size>
+__parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size __n, _GenMask __generate_mask,
+                                    _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
+{
+    assert(oneapi::dpl::__ranges::__size(__in_rng) == __n);
+
+    using __element_type = oneapi::dpl::__internal::__value_t<_InRng>;
+    using _GenReduceInput = __par_backend_hetero::__gen_count_mask_and_copy<_GenMask, _Size>;
+    using _GenScanInput =
+        __par_backend_hetero::__gen_expand_count_mask<_GenMask, _Size, __par_backend_hetero::__get_first_range>;
+    using _ScanInputTransform = __par_backend_hetero::__get_zeroth_element;
+
+    oneapi::dpl::__par_backend_hetero::__buffer<__element_type> __temp_buf(__n);
+    auto __zipped_rng = oneapi::dpl::__ranges::make_zip_view(
+        std::forward<_InRng>(__in_rng),
+        oneapi::dpl::__ranges::all_view<__element_type, __par_backend_hetero::access_mode::read_write>(
+            __temp_buf.get_buffer()));
+
+    constexpr std::uint32_t __bytes_per_work_item_iter = 2 * sizeof(__element_type);
+
+    return __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_work_item_iter, _CustomName>(
+        __q, __n, __zipped_rng, std::forward<_InRng>(__in_rng), _GenReduceInput{__generate_mask}, std::plus<_Size>{},
+        _GenScanInput{__generate_mask, __get_first_range{}}, _ScanInputTransform{}, __write_op,
+        oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size,
@@ -742,6 +769,7 @@ __parallel_remove_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     sycl::queue __q_local = __exec.queue();
+    oneapi::dpl::__internal::__not_pred<_Pred> __keep_pred{__pred};
 
     constexpr std::size_t __max_elem_per_item = 2;
     std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
@@ -752,13 +780,19 @@ __parallel_remove_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_compact_single_wg_kernel<_CustomName>>;
-        return __parallel_compact_single_group_functor<_KernelName>()(
-            __q_local, std::forward<_InRng>(__in_rng), __n, oneapi::dpl::__internal::__not_pred<_Pred>{__pred},
-            __max_wg_size);
+        return __parallel_compact_single_group_functor<_KernelName>()(__q_local, std::forward<_InRng>(__in_rng), __n,
+                                                                      __keep_pred, __max_wg_size);
     }
     else
-    { // code for multiple workgroups
-        return __n;
+    {
+        std::tuple __res = __parallel_compact_reduce_then_scan<_CustomName>(
+            __q_local, std::forward<_InRng>(__in_rng), __n, __par_backend_hetero::__gen_mask{__keep_pred},
+            _par_backend_hetero::__write_to_id_if</*__offset=*/0>{__n}, /*_IsUniquePattern=*/std::false_type{});
+
+        std::get<0>(__res).wait_and_throw();
+        _Size __new_size;
+        std::get<1>(__res).__copy_result(&__new_size, 1);
+        return __new_size;
     }
 }
 
