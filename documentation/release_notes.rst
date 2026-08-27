@@ -31,6 +31,8 @@ New Features
 - Improved performance of ``rotate`` algorithm when used with device policies.
 - Enabled use of native SYCL group reduce and scan algorithms with compilers other than Intel® oneAPI DPC++/C++
   Compiler, which might improve performance of some algorithms in ``<oneapi/dpl/numeric>``.
+- Aligned the order of constraints in requires-clauses of range-based and uninitialized memory algorithms 
+  with the oneAPI specification.
 
 Fixed Issues
 ------------
