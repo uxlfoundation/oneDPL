@@ -48,17 +48,6 @@ a `SYCL buffer`_ and return an object of an unspecified type that provides the f
   that satisfies the ``LegacyRandomAccessIterator``, a C++ named requirement.
 * It provides the ``get_buffer`` method, which returns the buffer passed to the ``begin`` and ``end`` functions.
 
-The ``begin`` and ``end`` functions can take SYCL 2020 deduction tags and ``sycl::no_init`` as arguments
-to explicitly control which access mode should be applied to a particular buffer when submitting
-a SYCL kernel to a device:
-
-.. code:: cpp
-
-  sycl::buffer<int> buf{/*...*/};
-  auto first_ro = oneapi::dpl::begin(buf, sycl::read_only);
-  auto first_wo = oneapi::dpl::begin(buf, sycl::write_only, sycl::no_init);
-  auto first_ni = oneapi::dpl::begin(buf, sycl::no_init);
-
 To use the functions, add ``#include <oneapi/dpl/iterator>`` to your code. For example:
 
 .. code:: cpp
@@ -67,17 +56,71 @@ To use the functions, add ``#include <oneapi/dpl/iterator>`` to your code. For e
   #include <oneapi/dpl/algorithm>
   #include <oneapi/dpl/iterator>
   #include <random>
+  #include <vector>
   #include <sycl/sycl.hpp>
 
   int main(){
     std::vector<int> vec(1000);
     std::generate(vec.begin(), vec.end(), std::minstd_rand{});
 
-    sycl::buffer<int> buf{ vec.data(), vec.size() };
+    sycl::buffer<int> buf( vec.data(), vec.size() );
     auto buf_begin = oneapi::dpl::begin(buf);
     auto buf_end   = oneapi::dpl::end(buf);
 
     oneapi::dpl::sort(oneapi::dpl::execution::dpcpp_default, buf_begin, buf_end);
+
+    return 0;
+  }
+
+In general, buffer data access modes are determined by the algorithm semantics. However, for algorithms where 
+data access depends on user-provided operations - such as ``for_each`` - specifying the access mode explicitly
+might improve performance. The ``begin`` and ``end`` functions can take SYCL 2020 access mode deduction tags and
+the ``sycl::no_init`` property as arguments to hint oneDPL at a more efficient buffer access mode.
+
+.. code:: cpp
+
+  sycl::buffer<int> buf{/*...*/};
+  auto first_ro = oneapi::dpl::begin(buf, sycl::read_only);
+  auto first_wo = oneapi::dpl::begin(buf, sycl::write_only, sycl::no_init);
+  auto first_ni = oneapi::dpl::begin(buf, sycl::no_init);
+
+A hint must be consistent with the way an algorithm and its callable objects actually use the data.
+In particular, ``sycl::no_init`` indicates the previous content of the buffer can be discarded, so the operation
+must assign a proper value to every element before its further use; otherwise, the behavior is undefined.
+
+.. code:: cpp
+
+  #include <oneapi/dpl/execution>
+  #include <oneapi/dpl/algorithm>
+  #include <oneapi/dpl/iterator>
+  #include <sycl/sycl.hpp>
+
+  struct Point { float x, y, z; };
+
+  struct proj_x { float& operator()(Point& p) const { return p.x; } };
+
+  int main(){
+    sycl::buffer<Point> pts{ sycl::range<1>(1000) };
+
+    // begin and end calls whose returns are used together must match hints, mismatches result in undefined behavior
+    auto out_write_no_init_beg = oneapi::dpl::begin(pts, sycl::write_only, sycl::no_init);
+    auto out_write_no_init_end = oneapi::dpl::end(pts, sycl::write_only, sycl::no_init);
+
+    // Every element is fully overwritten, so no_init is appropriate:
+    // the previous content of the buffer does not need to be transferred to the device.
+    oneapi::dpl::for_each(oneapi::dpl::execution::dpcpp_default, out_write_no_init_beg, out_write_no_init_end,
+                          [](Point& point) { point = {1.f, 2.f, 3.f};});
+
+    // An example where no_init is not appropriate: the projection selects only the x component,
+    // while existing y and z data of every element must be preserved.
+    auto out_write_beg = oneapi::dpl::begin(pts, sycl::write_only);
+    auto out_write_end = oneapi::dpl::end(pts, sycl::write_only);
+
+    oneapi::dpl::for_each(oneapi::dpl::execution::dpcpp_default,
+        oneapi::dpl::make_transform_iterator(out_write_beg, proj_x{}),
+        oneapi::dpl::make_transform_iterator(out_write_end, proj_x{}),
+        [](float& x) { x = 42.f; });
+
     return 0;
   }
 
