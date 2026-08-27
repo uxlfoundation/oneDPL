@@ -611,7 +611,7 @@ __parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size _
 
     return __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_work_item_iter, _CustomName>(
         __q, __n, __zipped_rng, std::forward<_InRng>(__in_rng), _GenReduceInput{__generate_mask}, std::plus<_Size>{},
-        _GenScanInput{__generate_mask, __get_first_range{}}, _ScanInputTransform{}, __write_op,
+        _GenScanInput{__generate_mask, __par_backend_hetero::__get_first_range{}}, _ScanInputTransform{}, __write_op,
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }
 
@@ -780,14 +780,17 @@ __parallel_remove_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_compact_single_wg_kernel<_CustomName>>;
-        return __parallel_compact_single_group_functor<_KernelName>()(__q_local, std::forward<_InRng>(__in_rng), __n,
-                                                                      __keep_pred, __max_wg_size);
+        return __parallel_compact_single_group_functor<_KernelName>()(
+            __q_local, std::forward<_InRng>(__in_rng), __n, oneapi::dpl::__internal::__pred_at_index{__keep_pred},
+            __max_wg_size);
     }
     else
     {
         std::tuple __res = __parallel_compact_reduce_then_scan<_CustomName>(
-            __q_local, std::forward<_InRng>(__in_rng), __n, __par_backend_hetero::__gen_mask{__keep_pred},
-            _par_backend_hetero::__write_to_id_if</*__offset=*/0>{__n}, /*_IsUniquePattern=*/std::false_type{});
+            __q_local, std::forward<_InRng>(__in_rng), __n,
+            __par_backend_hetero::__gen_mask<oneapi::dpl::__internal::__not_pred<_Pred>>{__keep_pred},
+            __par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>{std::size_t(__n)},
+            /*_IsUniquePattern=*/std::false_type{});
 
         std::get<0>(__res).wait_and_throw();
         _Size __new_size;

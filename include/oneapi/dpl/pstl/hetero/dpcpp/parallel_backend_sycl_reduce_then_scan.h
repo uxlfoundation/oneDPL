@@ -483,7 +483,7 @@ struct __gen_mask
     bool
     operator()(_InRng&& __in_rng, std::size_t __id) const
     {
-        return __pred((__rng_transform(std::forward<_InRng>(__in_rng)))[__id]);
+        return __pred((__rng_transform(__in_rng))[__id]);
     }
     _Predicate __pred;
     _RangeTransform __rng_transform;
@@ -497,7 +497,7 @@ struct __gen_count_mask
     _RetType
     operator()(_InRng&& __in_rng, _RetType __id) const
     {
-        return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _RetType{1} : _RetType{0};
+        return __gen_mask(__in_rng, __id) ? _RetType{1} : _RetType{0};
     }
     _GenMask __gen_mask;
 };
@@ -511,7 +511,7 @@ struct __gen_count_mask_and_copy
 {
     template <typename _InRng, typename _BufRng>
     _RetType
-    operator()(oneapi::dpl::__ranges::zip_view<_InRng, _BufRng>& __zip_rng, _RetType __id) const
+    operator()(const oneapi::dpl::__ranges::zip_view<_InRng, _BufRng>& __zip_rng, _RetType __id) const
     {
         bool __mask = __gen_mask(std::get<0>(__zip_rng.base()), __id);
         if (__mask)
@@ -542,7 +542,7 @@ struct __gen_expand_count_mask
         //  zip_iterator which will return a tuple of references when dereferenced. With this explicit type, we copy
         //  the values of zipped input types rather than their references.
         __element_t<_InRng> ele = __transformed_input[__id];
-        bool mask = __gen_mask(std::forward<_InRng>(__in_rng), __id);
+        bool mask = __gen_mask(__transformed_input, __id);
         return __result_t<_InRng>(mask ? _RetType{1} : _RetType{0}, mask, ele);
     }
     _GenMask __gen_mask;
