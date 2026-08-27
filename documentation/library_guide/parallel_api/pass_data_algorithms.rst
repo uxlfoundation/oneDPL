@@ -93,8 +93,6 @@ must assign a proper value to every element before its further use; otherwise, t
   #include <oneapi/dpl/execution>
   #include <oneapi/dpl/algorithm>
   #include <oneapi/dpl/iterator>
-  #include <random>
-  #include <vector>
   #include <sycl/sycl.hpp>
 
   struct Point { float x, y, z; };
