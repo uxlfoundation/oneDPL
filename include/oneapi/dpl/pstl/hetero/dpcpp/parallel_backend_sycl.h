@@ -88,6 +88,9 @@ class __scan_single_wg_dynamic_kernel;
 template <typename... Name>
 class __scan_copy_single_wg_kernel;
 
+template <typename... Name>
+class __scan_compact_single_wg_kernel;
+
 template <typename _CustomName, typename _Index, typename _Range1, typename _Range2>
 __future<sycl::event>
 __parallel_copy_impl(sycl::queue& __q, _Index __count, _Range1&& __rng1, _Range2&& __rng2)
@@ -506,11 +509,68 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
     }
 };
 
+template <typename _KernelName>
+struct __parallel_compact_single_group_functor;
+
+template <typename... _ScanKernelName>
+struct __parallel_compact_single_group_functor<__internal::__optional_kernel_name<_ScanKernelName...>>
+    : __parallel_filter_single_group_base
+{
+    template <typename _Rng, typename _Size, typename _IndexPred>
+    _Size
+    operator()(sycl::queue& __q, _Rng&& __rng, _Size __n, _IndexPred __pred, std::size_t __max_wg_size)
+    {
+        using __element_type = std::decay_t<decltype(__rng[0])>;
+        constexpr std::size_t __element_size = sizeof(__element_type);
+
+        return __execute</*__is_in_place=*/true, /*_NResults=*/1, _Size, _ScanKernelName...>(
+            __q, __n, __max_wg_size, __element_size,
+            [=](sycl::nd_item<1> __self_item, std::uint16_t __wg_size, std::uint16_t __n_uniform,
+                std::uint16_t* __lm_ptr, _Size* __res_ptr)
+            {
+                sycl::group __group = __self_item.get_group();
+                // This kernel is only launched for sizes less than 2^16
+                const std::uint16_t __item_id = __self_item.get_local_linear_id();
+
+                // The part of local memory to move filtered data through.
+                // Since __n_uniform is a power of 2, alignment of __temp_storage is not less
+                // than the memory base address alignment on the device
+                __element_type* __temp_storage =
+                    reinterpret_cast<__element_type*>(__lm_ptr + 2 * __n_uniform);
+
+                // Build a mask in local memory; move elements to keep into temporary storage
+                __store_predicate_values(__rng, __pred, __lm_ptr, __item_id, std::uint16_t(__n), __wg_size,
+                    [__temp_storage](std::uint16_t __idx, __element_type& __elem, std::uint16_t __mask)
+                    {
+                        if (__mask)
+                            new (&__temp_storage[__idx]) __element_type(std::move(__elem));
+                    });
+
+                // Exclusive scan over the mask
+                __dpl_sycl::__joint_exclusive_scan(
+                    __group, __lm_ptr, __lm_ptr + __n, __lm_ptr + __n_uniform, sycl::plus<std::uint16_t>{});
+
+                // Gather kept elements into consecutive compacted positions
+                __gather_output(__lm_ptr, __item_id, std::uint16_t(__n), __wg_size, __n_uniform,
+                    [=](std::uint16_t __idx, std::uint16_t __out_pos)
+                    {
+                        __rng[__out_pos] = std::move(__temp_storage[__idx]);
+                        __temp_storage[__idx].~__element_type();
+                    });
+
+                // Write new size; synchronization barrier is set by the group scan
+                if (__item_id == 0)
+                    __res_ptr[0] = static_cast<_Size>(__lm_ptr[__n_uniform + __n - 1] + __lm_ptr[__n - 1]);
+            },
+            __rng)[0]; // return the only array value
+    }
+};
+
 template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
           typename _WriteOp, typename _IsUniquePattern>
 __transform_reduce_then_scan_result_t<_Bounded, _Size, _Size>
-__parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n,
-                                 _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
+__parallel_copy_if_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n,
+                                    _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
     assert(oneapi::dpl::__ranges::__size(__in_rng) == __n);
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask, _Size>;
@@ -557,7 +617,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
 
-        std::tuple __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
+        std::tuple __res = __parallel_copy_if_reduce_then_scan<_Bounded, _CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
             _WriteOp{std::size_t(__n_out)}, /*_IsUniquePattern=*/std::true_type{});
 
@@ -656,7 +716,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
 
-        std::tuple __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
+        std::tuple __res = __parallel_copy_if_reduce_then_scan<_Bounded, _CustomName>(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
             _WriteOp{std::size_t(__n_out), __assign}, /*_IsUniquePattern=*/std::false_type{});
 
@@ -673,6 +733,33 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     assert(__ret[1] >= __ret[0]);
     assert(__ret[0] == __n_out || __ret[1] == __n);
     return __ret;
+}
+
+template <bool _Bounded, typename _ExecutionPolicy, typename _InRng, typename _Size, typename _Pred>
+_Size
+__parallel_remove_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _InRng&& __in_rng,
+                     _Size __n, _Pred __pred)
+{
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    sycl::queue __q_local = __exec.queue();
+
+    constexpr std::size_t __max_elem_per_item = 2;
+    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+
+    if (__n <= __max_wg_size * __max_elem_per_item &&
+        __parallel_filter_single_group_base::__enough_local_memory</*__is_in_place=*/true>(
+            __q_local, __n, /*__element_size=*/sizeof(__in_rng[0])))
+    {
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+            __scan_compact_single_wg_kernel<_CustomName>>;
+        return __parallel_compact_single_group_functor<_KernelName>()(
+            __q_local, std::forward<_InRng>(__in_rng), __n, oneapi::dpl::__internal::__not_pred<_Pred>{__pred},
+            __max_wg_size);
+    }
+    else
+    { // code for multiple workgroups
+        return __n;
+    }
 }
 
 //------------------------------------------------------------------------
