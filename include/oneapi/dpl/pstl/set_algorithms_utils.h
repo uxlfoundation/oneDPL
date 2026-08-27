@@ -80,16 +80,11 @@ __set_iterator_mask_n(__parallel_set_op_mask* __mask, __parallel_set_op_mask __s
     return __mask + __count;
 }
 
-template <typename _InputIterator, typename _OutputIterator>
-void
-__uninitialized_copy_or_discard(_InputIterator __it_in, _OutputIterator __it_out)
+template <typename _OutputIterator>
+constexpr bool
+__is_discard_iterator(_OutputIterator)
 {
-    using _OutValueType = typename std::iterator_traits<_OutputIterator>::value_type;
-    if constexpr (!std::is_same_v<_OutputIterator, oneapi::dpl::discard_iterator>)
-    {
-        // We should use placement new here because this method really works with raw uninitialized memory
-        new (std::addressof(*__it_out)) _OutValueType(*__it_in);
-    }
+    return oneapi::dpl::internal::is_discard_iterator<_OutputIterator>::value;
 }
 } // namespace __internal
 
@@ -103,34 +98,39 @@ using __set_construct_return_t = std::tuple<_ForwardIterator1, _ForwardIterator2
 // It is expected that in this case the caller doesn't need a mask at all and simply ignores it.
 // The same behavior applies to all four set-op functions: __set_union_construct, __set_intersection_construct,
 // __set_difference_construct and __set_symmetric_difference_construct.
-template <typename _CopyConstructRange, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
+template <typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator,
+          typename _CopyConstructOp, typename _CopyConstructNOp>
 __set_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                       _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
-                      _Proj2 __proj2, _MaskIterator __mask)
+                      _Proj2 __proj2, _MaskIterator __mask,
+                      _CopyConstructOp __cc_op, _CopyConstructNOp __cc_n_op)
 {
-    _CopyConstructRange __cc_range;
-
     for (; __first1 != __last1; ++__result)
     {
         if (__first2 == __last2)
         {
             __mask = __internal::__set_iterator_mask_n(__mask, __parallel_set_op_mask::data1_out, __last1 - __first1);
-            __result = __cc_range(__first1, __last1, __result);
+            if constexpr (!oneapi::dpl::__internal::__is_discard_iterator(__result))
+                __result = __cc_n_op(__first1, __last1 - __first1, __result);
+            else
+                __result += __last1 - __first1;
 
             return {__last1, __first2, __result, __mask};
         }
 
         if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
-            __internal::__uninitialized_copy_or_discard(__first2, __result);
+            if constexpr (!__internal::__is_discard_iterator(__result))
+                __cc_op(__first2, __result);
             ++__first2;
             __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::data2_out);
         }
         else
         {
-            __internal::__uninitialized_copy_or_discard(__first1, __result);
+            if constexpr (!__internal::__is_discard_iterator(__result))
+                __cc_op(__first1, __result);
             if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
             {
                 __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::data1_out);
@@ -145,17 +145,22 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
     }
 
     __mask = __internal::__set_iterator_mask_n(__mask, __parallel_set_op_mask::data2_out, __last2 - __first2);
-    __result = __cc_range(__first2, __last2, __result);
+    if constexpr (!__internal::__is_discard_iterator(__result))
+        __result = __cc_n_op(__first2, __last2 - __first2, __result);
+    else
+        __result += __last2 - __first2;
 
     return {__first1, __last2, __result, __mask};
 }
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
-          typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
+          typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator,
+          typename _CopyConstructOp, typename _CopyConstructNOp>
 __set_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                              _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
-                             _Proj2 __proj2, _MaskIterator __mask)
+                             _Proj2 __proj2, _MaskIterator __mask,
+                             _CopyConstructOp __cc_op, _CopyConstructNOp /*__cc_n_op*/)
 {
     while (__first1 != __last1 && __first2 != __last2)
     {
@@ -171,7 +176,8 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
         }
         else
         {
-            __internal::__uninitialized_copy_or_discard(__first1, __result);
+            if constexpr (!__internal::__is_discard_iterator(__result))
+                __cc_op(__first1, __result);
             ++__first1;
             ++__first2;
             ++__result;
@@ -182,28 +188,32 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
     return {__first1, __first2, __result, __mask};
 }
 
-template <typename _CopyConstructRange, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
+template <typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator,
+          typename _CopyConstructOp, typename _CopyConstructNOp>
 __set_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                            _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
-                           _Proj2 __proj2, _MaskIterator __mask)
+                           _Proj2 __proj2, _MaskIterator __mask,
+                           _CopyConstructOp __cc_op, _CopyConstructNOp __cc_n_op)
 {
-    _CopyConstructRange __cc_range;
-
     while (__first1 != __last1)
     {
         if (__first2 == __last2)
         {
             __mask = __internal::__set_iterator_mask_n(__mask, __parallel_set_op_mask::data1_out, __last1 - __first1);
-            __result = __cc_range(__first1, __last1, __result);
+            if constexpr (!__internal::__is_discard_iterator(__result))
+                __result = __cc_n_op(__first1, __last1 - __first1, __result);
+            else
+                __result += __last1 - __first1;
 
             return {__last1, __first2, __result, __mask};
         }
 
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
-            __internal::__uninitialized_copy_or_discard(__first1, __result);
+            if constexpr (!__internal::__is_discard_iterator(__result))
+                __cc_op(__first1, __result);
             ++__result;
             ++__first1;
             __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::data1_out);
@@ -226,28 +236,32 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
     return {__first1, __first2, __result, __mask};
 }
 
-template <typename _CopyConstructRange, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
+template <typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator,
+          typename _CopyConstructOp, typename _CopyConstructNOp>
 __set_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                                      _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
-                                     _Proj1 __proj1, _Proj2 __proj2, _MaskIterator __mask)
+                                     _Proj1 __proj1, _Proj2 __proj2, _MaskIterator __mask,
+                                     _CopyConstructOp __cc_op, _CopyConstructNOp __cc_n_op)
 {
-    _CopyConstructRange __cc_range;
-
     while (__first1 != __last1)
     {
         if (__first2 == __last2)
         {
             __mask = __internal::__set_iterator_mask_n(__mask, __parallel_set_op_mask::data1_out, __last1 - __first1);
-            __result = __cc_range(__first1, __last1, __result);
+            if constexpr (!__internal::__is_discard_iterator(__result))
+                __result = __cc_n_op(__first1, __last1 - __first1, __result);
+            else
+                __result += __last1 - __first1;
 
             return {__last1, __first2, __result, __mask};
         }
 
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
-            __internal::__uninitialized_copy_or_discard(__first1, __result);
+            if constexpr (!oneapi::dpl::__internal::__is_discard_iterator(__result))
+                __cc_op(__first1, __result);
             ++__result;
             ++__first1;
             __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::data1_out);
@@ -256,7 +270,8 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         {
             if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
             {
-                __internal::__uninitialized_copy_or_discard(__first2, __result);
+                if constexpr (!oneapi::dpl::__internal::__is_discard_iterator(__result))
+                    __cc_op(__first2, __result);
                 ++__result;
                 __mask = __internal::__set_iterator_mask(__mask, __parallel_set_op_mask::data2_out);
             }
@@ -270,7 +285,10 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
     }
 
     __mask = __internal::__set_iterator_mask_n(__mask, __parallel_set_op_mask::data2_out, __last2 - __first2);
-    __result = __cc_range(__first2, __last2, __result);
+    if constexpr (!__internal::__is_discard_iterator(__result))
+        __result = __cc_n_op(__first2, __last2 - __first2, __result);
+    else
+        __result += __last2 - __first2;
 
     return {__first1, __last2, __result, __mask};
 }
