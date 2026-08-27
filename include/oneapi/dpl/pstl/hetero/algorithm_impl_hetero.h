@@ -1001,22 +1001,13 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     if (__last == __first)
         return __last;
 
-    using _ValueType = typename ::std::iterator_traits<_Iterator>::value_type;
+    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
+    auto __buf = __keep(__first, __last);
 
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__last - __first);
-    auto __copy_first = __buf.get();
+    auto __idx_new_last = oneapi::dpl::__par_backend_hetero::__parallel_remove_if(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf.all_view(), __last - __first, __pred);
 
-    auto __copy_last = __pattern_copy_if(__tag, __exec, __first, __last, __copy_first, __not_pred<_Predicate>{__pred});
-
-    //TODO: To optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
-    // __pattern_copy_if above may be async due to there is implicit synchronization on sycl::buffer and the accessors
-
-    // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
-    // we must call __pattern_hetero_walk2 in a way which provides blocking synchronization for this pattern.
-    return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
-                                  /*_IsOutNoInitRequested=*/true>(
-        __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
-        __copy_first, __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>>{});
+    return __first + __idx_new_last;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _BinaryPredicate>
