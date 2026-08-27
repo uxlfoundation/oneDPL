@@ -34,6 +34,7 @@ main()
 
     auto remove_if_checker = TEST_PREPARE_CALLABLE(std::ranges::remove_if);
 
+    test_range_algo<5>{1234}(dpl_ranges::remove_if, remove_if_checker, pred, proj);
     test_range_algo<0>{get_scan_big_sz()}(dpl_ranges::remove_if, remove_if_checker, pred);
     test_range_algo<1>{}(dpl_ranges::remove_if, remove_if_checker, pred, proj);
     test_range_algo<2, P2>{}(dpl_ranges::remove_if, remove_if_checker, pred, &P2::x);
