@@ -514,8 +514,7 @@ struct __gen_count_mask_and_copy
     operator()(const oneapi::dpl::__ranges::zip_view<_InRng, _BufRng>& __zip_rng, _RetType __id) const
     {
         bool __mask = __gen_mask(std::get<0>(__zip_rng.base()), __id);
-        if (__mask)
-            std::get<1>(__zip_rng[__id]) = std::get<0>(__zip_rng[__id]);
+        std::get<1>(__zip_rng[__id]) = std::get<0>(__zip_rng[__id]);
         return __mask ? _RetType{1} : _RetType{0};
     }
     _GenMask __gen_mask;
