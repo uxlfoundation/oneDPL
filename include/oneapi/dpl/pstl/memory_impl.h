@@ -93,7 +93,7 @@ __brick_uninitialized_copy(_ForwardIterator __first, _ForwardIterator __last, _O
     using _ValueType = typename ::std::iterator_traits<_OutputIterator>::value_type;
     for (; __first != __last; ++__first, (void)++__result)
     {
-        ::new (::std::addressof(*__result)) _ValueType(*__first);
+        __construct_from(std::addressof(*__result), _ValueType(*__first));
     }
     return __result;
 }

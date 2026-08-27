@@ -1022,7 +1022,8 @@ __pattern_search_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 // Sometimes a little duplication for sake of regularity is better than the alternative.
 
 template <class _Tag>
-struct __brick_copy_n<_Tag, std::enable_if_t<oneapi::dpl::__internal::__is_host_dispatch_tag_v<_Tag>>>
+struct __brick_copy_n<_Tag, std::enable_if_t<oneapi::dpl::__internal::__is_host_dispatch_tag_v<_Tag> &&
+                                             !__is_parallel_tag_v<_Tag>>>
 {
     template <typename _RandomAccessIterator1, typename _Size, typename _RandomAccessIterator2>
     _RandomAccessIterator2
@@ -1039,6 +1040,27 @@ struct __brick_copy_n<_Tag, std::enable_if_t<oneapi::dpl::__internal::__is_host_
     operator()(_Iterator __first, _Size __n, _OutputIterator __result, /*vec*/ ::std::false_type) const
     {
         return ::std::copy_n(__first, __n, __result);
+    }
+};
+
+template <class _IsVector>
+struct __brick_copy_n<__parallel_tag<_IsVector>>
+{
+    template <typename _RandomAccessIterator1, typename _Size, typename _RandomAccessIterator2>
+    std::enable_if_t<_IsVector::value, _RandomAccessIterator2>
+    operator()(_RandomAccessIterator1 __first, _Size __n, _RandomAccessIterator2 __result) const
+    {
+        return __unseq_backend::__simd_assign(
+            __first, __n, __result,
+            [](_RandomAccessIterator1 __first, _RandomAccessIterator2 __result) { *__result = *__first; });
+    }
+
+    template <typename _Iterator, typename _Size, typename _OutputIterator>
+    std::enable_if_t<!_IsVector::value, _OutputIterator>
+    operator()(_Iterator __first, _Size __n, _OutputIterator __result) const
+    {
+        //return __result;
+        return std::copy_n(__first, __n, __result);
     }
 };
 

@@ -89,7 +89,6 @@ main()
     //  - set_algorithms_utils.h:127,133,206 / memory_impl.h:96,111 - __uninitialized_copy_or_discard
     //    default constructs and copy constructs the output element type.
     // Fixing this means assigning through the output iterator instead of constructing in place.
-#if !TEST_STD_RANGES_BROKEN_REQUIRES_SET_OP
     run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
         [](auto&& policy, auto&& view1, auto&& view2) {
             archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
@@ -114,7 +113,6 @@ main()
             return res.out == std::ranges::begin(out_view);
         },
         [](auto&&, auto&&, auto res) { return res; }, "set_difference");
-#endif // !TEST_STD_RANGES_BROKEN_REQUIRES_SET_OP
 
     // KSATODO: min / max / minmax only require std::indirectly_copyable_storable, which needs a copy
     // constructor and copy assignment, but no default constructor. The helpers of __simd_min_element

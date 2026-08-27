@@ -1097,7 +1097,8 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     return oneapi::dpl::__internal::__parallel_set_union_op</*_Bounded*/ true>(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result1, __result2,
         __comp, __proj1, __proj2, [](auto&&... __args) {
-            return oneapi::dpl::__utils::__set_union_construct<__BrickCopyConstruct<_IsVector>>(
+            return oneapi::dpl::__utils::__set_union_construct<
+                oneapi::dpl::__internal::__brick_copy_n<__parallel_tag<_IsVector>>>(
                 std::forward<decltype(__args)>(__args)...);
         });
 }
@@ -1434,7 +1435,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         auto [__it1, __it2, __it_out] = __internal::__parallel_set_op</*_Bounded*/ true>(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result1,
             __result2, __comp, __proj1, __proj2, __size_func, [](auto&&... __args) {
-                return oneapi::dpl::__utils::__set_difference_construct<__BrickCopyConstruct<_IsVector>>(
+                return oneapi::dpl::__utils::__set_difference_construct<
+                    oneapi::dpl::__internal::__brick_copy_n<__parallel_tag<_IsVector>>>(
                     std::forward<decltype(__args)>(__args)...);
             });
 
@@ -1572,7 +1574,8 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     return oneapi::dpl::__internal::__parallel_set_union_op</*_Bounded*/ true>(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result1, __result2,
         __comp, __proj1, __proj2, [](auto&&... __args) {
-            return oneapi::dpl::__utils::__set_symmetric_difference_construct<__BrickCopyConstruct<_IsVector>>(
+            return oneapi::dpl::__utils::__set_symmetric_difference_construct<
+                oneapi::dpl::__internal::__brick_copy_n<__parallel_tag<_IsVector>>>(
                 std::forward<decltype(__args)>(__args)...);
         });
 }
