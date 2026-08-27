@@ -762,7 +762,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     return __ret;
 }
 
-template <bool _Bounded, typename _ExecutionPolicy, typename _InRng, typename _Size, typename _Pred>
+template <typename _ExecutionPolicy, typename _InRng, typename _Size, typename _Pred>
 _Size
 __parallel_remove_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _InRng&& __in_rng,
                      _Size __n, _Pred __pred)

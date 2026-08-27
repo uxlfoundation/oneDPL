@@ -848,24 +848,12 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, type
 oneapi::dpl::__internal::__difference_t<_Range>
 __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range&& __rng, _Predicate __pred)
 {
-    const auto __n = oneapi::dpl::__ranges::__size(__rng);
+    const oneapi::dpl::__internal::__difference_t<_Range> __n = oneapi::dpl::__ranges::__size(__rng);
     if (__n == 0)
         return 0;
 
-    using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
-
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__n);
-    auto __copy_rng = oneapi::dpl::__ranges::views::all(__buf.get_buffer());
-
-    auto __copy_last_id = __ranges::__pattern_copy_if(__tag, __exec, __rng, __copy_rng, __not_pred<_Predicate>{__pred});
-    auto __copy_rng_truncated = __copy_rng | oneapi::dpl::experimental::ranges::views::take(__copy_last_id);
-
-    oneapi::dpl::__internal::__ranges::__pattern_walk_n(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{}, __copy_rng_truncated,
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)));
-
-    return __copy_last_id;
+    return oneapi::dpl::__par_backend_hetero::__parallel_remove_if(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), __n, __pred);
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
