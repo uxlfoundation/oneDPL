@@ -106,6 +106,18 @@ struct __get_zeroth_element
     }
 };
 
+// Extracts the second component (temporary buffer) from a zipped range.
+// Used as _RangeTransform in __gen_expand_count_mask.
+struct __get_first_range
+{
+    template <typename... _Ranges>
+    auto
+    operator()(const oneapi::dpl::__ranges::zip_view<_Ranges...>& __a) const
+    {
+        return std::get<1>(__a.base());
+    }
+};
+
 // *** Write Operations ***
 
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
@@ -472,7 +484,7 @@ struct __gen_mask
     bool
     operator()(_InRng&& __in_rng, std::size_t __id) const
     {
-        return __pred((__rng_transform(std::forward<_InRng>(__in_rng)))[__id]);
+        return __pred((__rng_transform(__in_rng))[__id]);
     }
     _Predicate __pred;
     _RangeTransform __rng_transform;
@@ -486,7 +498,25 @@ struct __gen_count_mask
     _RetType
     operator()(_InRng&& __in_rng, _RetType __id) const
     {
-        return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _RetType{1} : _RetType{0};
+        return __gen_mask(__in_rng, __id) ? _RetType{1} : _RetType{0};
+    }
+    _GenMask __gen_mask;
+};
+
+// A generator for the reduce step of the compact pattern.
+// Evaluates the keep-predicate on the original input (get<0> of the zipped range),
+// copies matching elements to the temporary buffer (get<1> of the zipped range),
+// and returns the count. Replaces __gen_count_mask for the compact pattern.
+template <typename _GenMask, typename _RetType>
+struct __gen_count_mask_and_copy
+{
+    template <typename _InRng, typename _BufRng>
+    _RetType
+    operator()(const oneapi::dpl::__ranges::zip_view<_InRng, _BufRng>& __zip_rng, _RetType __id) const
+    {
+        bool __mask = __gen_mask(std::get<0>(__zip_rng.base()), __id);
+        std::get<1>(__zip_rng[__id]) = std::get<0>(__zip_rng[__id]);
+        return __mask ? _RetType{1} : _RetType{0};
     }
     _GenMask __gen_mask;
 };
@@ -512,7 +542,7 @@ struct __gen_expand_count_mask
         //  zip_iterator which will return a tuple of references when dereferenced. With this explicit type, we copy
         //  the values of zipped input types rather than their references.
         __element_t<_InRng> ele = __transformed_input[__id];
-        bool mask = __gen_mask(std::forward<_InRng>(__in_rng), __id);
+        bool mask = __gen_mask(__transformed_input, __id);
         return __result_t<_InRng>(mask ? _RetType{1} : _RetType{0}, mask, ele);
     }
     _GenMask __gen_mask;
