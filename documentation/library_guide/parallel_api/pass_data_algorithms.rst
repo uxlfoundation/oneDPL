@@ -102,7 +102,7 @@ must assign a proper value to every element before its further use; otherwise, t
   int main(){
     sycl::buffer<Point> pts{ sycl::range<1>(1000) };
 
-    // begin and end calls whose returns are used together must match hints, mismatches result in undefined behavior
+    // Hints must match between a begin and end used together, otherwise compilation fails.
     auto out_write_no_init_beg = oneapi::dpl::begin(pts, sycl::write_only, sycl::no_init);
     auto out_write_no_init_end = oneapi::dpl::end(pts, sycl::write_only, sycl::no_init);
 
