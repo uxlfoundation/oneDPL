@@ -146,7 +146,6 @@ main()
     //  - algorithm_ranges_impl_hetero.h:1569 / utils_hetero.h:125 / tuple_impl.h:276 - the hetero
     //    path builds a std::pair<difference_type, value_type> and copies the element into it.
     // Fixing this means carrying the index only and dereferencing the iterator for the comparison.
-#if !TEST_STD_RANGES_BROKEN_REQUIRES_MIN_MAX_ELEMENT
     run_algo_all_policies<read_archetype, 12>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::min_element(std::forward<decltype(policy)>(policy), view, read_comp{});
@@ -169,7 +168,6 @@ main()
                    res.max == std::ranges::begin(view) + std::ranges::size(view) - 1;
         },
         "minmax_element");
-#endif // !TEST_STD_RANGES_BROKEN_REQUIRES_MIN_MAX_ELEMENT
 
     run_algo_all_policies<read_archetype, 6>(
         [](auto&& policy, auto&& view) {
