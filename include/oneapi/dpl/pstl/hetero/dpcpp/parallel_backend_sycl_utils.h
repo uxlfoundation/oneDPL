@@ -515,6 +515,51 @@ struct __repacked_tuple<::std::tuple<Args...>>
 template <typename T>
 using __repacked_tuple_t = typename __repacked_tuple<T>::type;
 
+// RAII owner of an uninitialized temporary device USM allocation. Evaluates to false when the device
+// does not support device USM allocations, in which case callers fall back to __buffer.
+template <typename _T>
+class __usm_device_temp
+{
+    std::unique_ptr<_T, __internal::__sycl_usm_free> __ptr;
+
+  public:
+    __usm_device_temp(const sycl::queue& __q, std::size_t __n)
+        : __ptr(__internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __n), __internal::__sycl_usm_free{__q})
+    {
+    }
+
+    _T*
+    get() const
+    {
+        return __ptr.get();
+    }
+
+    explicit
+    operator bool() const
+    {
+        return __ptr != nullptr;
+    }
+};
+
+// Calls __f with the start of an uninitialized temporary range of __n elements.
+//
+// Device USM is preferred over __buffer here because these temporaries are filled by one pattern and
+// read back by another: a sycl::buffer handed across that boundary is re-registered as a distinct
+// memory object per pattern, and the runtime may materialize it on the host in between, costing a
+// host round trip proportional to __n. A USM allocation stays device-resident.
+//
+// The allocation is released when __f returns, so __f must not leave kernels reading it in flight.
+template <typename _T, typename _ExecutionPolicy, typename _F>
+auto
+__with_temp_device_range(_ExecutionPolicy&& __exec, std::size_t __n, _F&& __f)
+{
+    if (__usm_device_temp<__repacked_tuple_t<_T>> __usm{__exec.queue(), __n})
+        return __f(__usm.get());
+
+    __buffer<_T> __buf(__n);
+    return __f(__buf.get());
+}
+
 template <typename _ContainerOrIterable>
 using __value_t = typename __internal::__memobj_traits<_ContainerOrIterable>::value_type;
 
