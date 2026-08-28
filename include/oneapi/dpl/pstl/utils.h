@@ -1110,6 +1110,9 @@ template <typename _T>
 static constexpr bool __is_type_with_iterator_traits_v = __is_type_with_iterator_traits<_T>::value;
 
 template <typename _T, typename _U>
+#if _ONEDPL___cplusplus >= 202002L
+    requires std::constructible_from<_T, _U&&> || (std::default_initializable<_T> && std::is_assignable_v<_T&, _U &&>)
+#endif
 void
 __construct_from(_T* __dst, _U&& __src)
 {
@@ -1159,6 +1162,10 @@ union __lazy_ctor_storage
     ~__lazy_ctor_storage() {}
 
     template <typename _U>
+#if _ONEDPL___cplusplus >= 202002L
+        requires std::constructible_from<_Tp, _U&&> ||
+        (std::default_initializable<_Tp> && std::is_assignable_v<_Tp&, _U&&>)
+#endif
     void
     __setup(_U&& init)
     {
