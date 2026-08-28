@@ -123,12 +123,7 @@ template <typename _Elem1, typename _Elem2, int _CallId, typename _Algo, typenam
 void
 run_algo2_all_policies(_Algo __algo, _Checker __checker, const char* __algo_name)
 {
-    std::allocator<_Elem1> __alloc1;
-    std::allocator<_Elem2> __alloc2;
-    run_algo2<_Elem1, _Elem2>(__alloc1, __alloc2, oneapi::dpl::execution::seq, __algo, __checker, __algo_name);
-    run_algo2<_Elem1, _Elem2>(__alloc1, __alloc2, oneapi::dpl::execution::unseq, __algo, __checker, __algo_name);
-    run_algo2<_Elem1, _Elem2>(__alloc1, __alloc2, oneapi::dpl::execution::par, __algo, __checker, __algo_name);
-    run_algo2<_Elem1, _Elem2>(__alloc1, __alloc2, oneapi::dpl::execution::par_unseq, __algo, __checker, __algo_name);
+    run_algo2_host_policies<_Elem1, _Elem2>(__algo, __checker, __algo_name);
 
 #if TEST_DPCPP_BACKEND_PRESENT
     auto __policy = TestUtils::get_dpcpp_test_policy<_CallId>();
