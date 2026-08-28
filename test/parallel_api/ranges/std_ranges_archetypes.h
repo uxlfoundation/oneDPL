@@ -1043,5 +1043,16 @@ static_assert(!std::totally_ordered<storable_archetype>);
 } // namespace archetypes
 } // namespace test_std_ranges
 
+#if TEST_DPCPP_BACKEND_PRESENT
+namespace sycl
+{
+    template <>
+    struct is_device_copyable<test_std_ranges::archetypes::permutable_archetype> : std::true_type { };
+
+    template <>
+    struct is_device_copyable<test_std_ranges::archetypes::removable_archetype> : std::true_type { };
+}
+#endif
+
 #endif // _ENABLE_STD_RANGES_TESTING
 #endif // _STD_RANGES_ARCHETYPES_H
