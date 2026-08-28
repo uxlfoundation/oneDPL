@@ -106,11 +106,7 @@ template <typename _Elem, int _CallId, typename _Algo, typename _Checker>
 void
 run_algo_all_policies(_Algo __algo, _Checker __checker, const char* __algo_name)
 {
-    std::allocator<_Elem> __alloc;
-    run_algo<_Elem>(__alloc, oneapi::dpl::execution::seq, __algo, __checker, __algo_name);
-    run_algo<_Elem>(__alloc, oneapi::dpl::execution::unseq, __algo, __checker, __algo_name);
-    run_algo<_Elem>(__alloc, oneapi::dpl::execution::par, __algo, __checker, __algo_name);
-    run_algo<_Elem>(__alloc, oneapi::dpl::execution::par_unseq, __algo, __checker, __algo_name);
+    run_algo_host_policies<_Elem>(__algo, __checker, __algo_name);
 
 #if TEST_DPCPP_BACKEND_PRESENT
     auto __policy = TestUtils::get_dpcpp_test_policy<_CallId>();
