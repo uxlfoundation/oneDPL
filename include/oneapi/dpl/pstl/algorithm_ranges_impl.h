@@ -1079,6 +1079,25 @@ __pattern_set_union(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutRange&
                              __proj1, __proj2, typename _Tag::__is_vector{});
 }
 
+auto
+__get_cc_op_for_ranges()
+{
+    // Due oneapi::dpl::ranges::set_* algorithms writes to output range with already constructed values,
+    // we must use assignment operator instead of constructing new value.
+    return [](auto __it_from, auto __it_to) {
+        *__it_to = *__it_from;
+    };
+}
+
+template <typename _IsVector>
+auto
+__get_cc_n_op_for_ranges()
+{
+    // Due oneapi::dpl::ranges::set_* algorithms writes to output range with already constructed values,
+    // we must use assignment operator instead of constructing new value.
+    return oneapi::dpl::__internal::__brick_copy_n<__parallel_tag<_IsVector>>{};
+}
+
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
@@ -1094,16 +1113,13 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
         return __serial_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
                                   __comp, __proj1, __proj2);
 
-    oneapi::dpl::__internal::__brick_copy  <__parallel_tag<_IsVector>> __cc_op;
-    oneapi::dpl::__internal::__brick_copy_n<__parallel_tag<_IsVector>> __cc_n_op;
-
     return oneapi::dpl::__internal::__parallel_set_union_op</*_Bounded*/ true>(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result1, __result2,
         __comp, __proj1, __proj2,
         [](auto&&... __args) {
             return oneapi::dpl::__utils::__set_union_construct(std::forward<decltype(__args)>(__args)...);
         },
-        __cc_op, __cc_n_op);
+        __get_cc_op_for_ranges(), __get_cc_n_op_for_ranges<_IsVector>());
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -1246,9 +1262,6 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 
     auto __size_func = [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); };
 
-    oneapi::dpl::__internal::__brick_copy<__parallel_tag<_IsVector>> __cc_op;
-    oneapi::dpl::__internal::__brick_copy_n<__parallel_tag<_IsVector>> __cc_n_op;
-
     const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
     if (__m1 > oneapi::dpl::__internal::__set_algo_cut_off)
     {
@@ -1261,7 +1274,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                     return oneapi::dpl::__utils::__set_intersection_construct(
                         std::forward<decltype(__args)>(__args)...);
                 },
-                __cc_op, __cc_n_op);
+                __get_cc_op_for_ranges(), __get_cc_n_op_for_ranges<_IsVector>());
         });
     }
 
@@ -1277,7 +1290,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                     return oneapi::dpl::__utils::__set_intersection_construct(
                         std::forward<decltype(__args)>(__args)...);
                 },
-                __cc_op, __cc_n_op);
+                __get_cc_op_for_ranges(), __get_cc_n_op_for_ranges<_IsVector>());
         });
     }
 
@@ -1441,16 +1454,13 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     {
         auto __size_func = [](_DifferenceType __n, _DifferenceType) { return __n; };
 
-        oneapi::dpl::__internal::__brick_copy<__parallel_tag<_IsVector>> __cc_op;
-        oneapi::dpl::__internal::__brick_copy_n<__parallel_tag<_IsVector>> __cc_n_op;
-
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         auto [__it1, __it2, __it_out] = __internal::__parallel_set_op</*_Bounded*/ true>(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result1,
             __result2, __comp, __proj1, __proj2, __size_func, [](auto&&... __args) {
                 return oneapi::dpl::__utils::__set_difference_construct(std::forward<decltype(__args)>(__args)...);
             },
-            __cc_op, __cc_n_op);
+            __get_cc_op_for_ranges(), __get_cc_n_op_for_ranges<_IsVector>());
 
         return oneapi::dpl::__utils::__create_set_difference_result(__it1, __it2, __it_out);
     }
@@ -1583,9 +1593,6 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
         return __serial_set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
                                                  std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 
-    oneapi::dpl::__internal::__brick_copy<__parallel_tag<_IsVector>> __cc_op;
-    oneapi::dpl::__internal::__brick_copy_n<__parallel_tag<_IsVector>> __cc_n_op;
-
     return oneapi::dpl::__internal::__parallel_set_union_op</*_Bounded*/ true>(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result1, __result2,
         __comp, __proj1, __proj2,
@@ -1593,7 +1600,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
             return oneapi::dpl::__utils::__set_symmetric_difference_construct(
                 std::forward<decltype(__args)>(__args)...);
         },
-        __cc_op, __cc_n_op);
+        __get_cc_op_for_ranges(), __get_cc_n_op_for_ranges<_IsVector>());
 }
 
 //---------------------------------------------------------------------------------------------------------------------

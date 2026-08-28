@@ -4457,6 +4457,24 @@ __pattern_set_union(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _Forwa
                                          typename _Tag::__is_vector{});
 }
 
+inline auto
+__get_cc_op_for_iterators()
+{
+    return [](auto __it_from, auto __it_to) {
+        using _ValueType = typename std::iterator_traits<decltype(__it_to)>::value_type;
+        __construct_from(std::addressof(*__it_to), _ValueType(*__it_from));
+    };
+}
+
+template <typename _IsVector>
+auto
+__get_cc_n_op_for_iterators()
+{
+    return [](auto __it_from, auto __n, auto __it_to) {
+        return __brick_uninitialized_copy_n(_IsVector{}, __it_from, __n, __it_to);
+    };
+}
+
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _Compare>
 _OutputIterator
@@ -4474,18 +4492,13 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     if (__n1 + __n2 <= __set_algo_cut_off)
         return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
-    auto __cc_op = [](auto __it_from, auto __it_to) { __brick_uninitialized_copy_1(__it_from, __it_to); };
-    auto __cc_n_op = [](auto __it_from, auto __n, auto __it_to) {
-        return __brick_uninitialized_copy_n(_IsVector{}, __it_from, __n, __it_to);
-    };
-
     return __parallel_set_union_op</*_Bounded*/ false>(
                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
                __result + __n1 + __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
                [](auto&&... __args) {
                    return oneapi::dpl::__utils::__set_union_construct(std::forward<decltype(__args)>(__args)...);
                },
-               __cc_op, __cc_n_op)
+               __get_cc_op_for_iterators(), __get_cc_n_op_for_iterators<_IsVector>())
         .__it_out;
 }
 
@@ -4558,11 +4571,6 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 
     auto __size_func = [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); };
 
-    auto __cc_op = [](auto __it_from, auto __it_to) { __brick_uninitialized_copy_1(__it_from, __it_to); };
-    auto __cc_n_op = [](auto __it_from, auto __n, auto __it_to) {
-        return __brick_uninitialized_copy_n(_IsVector{}, __it_from, __n, __it_to);
-    };
-
     const _DifferenceType __m1 = __last1 - __left_bound_seq_1 + __n2;
     if (__m1 > __set_algo_cut_off)
     {
@@ -4576,7 +4584,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                            return oneapi::dpl::__utils::__set_intersection_construct(
                                std::forward<decltype(__args)>(__args)...);
                        },
-                       __cc_op, __cc_n_op)
+                       __get_cc_op_for_iterators(), __get_cc_n_op_for_iterators<_IsVector>())
                 .__it_out;
         });
     }
@@ -4594,7 +4602,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                            return oneapi::dpl::__utils::__set_intersection_construct(
                                std::forward<decltype(__args)>(__args)...);
                        },
-                       __cc_op, __cc_n_op)
+                       __get_cc_op_for_iterators(), __get_cc_n_op_for_iterators<_IsVector>())
                 .__it_out;
         });
     }
@@ -4678,11 +4686,6 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     if (__n1 + __n2 > __set_algo_cut_off)
     {
-        auto __cc_op = [](auto __it_from, auto __it_to) { __brick_uninitialized_copy_1(__it_from, __it_to); };
-        auto __cc_n_op = [](auto __it_from, auto __n, auto __it_to) {
-            return __brick_uninitialized_copy_n(_IsVector{}, __it_from, __n, __it_to);
-        };
-
         auto __size_func = [](_DifferenceType __n, _DifferenceType) { return __n; };
 
         return __parallel_set_op</*_Bounded*/ false>(
@@ -4692,7 +4695,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                        return oneapi::dpl::__utils::__set_difference_construct(
                            std::forward<decltype(__args)>(__args)...);
                    },
-                   __cc_op, __cc_n_op)
+                   __get_cc_op_for_iterators(), __get_cc_n_op_for_iterators<_IsVector>())
             .__it_out;
     }
 
@@ -4755,11 +4758,6 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     if (__n1 + __n2 <= __set_algo_cut_off)
         return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
-    auto __cc_op = [](auto __it_from, auto __it_to) { __brick_uninitialized_copy_1(__it_from, __it_to); };
-    auto __cc_n_op = [](auto __it_from, auto __n, auto __it_to) {
-        return __brick_uninitialized_copy_n(_IsVector{}, __it_from, __n, __it_to);
-    };
-
     return __internal::__except_handler([&]() {
         return __internal::__parallel_set_union_op</*_Bounded*/ false>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
@@ -4768,7 +4766,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                        return oneapi::dpl::__utils::__set_symmetric_difference_construct(
                            std::forward<decltype(__args)>(__args)...);
                    },
-                   __cc_op, __cc_n_op)
+                   __get_cc_op_for_iterators(), __get_cc_n_op_for_iterators<_IsVector>())
             .__it_out;
     });
 }

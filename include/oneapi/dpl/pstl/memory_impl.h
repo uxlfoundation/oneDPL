@@ -85,15 +85,6 @@ __brick_destroy(_RandomAccessIterator __first, _RandomAccessIterator __last, /*v
 // uninitialized copy
 //------------------------------------------------------------------------
 
-template <typename _ForwardIterator, typename _OutputIterator>
-void
-__brick_uninitialized_copy_1(_ForwardIterator __first, _OutputIterator __result)
-{
-    using _ValueType = typename ::std::iterator_traits<_OutputIterator>::value_type;
-
-    __construct_from(std::addressof(*__result), _ValueType(*__first));
-}
-
 template <typename _ForwardIterator, typename _Size, typename _OutputIterator>
 _OutputIterator
 __brick_uninitialized_copy_n(/*vector=*/std::false_type, _ForwardIterator __first, _Size __n,
