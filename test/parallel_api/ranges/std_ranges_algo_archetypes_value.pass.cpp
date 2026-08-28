@@ -71,8 +71,7 @@ main()
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find");
 
-    // find_last is a host only algorithm.
-    run_algo_host_policies<searchable_archetype>(
+    run_algo_all_policies<searchable_archetype, 1>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
@@ -93,7 +92,7 @@ main()
 
     // removable_archetype is movable but not device copyable, so remove() is checked on the host
     // policies only.
-    run_algo_host_policies<removable_archetype>(
+    run_algo_all_policies<removable_archetype, 4>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
@@ -102,13 +101,13 @@ main()
     // nocopy_search_value is neither copyable nor movable: the host implementations must refer to
     // the value passed by the user instead of storing a copy of it. It cannot be captured by a
     // device kernel, hence the host policies only.
-    run_algo_host_policies<searchable_archetype>(
+    run_algo_all_policies<searchable_archetype, 5>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find, noncopyable value");
 
-    run_algo_host_policies<searchable_archetype>(
+    run_algo_all_policies<searchable_archetype, 6>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
@@ -117,13 +116,13 @@ main()
 
     // count() must refer to the value instead of storing a copy of it: the requires-clause never
     // asks for a copyable value type.
-    run_algo_host_policies<searchable_archetype>(
+    run_algo_all_policies<searchable_archetype, 7>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
         [](auto&&, auto res) { return res == 1; }, "count, noncopyable value");
 
-    run_algo_host_policies<searchable_archetype>(
+    run_algo_all_policies<searchable_archetype, 8>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
@@ -131,7 +130,7 @@ main()
 
     // Same for remove(): the predicate it builds internally must hold a reference to the value for
     // the host policies.
-    run_algo_host_policies<removable_archetype>(
+    run_algo_all_policies<removable_archetype, 9>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
