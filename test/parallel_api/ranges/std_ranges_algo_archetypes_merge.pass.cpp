@@ -70,7 +70,7 @@ main()
     // constraints allow.
 
     // Both inputs hold the very same sorted sequence 0, 1, 2, ...
-    run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
+    run_algo2_all_policies<merge_in_archetype, merge_in_archetype, 0>(
         [](auto&& policy, auto&& view1, auto&& view2) {
             archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
                 std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
@@ -89,7 +89,7 @@ main()
     //  - set_algorithms_utils.h:127,133,206 / memory_impl.h:96,111 - __uninitialized_copy_or_discard
     //    default constructs and copy constructs the output element type.
     // Fixing this means assigning through the output iterator instead of constructing in place.
-    run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
+    run_algo2_all_policies<merge_in_archetype, merge_in_archetype, 1>(
         [](auto&& policy, auto&& view1, auto&& view2) {
             archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
                 std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
@@ -102,7 +102,7 @@ main()
         },
         [](auto&&, auto&&, auto res) { return res; }, "set_union");
 
-    run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
+    run_algo2_all_policies<merge_in_archetype, merge_in_archetype, 2>(
         [](auto&& policy, auto&& view1, auto&& view2) {
             archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
                 std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
@@ -119,19 +119,19 @@ main()
     // and __simd_minmax_element at unseq_backend_simd.h:635 and :695 value initialize their
     // _ValueType members in the default constructor, so the calls below do not compile with a
     // non-default-constructible element type.
-    run_algo_host_policies<storable_archetype>(
+    run_algo_all_policies<storable_archetype, 3>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::min(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto res) { return res.val == 0; }, "min");
 
-    run_algo_host_policies<storable_archetype>(
+    run_algo_all_policies<storable_archetype, 4>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::max(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto res) { return res.val == (int)archetype_test_size - 1; }, "max");
 
-    run_algo_host_policies<storable_archetype>(
+    run_algo_all_policies<storable_archetype, 5>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::minmax(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
