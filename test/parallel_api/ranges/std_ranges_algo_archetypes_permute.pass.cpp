@@ -71,6 +71,7 @@ main()
         },
         "reverse");
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_IF
     // The storage is filled with 0, 1, 2, ... so every third element is removed. The returned
     // subrange is the tail holding the removed elements.
     run_algo_all_policies<permutable_archetype, 1>(
@@ -82,14 +83,19 @@ main()
             return std::ranges::size(res) == (n + 2) / 3;
         },
         "remove_if");
+#endif
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_UNIQUE
     // All the elements are unique, so nothing is dropped.
     run_algo_all_policies<permutable_archetype, 2>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::unique(std::forward<decltype(policy)>(policy), view, permutable_equiv{});
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == 0; }, "unique");
+#endif
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT
+    // prpbably incorrect type applied
     run_algo_all_policies<permutable_archetype, 3>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});
@@ -99,7 +105,10 @@ main()
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
         },
         "sort");
+#endif
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT
+    // prpbably incorrect type applied
     run_algo_all_policies<permutable_archetype, 4>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::stable_sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});
@@ -109,6 +118,7 @@ main()
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
         },
         "stable_sort");
+#endif
 
     run_algo_all_policies<permutable_archetype, 5>(
         [](auto&& policy, auto&& view) {

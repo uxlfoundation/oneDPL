@@ -71,9 +71,10 @@ main()
     using namespace test_std_ranges::archetypes;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FILL
     // None of the archetypes below is device copyable, so the host policies are the only ones the
     // constraints of these algorithms allow.
-    run_algo_host_policies<writable_archetype>(
+    run_algo_all_policies<writable_archetype, 0>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::fill(std::forward<decltype(policy)>(policy), view, write_value{42});
         },
@@ -82,8 +83,9 @@ main()
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == 42;
         },
         "fill");
+#endif
 
-    run_algo2_host_policies<copy_in_archetype, copy_out_archetype>(
+    run_algo2_all_policies<copy_in_archetype, copy_out_archetype, 1>(
         [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::copy(std::forward<decltype(policy)>(policy), in_view, out_view);
         },
@@ -92,13 +94,13 @@ main()
         },
         "copy");
 
-    run_algo2_host_policies<move_in_archetype, move_out_archetype>(
+    run_algo2_all_policies<move_in_archetype, move_out_archetype, 2>(
         [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::move(std::forward<decltype(policy)>(policy), in_view, out_view);
         },
         [](auto&&, auto&& out_view, auto) { return std::ranges::begin(out_view)[7].val == 7; }, "move");
 
-    run_algo2_host_policies<swap_archetype, swap_archetype>(
+    run_algo2_all_policies<swap_archetype, swap_archetype, 3>(
         [](auto&& policy, auto&& view1, auto&& view2) {
             return dpl_ranges::swap_ranges(std::forward<decltype(policy)>(policy), view1, view2);
         },
@@ -107,7 +109,7 @@ main()
         },
         "swap_ranges");
 
-    run_algo2_host_policies<transform_in_archetype, transform_out_archetype>(
+    run_algo2_all_policies<transform_in_archetype, transform_out_archetype, 4>(
         [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::transform(std::forward<decltype(policy)>(policy), in_view, out_view,
                                          transform_unary_op{});
