@@ -605,7 +605,11 @@ __parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size _
     auto __zipped_rng = oneapi::dpl::__ranges::make_zip_view(
         __in_rng, oneapi::dpl::__ranges::all_view<__element_type, sycl::access_mode::read_write>(__tbuf.get_buffer()));
 
-    constexpr std::uint32_t __bytes_per_work_item_iter = 2 * sizeof(__element_type);
+    // Reduce reads one input element and stores it in the buffer, then scan reads the element from the buffer.
+    // To ensure the buffer is in cache, all input reads need to be in cache as well; but that will double
+    // kernel launches.
+    // TODO: check if performance difference between 1 and 2 element sizes warrants additional tuning
+    constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(__element_type); // * 2;
 
     return __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_work_item_iter, _CustomName>(
         __q, __n, __zipped_rng, __in_rng, _GenReduceInput{__generate_mask}, std::plus<_Size>{},
@@ -769,7 +773,7 @@ __parallel_remove_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
     sycl::queue __q_local = __exec.queue();
     oneapi::dpl::__internal::__not_pred<_Pred> __keep_pred{__pred};
 
-    constexpr std::size_t __max_elem_per_item = 2;
+    constexpr std::size_t __max_elem_per_item = 5;
     std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
 
     if (__n <= __max_wg_size * __max_elem_per_item &&
