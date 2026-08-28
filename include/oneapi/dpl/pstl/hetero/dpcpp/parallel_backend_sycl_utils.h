@@ -541,12 +541,16 @@ class __usm_device_temp
     }
 };
 
-// Calls __f with the start of an uninitialized temporary range of __n elements.
+template <typename _Name>
+struct __temp_buffer_fallback_wrapper;
+
+// Calls __f with a policy and the start of an uninitialized temporary range of __n elements.
 //
-// Device USM is preferred over __buffer here because these temporaries are filled by one pattern and
-// read back by another: a sycl::buffer handed across that boundary is re-registered as a distinct
-// memory object per pattern, and the runtime may materialize it on the host in between, costing a
-// host round trip proportional to __n. A USM allocation stays device-resident.
+// Device USM is preferred over __buffer because constructing and destroying a sycl::buffer costs a
+// fixed ~5 us of host-side work per call, which dominates these patterns at small __n.
+//
+// Both branches instantiate __f, so the fallback is handed a distinctly named policy: without it the
+// two instantiations submit kernels under the same name and collide under -fno-sycl-unnamed-lambda.
 //
 // The allocation is released when __f returns, so __f must not leave kernels reading it in flight.
 template <typename _T, typename _ExecutionPolicy, typename _F>
@@ -554,10 +558,10 @@ auto
 __with_temp_device_range(_ExecutionPolicy&& __exec, std::size_t __n, _F&& __f)
 {
     if (__usm_device_temp<__repacked_tuple_t<_T>> __usm{__exec.queue(), __n})
-        return __f(__usm.get());
+        return __f(__exec, __usm.get());
 
     __buffer<_T> __buf(__n);
-    return __f(__buf.get());
+    return __f(make_wrapped_policy<__temp_buffer_fallback_wrapper>(__exec), __buf.get());
 }
 
 template <typename _ContainerOrIterable>

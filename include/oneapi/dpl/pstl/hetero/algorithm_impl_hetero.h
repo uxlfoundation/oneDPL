@@ -1003,17 +1003,18 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 
     using _ValueType = typename ::std::iterator_traits<_Iterator>::value_type;
 
-    return __par_backend_hetero::__with_temp_device_range<_ValueType>(__exec, __last - __first, [&](auto __copy_first) {
-        auto __copy_last =
-            __pattern_copy_if(__tag, __exec, __first, __last, __copy_first, __not_pred<_Predicate>{__pred});
+    return __par_backend_hetero::__with_temp_device_range<_ValueType>(
+        __exec, __last - __first, [&](auto&& __policy, auto __copy_first) {
+            auto __copy_last =
+                __pattern_copy_if(__tag, __policy, __first, __last, __copy_first, __not_pred<_Predicate>{__pred});
 
-        // __sync_mode, not __deferrable_mode: the temporary is released as soon as this scope exits,
-        // so the copy-back must be complete before then.
-        return __pattern_hetero_walk2<__par_backend_hetero::__sync_mode, __par_backend_hetero::access_mode::write,
-                                      /*_IsOutNoInitRequested=*/true>(
-            __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __copy_first, __copy_last,
-            __first, __brick_copy<__hetero_tag<_BackendTag>>{});
-    });
+            // __sync_mode, not __deferrable_mode: the temporary is released as soon as this scope exits,
+            // so the copy-back must be complete before then.
+            return __pattern_hetero_walk2<__par_backend_hetero::__sync_mode, __par_backend_hetero::access_mode::write,
+                                          /*_IsOutNoInitRequested=*/true>(
+                __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__policy), __copy_first,
+                __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>>{});
+        });
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _BinaryPredicate>
@@ -1026,16 +1027,17 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
 
     using _ValueType = typename ::std::iterator_traits<_Iterator>::value_type;
 
-    return __par_backend_hetero::__with_temp_device_range<_ValueType>(__exec, __last - __first, [&](auto __copy_first) {
-        auto __copy_last = __pattern_unique_copy(__tag, __exec, __first, __last, __copy_first, __pred);
+    return __par_backend_hetero::__with_temp_device_range<_ValueType>(
+        __exec, __last - __first, [&](auto&& __policy, auto __copy_first) {
+            auto __copy_last = __pattern_unique_copy(__tag, __policy, __first, __last, __copy_first, __pred);
 
-        // __sync_mode, not __deferrable_mode: the temporary is released as soon as this scope exits,
-        // so the copy-back must be complete before then.
-        return __pattern_hetero_walk2<__par_backend_hetero::__sync_mode, __par_backend_hetero::access_mode::write,
-                                      /*_IsOutNoInitRequested=*/true>(
-            __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __copy_first, __copy_last,
-            __first, __brick_copy<__hetero_tag<_BackendTag>>{});
-    });
+            // __sync_mode, not __deferrable_mode: the temporary is released as soon as this scope exits,
+            // so the copy-back must be complete before then.
+            return __pattern_hetero_walk2<__par_backend_hetero::__sync_mode, __par_backend_hetero::access_mode::write,
+                                          /*_IsOutNoInitRequested=*/true>(
+                __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__policy), __copy_first,
+                __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>>{});
+        });
 }
 
 //------------------------------------------------------------------------
@@ -1229,13 +1231,13 @@ __pattern_inplace_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __ex
 
     auto __n = __last - __first;
 
-    __par_backend_hetero::__with_temp_device_range<_ValueType>(__exec, __n, [&](auto __copy_first) {
-        __pattern_merge(__tag, __exec, __first, __middle, __middle, __last, __copy_first, __comp);
+    __par_backend_hetero::__with_temp_device_range<_ValueType>(__exec, __n, [&](auto&& __policy, auto __copy_first) {
+        __pattern_merge(__tag, __policy, __first, __middle, __middle, __last, __copy_first, __comp);
 
         // __sync_mode, not __deferrable_mode: the temporary is released as soon as this scope exits,
         // so the copy-back must be complete before then.
         __pattern_hetero_walk2<__par_backend_hetero::__sync_mode, __par_backend_hetero::access_mode::write, true>(
-            __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __copy_first,
+            __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__policy), __copy_first,
             __copy_first + __n, __first, __brick_move<__hetero_tag<_BackendTag>>{});
     });
 }
