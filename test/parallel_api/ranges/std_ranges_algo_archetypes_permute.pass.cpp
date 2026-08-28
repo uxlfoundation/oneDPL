@@ -63,7 +63,7 @@ main()
 
     // permutable_archetype is movable but not copyable, so it is not device copyable either: the
     // host policies are the only ones its constraints allow.
-    run_algo_host_policies<permutable_archetype>(
+    run_algo_all_policies<permutable_archetype, 0>(
         [](auto&& policy, auto&& view) { return dpl_ranges::reverse(std::forward<decltype(policy)>(policy), view); },
         [](auto&& view, auto) {
             const auto n = std::ranges::size(view);
@@ -73,7 +73,7 @@ main()
 
     // The storage is filled with 0, 1, 2, ... so every third element is removed. The returned
     // subrange is the tail holding the removed elements.
-    run_algo_host_policies<permutable_archetype>(
+    run_algo_all_policies<permutable_archetype, 1>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove_if(std::forward<decltype(policy)>(policy), view, permutable_pred{});
         },
@@ -84,13 +84,13 @@ main()
         "remove_if");
 
     // All the elements are unique, so nothing is dropped.
-    run_algo_host_policies<permutable_archetype>(
+    run_algo_all_policies<permutable_archetype, 2>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::unique(std::forward<decltype(policy)>(policy), view, permutable_equiv{});
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == 0; }, "unique");
 
-    run_algo_host_policies<permutable_archetype>(
+    run_algo_all_policies<permutable_archetype, 3>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});
         },
@@ -100,7 +100,7 @@ main()
         },
         "sort");
 
-    run_algo_host_policies<permutable_archetype>(
+    run_algo_all_policies<permutable_archetype, 4>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::stable_sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});
         },
@@ -110,7 +110,7 @@ main()
         },
         "stable_sort");
 
-    run_algo_host_policies<permutable_archetype>(
+    run_algo_all_policies<permutable_archetype, 5>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::is_sorted(std::forward<decltype(policy)>(policy), view, permutable_comp{});
         },
