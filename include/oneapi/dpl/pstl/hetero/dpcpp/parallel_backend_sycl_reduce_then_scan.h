@@ -61,6 +61,10 @@ struct __temp_data_array
     static constexpr bool __capture_indexes_flag = false;
 
     template <typename _ValueT2>
+#if _ONEDPL___cplusplus >= 202002L
+        requires std::constructible_from<_ValueT, _ValueT2&&> ||
+                 (std::default_initializable<_ValueT> && std::is_assignable_v<_ValueT&, _ValueT2 &&>)
+#endif
     void
     set(std::uint16_t __idx, const _ValueT2& __ele)
     {
