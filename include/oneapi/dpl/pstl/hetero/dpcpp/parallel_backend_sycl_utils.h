@@ -1014,8 +1014,8 @@ inline constexpr std::size_t __max_usm_temp_bytes = 4 * 1024 * 1024;
 // small __n.
 //
 // The allocation is released when __f returns, so on the USM branch __f must not leave kernels
-// touching it in flight: hence __sync_mode there, while the buffer branch keeps the deferrable wait
-// it has always had.
+// touching it in flight: hence __sync_mode there, and a drain if __f exits by exception. The buffer
+// branch keeps the deferrable wait it has always had.
 //
 // Both branches instantiate __f, so the fallback is handed a distinctly named policy: without it the
 // two instantiations submit kernels under the same name and collide under -fno-sycl-unnamed-lambda.
@@ -1027,7 +1027,19 @@ __with_temp_device_range(_ExecutionPolicy&& __exec, std::size_t __n, _F&& __f)
     if (__n * sizeof(_TempType) <= __max_usm_temp_bytes)
     {
         if (__usm_device_temp<_TempType> __usm{__exec.queue(), __n})
-            return __f(__exec, __usm.get(), __sync_mode{});
+        {
+            // Freeing USM does not wait on submitted work the way releasing a sycl::buffer does, so
+            // an exception must not unwind past the deallocation with kernels still in flight.
+            try
+            {
+                return __f(__exec, __usm.get(), __sync_mode{});
+            }
+            catch (...)
+            {
+                __exec.queue().wait();
+                throw;
+            }
+        }
     }
 
     __buffer<_T> __buf(__n);
