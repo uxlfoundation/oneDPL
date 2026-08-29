@@ -544,10 +544,16 @@ class __usm_device_temp
 template <typename _Name>
 struct __temp_buffer_fallback_wrapper;
 
+// Above this size the driver's cost to allocate and free device USM exceeds the host-side cost of a
+// sycl::buffer, so large temporaries keep the buffer path. Measured crossover is between 4 MB and
+// 16 MB on both BMG and PVC.
+inline constexpr std::size_t __max_usm_temp_bytes = 4 * 1024 * 1024;
+
 // Calls __f with a policy and the start of an uninitialized temporary range of __n elements.
 //
-// Device USM is preferred over __buffer because constructing and destroying a sycl::buffer costs a
-// fixed ~5 us of host-side work per call, which dominates these patterns at small __n.
+// Device USM is preferred over __buffer for small temporaries because constructing and destroying a
+// sycl::buffer costs a fixed ~5 us of host-side work per call, which dominates these patterns at
+// small __n.
 //
 // Both branches instantiate __f, so the fallback is handed a distinctly named policy: without it the
 // two instantiations submit kernels under the same name and collide under -fno-sycl-unnamed-lambda.
@@ -557,8 +563,12 @@ template <typename _T, typename _ExecutionPolicy, typename _F>
 auto
 __with_temp_device_range(_ExecutionPolicy&& __exec, std::size_t __n, _F&& __f)
 {
-    if (__usm_device_temp<__repacked_tuple_t<_T>> __usm{__exec.queue(), __n})
-        return __f(__exec, __usm.get());
+    using _TempType = __repacked_tuple_t<_T>;
+    if (__n * sizeof(_TempType) <= __max_usm_temp_bytes)
+    {
+        if (__usm_device_temp<_TempType> __usm{__exec.queue(), __n})
+            return __f(__exec, __usm.get());
+    }
 
     __buffer<_T> __buf(__n);
     return __f(make_wrapped_policy<__temp_buffer_fallback_wrapper>(__exec), __buf.get());
