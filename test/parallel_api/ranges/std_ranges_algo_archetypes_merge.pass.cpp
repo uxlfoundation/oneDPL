@@ -158,13 +158,12 @@ main()
         },
         [](auto&&, auto res) { return res.val == 0; }, "min");
 #endif
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MIN_HETERO
+
     run_algo_hetero_policies<storable_archetype, 3>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::min(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto res) { return res.val == 0; }, "min");
-#endif
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MAX_HOST
     run_algo_host_policies<storable_archetype>(
@@ -173,13 +172,12 @@ main()
         },
         [](auto&&, auto res) { return res.val == (int)archetype_test_size - 1; }, "max");
 #endif
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MAX_HETERO
+
     run_algo_hetero_policies<storable_archetype, 4>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::max(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto res) { return res.val == (int)archetype_test_size - 1; }, "max");
-#endif
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MINMAX_HOST
     run_algo_host_policies<storable_archetype>(
@@ -188,13 +186,12 @@ main()
         },
         [](auto&&, auto&& res) { return res.min.val == 0 && res.max.val == (int)archetype_test_size - 1; }, "minmax");
 #endif
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MINMAX_HETERO
+
     run_algo_hetero_policies<storable_archetype, 5>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::minmax(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto&& res) { return res.min.val == 0 && res.max.val == (int)archetype_test_size - 1; }, "minmax");
-#endif
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
