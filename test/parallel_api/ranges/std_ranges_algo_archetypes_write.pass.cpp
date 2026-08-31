@@ -71,10 +71,23 @@ main()
     using namespace test_std_ranges::archetypes;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FILL
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FILL_HOST
     // None of the archetypes below is device copyable, so the host policies are the only ones the
     // constraints of these algorithms allow.
-    run_algo_all_policies<writable_archetype, 0>(
+    run_algo_host_policies<writable_archetype>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::fill(std::forward<decltype(policy)>(policy), view, write_value{42});
+        },
+        [](auto&& view, auto) {
+            return std::ranges::begin(view)[0].val == 42 &&
+                   std::ranges::begin(view)[std::ranges::size(view) - 1].val == 42;
+        },
+        "fill");
+#endif
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FILL_HETERO
+    // None of the archetypes below is device copyable, so the host policies are the only ones the
+    // constraints of these algorithms allow.
+    run_algo_hetero_policies<writable_archetype, 0>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::fill(std::forward<decltype(policy)>(policy), view, write_value{42});
         },
