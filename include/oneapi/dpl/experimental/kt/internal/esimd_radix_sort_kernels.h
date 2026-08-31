@@ -83,7 +83,7 @@ struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_wor
         {
             __dpl_esimd::__ns::simd_mask<__data_per_step> __m = (__io_offset + __lane_id + __s) < __n;
             __keys.template select<__data_per_step, 1>(__s) = __dpl_esimd::__ns::merge(
-                __dpl_esimd::__gather<_KeyT, __data_per_step>(__rng_data(__range_pack_in.__keys_rng()), __lane_id,
+                __dpl_esimd::__gather<_KeyT, __data_per_step>(__range_data(__range_pack_in.__keys_rng()), __lane_id,
                                                               __io_offset + __s, __m),
                 __dpl_esimd::__ns::simd<_KeyT, __data_per_step>(__sort_identity<_KeyT, __is_ascending>()), __m);
         }
@@ -232,7 +232,7 @@ struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_wor
         _ONEDPL_PRAGMA_UNROLL
         for (::std::uint32_t __s = 0; __s < __data_per_work_item; __s += __data_per_step)
         {
-            __dpl_esimd::__scatter<_KeyT, __data_per_step>(__rng_data(__range_pack_out.__keys_rng()),
+            __dpl_esimd::__scatter<_KeyT, __data_per_step>(__range_data(__range_pack_out.__keys_rng()),
                                                            __write_addr.template select<__data_per_step, 1>(__s),
                                                            __keys.template select<__data_per_step, 1>(__s),
                                                            __write_addr.template select<__data_per_step, 1>(__s) < __n);
@@ -311,7 +311,7 @@ struct __global_histogram<__esimd_tag, __is_ascending, __radix_bits, __hist_work
                 // TODO: avoid reading global memory twice when __stage_block_count > 1 increasing __hist_data_per_work_item
                 if (__wi_offset + __hist_data_per_work_item < __n)
                 {
-                    __dpl_esimd::__copy_from(__rng_data(__keys_rng), __wi_offset, __keys);
+                    __dpl_esimd::__copy_from(__range_data(__keys_rng), __wi_offset, __keys);
                 }
                 else
                 {
@@ -324,7 +324,7 @@ struct __global_histogram<__esimd_tag, __is_ascending, __radix_bits, __hist_work
                             __lane_offsets + __step_offset + __wi_offset;
                         __dpl_esimd::__ns::simd_mask<__data_per_step> __is_in_range = __offsets < __n;
                         __dpl_esimd::__ns::simd<_KeyT, __data_per_step> data =
-                            __dpl_esimd::__gather<_KeyT, __data_per_step>(__rng_data(__keys_rng), __offsets, 0,
+                            __dpl_esimd::__gather<_KeyT, __data_per_step>(__range_data(__keys_rng), __offsets, 0,
                                                                           __is_in_range);
                         __dpl_esimd::__ns::simd<_KeyT, __data_per_step> sort_identities =
                             __sort_identity<_KeyT, __is_ascending>();
@@ -459,10 +459,10 @@ struct __radix_sort_onesweep_kernel<__esimd_tag, __is_ascending, __radix_bits, _
     __load_simd_pack(_SimdPack& __pack, ::std::uint32_t __wg_id, ::std::uint32_t __wg_size, ::std::uint32_t __lid) const
     {
         const _GlobOffsetT __offset = __data_per_work_item * (__wg_id * __wg_size + __lid);
-        __load_simd</*__sort_identity_residual=*/true>(__pack.__keys, __rng_data(__in_pack.__keys_rng()), __offset);
+        __load_simd</*__sort_identity_residual=*/true>(__pack.__keys, __range_data(__in_pack.__keys_rng()), __offset);
         if constexpr (__has_values)
         {
-            __load_simd</*__sort_identity_residual=*/false>(__pack.__vals, __rng_data(__in_pack.__vals_rng()),
+            __load_simd</*__sort_identity_residual=*/false>(__pack.__vals, __range_data(__in_pack.__vals_rng()),
                                                             __offset);
         }
     }
@@ -774,10 +774,10 @@ struct __radix_sort_onesweep_kernel<__esimd_tag, __is_ascending, __radix_bits, _
             __group_offset + __global_fix_lookup.template __lookup<__data_per_work_item>(__bins);
 
         __dpl_esimd::__vector_store<_KeyT, 1, __data_per_work_item>(
-            __rng_data(__out_pack.__keys_rng()), __global_offset * sizeof(_KeyT), __pack.__keys, __global_offset < __n);
+            __range_data(__out_pack.__keys_rng()), __global_offset * sizeof(_KeyT), __pack.__keys, __global_offset < __n);
         if constexpr (__has_values)
         {
-            __dpl_esimd::__vector_store<_ValT, 1, __data_per_work_item>(__rng_data(__out_pack.__vals_rng()),
+            __dpl_esimd::__vector_store<_ValT, 1, __data_per_work_item>(__range_data(__out_pack.__vals_rng()),
                                                                         __global_offset * sizeof(_ValT), __pack.__vals,
                                                                         __global_offset < __n);
         }

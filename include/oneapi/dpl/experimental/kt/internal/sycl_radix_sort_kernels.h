@@ -275,11 +275,11 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     __load_pack(_KVPack& __pack, std::uint32_t __tile_id, std::uint32_t __sg_id, std::uint32_t __sg_local_id) const
     {
         const _GlobOffsetT __offset = __data_per_sub_group * (__tile_id * __num_sub_groups_per_work_group + __sg_id);
-        auto __keys_seq = __rng_data(__in_pack.__keys_rng());
+        auto __keys_seq = __range_data(__in_pack.__keys_rng());
         __load</*__sort_identity_residual=*/true>(__pack.__keys, __keys_seq, __offset, __sg_local_id);
         if constexpr (__has_values)
         {
-            __load</*__sort_identity_residual=*/false>(__pack.__vals, __rng_data(__in_pack.__vals_rng()), __offset,
+            __load</*__sort_identity_residual=*/false>(__pack.__vals, __range_data(__in_pack.__vals_rng()), __offset,
                                                        __sg_local_id);
         }
     }

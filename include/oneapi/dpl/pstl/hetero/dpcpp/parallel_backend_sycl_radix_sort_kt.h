@@ -79,7 +79,7 @@ __is_eligible(const sycl::queue& __q, std::size_t __n)
     return __device.is_gpu() && __supports_concurrent_root_group_progress(__device);
 }
 
-// all_view compatibility: KT uses __rng_data which takes the accessor, not begin(), so all_view
+// all_view compatibility: KT uses __range_data which takes the accessor, not begin(), so all_view
 // is contiguous-compatible despite its begin() not being a raw pointer.
 template <typename _V>
 struct __is_all_view : std::false_type
@@ -126,7 +126,7 @@ template <typename _V>
 inline constexpr bool __is_kt_radix_compatible_view =
     __is_all_view<_V>::value || __begin_is_raw_pointer<_V>::value || __is_kt_contiguous_range<_V>;
 
-// Converts a compatible view into a form __rng_data can consume: all_view and raw-pointer views
+// Converts a compatible view into a form __range_data can consume: all_view and raw-pointer views
 // pass through untouched, contiguous ranges become a guard_view over their data pointer.
 template <typename _V>
 auto

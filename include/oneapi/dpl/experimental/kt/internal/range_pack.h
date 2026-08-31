@@ -21,7 +21,7 @@ namespace oneapi::dpl::experimental::kt::gpu::__impl
 
 template <typename _Rng>
 auto
-__rng_data(const _Rng& __rng)
+__range_data(const _Rng& __rng)
 {
     return __rng.begin();
 }
@@ -30,7 +30,7 @@ __rng_data(const _Rng& __rng)
 // TODO: rely on begin() once -fsycl-esimd-force-stateless-mem has been enabled by default
 template <typename _T, sycl::access::mode _M, bool _NoInit>
 auto
-__rng_data(const oneapi::dpl::__ranges::all_view<_T, _M, _NoInit>& __view)
+__range_data(const oneapi::dpl::__ranges::all_view<_T, _M, _NoInit>& __view)
 {
     return __view.accessor();
 }

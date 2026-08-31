@@ -255,10 +255,10 @@ struct __radix_sort_copyback_submitter<oneapi::dpl::__par_backend_hetero::__inte
             __cgh.depends_on(__e);
             __cgh.parallel_for<_Name...>(sycl::range<1>{__n}, [=](sycl::item<1> __item) {
                 auto __global_id = __item.get_linear_id();
-                __rng_data(__out_pack.__keys_rng())[__global_id] = __rng_data(__in_pack.__keys_rng())[__global_id];
+                __range_data(__out_pack.__keys_rng())[__global_id] = __range_data(__in_pack.__keys_rng())[__global_id];
                 if constexpr (std::decay_t<_InRngPack>::__has_values)
                 {
-                    __rng_data(__out_pack.__vals_rng())[__global_id] = __rng_data(__in_pack.__vals_rng())[__global_id];
+                    __range_data(__out_pack.__vals_rng())[__global_id] = __range_data(__in_pack.__vals_rng())[__global_id];
                 }
             });
         });
