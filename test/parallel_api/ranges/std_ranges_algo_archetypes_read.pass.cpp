@@ -146,21 +146,51 @@ main()
     //  - algorithm_ranges_impl_hetero.h:1569 / utils_hetero.h:125 / tuple_impl.h:276 - the hetero
     //    path builds a std::pair<difference_type, value_type> and copies the element into it.
     // Fixing this means carrying the index only and dereferencing the iterator for the comparison.
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MIN_MAX_ELEMENT
-    run_algo_all_policies<read_archetype, 12>(
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MIN_ELEMENT_HOST
+    run_algo_host_policies<read_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::min_element(std::forward<decltype(policy)>(policy), view, read_comp{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "min_element");
+#endif
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MIN_ELEMENT_HETERO
+    run_algo_hetero_policies<read_archetype, 12>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::min_element(std::forward<decltype(policy)>(policy), view, read_comp{});
+        },
+        [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "min_element");
+#endif
 
-    run_algo_all_policies<read_archetype, 13>(
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MAX_ELEMENT_HOST
+    run_algo_host_policies<read_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::max_element(std::forward<decltype(policy)>(policy), view, read_comp{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view) - 1; },
         "max_element");
+#endif
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MAX_ELEMENT_HETERO
+    run_algo_hetero_policies<read_archetype, 13>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::max_element(std::forward<decltype(policy)>(policy), view, read_comp{});
+        },
+        [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view) - 1; },
+        "max_element");
+#endif
 
-    run_algo_all_policies<read_archetype, 14>(
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MINMAX_ELEMENT_HOST
+    run_algo_host_policies<read_archetype>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::minmax_element(std::forward<decltype(policy)>(policy), view, read_comp{});
+        },
+        [](auto&& view, auto res) {
+            return res.min == std::ranges::begin(view) &&
+                   res.max == std::ranges::begin(view) + std::ranges::size(view) - 1;
+        },
+        "minmax_element");
+#endif
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MINMAX_ELEMENT_HETERO
+    run_algo_hetero_policies<read_archetype, 14>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::minmax_element(std::forward<decltype(policy)>(policy), view, read_comp{});
         },
