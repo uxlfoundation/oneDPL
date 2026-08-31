@@ -126,13 +126,13 @@ test_device_copyable()
         "__gen_transform_input is not device copyable with device copyable types");
 
     //__gen_red_by_seg_reduce_input
-    static_assert(sycl::is_device_copyable_v<
-                      oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_reduce_input<binary_op_device_copyable>>,
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_reduce_input<
+                      binary_op_device_copyable, std::uint32_t>>,
                   "__gen_red_by_seg_reduce_input is not device copyable with device copyable types");
 
     //__gen_red_by_seg_scan_input
-    static_assert(sycl::is_device_copyable_v<
-                      oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_scan_input<binary_op_device_copyable>>,
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_scan_input<
+                      binary_op_device_copyable, std::uint32_t>>,
                   "__gen_red_by_seg_scan_input is not device copyable with device copyable types");
 
     //__gen_scan_by_seg_reduce_input
@@ -431,13 +431,13 @@ test_non_device_copyable()
         "__gen_transform_input is device copyable with non device copyable types");
 
     //__gen_red_by_seg_reduce_input
-    static_assert(!sycl::is_device_copyable_v<
-                      oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_reduce_input<binary_op_non_device_copyable>>,
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_reduce_input<
+                      binary_op_non_device_copyable, std::uint32_t>>,
                   "__gen_red_by_seg_reduce_input is device copyable with non device copyable types");
 
     //__gen_red_by_seg_scan_input
-    static_assert(!sycl::is_device_copyable_v<
-                      oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_scan_input<binary_op_non_device_copyable>>,
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_scan_input<
+                      binary_op_non_device_copyable, std::uint32_t>>,
                   "__gen_red_by_seg_scan_input is device copyable with non device copyable types");
 
     //__gen_scan_by_seg_reduce_input
