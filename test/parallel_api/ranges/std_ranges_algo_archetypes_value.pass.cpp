@@ -71,14 +71,13 @@ main()
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_HOST
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last");
-#endif
+
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_HETERO
     run_algo_hetero_policies<searchable_archetype, 1>(
         [](auto&& policy, auto&& view) {
@@ -100,7 +99,6 @@ main()
         },
         [](auto&&, auto res) { return res; }, "contains");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_HOST
     // removable_archetype is movable but not device copyable, so remove() is checked on the host
     // policies only.
     run_algo_host_policies<removable_archetype>(
@@ -108,7 +106,7 @@ main()
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; }, "remove");
-#endif
+
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_HETERO
     // removable_archetype is movable but not device copyable, so remove() is checked on the host
     // policies only.
@@ -119,7 +117,6 @@ main()
         [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; }, "remove");
 #endif
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_HOST
     // nocopy_search_value is neither copyable nor movable: the host implementations must refer to
     // the value passed by the user instead of storing a copy of it. It cannot be captured by a
     // device kernel, hence the host policies only.
@@ -128,7 +125,7 @@ main()
             return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find, noncopyable value");
-#endif
+
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_HETERO
     // nocopy_search_value is neither copyable nor movable: the host implementations must refer to
     // the value passed by the user instead of storing a copy of it. It cannot be captured by a
@@ -140,14 +137,13 @@ main()
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find, noncopyable value");
 #endif
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_HOST
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last, noncopyable value");
-#endif
+
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_HETERO
     run_algo_hetero_policies<searchable_archetype, 6>(
         [](auto&& policy, auto&& view) {
@@ -159,13 +155,11 @@ main()
 
     // count() must refer to the value instead of storing a copy of it: the requires-clause never
     // asks for a copyable value type.
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_COUNT_HOST
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
         [](auto&&, auto res) { return res == 1; }, "count, noncopyable value");
-#endif
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_COUNT_HETERO
     run_algo_hetero_policies<searchable_archetype, 7>(
         [](auto&& policy, auto&& view) {
@@ -174,13 +168,12 @@ main()
         [](auto&&, auto res) { return res == 1; }, "count, noncopyable value");
 #endif
     
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_CONTAINS_HOST
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
         [](auto&&, auto res) { return res; }, "contains, noncopyable value");
-#endif
+
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_CONTAINS_HETERO
     run_algo_hetero_policies<searchable_archetype, 8>(
         [](auto&& policy, auto&& view) {
@@ -191,14 +184,13 @@ main()
 
     // Same for remove(): the predicate it builds internally must hold a reference to the value for
     // the host policies.
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_HOST
     run_algo_host_policies<removable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; },
         "remove, noncopyable value");
-#endif
+
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_HETERO
     run_algo_hetero_policies<removable_archetype, 9>(
         [](auto&& policy, auto&& view) {
