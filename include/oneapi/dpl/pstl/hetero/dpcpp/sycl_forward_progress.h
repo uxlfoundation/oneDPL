@@ -1,27 +1,53 @@
 // -*- C++ -*-
-//===------------------------------------------------------===//
+//===-- sycl_forward_progress.h -------------------------------------------===//
 //
 // Copyright (C) UXL Foundation Contributors
 //
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-//===------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 
-#ifndef _ONEDPL_KT_UTILS_H
-#define _ONEDPL_KT_UTILS_H
+#ifndef _ONEDPL_SYCL_FORWARD_PROGRESS_H
+#define _ONEDPL_SYCL_FORWARD_PROGRESS_H
 
-#include "../../../pstl/hetero/dpcpp/sycl_defs.h"
-#include "../../../pstl/utils.h"
-#include "kt_defs.h"
+#include "sycl_defs.h"
 
-#include <cstdint>
-#include <algorithm>
-#include <iterator>
+// Check if cooperative kernels are supported (forward progress and root group extensions)
+// Requires an intel/llvm compiler after 2025.1.0 where all required functionality is implemented.
+// Open-source compiler builds prior to this functionality becoming sufficient (September 2024)
+// do not have a reliable detection method but are unlikely to be used.
+#if defined(SYCL_EXT_ONEAPI_FORWARD_PROGRESS) && defined(SYCL_EXT_ONEAPI_ROOT_GROUP) &&                                \
+    (!defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250100)
+#    define _ONEDPL_COOPERATIVE_KERNELS_PRESENT 1
+#endif
 
-namespace oneapi::dpl::experimental::kt::gpu::__impl
+#if _ONEDPL_COOPERATIVE_KERNELS_PRESENT
+
+#    include <vector>
+#    include <cstdint>
+#    include <cassert>
+#    include <algorithm>
+
+namespace oneapi
+{
+namespace dpl
+{
+namespace __par_backend_hetero
 {
 
-namespace syclex = sycl::ext::oneapi::experimental;
+namespace __syclex = sycl::ext::oneapi::experimental;
+
+// A cooperative kernel is only correct if all of its work-groups make progress concurrently: work-groups which
+// communicate with each other (via a lookback, a global barrier, etc.) deadlock otherwise. Kernels requesting the
+// guarantee on a device which cannot provide it fail at submission rather than degrading gracefully, so any
+// dispatch which may fall back to a non-cooperative implementation must query the device first.
+inline bool
+__supports_concurrent_root_group_progress(const sycl::device& __device)
+{
+    const std::vector<__syclex::forward_progress_guarantee> __caps = __device.get_info<
+        __syclex::info::device::work_group_progress_capabilities<__syclex::execution_scope::root_group>>();
+    return std::find(__caps.begin(), __caps.end(), __syclex::forward_progress_guarantee::concurrent) != __caps.end();
+}
 
 // The number of groups that should be launched in a cooperative kernel.
 // Returns the min of the max groups supported by the HW and the tile count
@@ -33,10 +59,8 @@ __get_num_cooperative_groups(const _Kernel& __kernel, sycl::queue& __q, std::uin
     // Exceptions for excessive SLM usage will be thrown by SYCL.
     __slm_size_bytes = std::min<std::uint32_t>(__slm_size_bytes, 1 << 17);
 
-    std::uint32_t __max_num_cooperative_groups = 1;
-#if _ONEDPL_KT_COOPERATIVE_KERNELS_PRESENT
     std::uint32_t __max_work_group_kernel_query =
-        __kernel.template ext_oneapi_get_info<syclex::info::kernel_queue_specific::max_num_work_groups>(
+        __kernel.template ext_oneapi_get_info<__syclex::info::kernel_queue_specific::max_num_work_groups>(
             __q, __work_group_size, __slm_size_bytes);
 
     // There is a bug produced on BMG where zeKernelSuggestMaxCooperativeGroupCount suggests too large of a
@@ -65,14 +89,13 @@ __get_num_cooperative_groups(const _Kernel& __kernel, sycl::queue& __q, std::uin
 
     const std::uint32_t __groups_per_xe_slm_adj = std::min(__max_groups_per_xe, __max_slm_xe / __true_slm_size_bytes);
     const std::uint32_t __concurrent_groups_est = __groups_per_xe_slm_adj * __xes_on_device;
-    __max_num_cooperative_groups = std::min({__max_work_group_kernel_query, __tile_count, __concurrent_groups_est});
-#else
-    static_assert(oneapi::dpl::__internal::__always_false_v<_Kernel>,
-                  "_ONEDPL_KT_COOPERATIVE_KERNELS_PRESENT must be defined to call __get_num_cooperative_groups");
-#endif
-    return __max_num_cooperative_groups;
+    return std::min({__max_work_group_kernel_query, __tile_count, __concurrent_groups_est});
 }
 
-} // namespace oneapi::dpl::experimental::kt::gpu::__impl
+} // namespace __par_backend_hetero
+} // namespace dpl
+} // namespace oneapi
 
-#endif
+#endif // _ONEDPL_COOPERATIVE_KERNELS_PRESENT
+
+#endif // _ONEDPL_SYCL_FORWARD_PROGRESS_H

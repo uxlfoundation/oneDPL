@@ -11,24 +11,26 @@
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_RADIX_SORT_KT_H
 
 #include "../../../experimental/kt/internal/kt_defs.h"
+#include "kt_arch_params.h"
 
-#if !defined(_ONEDPL_ENABLE_SYCL_RADIX_SORT_KT) || !_ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-// KT radix sort unavailable (no cooperative kernels or sub_group_mask); disable dispatch.
+#if !defined(_ONEDPL_ENABLE_SYCL_RADIX_SORT_KT) || !_ONEDPL_ENABLE_SYCL_RADIX_SORT_KT ||                               \
+    !defined(_ONEDPL_SYCL_DEVICE_ARCHITECTURE_PRESENT)
+// KT radix sort unavailable (no cooperative kernels, no sub_group_mask, or no device architecture
+// query to select tuned kernel parameters with); disable dispatch.
 #    define _ONEDPL_KT_RADIX_SORT_IN_SORT_ACTIVE 0
 #else
 #    define _ONEDPL_KT_RADIX_SORT_IN_SORT_ACTIVE 1
 
-#    include <vector>
 #    if _ONEDPL_CPP20_RANGES_PRESENT
 #        include <ranges>
 #    endif
-#    include <cassert>
 #    include <cstdint>
+#    include <new>
 #    include <utility>
-#    include <algorithm>
 #    include <type_traits>
 
 #    include "sycl_defs.h"
+#    include "sycl_forward_progress.h"
 #    include "utils_ranges_sycl.h"
 #    include "parallel_backend_sycl_utils.h"
 #    include "../../utils_ranges.h"
@@ -54,60 +56,27 @@ inline constexpr std::size_t __min_size = 1 << 18;
 // KT supports inputs strictly smaller than 2^30 (hard limit from radix_sort_utils.h:63).
 inline constexpr std::size_t __max_size = std::size_t(1) << 30;
 
-// Recognized architectures; KT dispatch requires PVC or BMG — no generic fallback exists.
-enum class __arch
-{
-    __pvc,
-    __bmg,
-    __unknown
-};
+// Architectures with tuned kernel parameters. Data from
+// documentation/library_guide/kernel_templates/sycl/radix_sort.rst:298. There is deliberately no
+// __default_arch_params entry: an untuned architecture is served by the legacy radix sort instead of by
+// a parameter set which has never been measured on it.
+using __radix_kt_params = __arch_param_table<
+    __arch_params<oneapi::dpl::experimental::kt::kernel_param<28, 512>, __syclex::architecture::intel_gpu_pvc,
+                  __syclex::architecture::intel_gpu_pvc_vg>,
+    __arch_params<oneapi::dpl::experimental::kt::kernel_param<10, 512>, __syclex::architecture::intel_gpu_bmg_g21>>;
 
-// Tuned kernel parameters per architecture. Data from documentation/library_guide/kernel_templates/sycl/radix_sort.rst:298.
-using __param_pvc = oneapi::dpl::experimental::kt::kernel_param<28, 512>;
-using __param_bmg = oneapi::dpl::experimental::kt::kernel_param<10, 512>;
-
-inline __arch
-__kt_radix_arch(const sycl::device& __device)
-{
-    const __syclex::architecture __a = __device.get_info<__syclex::info::device::architecture>();
-    switch (__a)
-    {
-    case __syclex::architecture::intel_gpu_pvc:
-    case __syclex::architecture::intel_gpu_pvc_vg:
-        return __arch::__pvc;
-    case __syclex::architecture::intel_gpu_bmg_g21:
-        return __arch::__bmg;
-    default:
-        return __arch::__unknown;
-    }
-}
-
-// Correctness gate: KT cooperative kernels require concurrent root-group forward-progress; without
-// it the KT path throws rather than degrading gracefully.
+// Size- and device-based eligibility, checked before the architecture lookup. Size bounds come first to
+// avoid device queries for ineligible inputs.
 inline bool
-__device_supports_kt_radix_sort(const sycl::device& __device)
-{
-    if (!__device.is_gpu())
-        return false;
-
-    const std::vector<__syclex::forward_progress_guarantee> __caps = __device.get_info<
-        __syclex::info::device::work_group_progress_capabilities<__syclex::execution_scope::root_group>>();
-    return std::find(__caps.begin(), __caps.end(), __syclex::forward_progress_guarantee::concurrent) != __caps.end();
-}
-
-// Returns the architecture for parameter selection, or __arch::__unknown (use legacy sort).
-// Size bounds are checked first to avoid device queries for ineligible inputs.
-inline __arch
-__kt_radix_sort_arch_for(const sycl::queue& __q, std::size_t __n)
+__is_eligible(const sycl::queue& __q, std::size_t __n)
 {
     if (__n < __min_size || __n >= __max_size)
-        return __arch::__unknown;
+        return false;
 
     const sycl::device __device = __q.get_device();
-    if (!__device_supports_kt_radix_sort(__device))
-        return __arch::__unknown;
-
-    return __kt_radix_arch(__device);
+    // Correctness gate: the KT cooperative kernels require concurrent root-group forward-progress; without it the
+    // KT path throws rather than degrading gracefully.
+    return __device.is_gpu() && __supports_concurrent_root_group_progress(__device);
 }
 
 // all_view compatibility: KT uses __rng_data which takes the accessor, not begin(), so all_view
@@ -216,39 +185,45 @@ struct __kt_radix_sort_shape_impl<oneapi::dpl::__ranges::zip_view<_V1, _V2>, one
 template <typename _Range, typename _Proj>
 inline constexpr __kt_sort_shape __kt_radix_sort_shape = __kt_radix_sort_shape_impl<_Range, _Proj>::value;
 
-// Keys-only KT radix sort. `__a` must be a recognized architecture as returned by
-// __kt_radix_sort_arch_for; there is deliberately no generic parameter set for unknown hardware.
-template <bool __is_ascending, typename _KeysView>
-sycl::event
-__parallel_kt_radix_sort(sycl::queue __q, __arch __a, _KeysView __keys_view)
+// Runs the KT radix sort with the kernel parameters tuned for the queue's device, storing the resulting
+// event in __event. Returns false without submitting anything if the input, the device, or its
+// architecture is not served by the KT path, or if KT could not allocate its temporary storage; the
+// caller then uses the legacy radix sort.
+template <bool __is_ascending, __kt_sort_shape __shape, typename _Range>
+bool
+__try_parallel_kt_radix_sort(sycl::queue __q, _Range&& __rng, sycl::event& __event)
 {
-    auto __dispatch = [&](auto __param) {
-        auto __pack = __kt_impl::__range_pack{__kt_normalize_view(__keys_view)};
-        return __kt_impl::__radix_sort<__is_ascending, /*__radix_bits=*/8, /*__in_place=*/true>(
+    static_assert(__shape != __kt_sort_shape::__none);
+
+    if (!__is_eligible(__q, __rng.size()))
+        return false;
+
+    auto __sort = [&](auto __param) {
+        auto __pack = [&]() {
+            if constexpr (__shape == __kt_sort_shape::__keys_only)
+            {
+                return __kt_impl::__range_pack{__kt_normalize_view(__rng)};
+            }
+            else // __by_key: KT consumes keys and values as separate ranges, so decompose the zip_view.
+            {
+                auto __base = __rng.base();
+                return __kt_impl::__range_pack{__kt_normalize_view(std::get<0>(__base)),
+                                               __kt_normalize_view(std::get<1>(__base))};
+            }
+        }();
+        __event = __kt_impl::__radix_sort<__is_ascending, /*__radix_bits=*/8, /*__in_place=*/true>(
             __kt_impl::__sycl_tag{}, __q, __pack, __pack, __param);
     };
 
-    assert(__a == __arch::__pvc || __a == __arch::__bmg);
-    if (__a == __arch::__pvc)
-        return __dispatch(__param_pvc{});
-    return __dispatch(__param_bmg{});
-}
-
-// By-key KT radix sort using the native separate keys/values layout.
-template <bool __is_ascending, typename _KeysView, typename _ValsView>
-sycl::event
-__parallel_kt_radix_sort_by_key(sycl::queue __q, __arch __a, _KeysView __keys_view, _ValsView __vals_view)
-{
-    auto __dispatch = [&](auto __param) {
-        auto __pack = __kt_impl::__range_pack{__kt_normalize_view(__keys_view), __kt_normalize_view(__vals_view)};
-        return __kt_impl::__radix_sort<__is_ascending, /*__radix_bits=*/8, /*__in_place=*/true>(
-            __kt_impl::__sycl_tag{}, __q, __pack, __pack, __param);
-    };
-
-    assert(__a == __arch::__pvc || __a == __arch::__bmg);
-    if (__a == __arch::__pvc)
-        return __dispatch(__param_pvc{});
-    return __dispatch(__param_bmg{});
+    try
+    {
+        return __radix_kt_params::__try_dispatch(__q.get_device(), __sort);
+    }
+    catch (const std::bad_alloc&)
+    {
+        // KT could not allocate its temporary storage.
+        return false;
+    }
 }
 
 } // namespace __kt_radix

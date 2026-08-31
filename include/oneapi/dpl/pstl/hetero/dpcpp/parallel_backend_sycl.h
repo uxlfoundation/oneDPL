@@ -1463,34 +1463,9 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _Execution
 
     if constexpr (__shape != __kt_radix::__kt_sort_shape::__none)
     {
-        sycl::queue __queue = __exec.queue();
-        const std::size_t __n = __rng.size();
-
-        // Runtime eligibility check; __arch::__unknown means "use the legacy path".
-        const __kt_radix::__arch __a = __kt_radix::__kt_radix_sort_arch_for(__queue, __n);
-        if (__a != __kt_radix::__arch::__unknown)
-        {
-            try
-            {
-                sycl::event __event;
-                if constexpr (__shape == __kt_radix::__kt_sort_shape::__keys_only)
-                {
-                    __event = __kt_radix::__parallel_kt_radix_sort<__is_ascending>(__queue, __a, __rng);
-                }
-                else // __by_key
-                {
-                    // KT consumes keys and values as separate ranges, so decompose the zip_view.
-                    auto __base = __rng.base();
-                    __event = __kt_radix::__parallel_kt_radix_sort_by_key<__is_ascending>(
-                        __queue, __a, std::get<0>(__base), std::get<1>(__base));
-                }
-                return __future<sycl::event>{__event};
-            }
-            catch (const std::bad_alloc&)
-            {
-                // KT could not allocate its temporary storage; fall through to legacy radix sort.
-            }
-        }
+        sycl::event __event;
+        if (__kt_radix::__try_parallel_kt_radix_sort<__is_ascending, __shape>(__exec.queue(), __rng, __event))
+            return __future<sycl::event>{__event};
     }
 #    endif // _ONEDPL_ENABLE_KT_RADIX_SORT_IN_SORT && _ONEDPL_KT_RADIX_SORT_IN_SORT_ACTIVE
 

@@ -20,7 +20,8 @@
 #include "../../../pstl/hetero/dpcpp/parallel_backend_sycl_utils.h"
 #include "../../../pstl/hetero/dpcpp/sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
-#include "kt_utils.h"
+#include "../../../pstl/hetero/dpcpp/sycl_forward_progress.h"
+
 #include "range_pack.h"
 #include "radix_sort_utils.h"
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
@@ -211,8 +212,8 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
         sycl::kernel_bundle<sycl::bundle_state::executable> __bundle =
             sycl::get_kernel_bundle<sycl::bundle_state::executable>(__q.get_context(), {__q.get_device()}, {__kid});
         sycl::kernel __kernel = __bundle.get_kernel<_KernelName>();
-        std::uint32_t __num_wgs =
-            __get_num_cooperative_groups(__kernel, __q, __work_group_size, __sweep_work_group_count, __slm_size_bytes);
+        std::uint32_t __num_wgs = oneapi::dpl::__par_backend_hetero::__get_num_cooperative_groups(
+            __kernel, __q, __work_group_size, __sweep_work_group_count, __slm_size_bytes);
 
         sycl::nd_range<1> __nd_range(__num_wgs * __work_group_size, __work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
