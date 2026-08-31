@@ -20,6 +20,7 @@
 #include <type_traits>
 
 #include "../../utils_ranges.h"
+#include "../../utils.h"
 #include "../../iterator_impl.h"
 #include "sycl_iterator.h"
 #include "sycl_defs.h"
@@ -29,6 +30,7 @@
 //       file or forward declaring them, to allow inclusion of ranges_defs.h
 //       here instead of zip_view_impl.h
 #if _ONEDPL_CPP20_RANGES_PRESENT
+#include <ranges>
 #include "../../zip_view_impl.h"
 #endif
 
@@ -270,6 +272,82 @@ struct is_temp_buff<_Iter,
 
 template <typename _Iter>
 using val_t = typename ::std::iterator_traits<_Iter>::value_type;
+
+//A trait for checking if a view is backed by contiguous device-accessible storage, and a utility to
+//normalize such a view. Some implementations (e.g. kernel templates) can only operate on contiguous
+//storage: a raw USM pointer or a buffer accessor. __is_contiguous_backed_view identifies the views
+//which qualify and __normalize_contiguous_view converts them to a view exposing that storage.
+
+// all_view is backed by an accessor rather than a raw pointer, so it is contiguous-compatible despite
+// its begin() not being a raw pointer.
+template <typename _V>
+struct __is_all_view : std::false_type
+{
+};
+
+template <typename _T, sycl::access::mode _AccMode, bool _NoInit, __dpl_sycl::__target _Target,
+          sycl::access::placeholder _Placeholder>
+struct __is_all_view<all_view<_T, _AccMode, _NoInit, _Target, _Placeholder>> : std::true_type
+{
+};
+
+// Views with raw-pointer begin() are contiguous USM. Composite/transform views have no begin()
+// and are excluded automatically.
+template <typename _V, typename = void>
+struct __begin_is_raw_pointer : std::false_type
+{
+};
+
+template <typename _V>
+struct __begin_is_raw_pointer<_V, std::void_t<decltype(std::declval<const _V&>().begin())>>
+    : std::is_pointer<decltype(std::declval<const _V&>().begin())>
+{
+};
+
+// C++20 contiguous ranges (e.g. std::span) arrive without normalization and have no raw-pointer
+// begin(), so they are wrapped into a guard_view below. Adapting views (transform, permutation,
+// reverse) are non-contiguous and remain excluded.
+#if _ONEDPL_CPP20_RANGES_PRESENT
+// Expressed as a concept so that the conjunction short-circuits: std::ranges::data must not be
+// substituted for views that are not contiguous in the first place.
+template <typename _V>
+concept __contiguous_sized_range = std::ranges::contiguous_range<_V> && std::ranges::sized_range<_V> &&
+                                   requires(_V& __v) { requires std::is_pointer_v<decltype(std::ranges::data(__v))>; };
+
+template <typename _V>
+inline constexpr bool __is_contiguous_sized_range = __contiguous_sized_range<_V>;
+#else
+template <typename _V>
+inline constexpr bool __is_contiguous_sized_range = false;
+#endif
+
+template <typename _V>
+inline constexpr bool __is_contiguous_backed_view =
+    __is_all_view<_V>::value || __begin_is_raw_pointer<_V>::value || __is_contiguous_sized_range<_V>;
+
+// all_view and raw-pointer views already expose their storage and pass through untouched, contiguous
+// ranges become a guard_view over their data pointer.
+template <typename _V>
+auto
+__normalize_contiguous_view(_V __view)
+{
+    if constexpr (__is_all_view<_V>::value || __begin_is_raw_pointer<_V>::value)
+    {
+        return __view;
+    }
+    else
+    {
+#if _ONEDPL_CPP20_RANGES_PRESENT
+        static_assert(__is_contiguous_sized_range<_V>);
+        using _Ptr = decltype(std::ranges::data(__view));
+        return guard_view<_Ptr>{
+            std::ranges::data(__view),
+            static_cast<typename std::iterator_traits<_Ptr>::difference_type>(std::ranges::size(__view))};
+#else
+        static_assert(oneapi::dpl::__internal::__always_false_v<_V>, "view is not backed by contiguous storage");
+#endif
+    }
+}
 
 //range/zip_view/all_view/ variadic utilities
 

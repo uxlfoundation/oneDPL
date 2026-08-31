@@ -21,9 +21,6 @@
 #else
 #    define _ONEDPL_KT_RADIX_SORT_IN_SORT_ACTIVE 1
 
-#    if _ONEDPL_CPP20_RANGES_PRESENT
-#        include <ranges>
-#    endif
 #    include <cstdint>
 #    include <new>
 #    include <utility>
@@ -48,6 +45,7 @@ namespace __kt_radix
 
 namespace __syclex = sycl::ext::oneapi::experimental;
 namespace __kt_impl = oneapi::dpl::experimental::kt::gpu::__impl;
+namespace __dpl_ranges = oneapi::dpl::__ranges;
 
 // Minimum input size below which the legacy radix sort is preferred; the crossover has not been
 // benchmarked per architecture yet.
@@ -79,77 +77,6 @@ __is_eligible(const sycl::queue& __q, std::size_t __n)
     return __device.is_gpu() && __supports_concurrent_root_group_progress(__device);
 }
 
-// all_view compatibility: KT uses __range_data which takes the accessor, not begin(), so all_view
-// is contiguous-compatible despite its begin() not being a raw pointer.
-template <typename _V>
-struct __is_all_view : std::false_type
-{
-};
-
-template <typename _T, sycl::access::mode _AccMode, bool _NoInit, __dpl_sycl::__target _Target,
-          sycl::access::placeholder _Placeholder>
-struct __is_all_view<oneapi::dpl::__ranges::all_view<_T, _AccMode, _NoInit, _Target, _Placeholder>> : std::true_type
-{
-};
-
-// Views with raw-pointer begin() are contiguous USM. Composite/transform views have no begin()
-// and are excluded automatically.
-template <typename _V, typename = void>
-struct __begin_is_raw_pointer : std::false_type
-{
-};
-
-template <typename _V>
-struct __begin_is_raw_pointer<_V, std::void_t<decltype(std::declval<const _V&>().begin())>>
-    : std::is_pointer<decltype(std::declval<const _V&>().begin())>
-{
-};
-
-// C++20 contiguous ranges (e.g. std::span) arrive without normalization and have no raw-pointer
-// begin(), so they are wrapped into a guard_view below. Adapting views (transform, permutation,
-// reverse) are non-contiguous and remain excluded.
-#    if _ONEDPL_CPP20_RANGES_PRESENT
-// Expressed as a concept so that the conjunction short-circuits: std::ranges::data must not be
-// substituted for views that are not contiguous in the first place.
-template <typename _V>
-concept __kt_contiguous_range = std::ranges::contiguous_range<_V> && std::ranges::sized_range<_V> &&
-                                requires(_V& __v) { requires std::is_pointer_v<decltype(std::ranges::data(__v))>; };
-
-template <typename _V>
-inline constexpr bool __is_kt_contiguous_range = __kt_contiguous_range<_V>;
-#    else
-template <typename _V>
-inline constexpr bool __is_kt_contiguous_range = false;
-#    endif
-
-template <typename _V>
-inline constexpr bool __is_kt_radix_compatible_view =
-    __is_all_view<_V>::value || __begin_is_raw_pointer<_V>::value || __is_kt_contiguous_range<_V>;
-
-// Converts a compatible view into a form __range_data can consume: all_view and raw-pointer views
-// pass through untouched, contiguous ranges become a guard_view over their data pointer.
-template <typename _V>
-auto
-__kt_normalize_view(_V __view)
-{
-    if constexpr (__is_all_view<_V>::value || __begin_is_raw_pointer<_V>::value)
-    {
-        return __view;
-    }
-    else
-    {
-#    if _ONEDPL_CPP20_RANGES_PRESENT
-        static_assert(__is_kt_contiguous_range<_V>);
-        using _Ptr = decltype(std::ranges::data(__view));
-        return oneapi::dpl::__ranges::guard_view<_Ptr>{
-            std::ranges::data(__view),
-            static_cast<typename std::iterator_traits<_Ptr>::difference_type>(std::ranges::size(__view))};
-#    else
-        static_assert(oneapi::dpl::__internal::__always_false_v<_V>, "view is not KT radix sort compatible");
-#    endif
-    }
-}
-
 enum class __kt_sort_shape
 {
     __keys_only,
@@ -169,15 +96,15 @@ template <typename _Range>
 struct __kt_radix_sort_shape_impl<_Range, oneapi::dpl::identity>
 {
     static constexpr __kt_sort_shape value =
-        __is_kt_radix_compatible_view<_Range> ? __kt_sort_shape::__keys_only : __kt_sort_shape::__none;
+        __dpl_ranges::__is_contiguous_backed_view<_Range> ? __kt_sort_shape::__keys_only : __kt_sort_shape::__none;
 };
 
 // By-key: projection is __pattern_sort_by_key_fn, range is a zip_view of two compatible views.
 template <typename _V1, typename _V2>
-struct __kt_radix_sort_shape_impl<oneapi::dpl::__ranges::zip_view<_V1, _V2>, oneapi::dpl::__internal::__pattern_sort_by_key_fn>
+struct __kt_radix_sort_shape_impl<__dpl_ranges::zip_view<_V1, _V2>, oneapi::dpl::__internal::__pattern_sort_by_key_fn>
 {
     static constexpr __kt_sort_shape value =
-        (__is_kt_radix_compatible_view<_V1> && __is_kt_radix_compatible_view<_V2>)
+        (__dpl_ranges::__is_contiguous_backed_view<_V1> && __dpl_ranges::__is_contiguous_backed_view<_V2>)
             ? __kt_sort_shape::__by_key
             : __kt_sort_shape::__none;
 };
@@ -202,13 +129,13 @@ __try_parallel_kt_radix_sort(sycl::queue __q, _Range&& __rng, sycl::event& __eve
         auto __pack = [&]() {
             if constexpr (__shape == __kt_sort_shape::__keys_only)
             {
-                return __kt_impl::__range_pack{__kt_normalize_view(__rng)};
+                return __kt_impl::__range_pack{__dpl_ranges::__normalize_contiguous_view(__rng)};
             }
             else // __by_key: KT consumes keys and values as separate ranges, so decompose the zip_view.
             {
                 auto __base = __rng.base();
-                return __kt_impl::__range_pack{__kt_normalize_view(std::get<0>(__base)),
-                                               __kt_normalize_view(std::get<1>(__base))};
+                return __kt_impl::__range_pack{__dpl_ranges::__normalize_contiguous_view(std::get<0>(__base)),
+                                               __dpl_ranges::__normalize_contiguous_view(std::get<1>(__base))};
             }
         }();
         __event = __kt_impl::__radix_sort<__is_ascending, /*__radix_bits=*/8, /*__in_place=*/true>(
