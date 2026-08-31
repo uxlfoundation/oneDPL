@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _ONEDPL_KT_RNG_PACK_H
-#define _ONEDPL_KT_RNG_PACK_H
+#ifndef _ONEDPL_KT_RANGE_PACK_H
+#define _ONEDPL_KT_RANGE_PACK_H
 
 #include <type_traits>
 #include <utility>
@@ -35,27 +35,27 @@ __rng_data(const oneapi::dpl::__ranges::all_view<_T, _M, _NoInit>& __view)
     return __view.accessor();
 }
 
-struct __rng_dummy
+struct __range_dummy
 {
 };
 
 template <typename _Rng>
-struct __rng_value_type_deducer
+struct __range_value_type_deducer
 {
     using __value_t = oneapi::dpl::__internal::__value_t<_Rng>;
 };
 
 template <>
-struct __rng_value_type_deducer<__rng_dummy>
+struct __range_value_type_deducer<__range_dummy>
 {
     using __value_t = void;
 };
 
-template <typename _Rng1, typename _Rng2 = __rng_dummy>
-struct __rng_pack
+template <typename _Rng1, typename _Rng2 = __range_dummy>
+struct __range_pack
 {
-    using _KeyT = typename __rng_value_type_deducer<_Rng1>::__value_t;
-    using _ValT = typename __rng_value_type_deducer<_Rng2>::__value_t;
+    using _KeyT = typename __range_value_type_deducer<_Rng1>::__value_t;
+    using _ValT = typename __range_value_type_deducer<_Rng2>::__value_t;
     static constexpr bool __has_values = !std::is_void_v<_ValT>;
 
     const auto&
@@ -70,8 +70,8 @@ struct __rng_pack
         return __m_vals_rng;
     }
 
-    __rng_pack(const _Rng1& __rng1, const _Rng2& __rng2 = __rng_dummy{}) : __m_keys_rng(__rng1), __m_vals_rng(__rng2) {}
-    __rng_pack(_Rng1&& __rng1, _Rng2&& __rng2 = __rng_dummy{})
+    __range_pack(const _Rng1& __rng1, const _Rng2& __rng2 = __range_dummy{}) : __m_keys_rng(__rng1), __m_vals_rng(__rng2) {}
+    __range_pack(_Rng1&& __rng1, _Rng2&& __rng2 = __range_dummy{})
         : __m_keys_rng(::std::move(__rng1)), __m_vals_rng(::std::move(__rng2))
     {
     }
@@ -83,4 +83,4 @@ struct __rng_pack
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
 
-#endif // _ONEDPL_KT_RNG_PACK_H
+#endif // _ONEDPL_KT_RANGE_PACK_H

@@ -19,7 +19,7 @@
 
 #include "sub_group/sub_group_scan.h"
 
-#include "rng_pack.h"
+#include "range_pack.h"
 #include "radix_sort_kernels.h"
 #include "radix_sort_utils.h"
 

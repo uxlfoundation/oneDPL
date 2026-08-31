@@ -223,7 +223,7 @@ sycl::event
 __parallel_kt_radix_sort(sycl::queue __q, __arch __a, _KeysView __keys_view)
 {
     auto __dispatch = [&](auto __param) {
-        auto __pack = __kt_impl::__rng_pack{__kt_normalize_view(__keys_view)};
+        auto __pack = __kt_impl::__range_pack{__kt_normalize_view(__keys_view)};
         return __kt_impl::__radix_sort<__is_ascending, /*__radix_bits=*/8, /*__in_place=*/true>(
             __kt_impl::__sycl_tag{}, __q, __pack, __pack, __param);
     };
@@ -240,7 +240,7 @@ sycl::event
 __parallel_kt_radix_sort_by_key(sycl::queue __q, __arch __a, _KeysView __keys_view, _ValsView __vals_view)
 {
     auto __dispatch = [&](auto __param) {
-        auto __pack = __kt_impl::__rng_pack{__kt_normalize_view(__keys_view), __kt_normalize_view(__vals_view)};
+        auto __pack = __kt_impl::__range_pack{__kt_normalize_view(__keys_view), __kt_normalize_view(__vals_view)};
         return __kt_impl::__radix_sort<__is_ascending, /*__radix_bits=*/8, /*__in_place=*/true>(
             __kt_impl::__sycl_tag{}, __q, __pack, __pack, __param);
     };

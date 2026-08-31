@@ -21,7 +21,7 @@
 
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
 
-#include "rng_pack.h"
+#include "range_pack.h"
 #include "radix_sort_submitters.h"
 
 namespace oneapi::dpl::experimental::kt::gpu::__impl
@@ -48,11 +48,11 @@ template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_copyback_by_key;
 
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          std::uint16_t __work_group_size, typename _KtTag, typename _RngPack>
+          std::uint16_t __work_group_size, typename _KtTag, typename _RangePack>
 sycl::event
-__one_wg(_KtTag __kt_tag, sycl::queue __q, _RngPack&& __pack, std::size_t __n)
+__one_wg(_KtTag __kt_tag, sycl::queue __q, _RangePack&& __pack, std::size_t __n)
 {
-    using _KeyT = typename ::std::decay_t<_RngPack>::_KeyT;
+    using _KeyT = typename ::std::decay_t<_RangePack>::_KeyT;
     using _RadixSortKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__radix_sort_one_wg<_KtTag, _KernelName>>;
 
@@ -61,17 +61,17 @@ __one_wg(_KtTag __kt_tag, sycl::queue __q, _RngPack&& __pack, std::size_t __n)
 }
 
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          std::uint16_t __work_group_size, typename _KtTag, typename _RngPack1, typename _RngPack2>
+          std::uint16_t __work_group_size, typename _KtTag, typename _RangePack1, typename _RangePack2>
 sycl::event
-__one_wg(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __n)
+__one_wg(_KtTag __kt_tag, sycl::queue __q, _RangePack1&& __pack_in, _RangePack2&& __pack_out, std::size_t __n)
 {
-    using _KeyT = typename ::std::decay_t<_RngPack1>::_KeyT;
+    using _KeyT = typename ::std::decay_t<_RangePack1>::_KeyT;
     using _RadixSortKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__radix_sort_one_wg<_KtTag, _KernelName>>;
 
     return __radix_sort_one_wg_submitter<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _KeyT,
-                                         _RadixSortKernel>()(__kt_tag, __q, std::forward<_RngPack1>(__pack_in),
-                                                             std::forward<_RngPack2>(__pack_out), __n);
+                                         _RadixSortKernel>()(__kt_tag, __q, std::forward<_RangePack1>(__pack_in),
+                                                             std::forward<_RangePack2>(__pack_out), __n);
 }
 
 template <typename _HistT, typename _KeyT, typename _ValT = void>
@@ -203,14 +203,14 @@ class __onesweep_memory_holder
 };
 
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          std::uint16_t __work_group_size, typename _KtTag, typename _RngPack1, typename _RngPack2, typename _RngPack3,
+          std::uint16_t __work_group_size, typename _KtTag, typename _RangePack1, typename _RangePack2, typename _RangePack3,
           typename _MemHolder>
 sycl::event
-__onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pack1,
-                _RngPack3&& __virt_pack2, const _MemHolder& __mem_holder, std::size_t __n)
+__onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RangePack1&& __input_pack, _RangePack2&& __virt_pack1,
+                _RangePack3&& __virt_pack2, const _MemHolder& __mem_holder, std::size_t __n)
 {
-    using _KeyT = typename ::std::decay_t<_RngPack1>::_KeyT;
-    constexpr bool __has_values = ::std::decay_t<_RngPack1>::__has_values;
+    using _KeyT = typename ::std::decay_t<_RangePack1>::_KeyT;
+    constexpr bool __has_values = ::std::decay_t<_RangePack1>::__has_values;
 
     using _RadixSortHistogram = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __radix_sort_onesweep_histogram<_KtTag, _KernelName>>;
@@ -219,18 +219,18 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     using _RadixSortSweepInitial =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<::std::conditional_t<
             __has_values,
-            __radix_sort_onesweep_by_key<_KtTag, std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, _KernelName>,
-            __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, _KernelName>>>;
+            __radix_sort_onesweep_by_key<_KtTag, std::decay_t<_RangePack1>, std::decay_t<_RangePack2>, _KernelName>,
+            __radix_sort_onesweep<_KtTag, std::decay_t<_RangePack1>, std::decay_t<_RangePack2>, _KernelName>>>;
     using _RadixSortSweepEven =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<::std::conditional_t<
             __has_values,
-            __radix_sort_onesweep_by_key<_KtTag, std::decay_t<_RngPack3>, std::decay_t<_RngPack2>, _KernelName>,
-            __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack3>, std::decay_t<_RngPack2>, _KernelName>>>;
+            __radix_sort_onesweep_by_key<_KtTag, std::decay_t<_RangePack3>, std::decay_t<_RangePack2>, _KernelName>,
+            __radix_sort_onesweep<_KtTag, std::decay_t<_RangePack3>, std::decay_t<_RangePack2>, _KernelName>>>;
     using _RadixSortSweepOdd =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<::std::conditional_t<
             __has_values,
-            __radix_sort_onesweep_by_key<_KtTag, std::decay_t<_RngPack2>, std::decay_t<_RngPack3>, _KernelName>,
-            __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack2>, std::decay_t<_RngPack3>, _KernelName>>>;
+            __radix_sort_onesweep_by_key<_KtTag, std::decay_t<_RangePack2>, std::decay_t<_RangePack3>, _KernelName>,
+            __radix_sort_onesweep<_KtTag, std::decay_t<_RangePack2>, std::decay_t<_RangePack3>, _KernelName>>>;
     using _GlobalHistT = ::std::uint32_t;
     constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
 
@@ -288,13 +288,13 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
 }
 
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          std::uint16_t __work_group_size, bool __in_place, typename _KtTag, typename _RngPack1, typename _RngPack2>
+          std::uint16_t __work_group_size, bool __in_place, typename _KtTag, typename _RangePack1, typename _RangePack2>
 sycl::event
-__onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __pack_out, std::size_t __n)
+__onesweep(_KtTag __kt_tag, sycl::queue __q, _RangePack1&& __pack, _RangePack2&& __pack_out, std::size_t __n)
 {
-    using _KeyT = typename ::std::decay_t<_RngPack1>::_KeyT;
-    using _ValT = typename ::std::decay_t<_RngPack1>::_ValT;
-    constexpr bool __has_values = ::std::decay_t<_RngPack1>::__has_values;
+    using _KeyT = typename ::std::decay_t<_RangePack1>::_KeyT;
+    using _ValT = typename ::std::decay_t<_RangePack1>::_ValT;
+    constexpr bool __has_values = ::std::decay_t<_RangePack1>::__has_values;
 
     using _RadixSortCopyback = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         std::conditional_t<__has_values, __radix_sort_onesweep_copyback_by_key<_KtTag, _KernelName>,
@@ -313,7 +313,7 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
     const ::std::uint32_t __group_hist_item_count = __bin_count * __stage_count * __sweep_work_group_count;
 
     // Memory is not going to be allocated for void value type
-    // TODO: make this more explicit to reduce coupling between __onesweep_memory_holder and __rng_pack
+    // TODO: make this more explicit to reduce coupling between __onesweep_memory_holder and __range_pack
     __onesweep_memory_holder<_GlobalHistT, _KeyT, _ValT> __mem_holder(__q);
 
     __mem_holder.__keys_alloc_count(__n);
@@ -334,11 +334,11 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
             auto __vals_tmp_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write>();
             auto __vals_tmp_rng =
                 __vals_tmp_keep(__mem_holder.__vals_ptr(), __mem_holder.__vals_ptr() + __n).all_view();
-            return __rng_pack(::std::move(__keys_tmp_rng), ::std::move(__vals_tmp_rng));
+            return __range_pack(::std::move(__keys_tmp_rng), ::std::move(__vals_tmp_rng));
         }
         else
         {
-            return __rng_pack(::std::move(__keys_tmp_rng));
+            return __range_pack(::std::move(__keys_tmp_rng));
         }
     };
     auto __tmp_pack = __get_tmp_pack();
@@ -365,10 +365,10 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
 }
 
 // TODO: allow calling it only for all_view (accessor) and guard_view (USM) ranges, views::subrange and sycl_iterator
-template <bool __is_ascending, std::uint8_t __radix_bits, bool __in_place, typename _KtTag, typename _RngPack1,
-          typename _RngPack2, typename _KernelParam>
+template <bool __is_ascending, std::uint8_t __radix_bits, bool __in_place, typename _KtTag, typename _RangePack1,
+          typename _RangePack2, typename _KernelParam>
 sycl::event
-__radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, _KernelParam)
+__radix_sort(_KtTag __kt_tag, sycl::queue __q, _RangePack1&& __pack_in, _RangePack2&& __pack_out, _KernelParam)
 {
     const auto __n = __pack_in.__keys_rng().size();
     assert(__n > 0);
@@ -379,10 +379,10 @@ __radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&
     using _KernelName = typename _KernelParam::kernel_name;
 
     // TODO: enable sort_by_key for one-work-group implementation
-    if constexpr (::std::decay_t<_RngPack1>::__has_values)
+    if constexpr (::std::decay_t<_RangePack1>::__has_values)
     {
         return __onesweep<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size, __in_place>(
-            __kt_tag, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n);
+            __kt_tag, __q, std::forward<_RangePack1>(__pack_in), std::forward<_RangePack2>(__pack_out), __n);
     }
     else
     {
@@ -397,14 +397,14 @@ __radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&
                 // TODO: support more granular DataPerWorkItem and WorkGroupSize
 
                 return __one_wg<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size>(
-                    __kt_tag, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n);
+                    __kt_tag, __q, std::forward<_RangePack1>(__pack_in), std::forward<_RangePack2>(__pack_out), __n);
             }
         }
         // TODO: avoid kernel duplication (generate the output storage with the same type as input storage and use swap)
         // TODO: support different RadixBits
         // TODO: support more granular DataPerWorkItem and WorkGroupSize
         return __onesweep<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size, __in_place>(
-            __kt_tag, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n);
+            __kt_tag, __q, std::forward<_RangePack1>(__pack_in), std::forward<_RangePack2>(__pack_out), __n);
     }
 }
 

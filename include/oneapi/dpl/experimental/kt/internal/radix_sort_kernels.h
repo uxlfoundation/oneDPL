@@ -14,7 +14,7 @@ namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
 
 template <typename _KtTag, bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
-          std::uint16_t __work_group_size, typename _KeyT, typename _RngPack1, typename _RngPack2>
+          std::uint16_t __work_group_size, typename _KeyT, typename _RangePack1, typename _RangePack2>
 struct __one_wg_kernel;
 
 template <typename _KtTag, bool __is_ascending, std::uint8_t __radix_bits, std::uint32_t __hist_work_group_count,

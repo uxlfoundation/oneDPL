@@ -20,7 +20,7 @@
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
 
 #include "esimd_defs.h"
-#include "rng_pack.h"
+#include "range_pack.h"
 
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {

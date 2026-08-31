@@ -25,9 +25,9 @@ namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
 
 template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          ::std::uint16_t __work_group_size, typename _KeyT, typename _RngPack1, typename _RngPack2>
+          ::std::uint16_t __work_group_size, typename _KeyT, typename _RangePack1, typename _RangePack2>
 struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _KeyT,
-                       _RngPack1, _RngPack2>
+                       _RangePack1, _RangePack2>
 {
     using _BinT = ::std::uint16_t;
     using _HistT = ::std::uint16_t;
@@ -44,11 +44,11 @@ struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_wor
     static constexpr std::uint32_t __incoming_offset_slm_size = (__bin_count + 1) * sizeof(_HistT);
 
     std::uint32_t __n;
-    _RngPack1 __rng_pack_in;
-    _RngPack2 __rng_pack_out;
+    _RangePack1 __range_pack_in;
+    _RangePack2 __range_pack_out;
 
-    __one_wg_kernel(std::uint32_t __n, const _RngPack1& __rng_pack_in, const _RngPack2& __rng_pack_out)
-        : __n(__n), __rng_pack_in(__rng_pack_in), __rng_pack_out(__rng_pack_out)
+    __one_wg_kernel(std::uint32_t __n, const _RangePack1& __range_pack_in, const _RangePack2& __range_pack_out)
+        : __n(__n), __range_pack_in(__range_pack_in), __range_pack_out(__range_pack_out)
     {
     }
 
@@ -83,7 +83,7 @@ struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_wor
         {
             __dpl_esimd::__ns::simd_mask<__data_per_step> __m = (__io_offset + __lane_id + __s) < __n;
             __keys.template select<__data_per_step, 1>(__s) = __dpl_esimd::__ns::merge(
-                __dpl_esimd::__gather<_KeyT, __data_per_step>(__rng_data(__rng_pack_in.__keys_rng()), __lane_id,
+                __dpl_esimd::__gather<_KeyT, __data_per_step>(__rng_data(__range_pack_in.__keys_rng()), __lane_id,
                                                               __io_offset + __s, __m),
                 __dpl_esimd::__ns::simd<_KeyT, __data_per_step>(__sort_identity<_KeyT, __is_ascending>()), __m);
         }
@@ -232,7 +232,7 @@ struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_wor
         _ONEDPL_PRAGMA_UNROLL
         for (::std::uint32_t __s = 0; __s < __data_per_work_item; __s += __data_per_step)
         {
-            __dpl_esimd::__scatter<_KeyT, __data_per_step>(__rng_data(__rng_pack_out.__keys_rng()),
+            __dpl_esimd::__scatter<_KeyT, __data_per_step>(__rng_data(__range_pack_out.__keys_rng()),
                                                            __write_addr.template select<__data_per_step, 1>(__s),
                                                            __keys.template select<__data_per_step, 1>(__s),
                                                            __write_addr.template select<__data_per_step, 1>(__s) < __n);
