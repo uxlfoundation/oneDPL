@@ -89,8 +89,22 @@ main()
     //  - set_algorithms_utils.h:127,133,206 / memory_impl.h:96,111 - __uninitialized_copy_or_discard
     //    default constructs and copy constructs the output element type.
     // Fixing this means assigning through the output iterator instead of constructing in place.
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_UNION
-    run_algo2_all_policies<merge_in_archetype, merge_in_archetype, 1>(
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_UNION_HOST
+    run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
+                std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res =
+                dpl_ranges::set_union(std::forward<decltype(policy)>(policy), view1, view2, out_view, merge_comp{});
+            // The two inputs hold the very same sequence, so the union is that sequence itself.
+            return std::ranges::begin(out_view)[7].val == 7 &&
+                   (std::size_t)(res.out - std::ranges::begin(out_view)) == archetype_test_size;
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "set_union");
+#endif
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_UNION_HETERO
+    run_algo2_hetero_policies<merge_in_archetype, merge_in_archetype, 1>(
         [](auto&& policy, auto&& view1, auto&& view2) {
             archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
                 std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
@@ -104,8 +118,22 @@ main()
         [](auto&&, auto&&, auto res) { return res; }, "set_union");
 #endif
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_DIFFERENCE
-    run_algo2_all_policies<merge_in_archetype, merge_in_archetype, 2>(
+
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_DIFFERENCE_HOST
+    run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
+                std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res = dpl_ranges::set_difference(std::forward<decltype(policy)>(policy), view1, view2, out_view,
+                                                  merge_comp{});
+            // The two inputs are equal, so the difference is empty.
+            return res.out == std::ranges::begin(out_view);
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "set_difference");
+#endif
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_DIFFERENCE_HETERO
+    run_algo2_hetero_policies<merge_in_archetype, merge_in_archetype, 2>(
         [](auto&& policy, auto&& view1, auto&& view2) {
             archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
                 std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
@@ -123,20 +151,45 @@ main()
     // and __simd_minmax_element at unseq_backend_simd.h:635 and :695 value initialize their
     // _ValueType members in the default constructor, so the calls below do not compile with a
     // non-default-constructible element type.
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MIN_MAX_ELEMENT
-    run_algo_all_policies<storable_archetype, 3>(
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MIN_HOST
+    run_algo_host_policies<storable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::min(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto res) { return res.val == 0; }, "min");
+#endif
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MIN_HETERO
+    run_algo_hetero_policies<storable_archetype, 3>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::min(std::forward<decltype(policy)>(policy), view, storable_comp{});
+        },
+        [](auto&&, auto res) { return res.val == 0; }, "min");
+#endif
 
-    run_algo_all_policies<storable_archetype, 4>(
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MAX_HOST
+    run_algo_host_policies<storable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::max(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto res) { return res.val == (int)archetype_test_size - 1; }, "max");
+#endif
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MAX_HETERO
+    run_algo_hetero_policies<storable_archetype, 4>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::max(std::forward<decltype(policy)>(policy), view, storable_comp{});
+        },
+        [](auto&&, auto res) { return res.val == (int)archetype_test_size - 1; }, "max");
+#endif
 
-    run_algo_all_policies<storable_archetype, 5>(
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MINMAX_HOST
+    run_algo_host_policies<storable_archetype>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::minmax(std::forward<decltype(policy)>(policy), view, storable_comp{});
+        },
+        [](auto&&, auto&& res) { return res.min.val == 0 && res.max.val == (int)archetype_test_size - 1; }, "minmax");
+#endif
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MINMAX_HETERO
+    run_algo_hetero_policies<storable_archetype, 5>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::minmax(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },

@@ -99,6 +99,17 @@ run_algo2_host_policies(_Algo __algo, _Checker __checker, const char* __algo_nam
     run_algo2<_Elem1, _Elem2>(__alloc1, __alloc2, oneapi::dpl::execution::par_unseq, __algo, __checker, __algo_name);
 }
 
+#if TEST_DPCPP_BACKEND_PRESENT
+template <typename _Elem, int _CallId, typename _Algo, typename _Checker>
+void
+run_algo_hetero_policies(_Algo __algo, _Checker __checker, const char* __algo_name)
+{
+    auto __policy = TestUtils::get_dpcpp_test_policy<_CallId>();
+    sycl::usm_allocator<_Elem, sycl::usm::alloc::shared> __q_alloc{__policy.queue()};
+    run_algo<_Elem>(__q_alloc, __policy, __algo, __checker, __algo_name);
+}
+#endif
+
 // _CallId makes the SYCL kernel name of the device call unique: every instantiation of the harness
 // submits its own kernel, and with -fno-sycl-unnamed-lambda two kernels sharing a name are a
 // "definition with same mangled name" error.
@@ -109,11 +120,21 @@ run_algo_all_policies(_Algo __algo, _Checker __checker, const char* __algo_name)
     run_algo_host_policies<_Elem>(__algo, __checker, __algo_name);
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    auto __policy = TestUtils::get_dpcpp_test_policy<_CallId>();
-    sycl::usm_allocator<_Elem, sycl::usm::alloc::shared> __q_alloc{__policy.queue()};
-    run_algo<_Elem>(__q_alloc, __policy, __algo, __checker, __algo_name);
+    run_algo_hetero_policies<_Elem, _CallId, _Algo, _Checker>(__algo, __checker, __algo_name);
 #endif //TEST_DPCPP_BACKEND_PRESENT
 }
+
+#if TEST_DPCPP_BACKEND_PRESENT
+template <typename _Elem1, typename _Elem2, int _CallId, typename _Algo, typename _Checker>
+void
+run_algo2_hetero_policies(_Algo __algo, _Checker __checker, const char* __algo_name)
+{
+    auto __policy = TestUtils::get_dpcpp_test_policy<_CallId>();
+    sycl::usm_allocator<_Elem1, sycl::usm::alloc::shared> __q_alloc1{__policy.queue()};
+    sycl::usm_allocator<_Elem2, sycl::usm::alloc::shared> __q_alloc2{__policy.queue()};
+    run_algo2<_Elem1, _Elem2>(__q_alloc1, __q_alloc2, __policy, __algo, __checker, __algo_name);
+}
+#endif
 
 template <typename _Elem1, typename _Elem2, int _CallId, typename _Algo, typename _Checker>
 void
@@ -122,10 +143,7 @@ run_algo2_all_policies(_Algo __algo, _Checker __checker, const char* __algo_name
     run_algo2_host_policies<_Elem1, _Elem2>(__algo, __checker, __algo_name);
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    auto __policy = TestUtils::get_dpcpp_test_policy<_CallId>();
-    sycl::usm_allocator<_Elem1, sycl::usm::alloc::shared> __q_alloc1{__policy.queue()};
-    sycl::usm_allocator<_Elem2, sycl::usm::alloc::shared> __q_alloc2{__policy.queue()};
-    run_algo2<_Elem1, _Elem2>(__q_alloc1, __q_alloc2, __policy, __algo, __checker, __algo_name);
+    run_algo2_hetero_policies<_Elem1, _Elem2, _CallId, _Algo, _Checker>(__algo, __checker, __algo_name);
 #endif //TEST_DPCPP_BACKEND_PRESENT
 }
 
