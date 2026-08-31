@@ -1085,13 +1085,13 @@ struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional
 // __parallel_reduce_by_segment_reduce_then_scan
 
 // Generates input for a reduction operation by applying a binary predicate to the keys of the input range.
-template <typename _BinaryPred>
+template <typename _BinaryPred, typename _IdxType>
 struct __gen_red_by_seg_reduce_input
 {
     // Returns the following tuple:
     // (new_seg_mask, value)
-    // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
-    // ValueType value     : Current element's value for reduction
+    // _IdxType new_seg_mask : 1 for a start of a new segment, 0 otherwise
+    // ValueType value       : Current element's value for reduction
     template <typename _InRng>
     auto
     operator()(const _InRng& __in_rng, std::size_t __id) const
@@ -1106,7 +1106,7 @@ struct __gen_red_by_seg_reduce_input
         // The first segment start (index 0) is not marked with a 1. This is because we need the first
         // segment's key and value output index to be 0. We begin marking new segments only after the
         // first.
-        const std::size_t __new_seg_mask = __id > 0 && !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
+        const _IdxType __new_seg_mask = __id > 0 && !__binary_pred(__in_keys[__id - 1], __in_keys[__id]);
         return oneapi::dpl::__internal::make_tuple(__new_seg_mask, _ValueType{__in_vals[__id]});
     }
     _BinaryPred __binary_pred;
@@ -1137,7 +1137,7 @@ struct __gen_scan_by_seg_reduce_input
 };
 
 // Generates input for a scan operation by applying a binary predicate to the keys of the input range.
-template <typename _BinaryPred>
+template <typename _BinaryPred, typename _IdxType>
 struct __gen_red_by_seg_scan_input
 {
     template <typename _InRng>
@@ -1145,15 +1145,15 @@ struct __gen_red_by_seg_scan_input
     template <typename _InRng>
     using __val_t = oneapi::dpl::__internal::__value_t<decltype(std::get<1>(std::declval<_InRng>().base()))>;
     template <typename _InRng>
-    using __result_t = oneapi::dpl::__internal::tuple<oneapi::dpl::__internal::tuple<std::size_t, __val_t<_InRng>>,
-                                                      bool, __key_t<_InRng>, __key_t<_InRng>>;
+    using __result_t = oneapi::dpl::__internal::tuple<oneapi::dpl::__internal::tuple<_IdxType, __val_t<_InRng>>, bool,
+                                                      __key_t<_InRng>, __key_t<_InRng>>;
     // Returns the following tuple:
     // ((new_seg_mask, value), output_value, next_key, current_key)
-    // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
-    // ValueType value     : Current element's value for reduction
-    // bool output_value   : Whether this work-item should write an output (end of segment)
-    // KeyType next_key    : The key of the next segment to write if output_value is true
-    // KeyType current_key : The current element's key. This is only ever used by work-item 0 to write the first key
+    // _IdxType new_seg_mask : 1 for a start of a new segment, 0 otherwise
+    // ValueType value       : Current element's value for reduction
+    // bool output_value     : Whether this work-item should write an output (end of segment)
+    // KeyType next_key      : The key of the next segment to write if output_value is true
+    // KeyType current_key   : The current element's key. This is only ever used by work-item 0 to write the first key
     template <typename _InRng>
     __result_t<_InRng>
     operator()(const _InRng& __in_rng, std::size_t __id) const
@@ -1171,7 +1171,7 @@ struct __gen_red_by_seg_scan_input
         {
             const __key_t<_InRng>& __prev_key = __in_keys[__id - 1];
             const __key_t<_InRng>& __next_key = __in_keys[__id + 1];
-            const std::size_t __new_seg_mask = !__binary_pred(__prev_key, __current_key);
+            const _IdxType __new_seg_mask = !__binary_pred(__prev_key, __current_key);
             return oneapi::dpl::__internal::make_tuple(
                 oneapi::dpl::__internal::make_tuple(__new_seg_mask, __current_val),
                 !__binary_pred(__current_key, __next_key), __next_key, __current_key);
@@ -1179,7 +1179,7 @@ struct __gen_red_by_seg_scan_input
         else if (__id == __n - 1)
         {
             const __key_t<_InRng>& __prev_key = __in_keys[__id - 1];
-            const std::size_t __new_seg_mask = !__binary_pred(__prev_key, __current_key);
+            const _IdxType __new_seg_mask = !__binary_pred(__prev_key, __current_key);
             return oneapi::dpl::__internal::make_tuple(
                 oneapi::dpl::__internal::make_tuple(__new_seg_mask, __current_val), true, __current_key,
                 __current_key); // Passing __current_key as the next key for the last element is a placeholder
@@ -1188,7 +1188,7 @@ struct __gen_red_by_seg_scan_input
         {
             const __key_t<_InRng>& __next_key = __in_keys[__id + 1];
             return oneapi::dpl::__internal::make_tuple(
-                oneapi::dpl::__internal::make_tuple(std::size_t{0}, __current_val),
+                oneapi::dpl::__internal::make_tuple(_IdxType{0}, __current_val),
                 !__binary_pred(__current_key, __next_key), __next_key, __current_key);
         }
     }

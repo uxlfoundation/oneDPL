@@ -429,10 +429,10 @@ namespace oneapi::dpl::__par_backend_hetero
 template <typename _UnaryOp, typename _InitType>
 struct __gen_transform_input;
 
-template <typename _BinaryPred>
+template <typename _BinaryPred, typename _IdxType>
 struct __gen_red_by_seg_reduce_input;
 
-template <typename _BinaryPred>
+template <typename _BinaryPred, typename _IdxType>
 struct __gen_red_by_seg_scan_input;
 
 template <typename _BinaryPred>
@@ -510,16 +510,16 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <typename _BinaryPred>
+template <typename _BinaryPred, typename _IdxType>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_reduce_input,
-                                                       _BinaryPred)>
+                                                       _BinaryPred, _IdxType)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPred>
 {
 };
 
-template <typename _BinaryPred>
+template <typename _BinaryPred, typename _IdxType>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_red_by_seg_scan_input,
-                                                       _BinaryPred)>
+                                                       _BinaryPred, _IdxType)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPred>
 {
 };
