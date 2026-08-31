@@ -63,6 +63,13 @@ See oneDPL Guide for other `restrictions and known limitations`_.
 - ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
   Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
   to the device compiler.
+- Some algorithms in the ``oneapi::dpl::ranges`` family have known implementation issues where the implementation
+  relies on operations that are not guaranteed to be supported by the types satisfying the requirements
+  specified in the ``requires`` clauses: ``contains``, ``count``, ``fill``, ``find``, ``find_last``,
+  ``max``, ``max_element``, ``min``, ``min_element``, ``minmax``, ``minmax_element``, ``remove``,
+  ``remove_if``, ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union``,
+  ``sort``, ``stable_sort``, ``unique``.
+
 
 New in 2022.13.0
 ================
