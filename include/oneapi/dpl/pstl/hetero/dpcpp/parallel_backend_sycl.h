@@ -1457,8 +1457,7 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _Execution
                        _Compare, _Proj __proj)
 {
 #    if _ONEDPL_ENABLE_KT_RADIX_SORT_IN_SORT && _ONEDPL_KT_RADIX_SORT_IN_SORT_ACTIVE
-    // Attempt KT radix sort dispatch if eligible. Ineligible shapes, devices and sizes fall
-    // through to the legacy radix sort below.
+    // Attempt KT radix sort; ineligible shapes, devices, or sizes fall through to legacy below.
     constexpr bool __is_ascending = __internal::__is_comp_ascending<std::decay_t<_Compare>>::value;
     constexpr auto __shape = __kt_radix::__kt_radix_sort_shape<std::decay_t<_Range>, _Proj>;
 
@@ -1467,8 +1466,7 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _Execution
         sycl::queue __queue = __exec.queue();
         const std::size_t __n = __rng.size();
 
-        // Runtime eligibility: size bounds, forward-progress capability and recognized
-        // architecture. __arch::__unknown means "use the legacy path".
+        // Runtime eligibility check; __arch::__unknown means "use the legacy path".
         const __kt_radix::__arch __a = __kt_radix::__kt_radix_sort_arch_for(__queue, __n);
         if (__a != __kt_radix::__arch::__unknown)
         {
@@ -1768,7 +1766,6 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
     oneapi::dpl::unseq_backend::__no_init_value<_PackedFlagValueType> __placeholder_no_init{};
     using _WriteOp = __write_scan_by_seg<__is_inclusive, _InitType, _BinaryOperator>;
 
-    // Each work-item iteration reads one key and one value from the zipped input.
     constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(_KeyType) + sizeof(_ValueType);
 
     auto&& [__event, __payload] = __parallel_transform_reduce_then_scan<

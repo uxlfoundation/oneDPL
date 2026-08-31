@@ -26,9 +26,7 @@ __rng_data(const _Rng& __rng)
     return __rng.begin();
 }
 
-// ESIMD functionality requires using an accessor directly due to the restriction:
-//      sycl::accessor::operator[] are supported only with -fsycl-esimd-force-stateless-mem.
-//      Otherwise, all memory accesses through an accessor are done via explicit APIs
+// ESIMD requires the accessor directly: sycl::accessor::operator[] needs -fsycl-esimd-force-stateless-mem.
 // TODO: rely on begin() once -fsycl-esimd-force-stateless-mem has been enabled by default
 template <typename _T, sycl::access::mode _M, bool _NoInit>
 auto

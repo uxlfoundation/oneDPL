@@ -13,8 +13,7 @@
 #include "../../../experimental/kt/internal/kt_defs.h"
 
 #if !defined(_ONEDPL_ENABLE_SYCL_RADIX_SORT_KT) || !_ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-// KT radix sort is unavailable in this configuration (no cooperative kernels or sub_group_mask).
-// Define the active flag to 0 so dispatch logic compiles out cleanly.
+// KT radix sort unavailable (no cooperative kernels or sub_group_mask); disable dispatch.
 #    define _ONEDPL_KT_RADIX_SORT_IN_SORT_ACTIVE 0
 #else
 #    define _ONEDPL_KT_RADIX_SORT_IN_SORT_ACTIVE 1
@@ -48,16 +47,14 @@ namespace __kt_radix
 namespace __syclex = sycl::ext::oneapi::experimental;
 namespace __kt_impl = oneapi::dpl::experimental::kt::gpu::__impl;
 
-// Minimum input size below which the legacy radix sort (with its tuned single-work-group kernel)
-// is preferred. This is an unvalidated placeholder; Phase 4 must benchmark to establish the real
-// crossover per architecture.
+// Minimum input size below which the legacy radix sort is preferred; the crossover has not been
+// benchmarked per architecture yet.
 inline constexpr std::size_t __min_size = 1 << 18;
 
 // KT supports inputs strictly smaller than 2^30 (hard limit from radix_sort_utils.h:63).
 inline constexpr std::size_t __max_size = std::size_t(1) << 30;
 
-// Recognized architectures. KT dispatch is available only on PVC and BMG. Unknown architectures
-// are not eligible — there is no generic fallback, per the "known architecture only" decision.
+// Recognized architectures; KT dispatch requires PVC or BMG — no generic fallback exists.
 enum class __arch
 {
     __pvc,
@@ -69,7 +66,6 @@ enum class __arch
 using __param_pvc = oneapi::dpl::experimental::kt::kernel_param<28, 512>;
 using __param_bmg = oneapi::dpl::experimental::kt::kernel_param<10, 512>;
 
-// Maps the device to a recognized architecture (for parameter selection).
 inline __arch
 __kt_radix_arch(const sycl::device& __device)
 {
@@ -86,9 +82,8 @@ __kt_radix_arch(const sycl::device& __device)
     }
 }
 
-// Checks if the device supports the concurrent root-group forward-progress guarantee required by
-// KT cooperative kernels. Without it the KT path throws rather than degrading, so this is a
-// correctness gate, not a tuning heuristic.
+// Correctness gate: KT cooperative kernels require concurrent root-group forward-progress; without
+// it the KT path throws rather than degrading gracefully.
 inline bool
 __device_supports_kt_radix_sort(const sycl::device& __device)
 {
@@ -100,9 +95,8 @@ __device_supports_kt_radix_sort(const sycl::device& __device)
     return std::find(__caps.begin(), __caps.end(), __syclex::forward_progress_guarantee::concurrent) != __caps.end();
 }
 
-// Runtime eligibility. Returns the architecture whose tuned parameters should be used, or
-// __arch::__unknown when the caller must use the legacy radix sort. The size bounds are checked
-// first so that ineligible small sorts do not pay for any device queries.
+// Returns the architecture for parameter selection, or __arch::__unknown (use legacy sort).
+// Size bounds are checked first to avoid device queries for ineligible inputs.
 inline __arch
 __kt_radix_sort_arch_for(const sycl::queue& __q, std::size_t __n)
 {
@@ -116,9 +110,8 @@ __kt_radix_sort_arch_for(const sycl::queue& __q, std::size_t __n)
     return __kt_radix_arch(__device);
 }
 
-// View compatibility: KT can access only contiguous views, matching what __rng_data consumes.
-// all_view is consumed through the .accessor() overload of __rng_data, so it is compatible even
-// though its begin() is not a raw pointer. Template parameters match utils_ranges_sycl.h:69-72.
+// all_view compatibility: KT uses __rng_data which takes the accessor, not begin(), so all_view
+// is contiguous-compatible despite its begin() not being a raw pointer.
 template <typename _V>
 struct __is_all_view : std::false_type
 {
@@ -130,9 +123,8 @@ struct __is_all_view<oneapi::dpl::__ranges::all_view<_T, _AccMode, _NoInit, _Tar
 {
 };
 
-// Anything whose begin() yields a raw pointer is contiguous USM (e.g. guard_view). Views that
-// compose or transform their base (zip_view, transform_view_simple, permutation_view_simple, ...)
-// do not expose begin() at all, so they are excluded automatically.
+// Views with raw-pointer begin() are contiguous USM. Composite/transform views have no begin()
+// and are excluded automatically.
 template <typename _V, typename = void>
 struct __begin_is_raw_pointer : std::false_type
 {
@@ -144,11 +136,9 @@ struct __begin_is_raw_pointer<_V, std::void_t<decltype(std::declval<const _V&>()
 {
 };
 
-// The C++20 ranges patterns hand the user's own range to the backend unchanged (see
-// __get_subscription_view), so a contiguous range such as std::span does not present a raw-pointer
-// begin(). Such ranges are normalized into a guard_view below so that __rng_data takes its pointer
-// path. Views that merely adapt a base (transform, permutation, reverse, the subscription wrapper)
-// are not contiguous and so remain excluded.
+// C++20 contiguous ranges (e.g. std::span) arrive without normalization and have no raw-pointer
+// begin(), so they are wrapped into a guard_view below. Adapting views (transform, permutation,
+// reverse) are non-contiguous and remain excluded.
 #    if _ONEDPL_CPP20_RANGES_PRESENT
 // Expressed as a concept so that the conjunction short-circuits: std::ranges::data must not be
 // substituted for views that are not contiguous in the first place.
@@ -191,7 +181,6 @@ __kt_normalize_view(_V __view)
     }
 }
 
-// Sort shape: keys-only, by-key, or none.
 enum class __kt_sort_shape
 {
     __keys_only,
