@@ -154,7 +154,6 @@ main()
         },
         "stable_sort");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HETERO
     // prpbably incorrect type applied
     run_algo_hetero_policies<permutable_archetype_dc, 4>(
         [](auto&& policy, auto&& view) {
@@ -165,7 +164,6 @@ main()
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
         },
         "stable_sort");
-#endif
 
     run_algo_host_policies<permutable_archetype>(
         [](auto&& policy, auto&& view) {
