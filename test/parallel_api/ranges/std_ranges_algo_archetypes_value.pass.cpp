@@ -166,7 +166,6 @@ main()
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find, noncopyable value");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_HETERO
     // A device policy copies the value into the kernel, so the hetero runs use the device copyable
     // counterpart of the value: it is still neither default constructible nor ordered.
     run_algo_hetero_policies<searchable_archetype_dc, 5>(
@@ -174,7 +173,6 @@ main()
             return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find, noncopyable value");
-#endif
 
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
@@ -200,13 +198,12 @@ main()
             return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
         [](auto&&, auto res) { return res == 1; }, "count, noncopyable value");
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_COUNT_HETERO
+
     run_algo_hetero_policies<searchable_archetype_dc, 7>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
         },
         [](auto&&, auto res) { return res == 1; }, "count, noncopyable value");
-#endif
     
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
@@ -214,13 +211,11 @@ main()
         },
         [](auto&&, auto res) { return res; }, "contains, noncopyable value");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_CONTAINS_HETERO
     run_algo_hetero_policies<searchable_archetype_dc, 8>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
         },
         [](auto&&, auto res) { return res; }, "contains, noncopyable value");
-#endif
 
     // Same for remove(): the predicate it builds internally must hold a reference to the value for
     // the host policies.
