@@ -523,7 +523,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
 
 // Keeps the kernel names of the 32-bit and 64-bit output index instantiations distinct.
 template <typename _Name, typename _IdxType>
-struct __red_by_seg_wrapper;
+struct __red_by_seg_kernel_name;
 
 template <typename _CustomName, typename _IdxType, typename _Range1, typename _Range2, typename _Range3,
           typename _Range4, typename _BinaryPredicate, typename _BinaryOperator>
@@ -1682,14 +1682,13 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 
     // Prior to icpx 2025.0, the reduce-then-scan path performs poorly and should be avoided.
 #if !defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250000
-    // The output index is carried through the sub-group scan alongside each value, so its width sets the width of the
-    // scanned type. It never exceeds the input size, so narrow it to 32 bits whenever the input allows.
-    // Because the init type ends up being tuple<_IdxType, ValType>, the first component is the write index. Add 1 to
-    // return the past-the-end iterator pair of segmented reduction.
+    // The scanned type is tuple<_IdxType, ValType>, whose first component is the output index. Its width is therefore
+    // the width of the scanned type, and it never exceeds the input size. Component 0 of the result is the index of
+    // the last segment written; add 1 for the past-the-end pair.
     if (oneapi::dpl::__ranges::__size(__keys) <= std::numeric_limits<std::uint32_t>::max())
     {
         auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<
-            __red_by_seg_wrapper<_CustomName, std::uint32_t>, std::uint32_t>(
+            __red_by_seg_kernel_name<_CustomName, std::uint32_t>, std::uint32_t>(
             __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
             std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
         return std::get<0>(__res.get()) + 1;
@@ -1697,7 +1696,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
     else
     {
         auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<
-            __red_by_seg_wrapper<_CustomName, std::size_t>, std::size_t>(
+            __red_by_seg_kernel_name<_CustomName, std::uint64_t>, std::uint64_t>(
             __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
             std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
         return std::get<0>(__res.get()) + 1;
