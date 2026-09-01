@@ -93,7 +93,6 @@ main()
         },
         "remove_if");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_IF_HETERO
     // The storage is filled with 0, 1, 2, ... so every third element is removed. The returned
     // subrange is the tail holding the removed elements.
     run_algo_hetero_policies<permutable_archetype_dc, 1>(
@@ -105,7 +104,6 @@ main()
             return std::ranges::size(res) == (n + 2) / 3;
         },
         "remove_if");
-#endif
 
     // All the elements are unique, so nothing is dropped.
     run_algo_host_policies<permutable_archetype>(
