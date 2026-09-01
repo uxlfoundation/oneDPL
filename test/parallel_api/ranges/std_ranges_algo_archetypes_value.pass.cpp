@@ -65,11 +65,19 @@ main()
 
     // search_value is trivially copyable and thus device copyable, so it can be used with all the
     // policies including the device ones.
-    run_algo_all_policies<searchable_archetype, 0>(
+    run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo_hetero_policies<searchable_archetype_dc, 0>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, search_value{searched});
+        },
+        [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find");
+#endif //TEST_DPCPP_BACKEND_PRESENT
 
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
@@ -79,7 +87,7 @@ main()
         "find_last");
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_HETERO
-    run_algo_hetero_policies<searchable_archetype, 1>(
+    run_algo_hetero_policies<searchable_archetype_dc, 1>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
@@ -87,17 +95,33 @@ main()
         "find_last");
 #endif
 
-    run_algo_all_policies<searchable_archetype, 2>(
+    run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&&, auto res) { return res == 1; }, "count");
 
-    run_algo_all_policies<searchable_archetype, 3>(
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo_hetero_policies<searchable_archetype_dc, 2>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, search_value{searched});
+        },
+        [](auto&&, auto res) { return res == 1; }, "count");
+#endif //TEST_DPCPP_BACKEND_PRESENT
+
+    run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&&, auto res) { return res; }, "contains");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo_hetero_policies<searchable_archetype_dc, 3>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, search_value{searched});
+        },
+        [](auto&&, auto res) { return res; }, "contains");
+#endif //TEST_DPCPP_BACKEND_PRESENT
 
     // removable_archetype is movable but not device copyable, so remove() is checked on the host
     // policies only.
@@ -110,7 +134,7 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_HETERO
     // removable_archetype is movable but not device copyable, so remove() is checked on the host
     // policies only.
-    run_algo_hetero_policies<removable_archetype, 4>(
+    run_algo_hetero_policies<removable_archetype_dc, 4>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
@@ -130,7 +154,7 @@ main()
     // nocopy_search_value is neither copyable nor movable: the host implementations must refer to
     // the value passed by the user instead of storing a copy of it. It cannot be captured by a
     // device kernel, hence the host policies only.
-    run_algo_hetero_policies<searchable_archetype, 5>(
+    run_algo_hetero_policies<searchable_archetype_dc, 5>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
@@ -145,7 +169,7 @@ main()
         "find_last, noncopyable value");
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_HETERO
-    run_algo_hetero_policies<searchable_archetype, 6>(
+    run_algo_hetero_policies<searchable_archetype_dc, 6>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
@@ -161,7 +185,7 @@ main()
         },
         [](auto&&, auto res) { return res == 1; }, "count, noncopyable value");
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_COUNT_HETERO
-    run_algo_hetero_policies<searchable_archetype, 7>(
+    run_algo_hetero_policies<searchable_archetype_dc, 7>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
@@ -175,7 +199,7 @@ main()
         [](auto&&, auto res) { return res; }, "contains, noncopyable value");
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_CONTAINS_HETERO
-    run_algo_hetero_policies<searchable_archetype, 8>(
+    run_algo_hetero_policies<searchable_archetype_dc, 8>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
@@ -192,7 +216,7 @@ main()
         "remove, noncopyable value");
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_HETERO
-    run_algo_hetero_policies<removable_archetype, 9>(
+    run_algo_hetero_policies<removable_archetype_dc, 9>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },

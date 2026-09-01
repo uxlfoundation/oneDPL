@@ -100,6 +100,13 @@ run_algo2_host_policies(_Algo __algo, _Checker __checker, const char* __algo_nam
 }
 
 #if TEST_DPCPP_BACKEND_PRESENT
+// A device policy passes the element type into a kernel, so the caller is expected to name the
+// device copyable archetype (the _dc one) explicitly. Everything else the host only archetype lacks
+// (default construction, comparison, ordering, ...) is still missing in the _dc counterpart.
+//
+// _CallId makes the SYCL kernel name of the device call unique: every instantiation of the harness
+// submits its own kernel, and with -fno-sycl-unnamed-lambda two kernels sharing a name are a
+// "definition with same mangled name" error.
 template <typename _Elem, int _CallId, typename _Algo, typename _Checker>
 void
 run_algo_hetero_policies(_Algo __algo, _Checker __checker, const char* __algo_name)
@@ -108,23 +115,8 @@ run_algo_hetero_policies(_Algo __algo, _Checker __checker, const char* __algo_na
     sycl::usm_allocator<_Elem, sycl::usm::alloc::shared> __q_alloc{__policy.queue()};
     run_algo<_Elem>(__q_alloc, __policy, __algo, __checker, __algo_name);
 }
-#endif
 
-// _CallId makes the SYCL kernel name of the device call unique: every instantiation of the harness
-// submits its own kernel, and with -fno-sycl-unnamed-lambda two kernels sharing a name are a
-// "definition with same mangled name" error.
-template <typename _Elem, int _CallId, typename _Algo, typename _Checker>
-void
-run_algo_all_policies(_Algo __algo, _Checker __checker, const char* __algo_name)
-{
-    run_algo_host_policies<_Elem>(__algo, __checker, __algo_name);
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<_Elem, _CallId, _Algo, _Checker>(__algo, __checker, __algo_name);
-#endif //TEST_DPCPP_BACKEND_PRESENT
-}
-
-#if TEST_DPCPP_BACKEND_PRESENT
+// Runs a two-range algorithm with the hetero policies, see run_algo_hetero_policies.
 template <typename _Elem1, typename _Elem2, int _CallId, typename _Algo, typename _Checker>
 void
 run_algo2_hetero_policies(_Algo __algo, _Checker __checker, const char* __algo_name)
@@ -135,17 +127,6 @@ run_algo2_hetero_policies(_Algo __algo, _Checker __checker, const char* __algo_n
     run_algo2<_Elem1, _Elem2>(__q_alloc1, __q_alloc2, __policy, __algo, __checker, __algo_name);
 }
 #endif
-
-template <typename _Elem1, typename _Elem2, int _CallId, typename _Algo, typename _Checker>
-void
-run_algo2_all_policies(_Algo __algo, _Checker __checker, const char* __algo_name)
-{
-    run_algo2_host_policies<_Elem1, _Elem2>(__algo, __checker, __algo_name);
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo2_hetero_policies<_Elem1, _Elem2, _CallId, _Algo, _Checker>(__algo, __checker, __algo_name);
-#endif //TEST_DPCPP_BACKEND_PRESENT
-}
 
 } //namespace test_std_ranges
 

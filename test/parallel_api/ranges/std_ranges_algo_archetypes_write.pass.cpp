@@ -75,7 +75,8 @@ main()
     // constraints of these algorithms allow.
     run_algo_host_policies<writable_archetype>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::fill(std::forward<decltype(policy)>(policy), view, write_value{42});
+            using __elem = std::ranges::range_value_t<std::remove_cvref_t<decltype(view)>>;
+            return dpl_ranges::fill(std::forward<decltype(policy)>(policy), view, typename __elem::value_arg{42});
         },
         [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 42 &&
@@ -86,9 +87,10 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FILL_HETERO
     // None of the archetypes below is device copyable, so the host policies are the only ones the
     // constraints of these algorithms allow.
-    run_algo_hetero_policies<writable_archetype, 0>(
+    run_algo_hetero_policies<writable_archetype_dc, 0>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::fill(std::forward<decltype(policy)>(policy), view, write_value{42});
+            using __elem = std::ranges::range_value_t<std::remove_cvref_t<decltype(view)>>;
+            return dpl_ranges::fill(std::forward<decltype(policy)>(policy), view, typename __elem::value_arg{42});
         },
         [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 42 &&
@@ -97,7 +99,7 @@ main()
         "fill");
 #endif
 
-    run_algo2_all_policies<copy_in_archetype, copy_out_archetype, 1>(
+    run_algo2_host_policies<copy_in_archetype, copy_out_archetype>(
         [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::copy(std::forward<decltype(policy)>(policy), in_view, out_view);
         },
@@ -106,13 +108,32 @@ main()
         },
         "copy");
 
-    run_algo2_all_policies<move_in_archetype, move_out_archetype, 2>(
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo2_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 1>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
+            return dpl_ranges::copy(std::forward<decltype(policy)>(policy), in_view, out_view);
+        },
+        [](auto&& in_view, auto&& out_view, auto) {
+            return std::ranges::begin(out_view)[7].val == std::ranges::begin(in_view)[7].val;
+        },
+        "copy");
+#endif //TEST_DPCPP_BACKEND_PRESENT
+
+    run_algo2_host_policies<move_in_archetype, move_out_archetype>(
         [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::move(std::forward<decltype(policy)>(policy), in_view, out_view);
         },
         [](auto&&, auto&& out_view, auto) { return std::ranges::begin(out_view)[7].val == 7; }, "move");
 
-    run_algo2_all_policies<swap_archetype, swap_archetype, 3>(
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo2_hetero_policies<move_in_archetype_dc, move_out_archetype_dc, 2>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
+            return dpl_ranges::move(std::forward<decltype(policy)>(policy), in_view, out_view);
+        },
+        [](auto&&, auto&& out_view, auto) { return std::ranges::begin(out_view)[7].val == 7; }, "move");
+#endif //TEST_DPCPP_BACKEND_PRESENT
+
+    run_algo2_host_policies<swap_archetype, swap_archetype>(
         [](auto&& policy, auto&& view1, auto&& view2) {
             return dpl_ranges::swap_ranges(std::forward<decltype(policy)>(policy), view1, view2);
         },
@@ -121,12 +142,32 @@ main()
         },
         "swap_ranges");
 
-    run_algo2_all_policies<transform_in_archetype, transform_out_archetype, 4>(
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo2_hetero_policies<swap_archetype_dc, swap_archetype_dc, 3>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            return dpl_ranges::swap_ranges(std::forward<decltype(policy)>(policy), view1, view2);
+        },
+        [](auto&& view1, auto&& view2, auto) {
+            return std::ranges::begin(view1)[7].val == 7 && std::ranges::begin(view2)[7].val == 7;
+        },
+        "swap_ranges");
+#endif //TEST_DPCPP_BACKEND_PRESENT
+
+    run_algo2_host_policies<transform_in_archetype, transform_out_archetype>(
         [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::transform(std::forward<decltype(policy)>(policy), in_view, out_view,
                                          transform_unary_op{});
         },
         [](auto&&, auto&& out_view, auto) { return std::ranges::begin(out_view)[7].val == 14; }, "transform");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo2_hetero_policies<transform_in_archetype_dc, transform_out_archetype_dc, 4>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
+            return dpl_ranges::transform(std::forward<decltype(policy)>(policy), in_view, out_view,
+                                         transform_unary_op{});
+        },
+        [](auto&&, auto&& out_view, auto) { return std::ranges::begin(out_view)[7].val == 14; }, "transform");
+#endif //TEST_DPCPP_BACKEND_PRESENT
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
