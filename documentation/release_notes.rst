@@ -65,10 +65,14 @@ See oneDPL Guide for other `restrictions and known limitations`_.
   to the device compiler.
 - Some algorithms in the ``oneapi::dpl::ranges`` family have known implementation issues where the implementation
   relies on operations that are not guaranteed to be supported by the types satisfying the requirements
-  specified in the ``requires`` clauses: ``contains``, ``count``, ``fill``, ``find``, ``find_last``,
-  ``max``, ``max_element``, ``min``, ``min_element``, ``minmax``, ``minmax_element``, ``remove``,
-  ``remove_if``, ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union``,
-  ``sort``, ``stable_sort``, ``unique``.
+  specified in the ``requires`` clauses: ``max``, ``max_element``, ``min``, ``min_element``, ``minmax``,
+  ``minmax_element``, ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union``.
+  For host policies, ``min``, ``max``, and ``minmax`` additionally require a default-initializable value type and
+  an addressable comparator; ``min_element``, ``max_element``, and ``minmax_element`` additionally require a
+  default-initializable and copyable value type, while ``minmax_element`` also requires construction/assignment
+  from iterator reference types. For host and device policies, ``set_difference``, ``set_intersection``,
+  ``set_symmetric_difference``, and ``set_union`` additionally require an output value type constructible from
+  input reference types and a non-proxy output iterator.
 
 
 New in 2022.13.0
