@@ -49,6 +49,22 @@ static_assert(std::invocable<decltype(dpl_ranges::contains), seq_policy, searcha
 static_assert(std::invocable<decltype(dpl_ranges::remove), seq_policy, removable_view&,
                              const archetypes::nocopy_search_value&>);
 
+// The device copyable counterpart of the value satisfies the very same constraints, and it really is
+// accepted by SYCL without an explicit sycl::is_device_copyable specialization.
+using searchable_dc_view = archetypes::archetype_view<archetypes::searchable_archetype_dc>;
+using removable_dc_view = archetypes::archetype_view<archetypes::removable_archetype_dc>;
+
+static_assert(std::invocable<decltype(dpl_ranges::find), seq_policy, searchable_dc_view&,
+                             const archetypes::nocopy_search_value_dc&>);
+static_assert(std::invocable<decltype(dpl_ranges::find_last), seq_policy, searchable_dc_view&,
+                             const archetypes::nocopy_search_value_dc&>);
+static_assert(std::invocable<decltype(dpl_ranges::count), seq_policy, searchable_dc_view&,
+                             const archetypes::nocopy_search_value_dc&>);
+static_assert(std::invocable<decltype(dpl_ranges::contains), seq_policy, searchable_dc_view&,
+                             const archetypes::nocopy_search_value_dc&>);
+static_assert(std::invocable<decltype(dpl_ranges::remove), seq_policy, removable_dc_view&,
+                             const archetypes::nocopy_search_value_dc&>);
+
 } //namespace test_std_ranges
 #endif //_ENABLE_STD_RANGES_TESTING
 
@@ -151,12 +167,11 @@ main()
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find, noncopyable value");
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_HETERO
-    // nocopy_search_value is neither copyable nor movable: the host implementations must refer to
-    // the value passed by the user instead of storing a copy of it. It cannot be captured by a
-    // device kernel, hence the host policies only.
+    // A device policy copies the value into the kernel, so the hetero runs use the device copyable
+    // counterpart of the value: it is still neither default constructible nor ordered.
     run_algo_hetero_policies<searchable_archetype_dc, 5>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
+            return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find, noncopyable value");
 #endif
@@ -171,7 +186,8 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_HETERO
     run_algo_hetero_policies<searchable_archetype_dc, 6>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
+            return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view,
+                                         nocopy_search_value_dc{searched});
         },
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last, noncopyable value");
@@ -187,7 +203,7 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_COUNT_HETERO
     run_algo_hetero_policies<searchable_archetype_dc, 7>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
+            return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
         },
         [](auto&&, auto res) { return res == 1; }, "count, noncopyable value");
 #endif
@@ -201,7 +217,7 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_CONTAINS_HETERO
     run_algo_hetero_policies<searchable_archetype_dc, 8>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
+            return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
         },
         [](auto&&, auto res) { return res; }, "contains, noncopyable value");
 #endif
@@ -218,7 +234,7 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_HETERO
     run_algo_hetero_policies<removable_archetype_dc, 9>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
+            return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; },
         "remove, noncopyable value");

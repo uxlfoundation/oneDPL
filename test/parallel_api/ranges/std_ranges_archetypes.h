@@ -540,6 +540,29 @@ operator==(const searchable_archetype& __e, const nocopy_search_value& __v)
     return __e.val == __v.val;
 }
 
+// The device copyable counterpart of nocopy_search_value: a device policy copies the value into the
+// kernel, so the value used with the hetero policies has to be trivially copyable. Everything else
+// stays as restricted as in the host only type: no default constructor, no ordering, no relation to
+// the element type but equality.
+struct nocopy_search_value_dc
+{
+    int val;
+
+    explicit nocopy_search_value_dc(int __v) : val(__v) {}
+
+    nocopy_search_value_dc(const nocopy_search_value_dc&) = default;
+    nocopy_search_value_dc& operator=(const nocopy_search_value_dc&) = default;
+
+    friend bool operator==(const nocopy_search_value_dc& __v1, const nocopy_search_value_dc& __v2)
+    {
+        return __v1.val == __v2.val;
+    }
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(nocopy_search_value_dc)
+static_assert(!std::default_initializable<nocopy_search_value_dc>);
+static_assert(!std::totally_ordered<nocopy_search_value_dc>);
+
 // The element archetype of the removing algorithms. remove() requires
 //   std::permutable<iterator_t<_R>> && indirect_binary_predicate<std::ranges::equal_to, ...>
 // so the element has to be movable, but still not copyable and not default constructible.
@@ -596,6 +619,11 @@ struct searchable_archetype_dc
     {
         return __e.val == __v.val;
     }
+
+    friend bool operator==(const searchable_archetype_dc& __e, const nocopy_search_value_dc& __v)
+    {
+        return __e.val == __v.val;
+    }
 };
 
 struct removable_archetype_dc
@@ -617,6 +645,11 @@ struct removable_archetype_dc
     {
         return __e.val == __v.val;
     }
+
+    friend bool operator==(const removable_archetype_dc& __e, const nocopy_search_value_dc& __v)
+    {
+        return __e.val == __v.val;
+    }
 };
 
 // The common reference required by std::equality_comparable_with. It is only ever formed as a
@@ -631,6 +664,7 @@ struct search_common
     search_common(const removable_archetype_dc& __e) : val(__e.val) {}
     search_common(const search_value& __v) : val(__v.val) {}
     search_common(const nocopy_search_value& __v) : val(__v.val) {}
+    search_common(const nocopy_search_value_dc& __v) : val(__v.val) {}
 
     friend bool operator==(const search_common& __v1, const search_common& __v2) { return __v1.val == __v2.val; }
 };
@@ -739,6 +773,34 @@ struct common_type<test_std_ranges::archetypes::nocopy_search_value,
 {
     using type = test_std_ranges::archetypes::search_common;
 };
+
+template <>
+struct common_type<test_std_ranges::archetypes::searchable_archetype_dc,
+                   test_std_ranges::archetypes::nocopy_search_value_dc>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::nocopy_search_value_dc,
+                   test_std_ranges::archetypes::searchable_archetype_dc>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::removable_archetype_dc,
+                   test_std_ranges::archetypes::nocopy_search_value_dc>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::nocopy_search_value_dc,
+                   test_std_ranges::archetypes::removable_archetype_dc>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
 } // namespace std
 
 namespace test_std_ranges
@@ -779,8 +841,12 @@ TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(removable_archetype_dc)
 static_assert(std::indirect_binary_predicate<std::ranges::equal_to, searchable_dc_iterator_t, const search_value*>);
 static_assert(
     std::indirect_binary_predicate<std::ranges::equal_to, searchable_dc_iterator_t, const nocopy_search_value*>);
+static_assert(
+    std::indirect_binary_predicate<std::ranges::equal_to, searchable_dc_iterator_t, const nocopy_search_value_dc*>);
 static_assert(std::permutable<removable_dc_iterator_t>);
 static_assert(std::indirect_binary_predicate<std::ranges::equal_to, removable_dc_iterator_t, const search_value*>);
+static_assert(
+    std::indirect_binary_predicate<std::ranges::equal_to, removable_dc_iterator_t, const nocopy_search_value_dc*>);
 static_assert(!std::default_initializable<searchable_archetype_dc>);
 static_assert(!std::default_initializable<removable_archetype_dc>);
 static_assert(!std::totally_ordered<searchable_archetype_dc>);
