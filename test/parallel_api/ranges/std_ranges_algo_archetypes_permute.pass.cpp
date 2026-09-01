@@ -112,14 +112,12 @@ main()
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == 0; }, "unique");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_UNIQUE_HETERO
     // All the elements are unique, so nothing is dropped.
     run_algo_hetero_policies<permutable_archetype_dc, 2>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::unique(std::forward<decltype(policy)>(policy), view, permutable_equiv{});
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == 0; }, "unique");
-#endif
 
     // prpbably incorrect type applied
     run_algo_host_policies<permutable_archetype>(
