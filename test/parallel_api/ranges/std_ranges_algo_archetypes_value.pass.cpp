@@ -145,7 +145,6 @@ main()
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; }, "remove");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_HETERO
     // removable_archetype is movable but not device copyable, so remove() is checked on the host
     // policies only.
     run_algo_hetero_policies<removable_archetype_dc, 4>(
@@ -153,7 +152,6 @@ main()
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; }, "remove");
-#endif
 
     // nocopy_search_value is neither copyable nor movable: the host implementations must refer to
     // the value passed by the user instead of storing a copy of it. It cannot be captured by a
@@ -222,14 +220,12 @@ main()
         [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; },
         "remove, noncopyable value");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_HETERO
     run_algo_hetero_policies<removable_archetype_dc, 9>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; },
         "remove, noncopyable value");
-#endif
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
