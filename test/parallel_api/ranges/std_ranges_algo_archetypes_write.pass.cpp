@@ -84,7 +84,6 @@ main()
         },
         "fill");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FILL_HETERO
     // None of the archetypes below is device copyable, so the host policies are the only ones the
     // constraints of these algorithms allow.
     run_algo_hetero_policies<writable_archetype_dc, 0>(
@@ -97,7 +96,6 @@ main()
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == 42;
         },
         "fill");
-#endif
 
     run_algo2_host_policies<copy_in_archetype, copy_out_archetype>(
         [](auto&& policy, auto&& in_view, auto&& out_view) {
