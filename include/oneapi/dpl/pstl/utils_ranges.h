@@ -817,7 +817,8 @@ struct __has_subscription_op : std::false_type
 
 // The check is done on a const lvalue since a range is accessed as const inside a kernel.
 template <typename _R>
-struct __has_subscription_op<_R, std::void_t<decltype(std::declval<const std::remove_reference_t<_R>&>().operator[](0))>>
+struct __has_subscription_op<_R,
+                             std::void_t<decltype(std::declval<const std::remove_reference_t<_R>&>().operator[](0))>>
     : std::true_type
 {
 };
