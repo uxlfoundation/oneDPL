@@ -203,13 +203,12 @@ main()
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "min_element");
 #endif
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MIN_ELEMENT_HETERO
+
     run_algo_hetero_policies<read_archetype_dc, 12>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::min_element(std::forward<decltype(policy)>(policy), view, read_comp{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "min_element");
-#endif
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MAX_ELEMENT_HOST
     run_algo_host_policies<read_archetype>(
