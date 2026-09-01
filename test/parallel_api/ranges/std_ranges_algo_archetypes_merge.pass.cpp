@@ -70,16 +70,33 @@ main()
     // constraints allow.
 
     // Both inputs hold the very same sorted sequence 0, 1, 2, ...
-    run_algo2_all_policies<merge_in_archetype, merge_in_archetype, 0>(
+    run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
         [](auto&& policy, auto&& view1, auto&& view2) {
-            archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
-                std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
+            using __out_elem =
+                typename std::ranges::range_value_t<std::remove_cvref_t<decltype(view1)>>::out_type;
+            archetype_storage<__out_elem, std::allocator<__out_elem>> out_storage(
+                std::allocator<__out_elem>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
             auto out_view = out_storage.view();
             auto res = dpl_ranges::merge(std::forward<decltype(policy)>(policy), view1, view2, out_view, merge_comp{});
             return std::ranges::begin(out_view)[0].val == 0 && std::ranges::begin(out_view)[1].val == 0 &&
                    std::ranges::begin(out_view)[2].val == 1 && res.out == std::ranges::end(out_view);
         },
         [](auto&&, auto&&, auto res) { return res; }, "merge");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo2_hetero_policies<merge_in_archetype_dc, merge_in_archetype_dc, 0>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            using __out_elem =
+                typename std::ranges::range_value_t<std::remove_cvref_t<decltype(view1)>>::out_type;
+            archetype_storage<__out_elem, std::allocator<__out_elem>> out_storage(
+                std::allocator<__out_elem>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res = dpl_ranges::merge(std::forward<decltype(policy)>(policy), view1, view2, out_view, merge_comp{});
+            return std::ranges::begin(out_view)[0].val == 0 && std::ranges::begin(out_view)[1].val == 0 &&
+                   std::ranges::begin(out_view)[2].val == 1 && res.out == std::ranges::end(out_view);
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "merge");
+#endif //TEST_DPCPP_BACKEND_PRESENT
 
     // KSATODO: the set operations only require std::mergeable, i.e. indirectly_copyable from either
     // input into the output, which is an assignment and not a construction. The implementation
@@ -104,10 +121,12 @@ main()
         [](auto&&, auto&&, auto res) { return res; }, "set_union");
 #endif
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_UNION_HETERO
-    run_algo2_hetero_policies<merge_in_archetype, merge_in_archetype, 1>(
+    run_algo2_hetero_policies<merge_in_archetype_dc, merge_in_archetype_dc, 1>(
         [](auto&& policy, auto&& view1, auto&& view2) {
-            archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
-                std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
+            using __out_elem =
+                typename std::ranges::range_value_t<std::remove_cvref_t<decltype(view1)>>::out_type;
+            archetype_storage<__out_elem, std::allocator<__out_elem>> out_storage(
+                std::allocator<__out_elem>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
             auto out_view = out_storage.view();
             auto res =
                 dpl_ranges::set_union(std::forward<decltype(policy)>(policy), view1, view2, out_view, merge_comp{});
@@ -133,10 +152,12 @@ main()
         [](auto&&, auto&&, auto res) { return res; }, "set_difference");
 #endif
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_DIFFERENCE_HETERO
-    run_algo2_hetero_policies<merge_in_archetype, merge_in_archetype, 2>(
+    run_algo2_hetero_policies<merge_in_archetype_dc, merge_in_archetype_dc, 2>(
         [](auto&& policy, auto&& view1, auto&& view2) {
-            archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
-                std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
+            using __out_elem =
+                typename std::ranges::range_value_t<std::remove_cvref_t<decltype(view1)>>::out_type;
+            archetype_storage<__out_elem, std::allocator<__out_elem>> out_storage(
+                std::allocator<__out_elem>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
             auto out_view = out_storage.view();
             auto res = dpl_ranges::set_difference(std::forward<decltype(policy)>(policy), view1, view2, out_view,
                                                   merge_comp{});
@@ -159,7 +180,7 @@ main()
         [](auto&&, auto res) { return res.val == 0; }, "min");
 #endif
 
-    run_algo_hetero_policies<storable_archetype, 3>(
+    run_algo_hetero_policies<storable_archetype_dc, 3>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::min(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
@@ -173,7 +194,7 @@ main()
         [](auto&&, auto res) { return res.val == (int)archetype_test_size - 1; }, "max");
 #endif
 
-    run_algo_hetero_policies<storable_archetype, 4>(
+    run_algo_hetero_policies<storable_archetype_dc, 4>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::max(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
@@ -187,7 +208,7 @@ main()
         [](auto&&, auto&& res) { return res.min.val == 0 && res.max.val == (int)archetype_test_size - 1; }, "minmax");
 #endif
 
-    run_algo_hetero_policies<storable_archetype, 5>(
+    run_algo_hetero_policies<storable_archetype_dc, 5>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::minmax(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },

@@ -63,13 +63,23 @@ main()
 
     // permutable_archetype is movable but not copyable, so it is not device copyable either: the
     // host policies are the only ones its constraints allow.
-    run_algo_all_policies<permutable_archetype, 0>(
+    run_algo_host_policies<permutable_archetype>(
         [](auto&& policy, auto&& view) { return dpl_ranges::reverse(std::forward<decltype(policy)>(policy), view); },
         [](auto&& view, auto) {
             const auto n = std::ranges::size(view);
             return std::ranges::begin(view)[0].val == (int)n - 1 && std::ranges::begin(view)[n - 1].val == 0;
         },
         "reverse");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo_hetero_policies<permutable_archetype_dc, 0>(
+        [](auto&& policy, auto&& view) { return dpl_ranges::reverse(std::forward<decltype(policy)>(policy), view); },
+        [](auto&& view, auto) {
+            const auto n = std::ranges::size(view);
+            return std::ranges::begin(view)[0].val == (int)n - 1 && std::ranges::begin(view)[n - 1].val == 0;
+        },
+        "reverse");
+#endif //TEST_DPCPP_BACKEND_PRESENT
 
     // The storage is filled with 0, 1, 2, ... so every third element is removed. The returned
     // subrange is the tail holding the removed elements.
@@ -86,7 +96,7 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_IF_HETERO
     // The storage is filled with 0, 1, 2, ... so every third element is removed. The returned
     // subrange is the tail holding the removed elements.
-    run_algo_hetero_policies<permutable_archetype, 1>(
+    run_algo_hetero_policies<permutable_archetype_dc, 1>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove_if(std::forward<decltype(policy)>(policy), view, permutable_pred{});
         },
@@ -106,7 +116,7 @@ main()
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_UNIQUE_HETERO
     // All the elements are unique, so nothing is dropped.
-    run_algo_hetero_policies<permutable_archetype, 2>(
+    run_algo_hetero_policies<permutable_archetype_dc, 2>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::unique(std::forward<decltype(policy)>(policy), view, permutable_equiv{});
         },
@@ -126,7 +136,7 @@ main()
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT_HETERO
     // prpbably incorrect type applied
-    run_algo_hetero_policies<permutable_archetype, 3>(
+    run_algo_hetero_policies<permutable_archetype_dc, 3>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});
         },
@@ -150,7 +160,7 @@ main()
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HETERO
     // prpbably incorrect type applied
-    run_algo_hetero_policies<permutable_archetype, 4>(
+    run_algo_hetero_policies<permutable_archetype_dc, 4>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::stable_sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});
         },
@@ -161,11 +171,19 @@ main()
         "stable_sort");
 #endif
 
-    run_algo_all_policies<permutable_archetype, 5>(
+    run_algo_host_policies<permutable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::is_sorted(std::forward<decltype(policy)>(policy), view, permutable_comp{});
         },
         [](auto&&, auto res) { return res; }, "is_sorted");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo_hetero_policies<permutable_archetype_dc, 5>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::is_sorted(std::forward<decltype(policy)>(policy), view, permutable_comp{});
+        },
+        [](auto&&, auto res) { return res; }, "is_sorted");
+#endif //TEST_DPCPP_BACKEND_PRESENT
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
