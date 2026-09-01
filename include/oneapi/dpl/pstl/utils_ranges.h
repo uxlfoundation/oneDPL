@@ -838,7 +838,8 @@ struct __subscription_impl_view_simple : std::ranges::view_interface<__subscript
     static_assert(!__has_subscription_op<_View>::value,
                   "The usage of __subscription_impl_view_simple prohibited if _View::operator[] implemented");
 
-    _View __base;
+    // mutable to support views which are not const-iterable (f.e. std::ranges::reverse_view over a non-common range)
+    mutable _View __base;
 
     constexpr __subscription_impl_view_simple()
         requires std::default_initializable<_View>
