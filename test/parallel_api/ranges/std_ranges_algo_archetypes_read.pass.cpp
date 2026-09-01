@@ -218,14 +218,13 @@ main()
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view) - 1; },
         "max_element");
 #endif
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MAX_ELEMENT_HETERO
+
     run_algo_hetero_policies<read_archetype_dc, 13>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::max_element(std::forward<decltype(policy)>(policy), view, read_comp{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view) - 1; },
         "max_element");
-#endif
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MINMAX_ELEMENT_HOST
     run_algo_host_policies<read_archetype>(
