@@ -595,24 +595,21 @@ __parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size _
 {
     assert(oneapi::dpl::__ranges::__size(__in_rng) == __n);
 
-    using __element_type = oneapi::dpl::__internal::__value_t<_InRng>;
+    using _ElementT = oneapi::dpl::__internal::__value_t<_InRng>;
     using _GenReduceInput = __par_backend_hetero::__gen_count_mask_and_copy<_GenMask, _Size>;
     using _GenScanInput =
         __par_backend_hetero::__gen_expand_count_mask<_GenMask, _Size, __par_backend_hetero::__get_first_range>;
     using _ScanInputTransform = __par_backend_hetero::__get_zeroth_element;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<__element_type> __tbuf(__n);
-    auto __zipped_rng = oneapi::dpl::__ranges::make_zip_view(
-        __in_rng, oneapi::dpl::__ranges::all_view<__element_type, sycl::access_mode::read_write>(__tbuf.get_buffer()));
-
     // Reduce reads one input element and stores it in the buffer, then scan reads the element from the buffer.
     // To ensure the buffer is in cache, all input reads need to be in cache as well; but that will double
     // kernel launches.
     // TODO: check if performance difference between 1 and 2 element sizes warrants additional tuning
-    constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(__element_type) * 2;
+    constexpr std::uint32_t __cache_bytes_per_iter = sizeof(_ElementT) * 2;
 
-    return __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_work_item_iter, _CustomName>(
-        __q, __n, __zipped_rng, __in_rng, _GenReduceInput{__generate_mask}, std::plus<_Size>{},
+    return __parallel_transform_reduce_then_scan</*_Bounded=*/false, __cache_bytes_per_iter, _CustomName,
+                                                 /*the type of extra storage*/_ElementT>(
+        __q, __n, __in_rng, __in_rng, _GenReduceInput{__generate_mask}, std::plus<_Size>{},
         _GenScanInput{__generate_mask, __par_backend_hetero::__get_first_range{}}, _ScanInputTransform{}, __write_op,
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }

@@ -2313,9 +2313,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 // strategy via _ScanOpsTag, which selects which communication path(s) are compiled into the kernel. The
 // runtime __use_subgroup_ops flag then chooses between them when both are available.
 template <bool _Bounded, typename _ScanOpsTag, std::uint32_t __bytes_per_work_item_iter, typename _CustomName,
-          typename _InRng, typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
-          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
-          typename _IsUniquePattern, typename _StopPosInitState>
+          typename _ExtraStorageT, typename _InRng, typename _OutRng, typename _GenReduceInput, typename _ReduceOp,
+          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
+          typename _Inclusive, typename _IsUniquePattern, typename _StopPosInitState>
 __transform_reduce_then_scan_result_t<_Bounded, typename _InitType::__value_type, _StopPosInitState>
 __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng,
                                            _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
@@ -2477,8 +2477,12 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     // Allocate storage for stop and out-of-bounds position if needed
     auto __stop_pos_storage = __internal::__create_stop_pos_storage_opt<_Bounded, _StopPosInitState>(__q);
 
-    // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
-    // with sufficiently large L2 / L3 caches.
+    oneapi::dpl::__par_backend_hetero::__buffer<_ExtraStorageT> __tbuf(__n);
+    auto __zipped_rng = oneapi::dpl::__ranges::make_zip_view(
+        __in_rng, oneapi::dpl::__ranges::all_view<_ExtraStorageT, sycl::access_mode::read_write>(__tbuf.get_buffer()));
+
+    // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first
+    // and second kernel for accelerators with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
     {
         std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(
@@ -2489,10 +2493,10 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
         auto __local_range = sycl::range<1>(__work_group_size);
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
-        __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
+        __prior_event = __reduce_submitter(__q, __kernel_nd_range, __zipped_rng, __result_and_scratch, __prior_event,
                                            __inputs_per_item, __b, __stop_pos_storage, __stop_pos_initial_state);
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
-        __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
+        __prior_event = __scan_submitter(__q, __kernel_nd_range, __zipped_rng, __out_rng, __result_and_scratch,
                                          __prior_event, __inputs_per_item, __b, __stop_pos_storage);
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
@@ -2525,8 +2529,8 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 //            for a single iteration of its serial loop over a block. It is used only as a block sizing heuristic: we
 //            try to make a block's total input footprint fit within the last level cache so that the scan kernel can
 //            re-read the input from LLC rather than paying for a second read from global memory.
-template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng,
-          typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
+template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _ExtraStorageT = void,
+          typename _InRng, typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
           typename _IsUniquePattern, typename _StopPosInitState = oneapi::dpl::__internal::__difference_t<_InRng>>
 __transform_reduce_then_scan_result_t<_Bounded, typename _InitType::__value_type, _StopPosInitState>
@@ -2540,7 +2544,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     using _ValueType = typename _InitType::__value_type;
 
     // This static assert clarifies a cryptic error for "no matching function" due to mismatched type
-    using _GenScanInputResult = typename _GenScanInput::template __result_t<std::decay_t<_InRng>>;
+    using _InputAndScratchRange = __ranges::zip_view<_InRng, __ranges::all_view<_ExtraStorageT>>;
+    using _GenScanInputResult = typename _GenScanInput::template __result_t<std::decay_t<_InputAndScratchRange>>;
     using _ScannedValueType = std::decay_t<std::invoke_result_t<_ScanInputTransform, _GenScanInputResult&>>;
     static_assert(std::is_same_v<_ScannedValueType, _ValueType>,
                   "reduce-then-scan: the init value type must match the type produced by applying the scan input "
@@ -2551,7 +2556,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     {
         bool __use_subgroup_ops = __q.get_device().is_gpu();
         return __parallel_transform_reduce_then_scan_impl<_Bounded, __slm_or_subgroup_tag<_ValueType>,
-                                                          __bytes_per_work_item_iter, _CustomName>(
+                                                          __bytes_per_work_item_iter, _CustomName, _ExtraStorageT>(
             __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
             __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
             __use_subgroup_ops, __stop_pos_initial_state, std::move(__prior_event));
@@ -2559,7 +2564,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     else
     {
         return __parallel_transform_reduce_then_scan_impl<_Bounded, __slm_only_tag<_ValueType>,
-                                                          __bytes_per_work_item_iter, _CustomName>(
+                                                          __bytes_per_work_item_iter, _CustomName, _ExtraStorageT>(
             __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
             __gen_scan_input, __scan_input_transform, __write_op, __init, __inclusive, __is_unique_pattern,
             /*__use_subgroup_ops=*/false, __stop_pos_initial_state, std::move(__prior_event));
