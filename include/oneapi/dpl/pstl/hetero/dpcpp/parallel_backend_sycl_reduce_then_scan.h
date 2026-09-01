@@ -2477,9 +2477,16 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     // Allocate storage for stop and out-of-bounds position if needed
     auto __stop_pos_storage = __internal::__create_stop_pos_storage_opt<_Bounded, _StopPosInitState>(__q);
 
+#if 0
     oneapi::dpl::__par_backend_hetero::__buffer<_ExtraStorageT> __tbuf(__n);
     auto __zipped_rng = oneapi::dpl::__ranges::make_zip_view(
         __in_rng, oneapi::dpl::__ranges::all_view<_ExtraStorageT, sycl::access_mode::read_write>(__tbuf.get_buffer()));
+#else
+    _ExtraStorageT* __ptr = __internal::__sycl_usm_alloc<_ExtraStorageT, sycl::usm::alloc::shared>(__q, __n);
+    assert(__ptr);
+    auto __raii = std::unique_ptr<_ExtraStorageT, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+    auto __zipped_rng = __ranges::make_zip_view(__in_rng, __ranges::guard_view(__ptr, __n));
+#endif
 
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first
     // and second kernel for accelerators with sufficiently large L2 / L3 caches.
