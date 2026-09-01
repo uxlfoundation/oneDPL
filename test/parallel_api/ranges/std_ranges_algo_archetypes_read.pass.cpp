@@ -237,7 +237,7 @@ main()
         },
         "minmax_element");
 #endif
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MINMAX_ELEMENT_HETERO
+
     run_algo_hetero_policies<read_archetype_dc, 14>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::minmax_element(std::forward<decltype(policy)>(policy), view, read_comp{});
@@ -247,7 +247,6 @@ main()
                    res.max == std::ranges::begin(view) + std::ranges::size(view) - 1;
         },
         "minmax_element");
-#endif
 
     run_algo_host_policies<read_archetype>(
         [](auto&& policy, auto&& view) {
