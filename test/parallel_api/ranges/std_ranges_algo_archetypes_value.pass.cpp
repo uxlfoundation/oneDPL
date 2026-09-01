@@ -102,14 +102,12 @@ main()
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_HETERO
     run_algo_hetero_policies<searchable_archetype_dc, 1>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last");
-#endif
 
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
@@ -181,7 +179,6 @@ main()
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last, noncopyable value");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_HETERO
     run_algo_hetero_policies<searchable_archetype_dc, 6>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view,
@@ -189,7 +186,6 @@ main()
         },
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last, noncopyable value");
-#endif
 
     // count() must refer to the value instead of storing a copy of it: the requires-clause never
     // asks for a copyable value type.
