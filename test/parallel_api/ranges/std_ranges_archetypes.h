@@ -26,6 +26,10 @@
 #include <ranges>
 #include <type_traits>
 
+#if TEST_DPCPP_BACKEND_PRESENT
+#    include <sycl/sycl.hpp>
+#endif
+
 // The types below are "archetypes": each of them satisfies exactly the constraints written in the
 // requires-clause of the corresponding oneapi::dpl::ranges algorithm and nothing more. Every
 // operation which is not implied by those constraints is explicitly deleted. If an algorithm
@@ -56,6 +60,26 @@
     _Name& operator=(const _Name&) = delete;                                                                           \
     _Name& operator=(_Name&&) = delete;                                                                                \
     TEST_ARCHETYPE_DELETED_ADDRESSOF
+
+// The device copyable counterpart of TEST_ARCHETYPE_DELETED_OPERATIONS: the copy and the move
+// operations are trivial, which makes the type trivially copyable and thus device copyable by
+// default, while everything else stays exactly as restricted as in the host only archetype.
+#define TEST_ARCHETYPE_DEFAULTED_OPERATIONS(_Name)                                                                     \
+    _Name(const _Name&) = default;                                                                                     \
+    _Name(_Name&&) = default;                                                                                          \
+    _Name& operator=(const _Name&) = default;                                                                          \
+    _Name& operator=(_Name&&) = default;                                                                               \
+    TEST_ARCHETYPE_DELETED_ADDRESSOF
+
+// Checks that a device copyable archetype really is accepted by SYCL without an explicit
+// sycl::is_device_copyable specialization.
+#if TEST_DPCPP_BACKEND_PRESENT
+#    define TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(_Name)                                                                 \
+        static_assert(std::is_trivially_copyable_v<_Name>);                                                             \
+        static_assert(sycl::is_device_copyable_v<_Name>);
+#else
+#    define TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(_Name) static_assert(std::is_trivially_copyable_v<_Name>);
+#endif
 
 namespace test_std_ranges
 {
@@ -375,26 +399,50 @@ static_assert(!std::move_constructible<read_archetype>);
 static_assert(!std::equality_comparable<read_archetype>);
 static_assert(!std::totally_ordered<read_archetype>);
 
+// The device copyable counterpart of read_archetype, used with the hetero policies: it is trivially
+// copyable, so a device kernel may take it by value, but it is still not default constructible and
+// not comparable.
+struct read_archetype_dc
+{
+    int val;
+
+    explicit read_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(read_archetype_dc)
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(read_archetype_dc)
+static_assert(!std::default_initializable<read_archetype_dc>);
+static_assert(!std::equality_comparable<read_archetype_dc>);
+static_assert(!std::totally_ordered<read_archetype_dc>);
+
 // The callables take exactly const _T& and return exactly the required type, so an implementation
 // cannot pass an rvalue, a copy, or expect a wider return type.
 struct read_unary_fun
 {
     void operator()(const read_archetype&) const {}
+    void operator()(const read_archetype_dc&) const {}
 };
 
 struct read_unary_pred
 {
     bool operator()(const read_archetype& __v) const { return __v.val % 3 == 0; }
+    bool operator()(const read_archetype_dc& __v) const { return __v.val % 3 == 0; }
 };
 
 struct read_binary_pred
 {
     bool operator()(const read_archetype& __v1, const read_archetype& __v2) const { return __v1.val == __v2.val; }
+    bool operator()(const read_archetype_dc& __v1, const read_archetype_dc& __v2) const
+    {
+        return __v1.val == __v2.val;
+    }
 };
 
 struct read_comp
 {
     bool operator()(const read_archetype& __v1, const read_archetype& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(const read_archetype_dc& __v1, const read_archetype_dc& __v2) const { return __v1.val < __v2.val; }
 };
 
 // A projection which returns a prvalue of an unrelated type, so nothing links the projected type
@@ -407,6 +455,7 @@ struct read_proj_result
 struct read_proj
 {
     read_proj_result operator()(const read_archetype& __v) const { return read_proj_result{__v.val}; }
+    read_proj_result operator()(const read_archetype_dc& __v) const { return read_proj_result{__v.val}; }
 };
 
 struct read_proj_pred
@@ -526,6 +575,50 @@ struct removable_archetype
     friend bool operator==(const removable_archetype& __e, const search_value& __v) { return __e.val == __v.val; }
 };
 
+// The device copyable counterparts of the two archetypes above, used with the hetero policies.
+// They are trivially copyable and thus device copyable by default; nothing else is added.
+struct searchable_archetype_dc
+{
+    int val;
+
+    explicit searchable_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(searchable_archetype_dc)
+
+    friend bool operator==(const searchable_archetype_dc& __e1, const searchable_archetype_dc& __e2)
+    {
+        return __e1.val == __e2.val;
+    }
+
+    friend bool operator==(const searchable_archetype_dc& __e, const search_value& __v) { return __e.val == __v.val; }
+
+    friend bool operator==(const searchable_archetype_dc& __e, const nocopy_search_value& __v)
+    {
+        return __e.val == __v.val;
+    }
+};
+
+struct removable_archetype_dc
+{
+    int val;
+
+    explicit removable_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(removable_archetype_dc)
+
+    friend bool operator==(const removable_archetype_dc& __e1, const removable_archetype_dc& __e2)
+    {
+        return __e1.val == __e2.val;
+    }
+
+    friend bool operator==(const removable_archetype_dc& __e, const search_value& __v) { return __e.val == __v.val; }
+
+    friend bool operator==(const removable_archetype_dc& __e, const nocopy_search_value& __v)
+    {
+        return __e.val == __v.val;
+    }
+};
+
 // The common reference required by std::equality_comparable_with. It is only ever formed as a
 // reference by the concept machinery, so a minimal type which both archetypes convert to is enough.
 struct search_common
@@ -534,6 +627,8 @@ struct search_common
 
     search_common(const searchable_archetype& __e) : val(__e.val) {}
     search_common(const removable_archetype& __e) : val(__e.val) {}
+    search_common(const searchable_archetype_dc& __e) : val(__e.val) {}
+    search_common(const removable_archetype_dc& __e) : val(__e.val) {}
     search_common(const search_value& __v) : val(__v.val) {}
     search_common(const nocopy_search_value& __v) : val(__v.val) {}
 
@@ -592,6 +687,58 @@ struct common_type<test_std_ranges::archetypes::nocopy_search_value, test_std_ra
 {
     using type = test_std_ranges::archetypes::search_common;
 };
+
+template <>
+struct common_type<test_std_ranges::archetypes::searchable_archetype_dc, test_std_ranges::archetypes::search_value>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::search_value, test_std_ranges::archetypes::searchable_archetype_dc>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::searchable_archetype_dc,
+                   test_std_ranges::archetypes::nocopy_search_value>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::nocopy_search_value,
+                   test_std_ranges::archetypes::searchable_archetype_dc>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::removable_archetype_dc, test_std_ranges::archetypes::search_value>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::search_value, test_std_ranges::archetypes::removable_archetype_dc>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::removable_archetype_dc,
+                   test_std_ranges::archetypes::nocopy_search_value>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
+
+template <>
+struct common_type<test_std_ranges::archetypes::nocopy_search_value,
+                   test_std_ranges::archetypes::removable_archetype_dc>
+{
+    using type = test_std_ranges::archetypes::search_common;
+};
 } // namespace std
 
 namespace test_std_ranges
@@ -624,6 +771,21 @@ static_assert(!std::totally_ordered<search_value>);
 static_assert(!std::default_initializable<searchable_archetype>);
 static_assert(!std::totally_ordered<searchable_archetype>);
 
+using searchable_dc_iterator_t = std::ranges::iterator_t<archetype_view<searchable_archetype_dc>>;
+using removable_dc_iterator_t = std::ranges::iterator_t<archetype_view<removable_archetype_dc>>;
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(searchable_archetype_dc)
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(removable_archetype_dc)
+static_assert(std::indirect_binary_predicate<std::ranges::equal_to, searchable_dc_iterator_t, const search_value*>);
+static_assert(
+    std::indirect_binary_predicate<std::ranges::equal_to, searchable_dc_iterator_t, const nocopy_search_value*>);
+static_assert(std::permutable<removable_dc_iterator_t>);
+static_assert(std::indirect_binary_predicate<std::ranges::equal_to, removable_dc_iterator_t, const search_value*>);
+static_assert(!std::default_initializable<searchable_archetype_dc>);
+static_assert(!std::default_initializable<removable_archetype_dc>);
+static_assert(!std::totally_ordered<searchable_archetype_dc>);
+static_assert(!std::totally_ordered<removable_archetype_dc>);
+
 // Family 3: two-range algorithms constrained by std::indirectly_comparable.
 // std::indirectly_comparable<It1, It2, _Pred, _Proj1, _Proj2> only asks for the predicate to be
 // invocable on the two projected references, so the two element types stay unrelated and neither of
@@ -648,15 +810,42 @@ struct rhs_archetype
     TEST_ARCHETYPE_DELETED_OPERATIONS(rhs_archetype)
 };
 
+// The device copyable counterparts of the two archetypes above, used with the hetero policies.
+struct lhs_archetype_dc
+{
+    int val;
+
+    explicit lhs_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(lhs_archetype_dc)
+};
+
+struct rhs_archetype_dc
+{
+    int val;
+
+    explicit rhs_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(rhs_archetype_dc)
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(lhs_archetype_dc)
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(rhs_archetype_dc)
+static_assert(!std::equality_comparable<lhs_archetype_dc>);
+static_assert(!std::equality_comparable<rhs_archetype_dc>);
+
 struct cross_pred
 {
     bool operator()(const lhs_archetype& __v1, const rhs_archetype& __v2) const { return __v1.val == __v2.val; }
+    bool operator()(const lhs_archetype_dc& __v1, const rhs_archetype_dc& __v2) const { return __v1.val == __v2.val; }
 };
 
 using lhs_iterator_t = std::ranges::iterator_t<archetype_view<lhs_archetype>>;
 using rhs_iterator_t = std::ranges::iterator_t<archetype_view<rhs_archetype>>;
 
 static_assert(std::indirectly_comparable<lhs_iterator_t, rhs_iterator_t, cross_pred>);
+static_assert(std::indirectly_comparable<std::ranges::iterator_t<archetype_view<lhs_archetype_dc>>,
+                                        std::ranges::iterator_t<archetype_view<rhs_archetype_dc>>, cross_pred>);
 static_assert(!std::equality_comparable<lhs_archetype>);
 static_assert(!std::equality_comparable<rhs_archetype>);
 static_assert(!std::copy_constructible<lhs_archetype>);
@@ -676,9 +865,26 @@ struct write_value
     TEST_ARCHETYPE_DELETED_OPERATIONS(write_value)
 };
 
+// The device copyable counterpart of write_value: a value argument is passed to a device kernel by
+// copy, so the hetero policies need a trivially copyable one.
+struct write_value_dc
+{
+    int val;
+
+    explicit write_value_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(write_value_dc)
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(write_value_dc)
+
 struct writable_archetype
 {
     int val;
+
+    // The value type the algorithm has to be called with, so that a generic test body may pick the
+    // right one for the element type it works on.
+    using value_arg = write_value;
 
     explicit writable_archetype(int __v) : val(__v) {}
 
@@ -695,9 +901,31 @@ struct writable_archetype
     }
 };
 
+struct writable_archetype_dc
+{
+    int val;
+
+    using value_arg = write_value_dc;
+
+    explicit writable_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(writable_archetype_dc)
+
+    writable_archetype_dc& operator=(const write_value_dc& __v)
+    {
+        val = __v.val;
+        return *this;
+    }
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(writable_archetype_dc)
+
 using writable_iterator_t = std::ranges::iterator_t<archetype_view<writable_archetype>>;
 
 static_assert(std::indirectly_writable<writable_iterator_t, const write_value&>);
+static_assert(std::indirectly_writable<std::ranges::iterator_t<archetype_view<writable_archetype_dc>>,
+                                       const write_value_dc&>);
+static_assert(!std::default_initializable<writable_archetype_dc>);
 static_assert(!std::copyable<writable_archetype>);
 static_assert(!std::movable<writable_archetype>);
 static_assert(!std::default_initializable<writable_archetype>);
@@ -736,6 +964,37 @@ struct copy_out_archetype
         return *this;
     }
 };
+
+// The device copyable counterparts of the two archetypes above, used with the hetero policies.
+struct copy_in_archetype_dc
+{
+    int val;
+
+    explicit copy_in_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(copy_in_archetype_dc)
+};
+
+struct copy_out_archetype_dc
+{
+    int val;
+
+    explicit copy_out_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(copy_out_archetype_dc)
+
+    copy_out_archetype_dc& operator=(copy_in_archetype_dc& __v)
+    {
+        val = __v.val;
+        return *this;
+    }
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(copy_in_archetype_dc)
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(copy_out_archetype_dc)
+static_assert(std::indirectly_copyable<std::ranges::iterator_t<archetype_view<copy_in_archetype_dc>>,
+                                       std::ranges::iterator_t<archetype_view<copy_out_archetype_dc>>>);
+static_assert(!std::default_initializable<copy_out_archetype_dc>);
 
 using copy_in_iterator_t = std::ranges::iterator_t<archetype_view<copy_in_archetype>>;
 using copy_out_iterator_t = std::ranges::iterator_t<archetype_view<copy_out_archetype>>;
@@ -777,6 +1036,40 @@ struct move_out_archetype
     }
 };
 
+// The device copyable counterparts of the two archetypes above, used with the hetero policies. The
+// assignment from a non-const lvalue of the input type is still missing, so an implementation which
+// copies instead of moving does not compile either.
+struct move_in_archetype_dc
+{
+    int val;
+
+    explicit move_in_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(move_in_archetype_dc)
+};
+
+struct move_out_archetype_dc
+{
+    int val;
+
+    explicit move_out_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(move_out_archetype_dc)
+
+    move_out_archetype_dc& operator=(move_in_archetype_dc&& __v)
+    {
+        val = __v.val;
+        return *this;
+    }
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(move_in_archetype_dc)
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(move_out_archetype_dc)
+static_assert(std::indirectly_movable<std::ranges::iterator_t<archetype_view<move_in_archetype_dc>>,
+                                      std::ranges::iterator_t<archetype_view<move_out_archetype_dc>>>);
+static_assert(!std::indirectly_copyable<std::ranges::iterator_t<archetype_view<move_in_archetype_dc>>,
+                                        std::ranges::iterator_t<archetype_view<move_out_archetype_dc>>>);
+
 using move_in_iterator_t = std::ranges::iterator_t<archetype_view<move_in_archetype>>;
 using move_out_iterator_t = std::ranges::iterator_t<archetype_view<move_out_archetype>>;
 
@@ -805,8 +1098,28 @@ struct swap_archetype
     }
 };
 
-using swap_iterator_t = std::ranges::iterator_t<archetype_view<swap_archetype>>;
+// The device copyable counterpart of the archetype above, used with the hetero policies. The
+// dedicated swap is kept, so the algorithm still has to go through std::ranges::swap.
+struct swap_archetype_dc
+{
+    int val;
 
+    explicit swap_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(swap_archetype_dc)
+
+    friend void swap(swap_archetype_dc& __v1, swap_archetype_dc& __v2)
+    {
+        const int __tmp = __v1.val;
+        __v1.val = __v2.val;
+        __v2.val = __tmp;
+    }
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(swap_archetype_dc)
+static_assert(!std::default_initializable<swap_archetype_dc>);
+
+using swap_iterator_t = std::ranges::iterator_t<archetype_view<swap_archetype>>;
 static_assert(std::indirectly_swappable<swap_iterator_t, swap_iterator_t>);
 static_assert(!std::movable<swap_archetype>);
 static_assert(!std::move_constructible<swap_archetype>);
@@ -853,14 +1166,48 @@ struct transform_out_archetype
     }
 };
 
+// The device copyable counterparts of the two archetypes above, used with the hetero policies.
+struct transform_in_archetype_dc
+{
+    int val;
+
+    explicit transform_in_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(transform_in_archetype_dc)
+};
+
+struct transform_out_archetype_dc
+{
+    int val;
+
+    explicit transform_out_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(transform_out_archetype_dc)
+
+    transform_out_archetype_dc& operator=(const transform_result& __v)
+    {
+        val = __v.val;
+        return *this;
+    }
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(transform_in_archetype_dc)
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(transform_out_archetype_dc)
+static_assert(!std::default_initializable<transform_out_archetype_dc>);
+
 struct transform_unary_op
 {
     transform_result operator()(const transform_in_archetype& __v) const { return transform_result{__v.val * 2}; }
+    transform_result operator()(const transform_in_archetype_dc& __v) const { return transform_result{__v.val * 2}; }
 };
 
 struct transform_binary_op
 {
     transform_result operator()(const transform_in_archetype& __v1, const transform_in_archetype& __v2) const
+    {
+        return transform_result{__v1.val + __v2.val};
+    }
+    transform_result operator()(const transform_in_archetype_dc& __v1, const transform_in_archetype_dc& __v2) const
     {
         return transform_result{__v1.val + __v2.val};
     }
@@ -904,7 +1251,23 @@ struct permutable_archetype
     TEST_ARCHETYPE_DELETED_ADDRESSOF
 };
 
+// The device copyable counterpart of the archetype above, used with the hetero policies.
+struct permutable_archetype_dc
+{
+    int val;
+
+    explicit permutable_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(permutable_archetype_dc)
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(permutable_archetype_dc)
+static_assert(!std::default_initializable<permutable_archetype_dc>);
+static_assert(!std::equality_comparable<permutable_archetype_dc>);
+static_assert(!std::totally_ordered<permutable_archetype_dc>);
+
 using permutable_iterator_t = std::ranges::iterator_t<archetype_view<permutable_archetype>>;
+using permutable_dc_iterator_t = std::ranges::iterator_t<archetype_view<permutable_archetype_dc>>;
 
 static_assert(std::permutable<permutable_iterator_t>);
 static_assert(!std::copy_constructible<permutable_archetype>);
@@ -916,11 +1279,16 @@ static_assert(!std::totally_ordered<permutable_archetype>);
 struct permutable_pred
 {
     bool operator()(const permutable_archetype& __v) const { return __v.val % 3 == 0; }
+    bool operator()(const permutable_archetype_dc& __v) const { return __v.val % 3 == 0; }
 };
 
 struct permutable_equiv
 {
     bool operator()(const permutable_archetype& __v1, const permutable_archetype& __v2) const
+    {
+        return __v1.val == __v2.val;
+    }
+    bool operator()(const permutable_archetype_dc& __v1, const permutable_archetype_dc& __v2) const
     {
         return __v1.val == __v2.val;
     }
@@ -936,17 +1304,29 @@ struct permutable_comp
     {
         return __v1.val < __v2.val;
     }
+    bool operator()(const permutable_archetype_dc& __v1, const permutable_archetype_dc& __v2) const
+    {
+        return __v1.val < __v2.val;
+    }
 };
 
 static_assert(std::sortable<permutable_iterator_t, permutable_comp>);
+static_assert(std::permutable<permutable_dc_iterator_t>);
+static_assert(std::sortable<permutable_dc_iterator_t, permutable_comp>);
 
 // The merge family additionally needs std::indirectly_copyable from both inputs into the output.
 // The output element is therefore assignable from a non-const lvalue of either input element type,
 // while remaining non-copyable itself.
 // Used by: merge, set_union, set_intersection, set_difference, set_symmetric_difference.
+struct merge_out_archetype;
+
 struct merge_in_archetype
 {
     int val;
+
+    // The output element type the algorithm has to be called with, so that a generic test body may
+    // pick the right one for the input element type it works on.
+    using out_type = merge_out_archetype;
 
     explicit merge_in_archetype(int __v) : val(__v) {}
 
@@ -988,13 +1368,53 @@ struct merge_out_archetype
     }
 };
 
+// The device copyable counterparts of the two archetypes above, used with the hetero policies.
+struct merge_out_archetype_dc;
+
+struct merge_in_archetype_dc
+{
+    int val;
+
+    using out_type = merge_out_archetype_dc;
+
+    explicit merge_in_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(merge_in_archetype_dc)
+};
+
+struct merge_out_archetype_dc
+{
+    int val;
+
+    explicit merge_out_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(merge_out_archetype_dc)
+
+    merge_out_archetype_dc& operator=(merge_in_archetype_dc& __v)
+    {
+        val = __v.val;
+        return *this;
+    }
+};
+
 struct merge_comp
 {
     bool operator()(const merge_in_archetype& __v1, const merge_in_archetype& __v2) const
     {
         return __v1.val < __v2.val;
     }
+    bool operator()(const merge_in_archetype_dc& __v1, const merge_in_archetype_dc& __v2) const
+    {
+        return __v1.val < __v2.val;
+    }
 };
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(merge_in_archetype_dc)
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(merge_out_archetype_dc)
+static_assert(std::mergeable<std::ranges::iterator_t<archetype_view<merge_in_archetype_dc>>,
+                             std::ranges::iterator_t<archetype_view<merge_in_archetype_dc>>,
+                             std::ranges::iterator_t<archetype_view<merge_out_archetype_dc>>, merge_comp>);
+static_assert(!std::default_initializable<merge_out_archetype_dc>);
 
 using merge_in_iterator_t = std::ranges::iterator_t<archetype_view<merge_in_archetype>>;
 using merge_out_iterator_t = std::ranges::iterator_t<archetype_view<merge_out_archetype>>;
@@ -1024,9 +1444,28 @@ struct storable_archetype
     TEST_ARCHETYPE_DELETED_ADDRESSOF
 };
 
+// The device copyable counterpart of the archetype above, used with the hetero policies.
+struct storable_archetype_dc
+{
+    int val;
+
+    explicit storable_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(storable_archetype_dc)
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(storable_archetype_dc)
+static_assert(!std::default_initializable<storable_archetype_dc>);
+static_assert(!std::equality_comparable<storable_archetype_dc>);
+static_assert(!std::totally_ordered<storable_archetype_dc>);
+
 struct storable_comp
 {
     bool operator()(const storable_archetype& __v1, const storable_archetype& __v2) const
+    {
+        return __v1.val < __v2.val;
+    }
+    bool operator()(const storable_archetype_dc& __v1, const storable_archetype_dc& __v2) const
     {
         return __v1.val < __v2.val;
     }
@@ -1040,22 +1479,11 @@ static_assert(!std::default_initializable<storable_archetype>);
 static_assert(!std::equality_comparable<storable_archetype>);
 static_assert(!std::totally_ordered<storable_archetype>);
 
+static_assert(std::indirectly_copyable_storable<std::ranges::iterator_t<archetype_view<storable_archetype_dc>>,
+                                                storable_archetype_dc*>);
+
 } // namespace archetypes
 } // namespace test_std_ranges
-
-#if TEST_DPCPP_BACKEND_PRESENT
-namespace sycl
-{
-    template <>
-    struct is_device_copyable<test_std_ranges::archetypes::permutable_archetype> : std::true_type { };
-
-    template <>
-    struct is_device_copyable<test_std_ranges::archetypes::removable_archetype> : std::true_type { };
-
-    template <>
-    struct is_device_copyable<test_std_ranges::archetypes::storable_archetype> : std::true_type { };
-}
-#endif
 
 #endif // _ENABLE_STD_RANGES_TESTING
 #endif // _STD_RANGES_ARCHETYPES_H
