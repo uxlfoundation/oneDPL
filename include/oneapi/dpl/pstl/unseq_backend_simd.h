@@ -612,25 +612,21 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
-template <typename _Iterator, typename _Compare>
-struct __can_use_value_simd_min_element
-{
-    using _ValueType = typename std::iterator_traits<_Iterator>::value_type;
-    using _ReferenceType = typename std::iterator_traits<_Iterator>::reference;
-
-    static constexpr bool value =
-        std::is_default_constructible_v<_ValueType> &&
-        std::is_copy_constructible_v<_ValueType> &&
-        std::is_copy_assignable_v<_ValueType> &&
-        std::is_destructible_v<_ValueType> &&
-        std::is_constructible_v<_ValueType, _ReferenceType> &&
-        std::is_invocable_r_v<bool, _Compare&, const _ValueType&, const _ReferenceType&>;
-};
+// The by-value SIMD implementations of min_element / minmax_element keep copies of the values in the
+// reduction object, so the value type has to be usable in a user-defined reduction.
+template <typename _Iterator, typename _Compare,
+          typename _ValueType = typename std::iterator_traits<_Iterator>::value_type,
+          typename _ReferenceType = typename std::iterator_traits<_Iterator>::reference>
+inline constexpr bool __can_use_by_value_simd_minmax_v =
+    std::is_default_constructible_v<_ValueType> &&
+    std::is_copy_assignable_v<_ValueType> &&
+    std::is_constructible_v<_ValueType, _ReferenceType> &&
+    std::is_invocable_r_v<bool, _Compare&, const _ValueType&, const _ReferenceType&>;
 
 // [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
-std::enable_if_t<__can_use_value_simd_min_element<_ForwardIterator, _Compare>::value, _ForwardIterator>
+std::enable_if_t<__can_use_by_value_simd_minmax_v<_ForwardIterator, _Compare>, _ForwardIterator>
 __simd_min_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
     if (__n == 0)
@@ -644,15 +640,14 @@ __simd_min_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp
         _ValueType __min_val = {};
         _Size __min_ind = {};
         _Compare* __min_comp = nullptr;
+
         // The default constructor is not used during the algorithm, so it is not required for it.
         // However, some compilers may require it.
-
         _ComplexType() = default;
         _ComplexType(const _ValueType& val, const _Compare* comp)
-            : __min_val(val), __min_ind(0), __min_comp(const_cast<_Compare*>(comp))
+            : __min_val(val), __min_comp(const_cast<_Compare*>(comp))
         {
         }
-        _ComplexType(const _ComplexType& __obj) = default;
 
         _ONEDPL_PRAGMA_DECLARE_SIMD
         void
@@ -688,7 +683,7 @@ __simd_min_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp
 // [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
-std::enable_if_t<__can_use_value_simd_min_element<_ForwardIterator, _Compare>::value,
+std::enable_if_t<__can_use_by_value_simd_minmax_v<_ForwardIterator, _Compare>,
                  std::pair<_ForwardIterator, _ForwardIterator>>
 __simd_minmax_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
@@ -705,16 +700,14 @@ __simd_minmax_element_by_value(_ForwardIterator __first, _Size __n, _Compare __c
         _Size __min_ind = {};
         _Size __max_ind = {};
         _Compare* __minmax_comp = nullptr;
+
         // The default constructor is not used during the algorithm, so it is not required for it.
         // However, some compilers may require it.
-
         _ComplexType() = default;
         _ComplexType(const _ValueType& min_val, const _ValueType& max_val, const _Compare* comp)
-            : __min_val(min_val), __max_val(max_val), __min_ind(0), __max_ind(0),
-              __minmax_comp(const_cast<_Compare*>(comp))
+            : __min_val(min_val), __max_val(max_val), __minmax_comp(const_cast<_Compare*>(comp))
         {
         }
-        _ComplexType(const _ComplexType& __obj) = default;
 
         _ONEDPL_PRAGMA_DECLARE_SIMD
         void
