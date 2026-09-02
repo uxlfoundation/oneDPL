@@ -638,8 +638,8 @@ __simd_min_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp
     using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
     struct _ComplexType
     {
-        _ValueType __min_val = {};
-        _Size __min_ind = {};
+        _ValueType __min_val{};
+        _Size __min_ind{};
         _Compare* __min_comp = nullptr;
 
         // The default constructor is not used during the algorithm, so it is not required for it.
@@ -693,10 +693,10 @@ __simd_minmax_element_by_value(_ForwardIterator __first, _Size __n, _Compare __c
 
     struct _ComplexType
     {
-        _ValueType __min_val = {};
-        _ValueType __max_val = {};
-        _Size __min_ind = {};
-        _Size __max_ind = {};
+        _ValueType __min_val{};
+        _ValueType __max_val{};
+        _Size __min_ind{};
+        _Size __max_ind{};
         _Compare* __minmax_comp = nullptr;
 
         // The default constructor is not used during the algorithm, so it is not required for it.
