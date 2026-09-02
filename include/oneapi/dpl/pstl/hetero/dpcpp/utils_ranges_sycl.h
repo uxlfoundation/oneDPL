@@ -18,6 +18,7 @@
 
 #include <iterator>
 #include <type_traits>
+#include <memory> // for std::addressof
 
 #include "../../utils_ranges.h"
 #include "../../iterator_impl.h"
@@ -89,7 +90,7 @@ class all_view
     __return_t*
     begin() const
     {
-        return &__m_acc[0];
+        return std::addressof(__m_acc[0]);
     } //or “honest” iterator over an accessor and a sentinel
 
     __return_t*
