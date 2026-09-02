@@ -545,12 +545,12 @@ struct __gen_unique_mask
 template <typename _SetTag>
 struct __set_operation
 {
-    template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
-              typename _Proj1, typename _Proj2, typename _FinalPosSaver>
-    _SizeType
+    template <typename _InRng1, typename _InRng2, typename _TempOutput, typename _Compare, typename _Proj1,
+              typename _Proj2, typename _FinalPosSaver>
+    __temp_data_array_idx_t
     operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
-               _Proj2 __proj2, _FinalPosSaver __final_pos_saver) const
+               const __temp_data_array_idx_t __num_eles_min, _TempOutput& __temp_out, const _Compare __comp,
+               _Proj1 __proj1, _Proj2 __proj2, _FinalPosSaver __final_pos_saver) const
     {
         constexpr bool __is_set_difference = std::is_same_v<_SetTag, unseq_backend::_DifferenceTag>;
         constexpr bool __is_set_intersection = std::is_same_v<_SetTag, unseq_backend::_IntersectionTag>;
@@ -609,8 +609,8 @@ struct __set_operation
             }
         };
 
-        _SizeType __count = 0;
-        _SizeType __idx = 0;
+        __temp_data_array_idx_t __count = 0;
+        __temp_data_array_idx_t __idx = 0;
 
         constexpr bool _CopyMatch = __is_set_intersection || __is_set_union;
         constexpr bool _CopyDiffSetA = !__is_set_intersection;
