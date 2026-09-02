@@ -616,8 +616,7 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
 // its default constructor is not explicit. A value type with an explicit default constructor is rejected
 // by some compilers in a user-defined reduction, so it is not enough to check is_default_constructible.
 template <typename _Tp>
-void
-__implicitly_default_constructible_helper(_Tp);
+void __implicitly_default_constructible_helper(_Tp);
 
 template <typename _Tp, typename = void>
 struct __is_implicitly_default_constructible : std::false_type
@@ -625,8 +624,9 @@ struct __is_implicitly_default_constructible : std::false_type
 };
 
 template <typename _Tp>
-struct __is_implicitly_default_constructible<
-    _Tp, std::void_t<decltype(__implicitly_default_constructible_helper<_Tp>({}))>> : std::true_type
+struct __is_implicitly_default_constructible<_Tp,
+                                             std::void_t<decltype(__implicitly_default_constructible_helper<_Tp>({}))>>
+    : std::true_type
 {
 };
 
@@ -638,10 +638,8 @@ template <typename _Iterator, typename _Compare,
           typename _ValueType = typename std::iterator_traits<_Iterator>::value_type,
           typename _ReferenceType = typename std::iterator_traits<_Iterator>::reference>
 inline constexpr bool __can_use_by_value_simd_minmax_v =
-    __is_implicitly_default_constructible<_ValueType>::value &&
-    std::is_copy_constructible_v<_ValueType> &&
-    std::is_copy_assignable_v<_ValueType> &&
-    std::is_convertible_v<_ReferenceType, _ValueType> &&
+    __is_implicitly_default_constructible<_ValueType>::value && std::is_copy_constructible_v<_ValueType> &&
+    std::is_copy_assignable_v<_ValueType> && std::is_convertible_v<_ReferenceType, _ValueType> &&
     std::is_invocable_r_v<bool, _Compare&, const _ValueType&, const _ValueType&>;
 
 // [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
