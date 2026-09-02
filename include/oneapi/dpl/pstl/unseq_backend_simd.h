@@ -630,9 +630,7 @@ std::enable_if_t<__can_use_by_value_simd_minmax_v<_ForwardIterator, _Compare>, _
 __simd_min_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
     if (__n == 0)
-    {
         return __first;
-    }
 
     using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
     struct _ComplexType
@@ -677,6 +675,7 @@ __simd_min_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp
             __init.__min_ind = __i;
         }
     }
+
     return __first + __init.__min_ind;
 }
 
