@@ -679,7 +679,7 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
     using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned;
 
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider,
-                                                                                       _Size, _Compare, _Proj1, _Proj2>;
+                                                                                       _Compare, _Proj1, _Proj2>;
     using _GenScanInput =
         oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_SetOperation, _TempData, _Size,
                                                                                  _Compare, _Proj1, _Proj2>;

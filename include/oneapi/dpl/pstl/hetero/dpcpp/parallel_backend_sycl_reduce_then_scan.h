@@ -815,8 +815,7 @@ struct __get_bounds_simple
 // Reduce then scan building block for set balanced path which is used in the reduction kernel to calculate the
 // balanced path intersection, store it to temporary data with "star" status, then count the number of elements to write
 // to the output for the reduction operation.
-template <typename _SetOpCount, typename _BoundsProvider, typename _RetType, typename _Compare, typename _Proj1,
-          typename _Proj2>
+template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_balanced_path
 {
     using TempData = __noop_temp_data;
@@ -939,7 +938,7 @@ struct __gen_set_balanced_path
 
     // Entry point for reduce then scan reduce input
     template <typename _InRng, typename _IndexT, typename _FinalPosSaver>
-    _RetType
+    __temp_data_array_idx_t
     operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data, _FinalPosSaver __final_pos_saver) const
     {
         // Get source tuple
