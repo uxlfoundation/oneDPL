@@ -674,7 +674,7 @@ __simd_min_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 ::std::pair<_ForwardIterator, _ForwardIterator>
-__simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
+__simd_minmax_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
     if (__n == 0)
     {
