@@ -1005,12 +1005,11 @@ struct __gen_set_balanced_path
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
-template <typename _SetOpCount, typename _TempData, typename _RetType, typename _Compare, typename _Proj1,
-          typename _Proj2>
+template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_op_from_known_balanced_path
 {
     template <typename _InRng>
-    using __result_t = std::tuple<_RetType, _RetType>;
+    using __result_t = std::tuple<__temp_data_array_idx_t, __temp_data_array_idx_t>;
 
     using TempData = _TempData;
     template <typename _InRng, typename _IndexT, typename _TempDataArg, typename _FinalPosSaver>
@@ -1033,18 +1032,18 @@ struct __gen_set_op_from_known_balanced_path
             oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2), decltype(__rng1_temp_diag)>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
-            return __result_t<_InRng>{_RetType{0}, _RetType{0}};
+            return __result_t<_InRng>{0, 0};
         auto [__rng1_idx, __rng2_idx, __star_offset] =
             oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__rng1_temp_diag, __id,
                                                                                 __diagonal_spacing);
 
-        _RetType __eles_to_process = static_cast<_RetType>(
+        __temp_data_array_idx_t __eles_to_process = static_cast<__temp_data_array_idx_t>(
             std::min(static_cast<_SizeType>(__diagonal_spacing - __star_offset),
                      static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng1) +
                                             oneapi::dpl::__ranges::__size(__rng2) - __i_elem + 1)));
 
-        _RetType __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data,
-                                          __comp, __proj1, __proj2, __final_pos_saver);
+        __temp_data_array_idx_t __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process,
+                                                         __output_data, __comp, __proj1, __proj2, __final_pos_saver);
 
         return __result_t<_InRng>{__count, __count};
     }
