@@ -815,7 +815,9 @@ struct __get_bounds_simple
 // Reduce then scan building block for set balanced path which is used in the reduction kernel to calculate the
 // balanced path intersection, store it to temporary data with "star" status, then count the number of elements to write
 // to the output for the reduction operation.
-template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2>
+// _RetType is the scanned type for the scan so it must be the size type of the output range.
+template <typename _SetOpCount, typename _BoundsProvider, typename _RetType, typename _Compare, typename _Proj1,
+          typename _Proj2>
 struct __gen_set_balanced_path
 {
     using TempData = __noop_temp_data;
@@ -938,7 +940,7 @@ struct __gen_set_balanced_path
 
     // Entry point for reduce then scan reduce input
     template <typename _InRng, typename _IndexT, typename _FinalPosSaver>
-    __temp_data_array_idx_t
+    _RetType
     operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data, _FinalPosSaver __final_pos_saver) const
     {
         // Get source tuple
@@ -958,7 +960,7 @@ struct __gen_set_balanced_path
         const bool __is_partitioned = __total_size >= __get_bounds.__partition_threshold;
 
         if (__id * __diagonal_spacing >= __total_size)
-            return 0;
+            return _RetType{0};
         if (!__is_partitioned)
         {
             // If not partitioned, just use the bounds of the full range to limit balanced path intersection search
@@ -986,13 +988,13 @@ struct __gen_set_balanced_path
             __star = __local_star;
         }
 
-        _IndexT __eles_to_process =
+        const __temp_data_array_idx_t __eles_to_process = static_cast<__temp_data_array_idx_t>(
             std::min(_IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
                      oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2) -
-                         _IndexT{__id * __diagonal_spacing - 1});
+                         _IndexT{__id * __diagonal_spacing - 1}));
 
-        return __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos, __eles_to_process, __temp_data,
-                              __comp, __proj1, __proj2, __final_pos_saver);
+        return _RetType{__set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos, __eles_to_process,
+                                       __temp_data, __comp, __proj1, __proj2, __final_pos_saver)};
     }
     _SetOpCount __set_op_count;
     __temp_data_array_idx_t __diagonal_spacing;
@@ -1005,11 +1007,13 @@ struct __gen_set_balanced_path
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
-template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
+// _RetType is the scanned type for the scan so it must be the size type of the output range.
+template <typename _SetOpCount, typename _TempData, typename _RetType, typename _Compare, typename _Proj1,
+          typename _Proj2>
 struct __gen_set_op_from_known_balanced_path
 {
     template <typename _InRng>
-    using __result_t = std::tuple<__temp_data_array_idx_t, __temp_data_array_idx_t>;
+    using __result_t = std::tuple<_RetType, __temp_data_array_idx_t>;
 
     using TempData = _TempData;
     template <typename _InRng, typename _IndexT, typename _TempDataArg, typename _FinalPosSaver>
@@ -1032,7 +1036,7 @@ struct __gen_set_op_from_known_balanced_path
             oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2), decltype(__rng1_temp_diag)>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
-            return __result_t<_InRng>{0, 0};
+            return __result_t<_InRng>{_RetType{0}, __temp_data_array_idx_t{0}};
         auto [__rng1_idx, __rng2_idx, __star_offset] =
             oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__rng1_temp_diag, __id,
                                                                                 __diagonal_spacing);
@@ -1045,7 +1049,7 @@ struct __gen_set_op_from_known_balanced_path
         __temp_data_array_idx_t __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process,
                                                          __output_data, __comp, __proj1, __proj2, __final_pos_saver);
 
-        return __result_t<_InRng>{__count, __count};
+        return __result_t<_InRng>{_RetType{__count}, __count};
     }
     _SetOpCount __set_op_count;
     __temp_data_array_idx_t __diagonal_spacing;

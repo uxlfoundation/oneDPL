@@ -373,11 +373,11 @@ test_find_balanced_path_impl(_Rng1 __rng1, _Rng2 __rng2, _Comp __comp)
     using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_simple;
 
     using _GenReduceInput =
-        oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider, _Comp,
+        oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider, std::size_t, _Comp,
                                                                    oneapi::dpl::identity, oneapi::dpl::identity>;
 
     // arbitrary value, should not matter for the test
-    oneapi::dpl::__par_backend_hetero::__temp_data_array_idx_t __diagonal_spacing = 16; 
+    oneapi::dpl::__par_backend_hetero::__temp_data_array_idx_t __diagonal_spacing = 16;
 
     _GenReduceInput _gen_reduce_input{_SetOperation{}, __diagonal_spacing, _BoundsProvider{}, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{}};
     for (std::size_t diag_idx = 0; diag_idx < __rng1.size() + __rng2.size(); ++diag_idx)
