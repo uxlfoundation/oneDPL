@@ -1911,25 +1911,24 @@ template <typename _Tp, typename _BackendTag, typename _ExecutionPolicy, typenam
 bool
 __should_rotate_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _DiffType __size_res)
 {
+    assert(__n > 0 && __size_res > 0);
     const std::size_t __n_u = static_cast<std::size_t>(__n);
-    //The ranges entry point does not screen '__n', so a non-positive one reaches here and casts to a
-    //huge unsigned. Rejecting zero up front also keeps a width of 0 rejecting every call.
-    if (__n_u == 0)
-        return false;
+    // Empirically derived threshold
+    constexpr std::size_t __walk_distance_threshold = 64;
 
-    //Divisions rather than 'size_res >= 64 * __n' so that a '__n' near the unsigned maximum is
-    //rejected instead of wrapping the product. 64 dependent moves clears the modelled crossover
-    //between one extra kernel launch and the per-hop latency.
-    if (static_cast<std::size_t>(__size_res) / 64 < __n_u)
+    // If the in-place work-item walk is short enough, in-place will be faster than rotate because of the extra
+    // kernel launch and pass of the data required for rotate.
+    if (static_cast<std::size_t>(__size_res) / __n_u < __walk_distance_threshold)
         return false;
 
     const std::size_t __occupancy_width =
         oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(_BackendTag{}, __exec);
-    //One chain per work item, so the walk is '__n' work items wide; it counts as too narrow while
-    //there are 64 lanes per chain. The rotate's cost does not depend on '__n' but the walk's grows
-    //with 'size_res / __n', so the bound only has to stay below the '__n' that saturates bandwidth.
-    //The byte-denominated form of the same bound binds only above 4-byte elements.
-    return __n_u <= __occupancy_width / 64 && __n_u * sizeof(_Tp) <= __occupancy_width / 16;
+    // The width bound is anchored at the 4-byte element the suite measured; wider elements move more
+    // bytes per work item, so fewer of them saturate bandwidth and the bound tightens proportionally.
+    // Narrower elements are *not* given a correspondingly wider bound - nothing measures them.
+    constexpr std::size_t __measured_elem_size = 4;
+    const std::size_t __bytes_per_step = __n_u * std::max(sizeof(_Tp), __measured_elem_size);
+    return __bytes_per_step <= __occupancy_width / 16;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range>
