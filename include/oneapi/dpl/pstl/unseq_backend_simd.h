@@ -652,7 +652,7 @@ __simd_min_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp
         operator()(const _ComplexType& __obj)
         {
             if (!std::invoke(*__min_comp, __min_val, __obj.__min_val) &&
-                (std::invoke(*__min_comp, __obj.__min_val, __min_val) || __obj.__min_ind - __min_ind < 0))
+                (std::invoke(*__min_comp, __obj.__min_val, __min_val) || __obj.__min_ind < __min_ind))
             {
                 __min_val = __obj.__min_val;
                 __min_ind = __obj.__min_ind;
@@ -720,7 +720,7 @@ __simd_minmax_element_by_value(_ForwardIterator __first, _Size __n, _Compare __c
             else if (!std::invoke(*__minmax_comp, __min_val, __obj.__min_val))
             {
                 __min_val = __obj.__min_val;
-                __min_ind = (__min_ind - __obj.__min_ind < 0) ? __min_ind : __obj.__min_ind;
+                __min_ind = (__min_ind < __obj.__min_ind) ? __min_ind : __obj.__min_ind;
             }
 
             // max
@@ -732,7 +732,7 @@ __simd_minmax_element_by_value(_ForwardIterator __first, _Size __n, _Compare __c
             else if (!std::invoke(*__minmax_comp, __obj.__max_val, __max_val))
             {
                 __max_val = __obj.__max_val;
-                __max_ind = (__max_ind - __obj.__max_ind < 0) ? __obj.__max_ind : __max_ind;
+                __max_ind = (__max_ind < __obj.__max_ind) ? __obj.__max_ind : __max_ind;
             }
         }
     };
