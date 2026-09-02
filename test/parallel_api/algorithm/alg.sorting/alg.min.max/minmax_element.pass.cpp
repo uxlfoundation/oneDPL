@@ -233,8 +233,8 @@ struct OnlyLessCompare
 };
 
 // The value type is default-constructible, but only through an explicit default constructor:
-// such a type cannot be used in a user-defined reduction, so the vector code path must not be
-// selected for it.
+// the vector code path is still applicable for it, because the reduction object initializes its
+// members with direct-list-initialization.
 struct ExplicitDefaultCtorCompare
 {
     std::int32_t val;
