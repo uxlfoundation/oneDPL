@@ -85,7 +85,7 @@ struct __internal::__transform_fn
                      std::indirect_result_t<_Fn&, std::projected<std::ranges::iterator_t<_R>, _Proj>>>
     std::ranges::unary_transform_result<std::ranges::borrowed_iterator_t<_R>,
                                         std::ranges::borrowed_iterator_t<_OutR>>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutR&& __result, _Fn __op, _Proj __proj = {}) const
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutR&& __result, _Fn __unary_op, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
@@ -93,7 +93,7 @@ struct __internal::__transform_fn
         const _Size __size = std::ranges::min((_Size)std::ranges::size(__r), (_Size)std::ranges::size(__result));
 
         oneapi::dpl::__internal::__ranges::__pattern_transform(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::ranges::take_view(__r, __size), std::ranges::take_view(__result, __size), __op, __proj);
+            std::ranges::take_view(__r, __size), std::ranges::take_view(__result, __size), __unary_op, __proj);
 
         return {std::ranges::begin(__r) + __size, std::ranges::begin(__result) +  __size};
     }
