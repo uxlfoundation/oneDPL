@@ -56,11 +56,11 @@ namespace ranges
 struct __internal::__for_each_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
-              std::indirectly_unary_invocable<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Fun>
+              std::indirectly_unary_invocable<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Fn>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
                  std::ranges::sized_range<_R>
     std::ranges::borrowed_iterator_t<_R>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _Proj __proj = {}) const
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Fn __f, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         oneapi::dpl::__internal::__ranges::__pattern_for_each(
@@ -76,16 +76,16 @@ inline constexpr __internal::__for_each_fn for_each;
 struct __internal::__transform_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R,
-              std::ranges::random_access_range _OutR, std::copy_constructible _F, typename _Proj = std::identity>
+              std::ranges::random_access_range _OutR, std::copy_constructible _Fn, typename _Proj = std::identity>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
                  std::ranges::sized_range<_R> &&
                  std::ranges::sized_range<_OutR> &&
                  std::indirectly_writable<
                      std::ranges::iterator_t<_OutR>,
-                     std::indirect_result_t<_F&, std::projected<std::ranges::iterator_t<_R>, _Proj>>>
+                     std::indirect_result_t<_Fn&, std::projected<std::ranges::iterator_t<_R>, _Proj>>>
     std::ranges::unary_transform_result<std::ranges::borrowed_iterator_t<_R>,
                                         std::ranges::borrowed_iterator_t<_OutR>>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r, _F __op, _Proj __proj = {}) const
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r, _Fn __op, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
@@ -99,18 +99,18 @@ struct __internal::__transform_fn
     }
 
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
-              std::ranges::random_access_range _OutR, std::copy_constructible _F, typename _Proj1 = std::identity,
+              std::ranges::random_access_range _OutR, std::copy_constructible _Fn, typename _Proj1 = std::identity,
               typename _Proj2 = std::identity>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
                  (std::ranges::sized_range<_R1> || std::ranges::sized_range<_R2>) &&
                  std::ranges::sized_range<_OutR> &&
                  std::indirectly_writable<
                      std::ranges::iterator_t<_OutR>,
-                     std::indirect_result_t<_F&, std::projected<std::ranges::iterator_t<_R1>, _Proj1>,
+                     std::indirect_result_t<_Fn&, std::projected<std::ranges::iterator_t<_R1>, _Proj1>,
                                             std::projected<std::ranges::iterator_t<_R2>, _Proj2>>>
     std::ranges::binary_transform_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                                          std::ranges::borrowed_iterator_t<_OutR>>
-    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutR&& __out_r, _F __binary_op,
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutR&& __out_r, _Fn __binary_op,
                _Proj1 __proj1 = {}, _Proj2 __proj2 = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
