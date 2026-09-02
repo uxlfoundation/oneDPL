@@ -1905,31 +1905,17 @@ struct __shift_left_right;
 template <typename _Name>
 struct __shift_via_rotate;
 
-// Rotate instead of walking in place when the walk - '__n' chains of 'size_res / __n' dependent moves -
-// is too narrow to fill the device and long enough to pay for a second full-width pass.
+// MEASUREMENT BRANCH ONLY - NOT FOR MERGE. The shipping gate's depth and width bounds are removed so
+// that every overlapping shift rotates. Benchmarking this against 'main', which always walks, gives
+// the walk and the rotate at the same (size, n, element size) and so locates the crossover the bounds
+// are meant to encode. Restore the bounds before proposing anything.
 template <typename _Tp, typename _BackendTag, typename _ExecutionPolicy, typename _DiffType>
 bool
-__should_rotate_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _DiffType __size_res)
+__should_rotate_shift(_BackendTag, _ExecutionPolicy&&, _DiffType __n, _DiffType)
 {
-    const std::size_t __n_u = static_cast<std::size_t>(__n);
     //The ranges entry point does not screen '__n', so a non-positive one reaches here and casts to a
-    //huge unsigned. Rejecting zero up front also keeps a width of 0 rejecting every call.
-    if (__n_u == 0)
-        return false;
-
-    //Divisions rather than 'size_res >= 64 * __n' so that a '__n' near the unsigned maximum is
-    //rejected instead of wrapping the product. 64 dependent moves clears the modelled crossover
-    //between one extra kernel launch and the per-hop latency.
-    if (static_cast<std::size_t>(__size_res) / 64 < __n_u)
-        return false;
-
-    const std::size_t __occupancy_width =
-        oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(_BackendTag{}, __exec);
-    //One chain per work item, so the walk is '__n' work items wide; it counts as too narrow while
-    //there are 64 lanes per chain. The rotate's cost does not depend on '__n' but the walk's grows
-    //with 'size_res / __n', so the bound only has to stay below the '__n' that saturates bandwidth.
-    //The byte-denominated form of the same bound binds only above 4-byte elements.
-    return __n_u <= __occupancy_width / 64 && __n_u * sizeof(_Tp) <= __occupancy_width / 16;
+    //huge unsigned.
+    return static_cast<std::size_t>(__n) > 0;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range>
