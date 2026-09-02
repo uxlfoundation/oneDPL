@@ -626,13 +626,13 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
     struct _ComplexType
     {
-        _ValueType __min_val;
-        _Size __min_ind;
-        _Compare* __min_comp;
+        _ValueType __min_val = {};
+        _Size __min_ind = {};
+        _Compare* __min_comp = nullptr;
         // The default constructor is not used during the algorithm, so it is not required for it.
         // However, some compilers may require it.
 
-        _ComplexType() : __min_val{}, __min_ind{}, __min_comp(nullptr) {}
+        _ComplexType() = default;
         _ComplexType(const _ValueType& val, const _Compare* comp)
             : __min_val(val), __min_ind(0), __min_comp(const_cast<_Compare*>(comp))
         {
@@ -684,15 +684,15 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
 
     struct _ComplexType
     {
-        _ValueType __min_val;
-        _ValueType __max_val;
-        _Size __min_ind;
-        _Size __max_ind;
-        _Compare* __minmax_comp;
+        _ValueType __min_val = {};
+        _ValueType __max_val = {};
+        _Size __min_ind = {};
+        _Size __max_ind = {};
+        _Compare* __minmax_comp = nullptr;
         // The default constructor is not used during the algorithm, so it is not required for it.
         // However, some compilers may require it.
 
-        _ComplexType() : __min_val{}, __max_val{}, __min_ind{}, __max_ind{}, __minmax_comp(nullptr) {}
+        _ComplexType() = default;
         _ComplexType(const _ValueType& min_val, const _ValueType& max_val, const _Compare* comp)
             : __min_val(min_val), __max_val(max_val), __min_ind(0), __max_ind(0),
               __minmax_comp(const_cast<_Compare*>(comp))
