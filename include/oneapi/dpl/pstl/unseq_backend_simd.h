@@ -645,10 +645,7 @@ __simd_min_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp
         // The default constructor is not used during the algorithm, so it is not required for it.
         // However, some compilers may require it.
         _ComplexType() = default;
-        _ComplexType(const _ValueType& val, const _Compare* comp)
-            : __min_val(val), __min_comp(const_cast<_Compare*>(comp))
-        {
-        }
+        _ComplexType(const _ValueType& val, _Compare* comp) : __min_val(val), __min_comp(comp) {}
 
         _ONEDPL_PRAGMA_DECLARE_SIMD
         void
@@ -705,8 +702,8 @@ __simd_minmax_element_by_value(_ForwardIterator __first, _Size __n, _Compare __c
         // The default constructor is not used during the algorithm, so it is not required for it.
         // However, some compilers may require it.
         _ComplexType() = default;
-        _ComplexType(const _ValueType& min_val, const _ValueType& max_val, const _Compare* comp)
-            : __min_val(min_val), __max_val(max_val), __minmax_comp(const_cast<_Compare*>(comp))
+        _ComplexType(const _ValueType& min_val, const _ValueType& max_val, _Compare* comp)
+            : __min_val(min_val), __max_val(max_val), __minmax_comp(comp)
         {
         }
 
