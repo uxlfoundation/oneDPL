@@ -1345,14 +1345,14 @@ struct __internal::__shift_left_fn
                  std::ranges::sized_range<_R> &&
                  std::permutable<std::ranges::iterator_t<_R>>
     std::ranges::borrowed_subrange_t<_R>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, std::ranges::range_difference_t<_R> __shift) const
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, std::ranges::range_difference_t<_R> __n) const
     {
         using __dispatch_tag_t = decltype(oneapi::dpl::__ranges::__select_backend(__exec));
         auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
         if constexpr (std::is_same_v<__dispatch_tag_t, oneapi::dpl::__internal::__serial_tag<std::false_type>>)
         {
             // std::ranges::shift_left is only available since C++23
-            return {__first, std::shift_left(__first, __last, __shift)};
+            return {__first, std::shift_left(__first, __last, __n)};
         }
         else
         {
@@ -1361,12 +1361,12 @@ struct __internal::__shift_left_fn
             {
                 std::ranges::range_difference_t<_R> __res = oneapi::dpl::__internal::__pattern_shift_left(
                     __dispatch_tag_t{}, std::forward<_ExecutionPolicy>(__exec),
-                    oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r)), __shift);
+                    oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r)), __n);
                 return {__first, __first + __res};
             }
 #endif
             auto __res = oneapi::dpl::__internal::__pattern_shift_left(
-                __dispatch_tag_t{}, std::forward<_ExecutionPolicy>(__exec), __first, __last, __shift);
+                __dispatch_tag_t{}, std::forward<_ExecutionPolicy>(__exec), __first, __last, __n);
             return {__first, __res};
         }
     }
