@@ -612,24 +612,6 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
-// Detects whether _Tp can be initialized with copy-list-initialization ("_Tp __v = {};"), i.e. whether
-// its default constructor is not explicit. A value type with an explicit default constructor is rejected
-// by some compilers in a user-defined reduction, so it is not enough to check is_default_constructible.
-template <typename _Tp>
-void __implicitly_default_constructible_helper(_Tp);
-
-template <typename _Tp, typename = void>
-struct __is_implicitly_default_constructible : std::false_type
-{
-};
-
-template <typename _Tp>
-struct __is_implicitly_default_constructible<_Tp,
-                                             std::void_t<decltype(__implicitly_default_constructible_helper<_Tp>({}))>>
-    : std::true_type
-{
-};
-
 // The by-value SIMD implementations of min_element / minmax_element keep copies of the values in the
 // reduction object, so the value type has to be usable in a user-defined reduction:
 // the reduction object is default-constructed and copied, the values are copy-initialized from the
@@ -638,7 +620,7 @@ template <typename _Iterator, typename _Compare,
           typename _ValueType = typename std::iterator_traits<_Iterator>::value_type,
           typename _ReferenceType = typename std::iterator_traits<_Iterator>::reference>
 inline constexpr bool __can_use_by_value_simd_minmax_v =
-    __is_implicitly_default_constructible<_ValueType>::value && std::is_copy_constructible_v<_ValueType> &&
+    std::is_default_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
     std::is_copy_assignable_v<_ValueType> && std::is_convertible_v<_ReferenceType, _ValueType> &&
     std::is_invocable_r_v<bool, _Compare&, const _ValueType&, const _ValueType&>;
 
@@ -654,14 +636,14 @@ __simd_min_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp
     using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
     struct _ComplexType
     {
-        _ValueType __min_val{};
-        _Size __min_ind{};
-        _Compare* __min_comp = nullptr;
+        _ValueType __min_val;
+        _Size __min_ind;
+        _Compare* __min_comp;
 
         // The default constructor is not used during the algorithm, so it is not required for it.
         // However, some compilers may require it.
-        _ComplexType() = default;
-        _ComplexType(const _ValueType& val, _Compare* comp) : __min_val(val), __min_comp(comp) {}
+        _ComplexType() : __min_val{}, __min_ind{}, __min_comp(nullptr) {}
+        _ComplexType(const _ValueType& val, _Compare* comp) : __min_val(val), __min_ind{}, __min_comp(comp) {}
 
         _ONEDPL_PRAGMA_DECLARE_SIMD
         void
@@ -709,17 +691,17 @@ __simd_minmax_element_by_value(_ForwardIterator __first, _Size __n, _Compare __c
 
     struct _ComplexType
     {
-        _ValueType __min_val{};
-        _ValueType __max_val{};
-        _Size __min_ind{};
-        _Size __max_ind{};
-        _Compare* __minmax_comp = nullptr;
+        _ValueType __min_val;
+        _ValueType __max_val;
+        _Size __min_ind;
+        _Size __max_ind;
+        _Compare* __minmax_comp;
 
         // The default constructor is not used during the algorithm, so it is not required for it.
         // However, some compilers may require it.
-        _ComplexType() = default;
+        _ComplexType() : __min_val{}, __max_val{}, __min_ind{}, __max_ind{}, __minmax_comp(nullptr) {}
         _ComplexType(const _ValueType& min_val, const _ValueType& max_val, _Compare* comp)
-            : __min_val(min_val), __max_val(max_val), __minmax_comp(comp)
+            : __min_val(min_val), __max_val(max_val), __min_ind{}, __max_ind{}, __minmax_comp(comp)
         {
         }
 
