@@ -21,6 +21,7 @@
 #include "support/utils.h"
 
 #include <set>
+#include <vector>
 #include <cassert>
 #include <cmath>
 
@@ -231,6 +232,41 @@ struct OnlyLessCompare
     }
 };
 
+// The value type is not default-constructible, so it cannot be used in a user-defined reduction
+// and the vector code path must not be selected for it.
+struct NoDefaultCtorCompare
+{
+    std::int32_t val;
+    explicit NoDefaultCtorCompare(std::int32_t val_) : val(val_) {}
+    bool
+    operator<(const NoDefaultCtorCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+static void
+test_no_default_ctor_value_type(::std::size_t n)
+{
+    ::std::vector<NoDefaultCtorCompare> data;
+    data.reserve(n);
+    for (::std::size_t i = 0; i < n; ++i)
+        data.emplace_back(std::int32_t(TestUtils::HashBits(i, 30)));
+
+#ifdef _PSTL_TEST_MIN_ELEMENT
+    invoke_on_all_host_policies()(check_minelement<NoDefaultCtorCompare>(), data.begin(), data.end());
+    invoke_on_all_host_policies()(check_minelement_predicate<NoDefaultCtorCompare>(), data.begin(), data.end());
+#endif
+#ifdef _PSTL_TEST_MAX_ELEMENT
+    invoke_on_all_host_policies()(check_maxelement<NoDefaultCtorCompare>(), data.begin(), data.end());
+    invoke_on_all_host_policies()(check_maxelement_predicate<NoDefaultCtorCompare>(), data.begin(), data.end());
+#endif
+#ifdef _PSTL_TEST_MINMAX_ELEMENT
+    invoke_on_all_host_policies()(check_minmaxelement<NoDefaultCtorCompare>(), data.begin(), data.end());
+    invoke_on_all_host_policies()(check_minmaxelement_predicate<NoDefaultCtorCompare>(), data.begin(), data.end());
+#endif
+}
+
 template <typename T>
 struct test_non_const_max_element
 {
@@ -277,6 +313,7 @@ main()
 #endif
         test_by_type<float64_t>(n);
         test_by_type<OnlyLessCompare>(n);
+        test_no_default_ctor_value_type(n);
     }
 
 #ifdef _PSTL_TEST_MIN_ELEMENT
