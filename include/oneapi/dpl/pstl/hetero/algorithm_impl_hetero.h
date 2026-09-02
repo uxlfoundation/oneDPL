@@ -1913,8 +1913,9 @@ __should_rotate_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _Di
 {
     assert(__n > 0 && __size_res > 0);
     const std::size_t __n_u = static_cast<std::size_t>(__n);
-    // Empirically derived threshold
+    // Empirically derived values
     constexpr std::size_t __walk_distance_threshold = 64;
+    constexpr std::size_t __occupancy_ratio = 4;
 
     // If the in-place work-item walk is short enough, in-place will be faster than rotate because of the extra
     // kernel launch and pass of the data required for rotate.
@@ -1923,12 +1924,10 @@ __should_rotate_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _Di
 
     const std::size_t __occupancy_width =
         oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(_BackendTag{}, __exec);
-    // The width bound is anchored at the 4-byte element the suite measured; wider elements move more
-    // bytes per work item, so fewer of them saturate bandwidth and the bound tightens proportionally.
-    // Narrower elements are *not* given a correspondingly wider bound - nothing measures them.
-    constexpr std::size_t __measured_elem_size = 4;
-    const std::size_t __bytes_per_step = __n_u * std::max(sizeof(_Tp), __measured_elem_size);
-    return __bytes_per_step <= __occupancy_width / 16;
+    // If the shift provides parallelism to fill 1/4 or less of the occupancy width, then rotate will be faster than
+    //the in-place walk.
+    const std::size_t __bytes_per_step = __n_u * sizeof(_Tp);
+    return __bytes_per_step <= __occupancy_width / __occupancy_ratio;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range>
