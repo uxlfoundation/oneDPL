@@ -110,13 +110,13 @@ struct __uninitialized_copy_fn
                                          std::ranges::range_reference_t<_IR>>
     std::ranges::uninitialized_copy_result<std::ranges::borrowed_iterator_t<_IR>,
                                            std::ranges::borrowed_iterator_t<_OR>>
-    operator()(_ExecutionPolicy&& __exec, _IR&& __in_r, _OR&& __out_r) const
+    operator()(_ExecutionPolicy&& __exec, _IR&& __in_range, _OR&& __out_range) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
         return oneapi::dpl::__internal::__ranges::__pattern_uninitialized_copy(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_IR>(__in_r),
-            std::forward<_OR>(__out_r));
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_IR>(__in_range),
+            std::forward<_OR>(__out_range));
     }
 }; //__uninitialized_copy_fn
 } // namespace __internal
@@ -136,13 +136,13 @@ struct __uninitialized_move_fn
                                          std::ranges::range_rvalue_reference_t<_IR>>
     std::ranges::uninitialized_move_result<std::ranges::borrowed_iterator_t<_IR>,
                                            std::ranges::borrowed_iterator_t<_OR>>
-    operator()(_ExecutionPolicy&& __exec, _IR&& __in_r, _OR&& __out_r) const
+    operator()(_ExecutionPolicy&& __exec, _IR&& __in_range, _OR&& __out_range) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
         return oneapi::dpl::__internal::__ranges::__pattern_uninitialized_move(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_IR>(__in_r),
-            std::forward<_OR>(__out_r));
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_IR>(__in_range),
+            std::forward<_OR>(__out_range));
     }
 }; //__uninitialized_move_fn
 } // namespace __internal
