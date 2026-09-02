@@ -29,7 +29,6 @@ namespace dpl
 {
 namespace internal
 {
-using ::std::get;
 
 // struct for checking if iterator is a discard_iterator or not
 template <typename Iter, typename Void = void> // for non-discard iterators
@@ -111,6 +110,25 @@ class transform_if_stencil_fun
     Predicate pred;
     UnaryOperation op;
 };
+
+// Used by: *_by_segment algorithms
+template <typename _ValueType, typename _FlagType, typename _BinaryOp>
+struct __segmented_scan_fun
+{
+    template <typename _T1, typename _T2>
+    _T1
+    operator()(const _T1& __x, const _T2& __y) const
+    {
+        using std::get;
+        using __x_t = std::tuple_element_t<0, _T1>;
+        auto __new_x = get<1>(__y) ? __x_t(get<0>(__y)) : __x_t(__binary_op(get<0>(__x), get<0>(__y)));
+        auto __new_y = get<1>(__x) | get<1>(__y);
+        return _T1(__new_x, __new_y);
+    }
+
+    _BinaryOp __binary_op;
+};
+
 } // namespace internal
 } // namespace dpl
 } // namespace oneapi
