@@ -613,15 +613,18 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
 }
 
 // The by-value SIMD implementations of min_element / minmax_element keep copies of the values in the
-// reduction object, so the value type has to be usable in a user-defined reduction.
+// reduction object, so the value type has to be usable in a user-defined reduction:
+// the reduction object is default-constructed and copied, the values are copy-initialized from the
+// iterator's reference type and the comparator is called with two value type objects.
 template <typename _Iterator, typename _Compare,
           typename _ValueType = typename std::iterator_traits<_Iterator>::value_type,
           typename _ReferenceType = typename std::iterator_traits<_Iterator>::reference>
 inline constexpr bool __can_use_by_value_simd_minmax_v =
     std::is_default_constructible_v<_ValueType> &&
+    std::is_copy_constructible_v<_ValueType> &&
     std::is_copy_assignable_v<_ValueType> &&
-    std::is_constructible_v<_ValueType, _ReferenceType> &&
-    std::is_invocable_r_v<bool, _Compare&, const _ValueType&, const _ReferenceType&>;
+    std::is_convertible_v<_ReferenceType, _ValueType> &&
+    std::is_invocable_r_v<bool, _Compare&, const _ValueType&, const _ValueType&>;
 
 // [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
@@ -744,9 +747,9 @@ __simd_minmax_element_by_value(_ForwardIterator __first, _Size __n, _Compare __c
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        auto __min_val = __init.__min_val;
-        auto __max_val = __init.__max_val;
-        auto __current = __first[__i];
+        const _ValueType __min_val = __init.__min_val;
+        const _ValueType __max_val = __init.__max_val;
+        const _ValueType __current = __first[__i];
         if (std::invoke(__comp, __current, __min_val))
         {
             __init.__min_val = __current;
