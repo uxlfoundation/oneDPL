@@ -465,6 +465,22 @@ class __replace_copy_functor
     }
 };
 
+template <typename _T, typename _Predicate>
+struct __replace_if_fun
+{
+    using __result_of = _T;
+
+    template <typename _T1, typename _T2>
+    _T
+    operator()(_T1&& __a, _T2&& __s) const
+    {
+        return __pred(std::forward<_T2>(__s)) ? __new_value : __a;
+    }
+
+    _Predicate __pred;
+    const _T __new_value;
+};
+
 //! Like ::std::next, but with specialization for dpcpp case
 template <typename _Iter>
 _Iter
@@ -1278,22 +1294,6 @@ struct __ranges_equal_value
     }
 };
 #endif
-
-template <typename _T, typename _Predicate>
-struct __replace_if_fun
-{
-    using __result_of = _T;
-
-    template <typename _T1, typename _T2>
-    _T
-    operator()(_T1&& __a, _T2&& __s) const
-    {
-        return __pred(std::forward<_T2>(__s)) ? __new_value : __a;
-    }
-
-    _Predicate __pred;
-    const _T __new_value;
-};
 
 template <typename _OutValueType, typename _OutRefType, typename _InRefType>
 inline constexpr bool __trivial_uninitialized_copy =

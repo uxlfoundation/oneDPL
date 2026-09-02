@@ -161,6 +161,15 @@ struct __segmented_scan_fun;
 template <typename _T, typename _Predicate>
 struct __replace_if_fun;
 
+template <typename ValueType, typename FlagType, typename BinaryOp>
+struct scan_by_key_fun;
+
+template <typename Output1, typename Output2>
+class scatter_and_accumulate_fun;
+
+template <typename T, typename Predicate, typename UnaryOperation>
+class transform_if_stencil_fun;
+
 } // namespace oneapi::dpl::__internal
 
 template <typename _Pred>
@@ -381,6 +390,27 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 template <typename _T, typename _Predicate>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__replace_if_fun, _T, _Predicate)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_T, _Predicate>
+{
+};
+
+template <typename ValueType, typename FlagType, typename BinaryOp>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::scan_by_key_fun, ValueType, FlagType,
+                                                       BinaryOp)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<BinaryOp>
+{
+};
+
+template <typename Output1, typename Output2>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::scatter_and_accumulate_fun, Output1,
+                                                       Output2)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<Output1, Output2>
+{
+};
+
+template <typename T, typename Predicate, typename UnaryOperation>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::transform_if_stencil_fun, T, Predicate,
+                                                       UnaryOperation)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<Predicate, UnaryOperation>
 {
 };
 
@@ -804,41 +834,11 @@ enum class search_algorithm;
 template <typename Comp, typename T, search_algorithm func>
 struct __custom_brick;
 
-template <typename ValueType, typename FlagType, typename BinaryOp>
-struct scan_by_key_fun;
-
-template <typename Output1, typename Output2>
-class scatter_and_accumulate_fun;
-
-template <typename T, typename Predicate, typename UnaryOperation>
-class transform_if_stencil_fun;
-
 } // namespace oneapi::dpl::internal
 
 template <typename Comp, typename T, oneapi::dpl::internal::search_algorithm func>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::__custom_brick, Comp, T, func)>
     : oneapi::dpl::__internal::__are_all_device_copyable<Comp, T>
-{
-};
-
-template <typename ValueType, typename FlagType, typename BinaryOp>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::scan_by_key_fun, ValueType, FlagType,
-                                                       BinaryOp)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<BinaryOp>
-{
-};
-
-template <typename Output1, typename Output2>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::scatter_and_accumulate_fun, Output1,
-                                                       Output2)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<Output1, Output2>
-{
-};
-
-template <typename T, typename Predicate, typename UnaryOperation>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::transform_if_stencil_fun, T, Predicate,
-                                                       UnaryOperation)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<Predicate, UnaryOperation>
 {
 };
 

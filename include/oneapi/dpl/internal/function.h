@@ -27,7 +27,7 @@ namespace oneapi
 {
 namespace dpl
 {
-namespace internal
+namespace __internal
 {
 
 // struct for checking if iterator is a discard_iterator or not
@@ -129,7 +129,7 @@ struct __segmented_scan_fun
     _BinaryOp __binary_op;
 };
 
-} // namespace internal
+} // namespace __internal
 } // namespace dpl
 } // namespace oneapi
 #endif // _ONEDPL_INTERNAL_FUNCTION_H
