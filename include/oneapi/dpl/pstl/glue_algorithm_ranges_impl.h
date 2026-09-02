@@ -1655,25 +1655,25 @@ inline constexpr __internal::__stable_partition_fn stable_partition;
 struct __internal::__partition_copy_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R,
-              std::ranges::random_access_range _OutRange1, std::ranges::random_access_range _OutRange2,
+              std::ranges::random_access_range _OutR1, std::ranges::random_access_range _OutR2,
               typename _Proj = std::identity,
               std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
                  std::ranges::sized_range<_R> &&
-                 std::ranges::sized_range<_OutRange1> &&
-                 std::ranges::sized_range<_OutRange2> &&
-                 std::indirectly_copyable<std::ranges::iterator_t<_R>, std::ranges::iterator_t<_OutRange1>> &&
-                 std::indirectly_copyable<std::ranges::iterator_t<_R>, std::ranges::iterator_t<_OutRange2>>
+                 std::ranges::sized_range<_OutR1> &&
+                 std::ranges::sized_range<_OutR2> &&
+                 std::indirectly_copyable<std::ranges::iterator_t<_R>, std::ranges::iterator_t<_OutR1>> &&
+                 std::indirectly_copyable<std::ranges::iterator_t<_R>, std::ranges::iterator_t<_OutR2>>
     std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_R>,
-                                       std::ranges::borrowed_iterator_t<_OutRange1>,
-                                       std::ranges::borrowed_iterator_t<_OutRange2>>
-    operator()(_ExecutionPolicy&& __exec, _R&& __in_r, _OutRange1&& __out_true_r, _OutRange2&& __out_false_r,
+                                       std::ranges::borrowed_iterator_t<_OutR1>,
+                                       std::ranges::borrowed_iterator_t<_OutR2>>
+    operator()(_ExecutionPolicy&& __exec, _R&& __in_r, _OutR1&& __out_true_r, _OutR2&& __out_false_r,
                _Pred __pred, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_partition_copy_ranges(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__in_r),
-            std::forward<_OutRange1>(__out_true_r), std::forward<_OutRange2>(__out_false_r), __pred, __proj);
+            std::forward<_OutR1>(__out_true_r), std::forward<_OutR2>(__out_false_r), __pred, __proj);
     }
 }; //__partition_copy_fn
 inline constexpr __internal::__partition_copy_fn partition_copy;
