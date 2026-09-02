@@ -612,6 +612,21 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
+template <typename _Iterator, typename _Compare>
+struct __can_use_value_simd_min_element
+{
+    using _ValueType = typename std::iterator_traits<_Iterator>::value_type;
+    using _ReferenceType = typename std::iterator_traits<_Iterator>::reference;
+
+    static constexpr bool value =
+        std::is_default_constructible_v<_ValueType> &&
+        std::is_copy_constructible_v<_ValueType> &&
+        std::is_copy_assignable_v<_ValueType> &&
+        std::is_destructible_v<_ValueType> &&
+        std::is_constructible_v<_ValueType, _ReferenceType> &&
+        std::is_invocable_r_v<bool, _Compare&, const _ValueType&, const _ReferenceType&>;
+};
+
 // [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
