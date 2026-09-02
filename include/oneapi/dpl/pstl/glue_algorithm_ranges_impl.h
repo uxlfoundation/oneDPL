@@ -1158,7 +1158,7 @@ inline constexpr __internal::__replace_fn replace;
 struct __internal::__replace_copy_if_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R,
-              std::ranges::random_access_range _OutR, class _T = std::ranges::range_value_t<_OutR>,
+              std::ranges::random_access_range _OutR, typename _T = std::ranges::range_value_t<_OutR>,
               typename _Proj = std::identity,
               std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
