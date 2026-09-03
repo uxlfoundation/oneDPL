@@ -767,6 +767,10 @@ __pattern_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _
 // pattern_merge_ranges
 //---------------------------------------------------------------------------------------------------------------------
 
+// This implementation is based on the Merge Path algorithm described in:
+// O. Green, S. Odeh, and Y. Birk,
+// "Merge Path - A Visually Intuitive Approach to Parallel Merging,"
+// arXiv:1406.2628, 2014.
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
@@ -774,47 +778,74 @@ std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::bo
 __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                        _Proj1 __proj1, _Proj2 __proj2)
 {
-    using _IndexCommon = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
-
     auto __first1 = std::ranges::begin(__r1);
     auto __first2 = std::ranges::begin(__r2);
     auto __first3 = std::ranges::begin(__out_r);
 
-    const _IndexCommon __n1 = std::ranges::size(__r1);
-    const _IndexCommon __n2 = std::ranges::size(__r2);
-    const _IndexCommon __n3 = std::ranges::size(__out_r);
+    using _Index1 = typename std::iterator_traits<decltype(__first1)>::difference_type;
+    using _Index2 = typename std::iterator_traits<decltype(__first2)>::difference_type;
+    using _Index3 = typename std::iterator_traits<decltype(__first3)>::difference_type;
+    using _IndexCommon = std::common_type_t<_Index1, _Index2, _Index3>;
+    static_assert(std::is_signed_v<_IndexCommon>);
 
-    //{3} is empty
+    const _IndexCommon __n1 = static_cast<_IndexCommon>(std::ranges::size(__r1));
+    const _IndexCommon __n2 = static_cast<_IndexCommon>(std::ranges::size(__r2));
+    const _IndexCommon __n3 = static_cast<_IndexCommon>(std::ranges::size(__out_r));
+
     if (__n3 == 0)
         return {__first1, __first2, __first3};
 
-    //{1} is empty
+    // equivalent of min(n1 + n2, n3) with no signed overflow risk
+    const _IndexCommon __n_out = (__n1 < __n3 - __n2) ? __n1 + __n2 : __n3;
+
+    auto __last3 = __first3 + __n_out;
+
     if (__n1 == 0)
     {
-        __internal::__brick_copy<_Tag> __copy_range{};
-
-        auto __last2_tmp = __first2 + std::min(__n3, __n2);
-
-        auto __last_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2,
-                                                                __last2_tmp, __first3, __copy_range);
-        return {__first1, __last2_tmp, __last_out_res};
+        auto __last2 = __first2 + std::min<_IndexCommon>(__n2, __n_out);
+        auto __last_out = oneapi::dpl::__internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                                         __first2, __last2, __first3,
+                                                                         oneapi::dpl::__internal::__brick_copy<_Tag>{});
+        return {__first1, __last2, __last_out};
     }
 
-    //{2} is empty
     if (__n2 == 0)
     {
-        __internal::__brick_copy<_Tag> __copy_range{};
-
-        auto __last1_tmp = __first1 + std::min(__n3, __n1);
-
-        auto __last_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                                __last1_tmp, __first3, __copy_range);
-        return {__last1_tmp, __first2, __last_out_res};
+        auto __last1 = __first1 + std::min<_IndexCommon>(__n1, __n_out);
+        auto __last_out = oneapi::dpl::__internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                                         __first1, __last1, __first3,
+                                                                         oneapi::dpl::__internal::__brick_copy<_Tag>{});
+        return {__last1, __first2, __last_out};
     }
 
-    auto [__it1, __it2, __it3] = __merge_path_out_lim(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n1, __first2, __first2 + __n2, __first3,
-        __first3 + std::min<_IndexCommon>(__n1 + __n2, __n3), __comp, __proj1, __proj2);
+    if constexpr (__is_parallel_tag_v<_Tag>)
+    {
+        using __backend_tag = typename _Tag::__backend_tag;
+        _merge_path_out_lim_return_t<decltype(__first1), decltype(__first2), decltype(__first3)> __result{
+            __first1, __first2, __first3};
+
+        oneapi::dpl::__internal::__except_handler([&]() {
+            oneapi::dpl::__par_backend::__parallel_for(
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
+                [=, &__result](_IndexCommon __i, _IndexCommon __j) {
+                    const auto [__r, __c] = oneapi::dpl::__internal::__merge_path_intersection(
+                        __i, __n1, __n2, __first1, __first2, __comp, __proj1, __proj2);
+
+                    const auto __merge_out_lim_res = oneapi::dpl::__internal::__serial_merge_out_lim(
+                        __first1 + __r, __first1 + __n1, __first2 + __c, __first2 + __n2, __first3 + __i,
+                        __first3 + __j, __comp, __proj1, __proj2);
+
+                    if (__j == __n_out)
+                        __result = __merge_out_lim_res;
+                },
+                oneapi::dpl::__internal::__merge_path_cut_off);
+        });
+
+        return {std::get<0>(__result), std::get<1>(__result), std::get<2>(__result)};
+    }
+
+    auto [__it1, __it2, __it3] = oneapi::dpl::__internal::__serial_merge_out_lim(
+        __first1, __first1 + __n1, __first2, __first2 + __n2, __first3, __last3, __comp, __proj1, __proj2);
 
     return {__it1, __it2, __it3};
 }
