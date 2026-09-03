@@ -683,7 +683,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 std::enable_if_t<__can_use_by_value_simd_minmax_v<_ForwardIterator, _Compare>,
                  std::pair<_ForwardIterator, _ForwardIterator>>
-__simd_minmax_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
+__simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
     if (__n == 0)
         return {__first, __first};
