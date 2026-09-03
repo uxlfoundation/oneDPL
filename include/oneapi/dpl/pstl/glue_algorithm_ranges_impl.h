@@ -129,7 +129,8 @@ struct __internal::__transform_fn
             std::ranges::subrange(std::ranges::begin(__r2), std::ranges::begin(__r2) + __size),
             std::ranges::take_view(__result, __size), __binary_op, __proj1, __proj2);
 
-        return {std::ranges::begin(__r1) + __size, std::ranges::begin(__r2) + __size, std::ranges::begin(__result) + __size};
+        return {std::ranges::begin(__r1) + __size, std::ranges::begin(__r2) + __size,
+                std::ranges::begin(__result) + __size};
     }
 }; //__transform_fn
 inline constexpr __internal::__transform_fn transform;
