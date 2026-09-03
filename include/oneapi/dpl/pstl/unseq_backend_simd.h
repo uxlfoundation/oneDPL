@@ -629,7 +629,7 @@ inline constexpr bool __can_use_by_value_simd_minmax_v =
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 std::enable_if_t<__can_use_by_value_simd_minmax_v<_ForwardIterator, _Compare>, _ForwardIterator>
-__simd_min_element_by_value(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
+__simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
     if (__n == 0)
         return __first;
