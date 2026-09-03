@@ -38,15 +38,6 @@ namespace unseq_backend
 
 #if _ONEDPL_USE_GROUP_ALGOS
 
-// When ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION is defined as non-zero, we avoid using known identity for 64-bit arithmetic data types
-template <typename _Tp>
-using __workaround_igpu_64_bit_reduction =
-#        if ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
-    std::bool_constant<!(::std::is_arithmetic_v<_Tp> && sizeof(_Tp) == sizeof(::std::uint64_t))>;
-#        else
-    std::true_type;
-#        endif // ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
-
 template <typename _BinaryOp, typename _Tp, template <typename> class... _Ops>
 using __is_one_of_ops = std::disjunction<std::is_same<std::decay_t<_BinaryOp>, _Ops<_Tp>>...,
                                          std::is_same<std::decay_t<_BinaryOp>, _Ops<void>>...>;
@@ -69,7 +60,6 @@ using __can_use_group_reduce_scan_for_complex = std::false_type;
 
 template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan = std::conjunction<
-    __workaround_igpu_64_bit_reduction<_Tp>,
     std::negation<std::is_same<_Tp, bool>>, // group algorithms are not implemented for bool in icpx as of 2026.0
     sycl::has_known_identity<_BinaryOp, _Tp>,
     std::disjunction<std::is_arithmetic<_Tp>, std::is_same<_Tp, sycl::half>,
@@ -91,7 +81,6 @@ using __can_use_group_reduce_scan = std::conjunction<
 // TODO: check acpp - it should support std::* ops as sycl::* ops are aliases to std::* ops.
 template <typename _BinaryOp, typename _Tp>
 using __can_use_group_reduce_scan = std::conjunction<
-    __workaround_igpu_64_bit_reduction<_Tp>,
     std::is_arithmetic<_Tp>,
     sycl::has_known_identity<_BinaryOp, _Tp>,
     __is_one_of_ops<_BinaryOp, _Tp,
