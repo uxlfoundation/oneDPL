@@ -63,7 +63,6 @@ struct __uninitialized_default_construct_fn
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
                  std::ranges::sized_range<_R> &&
                  std::default_initializable<std::ranges::range_value_t<_R>>
-
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r) const
     {
@@ -85,7 +84,6 @@ struct __uninitialized_value_construct_fn
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
                  std::ranges::sized_range<_R> &&
                  std::default_initializable<std::ranges::range_value_t<_R>>
-
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r) const
     {
@@ -103,22 +101,22 @@ namespace __internal
 {
 struct __uninitialized_copy_fn
 {
-    template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
-              __nothrow_random_access_range _OutRange>
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _IR,
+              __nothrow_random_access_range _OR>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
-                 std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange> &&
-                 std::constructible_from<std::ranges::range_value_t<_OutRange>,
-                                         std::ranges::range_reference_t<_InRange>>
-
-    std::ranges::uninitialized_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
-                                           std::ranges::borrowed_iterator_t<_OutRange>>
-    operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r) const
+                 std::ranges::sized_range<_IR> &&
+                 std::ranges::sized_range<_OR> &&
+                 std::constructible_from<std::ranges::range_value_t<_OR>,
+                                         std::ranges::range_reference_t<_IR>>
+    std::ranges::uninitialized_copy_result<std::ranges::borrowed_iterator_t<_IR>,
+                                           std::ranges::borrowed_iterator_t<_OR>>
+    operator()(_ExecutionPolicy&& __exec, _IR&& __in_range, _OR&& __out_range) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
         return oneapi::dpl::__internal::__ranges::__pattern_uninitialized_copy(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r),
-            std::forward<_OutRange>(__out_r));
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_IR>(__in_range),
+            std::forward<_OR>(__out_range));
     }
 }; //__uninitialized_copy_fn
 } // namespace __internal
@@ -129,22 +127,22 @@ namespace __internal
 {
 struct __uninitialized_move_fn
 {
-    template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
-              __nothrow_random_access_range _OutRange>
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _IR,
+              __nothrow_random_access_range _OR>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
-                 std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange> &&
-                 std::constructible_from<std::ranges::range_value_t<_OutRange>,
-                                         std::ranges::range_rvalue_reference_t<_InRange>>
-
-    std::ranges::uninitialized_move_result<std::ranges::borrowed_iterator_t<_InRange>,
-                                           std::ranges::borrowed_iterator_t<_OutRange>>
-    operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r) const
+                 std::ranges::sized_range<_IR> &&
+                 std::ranges::sized_range<_OR> &&
+                 std::constructible_from<std::ranges::range_value_t<_OR>,
+                                         std::ranges::range_rvalue_reference_t<_IR>>
+    std::ranges::uninitialized_move_result<std::ranges::borrowed_iterator_t<_IR>,
+                                           std::ranges::borrowed_iterator_t<_OR>>
+    operator()(_ExecutionPolicy&& __exec, _IR&& __in_range, _OR&& __out_range) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
 
         return oneapi::dpl::__internal::__ranges::__pattern_uninitialized_move(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r),
-            std::forward<_OutRange>(__out_r));
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_IR>(__in_range),
+            std::forward<_OR>(__out_range));
     }
 }; //__uninitialized_move_fn
 } // namespace __internal
@@ -159,7 +157,6 @@ struct __uninitialized_fill_fn
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
                  std::ranges::sized_range<_R> &&
                  std::constructible_from<std::ranges::range_value_t<_R>, const _T&>
-
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value) const
     {
@@ -181,7 +178,6 @@ struct __destroy_fn
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
                  std::ranges::sized_range<_R> &&
                  std::destructible<std::ranges::range_value_t<_R>>
-
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r) const
     {
