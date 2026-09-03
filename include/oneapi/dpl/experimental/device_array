@@ -20,6 +20,7 @@
 // _ONEDPL_SPAN_PRESENT, which gates device_array: without a span there is no way to express its interface.
 #include "../pstl/hetero/dpcpp/span_impl.h"
 
+#include "device_allocator_impl.h"
 #if _ONEDPL_SPAN_PRESENT
 #include "../pstl/hetero/dpcpp/device_array_impl.h"
 namespace dpl = oneapi::dpl;
