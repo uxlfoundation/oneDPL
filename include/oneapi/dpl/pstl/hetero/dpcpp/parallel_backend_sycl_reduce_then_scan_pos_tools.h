@@ -29,6 +29,9 @@ namespace dpl
 namespace __par_backend_hetero
 {
 
+// Index type within the temporary data array used to store per-diagonal results in registers.
+using __temp_data_array_idx_t = std::uint16_t;
+
 // Describe final and OOB positions in source ranges together for bounded set operations
 // (where tracking of OOB position is needed to determine the effective final position
 // in source ranges based on output range size).
@@ -96,11 +99,11 @@ struct __src_pos_capturing_temp_data
     // We should capture source data indexes in this structure
     static constexpr bool __capture_indexes_flag = true;
 
-    __src_pos_capturing_temp_data(std::uint16_t __idx_for_src_pos) : __idx_for_src_pos(__idx_for_src_pos) {}
+    __src_pos_capturing_temp_data(__temp_data_array_idx_t __idx_for_src_pos) : __idx_for_src_pos(__idx_for_src_pos) {}
 
     template <typename _ValueT2>
     void
-    set(std::uint16_t __idx, const _ValueT2&, _FinalPosT __src_idx)
+    set(__temp_data_array_idx_t __idx, const _ValueT2&, _FinalPosT __src_idx)
     {
         if (__idx == __idx_for_src_pos)
             __saved_src_pos = __src_idx;
@@ -113,7 +116,7 @@ struct __src_pos_capturing_temp_data
     }
 
   private:
-    const std::uint16_t __idx_for_src_pos = 0;
+    const __temp_data_array_idx_t __idx_for_src_pos = 0;
     _FinalPosT __saved_src_pos = {};
 };
 

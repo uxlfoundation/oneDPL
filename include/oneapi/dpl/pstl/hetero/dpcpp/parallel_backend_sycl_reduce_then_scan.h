@@ -49,26 +49,26 @@ namespace __par_backend_hetero
 // *** Utilities ***
 
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
-template <std::uint16_t elements, typename _ValueT>
+template <__temp_data_array_idx_t elements, typename _ValueT>
 struct __temp_data_array
 {
     // The maximum number of output elements a single scanned element may emit through this temporary data.
     // For set operations a scanned element is a diagonal which can produce up to `elements` outputs, so the
     // bounded-write estimate must account for this many writes per scanned element.
-    static constexpr std::uint16_t __max_outputs_per_input = elements;
+    static constexpr __temp_data_array_idx_t __max_outputs_per_input = elements;
 
     // We don't capture source data indexes in this structure
     static constexpr bool __capture_indexes_flag = false;
 
     template <typename _ValueT2>
     void
-    set(std::uint16_t __idx, const _ValueT2& __ele)
+    set(__temp_data_array_idx_t __idx, const _ValueT2& __ele)
     {
         __data[__idx].__setup(__ele);
     }
 
     _ValueT
-    get_and_destroy(std::uint16_t __idx)
+    get_and_destroy(__temp_data_array_idx_t __idx)
     {
         // Setting up temporary value to be destroyed as this function exits. The __scoped_destroyer calls destroy when
         // it leaves scope.
@@ -83,14 +83,14 @@ struct __temp_data_array
 // where no temporary register data is needed within reduce then scan kern
 struct __noop_temp_data
 {
-    static constexpr std::uint16_t __max_outputs_per_input = 1;
+    static constexpr __temp_data_array_idx_t __max_outputs_per_input = 1;
 
     // We don't capture source data indexes in this structure
     static constexpr bool __capture_indexes_flag = false;
 
     template <typename _ValueT>
     void
-    set(std::uint16_t, const _ValueT&) const
+    set(__temp_data_array_idx_t, const _ValueT&) const
     {
     }
 };
@@ -355,7 +355,8 @@ struct __write_scan_by_seg
 // of elements to write. Used for __parallel_set_write_a_b_op.
 struct __write_multiple_to_id
 {
-    using __position_type = std::size_t;
+    // The OOB position reported by this write operation is an offset within the temporary data of a diagonal.
+    using __position_type = __temp_data_array_idx_t;
 
     template <typename _ValueType>
     friend _ValueType
@@ -384,8 +385,8 @@ struct __write_multiple_to_id
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
-        const std::size_t __n = std::get<1>(__v);
-        for (std::size_t __i = 0; __i < __n; ++__i)
+        const __temp_data_array_idx_t __n = std::get<1>(__v);
+        for (__temp_data_array_idx_t __i = 0; __i < __n; ++__i)
         {
             __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
                      __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
@@ -403,8 +404,8 @@ struct __write_multiple_to_id
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
-        const std::size_t __n = std::get<1>(__v);
-        for (std::size_t __i = 0; __i < __n; ++__i)
+        const __temp_data_array_idx_t __n = std::get<1>(__v);
+        for (__temp_data_array_idx_t __i = 0; __i < __n; ++__i)
         {
             // Retrieve and destroy the temporary slot unconditionally, before the bounds check. Each slot was
             // constructed by the generator via placement-new (__temp_data_array::set) and requires an explicit
@@ -544,12 +545,12 @@ struct __gen_unique_mask
 template <typename _SetTag>
 struct __set_operation
 {
-    template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
-              typename _Proj1, typename _Proj2, typename _FinalPosSaver>
-    _SizeType
+    template <typename _InRng1, typename _InRng2, typename _TempOutput, typename _Compare, typename _Proj1,
+              typename _Proj2, typename _FinalPosSaver>
+    __temp_data_array_idx_t
     operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
-               _Proj2 __proj2, _FinalPosSaver __final_pos_saver) const
+               const __temp_data_array_idx_t __num_eles_min, _TempOutput& __temp_out, const _Compare __comp,
+               _Proj1 __proj1, _Proj2 __proj2, _FinalPosSaver __final_pos_saver) const
     {
         constexpr bool __is_set_difference = std::is_same_v<_SetTag, unseq_backend::_DifferenceTag>;
         constexpr bool __is_set_intersection = std::is_same_v<_SetTag, unseq_backend::_IntersectionTag>;
@@ -562,8 +563,8 @@ struct __set_operation
         const auto __size1 = oneapi::dpl::__ranges::__size(__in_rng1);
         const auto __size2 = oneapi::dpl::__ranges::__size(__in_rng2);
 
-        auto __write_temp_element = [&](const _SizeType __count_arg, const auto& __value, std::size_t __idx1,
-                                        std::size_t __idx2) {
+        auto __write_temp_element = [&](const __temp_data_array_idx_t __count_arg, const auto& __value,
+                                        std::size_t __idx1, std::size_t __idx2) {
             if constexpr (_TempOutput::__capture_indexes_flag)
                 __temp_out.set(__count_arg, __value, {__idx1, __idx2});
             else
@@ -608,8 +609,8 @@ struct __set_operation
             }
         };
 
-        _SizeType __count = 0;
-        _SizeType __idx = 0;
+        __temp_data_array_idx_t __count = 0;
+        __temp_data_array_idx_t __idx = 0;
 
         constexpr bool _CopyMatch = __is_set_intersection || __is_set_union;
         constexpr bool _CopyDiffSetA = !__is_set_intersection;
@@ -710,7 +711,8 @@ struct __set_operation
 
 template <bool __return_star, typename _Rng, typename _IdxT>
 auto
-__decode_balanced_path_temp_data_impl(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
+__decode_balanced_path_temp_data_impl(const _Rng& __rng, const _IdxT __id,
+                                      const __temp_data_array_idx_t __diagonal_spacing)
 {
     using SizeT = decltype(oneapi::dpl::__ranges::__size(__rng));
     using SignedSizeT = std::make_signed_t<decltype(oneapi::dpl::__ranges::__size(__rng))>;
@@ -730,14 +732,15 @@ __decode_balanced_path_temp_data_impl(const _Rng& __rng, const _IdxT __id, const
 
 template <typename _Rng, typename _IdxT>
 std::tuple<_IdxT, _IdxT>
-__decode_balanced_path_temp_data_no_star(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
+__decode_balanced_path_temp_data_no_star(const _Rng& __rng, const _IdxT __id,
+                                         const __temp_data_array_idx_t __diagonal_spacing)
 {
     return __decode_balanced_path_temp_data_impl<false>(__rng, __id, __diagonal_spacing);
 }
 
 template <typename _Rng, typename _IdxT>
 std::tuple<_IdxT, _IdxT, decltype(oneapi::dpl::__ranges::__size(std::declval<_Rng>()))>
-__decode_balanced_path_temp_data(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
+__decode_balanced_path_temp_data(const _Rng& __rng, const _IdxT __id, const __temp_data_array_idx_t __diagonal_spacing)
 {
     return __decode_balanced_path_temp_data_impl<true>(__rng, __id, __diagonal_spacing);
 }
@@ -785,7 +788,7 @@ struct __get_bounds_partitioned
             __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
         return std::make_tuple(_SizeType{begin_rng1}, _SizeType{end_rng1}, _SizeType{begin_rng2}, _SizeType{end_rng2});
     }
-    std::uint16_t __diagonal_spacing;
+    __temp_data_array_idx_t __diagonal_spacing;
     std::size_t __tile_size;
     std::size_t __partition_threshold;
 };
@@ -812,6 +815,7 @@ struct __get_bounds_simple
 // Reduce then scan building block for set balanced path which is used in the reduction kernel to calculate the
 // balanced path intersection, store it to temporary data with "star" status, then count the number of elements to write
 // to the output for the reduction operation.
+// _RetType is the scanned type for the scan so it must be the size type of the output range.
 template <typename _SetOpCount, typename _BoundsProvider, typename _RetType, typename _Compare, typename _Proj1,
           typename _Proj2>
 struct __gen_set_balanced_path
@@ -956,7 +960,7 @@ struct __gen_set_balanced_path
         const bool __is_partitioned = __total_size >= __get_bounds.__partition_threshold;
 
         if (__id * __diagonal_spacing >= __total_size)
-            return 0;
+            return _RetType{0};
         if (!__is_partitioned)
         {
             // If not partitioned, just use the bounds of the full range to limit balanced path intersection search
@@ -984,16 +988,16 @@ struct __gen_set_balanced_path
             __star = __local_star;
         }
 
-        _IndexT __eles_to_process =
+        const __temp_data_array_idx_t __eles_to_process = static_cast<__temp_data_array_idx_t>(
             std::min(_IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
                      oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2) -
-                         _IndexT{__id * __diagonal_spacing - 1});
+                         _IndexT{__id * __diagonal_spacing - 1}));
 
-        return __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos, __eles_to_process, __temp_data,
-                              __comp, __proj1, __proj2, __final_pos_saver);
+        return _RetType{__set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos, __eles_to_process,
+                                       __temp_data, __comp, __proj1, __proj2, __final_pos_saver)};
     }
     _SetOpCount __set_op_count;
-    std::uint16_t __diagonal_spacing;
+    __temp_data_array_idx_t __diagonal_spacing;
     _BoundsProvider __get_bounds;
     _Compare __comp;
     _Proj1 __proj1;
@@ -1003,12 +1007,13 @@ struct __gen_set_balanced_path
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
+// _RetType is the scanned type for the scan so it must be the size type of the output range.
 template <typename _SetOpCount, typename _TempData, typename _RetType, typename _Compare, typename _Proj1,
           typename _Proj2>
 struct __gen_set_op_from_known_balanced_path
 {
     template <typename _InRng>
-    using __result_t = std::tuple<_RetType, _RetType>;
+    using __result_t = std::tuple<_RetType, __temp_data_array_idx_t>;
 
     using TempData = _TempData;
     template <typename _InRng, typename _IndexT, typename _TempDataArg, typename _FinalPosSaver>
@@ -1031,23 +1036,23 @@ struct __gen_set_op_from_known_balanced_path
             oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2), decltype(__rng1_temp_diag)>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
-            return __result_t<_InRng>{_RetType{0}, _RetType{0}};
+            return __result_t<_InRng>{_RetType{0}, __temp_data_array_idx_t{0}};
         auto [__rng1_idx, __rng2_idx, __star_offset] =
             oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__rng1_temp_diag, __id,
                                                                                 __diagonal_spacing);
 
-        _RetType __eles_to_process = static_cast<_RetType>(
+        __temp_data_array_idx_t __eles_to_process = static_cast<__temp_data_array_idx_t>(
             std::min(static_cast<_SizeType>(__diagonal_spacing - __star_offset),
                      static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng1) +
                                             oneapi::dpl::__ranges::__size(__rng2) - __i_elem + 1)));
 
-        _RetType __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data,
-                                          __comp, __proj1, __proj2, __final_pos_saver);
+        __temp_data_array_idx_t __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process,
+                                                         __output_data, __comp, __proj1, __proj2, __final_pos_saver);
 
-        return __result_t<_InRng>{__count, __count};
+        return __result_t<_InRng>{_RetType{__count}, __count};
     }
     _SetOpCount __set_op_count;
-    std::uint16_t __diagonal_spacing;
+    __temp_data_array_idx_t __diagonal_spacing;
     _Compare __comp;
     _Proj1 __proj1;
     _Proj2 __proj2;
