@@ -1926,8 +1926,11 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
 template <bool _Bounded, typename _ValueType, typename _StopPosType>
 using __transform_reduce_then_scan_result_t =
     std::conditional_t<_Bounded,
-                       std::tuple<sycl::event, __combined_storage<_ValueType>, __result_storage<_StopPosType>>,
-                       std::tuple<sycl::event, __combined_storage<_ValueType>>>;
+                       std::tuple<sycl::event,
+                                  __combined_storage<_ValueType>,
+                                  __result_storage<_StopPosType>>,
+                       std::tuple<sycl::event,
+                                  __combined_storage<_ValueType>>>;
 
 template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
@@ -2416,7 +2419,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     // We need temporary storage for reductions of each sub-group (__num_sub_groups_global).
     // Additionally, we need two elements for the block carry-out to prevent a race condition
     // between reading and writing the block carry-out within a single kernel.
-    __combined_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2, 1};
+    __combined_storage<_ValueType> __result_and_tmp_data{__q, __max_num_sub_groups_global + 2, 1};
 
     // Reduce and scan step implementations
     using _ReduceSubmitter =
@@ -2464,10 +2467,10 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
         auto __local_range = sycl::range<1>(__work_group_size);
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
-        __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
+        __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_tmp_data, __prior_event,
                                            __inputs_per_item, __b, __stop_pos_storage, __stop_pos_initial_state);
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
-        __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
+        __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_tmp_data,
                                          __prior_event, __inputs_per_item, __b, __stop_pos_storage);
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
@@ -2481,9 +2484,9 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
     }
 
     if constexpr (_Bounded)
-        return {std::move(__prior_event), std::move(__result_and_scratch), std::move(__stop_pos_storage)};
+        return {std::move(__prior_event), std::move(__result_and_tmp_data), std::move(__stop_pos_storage)};
     else
-        return {std::move(__prior_event), std::move(__result_and_scratch)};
+        return {std::move(__prior_event), std::move(__result_and_tmp_data)};
 }
 
 // General scan-like algorithm helpers

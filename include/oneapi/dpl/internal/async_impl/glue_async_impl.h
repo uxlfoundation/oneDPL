@@ -105,8 +105,11 @@ sort_async(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last, _Comp
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
     using __backend_tag = typename decltype(__dispatch_tag)::__backend_tag;
 
-    return __par_backend_hetero::__parallel_stable_sort(__backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                        __buf.all_view(), __comp, oneapi::dpl::identity{});
+    std::tuple __res = __par_backend_hetero::__parallel_stable_sort(
+        __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __buf.all_view(), __comp, oneapi::dpl::identity{});
+    // skip __finalize_call() here, because we want to return future object to the user
+
+    return oneapi::dpl::__par_backend_hetero::__create_future(std::move(__res));
 }
 
 template <class _ExecutionPolicy, class _RandomAccessIterator, class... _Events,
