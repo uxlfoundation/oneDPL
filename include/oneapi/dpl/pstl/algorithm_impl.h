@@ -3092,30 +3092,30 @@ __pattern_remove_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 // merge
 //------------------------------------------------------------------------
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Comp,
-          typename _Proj1, typename _Proj2>
+          typename _Proj1, typename _Proj2, typename _Assign = oneapi::dpl::__internal::__pstl_assign>
 std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
 __serial_merge_out_lim(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                        _ForwardIterator2 __last2, _OutputIterator __first3, _OutputIterator __last3, _Comp __comp,
-                       _Proj1 __proj1, _Proj2 __proj2)
+                       _Proj1 __proj1, _Proj2 __proj2, _Assign __assign = {})
 {
     while (__first3 != __last3)
     {
         if (__first1 == __last1)
         {
             assert(__first2 != __last2);
-            *__first3++ = *__first2++;
+            __assign(*__first2++, *__first3++);
         }
         else if (__first2 == __last2)
         {
             assert(__first1 != __last1);
-            *__first3++ = *__first1++;
+            __assign(*__first1++, *__first3++);
         }
         else
         {
             if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
-                *__first3++ = *__first2++;
+                __assign(*__first2++, *__first3++);
             else
-                *__first3++ = *__first1++;
+                __assign(*__first1++, *__first3++);
         }
     }
 
@@ -3196,6 +3196,7 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
 }
 
 inline constexpr std::size_t __merge_path_cut_off = 2000;
+inline constexpr std::size_t __merge_path_parallel_partition_cut_off = 64;
 
 // This implementation is based on the Merge Path algorithm described in:
 // O. Green, S. Odeh, and Y. Birk,
@@ -3290,38 +3291,84 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    if (__first == __last || __first == __middle || __middle == __last)
+    if (__first == __middle || __middle == __last)
     {
         return;
     }
 
     using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
-    auto __n = __last - __first;
+    using _Index = std::common_type_t<typename std::iterator_traits<_RandomAccessIterator>::difference_type,
+                                      std::ptrdiff_t>;
+    static_assert(std::is_signed_v<_Index>);
+
+    const _Index __n_1 = __middle - __first;
+    const _Index __n_2 = __last - __middle;
+    const _Index __n = __n_1 + __n_2;
+
+    constexpr _Index __chunk_size = static_cast<_Index>(__merge_path_cut_off);
+    const _Index __n_chunks = (__n - 1) / __chunk_size + 1;
+
     __par_backend::__buffer<_Tp> __buf(__n);
-    _Tp* __r = __buf.get();
+    __par_backend::__buffer<_Index> __split_buf(__n_chunks + 1);
+
     __internal::__except_handler([&]() {
-        auto __move_values = [](_RandomAccessIterator __x, _Tp* __z) {
-            ::new (std::addressof(*__z)) _Tp(std::move(*__x));
-        };
+        _Tp* __b = __buf.get();
+        _Index* __split = __split_buf.get();
 
-        auto __move_sequences = [](_RandomAccessIterator __first1, _RandomAccessIterator __last1, _Tp* __first2) {
-            return __internal::__brick_uninitialized_move(__first1, __last1, __first2, _IsVector{});
+        // 1. Partition
+        auto __partition = [=](_Index __i_c, _Index __j_c) {
+            for (_Index __k = __i_c; __k < __j_c; ++__k)
+            {
+                const _Index __diag = std::min(__k * __chunk_size, __n);
+                __split[__k] = __merge_path_intersection(__diag, __n_1, __n_2, __first, __middle, __comp,
+                                                         oneapi::dpl::identity{}, oneapi::dpl::identity{}).first;
+            }
         };
+        if (__n_chunks < static_cast<_Index>(__merge_path_parallel_partition_cut_off))
+            __partition(_Index{0}, __n_chunks + 1);
+        else
+            __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{0}, __n_chunks + 1, __partition);
 
-        __par_backend::__parallel_merge(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle, __middle, __last, __r, __comp,
-            [__n, __move_values, __move_sequences](_RandomAccessIterator __f1, _RandomAccessIterator __l1,
-                                                   _RandomAccessIterator __f2, _RandomAccessIterator __l2, _Tp* __f3,
-                                                   _Compare __comp) {
-                (__utils::__serial_move_merge(__n))(__f1, __l1, __f2, __l2, __f3, __comp, __move_values, __move_values,
-                                                    __move_sequences, __move_sequences);
-                return __f3 + (__l1 - __f1) + (__l2 - __f2);
+        // 2. Move to the temporary buffer to merge to the original range later
+        __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{0}, __n, [=](_Index __i, _Index __j) {
+            __internal::__brick_uninitialized_move(__first + __i, __first + __j, __b + __i, _IsVector{});
+        });
+
+        // 3. Merge
+        auto __move_assign = [](_Tp& __x, auto&& __y) { std::forward<decltype(__y)>(__y) = std::move(__x); };
+
+        __par_backend::__parallel_for(
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_chunks,
+            [=](_Index __i_c, _Index __j_c) {
+                for (_Index __k = __i_c; __k < __j_c; ++__k)
+                {
+                    const _Index __i = __k * __chunk_size;
+                    const _Index __j = std::min(__i + __chunk_size, __n);
+                    const _Index __r = __split[__k];
+                    const _Index __c = __i - __r;
+                    const _Index __r_end = __split[__k + 1];
+                    const _Index __c_end = __j - __r_end;
+
+                    if (__r == __r_end) // Chunk contains only A elements
+                    {
+                        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __n_1 + __c, __b + __n_1 + __c_end,
+                                                                         __first + __i, _IsVector{});
+                    }
+                    else if (__c == __c_end) // Chunk contains only B elements
+                    {
+                        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __r, __b + __r_end, __first + __i,
+                                                                         _IsVector{});
+                    }
+                    else // Chunk contains both A and B elements
+                    {
+                        __serial_merge_out_lim(__b + __r, __b + __r_end, __b + __n_1 + __c, __b + __n_1 + __c_end,
+                                               __first + __i, __first + __j, __comp, oneapi::dpl::identity{},
+                                               oneapi::dpl::identity{}, __move_assign);
+                        __internal::__brick_destroy(__b + __r, __b + __r_end, _IsVector{});
+                        __internal::__brick_destroy(__b + __n_1 + __c, __b + __n_1 + __c_end, _IsVector{});
+                    }
+                }
             });
-        __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n,
-                                      [__r, __first](_Tp* __i, _Tp* __j) {
-                                          __brick_move_destroy<__parallel_tag<_IsVector>>{}(
-                                              __i, __j, __first + (__i - __r), _IsVector{});
-                                      });
     });
 }
 
