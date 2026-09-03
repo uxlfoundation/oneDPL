@@ -50,4 +50,30 @@
 #    define ONEDPL_HAS_RANGE_ALGORITHMS   202608L
 #endif
 
+// -- Check availability of heterogeneous backends --
+
+// If DPCPP backend is explicitly requested, optimistically assume SYCL availability;
+// otherwise, make sure that it is definitely available additionally checking SYCL_LANGUAGE_VERSION
+#if __has_include(<sycl/sycl.hpp>) || __has_include(<CL/sycl.hpp>)
+#    if SYCL_LANGUAGE_VERSION || CL_SYCL_LANGUAGE_VERSION || ONEDPL_USE_DPCPP_BACKEND
+#        define _ONEDPL_SYCL_AVAILABLE 1
+#    endif
+#else
+#    if ONEDPL_USE_DPCPP_BACKEND
+#        error "Device execution policies are requested, but SYCL* headers are not found"
+#    endif
+#endif
+
+// If DPCPP backend is not explicitly turned off and SYCL is available, enable it
+#if (ONEDPL_USE_DPCPP_BACKEND || !defined(ONEDPL_USE_DPCPP_BACKEND)) && _ONEDPL_SYCL_AVAILABLE
+#    define _ONEDPL_BACKEND_SYCL 1
+#endif
+
+#if _ONEDPL_BACKEND_SYCL
+// Device containers will only be defined with the dpcpp backend.
+//
+// device_array requires the availability of std::span and / or sycl::span.
+#    define ONEDPL_HAS_DEVICE_CONTAINERS 202608L
+#endif
+
 #endif // _ONEDPL_VERSION_IMPL_H
