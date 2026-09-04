@@ -1353,9 +1353,9 @@ struct __internal::__shift_left_fn
 
         //[alg.shift]: a non-positive shift leaves the range untouched, and one covering the whole
         //range leaves nothing. The patterns take '0 < shift < size' as a precondition.
-        if (__shift <= 0)
+        if (__n <= 0)
             return {__first, __last};
-        if (__shift >= __size)
+        if (__n >= __size)
             return {__first, __first};
 
         if constexpr (std::is_same_v<__dispatch_tag_t, oneapi::dpl::__internal::__serial_tag<std::false_type>>)
