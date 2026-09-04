@@ -181,6 +181,12 @@ __copy_n(_T* __dst, std::size_t __n, const __result_keepalive<_T>& __ka, sycl::q
     }
 }
 
+// Sentinel type used as a compile-time conditional stand-in for result storage or accessor
+struct __no_result_needed_tag
+{
+    using type = std::size_t; // a safe default
+};
+
 } // namespace __internal
 
 template <typename _T>
@@ -248,6 +254,17 @@ struct __combi_accessor
         return __ptr ? __ptr : &__acc[0];
     }
 };
+
+template <typename _T>
+constexpr bool __is_real_accessor(const _T&)
+{
+    return false;
+}
+template <typename _T, sycl::access_mode _AccessMode>
+constexpr bool __is_real_accessor(const __combi_accessor<_T, _AccessMode>&)
+{
+    return true;
+}
 
 template <typename _T>
 struct __device_storage
@@ -335,6 +352,13 @@ auto
 __get_accessor(_ModeTagT, __device_storage<_T>& __st, sycl::handler& __cgh, const sycl::property_list& __prop_list = {})
 {
     return __st.template __get_accessor<__access_mode_resolver_v<_ModeTagT>>(__cgh, __prop_list);
+}
+
+template <typename _ModeTagT>
+auto
+__get_accessor(_ModeTagT, __internal::__no_result_needed_tag&, sycl::handler&, const sycl::property_list& = {})
+{
+    return __internal::__no_result_needed_tag{};
 }
 
 template <typename _T>
@@ -554,6 +578,16 @@ class __storage_holder
         __internal::__copy_n(__dst, __n, std::get<_I>(__result_slots), __q);
     }
 };
+
+template <bool _Condition, typename _T>
+auto
+__create_result_storage_opt(sycl::queue& __q, std::size_t __n)
+{
+    if constexpr (_Condition)
+        return __result_storage<_T>(__q, __n);
+    else
+        return __internal::__no_result_needed_tag{};
+}
 
 } // namespace __par_backend_hetero
 } // namespace oneapi::dpl
