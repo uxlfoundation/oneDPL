@@ -29,6 +29,7 @@
 #    include "dpcpp/unseq_backend_sycl.h"
 #endif
 
+#include <cassert> // assert
 #include <cstddef> // std::nullptr_t
 #include <utility> // std::forward
 
@@ -1911,7 +1912,11 @@ template <typename _Tp, typename _BackendTag, typename _ExecutionPolicy, typenam
 bool
 __should_rotate_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _DiffType __size_res)
 {
+    //Callers screen this, but the assert compiles away and '__n == 0' would divide by zero below.
     assert(__n > 0 && __size_res > 0);
+    if (__n <= 0 || __size_res <= 0)
+        return false;
+
     const std::size_t __n_u = static_cast<std::size_t>(__n);
     // Empirically derived values
     constexpr std::size_t __walk_distance_threshold = 64;
@@ -1924,8 +1929,9 @@ __should_rotate_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _Di
 
     const std::size_t __occupancy_width =
         oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(_BackendTag{}, __exec);
-    // If the shift provides parallelism to fill 1/4 or less of the occupancy width, then rotate will be faster than
-    //the in-place walk.
+    // The walk is '__n' work items wide, so a shift that fills little of the occupancy width leaves the
+    // device idle and the rotate wins. The measured crossover scales with the width but is denominated in
+    // bytes of shifted payload, not elements. A width of 0 (non-GPU) rejects every shift.
     const std::size_t __bytes_per_step = __n_u * sizeof(_Tp);
     return __bytes_per_step <= __occupancy_width / __occupancy_ratio;
 }
