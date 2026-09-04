@@ -109,11 +109,8 @@ class __reorder_pred
   public:
     explicit __reorder_pred(_Pred __pred) : _M_pred(__pred) {}
 
-    // The constraint keeps the reordered predicate honest with regard to std::is_invocable and friends: without it
-    // the operator is invocable with any pair of argument types, and the argument types the wrapped predicate does
-    // not accept are only diagnosed when the body of the operator is instantiated.
     template <typename _FTp, typename _STp>
-    std::enable_if_t<std::is_invocable_v<_Pred&, _STp&&, _FTp&&>, bool>
+    bool
     operator()(_FTp&& __a, _STp&& __b) const
     {
         return std::invoke(_M_pred, std::forward<_STp>(__b), std::forward<_FTp>(__a));
