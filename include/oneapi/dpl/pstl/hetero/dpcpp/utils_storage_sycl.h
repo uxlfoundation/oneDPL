@@ -138,21 +138,48 @@ __allocate_usm(const sycl::queue& __q, std::size_t __elements)
 // and no ownership semantics. They should only be used as an implementation detail of storage
 // ownership and transfer utilities, with memory and lifetime safety ensured at that level.
 
+// type-erased lifetime keeper for temporary storage (either USM or sycl::buffer)
 struct __scratch_keepalive
 {
     void* __usm_ptr = nullptr;
     std::optional<sycl::buffer<std::byte, 1>> __sycl_buf;
 };
 
+// struct to keep the result data in either USM or sycl::buffer
+// If __kind == sycl::usm::alloc::host, __usm_ptr points directly to the result.
+// If __kind == sycl::usm::alloc::device, the result is at __usm_ptr + __offset in device memory.
+// If __kind == sycl::usm::alloc::unknown, the result is in __sycl_buf at __offset.
 template <typename _T>
 struct __result_keepalive
 {
     _T* __usm_ptr = nullptr;
     std::optional<sycl::buffer<_T, 1>> __sycl_buf;
-    sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
     std::size_t __result_sz = 0;
     std::size_t __offset = 0;
+    sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
 };
+
+// Extracts data to the given destination array
+template <typename _T>
+void
+__copy_n(_T* __dst, std::size_t __n, const __result_keepalive<_T>& __ka, sycl::queue& __q)
+{
+    const std::size_t __count = std::min(__n, __ka.__result_sz);
+    if (__ka.__kind == sycl::usm::alloc::host)
+    {
+        std::copy_n(__ka.__usm_ptr, __count, __dst);
+    }
+    else if (__ka.__kind == sycl::usm::alloc::device)
+    {
+        assert(__ka.__usm_ptr);
+        __q.memcpy(__dst, __ka.__usm_ptr + __ka.__offset, __count * sizeof(_T)).wait();
+    }
+    else
+    {
+        assert(__ka.__kind == sycl::usm::alloc::unknown && __ka.__sycl_buf.has_value());
+        std::copy_n(__ka.__sycl_buf->get_host_access(sycl::read_only).begin() + __ka.__offset, __count, __dst);
+    }
+}
 
 } // namespace __internal
 
@@ -264,6 +291,7 @@ struct __device_storage
             __sycl_buf = sycl::buffer<_T, 1>(__n);
     }
 
+    // Similar in logic to __internal::__copy_n but optimized for use with __*_storage
     void
     __copy_n(_T* __dst, _T* __src, std::size_t __n, std::size_t __offset)
     {
@@ -391,6 +419,22 @@ struct __combined_storage : public __device_storage<_T>
                        __result_sz < __n ? __result_sz : __n, /*offset*/ __sz);
     }
 
+    void*
+    __move_state_to(__internal::__result_keepalive<_T>& __ka) &&
+    {
+        void* __scratch_ptr = nullptr;
+        __ka.__kind = __kind;
+        __ka.__result_sz = __result_sz;
+        __ka.__offset = __sz;
+        __move_base_state_to(__ka);
+        if (__kind == sycl::usm::alloc::host)
+        {
+            __scratch_ptr = __ka.__usm_ptr;
+            __ka.__usm_ptr = __result_buf.release();
+        }
+        return __scratch_ptr;
+    }
+
     template <typename _ModeTagT>
     friend auto
     __get_result_accessor(_ModeTagT, __combined_storage& __st, sycl::handler& __cgh,
@@ -406,22 +450,6 @@ struct __combined_storage : public __device_storage<_T>
             return __combi_accessor<_T, __access_mode_resolver_v<_ModeTagT>>(
                 __cgh, __st.__sycl_buf, __st.__usm_buf.get(), /*offset*/ __st.__sz, __st.__result_sz, __prop_list);
         }
-    }
-
-    void*
-    __move_state_to(__internal::__result_keepalive<_T>& __ka) &&
-    {
-        void* __scratch_ptr = nullptr;
-        __ka.__kind = __kind;
-        __ka.__result_sz = __result_sz;
-        __ka.__offset = __sz;
-        __move_base_state_to(__ka);
-        if (__kind == sycl::usm::alloc::host)
-        {
-            __scratch_ptr = __ka.__usm_ptr;
-            __ka.__usm_ptr = __result_buf.release();
-        }
-        return __scratch_ptr;
     }
 
     __copyable_storage_state<_T>
@@ -518,6 +546,12 @@ class __storage_holder
             assert(__scratch_count < _NScratch);
             __scratch_slots[__scratch_count++].__usm_ptr = __scratch_ptr;
         }
+    }
+
+    template <std::size_t _I>
+    void __copy_result(std::tuple_element_t<_I, std::tuple<_ResultTypes...>>* __dst, std::size_t __n)
+    {
+        __internal::__copy_n(__dst, __n, std::get<_I>(__result_slots), __q);
     }
 };
 
