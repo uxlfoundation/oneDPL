@@ -15,8 +15,8 @@
 #include <type_traits>
 #include <tuple>
 #include <optional>
-#include <algorithm> // std::copy_n
-#include <utility> // std::move
+#include <algorithm> // std::copy_n, std::min
+#include <utility>
 #include <cstddef>
 #include <cassert>
 
@@ -255,13 +255,16 @@ struct __combi_accessor
     }
 };
 
+// A function-style "trait" to apply to a result of __get_accessor
 template <typename _T>
-constexpr bool __is_real_accessor(const _T&)
+constexpr bool
+__is_real_accessor(const _T&)
 {
     return false;
 }
 template <typename _T, sycl::access_mode _AccessMode>
-constexpr bool __is_real_accessor(const __combi_accessor<_T, _AccessMode>&)
+constexpr bool
+__is_real_accessor(const __combi_accessor<_T, _AccessMode>&)
 {
     return true;
 }
@@ -519,7 +522,8 @@ class __storage_holder
         }, __other.__result_slots);
     }
 
-    __storage_holder& operator=(__storage_holder&& __other)
+    __storage_holder&
+    operator=(__storage_holder&& __other)
     {
         assert(this != &__other);
         using std::swap;
@@ -541,14 +545,16 @@ class __storage_holder
     }
 
     template <typename _T>
-    void __deposit(__device_storage<_T>&& __st)
+    void
+    __deposit(__device_storage<_T>&& __st)
     {
         assert(__scratch_count < _NScratch);
         std::move(__st).__move_state_to(__scratch_slots[__scratch_count++]);
     }
 
     template <std::size_t _I, typename _T>
-    void __deposit(__result_storage<_T>&& __st)
+    void
+    __deposit(__result_storage<_T>&& __st)
     {
         static_assert(_I < sizeof...(_ResultTypes), "Result slot index out of range");
         static_assert(std::is_same_v<_T, std::tuple_element_t<_I, std::tuple<_ResultTypes...>>>);
@@ -558,7 +564,8 @@ class __storage_holder
     }
 
     template <std::size_t _I, typename _T>
-    void __deposit(__combined_storage<_T>&& __st)
+    void
+    __deposit(__combined_storage<_T>&& __st)
     {
         static_assert(_I < sizeof...(_ResultTypes), "Result index out of range");
         static_assert(std::is_same_v<_T, std::tuple_element_t<_I, std::tuple<_ResultTypes...>>>);
@@ -573,7 +580,8 @@ class __storage_holder
     }
 
     template <std::size_t _I>
-    void __copy_result(std::tuple_element_t<_I, std::tuple<_ResultTypes...>>* __dst, std::size_t __n)
+    void
+    __copy_result(std::tuple_element_t<_I, std::tuple<_ResultTypes...>>* __dst, std::size_t __n)
     {
         __internal::__copy_n(__dst, __n, std::get<_I>(__result_slots), __q);
     }
