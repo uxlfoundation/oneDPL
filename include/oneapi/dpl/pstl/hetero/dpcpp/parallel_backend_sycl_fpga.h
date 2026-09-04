@@ -102,14 +102,6 @@ __parallel_for(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&& _
         __q_local, __brick, __count, std::forward<_Ranges>(__rngs)...);
 }
 
-// The FPGA backend runs a single task, so no strategy can gain anything from a wider launch.
-template <typename _ExecutionPolicy>
-std::size_t
-__parallel_for_occupancy_width(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&&)
-{
-    return 0;
-}
-
 //------------------------------------------------------------------------
 // parallel_histogram
 //-----------------------------------------------------------------------
@@ -130,6 +122,20 @@ __parallel_histogram(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPoli
 }
 
 } // namespace __par_backend_hetero
+
+namespace __internal
+{
+
+// '__fpga_backend_tag' derives from '__device_backend_tag', so without this overload an FPGA policy would slice
+// into the device one. The FPGA backend runs a single task, so a rotate's wider parallelism buys nothing.
+template <typename _Tp, typename _ExecutionPolicy, typename _DiffType>
+bool
+__should_rotate_shift(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&&, _DiffType, _DiffType)
+{
+    return false;
+}
+
+} // namespace __internal
 } // namespace dpl
 } // namespace oneapi
 

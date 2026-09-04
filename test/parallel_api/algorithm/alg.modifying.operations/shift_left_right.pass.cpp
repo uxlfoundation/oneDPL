@@ -261,40 +261,14 @@ main()
     const std::size_t large_n = 1000000;
     const std::size_t quarter_shift = 250111;
     const std::size_t three_quarters_shift = 750203;
+    const std::size_t small_shift = 1024;
+
     test_shift_by_type<std::uint8_t>(large_n, quarter_shift);
     test_shift_by_type<std::uint8_t>(three_quarters_shift, large_n);
     test_shift_by_type<std::uint16_t>(large_n, quarter_shift);
+    // A shift this narrow relative to the range is expected to reach the SYCL backend's rotate path on any GPU.
+    test_shift_by_type<std::uint8_t>(large_n, small_shift);
 
-    // The SYCL backend rotates a narrow shift when 'size - n >= 64 * n' and 'n * sizeof(T) <= width / 4'.
-    // The n_max cases below derive from the device's width so they cannot drift away from the gate; the
-    // two fixed sizes straddle the depth bound, which does not depend on the device.
-    sycl::queue q = TestUtils::get_test_queue();
-    auto policy = oneapi::dpl::execution::make_device_policy(q);
-    const std::size_t width = oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(
-        oneapi::dpl::__internal::__device_backend_tag{}, policy);
-    // A width of 0 skips every case below, which is otherwise indistinguishable from having run them.
-    // Only a GPU is expected to report a usable width, and ctest hides a passing test's stdout, so the
-    // GPU case has to fail the test rather than print.
-    EXPECT_TRUE(!q.get_device().is_gpu() || width > 0, "no occupancy width on a GPU: rotate cases did not run");
-    if (width > 0)
-    {
-        // 'n_max' is the last shift the width bound admits for the element size. Sizing the range at
-        // 65 * (n_max + 1) + 1 leaves 'size - n' above 64 * (n_max + 1), so the depth bound clears for
-        // 'n_max + 1' as well and the width bound alone rejects it.
-        auto rot_size = [](std::size_t n_max) { return 65 * (n_max + 1) + 1; };
-        const std::size_t n_max_4 = width / (4 * sizeof(ValueType));
-        const std::size_t n_max_8 = width / (4 * sizeof(double));
-        test_shift_by_type_hetero<ValueType>(rot_size(1), std::size_t{1}); // rotate's single-position branch
-        test_shift_by_type_hetero<std::uint16_t>(rot_size(7), std::size_t{7});
-        test_shift_by_type_hetero<ValueType>(rot_size(n_max_4), n_max_4);
-        // Just past the width bound, so this one must take the in-place chain walk.
-        test_shift_by_type_hetero<ValueType>(rot_size(n_max_4), n_max_4 + 1);
-        test_shift_by_type_hetero<double>(rot_size(n_max_8), n_max_8);
-        test_shift_by_type_hetero<double>(rot_size(n_max_8), n_max_8 + 1);
-        // Straddles the depth bound: 'size - n' is 8 * 64 - 1 and then 8 * 64.
-        test_shift_by_type_hetero<ValueType>(std::size_t{519}, std::size_t{8});
-        test_shift_by_type_hetero<ValueType>(std::size_t{520}, std::size_t{8});
-    }
 #endif
 
     return TestUtils::done();

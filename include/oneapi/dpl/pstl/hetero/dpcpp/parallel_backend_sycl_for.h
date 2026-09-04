@@ -341,20 +341,6 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
                                                                                std::forward<_Ranges>(__rngs)...);
 }
 
-// The launch width a pattern should aim for when choosing between a strategy whose parallelism the
-// problem fixes and a costlier one that can fill the machine.
-template <typename _ExecutionPolicy>
-std::size_t
-__parallel_for_occupancy_width(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec)
-{
-    sycl::queue __q_local = __exec.queue();
-    if (!__q_local.get_device().is_gpu())
-        return 0; //0 fails any "is my launch narrower than this" test, keeping the cheaper strategy
-    //max_compute_units reports EUs on Intel GPUs, not Xe cores; callers' thresholds assume EUs.
-    return oneapi::dpl::__internal::__max_work_group_size(__q_local, __parallel_for_work_group_size_limit) *
-           oneapi::dpl::__internal::__max_compute_units(__q_local);
-}
-
 } // namespace __par_backend_hetero
 } // namespace dpl
 } // namespace oneapi

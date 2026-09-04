@@ -1908,32 +1908,38 @@ struct __shift_via_rotate;
 
 // Rotate instead of walking in place when the walk - '__n' chains of 'size_res / __n' dependent moves -
 // is too narrow to fill the device and long enough to pay for a second full-width pass.
-template <typename _Tp, typename _BackendTag, typename _ExecutionPolicy, typename _DiffType>
+template <typename _Tp, typename _ExecutionPolicy, typename _DiffType>
 bool
-__should_rotate_shift(_BackendTag, _ExecutionPolicy&& __exec, _DiffType __n, _DiffType __size_res)
+__should_rotate_shift(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _DiffType __n,
+                      _DiffType __size_res)
 {
-    //Callers screen this, but the assert compiles away and '__n == 0' would divide by zero below.
-    assert(__n > 0 && __size_res > 0);
+    sycl::queue __q_local = __exec.queue();
+    if (!__q_local.get_device().is_gpu())
+        return false;
+
     if (__n <= 0 || __size_res <= 0)
         return false;
 
     const std::size_t __n_u = static_cast<std::size_t>(__n);
     // Empirically derived values
     constexpr std::size_t __walk_distance_threshold = 64;
-    constexpr std::size_t __occupancy_ratio = 4;
+    constexpr std::size_t __device_scale_ratio = 4;
 
     // If the in-place work-item walk is short enough, in-place will be faster than rotate because of the extra
     // kernel launch and pass of the data required for rotate.
     if (static_cast<std::size_t>(__size_res) / __n_u < __walk_distance_threshold)
         return false;
 
-    const std::size_t __occupancy_width =
-        oneapi::dpl::__par_backend_hetero::__parallel_for_occupancy_width(_BackendTag{}, __exec);
-    // The walk is '__n' work items wide, so a shift that fills little of the occupancy width leaves the
-    // device idle and the rotate wins. The measured crossover scales with the width but is denominated in
-    // bytes of shifted payload, not elements. A width of 0 (non-GPU) rejects every shift.
+    const std::size_t __device_scale =
+        oneapi::dpl::__internal::__max_work_group_size(
+            __q_local, oneapi::dpl::__par_backend_hetero::__parallel_for_work_group_size_limit) *
+        oneapi::dpl::__internal::__max_compute_units(__q_local);
+
+    // The walk is only '__n' work items wide, so a shift that is narrow relative to the device leaves it idle
+    // and the rotate wins. The measured crossover scales with the device but is denominated in bytes of shifted
+    // payload, not elements.
     const std::size_t __bytes_per_step = __n_u * sizeof(_Tp);
-    return __bytes_per_step <= __occupancy_width / __occupancy_ratio;
+    return __bytes_per_step <= __device_scale / __device_scale_ratio;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range>
