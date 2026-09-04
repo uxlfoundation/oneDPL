@@ -277,11 +277,95 @@ struct NoCopyAssignCompare
     }
 };
 
+// The value type is not copy-constructible, so it cannot be copied into a user-defined reduction object
+// and the vector code path must not be selected for it.
+struct MoveOnlyCompare
+{
+    std::int32_t val;
+    MoveOnlyCompare() : val(0) {}
+    MoveOnlyCompare(std::int32_t val_) : val(val_) {}
+    MoveOnlyCompare(MoveOnlyCompare&&) = default;
+    MoveOnlyCompare&
+    operator=(MoveOnlyCompare&&) = default;
+    MoveOnlyCompare(const MoveOnlyCompare&) = delete;
+    MoveOnlyCompare&
+    operator=(const MoveOnlyCompare&) = delete;
+    bool
+    operator<(const MoveOnlyCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The value type is default-constructible, copy-constructible and copy-assignable, but it is not move-assignable and
+// therefore neither movable nor swappable: it satisfies the C++17 spelling of the requirements of the vector code
+// path, but not std::semiregular, so the vector code path is selected for it in C++17 and is not selected in C++20.
+struct NoMoveAssignCompare
+{
+    std::int32_t val;
+    NoMoveAssignCompare() : val(0) {}
+    NoMoveAssignCompare(std::int32_t val_) : val(val_) {}
+    NoMoveAssignCompare(const NoMoveAssignCompare&) = default;
+    NoMoveAssignCompare&
+    operator=(const NoMoveAssignCompare&) = default;
+    NoMoveAssignCompare&
+    operator=(NoMoveAssignCompare&&) = delete;
+    bool
+    operator<(const NoMoveAssignCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The comparator requires mutable references to the elements: it can be applied to the elements of a mutable
+// sequence, which is what the serial code path does, but not to the const copies of them which the vector code path
+// keeps in its reduction object.
+struct MutableRefLess
+{
+    bool
+    operator()(std::int32_t& x, std::int32_t& y) const
+    {
+        return x < y;
+    }
+};
+
+// A reference type an object of the value type cannot be created from.
+struct NotConvertibleToValueType
+{
+};
+
+// The requirements of the vector code path are checked directly, because a run-time test cannot tell the vector code
+// path from the serial one: an unnecessarily strict requirement silently disables vectorization, while a requirement
+// that is too weak breaks the build of the vector code path rather than a run-time check.
+namespace dpl_internal = oneapi::dpl::__internal;
+
+static_assert(dpl_internal::__is_value_storable_v<std::int32_t, std::int32_t&>);
+static_assert(dpl_internal::__is_value_storable_v<OnlyLessCompare, OnlyLessCompare&>);
+static_assert(dpl_internal::__is_value_storable_v<OnlyLessCompare, const OnlyLessCompare&>);
+static_assert(dpl_internal::__is_value_storable_v<ExplicitDefaultCtorCompare, ExplicitDefaultCtorCompare&>);
+static_assert(!dpl_internal::__is_value_storable_v<OnlyLessCompare, NotConvertibleToValueType>);
+static_assert(!dpl_internal::__is_value_storable_v<NoDefaultCtorCompare, NoDefaultCtorCompare&>);
+static_assert(!dpl_internal::__is_value_storable_v<NoCopyAssignCompare, NoCopyAssignCompare&>);
+static_assert(!dpl_internal::__is_value_storable_v<MoveOnlyCompare, MoveOnlyCompare&>);
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+static_assert(!dpl_internal::__is_value_storable_v<NoMoveAssignCompare, NoMoveAssignCompare&>);
+#else
+static_assert(dpl_internal::__is_value_storable_v<NoMoveAssignCompare, NoMoveAssignCompare&>);
+#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
+
+static_assert(dpl_internal::__is_value_type_predicate_v<std::int32_t, std::less<std::int32_t>>);
+static_assert(dpl_internal::__is_value_type_predicate_v<OnlyLessCompare, std::less<OnlyLessCompare>>);
+static_assert(dpl_internal::__is_value_type_predicate_v<std::int32_t, NonConstAdapter<std::less<std::int32_t>>>);
+static_assert(!dpl_internal::__is_value_type_predicate_v<std::int32_t, MutableRefLess>);
+// max_element is implemented on top of min_element with the comparator wrapped into __reorder_pred, so the wrapper
+// must not hide the requirements of the comparator it wraps.
+static_assert(!dpl_internal::__is_value_type_predicate_v<std::int32_t, dpl_internal::__reorder_pred<MutableRefLess>>);
+
 // The sequence is built in place because the value types checked here do not satisfy the requirements of
 // TestUtils::Sequence (which default-constructs and assigns its elements).
 template <typename T>
 static void
-test_non_storable_value_type(::std::size_t n)
+test_value_type_in_vector(::std::size_t n)
 {
     ::std::vector<T> data;
     data.reserve(n);
@@ -300,6 +384,42 @@ test_non_storable_value_type(::std::size_t n)
     invoke_on_all_host_policies()(check_minmaxelement<T>(), data.begin(), data.end());
     invoke_on_all_host_policies()(check_minmaxelement_predicate<T>(), data.begin(), data.end());
 #endif
+}
+
+// The comparator is applied to the elements of a mutable sequence, which a comparator requiring mutable references to
+// them is applicable to: the vector code path must not be selected in this case, but the algorithms must still work.
+struct check_min_max_element_mutable_ref_predicate
+{
+    template <typename Policy, typename Iterator>
+    void
+    operator()(Policy&& exec, Iterator begin, Iterator end)
+    {
+#ifdef _PSTL_TEST_MIN_ELEMENT
+        EXPECT_EQ(::std::min_element(begin, end, MutableRefLess{}),
+                  std::min_element(exec, begin, end, MutableRefLess{}),
+                  "wrong return result from min_element with a mutable reference predicate");
+#endif
+#ifdef _PSTL_TEST_MAX_ELEMENT
+        EXPECT_EQ(::std::max_element(begin, end, MutableRefLess{}),
+                  std::max_element(exec, begin, end, MutableRefLess{}),
+                  "wrong return result from max_element with a mutable reference predicate");
+#endif
+#ifdef _PSTL_TEST_MINMAX_ELEMENT
+        EXPECT_EQ(::std::minmax_element(begin, end, MutableRefLess{}),
+                  std::minmax_element(exec, begin, end, MutableRefLess{}),
+                  "wrong return result from minmax_element with a mutable reference predicate");
+#endif
+    }
+};
+
+static void
+test_mutable_ref_predicate(::std::size_t n)
+{
+    ::std::vector<std::int32_t> data(n);
+    for (::std::size_t i = 0; i < n; ++i)
+        data[i] = std::int32_t(TestUtils::HashBits(i, 30));
+
+    invoke_on_all_host_policies()(check_min_max_element_mutable_ref_predicate{}, data.begin(), data.end());
 }
 
 template <typename T>
@@ -339,9 +459,9 @@ int
 main()
 {
     using TestUtils::float64_t;
-    const ::std::size_t N = 100000;
+    const std::size_t N = 100000;
 
-    for (::std::size_t n = 0; n < N; n = n < 16 ? n + 1 : size_t(3.14159 * n))
+    for (std::size_t n = 0; n < N; n = n < 16 ? n + 1 : size_t(3.14159 * n))
     {
 #if !ONEDPL_FPGA_DEVICE
         test_by_type<std::int32_t>(n);
@@ -349,8 +469,17 @@ main()
         test_by_type<float64_t>(n);
         test_by_type<OnlyLessCompare>(n);
         test_by_type<ExplicitDefaultCtorCompare>(n);
-        test_non_storable_value_type<NoDefaultCtorCompare>(n);
-        test_non_storable_value_type<NoCopyAssignCompare>(n);
+    }
+
+    // The value types and the comparator below are checked against the requirements of the vector code path, which
+    // does not depend on the size of the sequence, so a few sizes are enough for them.
+    for (std::size_t n : {0, 1, 2, 15, 10000})
+    {
+        test_value_type_in_vector<NoDefaultCtorCompare>(n);
+        test_value_type_in_vector<NoCopyAssignCompare>(n);
+        test_value_type_in_vector<MoveOnlyCompare>(n);
+        test_value_type_in_vector<NoMoveAssignCompare>(n);
+        test_mutable_ref_predicate(n);
     }
 
 #ifdef _PSTL_TEST_MIN_ELEMENT
