@@ -815,8 +815,10 @@ struct __has_subscription_op : std::false_type
 {
 };
 
+// The check is done on a const lvalue since a range is accessed as const inside a kernel.
 template <typename _R>
-struct __has_subscription_op<_R, std::void_t<decltype(std::declval<_R>().operator[](0))>> : std::true_type
+struct __has_subscription_op<_R, std::void_t<decltype(std::declval<const std::remove_reference_t<_R>&>().operator[](0))>>
+    : std::true_type
 {
 };
 
@@ -836,7 +838,8 @@ struct __subscription_impl_view_simple : std::ranges::view_interface<__subscript
     static_assert(!__has_subscription_op<_View>::value,
                   "The usage of __subscription_impl_view_simple prohibited if _View::operator[] implemented");
 
-    _View __base;
+    // mutable to support views which are not const-iterable (f.e. std::ranges::reverse_view over a non-common range)
+    mutable _View __base;
 
     constexpr __subscription_impl_view_simple()
         requires std::default_initializable<_View>
