@@ -71,8 +71,6 @@
 
 #if _ONEDPL_BACKEND_SYCL
 // Device containers will only be defined with the dpcpp backend.
-//
-// device_array requires the availability of std::span and / or sycl::span.
 #    define ONEDPL_HAS_DEVICE_CONTAINERS 202608L
 #endif
 
