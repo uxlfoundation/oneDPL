@@ -1470,7 +1470,7 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __tag, _Exe
     sycl::event __e = __parallel_sort_impl(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng),
         oneapi::dpl::__internal::__binary_op<_Compare, _Proj, _Proj>{__comp, __proj, __proj}, __holder);
-    return __future(std::move(__e), std::move(__holder));
+    return __future(std::move(__e), std::tuple{std::move(__holder)});
 }
 
 //------------------------------------------------------------------------

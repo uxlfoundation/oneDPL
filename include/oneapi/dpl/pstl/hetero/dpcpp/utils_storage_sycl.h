@@ -296,7 +296,7 @@ struct __device_storage
     void
     __move_state_to(__internal::__scratch_keepalive& __ka) &&
     {
-        __move_base_state_to(__ka);
+        std::move(*this).__move_base_state_to(__ka);
     }
 
   protected:
@@ -341,7 +341,10 @@ struct __device_storage
         else
         {
             if constexpr (std::is_same_v<_Keepalive, __internal::__scratch_keepalive>)
-                __ka.__sycl_buf = __sycl_buf.template reinterpret<std::byte>();
+            {
+                // use ranged reinterpret as a workaround for a SYCL implementation bug
+                __ka.__sycl_buf = __sycl_buf.template reinterpret<std::byte, 1>({__sycl_buf.size() * sizeof(_T)});
+            }
             else
                 __ka.__sycl_buf = std::move(__sycl_buf);
         }
@@ -404,7 +407,7 @@ struct __result_storage : public __device_storage<_T>
         __ka.__kind = __kind;
         __ka.__result_sz = __result_sz;
         __ka.__offset = 0;
-        __move_base_state_to(__ka);
+        std::move(*this).__move_base_state_to(__ka);
     }
 };
 
@@ -453,7 +456,7 @@ struct __combined_storage : public __device_storage<_T>
         __ka.__kind = __kind;
         __ka.__result_sz = __result_sz;
         __ka.__offset = __sz;
-        __move_base_state_to(__ka);
+        std::move(*this).__move_base_state_to(__ka);
         if (__kind == sycl::usm::alloc::host)
         {
             __scratch_ptr = __ka.__usm_ptr;
@@ -537,10 +540,10 @@ class __storage_holder
     ~__storage_holder()
     {
         for (auto& __ka : __scratch_slots)
-            __free_usm(__q, __ka.__usm_ptr);
+            __internal::__free_usm(__q, __ka.__usm_ptr);
         std::apply([this](auto&... __ka)
         {
-            ((__free_usm(__q, __ka.__usm_ptr)), ...);
+            ((__internal::__free_usm(__q, __ka.__usm_ptr)), ...);
         }, __result_slots);
     }
 
