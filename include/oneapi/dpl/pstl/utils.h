@@ -1121,11 +1121,13 @@ inline constexpr bool __is_value_type_predicate_v =
     std::is_invocable_r_v<bool, _Compare&, const _ValueType&, const _ValueType&>;
 #endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
 
-// The elements of a sequence can be kept in intermediate objects of _ValueType and the comparator can be applied
-// to those objects rather than to the sequence elements themselves.
-template <typename _ValueType, typename _ReferenceType, typename _Compare>
+// The elements of a sequence can be kept in intermediate objects of the value type of _Iterator and the comparator
+// can be applied to those objects rather than to the sequence elements themselves.
+template <typename _Iterator, typename _Compare>
 inline constexpr bool __is_value_storable_and_comparable_v =
-    __is_value_storable_v<_ValueType, _ReferenceType> && __is_value_type_predicate_v<_ValueType, _Compare>;
+    __is_value_storable_v<typename std::iterator_traits<_Iterator>::value_type,
+                          typename std::iterator_traits<_Iterator>::reference> &&
+    __is_value_type_predicate_v<typename std::iterator_traits<_Iterator>::value_type, _Compare>;
 
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>

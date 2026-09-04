@@ -621,10 +621,7 @@ template <typename _ForwardIterator, typename _Size, typename _Compare>
 _ForwardIterator
 __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
-    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
-    using _ReferenceType = typename std::iterator_traits<_ForwardIterator>::reference;
-
-    static_assert(__internal::__is_value_storable_and_comparable_v<_ValueType, _ReferenceType, _Compare>,
+    static_assert(__internal::__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
                   "The value type of the iterator must be storable in the reduction object and __comp must be "
                   "a predicate over objects of that type");
 
@@ -633,6 +630,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         return __first;
     }
 
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
     struct _ComplexType
     {
         _ValueType __min_val;
@@ -687,10 +685,7 @@ template <typename _ForwardIterator, typename _Size, typename _Compare>
 std::pair<_ForwardIterator, _ForwardIterator>
 __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
-    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
-    using _ReferenceType = typename std::iterator_traits<_ForwardIterator>::reference;
-
-    static_assert(__internal::__is_value_storable_and_comparable_v<_ValueType, _ReferenceType, _Compare>,
+    static_assert(__internal::__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
                   "The value type of the iterator must be storable in the reduction object and __comp must be "
                   "a predicate over objects of that type");
 
@@ -699,6 +694,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         return ::std::make_pair(__first, __first);
     }
 
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
     struct _ComplexType
     {
         _ValueType __min_val;
