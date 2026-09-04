@@ -260,25 +260,45 @@ struct NoDefaultCtorCompare
     }
 };
 
-static void
-test_no_default_ctor_value_type(::std::size_t n)
+// The value type is not copy-assignable, so it cannot be used in a user-defined reduction
+// and the vector code path must not be selected for it.
+struct NoCopyAssignCompare
 {
-    ::std::vector<NoDefaultCtorCompare> data;
+    std::int32_t val;
+    NoCopyAssignCompare() : val(0) {}
+    NoCopyAssignCompare(std::int32_t val_) : val(val_) {}
+    NoCopyAssignCompare(const NoCopyAssignCompare&) = default;
+    NoCopyAssignCompare&
+    operator=(const NoCopyAssignCompare&) = delete;
+    bool
+    operator<(const NoCopyAssignCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The sequence is built in place because the value types checked here do not satisfy the requirements of
+// TestUtils::Sequence (which default-constructs and assigns its elements).
+template <typename T>
+static void
+test_non_storable_value_type(::std::size_t n)
+{
+    ::std::vector<T> data;
     data.reserve(n);
     for (::std::size_t i = 0; i < n; ++i)
         data.emplace_back(std::int32_t(TestUtils::HashBits(i, 30)));
 
 #ifdef _PSTL_TEST_MIN_ELEMENT
-    invoke_on_all_host_policies()(check_minelement<NoDefaultCtorCompare>(), data.begin(), data.end());
-    invoke_on_all_host_policies()(check_minelement_predicate<NoDefaultCtorCompare>(), data.begin(), data.end());
+    invoke_on_all_host_policies()(check_minelement<T>(), data.begin(), data.end());
+    invoke_on_all_host_policies()(check_minelement_predicate<T>(), data.begin(), data.end());
 #endif
 #ifdef _PSTL_TEST_MAX_ELEMENT
-    invoke_on_all_host_policies()(check_maxelement<NoDefaultCtorCompare>(), data.begin(), data.end());
-    invoke_on_all_host_policies()(check_maxelement_predicate<NoDefaultCtorCompare>(), data.begin(), data.end());
+    invoke_on_all_host_policies()(check_maxelement<T>(), data.begin(), data.end());
+    invoke_on_all_host_policies()(check_maxelement_predicate<T>(), data.begin(), data.end());
 #endif
 #ifdef _PSTL_TEST_MINMAX_ELEMENT
-    invoke_on_all_host_policies()(check_minmaxelement<NoDefaultCtorCompare>(), data.begin(), data.end());
-    invoke_on_all_host_policies()(check_minmaxelement_predicate<NoDefaultCtorCompare>(), data.begin(), data.end());
+    invoke_on_all_host_policies()(check_minmaxelement<T>(), data.begin(), data.end());
+    invoke_on_all_host_policies()(check_minmaxelement_predicate<T>(), data.begin(), data.end());
 #endif
 }
 
@@ -329,7 +349,8 @@ main()
         test_by_type<float64_t>(n);
         test_by_type<OnlyLessCompare>(n);
         test_by_type<ExplicitDefaultCtorCompare>(n);
-        test_no_default_ctor_value_type(n);
+        test_non_storable_value_type<NoDefaultCtorCompare>(n);
+        test_non_storable_value_type<NoCopyAssignCompare>(n);
     }
 
 #ifdef _PSTL_TEST_MIN_ELEMENT

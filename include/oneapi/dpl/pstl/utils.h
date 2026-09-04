@@ -49,7 +49,7 @@
 #endif
 
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
-#    include <concepts> // for std::equality_comparable_with
+#    include <concepts> // for std::equality_comparable_with, std::semiregular, std::convertible_to, std::predicate
 #endif
 
 #include "functional_impl.h"
@@ -1103,6 +1103,29 @@ struct __is_type_with_iterator_traits<
 
 template <typename _T>
 static constexpr bool __is_type_with_iterator_traits_v = __is_type_with_iterator_traits<_T>::value;
+
+template <typename _ValueType, typename _ReferenceType>
+inline constexpr bool __is_value_storable_v =
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+    std::semiregular<_ValueType> && std::convertible_to<_ReferenceType, _ValueType>;
+#else
+    std::is_default_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
+    std::is_copy_assignable_v<_ValueType> && std::is_convertible_v<_ReferenceType, _ValueType>;
+#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
+
+template <typename _ValueType, typename _Compare>
+inline constexpr bool __is_value_type_predicate_v =
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+    std::predicate<_Compare&, const _ValueType&, const _ValueType&>;
+#else
+    std::is_invocable_r_v<bool, _Compare&, const _ValueType&, const _ValueType&>;
+#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
+
+// The elements of a sequence can be kept in intermediate objects of _ValueType and the comparator can be applied
+// to those objects rather than to the sequence elements themselves.
+template <typename _ValueType, typename _ReferenceType, typename _Compare>
+inline constexpr bool __is_value_storable_and_comparable_v =
+    __is_value_storable_v<_ValueType, _ReferenceType> && __is_value_type_predicate_v<_ValueType, _Compare>;
 
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>
