@@ -4876,10 +4876,11 @@ __brick_min_element(_RandomAccessIterator __first, _RandomAccessIterator __last,
                     /* __is_vector = */ ::std::true_type) noexcept
 {
 #if _ONEDPL_UDR_PRESENT // _PSTL_UDR_PRESENT
-    return __unseq_backend::__simd_min_element(__first, __last - __first, __comp);
-#else
-    return ::std::min_element(__first, __last, __comp);
+    if constexpr (__is_value_storable_and_comparable_v<_RandomAccessIterator, _Compare>)
+        return __unseq_backend::__simd_min_element(__first, __last - __first, __comp);
 #endif
+
+    return std::min_element(__first, __last, __comp);
 }
 
 template <class _Tag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Compare>
@@ -4943,10 +4944,11 @@ __brick_minmax_element(_RandomAccessIterator __first, _RandomAccessIterator __la
                        /* __is_vector = */ ::std::true_type) noexcept
 {
 #if _ONEDPL_UDR_PRESENT // _PSTL_UDR_PRESENT
-    return __unseq_backend::__simd_minmax_element(__first, __last - __first, __comp);
-#else
-    return ::std::minmax_element(__first, __last, __comp);
+    if constexpr (__is_value_storable_and_comparable_v<_RandomAccessIterator, _Compare>)
+        return __unseq_backend::__simd_minmax_element(__first, __last - __first, __comp);
 #endif
+
+    return std::minmax_element(__first, __last, __comp);
 }
 
 template <class _Tag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Compare>

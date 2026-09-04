@@ -17,6 +17,7 @@
 #define _ONEDPL_UNSEQ_BACKEND_SIMD_H
 
 #include <type_traits>
+#include <memory> // for std::addressof
 
 #include "utils.h"
 
@@ -612,12 +613,18 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
-// [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
+// The implementation keeps copies of the values in the reduction object and compares those copies, so the value
+// type has to be usable in a user-defined reduction and the comparator has to be applicable to the copies:
+// __internal::__is_value_storable_and_comparable_v is the requirement checked by the callers.
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 _ForwardIterator
 __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
+    static_assert(__internal::__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
+                  "The value type of the iterator must be storable in the reduction object and __comp must be "
+                  "a predicate over objects of that type");
+
     if (__n == 0)
     {
         return __first;
@@ -652,7 +659,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         }
     };
 
-    _ComplexType __init{*__first, &__comp};
+    _ComplexType __init{*__first, std::addressof(__comp)};
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType)
 
@@ -670,12 +677,18 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     return __first + __init.__min_ind;
 }
 
-// [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
+// The implementation keeps copies of the values in the reduction object and compares those copies, so the value
+// type has to be usable in a user-defined reduction and the comparator has to be applicable to the copies:
+// __internal::__is_value_storable_and_comparable_v is the requirement checked by the callers.
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
-::std::pair<_ForwardIterator, _ForwardIterator>
+std::pair<_ForwardIterator, _ForwardIterator>
 __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
+    static_assert(__internal::__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
+                  "The value type of the iterator must be storable in the reduction object and __comp must be "
+                  "a predicate over objects of that type");
+
     if (__n == 0)
     {
         return ::std::make_pair(__first, __first);
@@ -730,7 +743,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         }
     };
 
-    _ComplexType __init{*__first, *__first, &__comp};
+    _ComplexType __init{*__first, *__first, std::addressof(__comp)};
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType);
 
