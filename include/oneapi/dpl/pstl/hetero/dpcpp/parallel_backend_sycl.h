@@ -1462,13 +1462,15 @@ template <
     typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
     ::std::enable_if_t<
         !__is_radix_sort_usable_for_type<oneapi::dpl::__internal::__key_t<_Proj, _Range>, _Compare>::value, int> = 0>
-__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
-__parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
+__future<sycl::event, __merge_sort_scratch_holder>
+__parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                        _Compare __comp, _Proj __proj)
 {
-    return __parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
-                                std::forward<_Range>(__rng),
-                                oneapi::dpl::__internal::__binary_op<_Compare, _Proj, _Proj>{__comp, __proj, __proj});
+    __merge_sort_scratch_holder __holder(__exec.queue());
+    sycl::event __e = __parallel_sort_impl(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng),
+        oneapi::dpl::__internal::__binary_op<_Compare, _Proj, _Proj>{__comp, __proj, __proj}, __holder);
+    return __future(std::move(__e), std::tuple{std::move(__holder)});
 }
 
 //------------------------------------------------------------------------
