@@ -204,6 +204,8 @@ struct __leaf_sorter
     _GroupSorter __group_sorter;
 };
 
+using __merge_sort_scratch_holder = __storage_holder<1>;
+
 template <typename _LeafSortName>
 struct __merge_sort_leaf_submitter;
 
@@ -238,6 +240,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 {
   private:
     using _merge_split_point_t = _split_point_t<_IndexT>;
+    using __base_diagonals_sp_storage_t = __device_storage<_merge_split_point_t>;
 
     struct nd_range_params
     {
@@ -378,12 +381,12 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     }
 
     // Calculation of split points on each base diagonal
-    template <typename _Range, typename _TempBuf, typename _Compare, typename _Storage>
+    template <typename _Range, typename _TempBuf, typename _Compare>
     sycl::event
     eval_split_points_for_groups(const sycl::event& __event_chain, const _IndexT __n_sorted, const bool __data_in_temp,
                                  sycl::queue& __q, const _Range& __rng, _TempBuf& __temp_buf, _Compare __comp,
                                  const nd_range_params& __nd_range_params,
-                                 _Storage& __base_diagonals_sp_global_storage) const
+                                 __base_diagonals_sp_storage_t& __base_diagonals_sp_global_storage) const
     {
         const _IndexT __n = oneapi::dpl::__ranges::__size(__rng);
 
@@ -393,8 +396,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             auto __base_diagonals_sp_global_acc =
-                __base_diagonals_sp_global_storage.template __get_scratch_acc<sycl::access_mode::write>(
-                    __cgh, __dpl_sycl::__no_init{});
+                __get_accessor(sycl::write_only, __base_diagonals_sp_global_storage, __cgh, __dpl_sycl::__no_init{});
 
             sycl::accessor __dst(__temp_buf, __cgh, sycl::read_write, sycl::no_init);
 
@@ -404,8 +406,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                 sycl::range</*dim=*/1>(__nd_range_params.base_diag_count), [=](sycl::item</*dim=*/1> __item) {
                     const std::size_t __linear_id = __item.get_linear_id();
 
-                    auto __base_diagonals_sp_global_ptr =
-                        _Storage::__get_usm_or_buffer_accessor_ptr(__base_diagonals_sp_global_acc);
+                    auto __base_diagonals_sp_global_ptr = __base_diagonals_sp_global_acc.__data();
 
                     const WorkDataArea __data_area(__n, __n_sorted, __linear_id, __chunk);
 
@@ -511,12 +512,12 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     }
 
     // Process parallel merge with usage of split-points on base diagonals
-    template <typename _Range, typename _TempBuf, typename _Compare, typename _Storage>
+    template <typename _Range, typename _TempBuf, typename _Compare>
     sycl::event
     run_parallel_merge_from_diagonals(const sycl::event& __event_chain, const _IndexT __n_sorted,
                                       const bool __data_in_temp, sycl::queue& __q, _Range& __rng, _TempBuf& __temp_buf,
                                       _Compare __comp, const nd_range_params& __nd_range_params,
-                                      _Storage& __base_diagonals_sp_global_storage) const
+                                      __base_diagonals_sp_storage_t& __base_diagonals_sp_global_storage) const
     {
         const _IndexT __n = oneapi::dpl::__ranges::__size(__rng);
 
@@ -528,14 +529,13 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
             sycl::accessor __dst(__temp_buf, __cgh, sycl::read_write, sycl::no_init);
 
             auto __base_diagonals_sp_global_acc =
-                __base_diagonals_sp_global_storage.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
+                __get_accessor(sycl::read_only, __base_diagonals_sp_global_storage, __cgh);
 
             __cgh.parallel_for<_GlobalSortName2...>(
                 sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item) {
                     const std::size_t __linear_id = __item.get_linear_id();
 
-                    auto __base_diagonals_sp_global_ptr =
-                        _Storage::__get_usm_or_buffer_accessor_ptr(__base_diagonals_sp_global_acc);
+                    auto __base_diagonals_sp_global_ptr = __base_diagonals_sp_global_acc.__data();
 
                     const WorkDataArea __data_area(__n, __n_sorted, __linear_id, __nd_range_params.chunk);
 
@@ -564,7 +564,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
   public:
     template <typename _Range, typename _Compare, typename _TempBuf, typename _LeafSizeT>
-    std::tuple<sycl::event, bool, std::shared_ptr<__result_and_scratch_storage_base>>
+    std::tuple<sycl::event, bool, __base_diagonals_sp_storage_t>
     operator()(sycl::queue& __q, _Range& __rng, _Compare __comp, _LeafSizeT __leaf_size, _TempBuf& __temp_buf,
                sycl::event __event_chain) const
     {
@@ -581,22 +581,19 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         // Calculate nd-range params
         const nd_range_params __nd_range_params = eval_nd_range_params(__q, __n, __n_sorted);
 
-        using __base_diagonals_sp_storage_t = __result_and_scratch_storage<_merge_split_point_t, /* _NResults */ 0>;
-
         const std::size_t __n_power2 = oneapi::dpl::__internal::__dpl_bit_ceil(__n);
         // ctz precisely calculates log2 of an integral value which is a power of 2, while
         // std::log2 may be prone to rounding errors on some architectures
         const std::int64_t __n_iter = sycl::ctz(__n_power2) - sycl::ctz(__leaf_size);
 
-        // Storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
-        __base_diagonals_sp_storage_t* __p_base_diagonals_sp_global_storage = nullptr;
-
-        // shared_ptr instance to return it in __future and extend the lifetime of the storage.
-        std::shared_ptr<__result_and_scratch_storage_base> __p_result_and_scratch_storage_base;
-
         // Max amount of base diagonals
         const std::size_t __max_base_diags_count =
             get_max_base_diags_count(__q, __nd_range_params.chunk, __n) + __1_final_base_diag;
+
+        // Storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
+        __base_diagonals_sp_storage_t __base_diagonals_sp_global_storage;
+        if (__n_power2 >= __get_starting_size_limit_for_large_submitter<__value_type>())
+            __base_diagonals_sp_global_storage = __base_diagonals_sp_storage_t(__q, __max_base_diags_count);
 
         for (std::int64_t __i = 0; __i < __n_iter; ++__i)
         {
@@ -609,17 +606,6 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
             }
             else
             {
-                if (nullptr == __p_base_diagonals_sp_global_storage)
-                {
-                    // Create storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
-                    __p_base_diagonals_sp_global_storage =
-                        new __base_diagonals_sp_storage_t(__q, __max_base_diags_count);
-
-                    // Save the raw pointer into a shared_ptr to return it in __future and extend the lifetime of the storage.
-                    __p_result_and_scratch_storage_base.reset(
-                        static_cast<__result_and_scratch_storage_base*>(__p_base_diagonals_sp_global_storage));
-                }
-
                 nd_range_params __nd_range_params_this =
                     eval_nd_range_params(__q, std::size_t(2 * __n_sorted), __n_sorted);
 
@@ -634,21 +620,21 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                 assert(__nd_range_params_this.base_diag_count <= __max_base_diags_count);
 
                 // Calculation of split-points on each base diagonal
-                __event_chain =
-                    eval_split_points_for_groups(__event_chain, __n_sorted, __data_in_temp, __q, __rng, __temp_buf,
-                                                 __comp, __nd_range_params_this, *__p_base_diagonals_sp_global_storage);
+                __event_chain = eval_split_points_for_groups(__event_chain, __n_sorted, __data_in_temp, __q, __rng,
+                                                             __temp_buf, __comp, __nd_range_params_this,
+                                                             __base_diagonals_sp_global_storage);
 
                 // Process parallel merge with usage of split-points on base diagonals
                 __event_chain = run_parallel_merge_from_diagonals(__event_chain, __n_sorted, __data_in_temp, __q, __rng,
                                                                   __temp_buf, __comp, __nd_range_params_this,
-                                                                  *__p_base_diagonals_sp_global_storage);
+                                                                  __base_diagonals_sp_global_storage);
             }
 
             __n_sorted *= 2;
             __data_in_temp = !__data_in_temp;
         }
 
-        return {std::move(__event_chain), __data_in_temp, std::move(__p_result_and_scratch_storage_base)};
+        return {std::move(__event_chain), __data_in_temp, std::move(__base_diagonals_sp_global_storage)};
     }
 };
 
@@ -692,8 +678,9 @@ template <typename... _Name>
 class __sort_copy_back_kernel;
 
 template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare, typename _LeafSorter>
-__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
-__merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter)
+sycl::event
+__merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter,
+             __merge_sort_scratch_holder& __holder)
 {
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
 
@@ -728,12 +715,13 @@ __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __l
         __event_sort = __merge_sort_copy_back_submitter<_CopyBackKernel>()(__q, __rng, __temp_buf, __event_sort);
     }
 
-    return __future{std::move(__event_sort), std::move(__temp_sp_storages)};
+    __holder.__deposit(std::move(__temp_sp_storages));
+    return __event_sort;
 }
 
 template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare>
-__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
-__submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
+sycl::event
+__submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp, __merge_sort_scratch_holder& __holder)
 {
     using _Leaf = __leaf_sorter<std::decay_t<_Range>, _Compare>;
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
@@ -781,25 +769,25 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
     __wg_size = oneapi::dpl::__internal::__dpl_bit_floor(__wg_size);
 
     _Leaf __leaf(__rng, __comp, __data_per_workitem, __wg_size);
-    return __merge_sort<_CustomName, _IndexT>(__q, std::forward<_Range>(__rng), __comp, __leaf);
+    return __merge_sort<_CustomName, _IndexT>(__q, std::forward<_Range>(__rng), __comp, __leaf, __holder);
 }
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
-__future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
+sycl::event
 __parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
-                     _Compare __comp)
+                     _Compare __comp, __merge_sort_scratch_holder& __holder)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-    sycl::queue __q_local = __exec.queue();
+    sycl::queue __q = __exec.queue();
 
     if (oneapi::dpl::__ranges::__size(__rng) <= std::numeric_limits<std::uint32_t>::max())
     {
-        return __submit_selecting_leaf<_CustomName, std::uint32_t>(__q_local, std::forward<_Range>(__rng), __comp);
+        return __submit_selecting_leaf<_CustomName, std::uint32_t>(__q, std::forward<_Range>(__rng), __comp, __holder);
     }
     else
     {
-        return __submit_selecting_leaf<_CustomName, std::uint64_t>(__q_local, std::forward<_Range>(__rng), __comp);
+        return __submit_selecting_leaf<_CustomName, std::uint64_t>(__q, std::forward<_Range>(__rng), __comp, __holder);
     }
 }
 
