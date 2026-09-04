@@ -219,24 +219,6 @@ test_shift_by_type(Size m, Size n)
 #endif
 }
 
-#if TEST_DPCPP_BACKEND_PRESENT
-// Hetero policies only: at these sizes, running the host policies too would dominate the runtime.
-template <typename T, typename Size>
-void
-test_shift_by_type_hetero(Size m, Size n)
-{
-    TestUtils::Sequence<T> orig(m, [](::std::size_t v) -> T { return T(v); }); //fill data
-    TestUtils::Sequence<T> in(m, [](::std::size_t v) -> T { return T(v); });   //fill data
-
-#    ifdef _PSTL_TEST_SHIFT_LEFT
-    TestUtils::invoke_on_all_hetero_policies<>()(test_shift(), in.begin(), m, orig.begin(), n, shift_left_algo{});
-#    endif
-#    ifdef _PSTL_TEST_SHIFT_RIGHT
-    TestUtils::invoke_on_all_hetero_policies<>()(test_shift(), in.begin(), m, orig.begin(), n, shift_right_algo{});
-#    endif
-}
-#endif
-
 int
 main()
 {
