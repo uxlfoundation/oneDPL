@@ -78,7 +78,7 @@ class __buffer_impl
 };
 
 // avoids a runtime call if there is nothing to free
-void
+inline void
 __free_usm(const sycl::queue& __q, void* __memory)
 {
     if (__memory)
