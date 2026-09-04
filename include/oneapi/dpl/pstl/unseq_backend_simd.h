@@ -695,7 +695,9 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
                   "a predicate over objects of that type");
 
     if (__n == 0)
-        return {__first, __first};
+    {
+        return ::std::make_pair(__first, __first);
+    }
 
     struct _ComplexType
     {
@@ -704,14 +706,16 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         _Size __min_ind;
         _Size __max_ind;
         _Compare* __minmax_comp;
-
         // The default constructor is not used during the algorithm, so it is not required for it.
         // However, some compilers may require it.
+
         _ComplexType() : __min_val{}, __max_val{}, __min_ind{}, __max_ind{}, __minmax_comp(nullptr) {}
-        _ComplexType(const _ValueType& min_val, const _ValueType& max_val, _Compare* comp)
-            : __min_val(min_val), __max_val(max_val), __min_ind{}, __max_ind{}, __minmax_comp(comp)
+        _ComplexType(const _ValueType& min_val, const _ValueType& max_val, const _Compare* comp)
+            : __min_val(min_val), __max_val(max_val), __min_ind(0), __max_ind(0),
+              __minmax_comp(const_cast<_Compare*>(comp))
         {
         }
+        _ComplexType(const _ComplexType& __obj) = default;
 
         _ONEDPL_PRAGMA_DECLARE_SIMD
         void
@@ -726,7 +730,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
             else if (!std::invoke(*__minmax_comp, __min_val, __obj.__min_val))
             {
                 __min_val = __obj.__min_val;
-                __min_ind = (__min_ind < __obj.__min_ind) ? __min_ind : __obj.__min_ind;
+                __min_ind = (__min_ind - __obj.__min_ind < 0) ? __min_ind : __obj.__min_ind;
             }
 
             // max
@@ -738,7 +742,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
             else if (!std::invoke(*__minmax_comp, __obj.__max_val, __max_val))
             {
                 __max_val = __obj.__max_val;
-                __max_ind = (__max_ind < __obj.__max_ind) ? __obj.__max_ind : __max_ind;
+                __max_ind = (__max_ind - __obj.__max_ind < 0) ? __obj.__max_ind : __max_ind;
             }
         }
     };
@@ -750,9 +754,9 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        const _ValueType __min_val = __init.__min_val;
-        const _ValueType __max_val = __init.__max_val;
-        const _ValueType __current = __first[__i];
+        auto __min_val = __init.__min_val;
+        auto __max_val = __init.__max_val;
+        auto __current = __first[__i];
         if (std::invoke(__comp, __current, __min_val))
         {
             __init.__min_val = __current;
@@ -764,8 +768,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
             __init.__max_ind = __i;
         }
     }
-
-    return {__first + __init.__min_ind, __first + __init.__max_ind};
+    return ::std::make_pair(__first + __init.__min_ind, __first + __init.__max_ind);
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator1, class _OutputIterator2,
