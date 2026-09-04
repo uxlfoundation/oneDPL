@@ -1762,13 +1762,13 @@ class __reduce_then_scan_reduce_kernel;
 template <typename... _Name>
 class __reduce_then_scan_scan_kernel;
 
-template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag,
-          typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename _KernelName>
+template <bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _GenReduceInput,
+          typename _ReduceOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
-template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag,
-          typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename... _KernelName>
-struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __is_unique_pattern_v, _ScanOpsTag,
+template <bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _GenReduceInput,
+          typename _ReduceOp, typename _InitType, typename... _KernelName>
+struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_pattern_v, _ScanOpsTag,
                                                     _GenReduceInput, _ReduceOp, _InitType,
                                                     __internal::__optional_kernel_name<_KernelName...>>
 {
@@ -1791,8 +1791,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __get_accessor(sycl::write_only, __scratch_storage, __cgh, __dpl_sycl::__no_init{});
-            auto __stop_pos_acc =
-                __internal::__get_stop_pos_accessor_opt<_Bounded>(sycl::write_only, __cgh, __stop_pos_storage);
+            auto __stop_pos_acc = __get_accessor(sycl::write_only, __stop_pos_storage, __cgh);
             __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi)
                     [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_req_sg_sz_device())]] {
                 const __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
@@ -1893,13 +1892,10 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __is_inclusive, __
                         __temp_ptr[__start_id + (__max_num_sub_groups_local - 1)] = __summary_carry.__get_cref();
                 }
 
-                if constexpr (!std::is_same_v<std::remove_cv_t<decltype(__stop_pos_acc)>,
-                                              __internal::__no_stop_pos_acc_tag>)
+                if constexpr (__is_real_accessor(__stop_pos_acc))
                 {
                     if (__block_num == 0 && __ndi.get_global_linear_id() == 0)
-                    {
                         __stop_pos_acc.__data()[0] = __stop_pos_initial_state;
-                    }
                 }
             });
         });
@@ -1985,8 +1981,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
             auto __temp_acc = __get_accessor(sycl::read_write, __scratch_storage, __cgh);
             auto __res_acc = __get_result_accessor(sycl::write_only, __scratch_storage, __cgh, __dpl_sycl::__no_init{});
-            auto __stop_pos_acc =
-                __internal::__get_stop_pos_accessor_opt<_Bounded>(sycl::read_write, __cgh, __stop_pos_storage);
+            auto __stop_pos_acc = __get_accessor(sycl::read_write, __stop_pos_storage, __cgh);
 
             __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi)
                     [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_req_sg_sz_device())]] {
@@ -2415,8 +2410,8 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
 
     // Reduce and scan step implementations
     using _ReduceSubmitter =
-        __parallel_reduce_then_scan_reduce_submitter<_Bounded, __inclusive, __is_unique_pattern_v, _ScanOpsTag,
-                                                     _GenReduceInput, _ReduceOp, _InitType, _ReduceKernel>;
+        __parallel_reduce_then_scan_reduce_submitter<__inclusive, __is_unique_pattern_v, _ScanOpsTag, _GenReduceInput,
+                                                     _ReduceOp, _InitType, _ReduceKernel>;
     using _ScanSubmitter =
         __parallel_reduce_then_scan_scan_submitter<_Bounded, __inclusive, __is_unique_pattern_v, _ScanOpsTag, _ReduceOp,
                                                    _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
@@ -2445,7 +2440,7 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
                                     __use_subgroup_ops};
 
     // Allocate storage for stop and out-of-bounds position if needed
-    auto __stop_pos_storage = __internal::__create_stop_pos_storage_opt<_Bounded, _StopPosInitState>(__q);
+    auto __stop_pos_storage = __create_result_storage_opt<_Bounded, _StopPosInitState>(__q, 1);
 
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
     // with sufficiently large L2 / L3 caches.
