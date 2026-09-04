@@ -629,25 +629,31 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
                   "a predicate over objects of that type");
 
     if (__n == 0)
+    {
         return __first;
+    }
 
     struct _ComplexType
     {
         _ValueType __min_val;
         _Size __min_ind;
         _Compare* __min_comp;
-
         // The default constructor is not used during the algorithm, so it is not required for it.
         // However, some compilers may require it.
+
         _ComplexType() : __min_val{}, __min_ind{}, __min_comp(nullptr) {}
-        _ComplexType(const _ValueType& val, _Compare* comp) : __min_val(val), __min_ind{}, __min_comp(comp) {}
+        _ComplexType(const _ValueType& val, const _Compare* comp)
+            : __min_val(val), __min_ind(0), __min_comp(const_cast<_Compare*>(comp))
+        {
+        }
+        _ComplexType(const _ComplexType& __obj) = default;
 
         _ONEDPL_PRAGMA_DECLARE_SIMD
         void
         operator()(const _ComplexType& __obj)
         {
             if (!std::invoke(*__min_comp, __min_val, __obj.__min_val) &&
-                (std::invoke(*__min_comp, __obj.__min_val, __min_val) || __obj.__min_ind < __min_ind))
+                (std::invoke(*__min_comp, __obj.__min_val, __min_val) || __obj.__min_ind - __min_ind < 0))
             {
                 __min_val = __obj.__min_val;
                 __min_ind = __obj.__min_ind;
@@ -670,7 +676,6 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
             __init.__min_ind = __i;
         }
     }
-
     return __first + __init.__min_ind;
 }
 
