@@ -693,8 +693,8 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
     {
         return ::std::make_pair(__first, __first);
     }
-
     using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+
     struct _ComplexType
     {
         _ValueType __min_val;
