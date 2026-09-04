@@ -26,8 +26,6 @@
 #include <optional>
 #include <cassert>
 
-#include "../../iterator_impl.h"
-
 #include "sycl_defs.h"
 #include "execution_sycl_defs.h"
 #include "sycl_iterator.h"
@@ -155,14 +153,6 @@ namespace __par_backend_hetero
 
 // aliases for faster access to modes
 using access_mode = sycl::access_mode;
-
-// function to simplify zip_iterator creation
-template <typename... T>
-oneapi::dpl::zip_iterator<T...>
-zip(T... args)
-{
-    return oneapi::dpl::zip_iterator<T...>(args...);
-}
 
 // function is needed to wrap kernel name into another policy class
 template <template <typename> class _NewKernelName, typename _Policy,
@@ -479,44 +469,10 @@ __allocate_usm(const sycl::queue& __q, std::size_t __elements)
     return __result;
 }
 
-//-----------------------------------------------------------------------
-// type traits for objects granting access to some value objects
-//-----------------------------------------------------------------------
-
-template <typename _ContainerOrIterator>
-struct __memobj_traits
-{
-    using value_type = typename _ContainerOrIterator::value_type;
-};
-
-template <typename _T>
-struct __memobj_traits<_T*>
-{
-    using value_type = _T;
-};
-
 } // namespace __internal
 
 template <typename _T>
 using __buffer = __internal::__buffer_impl<_T>;
-
-template <typename T>
-struct __repacked_tuple
-{
-    using type = T;
-};
-
-template <typename... Args>
-struct __repacked_tuple<::std::tuple<Args...>>
-{
-    using type = oneapi::dpl::__internal::tuple<Args...>;
-};
-
-template <typename T>
-using __repacked_tuple_t = typename __repacked_tuple<T>::type;
-
-template <typename _ContainerOrIterable>
-using __value_t = typename __internal::__memobj_traits<_ContainerOrIterable>::value_type;
 
 //-----------------------------------------------------------------------
 // types to create and use data on a device and return those to the host

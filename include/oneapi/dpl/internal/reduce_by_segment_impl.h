@@ -154,7 +154,7 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     oneapi::dpl::for_each(std::forward<Policy>(policy),
                           make_zip_iterator(first1, scanned_tail_flags, mask, scanned_values, mask + 1),
                           make_zip_iterator(first1, scanned_tail_flags, mask, scanned_values, mask + 1) + n,
-                          internal::scatter_and_accumulate_fun<OutputIterator1, OutputIterator2>(result1, result2));
+                          __internal::scatter_and_accumulate_fun<OutputIterator1, OutputIterator2>(result1, result2));
 
     // for example: result1 = {1, 2, 3, 4, 1, 3, 1, 3, 0}
     // for example: result2 = {1, 2, 3, 4, 2, 6, 2, 6, 0}

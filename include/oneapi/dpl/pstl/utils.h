@@ -17,7 +17,7 @@
 #define _ONEDPL_UTILS_H
 
 #include "onedpl_config.h"
-#include "tuple_impl.h" // Internal tuple and get specializations needed by __segmented_scan_fun
+#include "tuple_impl.h" // __internal::tuple
 
 #include <new>
 #include <tuple>
@@ -465,6 +465,22 @@ class __replace_copy_functor
     }
 };
 
+template <typename _T, typename _Predicate>
+struct __replace_if_fun
+{
+    using __result_of = _T;
+
+    template <typename _T1, typename _T2>
+    _T
+    operator()(_T1&& __a, _T2&& __s) const
+    {
+        return __pred(std::forward<_T2>(__s)) ? __new_value : __a;
+    }
+
+    _Predicate __pred;
+    const _T __new_value;
+};
+
 //! Like ::std::next, but with specialization for dpcpp case
 template <typename _Iter>
 _Iter
@@ -569,9 +585,6 @@ struct __next_to_last
         return __it;
     }
 };
-
-template <typename _T, class _Enable = void>
-class __future;
 
 // empty base class for type erasure
 struct __lifetime_keeper_base
@@ -1218,12 +1231,6 @@ struct __ignore_call_op
     }
 };
 
-// To implement __min_nested_type_size, a general utility with an internal tuple
-// specialization, we need to forward declare our internal tuple first as tuple_impl.h
-// already includes this header.
-template <typename... T>
-struct tuple;
-
 // Returns the smallest type within a set of potentially nested template types. This function
 // recursively explores std::tuple and oneapi::dpl::__internal::tuple for the smallest type.
 // For all other types, its size is used directly.
@@ -1287,39 +1294,6 @@ struct __ranges_equal_value
     }
 };
 #endif
-
-template <typename _ValueType, typename _FlagType, typename _BinaryOp>
-struct __segmented_scan_fun
-{
-    template <typename _T1, typename _T2>
-    _T1
-    operator()(const _T1& __x, const _T2& __y) const
-    {
-        using std::get;
-        using __x_t = std::tuple_element_t<0, _T1>;
-        auto __new_x = get<1>(__y) ? __x_t(get<0>(__y)) : __x_t(__binary_op(get<0>(__x), get<0>(__y)));
-        auto __new_y = get<1>(__x) | get<1>(__y);
-        return _T1(__new_x, __new_y);
-    }
-
-    _BinaryOp __binary_op;
-};
-
-template <typename _T, typename _Predicate>
-struct __replace_if_fun
-{
-    using __result_of = _T;
-
-    template <typename _T1, typename _T2>
-    _T
-    operator()(_T1&& __a, _T2&& __s) const
-    {
-        return __pred(std::forward<_T2>(__s)) ? __new_value : __a;
-    }
-
-    _Predicate __pred;
-    const _T __new_value;
-};
 
 template <typename _OutValueType, typename _OutRefType, typename _InRefType>
 inline constexpr bool __trivial_uninitialized_copy =
