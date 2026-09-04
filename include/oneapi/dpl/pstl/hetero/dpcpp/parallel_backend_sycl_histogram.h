@@ -302,11 +302,33 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
         const ::std::size_t __num_bins = oneapi::dpl::__ranges::__size(__bins);
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
 
-        const std::uint64_t __global_mem_size = __q.get_device().get_info<sycl::info::device::global_mem_size>();
+        const sycl::device __device = __q.get_device();
+        const std::uint64_t __bytes_per_copy = std::uint64_t{__num_bins} * sizeof(_bin_type);
+        const std::uint64_t __global_mem_size = __device.get_info<sycl::info::device::global_mem_size>();
         const std::uint64_t __max_groups =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __min_iters_per_work_item);
-        const std::uint64_t __max_segments =
-            std::min(__global_mem_size / (__num_bins * sizeof(_bin_type)), __max_groups);
+
+        std::uint64_t __segment_limit = __global_mem_size / __bytes_per_copy;
+        if (__device.is_gpu())
+        {
+            const std::uint32_t __max_compute_units = oneapi::dpl::__internal::__max_compute_units(__q);
+            std::uint64_t __cache_size = __device.get_info<sycl::info::device::global_mem_cache_size>();
+            if (__cache_size == 0)
+            {
+                // No last level cache reported, likely an older device; assume 32K per compute unit
+                __cache_size = std::uint64_t{32} * 1024 * __max_compute_units;
+            }
+            // The clear, the accumulation and the merge each traverse the whole set of private copies,
+            // so bounding that set by last level cache rather than by global memory keeps its traffic
+            // out of DRAM and divides the merge's atomic count by the same factor. Half the cache,
+            // leaving the rest to the input stream. Intel GPUs report EUs here, 8 per Xe core; keep at
+            // least two work-groups per core so the device stays occupied.
+            const std::uint64_t __cache_segments = (__cache_size / 2) / __bytes_per_copy;
+            const std::uint64_t __occupancy_segments = 2 * std::max(std::uint32_t{1}, __max_compute_units / 8);
+            __segment_limit = std::min(__segment_limit, std::max(__cache_segments, __occupancy_segments));
+        }
+        // __max_segments divides below, and the bounds above floor to zero for a very large bin count.
+        const std::uint64_t __max_segments = std::max(std::uint64_t{1}, std::min(__segment_limit, __max_groups));
 
         const std::size_t __iters_per_work_item =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __max_segments * __work_group_size);
