@@ -1015,11 +1015,13 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     // copy back cannot reach past the end of that segment's own input, because the surviving
     // elements of the segments before it are at most as many as their inputs; so segments taken in
     // order never overwrite input a later segment has yet to read.
-    _DiffType __out = 0;
-    for (_DiffType __in = 0; __in < __n; __in += __segment)
+    // __in/__out cannot name these: they are MSVC SAL annotation macros that expand to nothing.
+    _DiffType __out_pos = 0;
+    for (_DiffType __in_pos = 0; __in_pos < __n; __in_pos += __segment)
     {
-        auto __stage_last = __pattern_copy_if(__tag, __exec, __first + __in, __first + std::min(__in + __segment, __n),
-                                              __stage_first, __not_pred<_Predicate>{__pred});
+        auto __stage_last =
+            __pattern_copy_if(__tag, __exec, __first + __in_pos, __first + std::min(__in_pos + __segment, __n),
+                              __stage_first, __not_pred<_Predicate>{__pred});
 
         //TODO: To optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
         // __pattern_copy_if above may be async due to there is implicit synchronization on sycl::buffer and the
@@ -1031,12 +1033,12 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
                                /*_IsOutNoInitRequested=*/true>(
             __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __stage_first, __stage_last,
-            __first + __out, __brick_copy<__hetero_tag<_BackendTag>>{});
+            __first + __out_pos, __brick_copy<__hetero_tag<_BackendTag>>{});
 
-        __out += __stage_last - __stage_first;
+        __out_pos += __stage_last - __stage_first;
     }
 
-    return __first + __out;
+    return __first + __out_pos;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _BinaryPredicate>
