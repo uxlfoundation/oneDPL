@@ -318,16 +318,14 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                 // No last level cache reported, likely an older device; assume 32K per compute unit
                 __cache_size = std::uint64_t{32} * 1024 * __max_compute_units;
             }
-            // The clear, the accumulation and the merge each traverse the whole set of private copies,
-            // so bounding that set by last level cache rather than by global memory keeps its traffic
-            // out of DRAM and divides the merge's atomic count by the same factor. Half the cache,
-            // leaving the rest to the input stream. Intel GPUs report EUs here, 8 per Xe core; keep at
-            // least two work-groups per core so the device stays occupied.
+            // The merge atomically adds every private copy into the output, so its atomic count is
+            // proportional to the copy count. Half the cache, leaving the rest to the input stream.
             const std::uint64_t __cache_segments = (__cache_size / 2) / __bytes_per_copy;
+            // Intel GPUs report EUs here, 8 per Xe core; keep two work-groups per core.
             const std::uint64_t __occupancy_segments = 2 * std::max(std::uint32_t{1}, __max_compute_units / 8);
             __segment_limit = std::min(__segment_limit, std::max(__cache_segments, __occupancy_segments));
         }
-        // __max_segments divides below, and the bounds above floor to zero for a very large bin count.
+        // __max_segments divides below; the global memory bound floors to zero if no copy fits.
         const std::uint64_t __max_segments = std::max(std::uint64_t{1}, std::min(__segment_limit, __max_groups));
 
         const std::size_t __iters_per_work_item =
@@ -464,9 +462,8 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     {
         //Use __iters_per_work_item here as a runtime parameter, because only one kernel is created for
         // private_global_atomics with a variable number of iterations per workitem. __iters_per_work_item is just a
-        // suggestion which but global memory limitations may increase this value to be able to fit the workgroup
-        // private copies of the histogram bins in global memory.  No unrolling is taken advantage of here because it
-        // is a runtime argument.
+        // suggestion which the bound on the number of workgroup private copies of the histogram bins may increase.
+        // No unrolling is taken advantage of here because it is a runtime argument.
         return __future(__histogram_general_private_global_atomics<_CustomName>(
             __q, __init_event, __iters_per_work_item, __work_group_size, std::forward<_Range1>(__input),
             std::forward<_Range2>(__bins), __binhash_manager));
