@@ -515,16 +515,12 @@ __compaction_segment_size(const sycl::queue& __q, std::size_t __n)
     if (!__device.is_gpu())
         return __n;
 
-    // Half the last level cache, as __parallel_transform_reduce_then_scan targets for its own input
-    // blocks, leaving the other half to the input being streamed. Clamped so that a device reporting
-    // no cache size still gets a useful bound, and so that the number of segments stays small enough
-    // for the per-segment submissions not to matter.
-    constexpr std::size_t __min_bytes = 4 * 1024 * 1024;
-    constexpr std::size_t __max_bytes = 64 * 1024 * 1024;
-    const std::size_t __cache_bytes =
-        static_cast<std::size_t>(__device.get_info<sycl::info::device::global_mem_cache_size>()) / 2;
-    const std::size_t __bytes = std::min(__max_bytes, std::max(__min_bytes, __cache_bytes));
-    return std::max(std::size_t{1}, std::min(__n, __bytes / sizeof(_T)));
+    // NOT FOR MERGE — diagnostic sizing. A cache-derived segment size makes the bytes saved and the
+    // segment count proportional to each other, so a benchmark run cannot tell a per-byte allocation
+    // saving from a per-segment overhead. Four segments at every __n breaks that: the segment count is
+    // constant, so small __n measures the per-segment overhead alone and the slope over __n measures
+    // the per-byte saving. Bounds nothing, so it is a measurement only.
+    return std::max(std::size_t{1}, (__n + 3) / 4);
 }
 
 template <typename T>
