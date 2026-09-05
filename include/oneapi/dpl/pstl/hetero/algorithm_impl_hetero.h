@@ -1002,21 +1002,41 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         return __last;
 
     using _ValueType = typename ::std::iterator_traits<_Iterator>::value_type;
+    using _DiffType = typename ::std::iterator_traits<_Iterator>::difference_type;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__last - __first);
-    auto __copy_first = __buf.get();
+    const _DiffType __n = __last - __first;
+    const _DiffType __segment = __par_backend_hetero::__compaction_segment_size<_ValueType>(
+        __exec.queue(), static_cast<std::size_t>(__n));
 
-    auto __copy_last = __pattern_copy_if(__tag, __exec, __first, __last, __copy_first, __not_pred<_Predicate>{__pred});
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__segment);
+    auto __stage_first = __buf.get();
 
-    //TODO: To optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
-    // __pattern_copy_if above may be async due to there is implicit synchronization on sycl::buffer and the accessors
+    // The input is compacted a segment at a time through one bounded staging buffer. A segment's
+    // copy back cannot reach past the end of that segment's own input, because the surviving
+    // elements of the segments before it are at most as many as their inputs; so segments taken in
+    // order never overwrite input a later segment has yet to read.
+    _DiffType __out = 0;
+    for (_DiffType __in = 0; __in < __n; __in += __segment)
+    {
+        auto __stage_last = __pattern_copy_if(__tag, __exec, __first + __in, __first + std::min(__in + __segment, __n),
+                                              __stage_first, __not_pred<_Predicate>{__pred});
 
-    // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
-    // we must call __pattern_hetero_walk2 in a way which provides blocking synchronization for this pattern.
-    return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
-                                  /*_IsOutNoInitRequested=*/true>(
-        __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
-        __copy_first, __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>>{});
+        //TODO: To optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
+        // __pattern_copy_if above may be async due to there is implicit synchronization on sycl::buffer and the
+        // accessors
+
+        // The staging buffer is constructed from a range, therefore it's destructor will not block, therefore
+        // we must call __pattern_hetero_walk2 in a way which provides blocking synchronization, both so that the
+        // next segment may reuse the staging buffer and so that this pattern is blocking overall.
+        __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
+                               /*_IsOutNoInitRequested=*/true>(
+            __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __stage_first, __stage_last,
+            __first + __out, __brick_copy<__hetero_tag<_BackendTag>>{});
+
+        __out += __stage_last - __stage_first;
+    }
+
+    return __first + __out;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _BinaryPredicate>

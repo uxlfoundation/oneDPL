@@ -500,6 +500,33 @@ struct __memobj_traits<_T*>
 template <typename _T>
 using __buffer = __internal::__buffer_impl<_T>;
 
+// Element count of the temporary that an in-place compaction pattern stages its output through.
+// The driver must make a temporary's whole footprint resident before the kernel using it can run,
+// and that cost is proportional to the footprint, so a temporary sized as __n makes allocation
+// dominate at large __n. Bounding it by the cache instead lets the input be compacted segment by
+// segment, which also keeps the staged data cache-resident for the copy back.
+template <typename _T>
+std::size_t
+__compaction_segment_size(const sycl::queue& __q, std::size_t __n)
+{
+    sycl::device __device = __q.get_device();
+    // A non-GPU device allocates lazily, so there is nothing to bound and segmenting only adds
+    // submissions. Its reported cache size also describes a per-core cache, not a shared one.
+    if (!__device.is_gpu())
+        return __n;
+
+    // Half the last level cache, as __parallel_transform_reduce_then_scan targets for its own input
+    // blocks, leaving the other half to the input being streamed. Clamped so that a device reporting
+    // no cache size still gets a useful bound, and so that the number of segments stays small enough
+    // for the per-segment submissions not to matter.
+    constexpr std::size_t __min_bytes = 4 * 1024 * 1024;
+    constexpr std::size_t __max_bytes = 64 * 1024 * 1024;
+    const std::size_t __cache_bytes =
+        static_cast<std::size_t>(__device.get_info<sycl::info::device::global_mem_cache_size>()) / 2;
+    const std::size_t __bytes = std::min(__max_bytes, std::max(__min_bytes, __cache_bytes));
+    return std::max(std::size_t{1}, std::min(__n, __bytes / sizeof(_T)));
+}
+
 template <typename T>
 struct __repacked_tuple
 {
