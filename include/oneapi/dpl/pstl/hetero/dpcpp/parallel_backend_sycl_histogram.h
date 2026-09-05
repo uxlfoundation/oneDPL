@@ -88,8 +88,8 @@ struct __binhash_SLM_wrapper<__custom_boundary_range_binhash<_Range>, _ExtraMemA
         ::std::uint32_t __gSize = __self_item.get_local_range()[0];
         ::std::uint32_t __self_lidx = __self_item.get_local_id(0);
         auto __size = __bin_hash.__boundaries.size();
-        ::std::uint8_t __factor = oneapi::dpl::__internal::__dpl_ceiling_div(__size, __gSize);
-        ::std::uint8_t __k = 0;
+        ::std::uint32_t __factor = oneapi::dpl::__internal::__dpl_ceiling_div(__size, __gSize);
+        ::std::uint32_t __k = 0;
         for (; __k < __factor - 1; ++__k)
         {
             __slm_mem[__gSize * __k + __self_lidx] = __bin_hash.__boundaries[__gSize * __k + __self_lidx];
@@ -133,8 +133,8 @@ __clear_wglocal_histograms(const _HistAccessor& __local_histogram, const _Offset
         ::std::conditional_t<(sizeof(_Size) >= sizeof(::std::uint32_t)), ::std::uint64_t, ::std::uint32_t>;
     _BinUint_t __gSize = __self_item.get_local_range()[0];
     ::std::uint32_t __self_lidx = __self_item.get_local_id(0);
-    ::std::uint8_t __factor = oneapi::dpl::__internal::__dpl_ceiling_div(__num_bins, __gSize);
-    ::std::uint8_t __k = 0;
+    _BinUint_t __factor = oneapi::dpl::__internal::__dpl_ceiling_div(__num_bins, __gSize);
+    _BinUint_t __k = 0;
 
     for (; __k < __factor - 1; ++__k)
     {
