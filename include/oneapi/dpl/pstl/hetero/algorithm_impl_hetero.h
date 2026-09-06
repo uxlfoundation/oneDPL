@@ -1044,28 +1044,40 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
     for (_DiffType __in_pos = 0; __in_pos < __n; __in_pos += __segment_size)
     {
         const bool __extended = __in_pos > 0;
+        const _DiffType __segment_last = std::min(__in_pos + __segment_size, __n);
         auto __stage_last = __pattern_unique_copy(__tag, __exec, __first + (__extended ? __in_pos - 1 : __in_pos),
-                                                 __first + std::min(__in_pos + __segment_size, __n), __stage_first,
-                                                 __pred);
+                                                 __first + __segment_last, __stage_first, __pred);
         auto __segment_first = __stage_first + (__extended ? 1 : 0);
+        const _DiffType __survivors = __stage_last - __segment_first;
 
         //TODO: optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
 
-        // Segments are taken in order and a segment's survivors never outnumber its input, so a segment's copy back
-        // cannot reach past the end of its own input into a segment not yet read. It can reach the extended element
-        // read by the next segment, but only when nothing has been dropped below it, and then the copy is an identity
-        // copy that leaves that element's value intact.
-        //
-        // Reusing the staging buffer is ordered by its accessors, and __pattern_unique_copy above blocks on the host,
-        // so the wait __deferrable_mode performs is only needed to keep this pattern blocking overall.
-        // no_init is not requested: the copy back writes a sub-range of the input, and discarding anything outside
-        // that sub-range would destroy the segments already compacted below __out_pos.
-        __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
-                               /*_IsOutNoInitRequested=*/false>(
-            __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __segment_first, __stage_last,
-            __first + __out_pos, __brick_copy<__hetero_tag<_BackendTag>>{});
+        // A segment that dropped nothing and that no earlier segment has shifted would copy its own values back onto
+        // themselves. Skipping that is what keeps every copy back performed clear of the input its successor reads:
+        // survivors never outnumber a segment's input, so a copy back reaches the extended element the next segment
+        // reads only in exactly this identity case.
+        if (__out_pos != __in_pos || __survivors != __segment_last - __in_pos)
+        {
+            // Only the last segment's copy back has to be waited for. The next segment's staging write is ordered
+            // after this read of the staging buffer by that buffer's accessors, and __pattern_unique_copy blocks on
+            // the host for its count, so every earlier copy back has completed by the time the loop ends.
+            //
+            // no_init is not requested: the copy back writes a sub-range of the input, and discarding anything outside
+            // that sub-range would destroy the segments already compacted below __out_pos.
+            const bool __last_segment = __segment_last == __n;
+            auto __copy_back = [&](auto __wait_mode) {
+                __pattern_hetero_walk2<decltype(__wait_mode), __par_backend_hetero::access_mode::write,
+                                       /*_IsOutNoInitRequested=*/false>(
+                    __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __segment_first,
+                    __stage_last, __first + __out_pos, __brick_copy<__hetero_tag<_BackendTag>>{});
+            };
+            if (__last_segment)
+                __copy_back(__par_backend_hetero::__deferrable_mode{});
+            else
+                __copy_back(__par_backend_hetero::__async_mode{});
+        }
 
-        __out_pos += __stage_last - __segment_first;
+        __out_pos += __survivors;
     }
 
     return __first + __out_pos;
