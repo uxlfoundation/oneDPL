@@ -29,8 +29,9 @@
 #    include "dpcpp/unseq_backend_sycl.h"
 #endif
 
-#include <cstddef> // std::nullptr_t
-#include <utility> // std::forward
+#include <algorithm> // std::min
+#include <cstddef>   // std::nullptr_t
+#include <utility>   // std::forward
 
 namespace oneapi
 {
@@ -1005,33 +1006,28 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     using _DiffType = typename ::std::iterator_traits<_Iterator>::difference_type;
 
     const _DiffType __n = __last - __first;
-    const _DiffType __segment = __par_backend_hetero::__compaction_segment_size<_ValueType>(
-        __exec.queue(), static_cast<std::size_t>(__n));
+    const _DiffType __segment_size = __par_backend_hetero::__compaction_segment_size<_ValueType>(__exec, __n);
 
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__segment);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__segment_size);
     auto __stage_first = __buf.get();
 
-    // The input is compacted a segment at a time through one bounded staging buffer. A segment's
-    // copy back cannot reach past the end of that segment's own input, because the surviving
-    // elements of the segments before it are at most as many as their inputs; so segments taken in
-    // order never overwrite input a later segment has yet to read.
-    // __in/__out cannot name these: they are MSVC SAL annotation macros that expand to nothing.
+    // Segments are taken in order and a segment's survivors never outnumber its input, so a segment's copy back
+    // cannot reach past the end of its own input into a segment not yet read.
     _DiffType __out_pos = 0;
-    for (_DiffType __in_pos = 0; __in_pos < __n; __in_pos += __segment)
+    for (_DiffType __in_pos = 0; __in_pos < __n; __in_pos += __segment_size)
     {
         auto __stage_last =
-            __pattern_copy_if(__tag, __exec, __first + __in_pos, __first + std::min(__in_pos + __segment, __n),
+            __pattern_copy_if(__tag, __exec, __first + __in_pos, __first + std::min(__in_pos + __segment_size, __n),
                               __stage_first, __not_pred<_Predicate>{__pred});
 
         //TODO: To optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
-        // __pattern_copy_if above may be async due to there is implicit synchronization on sycl::buffer and the
-        // accessors
 
-        // The staging buffer is constructed from a range, therefore it's destructor will not block, therefore
-        // we must call __pattern_hetero_walk2 in a way which provides blocking synchronization, both so that the
-        // next segment may reuse the staging buffer and so that this pattern is blocking overall.
+        // Reusing the staging buffer is ordered by its accessors, and __pattern_copy_if above blocks on the host,
+        // so the wait __deferrable_mode performs is only needed to keep this pattern blocking overall.
+        // no_init is not requested: the copy back writes a sub-range of the input, and discarding anything outside
+        // that sub-range would destroy the segments already compacted below __out_pos.
         __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
-                               /*_IsOutNoInitRequested=*/true>(
+                               /*_IsOutNoInitRequested=*/false>(
             __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __stage_first, __stage_last,
             __first + __out_pos, __brick_copy<__hetero_tag<_BackendTag>>{});
 

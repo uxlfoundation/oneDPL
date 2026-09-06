@@ -500,25 +500,23 @@ struct __memobj_traits<_T*>
 template <typename _T>
 using __buffer = __internal::__buffer_impl<_T>;
 
-// Element count of the temporary that an in-place compaction pattern stages its output through.
-// The driver must make a temporary's whole footprint resident before the kernel using it can run,
-// and that cost is proportional to the footprint, so a temporary sized as __n makes allocation
-// dominate at large __n. Bounding it lets the input be compacted segment by segment instead.
-template <typename _T>
-std::size_t
-__compaction_segment_size(const sycl::queue& __q, std::size_t __n)
+// Element count of the temporary that an in-place compaction pattern stages its output through. A driver must make
+// the whole temporary resident before the kernel using it runs, so an __n-sized temporary makes allocation dominate
+// at large __n; bounding it lets the input be compacted segment by segment instead.
+template <typename _T, typename _ExecutionPolicy, typename _Size>
+_Size
+__compaction_segment_size(_ExecutionPolicy&& __exec, _Size __n)
 {
-    // A non-GPU device allocates lazily, so there is nothing to bound and segmenting only adds
-    // submissions.
-    if (!__q.get_device().is_gpu())
+    // Lazy allocation on a non-GPU device leaves nothing to bound, and segmenting only adds submissions.
+    sycl::queue __q_local = __exec.queue();
+    if (!__q_local.get_device().is_gpu())
         return __n;
 
-    // The bound trades the per-byte residency cost, which shrinks as the bound does, against a
-    // per-segment submission cost, which grows. Measured on two GPUs the product is flat from 64 to
-    // 128 MiB and falls off either side, so take the smaller and keep the temporary independent of
-    // any device property.
-    constexpr std::size_t __bytes = 64 * 1024 * 1024;
-    return std::max(std::size_t{1}, std::min(__n, __bytes / sizeof(_T)));
+    // Bounding the temporary trades its residency cost against a per-segment submission cost. Empirically found
+    // value; the product is flat from 64 to 128 MiB on the GPUs tested and falls off either side.
+    constexpr std::size_t __max_segment_size_bytes = 64 * 1024 * 1024;
+    const _Size __max_segment_size = static_cast<_Size>(__max_segment_size_bytes / sizeof(_T));
+    return std::max<_Size>(1, std::min(__n, __max_segment_size));
 }
 
 template <typename T>
