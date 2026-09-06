@@ -29,8 +29,9 @@
 #    include "dpcpp/unseq_backend_sycl.h"
 #endif
 
-#include <cstddef> // std::nullptr_t
-#include <utility> // std::forward
+#include <algorithm> // std::min
+#include <cstddef>   // std::nullptr_t
+#include <utility>   // std::forward
 
 namespace oneapi
 {
@@ -1028,19 +1029,46 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
         return __last;
 
     using _ValueType = typename ::std::iterator_traits<_Iterator>::value_type;
+    using _DiffType = typename ::std::iterator_traits<_Iterator>::difference_type;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__last - __first);
-    auto __copy_first = __buf.get();
-    auto __copy_last = __pattern_unique_copy(__tag, __exec, __first, __last, __copy_first, __pred);
+    const _DiffType __n = __last - __first;
+    const _DiffType __segment_size = __par_backend_hetero::__compaction_segment_size<_ValueType>(__exec, __n);
 
-    //TODO: optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
+    // A segment other than the first is staged over its input extended one element back, so that its leading element
+    // is compared against its predecessor; the staged copy of that predecessor is then dropped. So a segment stages at
+    // most __segment_size + 1 elements.
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(std::min(__n, __segment_size + 1));
+    auto __stage_first = __buf.get();
 
-    // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
-    // we must call __pattern_hetero_walk2 in a way which provides blocking synchronization for this pattern.
-    return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
-                                  /*_IsOutNoInitRequested=*/true>(
-        __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
-        __copy_first, __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>>{});
+    _DiffType __out_pos = 0;
+    for (_DiffType __in_pos = 0; __in_pos < __n; __in_pos += __segment_size)
+    {
+        const bool __extended = __in_pos > 0;
+        auto __stage_last = __pattern_unique_copy(__tag, __exec, __first + (__extended ? __in_pos - 1 : __in_pos),
+                                                 __first + std::min(__in_pos + __segment_size, __n), __stage_first,
+                                                 __pred);
+        auto __segment_first = __stage_first + (__extended ? 1 : 0);
+
+        //TODO: optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
+
+        // Segments are taken in order and a segment's survivors never outnumber its input, so a segment's copy back
+        // cannot reach past the end of its own input into a segment not yet read. It can reach the extended element
+        // read by the next segment, but only when nothing has been dropped below it, and then the copy is an identity
+        // copy that leaves that element's value intact.
+        //
+        // Reusing the staging buffer is ordered by its accessors, and __pattern_unique_copy above blocks on the host,
+        // so the wait __deferrable_mode performs is only needed to keep this pattern blocking overall.
+        // no_init is not requested: the copy back writes a sub-range of the input, and discarding anything outside
+        // that sub-range would destroy the segments already compacted below __out_pos.
+        __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
+                               /*_IsOutNoInitRequested=*/false>(
+            __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __segment_first, __stage_last,
+            __first + __out_pos, __brick_copy<__hetero_tag<_BackendTag>>{});
+
+        __out_pos += __stage_last - __segment_first;
+    }
+
+    return __first + __out_pos;
 }
 
 //------------------------------------------------------------------------
