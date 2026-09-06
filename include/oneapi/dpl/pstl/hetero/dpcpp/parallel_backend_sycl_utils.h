@@ -513,8 +513,9 @@ __compaction_segment_size(_ExecutionPolicy&& __exec, _Size __n)
         return __n;
 
     // Bounding the temporary trades its residency cost against a per-segment submission cost. Empirically found
-    // value; the product is flat from 64 to 128 MiB on the GPUs tested and falls off either side.
-    constexpr std::size_t __max_segment_size_bytes = 64 * 1024 * 1024;
+    // value; the product is flat from 64 to 128 MiB on the GPUs tested and falls off either side. The upper end of
+    // that plateau is taken, because the per-segment cost is the dominant term on devices whose allocation is cheap.
+    constexpr std::size_t __max_segment_size_bytes = 128 * 1024 * 1024;
     const _Size __max_segment_size = static_cast<_Size>(__max_segment_size_bytes / sizeof(_T));
     return std::max<_Size>(1, std::min(__n, __max_segment_size));
 }
