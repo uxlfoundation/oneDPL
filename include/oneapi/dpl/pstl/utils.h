@@ -1104,25 +1104,14 @@ struct __is_type_with_iterator_traits<
 template <typename _T>
 static constexpr bool __is_type_with_iterator_traits_v = __is_type_with_iterator_traits<_T>::value;
 
-// The requirements below are named after the concepts they stand for: C++20 uses those concepts directly, while
-// C++17 gets an approximation of each of them.
+// The requirement below is named after the concept it stands for: C++20 uses that concept directly, while C++17 gets
+// an approximation of it.
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
-
-template <typename _From, typename _To>
-inline constexpr bool __convertible_to_v = std::convertible_to<_From, _To>;
 
 template <typename _Fp, typename... _Args>
 inline constexpr bool __predicate_v = std::predicate<_Fp, _Args...>;
 
 #else
-
-// std::convertible_to also requires an explicit conversion, which std::is_convertible_v does not check.
-template <typename _From, typename _To, typename = void>
-inline constexpr bool __convertible_to_v = false;
-
-template <typename _From, typename _To>
-inline constexpr bool __convertible_to_v<_From, _To, std::void_t<decltype(static_cast<_To>(std::declval<_From>()))>> =
-    std::is_convertible_v<_From, _To>;
 
 // std::predicate requires the result to be boolean-testable, which is stronger than being convertible to bool, but
 // the difference only shows for types with an unusable operator!.

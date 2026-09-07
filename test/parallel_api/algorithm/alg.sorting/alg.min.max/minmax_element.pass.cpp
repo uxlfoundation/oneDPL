@@ -375,6 +375,24 @@ struct MoveOnlyCompare
     }
 };
 
+template <typename T, typename Iterator>
+static void
+check_by_type_host_policies(Iterator first, Iterator last)
+{
+#ifdef _PSTL_TEST_MIN_ELEMENT
+    invoke_on_all_host_policies()(check_minelement<T>(), first, last);
+    invoke_on_all_host_policies()(check_minelement_predicate<T>(), first, last);
+#endif
+#ifdef _PSTL_TEST_MAX_ELEMENT
+    invoke_on_all_host_policies()(check_maxelement<T>(), first, last);
+    invoke_on_all_host_policies()(check_maxelement_predicate<T>(), first, last);
+#endif
+#ifdef _PSTL_TEST_MINMAX_ELEMENT
+    invoke_on_all_host_policies()(check_minmaxelement<T>(), first, last);
+    invoke_on_all_host_policies()(check_minmaxelement_predicate<T>(), first, last);
+#endif
+}
+
 // The sequence is built in place because the value types checked here either do not satisfy the requirements of
 // TestUtils::Sequence (which default-constructs and assigns its elements) or are not trivially copyable, and thus
 // cannot be checked with device policies.
@@ -389,21 +407,23 @@ test_by_type_host_policies(::std::size_t n)
 
     using Iterator = ::std::conditional_t<UseConstIterators, typename ::std::vector<T>::const_iterator,
                                           typename ::std::vector<T>::iterator>;
-    const Iterator first = data.begin();
-    const Iterator last = data.end();
+    check_by_type_host_policies<T>(Iterator(data.begin()), Iterator(data.end()));
+}
 
-#ifdef _PSTL_TEST_MIN_ELEMENT
-    invoke_on_all_host_policies()(check_minelement<T>(), first, last);
-    invoke_on_all_host_policies()(check_minelement_predicate<T>(), first, last);
-#endif
-#ifdef _PSTL_TEST_MAX_ELEMENT
-    invoke_on_all_host_policies()(check_maxelement<T>(), first, last);
-    invoke_on_all_host_policies()(check_maxelement_predicate<T>(), first, last);
-#endif
-#ifdef _PSTL_TEST_MINMAX_ELEMENT
-    invoke_on_all_host_policies()(check_minmaxelement<T>(), first, last);
-    invoke_on_all_host_policies()(check_minmaxelement_predicate<T>(), first, last);
-#endif
+// A value type with deleted move operations cannot be stored in a std::vector, because the growth path of the container
+// moves its elements, so the sequence is a plain array here and its elements are assigned from const lvalues.
+template <typename T, ::std::size_t N>
+static void
+test_by_type_host_policies_array()
+{
+    T data[N];
+    for (::std::size_t i = 0; i < N; ++i)
+    {
+        const T value(std::int32_t(TestUtils::HashBits(i, 30)));
+        data[i] = value;
+    }
+
+    check_by_type_host_policies<T>(data, data + N);
 }
 
 template <typename T>
@@ -462,7 +482,7 @@ main()
     // These value types are accepted by the vector code path as well, and the point of checking them is that the vector
     // code is instantiated for them: each of them violates one of the requirements of std::semiregular that the vector
     // code does not have. That does not depend on the sequence size either.
-    test_by_type_host_policies<CopyOnlyNoMoveCompare>(NSmall);
+    test_by_type_host_policies_array<CopyOnlyNoMoveCompare, NSmall>();
     test_by_type_host_policies<VoidAssignCompare>(NSmall);
     test_by_type_host_policies<ThrowingDtorCompare>(NSmall);
 

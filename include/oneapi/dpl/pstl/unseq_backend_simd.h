@@ -635,12 +635,14 @@ inline constexpr bool __is_value_storable_and_comparable_v = false;
 // The value is stored in a brace-initialized object and updated there by assignment, so the requirements are brace
 // initialization, copy construction and copy assignment. std::semiregular would be a natural name for them, but it is
 // stricter: it also requires move construction, move assignment, an assignment returning _ValueType& and a
-// non-throwing destructor, none of which is used here.
+// non-throwing destructor, none of which is used here. The element is only copy-initialized into a _ValueType, so an
+// implicit conversion is all that is required of the reference type: std::convertible_to would be stricter again, since
+// it also requires static_cast<_ValueType>(_ReferenceType) to be well-formed.
 template <typename _Iterator, typename _Compare, typename _ReferenceType, typename _ValueType>
 inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ReferenceType, _ValueType,
                                                            std::enable_if_t<!std::is_void_v<_ValueType>>> =
     __is_brace_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
-    std::is_copy_assignable_v<_ValueType> && __internal::__convertible_to_v<_ReferenceType, _ValueType> &&
+    std::is_copy_assignable_v<_ValueType> && std::is_convertible_v<_ReferenceType, _ValueType> &&
     __internal::__predicate_v<_Compare&, const _ValueType&, const _ValueType&>;
 
 // The implementation keeps copies of the values in the reduction object and compares those copies, so the value

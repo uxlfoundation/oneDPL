@@ -8,9 +8,8 @@
 //===------------------------------------------------------===//
 
 // Compile-time checks for oneapi::dpl::__unseq_backend::__is_value_storable_and_comparable_v and for the requirements
-// it is built from: oneapi::dpl::__unseq_backend::__is_brace_constructible_v and oneapi::dpl::__internal::
-// __convertible_to_v and __predicate_v. Every requirement is checked both ways: a type that satisfies it and a type that
-// does not.
+// it is built from: oneapi::dpl::__unseq_backend::__is_brace_constructible_v and oneapi::dpl::__internal::__predicate_v.
+// Every requirement is checked both ways: a type that satisfies it and a type that does not.
 
 #include "support/test_config.h"
 
@@ -179,44 +178,6 @@ static_assert(!dpl_unseq::__is_brace_constructible_v<NoDefaultCtor>);
 static_assert(dpl_unseq::__is_brace_constructible_v<void>);
 
 //----------------------------------------------------------------------------//
-// __convertible_to_v
-//----------------------------------------------------------------------------//
-
-struct ExplicitFromInt
-{
-    explicit ExplicitFromInt(int) {}
-};
-
-// A destination whose only constructor taking ImplicitSource is deleted and explicit: copy-initialization ignores it
-// and picks the conversion operator, so std::is_convertible_v is satisfied, while static_cast selects the deleted
-// constructor. This is the difference std::convertible_to catches and std::is_convertible_v does not.
-struct ExplicitlyNotConvertible;
-
-struct ImplicitSource
-{
-    operator ExplicitlyNotConvertible() const;
-};
-
-struct ExplicitlyNotConvertible
-{
-    ExplicitlyNotConvertible() = default;
-    explicit ExplicitlyNotConvertible(ImplicitSource) = delete;
-};
-
-static_assert(dpl_internal::__convertible_to_v<int, int>);
-static_assert(dpl_internal::__convertible_to_v<const int&, int>);
-static_assert(dpl_internal::__convertible_to_v<int&, long>);
-static_assert(dpl_internal::__convertible_to_v<const Regular&, Regular>);
-static_assert(dpl_internal::__convertible_to_v<std::pair<int&, int&>, std::pair<int, int>>);
-
-static_assert(!dpl_internal::__convertible_to_v<int*, int>);
-static_assert(!dpl_internal::__convertible_to_v<Regular, int>);
-static_assert(!dpl_internal::__convertible_to_v<int, ExplicitFromInt>);
-static_assert(!dpl_internal::__convertible_to_v<const MoveOnly&, MoveOnly>);
-static_assert(std::is_convertible_v<ImplicitSource, ExplicitlyNotConvertible>);
-static_assert(!dpl_internal::__convertible_to_v<ImplicitSource, ExplicitlyNotConvertible>);
-
-//----------------------------------------------------------------------------//
 // __predicate_v
 //----------------------------------------------------------------------------//
 
@@ -306,6 +267,27 @@ struct OpaqueRef
 {
 };
 
+// A value type whose only constructor taking ImplicitSource is deleted and explicit: copy-initialization ignores it and
+// picks the conversion operator, while static_cast selects the deleted constructor. The implementation only
+// copy-initializes the value, so such a reference type is enough for it, unlike for std::convertible_to.
+struct ExplicitlyNotConvertible;
+
+struct ImplicitSource
+{
+    operator ExplicitlyNotConvertible() const;
+};
+
+struct ExplicitlyNotConvertible
+{
+    ExplicitlyNotConvertible() = default;
+    explicit ExplicitlyNotConvertible(ImplicitSource) = delete;
+    bool
+    operator<(const ExplicitlyNotConvertible&) const
+    {
+        return false;
+    }
+};
+
 template <typename _ValueType, typename _ReferenceType>
 struct FakeIterator
 {
@@ -340,6 +322,10 @@ static_assert(dpl_unseq::__is_value_storable_and_comparable_v<std::vector<bool>:
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<int, int>, std::less<int>>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<std::pair<int, int>, std::pair<int&, int&>>,
                                                              std::less<std::pair<int, int>>>);
+// An implicit conversion is enough, even when the explicit one is ill-formed.
+static_assert(std::is_convertible_v<ImplicitSource, ExplicitlyNotConvertible>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<ExplicitlyNotConvertible, ImplicitSource>,
+                                                             std::less<ExplicitlyNotConvertible>>);
 
 // Rejected because of the value type: brace initialization, copy assignment and copy construction respectively.
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<NoDefaultCtor*, std::less<NoDefaultCtor>>);
