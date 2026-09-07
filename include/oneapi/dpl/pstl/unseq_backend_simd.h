@@ -17,7 +17,8 @@
 #define _ONEDPL_UNSEQ_BACKEND_SIMD_H
 
 #include <type_traits>
-#include <memory> // for std::addressof
+#include <memory>   // for std::addressof
+#include <iterator> // for std::iterator_traits
 
 #include "utils.h"
 
@@ -613,15 +614,33 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
+// An output iterator reports void as its value type: such a value cannot be stored, and forming const _ValueType&
+// for it would be ill-formed rather than merely unsatisfied, so void is rejected up front.
+template <typename _Iterator, typename _Compare,
+          typename _ReferenceType = typename std::iterator_traits<_Iterator>::reference,
+          typename _ValueType = typename std::iterator_traits<_Iterator>::value_type, typename = void>
+inline constexpr bool __is_value_storable_and_comparable_v = false;
+
+// The value is stored in a default-constructed object and updated there by assignment, so the requirements are default
+// construction, copy construction and copy assignment. std::semiregular would be a natural name for them, but it is
+// stricter: it also requires move construction, move assignment, an assignment returning _ValueType& and a
+// non-throwing destructor, none of which is used here.
+template <typename _Iterator, typename _Compare, typename _ReferenceType, typename _ValueType>
+inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ReferenceType, _ValueType,
+                                                           std::enable_if_t<!std::is_void_v<_ValueType>>> =
+    std::is_default_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
+    std::is_copy_assignable_v<_ValueType> && __internal::__convertible_to_v<_ReferenceType, _ValueType> &&
+    __internal::__predicate_v<_Compare&, const _ValueType&, const _ValueType&>;
+
 // The implementation keeps copies of the values in the reduction object and compares those copies, so the value
 // type has to be usable in a user-defined reduction and the comparator has to be applicable to the copies:
-// __internal::__is_value_storable_and_comparable_v is the requirement checked by the callers.
+// __is_value_storable_and_comparable_v is the requirement checked by the callers.
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 _ForwardIterator
 __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
-    static_assert(__internal::__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
+    static_assert(__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
                   "The value type of the iterator must be storable in the reduction object and __comp must be "
                   "a predicate over objects of that type");
 
@@ -679,13 +698,13 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
 
 // The implementation keeps copies of the values in the reduction object and compares those copies, so the value
 // type has to be usable in a user-defined reduction and the comparator has to be applicable to the copies:
-// __internal::__is_value_storable_and_comparable_v is the requirement checked by the callers.
+// __is_value_storable_and_comparable_v is the requirement checked by the callers.
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 std::pair<_ForwardIterator, _ForwardIterator>
 __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
-    static_assert(__internal::__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
+    static_assert(__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
                   "The value type of the iterator must be storable in the reduction object and __comp must be "
                   "a predicate over objects of that type");
 
