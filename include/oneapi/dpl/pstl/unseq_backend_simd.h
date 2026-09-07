@@ -612,65 +612,7 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
-// [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
-// complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
-template <typename _ForwardIterator, typename _Size, typename _Compare>
-_ForwardIterator
-__simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
-{
-    if (__n == 0)
-    {
-        return __first;
-    }
-
-    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
-    struct _ComplexType
-    {
-        _ValueType __min_val;
-        _Size __min_ind;
-        _Compare* __min_comp;
-        // The default constructor is not used during the algorithm, so it is not required for it.
-        // However, some compilers may require it.
-
-        _ComplexType() : __min_val{}, __min_ind{}, __min_comp(nullptr) {}
-        _ComplexType(const _ValueType& val, const _Compare* comp)
-            : __min_val(val), __min_ind(0), __min_comp(const_cast<_Compare*>(comp))
-        {
-        }
-        _ComplexType(const _ComplexType& __obj) = default;
-
-        _ONEDPL_PRAGMA_DECLARE_SIMD
-        void
-        operator()(const _ComplexType& __obj)
-        {
-            if (!std::invoke(*__min_comp, __min_val, __obj.__min_val) &&
-                (std::invoke(*__min_comp, __obj.__min_val, __min_val) || __obj.__min_ind - __min_ind < 0))
-            {
-                __min_val = __obj.__min_val;
-                __min_ind = __obj.__min_ind;
-            }
-        }
-    };
-
-    _ComplexType __init{*__first, &__comp};
-
-    _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType)
-
-    _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
-    for (_Size __i = 1; __i < __n; ++__i)
-    {
-        const _ValueType __min_val = __init.__min_val;
-        const _ValueType __current = __first[__i];
-        if (std::invoke(__comp, __current, __min_val))
-        {
-            __init.__min_val = __current;
-            __init.__min_ind = __i;
-        }
-    }
-    return __first + __init.__min_ind;
-}
-
-// The function below processes the sequence in blocks: every lane of a block keeps its own candidate value and
+// The two functions below process the sequence in blocks: every lane of a block keeps its own candidate value and
 // index, so that the loop over the lanes carries no dependency between its iterations at all; the lanes are reduced
 // afterwards. Expressing the same thing as a user-defined reduction over a single candidate is more concise, but
 // then vectorization relies on the compiler recognizing a minimum/maximum reduction in the loop body.
@@ -682,6 +624,82 @@ __min_max_block_size()
 {
     constexpr std::size_t __size = 4 * __lane_size / sizeof(_ValueType);
     return __size < 4 ? 4 : (__size > 32 ? 32 : __size);
+}
+
+// [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
+// complexity [violation] - We will have at most (__n-1 + 2*number_of_lanes) comparisons instead of at most __n-1.
+template <typename _ForwardIterator, typename _Size, typename _Compare>
+_ForwardIterator
+__simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
+{
+    if (__n == 0)
+    {
+        return __first;
+    }
+
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+
+    constexpr _Size __block_size = __min_max_block_size<_ValueType>();
+    constexpr std::size_t __align = alignof(_ValueType) > __lane_size ? alignof(_ValueType) : __lane_size;
+
+    _ValueType __min_val = __first[0];
+    _Size __min_ind = 0;
+    _Size __i = 1;
+
+    if (__n >= 2 * __block_size)
+    {
+        alignas(__align) _ValueType __lane_val[__block_size];
+        alignas(__lane_size) _Size __lane_ind[__block_size];
+        for (_Size __j = 0; __j < __block_size; ++__j)
+        {
+            __lane_val[__j] = __first[__j];
+            __lane_ind[__j] = __j;
+        }
+
+        for (__i = __block_size; __i + __block_size <= __n; __i += __block_size)
+        {
+            // The loop over the blocks gets unrolled and jammed, and after that the compiler estimates the loop below
+            // as too expensive to vectorize, which costs more than the jamming saves. "vector always" must be the
+            // last directive before the loop.
+            _ONEDPL_PRAGMA_SIMD
+            _ONEDPL_PRAGMA_VECTOR_ALWAYS
+            for (_Size __j = 0; __j < __block_size; ++__j)
+            {
+                const _ValueType& __current = __first[__i + __j];
+                if (std::invoke(__comp, __current, __lane_val[__j]))
+                {
+                    __lane_val[__j] = __current;
+                    __lane_ind[__j] = __i + __j;
+                }
+            }
+        }
+
+        // A lane holds the first of its own minimums, but the lanes are interleaved, so a tie between them has to be
+        // resolved in favor of the smaller index.
+        __min_val = __lane_val[0];
+        __min_ind = __lane_ind[0];
+        for (_Size __j = 1; __j < __block_size; ++__j)
+        {
+            if (std::invoke(__comp, __lane_val[__j], __min_val) ||
+                (!std::invoke(__comp, __min_val, __lane_val[__j]) && __lane_ind[__j] < __min_ind))
+            {
+                __min_val = __lane_val[__j];
+                __min_ind = __lane_ind[__j];
+            }
+        }
+    }
+
+    // The remainder, or the whole sequence when it is too short to be worth strip-mining
+    for (; __i < __n; ++__i)
+    {
+        const _ValueType& __current = __first[__i];
+        if (std::invoke(__comp, __current, __min_val))
+        {
+            __min_val = __current;
+            __min_ind = __i;
+        }
+    }
+    return __first + __min_ind;
 }
 
 // [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
@@ -721,9 +739,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
 
         for (__i = __block_size; __i + __block_size <= __n; __i += __block_size)
         {
-            // The loop over the blocks gets unrolled and jammed, and after that the compiler estimates the loop below
-            // as too expensive to vectorize, which costs more than the jamming saves. "vector always" must be the
-            // last directive before the loop.
+            // The directives are needed for the same reason as in __simd_min_element above.
             _ONEDPL_PRAGMA_SIMD
             _ONEDPL_PRAGMA_VECTOR_ALWAYS
             for (_Size __j = 0; __j < __block_size; ++__j)
