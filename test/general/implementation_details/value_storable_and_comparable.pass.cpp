@@ -8,8 +8,10 @@
 //===------------------------------------------------------===//
 
 // Compile-time checks for oneapi::dpl::__unseq_backend::__is_value_storable_and_comparable_v and for the requirements
-// it is built from: oneapi::dpl::__unseq_backend::__is_brace_constructible_v and oneapi::dpl::__internal::__predicate_v.
-// Every requirement is checked both ways: a type that satisfies it and a type that does not.
+// it is built from.
+// The two of them that are not standard type traits, oneapi::dpl::__unseq_backend::__is_brace_constructible_v
+// and oneapi::dpl::__internal::__predicate_v, are checked on their own as well. Every requirement is checked both ways:
+// a type that satisfies it and a type that does not.
 
 #include "support/test_config.h"
 
@@ -161,6 +163,25 @@ struct CopyOnlyNoMove
     }
 };
 
+// Copyable and assignable from a const lvalue only, which is enough here, because the candidates are read through
+// std::as_const and the element is materialized as a const _ValueType.
+struct ConstCopyOnly
+{
+    int val = 0;
+    ConstCopyOnly() = default;
+    ConstCopyOnly(const ConstCopyOnly&) = default;
+    ConstCopyOnly&
+    operator=(const ConstCopyOnly&) = default;
+    ConstCopyOnly(ConstCopyOnly&) = delete;
+    ConstCopyOnly&
+    operator=(ConstCopyOnly&) = delete;
+    bool
+    operator<(const ConstCopyOnly& other) const
+    {
+        return val < other.val;
+    }
+};
+
 //----------------------------------------------------------------------------//
 // __is_brace_constructible_v
 //----------------------------------------------------------------------------//
@@ -262,7 +283,7 @@ static_assert(!dpl_internal::__predicate_v<std::less<int>&, const Regular&, cons
 // __is_value_storable_and_comparable_v
 //----------------------------------------------------------------------------//
 
-// An iterator whose reference type is not convertible to its value type.
+// A reference type that does not convert to the value type.
 struct OpaqueRef
 {
 };
@@ -288,6 +309,27 @@ struct ExplicitlyNotConvertible
     }
 };
 
+// A value type whose copy constructor is explicit, which is enough here, because the candidates are copied by direct
+// initialization, and so is std::is_copy_constructible_v defined.
+struct ExplicitCopyCtor
+{
+    int val = 0;
+    ExplicitCopyCtor() = default;
+    explicit ExplicitCopyCtor(const ExplicitCopyCtor& other) : val(other.val) {}
+    ExplicitCopyCtor&
+    operator=(const ExplicitCopyCtor&) = default;
+    bool
+    operator<(const ExplicitCopyCtor&) const
+    {
+        return false;
+    }
+};
+
+struct ExplicitCopyCtorSource
+{
+    operator ExplicitCopyCtor() const;
+};
+
 template <typename _ValueType, typename _ReferenceType>
 struct FakeIterator
 {
@@ -308,10 +350,12 @@ static_assert(dpl_unseq::__is_value_storable_and_comparable_v<std::vector<int>::
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<std::vector<int>::const_iterator, std::less<>>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<Regular*, std::less<Regular>>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<ExplicitDefaultCtor*, std::less<ExplicitDefaultCtor>>);
-// Accepted: the requirements are default construction, copy construction and copy assignment, and nothing else.
+// Accepted: the requirements are brace initialization, copy construction and copy assignment, and nothing else.
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<CopyOnlyNoMove*, std::less<CopyOnlyNoMove>>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<VoidAssign*, std::less<VoidAssign>>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<ThrowingDtor*, std::less<ThrowingDtor>>);
+// Accepted: copying and storing a value only ever reads it through a const reference.
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<const ConstCopyOnly*, std::less<ConstCopyOnly>>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, MoveOnlyLess>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, IntResultLess>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, bool (*)(const int&, const int&)>);
@@ -326,8 +370,14 @@ static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<std::
 static_assert(std::is_convertible_v<ImplicitSource, ExplicitlyNotConvertible>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<ExplicitlyNotConvertible, ImplicitSource>,
                                                              std::less<ExplicitlyNotConvertible>>);
+// An explicit copy constructor is enough for copying a candidate, as long as the reference type converts to the value
+// type without it.
+static_assert(std::is_copy_constructible_v<ExplicitCopyCtor>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<ExplicitCopyCtor, ExplicitCopyCtorSource>,
+                                                             std::less<ExplicitCopyCtor>>);
 
-// Rejected because of the value type: brace initialization, copy assignment and copy construction respectively.
+// Rejected because of the value type: the first two fail brace initialization, then copy assignment and copy
+// construction.
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<NoDefaultCtor*, std::less<NoDefaultCtor>>);
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<AggregateOfExplicitDefaultCtor*,
                                                               std::less<AggregateOfExplicitDefaultCtor>>);
@@ -336,6 +386,10 @@ static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<MoveOnly*, std::l
 
 // Rejected because the reference type does not convert to the value type.
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<int, OpaqueRef>, std::less<int>>);
+// The same for a non-const reference to a value type that is only copyable from a const lvalue, and for a value type
+// that is only copyable by direct initialization.
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<ConstCopyOnly*, std::less<ConstCopyOnly>>);
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<ExplicitCopyCtor*, std::less<ExplicitCopyCtor>>);
 
 // Rejected because an output iterator reports void as its value type.
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<std::back_insert_iterator<std::vector<int>>,
