@@ -8,8 +8,9 @@
 //===------------------------------------------------------===//
 
 // Compile-time checks for oneapi::dpl::__unseq_backend::__is_value_storable_and_comparable_v and for the requirements
-// it is built from: oneapi::dpl::__internal::__convertible_to_v and __predicate_v. Every requirement is checked both ways:
-// a type that satisfies it and a type that does not.
+// it is built from: oneapi::dpl::__unseq_backend::__is_brace_constructible_v and oneapi::dpl::__internal::
+// __convertible_to_v and __predicate_v. Every requirement is checked both ways: a type that satisfies it and a type that
+// does not.
 
 #include "support/test_config.h"
 
@@ -43,7 +44,7 @@ struct Regular
     }
 };
 
-// An explicit default constructor is enough, since the value is stored in a default-constructed object.
+// An explicit default constructor is enough, since _ValueType{} is a direct initialization, which may use it.
 struct ExplicitDefaultCtor
 {
     int val;
@@ -52,6 +53,24 @@ struct ExplicitDefaultCtor
     operator<(const ExplicitDefaultCtor& other) const
     {
         return val < other.val;
+    }
+};
+
+struct ExplicitDefaultCtorMember
+{
+    int val;
+    explicit ExplicitDefaultCtorMember() : val(0) {}
+};
+
+// Default-constructible, but not brace-initializable: an aggregate is initialized member by member, and the member is
+// copy-initialized from an empty list, which may not use its explicit default constructor.
+struct AggregateOfExplicitDefaultCtor
+{
+    ExplicitDefaultCtorMember member;
+    bool
+    operator<(const AggregateOfExplicitDefaultCtor& other) const
+    {
+        return member.val < other.member.val;
     }
 };
 
@@ -142,6 +161,22 @@ struct CopyOnlyNoMove
         return val < other.val;
     }
 };
+
+//----------------------------------------------------------------------------//
+// __is_brace_constructible_v
+//----------------------------------------------------------------------------//
+
+static_assert(dpl_unseq::__is_brace_constructible_v<int>);
+static_assert(dpl_unseq::__is_brace_constructible_v<int*>);
+static_assert(dpl_unseq::__is_brace_constructible_v<Regular>);
+static_assert(dpl_unseq::__is_brace_constructible_v<ExplicitDefaultCtor>);
+static_assert(dpl_unseq::__is_brace_constructible_v<MoveOnly>);
+
+static_assert(std::is_default_constructible_v<AggregateOfExplicitDefaultCtor>);
+static_assert(!dpl_unseq::__is_brace_constructible_v<AggregateOfExplicitDefaultCtor>);
+static_assert(!dpl_unseq::__is_brace_constructible_v<NoDefaultCtor>);
+// void{} is a valid expression, so this requirement does not reject void: that is done separately.
+static_assert(dpl_unseq::__is_brace_constructible_v<void>);
 
 //----------------------------------------------------------------------------//
 // __convertible_to_v
@@ -306,8 +341,10 @@ static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<int, 
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<std::pair<int, int>, std::pair<int&, int&>>,
                                                              std::less<std::pair<int, int>>>);
 
-// Rejected because of the value type: default construction, copy assignment and copy construction respectively.
+// Rejected because of the value type: brace initialization, copy assignment and copy construction respectively.
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<NoDefaultCtor*, std::less<NoDefaultCtor>>);
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<AggregateOfExplicitDefaultCtor*,
+                                                              std::less<AggregateOfExplicitDefaultCtor>>);
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<NoCopyAssign*, std::less<NoCopyAssign>>);
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<MoveOnly*, std::less<MoveOnly>>);
 

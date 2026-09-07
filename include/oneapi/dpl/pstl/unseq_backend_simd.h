@@ -614,6 +614,16 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
+// The reduction object initializes its value members with _ValueType{}, which is not what
+// std::is_default_constructible_v checks: that trait stands for _ValueType v;, and the two differ both ways. An
+// aggregate whose member has an explicit default constructor is default-constructible but not brace-initializable,
+// while an aggregate with a const member without a default member initializer is the other way round.
+template <typename _Tp, typename = void>
+inline constexpr bool __is_brace_constructible_v = false;
+
+template <typename _Tp>
+inline constexpr bool __is_brace_constructible_v<_Tp, decltype(void(_Tp{}))> = true;
+
 // An output iterator reports void as its value type: such a value cannot be stored, and forming const _ValueType&
 // for it would be ill-formed rather than merely unsatisfied, so void is rejected up front.
 template <typename _Iterator, typename _Compare,
@@ -621,14 +631,14 @@ template <typename _Iterator, typename _Compare,
           typename _ValueType = typename std::iterator_traits<_Iterator>::value_type, typename = void>
 inline constexpr bool __is_value_storable_and_comparable_v = false;
 
-// The value is stored in a default-constructed object and updated there by assignment, so the requirements are default
-// construction, copy construction and copy assignment. std::semiregular would be a natural name for them, but it is
+// The value is stored in a brace-initialized object and updated there by assignment, so the requirements are brace
+// initialization, copy construction and copy assignment. std::semiregular would be a natural name for them, but it is
 // stricter: it also requires move construction, move assignment, an assignment returning _ValueType& and a
 // non-throwing destructor, none of which is used here.
 template <typename _Iterator, typename _Compare, typename _ReferenceType, typename _ValueType>
 inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ReferenceType, _ValueType,
                                                            std::enable_if_t<!std::is_void_v<_ValueType>>> =
-    std::is_default_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
+    __is_brace_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
     std::is_copy_assignable_v<_ValueType> && __internal::__convertible_to_v<_ReferenceType, _ValueType> &&
     __internal::__predicate_v<_Compare&, const _ValueType&, const _ValueType&>;
 
