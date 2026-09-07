@@ -248,6 +248,60 @@ struct ExplicitDefaultCtorCompare
     }
 };
 
+// The move operations of the value type are deleted: the vector code path is still applicable for it, because the
+// vector code never moves a value.
+struct CopyOnlyNoMoveCompare
+{
+    std::int32_t val;
+    CopyOnlyNoMoveCompare() : val(0) {}
+    CopyOnlyNoMoveCompare(std::int32_t val_) : val(val_) {}
+    CopyOnlyNoMoveCompare(const CopyOnlyNoMoveCompare&) = default;
+    CopyOnlyNoMoveCompare&
+    operator=(const CopyOnlyNoMoveCompare&) = default;
+    CopyOnlyNoMoveCompare(CopyOnlyNoMoveCompare&&) = delete;
+    CopyOnlyNoMoveCompare&
+    operator=(CopyOnlyNoMoveCompare&&) = delete;
+    bool
+    operator<(const CopyOnlyNoMoveCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The assignment of the value type does not return VoidAssignCompare&: the vector code path is still applicable for it,
+// because the vector code never uses the result of an assignment.
+struct VoidAssignCompare
+{
+    std::int32_t val;
+    VoidAssignCompare() : val(0) {}
+    VoidAssignCompare(std::int32_t val_) : val(val_) {}
+    void
+    operator=(const VoidAssignCompare& other)
+    {
+        val = other.val;
+    }
+    bool
+    operator<(const VoidAssignCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The destructor of the value type is not noexcept: the vector code path is still applicable for it, because storing
+// a value never has to be non-throwing.
+struct ThrowingDtorCompare
+{
+    std::int32_t val;
+    ThrowingDtorCompare() : val(0) {}
+    ThrowingDtorCompare(std::int32_t val_) : val(val_) {}
+    ~ThrowingDtorCompare() noexcept(false) {}
+    bool
+    operator<(const ThrowingDtorCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
 // The value type can be copied and assigned from a const lvalue only. The vector code path is still applicable for it,
 // because the vector code reads both the elements and the stored candidates through const references, but it requires
 // const iterators here: the reference type of a non-const iterator does not convert to such a value type.
@@ -404,6 +458,13 @@ main()
     // This value type is accepted by the vector code path, exactly like OnlyLessCompare above: it differs from it only
     // by an explicit default constructor, which the path has to accept at compile time, so one size is enough.
     test_by_type<ExplicitDefaultCtorCompare>(NSmall);
+
+    // These value types are accepted by the vector code path as well, and the point of checking them is that the vector
+    // code is instantiated for them: each of them violates one of the requirements of std::semiregular that the vector
+    // code does not have. That does not depend on the sequence size either.
+    test_by_type_host_policies<CopyOnlyNoMoveCompare>(NSmall);
+    test_by_type_host_policies<VoidAssignCompare>(NSmall);
+    test_by_type_host_policies<ThrowingDtorCompare>(NSmall);
 
     // This value type is accepted by the vector code path through const iterators, so the point of checking it is that
     // the vector code copies the elements and the stored candidates from const lvalues only. That does not depend on
