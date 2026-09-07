@@ -994,6 +994,9 @@ struct copy_back_wrapper;
 template <typename _Name>
 struct copy_back_wrapper2;
 
+template <typename _Name>
+struct copy_back_wrapper3;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Predicate>
 _Iterator
 __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
@@ -1032,40 +1035,53 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
     using _DiffType = typename ::std::iterator_traits<_Iterator>::difference_type;
 
     const _DiffType __n = __last - __first;
-    const _DiffType __segment_size = __par_backend_hetero::__compaction_segment_size<_ValueType>(__exec, __n);
+    const _DiffType __segment_size =
+        __par_backend_hetero::__compaction_segment_size<_ValueType>(__exec.queue(), __n);
 
-    // A segment other than the first is staged over its input extended one element back, so that its leading element
-    // is compared against its predecessor; the staged copy of that predecessor is then dropped. So a segment stages at
-    // most __segment_size + 1 elements.
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(std::min(__n, __segment_size + 1));
-    auto __stage_first = __buf.get();
-
-    _DiffType __out_pos = 0;
-    for (_DiffType __in_pos = 0; __in_pos < __n; __in_pos += __segment_size)
+    if (__segment_size >= __n)
     {
-        const bool __extended = __in_pos > 0;
-        auto __stage_last = __pattern_unique_copy(__tag, __exec, __first + (__extended ? __in_pos - 1 : __in_pos),
-                                                 __first + std::min(__in_pos + __segment_size, __n), __stage_first,
-                                                 __pred);
-        auto __segment_first = __stage_first + (__extended ? 1 : 0);
+        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__n);
+        auto __copy_first = __buf.get();
+        auto __copy_last = __pattern_unique_copy(__tag, __exec, __first, __last, __copy_first, __pred);
 
         //TODO: optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
 
-        // Segments are taken in order and a segment's survivors never outnumber its input, so a segment's copy back
-        // cannot reach past the end of its own input into a segment not yet read. It can reach the extended element
-        // read by the next segment, but only when nothing has been dropped below it, and then the copy is an identity
-        // copy that leaves that element's value intact.
-        //
-        // Reusing the staging buffer is ordered by its accessors, and __pattern_unique_copy above blocks on the host,
-        // so the wait __deferrable_mode performs is only needed to keep this pattern blocking overall.
-        // no_init is not requested: the copy back writes a sub-range of the input, and discarding anything outside
-        // that sub-range would destroy the segments already compacted below __out_pos.
+        // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
+        // we must call __pattern_hetero_walk2 in a way which provides blocking synchronization for this pattern.
+        return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode,
+                                      __par_backend_hetero::access_mode::write, /*_IsOutNoInitRequested=*/true>(
+            __tag,
+            __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
+            __copy_first, __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>>{});
+    }
+
+    // Segments after the first are staged over their input extended one element back, so that their leading element is
+    // compared against its predecessor; that staged predecessor is then dropped.
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__segment_size + 1);
+    auto __stage_first = __buf.get();
+
+    // A segment's survivors never outnumber its input and segments are taken in order, so a segment's copy back stops
+    // at its own input end. The only element it can reach that a later segment still needs is that segment's
+    // predecessor, and only when nothing has been dropped yet, in which case the write is an identity write.
+    _DiffType __out_pos = 0;
+    for (_DiffType __in_pos = 0; __in_pos < __n; __in_pos += __segment_size)
+    {
+        const bool __has_predecessor = __in_pos > 0;
+        auto __stage_last =
+            __pattern_unique_copy(__tag, __exec, __first + (__has_predecessor ? __in_pos - 1 : __in_pos),
+                                  __first + std::min<_DiffType>(__in_pos + __segment_size, __n), __stage_first, __pred);
+        auto __stage_out_first = __stage_first + (__has_predecessor ? 1 : 0);
+
+        // no_init would discard the input outside the written sub-range, including the segments already compacted
+        // below __out_pos. __buf's destructor does not block, so the walk must still provide the blocking wait.
+        // This kernel differs from the single-segment path's in _IsOutNoInitRequested, so it needs a name of its own
+        // to stay distinguishable under an explicit kernel name.
         __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
                                /*_IsOutNoInitRequested=*/false>(
-            __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __segment_first, __stage_last,
-            __first + __out_pos, __brick_copy<__hetero_tag<_BackendTag>>{});
+            __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper3>(__exec), __stage_out_first,
+            __stage_last, __first + __out_pos, __brick_copy<__hetero_tag<_BackendTag>>{});
 
-        __out_pos += __stage_last - __segment_first;
+        __out_pos += __stage_last - __stage_out_first;
     }
 
     return __first + __out_pos;

@@ -500,23 +500,19 @@ struct __memobj_traits<_T*>
 template <typename _T>
 using __buffer = __internal::__buffer_impl<_T>;
 
-// Element count of the temporary that an in-place compaction pattern stages its output through. A driver must make
-// the whole temporary resident before the kernel using it runs, so an __n-sized temporary makes allocation dominate
-// at large __n; bounding it lets the input be compacted segment by segment instead.
-template <typename _T, typename _ExecutionPolicy, typename _Size>
+// Element count of the temporary that an in-place compaction pattern stages its output through. The driver makes the
+// whole temporary resident before the kernel using it runs, so an __n-sized one lets allocation dominate at large __n.
+template <typename _T, typename _Size>
 _Size
-__compaction_segment_size(_ExecutionPolicy&& __exec, _Size __n)
+__compaction_segment_size(const sycl::queue& __q, _Size __n)
 {
     // Lazy allocation on a non-GPU device leaves nothing to bound, and segmenting only adds submissions.
-    sycl::queue __q_local = __exec.queue();
-    if (!__q_local.get_device().is_gpu())
+    if (!_ONEDPL_COMPACTION_SEGMENT_SIZE_FORCED && !__q.get_device().is_gpu())
         return __n;
 
-    // Bounding the temporary trades its residency cost against a per-segment submission cost. Empirically found
-    // value; the product is flat from 64 to 128 MiB on the GPUs tested and falls off either side.
-    constexpr std::size_t __max_segment_size_bytes = 64 * 1024 * 1024;
-    const _Size __max_segment_size = static_cast<_Size>(__max_segment_size_bytes / sizeof(_T));
-    return std::max<_Size>(1, std::min(__n, __max_segment_size));
+    // Empirically tuned; the saving is flat from 64 to 128 MiB on the GPUs tested and falls off either side.
+    const _Size __max_segment_size = static_cast<_Size>(_ONEDPL_COMPACTION_SEGMENT_SIZE_BYTES / sizeof(_T));
+    return std::max<_Size>(1, std::min<_Size>(__n, __max_segment_size));
 }
 
 template <typename T>

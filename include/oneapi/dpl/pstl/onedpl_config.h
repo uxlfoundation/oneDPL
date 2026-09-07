@@ -379,6 +379,15 @@
 #    define ONEDPL_ALLOW_DEFERRED_WAITING 0
 #endif
 
+// Bound on the staging temporary an in-place compaction pattern allocates per call. An override forces the bound on
+// every device, so that a test can reach many segments at an input size it can afford.
+#if defined(_ONEDPL_COMPACTION_SEGMENT_SIZE_BYTES) // Check if overridden for testing
+#    define _ONEDPL_COMPACTION_SEGMENT_SIZE_FORCED 1
+#else
+#    define _ONEDPL_COMPACTION_SEGMENT_SIZE_BYTES (64 * 1024 * 1024)
+#    define _ONEDPL_COMPACTION_SEGMENT_SIZE_FORCED 0
+#endif
+
 #if defined(ONEDPL_USE_PREDEFINED_POLICIES)
 #    undef _ONEDPL_PREDEFINED_POLICIES
 #    define _ONEDPL_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES
