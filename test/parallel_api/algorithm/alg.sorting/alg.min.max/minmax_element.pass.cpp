@@ -20,9 +20,10 @@
 
 #include "support/utils.h"
 
-#include <set>
 #include <cassert>
 #include <cmath>
+#include <set>
+#include <vector>
 
 #if  !defined(_PSTL_TEST_MIN_ELEMENT) && !defined(_PSTL_TEST_MAX_ELEMENT) &&\
      !defined(_PSTL_TEST_MINMAX_ELEMENT) && !_PSTL_ICPX_TEST_MINMAX_ELEMENT_PASS_BROKEN
@@ -231,6 +232,99 @@ struct OnlyLessCompare
     }
 };
 
+// The value type is default-constructible, but only through an explicit default constructor:
+// the vector code path is still applicable for it, because the reduction object initializes its
+// members with direct-list-initialization.
+struct ExplicitDefaultCtorCompare
+{
+    std::int32_t val;
+    explicit ExplicitDefaultCtorCompare() : val(0) {}
+    ExplicitDefaultCtorCompare(std::int32_t val_) : val(val_) {}
+    bool
+    operator<(const ExplicitDefaultCtorCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The value type is not default-constructible, so it cannot be used in a user-defined reduction
+// and the vector code path must not be selected for it. The same holds for NoCopyAssignCompare and
+// MoveOnlyCompare below: each of them violates one of the requirements the vector code path puts on the
+// value type, so each of them fails to compile once that path is selected.
+struct NoDefaultCtorCompare
+{
+    std::int32_t val;
+    explicit NoDefaultCtorCompare(std::int32_t val_) : val(val_) {}
+    bool
+    operator<(const NoDefaultCtorCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The value type is not copy-assignable, so it cannot be used in a user-defined reduction
+// and the vector code path must not be selected for it.
+struct NoCopyAssignCompare
+{
+    std::int32_t val;
+    NoCopyAssignCompare() : val(0) {}
+    NoCopyAssignCompare(std::int32_t val_) : val(val_) {}
+    NoCopyAssignCompare(const NoCopyAssignCompare&) = default;
+    NoCopyAssignCompare&
+    operator=(const NoCopyAssignCompare&) = delete;
+    bool
+    operator<(const NoCopyAssignCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The value type is not copy-constructible, so it cannot be used in a user-defined reduction
+// and the vector code path must not be selected for it.
+struct MoveOnlyCompare
+{
+    std::int32_t val;
+    MoveOnlyCompare() : val(0) {}
+    MoveOnlyCompare(std::int32_t val_) : val(val_) {}
+    MoveOnlyCompare(MoveOnlyCompare&&) = default;
+    MoveOnlyCompare&
+    operator=(MoveOnlyCompare&&) = default;
+    MoveOnlyCompare(const MoveOnlyCompare&) = delete;
+    MoveOnlyCompare&
+    operator=(const MoveOnlyCompare&) = delete;
+    bool
+    operator<(const MoveOnlyCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The sequence is built in place because the value types checked here either do not satisfy the requirements of
+// TestUtils::Sequence (which default-constructs and assigns its elements) or are not trivially copyable, and thus
+// cannot be checked with device policies.
+template <typename T>
+static void
+test_by_type_host_policies(::std::size_t n)
+{
+    ::std::vector<T> data;
+    data.reserve(n);
+    for (::std::size_t i = 0; i < n; ++i)
+        data.emplace_back(std::int32_t(TestUtils::HashBits(i, 30)));
+
+#ifdef _PSTL_TEST_MIN_ELEMENT
+    invoke_on_all_host_policies()(check_minelement<T>(), data.begin(), data.end());
+    invoke_on_all_host_policies()(check_minelement_predicate<T>(), data.begin(), data.end());
+#endif
+#ifdef _PSTL_TEST_MAX_ELEMENT
+    invoke_on_all_host_policies()(check_maxelement<T>(), data.begin(), data.end());
+    invoke_on_all_host_policies()(check_maxelement_predicate<T>(), data.begin(), data.end());
+#endif
+#ifdef _PSTL_TEST_MINMAX_ELEMENT
+    invoke_on_all_host_policies()(check_minmaxelement<T>(), data.begin(), data.end());
+    invoke_on_all_host_policies()(check_minmaxelement_predicate<T>(), data.begin(), data.end());
+#endif
+}
+
 template <typename T>
 struct test_non_const_max_element
 {
@@ -268,9 +362,10 @@ int
 main()
 {
     using TestUtils::float64_t;
-    const ::std::size_t N = 100000;
+    const std::size_t N = 100000;
+    const std::size_t NSmall = 10;
 
-    for (::std::size_t n = 0; n < N; n = n < 16 ? n + 1 : size_t(3.14159 * n))
+    for (std::size_t n = 0; n < N; n = n < 16 ? n + 1 : size_t(3.14159 * n))
     {
 #if !ONEDPL_FPGA_DEVICE
         test_by_type<std::int32_t>(n);
@@ -278,6 +373,16 @@ main()
         test_by_type<float64_t>(n);
         test_by_type<OnlyLessCompare>(n);
     }
+
+    // This value type is accepted by the vector code path, exactly like OnlyLessCompare above: it differs from it only
+    // by an explicit default constructor, which the path has to accept at compile time, so one size is enough.
+    test_by_type<ExplicitDefaultCtorCompare>(NSmall);
+
+    // These value types are rejected by the vector code path, so the point of checking them is that the call compiles
+    // and falls back to the serial implementation. That does not depend on the sequence size, so one size is enough.
+    test_by_type_host_policies<NoDefaultCtorCompare>(NSmall);
+    test_by_type_host_policies<NoCopyAssignCompare>(NSmall);
+    test_by_type_host_policies<MoveOnlyCompare>(NSmall);
 
 #ifdef _PSTL_TEST_MIN_ELEMENT
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const_min_element<std::int32_t>>());
