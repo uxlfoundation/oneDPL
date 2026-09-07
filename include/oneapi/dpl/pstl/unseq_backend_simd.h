@@ -19,6 +19,7 @@
 #include <type_traits>
 #include <memory>   // for std::addressof
 #include <iterator> // for std::iterator_traits
+#include <utility>  // for std::as_const
 
 #include "utils.h"
 
@@ -695,7 +696,9 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        const _ValueType __min_val = __init.__min_val;
+        // The candidate is read through a const reference, so that copying it requires nothing but copy construction
+        // from const _ValueType&.
+        const _ValueType __min_val = std::as_const(__init).__min_val;
         const _ValueType __current = __first[__i];
         if (std::invoke(__comp, __current, __min_val))
         {
@@ -779,9 +782,11 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        auto __min_val = __init.__min_val;
-        auto __max_val = __init.__max_val;
-        auto __current = __first[__i];
+        // The candidates are read through a const reference and the element is materialized as a _ValueType, so that
+        // copying and storing them requires nothing but copy construction and copy assignment from const _ValueType&.
+        const _ValueType __min_val = std::as_const(__init).__min_val;
+        const _ValueType __max_val = std::as_const(__init).__max_val;
+        const _ValueType __current = __first[__i];
         if (std::invoke(__comp, __current, __min_val))
         {
             __init.__min_val = __current;
