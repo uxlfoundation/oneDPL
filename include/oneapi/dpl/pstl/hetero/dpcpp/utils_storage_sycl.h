@@ -511,6 +511,7 @@ __load_result(_Storage<_T>& __storage)
 template <std::size_t _NScratch, typename... _ResultTypes>
 class __storage_holder
 {
+  protected: // to allow inspection by tests
     sycl::queue __q;
     std::tuple<__internal::__result_keepalive<_ResultTypes>...> __result_slots = {};
     std::array<__internal::__scratch_keepalive, _NScratch> __scratch_slots = {};
