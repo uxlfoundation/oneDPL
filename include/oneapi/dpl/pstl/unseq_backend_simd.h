@@ -670,6 +670,20 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     return __first + __init.__min_ind;
 }
 
+// The function below processes the sequence in blocks: every lane of a block keeps its own candidate value and
+// index, so that the loop over the lanes carries no dependency between its iterations at all; the lanes are reduced
+// afterwards. Expressing the same thing as a user-defined reduction over a single candidate is more concise, but
+// then vectorization relies on the compiler recognizing a minimum/maximum reduction in the loop body.
+// Experiments show good block sizes like this: a few vector registers worth of candidates (__lane_size is the vector
+// width in bytes), fewer of them for large value types to keep the lane arrays small.
+template <typename _ValueType>
+constexpr std::size_t
+__min_max_block_size()
+{
+    constexpr std::size_t __size = 4 * __lane_size / sizeof(_ValueType);
+    return __size < 4 ? 4 : (__size > 32 ? 32 : __size);
+}
+
 // [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
@@ -682,80 +696,91 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
     }
     using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
-    struct _ComplexType
+    constexpr _Size __block_size = __min_max_block_size<_ValueType>();
+    constexpr std::size_t __align = alignof(_ValueType) > __lane_size ? alignof(_ValueType) : __lane_size;
+
+    _ValueType __min_val = __first[0];
+    _ValueType __max_val = __first[0];
+    _Size __min_ind = 0;
+    _Size __max_ind = 0;
+    _Size __i = 1;
+
+    if (__n >= 2 * __block_size)
     {
-        _ValueType __min_val;
-        _ValueType __max_val;
-        _Size __min_ind;
-        _Size __max_ind;
-        _Compare* __minmax_comp;
-        // The default constructor is not used during the algorithm, so it is not required for it.
-        // However, some compilers may require it.
-
-        _ComplexType() : __min_val{}, __max_val{}, __min_ind{}, __max_ind{}, __minmax_comp(nullptr) {}
-        _ComplexType(const _ValueType& min_val, const _ValueType& max_val, const _Compare* comp)
-            : __min_val(min_val), __max_val(max_val), __min_ind(0), __max_ind(0),
-              __minmax_comp(const_cast<_Compare*>(comp))
+        alignas(__align) _ValueType __lane_min_val[__block_size];
+        alignas(__align) _ValueType __lane_max_val[__block_size];
+        alignas(__lane_size) _Size __lane_min_ind[__block_size];
+        alignas(__lane_size) _Size __lane_max_ind[__block_size];
+        for (_Size __j = 0; __j < __block_size; ++__j)
         {
+            __lane_min_val[__j] = __first[__j];
+            __lane_max_val[__j] = __first[__j];
+            __lane_min_ind[__j] = __j;
+            __lane_max_ind[__j] = __j;
         }
-        _ComplexType(const _ComplexType& __obj) = default;
 
-        _ONEDPL_PRAGMA_DECLARE_SIMD
-        void
-        operator()(const _ComplexType& __obj)
+        for (__i = __block_size; __i + __block_size <= __n; __i += __block_size)
         {
-            // min
-            if (std::invoke(*__minmax_comp, __obj.__min_val, __min_val))
+            // The loop over the blocks gets unrolled and jammed, and after that the compiler estimates the loop below
+            // as too expensive to vectorize, which costs more than the jamming saves. "vector always" must be the
+            // last directive before the loop.
+            _ONEDPL_PRAGMA_SIMD
+            _ONEDPL_PRAGMA_VECTOR_ALWAYS
+            for (_Size __j = 0; __j < __block_size; ++__j)
             {
-                __min_val = __obj.__min_val;
-                __min_ind = __obj.__min_ind;
-            }
-            else if (!std::invoke(*__minmax_comp, __min_val, __obj.__min_val))
-            {
-                __min_val = __obj.__min_val;
-                __min_ind = (__min_ind - __obj.__min_ind < 0) ? __min_ind : __obj.__min_ind;
-            }
-
-            // max
-            if (std::invoke(*__minmax_comp, __max_val, __obj.__max_val))
-            {
-                __max_val = __obj.__max_val;
-                __max_ind = __obj.__max_ind;
-            }
-            else if (!std::invoke(*__minmax_comp, __obj.__max_val, __max_val))
-            {
-                __max_val = __obj.__max_val;
-                __max_ind = (__max_ind - __obj.__max_ind < 0) ? __obj.__max_ind : __max_ind;
+                const _ValueType& __current = __first[__i + __j];
+                if (std::invoke(__comp, __current, __lane_min_val[__j]))
+                {
+                    __lane_min_val[__j] = __current;
+                    __lane_min_ind[__j] = __i + __j;
+                }
+                if (!std::invoke(__comp, __current, __lane_max_val[__j]))
+                {
+                    __lane_max_val[__j] = __current;
+                    __lane_max_ind[__j] = __i + __j;
+                }
             }
         }
-    };
 
-    _ComplexType __init{*__first, *__first, &__comp};
-
-    _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType);
-
-    _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
-    for (_Size __i = 1; __i < __n; ++__i)
-    {
-        auto __min_val = __init.__min_val;
-        auto __max_val = __init.__max_val;
-        auto __current = __first[__i];
-        if (std::invoke(__comp, __current, __min_val))
+        // A lane holds the first of its own minimums and the last of its own maximums, but the lanes are interleaved,
+        // so a tie between them has to be resolved in favor of the smaller, respectively the greater, index.
+        __min_val = __lane_min_val[0];
+        __max_val = __lane_max_val[0];
+        __min_ind = __lane_min_ind[0];
+        __max_ind = __lane_max_ind[0];
+        for (_Size __j = 1; __j < __block_size; ++__j)
         {
-            __init.__min_val = __current;
-            __init.__min_ind = __i;
-        }
-        // The maximum is updated by an independent condition rather than by an "else" branch of the one above.
-        // Chaining them makes the compiler treat the update of __max_val as dependent on the minimum, and the loop
-        // is not vectorized. The branches remain mutually exclusive anyway: __min_val is never greater than
-        // __max_val, so an element that is less than __min_val is also less than __max_val.
-        if (!std::invoke(__comp, __current, __max_val))
-        {
-            __init.__max_val = __current;
-            __init.__max_ind = __i;
+            if (std::invoke(__comp, __lane_min_val[__j], __min_val) ||
+                (!std::invoke(__comp, __min_val, __lane_min_val[__j]) && __lane_min_ind[__j] < __min_ind))
+            {
+                __min_val = __lane_min_val[__j];
+                __min_ind = __lane_min_ind[__j];
+            }
+            if (std::invoke(__comp, __max_val, __lane_max_val[__j]) ||
+                (!std::invoke(__comp, __lane_max_val[__j], __max_val) && __lane_max_ind[__j] > __max_ind))
+            {
+                __max_val = __lane_max_val[__j];
+                __max_ind = __lane_max_ind[__j];
+            }
         }
     }
-    return ::std::make_pair(__first + __init.__min_ind, __first + __init.__max_ind);
+
+    // The remainder, or the whole sequence when it is too short to be worth strip-mining
+    for (; __i < __n; ++__i)
+    {
+        const _ValueType& __current = __first[__i];
+        if (std::invoke(__comp, __current, __min_val))
+        {
+            __min_val = __current;
+            __min_ind = __i;
+        }
+        else if (!std::invoke(__comp, __current, __max_val))
+        {
+            __max_val = __current;
+            __max_ind = __i;
+        }
+    }
+    return ::std::make_pair(__first + __min_ind, __first + __max_ind);
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator1, class _OutputIterator2,
