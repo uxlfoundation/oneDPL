@@ -1897,7 +1897,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
                         __temp_ptr[__start_id + (__max_num_sub_groups_local - 1)] = __summary_carry.__get_cref();
                 }
 
-                if constexpr (__is_real_accessor(__stop_pos_acc))
+                if constexpr (__has_real_data(__stop_pos_acc))
                 {
                     if (__block_num == 0 && __ndi.get_global_linear_id() == 0)
                         __stop_pos_acc.__data()[0] = __stop_pos_initial_state;

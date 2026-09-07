@@ -145,7 +145,7 @@ struct __scratch_keepalive
     std::optional<sycl::buffer<std::byte, 1>> __sycl_buf;
 };
 
-// struct to keep the result data in either USM or sycl::buffer
+// struct to keep the result data (either USM or sycl::buffer)
 // If __kind == sycl::usm::alloc::host, __usm_ptr points directly to the result.
 // If __kind == sycl::usm::alloc::device, the result is at __usm_ptr + __offset in device memory.
 // If __kind == sycl::usm::alloc::unknown, the result is in __sycl_buf at __offset.
@@ -159,7 +159,7 @@ struct __result_keepalive
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
 };
 
-// Extracts data to the given destination array
+// Extracts result data to the given destination array
 template <typename _T>
 void
 __copy_n(_T* __dst, std::size_t __n, const __result_keepalive<_T>& __ka, sycl::queue& __q)
@@ -258,13 +258,13 @@ struct __combi_accessor
 // A function-style "trait" to apply to a result of __get_accessor
 template <typename _T>
 constexpr bool
-__is_real_accessor(const _T&)
+__has_real_data(const _T&)
 {
     return false;
 }
 template <typename _T, sycl::access_mode _AccessMode>
 constexpr bool
-__is_real_accessor(const __combi_accessor<_T, _AccessMode>&)
+__has_real_data(const __combi_accessor<_T, _AccessMode>&)
 {
     return true;
 }
@@ -411,6 +411,16 @@ struct __result_storage : public __device_storage<_T>
     }
 };
 
+template <bool _Condition, typename _T>
+auto
+__create_result_storage_opt(sycl::queue& __q, std::size_t __n)
+{
+    if constexpr (_Condition)
+        return __result_storage<_T>(__q, __n);
+    else
+        return __internal::__no_result_needed_tag{};
+}
+
 template <typename _T>
 struct __combined_storage : public __device_storage<_T>
 {
@@ -549,7 +559,7 @@ class __storage_holder
 
     template <typename _T>
     void
-    __deposit(__device_storage<_T>&& __st)
+    __take(__device_storage<_T>&& __st)
     {
         assert(__scratch_count < _NScratch);
         std::move(__st).__move_state_to(__scratch_slots[__scratch_count++]);
@@ -557,7 +567,7 @@ class __storage_holder
 
     template <std::size_t _I, typename _T>
     void
-    __deposit(__result_storage<_T>&& __st)
+    __take(__result_storage<_T>&& __st)
     {
         static_assert(_I < sizeof...(_ResultTypes), "Result slot index out of range");
         static_assert(std::is_same_v<_T, std::tuple_element_t<_I, std::tuple<_ResultTypes...>>>);
@@ -568,7 +578,7 @@ class __storage_holder
 
     template <std::size_t _I, typename _T>
     void
-    __deposit(__combined_storage<_T>&& __st)
+    __take(__combined_storage<_T>&& __st)
     {
         static_assert(_I < sizeof...(_ResultTypes), "Result index out of range");
         static_assert(std::is_same_v<_T, std::tuple_element_t<_I, std::tuple<_ResultTypes...>>>);
@@ -589,16 +599,6 @@ class __storage_holder
         __internal::__copy_n(__dst, __n, std::get<_I>(__result_slots), __q);
     }
 };
-
-template <bool _Condition, typename _T>
-auto
-__create_result_storage_opt(sycl::queue& __q, std::size_t __n)
-{
-    if constexpr (_Condition)
-        return __result_storage<_T>(__q, __n);
-    else
-        return __internal::__no_result_needed_tag{};
-}
 
 } // namespace __par_backend_hetero
 } // namespace oneapi::dpl
