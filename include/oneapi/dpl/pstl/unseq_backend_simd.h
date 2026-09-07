@@ -17,6 +17,7 @@
 #define _ONEDPL_UNSEQ_BACKEND_SIMD_H
 
 #include <type_traits>
+#include <memory> // for std::addressof
 
 #include "utils.h"
 
@@ -652,7 +653,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         }
     };
 
-    _ComplexType __init{*__first, &__comp};
+    _ComplexType __init{*__first, std::addressof(__comp)};
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType)
 
@@ -730,7 +731,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         }
     };
 
-    _ComplexType __init{*__first, *__first, &__comp};
+    _ComplexType __init{*__first, *__first, std::addressof(__comp)};
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType);
 
