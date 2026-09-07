@@ -376,8 +376,8 @@ static_assert(std::is_copy_constructible_v<ExplicitCopyCtor>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<ExplicitCopyCtor, ExplicitCopyCtorSource>,
                                                              std::less<ExplicitCopyCtor>>);
 
-// Rejected because of the value type: the first two fail brace initialization, then copy assignment and copy
-// construction.
+// Rejected because of the value type: the first two fail brace initialization, the third copy assignment, and the
+// move-only one copy construction, and with it every other requirement that copies a value.
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<NoDefaultCtor*, std::less<NoDefaultCtor>>);
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<AggregateOfExplicitDefaultCtor*,
                                                               std::less<AggregateOfExplicitDefaultCtor>>);
