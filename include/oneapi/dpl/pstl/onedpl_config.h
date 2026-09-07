@@ -241,6 +241,13 @@
 #    define _ONEDPL_PRAGMA_VECTOR_UNALIGNED
 #endif
 
+// Vectorize a loop even if the cost model of the compiler estimates vectorization as unprofitable
+#if defined(__INTEL_LLVM_COMPILER) || (__INTEL_COMPILER >= 1600)
+#    define _ONEDPL_PRAGMA_VECTOR_ALWAYS _ONEDPL_PRAGMA(vector always)
+#else
+#    define _ONEDPL_PRAGMA_VECTOR_ALWAYS
+#endif
+
 // Check the user-defined macro to use non-temporal stores
 #ifndef _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED
 #    if defined(PSTL_USE_NONTEMPORAL_STORES) && (__INTEL_LLVM_COMPILER || __INTEL_COMPILER >= 1600)
