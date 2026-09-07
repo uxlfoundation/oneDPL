@@ -43,6 +43,7 @@ std::size_t bytes = 64 * 1024 * 1024;
 
 #include <algorithm>
 #include <cstdint>
+#include <iostream>
 #include <random>
 #include <string>
 #include <type_traits>
@@ -195,6 +196,14 @@ struct unique_with_predicate
     }
 };
 
+// DIAGNOSTIC BUILD ONLY. This branch exists to localize a SEGFAULT of this test on the Windows debug GPU
+// configurations of CI run 34074196751; do not merge it. Every case names itself on stdout before running,
+// so the last line before the crash identifies it, and the whole sweep runs twice: once with the bound left
+// above n so every call takes the single-segment fast path, and once segmented. The control phase issues the
+// same number of oneDPL calls over the same data, so a crash there is the sweep and not the segmented loop.
+bool g_control = false;
+long g_case = 0;
+
 template <typename T, typename Policy, typename Algo, typename MemTag>
 void
 run_case(Policy&& exec, Algo algo, MemTag, std::size_t n, std::size_t segment_size, pattern p)
@@ -209,7 +218,11 @@ run_case(Policy&& exec, Algo algo, MemTag, std::size_t n, std::size_t segment_si
     std::vector<T> actual(input);
     std::size_t actual_n = 0;
 
-    segment_size_override::bytes = segment_size * sizeof(T);
+    segment_size_override::bytes = g_control ? std::size_t(64) * 1024 * 1024 : segment_size * sizeof(T);
+
+    std::cout << (g_control ? "ctl " : "seg ") << ++g_case << " " << Algo::name << " | " << MemTag::name
+              << " | sizeof(T)=" << sizeof(T) << " | n=" << n << " | s=" << segment_size << " | "
+              << pattern_name(p) << std::endl;
 
     if constexpr (std::is_same_v<MemTag, host_iterators_tag>)
     {
@@ -237,6 +250,8 @@ run_case(Policy&& exec, Algo algo, MemTag, std::size_t n, std::size_t segment_si
         actual_n = std::size_t(algo(CLONE_TEST_POLICY_NAME(exec, kernel_name), first, first + n) - first);
         dt_helper.retrieve_data(actual.begin());
     }
+
+    std::cout << "    returned " << actual_n << std::endl;
 
     const std::string msg = std::string("wrong effect from ") + Algo::name + " over " + MemTag::name + ": n = " +
                             std::to_string(n) + ", segment size = " + std::to_string(segment_size) + " element(s), " +
@@ -295,7 +310,14 @@ int
 main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
+    g_control = true;
+    std::cout << "=== control phase: single-segment fast path ===" << std::endl;
     test(TestUtils::get_dpcpp_test_policy());
+
+    g_control = false;
+    std::cout << "=== segmented phase ===" << std::endl;
+    test(TestUtils::get_dpcpp_test_policy());
+    std::cout << "=== both phases complete ===" << std::endl;
 #endif
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
