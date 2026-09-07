@@ -745,7 +745,11 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
             __init.__min_val = __current;
             __init.__min_ind = __i;
         }
-        else if (!std::invoke(__comp, __current, __max_val))
+        // The maximum is updated by an independent condition rather than by an "else" branch of the one above.
+        // Chaining them makes the compiler treat the update of __max_val as dependent on the minimum, and the loop
+        // is not vectorized. The branches remain mutually exclusive anyway: __min_val is never greater than
+        // __max_val, so an element that is less than __min_val is also less than __max_val.
+        if (!std::invoke(__comp, __current, __max_val))
         {
             __init.__max_val = __current;
             __init.__max_ind = __i;
