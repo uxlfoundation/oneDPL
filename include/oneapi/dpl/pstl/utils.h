@@ -1167,8 +1167,8 @@ inline constexpr bool __copyable = false;
 
 template <typename _Tp>
 inline constexpr bool __copyable<_Tp, std::enable_if_t<!std::is_void_v<_Tp>>> =
-    __copy_constructible<_Tp> && __movable<_Tp> && __assignable_from<_Tp, _Tp&> &&
-    __assignable_from<_Tp, const _Tp&> && __assignable_from<_Tp, const _Tp>;
+    __copy_constructible<_Tp> && __movable<_Tp> && __assignable_from<_Tp, _Tp&> && __assignable_from<_Tp, const _Tp&> &&
+    __assignable_from<_Tp, const _Tp>;
 
 // std::semiregular. std::default_initializable also requires _Tp{} and ::new _Tp to be valid, which
 // std::is_default_constructible_v does not check.
@@ -1190,11 +1190,10 @@ template <typename _Iterator, typename _Compare,
 inline constexpr bool __is_value_storable_and_comparable_v = false;
 
 template <typename _Iterator, typename _Compare, typename _ReferenceType, typename _ValueType>
-inline constexpr bool
-    __is_value_storable_and_comparable_v<_Iterator, _Compare, _ReferenceType, _ValueType,
-                                         std::enable_if_t<!std::is_void_v<_ValueType>>> =
-        __semiregular<_ValueType> && __convertible_to<_ReferenceType, _ValueType> &&
-        __predicate<_Compare&, const _ValueType&, const _ValueType&>;
+inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ReferenceType, _ValueType,
+                                                           std::enable_if_t<!std::is_void_v<_ValueType>>> =
+    __semiregular<_ValueType> && __convertible_to<_ReferenceType, _ValueType> &&
+    __predicate<_Compare&, const _ValueType&, const _ValueType&>;
 
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>
