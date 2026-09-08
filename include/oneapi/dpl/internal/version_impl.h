@@ -18,7 +18,7 @@
 // The oneAPI Specification version this implementation is compliant with
 #define ONEDPL_SPEC_VERSION 105
 
-// -- Check availability of heterogeneous backends --
+// -- Check if SYCL backend should be enabled --
 
 // If DPCPP backend is explicitly requested, optimistically assume SYCL availability;
 // otherwise, make sure that it is definitely available additionally checking SYCL_LANGUAGE_VERSION

@@ -38,7 +38,10 @@
         but OpenMP headers are not found or the compiler does not support OpenMP"
 #endif
 
-// If at least one heterogeneous backend is available, enable them (defined in version_impl.h)
+// -- Check availability of heterogeneous backends --
+
+// Due to the use in feature test macros, _ONEDPL_BACKEND_SYCL is defined in version_impl.h
+// If at least one heterogeneous backend is available, enable them
 #if _ONEDPL_BACKEND_SYCL
 #    if _ONEDPL_HETERO_BACKEND
 #        undef _ONEDPL_HETERO_BACKEND
