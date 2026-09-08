@@ -49,7 +49,7 @@
 #endif
 
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
-#    include <concepts> // for std::equality_comparable_with, std::semiregular, std::convertible_to, std::predicate
+#    include <concepts> // for std::equality_comparable_with
 #endif
 
 #include "functional_impl.h"
@@ -1103,97 +1103,6 @@ struct __is_type_with_iterator_traits<
 
 template <typename _T>
 static constexpr bool __is_type_with_iterator_traits_v = __is_type_with_iterator_traits<_T>::value;
-
-// The requirements below are named after the concepts they stand for: C++20 uses those concepts directly, while
-// C++17 gets an approximation of each of them.
-#if _ONEDPL_CPP20_CONCEPTS_PRESENT
-
-template <typename _From, typename _To>
-inline constexpr bool __convertible_to_v = std::convertible_to<_From, _To>;
-
-template <typename _Tp>
-inline constexpr bool __semiregular_v = std::semiregular<_Tp>;
-
-template <typename _Fp, typename... _Args>
-inline constexpr bool __predicate_v = std::predicate<_Fp, _Args...>;
-
-#else
-
-// std::convertible_to also requires an explicit conversion, which std::is_convertible_v does not check.
-template <typename _From, typename _To, typename = void>
-inline constexpr bool __convertible_to_v = false;
-
-template <typename _From, typename _To>
-inline constexpr bool __convertible_to_v<_From, _To, std::void_t<decltype(static_cast<_To>(std::declval<_From>()))>> =
-    std::is_convertible_v<_From, _To>;
-
-// std::assignable_from also requires the assignment to return _Tp&, which std::is_assignable_v does not check.
-template <typename _Tp, typename _Up, typename = void>
-inline constexpr bool __assignable_from_v = false;
-
-template <typename _Tp, typename _Up>
-inline constexpr bool __assignable_from_v<_Tp, _Up, std::void_t<decltype(std::declval<_Tp&>() = std::declval<_Up>())>> =
-    std::is_same_v<decltype(std::declval<_Tp&>() = std::declval<_Up>()), _Tp&>;
-
-// std::constructible_from, which includes std::destructible
-template <typename _Tp, typename... _Args>
-inline constexpr bool __constructible_from_v =
-    std::is_nothrow_destructible_v<_Tp> && std::is_constructible_v<_Tp, _Args...>;
-
-// std::move_constructible
-template <typename _Tp>
-inline constexpr bool __move_constructible_v = __constructible_from_v<_Tp, _Tp> && __convertible_to_v<_Tp, _Tp>;
-
-// std::copy_constructible. Void is rejected up front because the requirement below forms _Tp&, which would be
-// ill-formed rather than merely unsatisfied, and std::copy_constructible is not satisfied for void anyway.
-template <typename _Tp, typename = void>
-inline constexpr bool __copy_constructible_v = false;
-
-template <typename _Tp>
-inline constexpr bool __copy_constructible_v<_Tp, std::enable_if_t<!std::is_void_v<_Tp>>> =
-    __move_constructible_v<_Tp> && __constructible_from_v<_Tp, _Tp&> && __convertible_to_v<_Tp&, _Tp> &&
-    __constructible_from_v<_Tp, const _Tp&> && __convertible_to_v<const _Tp&, _Tp> &&
-    __constructible_from_v<_Tp, const _Tp> && __convertible_to_v<const _Tp, _Tp>;
-
-// std::movable, less std::swappable: the latter is implied by move construction and move assignment, since
-// std::swappable falls back to a move-based implementation, while std::is_swappable_v would additionally reject a
-// type with a deleted ADL swap.
-template <typename _Tp>
-inline constexpr bool __movable_v = std::is_object_v<_Tp> && __move_constructible_v<_Tp> && __assignable_from_v<_Tp, _Tp>;
-
-// std::copyable. Void is rejected up front for the same reason as in __copy_constructible_v above.
-template <typename _Tp, typename = void>
-inline constexpr bool __copyable_v = false;
-
-template <typename _Tp>
-inline constexpr bool __copyable_v<_Tp, std::enable_if_t<!std::is_void_v<_Tp>>> =
-    __copy_constructible_v<_Tp> && __movable_v<_Tp> && __assignable_from_v<_Tp, _Tp&> &&
-    __assignable_from_v<_Tp, const _Tp&> && __assignable_from_v<_Tp, const _Tp>;
-
-// std::semiregular. std::default_initializable also requires _Tp{} and ::new _Tp to be valid, which
-// std::is_default_constructible_v does not check.
-template <typename _Tp>
-inline constexpr bool __semiregular_v = __copyable_v<_Tp> && std::is_default_constructible_v<_Tp>;
-
-// std::predicate requires the result to be boolean-testable, which is stronger than being convertible to bool, but
-// the difference only shows for types with an unusable operator!.
-template <typename _Fp, typename... _Args>
-inline constexpr bool __predicate_v = std::is_invocable_r_v<bool, _Fp, _Args...>;
-
-#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
-
-// An output iterator reports void as its value type: such a value cannot be stored, and forming const _ValueType&
-// for it would be ill-formed rather than merely unsatisfied, so void is rejected up front.
-template <typename _Iterator, typename _Compare,
-          typename _ReferenceType = typename std::iterator_traits<_Iterator>::reference,
-          typename _ValueType = typename std::iterator_traits<_Iterator>::value_type, typename = void>
-inline constexpr bool __is_value_storable_and_comparable_v = false;
-
-template <typename _Iterator, typename _Compare, typename _ReferenceType, typename _ValueType>
-inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ReferenceType, _ValueType,
-                                                           std::enable_if_t<!std::is_void_v<_ValueType>>> =
-    __semiregular_v<_ValueType> && __convertible_to_v<_ReferenceType, _ValueType> &&
-    __predicate_v<_Compare&, const _ValueType&, const _ValueType&>;
 
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>

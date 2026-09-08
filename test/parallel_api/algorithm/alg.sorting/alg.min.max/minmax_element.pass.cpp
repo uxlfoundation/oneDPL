@@ -23,6 +23,7 @@
 #include <cassert>
 #include <cmath>
 #include <set>
+#include <type_traits>
 #include <vector>
 
 #if  !defined(_PSTL_TEST_MIN_ELEMENT) && !defined(_PSTL_TEST_MAX_ELEMENT) &&\
@@ -247,6 +248,81 @@ struct ExplicitDefaultCtorCompare
     }
 };
 
+// The move operations of the value type are deleted: the vector code path is still applicable for it, because the
+// vector code never moves a value.
+struct CopyOnlyNoMoveCompare
+{
+    std::int32_t val;
+    CopyOnlyNoMoveCompare() : val(0) {}
+    CopyOnlyNoMoveCompare(std::int32_t val_) : val(val_) {}
+    CopyOnlyNoMoveCompare(const CopyOnlyNoMoveCompare&) = default;
+    CopyOnlyNoMoveCompare&
+    operator=(const CopyOnlyNoMoveCompare&) = default;
+    CopyOnlyNoMoveCompare(CopyOnlyNoMoveCompare&&) = delete;
+    CopyOnlyNoMoveCompare&
+    operator=(CopyOnlyNoMoveCompare&&) = delete;
+    bool
+    operator<(const CopyOnlyNoMoveCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The assignment of the value type does not return VoidAssignCompare&: the vector code path is still applicable for it,
+// because the vector code never uses the result of an assignment.
+struct VoidAssignCompare
+{
+    std::int32_t val;
+    VoidAssignCompare() : val(0) {}
+    VoidAssignCompare(std::int32_t val_) : val(val_) {}
+    void
+    operator=(const VoidAssignCompare& other)
+    {
+        val = other.val;
+    }
+    bool
+    operator<(const VoidAssignCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The destructor of the value type is not noexcept: the vector code path is still applicable for it, because storing
+// a value never has to be non-throwing.
+struct ThrowingDtorCompare
+{
+    std::int32_t val;
+    ThrowingDtorCompare() : val(0) {}
+    ThrowingDtorCompare(std::int32_t val_) : val(val_) {}
+    ~ThrowingDtorCompare() noexcept(false) {}
+    bool
+    operator<(const ThrowingDtorCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The value type can be copied and assigned from a const lvalue only. The vector code path is still applicable for it,
+// because the vector code reads both the elements and the stored candidates through const references, but it requires
+// const iterators here: the reference type of a non-const iterator does not convert to such a value type.
+struct ConstCopyOnlyCompare
+{
+    std::int32_t val;
+    ConstCopyOnlyCompare() : val(0) {}
+    ConstCopyOnlyCompare(std::int32_t val_) : val(val_) {}
+    ConstCopyOnlyCompare(const ConstCopyOnlyCompare&) = default;
+    ConstCopyOnlyCompare(ConstCopyOnlyCompare&) = delete;
+    ConstCopyOnlyCompare&
+    operator=(const ConstCopyOnlyCompare&) = default;
+    ConstCopyOnlyCompare&
+    operator=(ConstCopyOnlyCompare&) = delete;
+    bool
+    operator<(const ConstCopyOnlyCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
 // The value type is not default-constructible, so it cannot be used in a user-defined reduction
 // and the vector code path must not be selected for it. The same holds for NoCopyAssignCompare and
 // MoveOnlyCompare below: each of them violates one of the requirements the vector code path puts on the
@@ -299,10 +375,28 @@ struct MoveOnlyCompare
     }
 };
 
+template <typename T, typename Iterator>
+static void
+check_by_type_host_policies(Iterator first, Iterator last)
+{
+#ifdef _PSTL_TEST_MIN_ELEMENT
+    invoke_on_all_host_policies()(check_minelement<T>(), first, last);
+    invoke_on_all_host_policies()(check_minelement_predicate<T>(), first, last);
+#endif
+#ifdef _PSTL_TEST_MAX_ELEMENT
+    invoke_on_all_host_policies()(check_maxelement<T>(), first, last);
+    invoke_on_all_host_policies()(check_maxelement_predicate<T>(), first, last);
+#endif
+#ifdef _PSTL_TEST_MINMAX_ELEMENT
+    invoke_on_all_host_policies()(check_minmaxelement<T>(), first, last);
+    invoke_on_all_host_policies()(check_minmaxelement_predicate<T>(), first, last);
+#endif
+}
+
 // The sequence is built in place because the value types checked here either do not satisfy the requirements of
 // TestUtils::Sequence (which default-constructs and assigns its elements) or are not trivially copyable, and thus
 // cannot be checked with device policies.
-template <typename T>
+template <typename T, bool UseConstIterators = false>
 static void
 test_by_type_host_policies(::std::size_t n)
 {
@@ -311,18 +405,25 @@ test_by_type_host_policies(::std::size_t n)
     for (::std::size_t i = 0; i < n; ++i)
         data.emplace_back(std::int32_t(TestUtils::HashBits(i, 30)));
 
-#ifdef _PSTL_TEST_MIN_ELEMENT
-    invoke_on_all_host_policies()(check_minelement<T>(), data.begin(), data.end());
-    invoke_on_all_host_policies()(check_minelement_predicate<T>(), data.begin(), data.end());
-#endif
-#ifdef _PSTL_TEST_MAX_ELEMENT
-    invoke_on_all_host_policies()(check_maxelement<T>(), data.begin(), data.end());
-    invoke_on_all_host_policies()(check_maxelement_predicate<T>(), data.begin(), data.end());
-#endif
-#ifdef _PSTL_TEST_MINMAX_ELEMENT
-    invoke_on_all_host_policies()(check_minmaxelement<T>(), data.begin(), data.end());
-    invoke_on_all_host_policies()(check_minmaxelement_predicate<T>(), data.begin(), data.end());
-#endif
+    using Iterator = ::std::conditional_t<UseConstIterators, typename ::std::vector<T>::const_iterator,
+                                          typename ::std::vector<T>::iterator>;
+    check_by_type_host_policies<T>(Iterator(data.begin()), Iterator(data.end()));
+}
+
+// A value type with deleted move operations cannot be stored in a std::vector, because the growth path of the container
+// moves its elements, so the sequence is a plain array here and its elements are assigned from const lvalues.
+template <typename T, ::std::size_t N>
+static void
+test_by_type_host_policies_array()
+{
+    T data[N];
+    for (::std::size_t i = 0; i < N; ++i)
+    {
+        const T value(std::int32_t(TestUtils::HashBits(i, 30)));
+        data[i] = value;
+    }
+
+    check_by_type_host_policies<T>(data, data + N);
 }
 
 template <typename T>
@@ -377,6 +478,18 @@ main()
     // This value type is accepted by the vector code path, exactly like OnlyLessCompare above: it differs from it only
     // by an explicit default constructor, which the path has to accept at compile time, so one size is enough.
     test_by_type<ExplicitDefaultCtorCompare>(NSmall);
+
+    // These value types are accepted by the vector code path as well, and the point of checking them is that the vector
+    // code is instantiated for them: each of them violates one of the requirements of std::semiregular that the vector
+    // code does not have. That does not depend on the sequence size either.
+    test_by_type_host_policies_array<CopyOnlyNoMoveCompare, NSmall>();
+    test_by_type_host_policies<VoidAssignCompare>(NSmall);
+    test_by_type_host_policies<ThrowingDtorCompare>(NSmall);
+
+    // This value type is accepted by the vector code path through const iterators, so the point of checking it is that
+    // the vector code copies the elements and the stored candidates from const lvalues only. That does not depend on
+    // the sequence size either.
+    test_by_type_host_policies<ConstCopyOnlyCompare, /*UseConstIterators*/ true>(NSmall);
 
     // These value types are rejected by the vector code path, so the point of checking them is that the call compiles
     // and falls back to the serial implementation. That does not depend on the sequence size, so one size is enough.

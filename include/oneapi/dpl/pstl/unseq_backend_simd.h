@@ -17,7 +17,9 @@
 #define _ONEDPL_UNSEQ_BACKEND_SIMD_H
 
 #include <type_traits>
-#include <memory> // for std::addressof
+#include <memory>   // for std::addressof
+#include <iterator> // for std::iterator_traits
+#include <utility>  // for std::as_const
 
 #include "utils.h"
 
@@ -613,15 +615,44 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
+// The reduction object initializes its value members with _ValueType{}, which is not what
+// std::is_default_constructible_v checks: that trait stands for _ValueType v;, and the two differ both ways. An
+// aggregate whose member has an explicit default constructor is default-constructible but not brace-initializable,
+// while an aggregate with a const member without a default member initializer is the other way round.
+template <typename _Tp, typename = void>
+inline constexpr bool __is_brace_constructible_v = false;
+
+template <typename _Tp>
+inline constexpr bool __is_brace_constructible_v<_Tp, decltype(void(_Tp{}))> = true;
+
+// An output iterator reports void as its value type: such a value cannot be stored, and forming const _ValueType&
+// for it would be ill-formed rather than merely unsatisfied, so void is rejected up front.
+template <typename _Iterator, typename _Compare,
+          typename _ValueType = typename std::iterator_traits<_Iterator>::value_type, typename = void>
+inline constexpr bool __is_value_storable_and_comparable_v = false;
+
+// The requirement covers only what the vectorized bricks add on top of the input the algorithms already require: the
+// value type has to be storable in the reduction object and the comparator has to be applicable to the stored copies.
+// What the algorithms require themselves is not re-checked here and fails to compile if it is not met: that *__first is
+// convertible to the value type, and that the result of the comparison can be negated.
+// Every requirement is the expression the implementation uses rather than the concept it resembles: std::semiregular
+// would also require moving, an assignment returning _ValueType& and a non-throwing destructor.
+template <typename _Iterator, typename _Compare, typename _ValueType>
+inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ValueType,
+                                                           std::enable_if_t<!std::is_void_v<_ValueType>>> =
+    __is_brace_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
+    std::is_copy_assignable_v<_ValueType> &&
+    std::is_invocable_r_v<bool, _Compare&, const _ValueType&, const _ValueType&>;
+
 // The implementation keeps copies of the values in the reduction object and compares those copies, so the value
 // type has to be usable in a user-defined reduction and the comparator has to be applicable to the copies:
-// __internal::__is_value_storable_and_comparable_v is the requirement checked by the callers.
+// __is_value_storable_and_comparable_v is the requirement checked by the callers.
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 _ForwardIterator
 __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
-    static_assert(__internal::__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
+    static_assert(__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
                   "The value type of the iterator must be storable in the reduction object and __comp must be "
                   "a predicate over objects of that type");
 
@@ -666,7 +697,9 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        const _ValueType __min_val = __init.__min_val;
+        // The candidate is read through a const reference and copied by direct initialization, so that copying it
+        // requires nothing but std::is_copy_constructible_v, which is stated in terms of direct initialization too.
+        const _ValueType __min_val(std::as_const(__init).__min_val);
         const _ValueType __current = __first[__i];
         if (std::invoke(__comp, __current, __min_val))
         {
@@ -679,13 +712,13 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
 
 // The implementation keeps copies of the values in the reduction object and compares those copies, so the value
 // type has to be usable in a user-defined reduction and the comparator has to be applicable to the copies:
-// __internal::__is_value_storable_and_comparable_v is the requirement checked by the callers.
+// __is_value_storable_and_comparable_v is the requirement checked by the callers.
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 std::pair<_ForwardIterator, _ForwardIterator>
 __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
-    static_assert(__internal::__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
+    static_assert(__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
                   "The value type of the iterator must be storable in the reduction object and __comp must be "
                   "a predicate over objects of that type");
 
@@ -750,9 +783,12 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        auto __min_val = __init.__min_val;
-        auto __max_val = __init.__max_val;
-        auto __current = __first[__i];
+        // The candidates are read through a const reference and copied by direct initialization, and the element is
+        // materialized as a _ValueType, so that copying and storing them requires nothing but
+        // std::is_copy_constructible_v and std::is_copy_assignable_v.
+        const _ValueType __min_val(std::as_const(__init).__min_val);
+        const _ValueType __max_val(std::as_const(__init).__max_val);
+        const _ValueType __current = __first[__i];
         if (std::invoke(__comp, __current, __min_val))
         {
             __init.__min_val = __current;

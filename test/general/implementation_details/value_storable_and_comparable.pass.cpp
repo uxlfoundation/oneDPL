@@ -7,13 +7,14 @@
 //
 //===------------------------------------------------------===//
 
-// Compile-time checks for oneapi::dpl::__internal::__is_value_storable_and_comparable_v and for each of the
-// requirements it is built from: __convertible_to_v, __semiregular_v and __predicate_v, plus the C++17 building blocks
-// of __semiregular_v (__constructible_from_v, __move_constructible_v, __copy_constructible_v, __assignable_from_v, __movable_v,
-// __copyable_v). Every requirement is checked both ways: a type that satisfies it and a type that does not.
+// Compile-time checks for oneapi::dpl::__unseq_backend::__is_value_storable_and_comparable_v and for the requirements
+// it is built from.
+// The only one of them that is not a standard type trait, oneapi::dpl::__unseq_backend::__is_brace_constructible_v, is
+// checked on its own as well. Every requirement is checked both ways: a type that satisfies it and a type that does not.
 
 #include "support/test_config.h"
 
+#include <oneapi/dpl/pstl/unseq_backend_simd.h>
 #include <oneapi/dpl/pstl/utils.h>
 
 #include <cstddef>
@@ -26,12 +27,13 @@
 #include "support/utils.h"
 
 namespace dpl_internal = oneapi::dpl::__internal;
+namespace dpl_unseq = oneapi::dpl::__unseq_backend;
 
 //----------------------------------------------------------------------------//
 // Value types
 //----------------------------------------------------------------------------//
 
-// Satisfies every requirement: default-constructible, copyable, less-than comparable.
+// Satisfies every requirement: default-constructible, copy-constructible, copy-assignable, less-than comparable.
 struct Regular
 {
     int val = 0;
@@ -42,7 +44,7 @@ struct Regular
     }
 };
 
-// std::default_initializable accepts an explicit default constructor, since T{} stays valid.
+// An explicit default constructor is enough, since _ValueType{} is a direct initialization, which may use it.
 struct ExplicitDefaultCtor
 {
     int val;
@@ -51,6 +53,24 @@ struct ExplicitDefaultCtor
     operator<(const ExplicitDefaultCtor& other) const
     {
         return val < other.val;
+    }
+};
+
+struct ExplicitDefaultCtorMember
+{
+    int val;
+    explicit ExplicitDefaultCtorMember() : val(0) {}
+};
+
+// Default-constructible, but not brace-initializable: an aggregate is initialized member by member, and the member is
+// copy-initialized from an empty list, which may not use its explicit default constructor.
+struct AggregateOfExplicitDefaultCtor
+{
+    ExplicitDefaultCtorMember member;
+    bool
+    operator<(const AggregateOfExplicitDefaultCtor& other) const
+    {
+        return member.val < other.member.val;
     }
 };
 
@@ -79,7 +99,7 @@ struct NoCopyAssign
     }
 };
 
-// std::is_assignable_v is satisfied, but the assignment does not return VoidAssign&.
+// The assignment does not return VoidAssign&, which is enough here because the result is never used.
 struct VoidAssign
 {
     int val = 0;
@@ -95,7 +115,7 @@ struct VoidAssign
     }
 };
 
-// std::destructible, and hence __constructible_from_v, requires the destructor to be noexcept.
+// The destructor is not noexcept, which is enough here because storing a value never has to be non-throwing.
 struct ThrowingDtor
 {
     int val = 0;
@@ -124,66 +144,78 @@ struct MoveOnly
     }
 };
 
-//----------------------------------------------------------------------------//
-// __convertible_to_v
-//----------------------------------------------------------------------------//
-
-struct ExplicitFromInt
+// Deleting the move operations while keeping the copy ones is enough here, because the value is never moved.
+struct CopyOnlyNoMove
 {
-    explicit ExplicitFromInt(int) {}
+    int val = 0;
+    CopyOnlyNoMove() = default;
+    CopyOnlyNoMove(const CopyOnlyNoMove&) = default;
+    CopyOnlyNoMove&
+    operator=(const CopyOnlyNoMove&) = default;
+    CopyOnlyNoMove(CopyOnlyNoMove&&) = delete;
+    CopyOnlyNoMove&
+    operator=(CopyOnlyNoMove&&) = delete;
+    bool
+    operator<(const CopyOnlyNoMove& other) const
+    {
+        return val < other.val;
+    }
 };
 
-// A destination whose only constructor taking ImplicitSource is deleted and explicit: copy-initialization ignores it
-// and picks the conversion operator, so std::is_convertible_v is satisfied, while static_cast selects the deleted
-// constructor. This is the difference std::convertible_to catches and std::is_convertible_v does not.
-struct ExplicitlyNotConvertible;
-
-struct ImplicitSource
+// Copyable and assignable from a const lvalue only, which is enough here, because the candidates are read through
+// std::as_const and the element is materialized as a const _ValueType.
+struct ConstCopyOnly
 {
-    operator ExplicitlyNotConvertible() const;
+    int val = 0;
+    ConstCopyOnly() = default;
+    ConstCopyOnly(const ConstCopyOnly&) = default;
+    ConstCopyOnly&
+    operator=(const ConstCopyOnly&) = default;
+    ConstCopyOnly(ConstCopyOnly&) = delete;
+    ConstCopyOnly&
+    operator=(ConstCopyOnly&) = delete;
+    bool
+    operator<(const ConstCopyOnly& other) const
+    {
+        return val < other.val;
+    }
 };
 
-struct ExplicitlyNotConvertible
+// A value type whose copy constructor is explicit, which is enough for copying the candidates, because they are copied
+// by direct initialization, and so is std::is_copy_constructible_v defined. Copy-initializing an element of such a type
+// is ill-formed, so an iterator over it does not meet the requirements of a forward iterator.
+struct ExplicitCopyCtor
 {
-    ExplicitlyNotConvertible() = default;
-    explicit ExplicitlyNotConvertible(ImplicitSource) = delete;
+    int val = 0;
+    ExplicitCopyCtor() = default;
+    explicit ExplicitCopyCtor(const ExplicitCopyCtor& other) : val(other.val) {}
+    ExplicitCopyCtor&
+    operator=(const ExplicitCopyCtor&) = default;
+    bool
+    operator<(const ExplicitCopyCtor&) const
+    {
+        return false;
+    }
 };
 
-static_assert(dpl_internal::__convertible_to_v<int, int>);
-static_assert(dpl_internal::__convertible_to_v<const int&, int>);
-static_assert(dpl_internal::__convertible_to_v<int&, long>);
-static_assert(dpl_internal::__convertible_to_v<const Regular&, Regular>);
-static_assert(dpl_internal::__convertible_to_v<std::pair<int&, int&>, std::pair<int, int>>);
-
-static_assert(!dpl_internal::__convertible_to_v<int*, int>);
-static_assert(!dpl_internal::__convertible_to_v<Regular, int>);
-static_assert(!dpl_internal::__convertible_to_v<int, ExplicitFromInt>);
-static_assert(!dpl_internal::__convertible_to_v<const MoveOnly&, MoveOnly>);
-static_assert(std::is_convertible_v<ImplicitSource, ExplicitlyNotConvertible>);
-static_assert(!dpl_internal::__convertible_to_v<ImplicitSource, ExplicitlyNotConvertible>);
-
 //----------------------------------------------------------------------------//
-// __semiregular_v
+// __is_brace_constructible_v
 //----------------------------------------------------------------------------//
 
-static_assert(dpl_internal::__semiregular_v<int>);
-static_assert(dpl_internal::__semiregular_v<int*>);
-static_assert(dpl_internal::__semiregular_v<Regular>);
-static_assert(dpl_internal::__semiregular_v<ExplicitDefaultCtor>);
-static_assert(dpl_internal::__semiregular_v<std::pair<int, int>>);
+static_assert(dpl_unseq::__is_brace_constructible_v<int>);
+static_assert(dpl_unseq::__is_brace_constructible_v<int*>);
+static_assert(dpl_unseq::__is_brace_constructible_v<Regular>);
+static_assert(dpl_unseq::__is_brace_constructible_v<ExplicitDefaultCtor>);
+static_assert(dpl_unseq::__is_brace_constructible_v<MoveOnly>);
 
-static_assert(!dpl_internal::__semiregular_v<NoDefaultCtor>);
-static_assert(!dpl_internal::__semiregular_v<NoCopyAssign>);
-static_assert(!dpl_internal::__semiregular_v<VoidAssign>);
-static_assert(!dpl_internal::__semiregular_v<ThrowingDtor>);
-static_assert(!dpl_internal::__semiregular_v<MoveOnly>);
-static_assert(!dpl_internal::__semiregular_v<int&>);
-// Output iterators report void as their value type, so void must be rejected rather than rejecting the program.
-static_assert(!dpl_internal::__semiregular_v<void>);
-static_assert(!dpl_internal::__semiregular_v<const void>);
+static_assert(std::is_default_constructible_v<AggregateOfExplicitDefaultCtor>);
+static_assert(!dpl_unseq::__is_brace_constructible_v<AggregateOfExplicitDefaultCtor>);
+static_assert(!dpl_unseq::__is_brace_constructible_v<NoDefaultCtor>);
+// void{} is a valid expression, so this requirement does not reject void: that is done separately.
+static_assert(dpl_unseq::__is_brace_constructible_v<void>);
 
 //----------------------------------------------------------------------------//
-// __predicate_v
+// Comparison objects
 //----------------------------------------------------------------------------//
 
 struct NotBool
@@ -250,80 +282,30 @@ struct MoveOnlyLess
     }
 };
 
-static_assert(dpl_internal::__predicate_v<std::less<int>&, const int&, const int&>);
-static_assert(dpl_internal::__predicate_v<std::less<>&, const int&, const int&>);
-static_assert(dpl_internal::__predicate_v<IntResultLess&, const int&, const int&>);
-static_assert(dpl_internal::__predicate_v<MoveOnlyLess&, const int&, const int&>);
-static_assert(dpl_internal::__predicate_v<std::less<Regular>&, const Regular&, const Regular&>);
+struct NotNegatableResult
+{
+    operator bool() const;
+    bool
+    operator!() const = delete;
+};
 
-static_assert(!dpl_internal::__predicate_v<NotBoolResultLess&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate_v<MutableRefLess&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate_v<RvalueOnlyLess&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate_v<UnaryLess&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate_v<int&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate_v<std::less<int>&, const Regular&, const Regular&>);
-
-//----------------------------------------------------------------------------//
-// C++17 building blocks of __semiregular_v. In C++20 the standard concepts are used directly, so these helpers only
-// exist in the C++17 branch.
-//----------------------------------------------------------------------------//
-
-#if !_ONEDPL_CPP20_CONCEPTS_PRESENT
-
-static_assert(dpl_internal::__constructible_from_v<int, int>);
-static_assert(dpl_internal::__constructible_from_v<Regular>);
-static_assert(dpl_internal::__constructible_from_v<NoDefaultCtor, int>);
-static_assert(!dpl_internal::__constructible_from_v<NoDefaultCtor>);
-static_assert(!dpl_internal::__constructible_from_v<ThrowingDtor>);
-static_assert(!dpl_internal::__constructible_from_v<Regular, int>);
-
-static_assert(dpl_internal::__assignable_from_v<int, int>);
-static_assert(dpl_internal::__assignable_from_v<Regular, const Regular&>);
-static_assert(dpl_internal::__assignable_from_v<MoveOnly, MoveOnly>);
-static_assert(!dpl_internal::__assignable_from_v<VoidAssign, const VoidAssign&>);
-static_assert(std::is_assignable_v<VoidAssign&, const VoidAssign&>);
-static_assert(!dpl_internal::__assignable_from_v<NoCopyAssign, const NoCopyAssign&>);
-static_assert(!dpl_internal::__assignable_from_v<MoveOnly, const MoveOnly&>);
-
-static_assert(dpl_internal::__move_constructible_v<Regular>);
-static_assert(dpl_internal::__move_constructible_v<MoveOnly>);
-static_assert(!dpl_internal::__move_constructible_v<ThrowingDtor>);
-static_assert(!dpl_internal::__move_constructible_v<NoDefaultCtor[2]>);
-
-static_assert(dpl_internal::__copy_constructible_v<Regular>);
-static_assert(dpl_internal::__copy_constructible_v<NoCopyAssign>);
-static_assert(!dpl_internal::__copy_constructible_v<MoveOnly>);
-static_assert(!dpl_internal::__copy_constructible_v<ThrowingDtor>);
-
-static_assert(dpl_internal::__movable_v<Regular>);
-static_assert(dpl_internal::__movable_v<MoveOnly>);
-static_assert(!dpl_internal::__movable_v<VoidAssign>);
-static_assert(!dpl_internal::__movable_v<int&>);
-
-static_assert(dpl_internal::__copyable_v<Regular>);
-static_assert(dpl_internal::__copyable_v<NoDefaultCtor>);
-static_assert(!dpl_internal::__copyable_v<MoveOnly>);
-static_assert(!dpl_internal::__copyable_v<NoCopyAssign>);
-static_assert(!dpl_internal::__copyable_v<VoidAssign>);
-
-// Each building block has to yield false for void instead of failing to compile, since forming void& is ill-formed
-// rather than merely unsatisfied.
-static_assert(!dpl_internal::__constructible_from_v<void>);
-static_assert(!dpl_internal::__assignable_from_v<void, void>);
-static_assert(!dpl_internal::__move_constructible_v<void>);
-static_assert(!dpl_internal::__copy_constructible_v<void>);
-static_assert(!dpl_internal::__movable_v<void>);
-static_assert(!dpl_internal::__copyable_v<void>);
-static_assert(!dpl_internal::__copy_constructible_v<const void>);
-static_assert(!dpl_internal::__copyable_v<const void>);
-
-#endif // !_ONEDPL_CPP20_CONCEPTS_PRESENT
+// The result of the comparison is convertible to bool, but cannot be negated, while the vectorized bricks do negate it.
+// Such a comparison object does not meet the Compare requirements the standard states for the algorithms, so it is not
+// rejected here: the requirement accepts it in both C++17 and C++20, and instantiating the brick for it is a compile
+// error rather than a fallback to the serial implementation.
+struct NotNegatableResultLess
+{
+    NotNegatableResult
+    operator()(const int& lhs, const int& rhs) const;
+};
 
 //----------------------------------------------------------------------------//
-// __is_value_storable_and_comparable_v
+// Reference types
 //----------------------------------------------------------------------------//
 
-// An iterator whose reference type is not convertible to its value type.
+// A reference type that does not convert to the value type: an iterator reporting it does not meet the requirements of
+// a forward iterator, which state that *__first is convertible to the value type, so the requirement does not look at
+// the reference type at all.
 struct OpaqueRef
 {
 };
@@ -341,46 +323,66 @@ struct FakeIterator
     operator*() const;
 };
 
+//----------------------------------------------------------------------------//
+// __is_value_storable_and_comparable_v
+//----------------------------------------------------------------------------//
+
 // Accepted: the value type is storable and the comparator is callable on const values.
-static_assert(dpl_internal::__is_value_storable_and_comparable_v<int*, std::less<int>>);
-static_assert(dpl_internal::__is_value_storable_and_comparable_v<const int*, std::less<int>>);
-static_assert(dpl_internal::__is_value_storable_and_comparable_v<std::vector<int>::iterator, std::less<int>>);
-static_assert(dpl_internal::__is_value_storable_and_comparable_v<std::vector<int>::const_iterator, std::less<>>);
-static_assert(dpl_internal::__is_value_storable_and_comparable_v<Regular*, std::less<Regular>>);
-static_assert(
-    dpl_internal::__is_value_storable_and_comparable_v<ExplicitDefaultCtor*, std::less<ExplicitDefaultCtor>>);
-static_assert(dpl_internal::__is_value_storable_and_comparable_v<int*, MoveOnlyLess>);
-static_assert(dpl_internal::__is_value_storable_and_comparable_v<int*, IntResultLess>);
-static_assert(dpl_internal::__is_value_storable_and_comparable_v<int*, bool (*)(const int&, const int&)>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, std::less<int>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<const int*, std::less<int>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<std::vector<int>::iterator, std::less<int>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<std::vector<int>::const_iterator, std::less<>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<Regular*, std::less<Regular>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<ExplicitDefaultCtor*, std::less<ExplicitDefaultCtor>>);
+// Accepted: the requirements are brace initialization, copy construction and copy assignment, and nothing else.
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<CopyOnlyNoMove*, std::less<CopyOnlyNoMove>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<VoidAssign*, std::less<VoidAssign>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<ThrowingDtor*, std::less<ThrowingDtor>>);
+// Accepted: copying and storing a value only ever reads it through a const reference.
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<const ConstCopyOnly*, std::less<ConstCopyOnly>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, MoveOnlyLess>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, IntResultLess>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, bool (*)(const int&, const int&)>);
+// Accepted although the bricks do not compile for it: a comparison object that does not meet the Compare requirements
+// of the algorithms is not detected here, see NotNegatableResultLess above.
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, NotNegatableResultLess>);
 // The comparator max_element passes down to the min_element brick.
-static_assert(
-    dpl_internal::__is_value_storable_and_comparable_v<int*, dpl_internal::__reorder_pred<std::less<int>>>);
-// A proxy reference is fine as long as it converts to the value type.
-static_assert(dpl_internal::__is_value_storable_and_comparable_v<std::vector<bool>::iterator, std::less<bool>>);
-static_assert(dpl_internal::__is_value_storable_and_comparable_v<FakeIterator<int, int>, std::less<int>>);
-static_assert(dpl_internal::__is_value_storable_and_comparable_v<FakeIterator<std::pair<int, int>, std::pair<int&, int&>>,
-                                                                std::less<std::pair<int, int>>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, dpl_internal::__reorder_pred<std::less<int>>>);
+// The reference type is not part of the requirement, so a proxy reference and an iterator returning the value type by
+// value are accepted like any other.
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<std::vector<bool>::iterator, std::less<bool>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<int, int>, std::less<int>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<std::pair<int, int>, std::pair<int&, int&>>,
+                                                             std::less<std::pair<int, int>>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<CopyOnlyNoMove, CopyOnlyNoMove>,
+                                                             std::less<CopyOnlyNoMove>>);
+// Accepted although the bricks do not compile for them: an element of these iterators cannot be copy-initialized into
+// the value type, so they do not meet the requirements of a forward iterator, which is not detected here either. The
+// value types themselves are copy-constructible, which is stated in terms of direct initialization.
+static_assert(std::is_copy_constructible_v<ExplicitCopyCtor>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<ExplicitCopyCtor*, std::less<ExplicitCopyCtor>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<ConstCopyOnly*, std::less<ConstCopyOnly>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<int, OpaqueRef>, std::less<int>>);
 
-// Rejected because of the value type.
-static_assert(!dpl_internal::__is_value_storable_and_comparable_v<NoDefaultCtor*, std::less<NoDefaultCtor>>);
-static_assert(!dpl_internal::__is_value_storable_and_comparable_v<NoCopyAssign*, std::less<NoCopyAssign>>);
-static_assert(!dpl_internal::__is_value_storable_and_comparable_v<VoidAssign*, std::less<VoidAssign>>);
-static_assert(!dpl_internal::__is_value_storable_and_comparable_v<ThrowingDtor*, std::less<ThrowingDtor>>);
-static_assert(!dpl_internal::__is_value_storable_and_comparable_v<MoveOnly*, std::less<MoveOnly>>);
-
-// Rejected because the reference type does not convert to the value type.
-static_assert(!dpl_internal::__is_value_storable_and_comparable_v<FakeIterator<int, OpaqueRef>, std::less<int>>);
+// Rejected because of the value type: the first two fail brace initialization, the third copy assignment, and the
+// move-only one copy construction, and with it every other requirement that copies a value.
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<NoDefaultCtor*, std::less<NoDefaultCtor>>);
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<AggregateOfExplicitDefaultCtor*,
+                                                              std::less<AggregateOfExplicitDefaultCtor>>);
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<NoCopyAssign*, std::less<NoCopyAssign>>);
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<MoveOnly*, std::less<MoveOnly>>);
 
 // Rejected because an output iterator reports void as its value type.
-static_assert(!dpl_internal::__is_value_storable_and_comparable_v<std::back_insert_iterator<std::vector<int>>,
-                                                                 std::less<int>>);
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<std::back_insert_iterator<std::vector<int>>,
+                                                              std::less<int>>);
 
 // Rejected because of the comparator.
-static_assert(!dpl_internal::__is_value_storable_and_comparable_v<int*, NotBoolResultLess>);
-static_assert(!dpl_internal::__is_value_storable_and_comparable_v<int*, MutableRefLess>);
-static_assert(!dpl_internal::__is_value_storable_and_comparable_v<int*, RvalueOnlyLess>);
-static_assert(!dpl_internal::__is_value_storable_and_comparable_v<int*, UnaryLess>);
-static_assert(!dpl_internal::__is_value_storable_and_comparable_v<int*, std::less<Regular>>);
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<int*, NotBoolResultLess>);
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<int*, MutableRefLess>);
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<int*, RvalueOnlyLess>);
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<int*, UnaryLess>);
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<int*, std::less<Regular>>);
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<int*, int>);
 
 int
 main()
