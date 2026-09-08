@@ -122,8 +122,10 @@ struct check_minmaxelement_predicate
 // does not compile.
 struct OverloadedAddressOfLess
 {
-    void operator&() = delete;
-    void operator&() const = delete;
+    void
+    operator&() = delete;
+    void
+    operator&() const = delete;
 
     template <typename T>
     bool
@@ -141,8 +143,7 @@ struct check_minelement_overloaded_address_of
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         const Iterator expect = ::std::min_element(begin, end);
-        const Iterator result =
-            std::min_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        const Iterator result = std::min_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
         EXPECT_EQ(expect, result, "wrong return result from min_element with a comparator overloading operator&");
     }
 };
@@ -155,8 +156,7 @@ struct check_maxelement_overloaded_address_of
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         const Iterator expect = ::std::max_element(begin, end);
-        const Iterator result =
-            std::max_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        const Iterator result = std::max_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
         EXPECT_EQ(expect, result, "wrong return result from max_element with a comparator overloading operator&");
     }
 };
