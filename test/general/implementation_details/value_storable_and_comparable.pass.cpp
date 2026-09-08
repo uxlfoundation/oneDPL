@@ -9,7 +9,7 @@
 
 // Compile-time checks for oneapi::dpl::__internal::__is_value_storable_and_comparable_v and for each of the
 // requirements it is built from: __convertible_to_v, __semiregular_v and __predicate_v, plus the C++17 building blocks
-// of __semiregular_v (__constructible_from_v, __move_constructible, __copy_constructible, __assignable_from_v, __movable,
+// of __semiregular_v (__constructible_from_v, __move_constructible_v, __copy_constructible, __assignable_from_v, __movable,
 // __copyable). Every requirement is checked both ways: a type that satisfies it and a type that does not.
 
 #include "support/test_config.h"
@@ -285,10 +285,10 @@ static_assert(std::is_assignable_v<VoidAssign&, const VoidAssign&>);
 static_assert(!dpl_internal::__assignable_from_v<NoCopyAssign, const NoCopyAssign&>);
 static_assert(!dpl_internal::__assignable_from_v<MoveOnly, const MoveOnly&>);
 
-static_assert(dpl_internal::__move_constructible<Regular>);
-static_assert(dpl_internal::__move_constructible<MoveOnly>);
-static_assert(!dpl_internal::__move_constructible<ThrowingDtor>);
-static_assert(!dpl_internal::__move_constructible<NoDefaultCtor[2]>);
+static_assert(dpl_internal::__move_constructible_v<Regular>);
+static_assert(dpl_internal::__move_constructible_v<MoveOnly>);
+static_assert(!dpl_internal::__move_constructible_v<ThrowingDtor>);
+static_assert(!dpl_internal::__move_constructible_v<NoDefaultCtor[2]>);
 
 static_assert(dpl_internal::__copy_constructible<Regular>);
 static_assert(dpl_internal::__copy_constructible<NoCopyAssign>);
@@ -310,7 +310,7 @@ static_assert(!dpl_internal::__copyable<VoidAssign>);
 // rather than merely unsatisfied.
 static_assert(!dpl_internal::__constructible_from_v<void>);
 static_assert(!dpl_internal::__assignable_from_v<void, void>);
-static_assert(!dpl_internal::__move_constructible<void>);
+static_assert(!dpl_internal::__move_constructible_v<void>);
 static_assert(!dpl_internal::__copy_constructible<void>);
 static_assert(!dpl_internal::__movable<void>);
 static_assert(!dpl_internal::__copyable<void>);

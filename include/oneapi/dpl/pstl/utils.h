@@ -1159,7 +1159,7 @@ inline constexpr bool __copy_constructible<_Tp, std::enable_if_t<!std::is_void_v
 // std::swappable falls back to a move-based implementation, while std::is_swappable_v would additionally reject a
 // type with a deleted ADL swap.
 template <typename _Tp>
-inline constexpr bool __movable = std::is_object_v<_Tp> && __move_constructible<_Tp> && __assignable_from_v<_Tp, _Tp>;
+inline constexpr bool __movable = std::is_object_v<_Tp> && __move_constructible_v<_Tp> && __assignable_from_v<_Tp, _Tp>;
 
 // std::copyable. Void is rejected up front for the same reason as in __copy_constructible above.
 template <typename _Tp, typename = void>
