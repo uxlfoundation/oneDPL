@@ -621,11 +621,10 @@ inline constexpr bool __is_brace_constructible_v = false;
 template <typename _Tp>
 inline constexpr bool __is_brace_constructible_v<_Tp, decltype(void(_Tp{}))> = true;
 
-// The requirement covers only what the vectorized bricks add on top of what the algorithms already require: the value
-// type has to be storable in the reduction object. Anything else, the comparison object included, is not looked at and
-// fails to compile if it is not met, exactly as it does without this requirement.
-// Every requirement is the expression the implementation uses rather than the concept it resembles: std::semiregular
-// would also require moving, an assignment returning _ValueType& and a non-throwing destructor.
+// Requirements needed by __simd_min_element and __simd_minmax_element implementations:
+// - __is_brace_constructible_v: the _ComplexType default constructor needs _ValueType{} to be well-formed.
+// - std::is_copy_constructible_v: _ComplexType copy constructor is deleted if _ValueType is not copy constructible.
+// - std::is_copy_assignable_v: the _ONEDPL_PRAGMA_SIMD_REDUCTION loop assigns _ValueType.
 // void, which an output iterator reports as its value type, needs no separate handling: it is neither copy
 // constructible nor copy assignable.
 template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type>
