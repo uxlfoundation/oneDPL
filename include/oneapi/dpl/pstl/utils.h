@@ -49,7 +49,7 @@
 #endif
 
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
-#    include <concepts> // for std::equality_comparable_with, std::predicate
+#    include <concepts> // for std::equality_comparable_with
 #endif
 
 #include "functional_impl.h"
@@ -1103,22 +1103,6 @@ struct __is_type_with_iterator_traits<
 
 template <typename _T>
 static constexpr bool __is_type_with_iterator_traits_v = __is_type_with_iterator_traits<_T>::value;
-
-// The requirement below is named after the concept it stands for: C++20 uses that concept directly, while C++17 gets
-// an approximation of it.
-#if _ONEDPL_CPP20_CONCEPTS_PRESENT
-
-template <typename _Fp, typename... _Args>
-inline constexpr bool __predicate_v = std::predicate<_Fp, _Args...>;
-
-#else
-
-// std::predicate requires the result to be boolean-testable, which is stronger than being convertible to bool, but
-// the difference only shows for types with an unusable operator!.
-template <typename _Fp, typename... _Args>
-inline constexpr bool __predicate_v = std::is_invocable_r_v<bool, _Fp, _Args...>;
-
-#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
 
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>

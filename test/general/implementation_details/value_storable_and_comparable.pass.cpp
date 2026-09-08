@@ -9,9 +9,8 @@
 
 // Compile-time checks for oneapi::dpl::__unseq_backend::__is_value_storable_and_comparable_v and for the requirements
 // it is built from.
-// The two of them that are not standard type traits, oneapi::dpl::__unseq_backend::__is_brace_constructible_v
-// and oneapi::dpl::__internal::__predicate_v, are checked on their own as well. Every requirement is checked both ways:
-// a type that satisfies it and a type that does not.
+// The only one of them that is not a standard type trait, oneapi::dpl::__unseq_backend::__is_brace_constructible_v, is
+// checked on its own as well. Every requirement is checked both ways: a type that satisfies it and a type that does not.
 
 #include "support/test_config.h"
 
@@ -199,7 +198,7 @@ static_assert(!dpl_unseq::__is_brace_constructible_v<NoDefaultCtor>);
 static_assert(dpl_unseq::__is_brace_constructible_v<void>);
 
 //----------------------------------------------------------------------------//
-// __predicate_v
+// Comparison objects
 //----------------------------------------------------------------------------//
 
 struct NotBool
@@ -266,18 +265,22 @@ struct MoveOnlyLess
     }
 };
 
-static_assert(dpl_internal::__predicate_v<std::less<int>&, const int&, const int&>);
-static_assert(dpl_internal::__predicate_v<std::less<>&, const int&, const int&>);
-static_assert(dpl_internal::__predicate_v<IntResultLess&, const int&, const int&>);
-static_assert(dpl_internal::__predicate_v<MoveOnlyLess&, const int&, const int&>);
-static_assert(dpl_internal::__predicate_v<std::less<Regular>&, const Regular&, const Regular&>);
+struct NotNegatableResult
+{
+    operator bool() const;
+    bool
+    operator!() const = delete;
+};
 
-static_assert(!dpl_internal::__predicate_v<NotBoolResultLess&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate_v<MutableRefLess&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate_v<RvalueOnlyLess&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate_v<UnaryLess&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate_v<int&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate_v<std::less<int>&, const Regular&, const Regular&>);
+// The result of the comparison is convertible to bool, but cannot be negated, while the vectorized bricks do negate it.
+// Such a comparison object does not meet the Compare requirements the standard states for the algorithms, so it is not
+// rejected here: the requirement accepts it in both C++17 and C++20, and instantiating the brick for it is a compile
+// error rather than a fallback to the serial implementation.
+struct NotNegatableResultLess
+{
+    NotNegatableResult
+    operator()(const int& lhs, const int& rhs) const;
+};
 
 //----------------------------------------------------------------------------//
 // __is_value_storable_and_comparable_v
@@ -359,6 +362,9 @@ static_assert(dpl_unseq::__is_value_storable_and_comparable_v<const ConstCopyOnl
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, MoveOnlyLess>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, IntResultLess>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, bool (*)(const int&, const int&)>);
+// Accepted although the bricks do not compile for it: a comparison object that does not meet the Compare requirements
+// of the algorithms is not detected here, see NotNegatableResultLess above.
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, NotNegatableResultLess>);
 // The comparator max_element passes down to the min_element brick.
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, dpl_internal::__reorder_pred<std::less<int>>>);
 // A proxy reference is fine as long as it converts to the value type.
@@ -401,6 +407,7 @@ static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<int*, MutableRefL
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<int*, RvalueOnlyLess>);
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<int*, UnaryLess>);
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<int*, std::less<Regular>>);
+static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<int*, int>);
 
 int
 main()

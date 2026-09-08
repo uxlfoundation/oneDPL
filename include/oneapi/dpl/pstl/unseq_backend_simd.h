@@ -637,13 +637,17 @@ inline constexpr bool __is_value_storable_and_comparable_v = false;
 // stricter: it also requires move construction, move assignment, an assignment returning _ValueType& and a
 // non-throwing destructor, none of which is used here. The element is only copy-initialized into a _ValueType, so an
 // implicit conversion is all that is required of the reference type: std::convertible_to would be stricter again, since
-// it also requires static_cast<_ValueType>(_ReferenceType) to be well-formed.
+// it also requires static_cast<_ValueType>(_ReferenceType) to be well-formed. The comparison is required to be callable
+// on const lvalues and to return something convertible to bool; std::predicate would be stricter, since it also requires
+// the result to support operator!, which the implementation does apply to it. A comparison object whose result cannot be
+// negated does not meet the Compare requirements the standard states for these algorithms in the first place, so it is
+// not detected here: it is left to fail to compile, the same way in C++17 and in C++20.
 template <typename _Iterator, typename _Compare, typename _ReferenceType, typename _ValueType>
 inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ReferenceType, _ValueType,
                                                            std::enable_if_t<!std::is_void_v<_ValueType>>> =
     __is_brace_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
     std::is_copy_assignable_v<_ValueType> && std::is_convertible_v<_ReferenceType, _ValueType> &&
-    __internal::__predicate_v<_Compare&, const _ValueType&, const _ValueType&>;
+    std::is_invocable_r_v<bool, _Compare&, const _ValueType&, const _ValueType&>;
 
 // The implementation keeps copies of the values in the reduction object and compares those copies, so the value
 // type has to be usable in a user-defined reduction and the comparator has to be applicable to the copies:
