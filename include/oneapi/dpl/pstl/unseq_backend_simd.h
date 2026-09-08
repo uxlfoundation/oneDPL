@@ -621,19 +621,15 @@ inline constexpr bool __is_brace_constructible_v = false;
 template <typename _Tp>
 inline constexpr bool __is_brace_constructible_v<_Tp, decltype(void(_Tp{}))> = true;
 
-// An output iterator reports void as its value type: such a value cannot be stored, and forming const _ValueType&
-// for it would be ill-formed rather than merely unsatisfied, so void is rejected up front.
-template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type,
-          typename = void>
-inline constexpr bool __is_value_storable_v = false;
-
 // The requirement covers only what the vectorized bricks add on top of what the algorithms already require: the value
 // type has to be storable in the reduction object. Anything else, the comparison object included, is not looked at and
 // fails to compile if it is not met, exactly as it does without this requirement.
 // Every requirement is the expression the implementation uses rather than the concept it resembles: std::semiregular
 // would also require moving, an assignment returning _ValueType& and a non-throwing destructor.
-template <typename _Iterator, typename _ValueType>
-inline constexpr bool __is_value_storable_v<_Iterator, _ValueType, std::enable_if_t<!std::is_void_v<_ValueType>>> =
+// void, which an output iterator reports as its value type, needs no separate handling: it is neither copy
+// constructible nor copy assignable.
+template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type>
+inline constexpr bool __is_value_storable_v =
     __is_brace_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
     std::is_copy_assignable_v<_ValueType>;
 
