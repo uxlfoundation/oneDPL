@@ -632,16 +632,12 @@ template <typename _Iterator, typename _Compare,
           typename _ValueType = typename std::iterator_traits<_Iterator>::value_type, typename = void>
 inline constexpr bool __is_value_storable_and_comparable_v = false;
 
-// The value is stored in a brace-initialized object and updated there by assignment, so the requirements are brace
-// initialization, copy construction and copy assignment. std::semiregular would be a natural name for them, but it is
-// stricter: it also requires move construction, move assignment, an assignment returning _ValueType& and a
-// non-throwing destructor, none of which is used here. The element is only copy-initialized into a _ValueType, so an
-// implicit conversion is all that is required of the reference type: std::convertible_to would be stricter again, since
-// it also requires static_cast<_ValueType>(_ReferenceType) to be well-formed. The comparison is required to be callable
-// on const lvalues and to return something convertible to bool; std::predicate would be stricter, since it also requires
-// the result to support operator!, which the implementation does apply to it. A comparison object whose result cannot be
-// negated does not meet the Compare requirements the standard states for these algorithms in the first place, so it is
-// not detected here: it is left to fail to compile, the same way in C++17 and in C++20.
+// Every requirement below is the expression the implementation uses rather than the concept it resembles:
+// std::semiregular would also require moving, an assignment returning _ValueType& and a non-throwing destructor,
+// std::convertible_to would also require static_cast<_ValueType>(_ReferenceType), and std::predicate would also require
+// the comparison result to support operator!. The implementation does negate it, but an object whose comparison result
+// cannot be negated does not meet the Compare requirements of these algorithms anyway, so it fails to compile in C++17
+// and C++20 instead of being rejected here.
 template <typename _Iterator, typename _Compare, typename _ReferenceType, typename _ValueType>
 inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ReferenceType, _ValueType,
                                                            std::enable_if_t<!std::is_void_v<_ValueType>>> =
