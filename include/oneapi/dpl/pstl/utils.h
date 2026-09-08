@@ -1137,12 +1137,12 @@ inline constexpr bool __assignable_from_v<_Tp, _Up, std::void_t<decltype(std::de
 
 // std::constructible_from, which includes std::destructible
 template <typename _Tp, typename... _Args>
-inline constexpr bool __constructible_from =
+inline constexpr bool __constructible_from_v =
     std::is_nothrow_destructible_v<_Tp> && std::is_constructible_v<_Tp, _Args...>;
 
 // std::move_constructible
 template <typename _Tp>
-inline constexpr bool __move_constructible = __constructible_from<_Tp, _Tp> && __convertible_to_v<_Tp, _Tp>;
+inline constexpr bool __move_constructible_v = __constructible_from_v<_Tp, _Tp> && __convertible_to_v<_Tp, _Tp>;
 
 // std::copy_constructible. Void is rejected up front because the requirement below forms _Tp&, which would be
 // ill-formed rather than merely unsatisfied, and std::copy_constructible is not satisfied for void anyway.
@@ -1151,9 +1151,9 @@ inline constexpr bool __copy_constructible = false;
 
 template <typename _Tp>
 inline constexpr bool __copy_constructible<_Tp, std::enable_if_t<!std::is_void_v<_Tp>>> =
-    __move_constructible<_Tp> && __constructible_from<_Tp, _Tp&> && __convertible_to_v<_Tp&, _Tp> &&
-    __constructible_from<_Tp, const _Tp&> && __convertible_to_v<const _Tp&, _Tp> &&
-    __constructible_from<_Tp, const _Tp> && __convertible_to_v<const _Tp, _Tp>;
+    __move_constructible_v<_Tp> && __constructible_from_v<_Tp, _Tp&> && __convertible_to_v<_Tp&, _Tp> &&
+    __constructible_from_v<_Tp, const _Tp&> && __convertible_to_v<const _Tp&, _Tp> &&
+    __constructible_from_v<_Tp, const _Tp> && __convertible_to_v<const _Tp, _Tp>;
 
 // std::movable, less std::swappable: the latter is implied by move construction and move assignment, since
 // std::swappable falls back to a move-based implementation, while std::is_swappable_v would additionally reject a
