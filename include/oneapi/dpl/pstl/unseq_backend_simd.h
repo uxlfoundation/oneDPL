@@ -628,21 +628,20 @@ inline constexpr bool __is_brace_constructible_v<_Tp, decltype(void(_Tp{}))> = t
 // An output iterator reports void as its value type: such a value cannot be stored, and forming const _ValueType&
 // for it would be ill-formed rather than merely unsatisfied, so void is rejected up front.
 template <typename _Iterator, typename _Compare,
-          typename _ReferenceType = typename std::iterator_traits<_Iterator>::reference,
           typename _ValueType = typename std::iterator_traits<_Iterator>::value_type, typename = void>
 inline constexpr bool __is_value_storable_and_comparable_v = false;
 
-// Every requirement below is the expression the implementation uses rather than the concept it resembles:
-// std::semiregular would also require moving, an assignment returning _ValueType& and a non-throwing destructor,
-// std::convertible_to would also require static_cast<_ValueType>(_ReferenceType), and std::predicate would also require
-// the comparison result to support operator!. The implementation does negate it, but an object whose comparison result
-// cannot be negated does not meet the Compare requirements of these algorithms anyway, so it fails to compile in C++17
-// and C++20 instead of being rejected here.
-template <typename _Iterator, typename _Compare, typename _ReferenceType, typename _ValueType>
-inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ReferenceType, _ValueType,
+// The requirement covers only what the vectorized bricks add on top of the input the algorithms already require: the
+// value type has to be storable in the reduction object and the comparator has to be applicable to the stored copies.
+// What the algorithms require themselves is not re-checked here and fails to compile if it is not met: that *__first is
+// convertible to the value type, and that the result of the comparison can be negated.
+// Every requirement is the expression the implementation uses rather than the concept it resembles: std::semiregular
+// would also require moving, an assignment returning _ValueType& and a non-throwing destructor.
+template <typename _Iterator, typename _Compare, typename _ValueType>
+inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ValueType,
                                                            std::enable_if_t<!std::is_void_v<_ValueType>>> =
     __is_brace_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
-    std::is_copy_assignable_v<_ValueType> && std::is_convertible_v<_ReferenceType, _ValueType> &&
+    std::is_copy_assignable_v<_ValueType> &&
     std::is_invocable_r_v<bool, _Compare&, const _ValueType&, const _ValueType&>;
 
 // The implementation keeps copies of the values in the reduction object and compares those copies, so the value

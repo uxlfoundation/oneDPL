@@ -181,6 +181,23 @@ struct ConstCopyOnly
     }
 };
 
+// A value type whose copy constructor is explicit, which is enough for copying the candidates, because they are copied
+// by direct initialization, and so is std::is_copy_constructible_v defined. Copy-initializing an element of such a type
+// is ill-formed, so an iterator over it does not meet the requirements of a forward iterator.
+struct ExplicitCopyCtor
+{
+    int val = 0;
+    ExplicitCopyCtor() = default;
+    explicit ExplicitCopyCtor(const ExplicitCopyCtor& other) : val(other.val) {}
+    ExplicitCopyCtor&
+    operator=(const ExplicitCopyCtor&) = default;
+    bool
+    operator<(const ExplicitCopyCtor&) const
+    {
+        return false;
+    }
+};
+
 //----------------------------------------------------------------------------//
 // __is_brace_constructible_v
 //----------------------------------------------------------------------------//
@@ -283,54 +300,14 @@ struct NotNegatableResultLess
 };
 
 //----------------------------------------------------------------------------//
-// __is_value_storable_and_comparable_v
+// Reference types
 //----------------------------------------------------------------------------//
 
-// A reference type that does not convert to the value type.
+// A reference type that does not convert to the value type: an iterator reporting it does not meet the requirements of
+// a forward iterator, which state that *__first is convertible to the value type, so the requirement does not look at
+// the reference type at all.
 struct OpaqueRef
 {
-};
-
-// A value type whose only constructor taking ImplicitSource is deleted and explicit: copy-initialization ignores it and
-// picks the conversion operator, while static_cast selects the deleted constructor. The implementation only
-// copy-initializes the value, so such a reference type is enough for it, unlike for std::convertible_to.
-struct ExplicitlyNotConvertible;
-
-struct ImplicitSource
-{
-    operator ExplicitlyNotConvertible() const;
-};
-
-struct ExplicitlyNotConvertible
-{
-    ExplicitlyNotConvertible() = default;
-    explicit ExplicitlyNotConvertible(ImplicitSource) = delete;
-    bool
-    operator<(const ExplicitlyNotConvertible&) const
-    {
-        return false;
-    }
-};
-
-// A value type whose copy constructor is explicit, which is enough here, because the candidates are copied by direct
-// initialization, and so is std::is_copy_constructible_v defined.
-struct ExplicitCopyCtor
-{
-    int val = 0;
-    ExplicitCopyCtor() = default;
-    explicit ExplicitCopyCtor(const ExplicitCopyCtor& other) : val(other.val) {}
-    ExplicitCopyCtor&
-    operator=(const ExplicitCopyCtor&) = default;
-    bool
-    operator<(const ExplicitCopyCtor&) const
-    {
-        return false;
-    }
-};
-
-struct ExplicitCopyCtorSource
-{
-    operator ExplicitCopyCtor() const;
 };
 
 template <typename _ValueType, typename _ReferenceType>
@@ -345,6 +322,10 @@ struct FakeIterator
     reference
     operator*() const;
 };
+
+//----------------------------------------------------------------------------//
+// __is_value_storable_and_comparable_v
+//----------------------------------------------------------------------------//
 
 // Accepted: the value type is storable and the comparator is callable on const values.
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, std::less<int>>);
@@ -367,20 +348,21 @@ static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, bool (*)(con
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, NotNegatableResultLess>);
 // The comparator max_element passes down to the min_element brick.
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<int*, dpl_internal::__reorder_pred<std::less<int>>>);
-// A proxy reference is fine as long as it converts to the value type.
+// The reference type is not part of the requirement, so a proxy reference and an iterator returning the value type by
+// value are accepted like any other.
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<std::vector<bool>::iterator, std::less<bool>>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<int, int>, std::less<int>>);
 static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<std::pair<int, int>, std::pair<int&, int&>>,
                                                              std::less<std::pair<int, int>>>);
-// An implicit conversion is enough, even when the explicit one is ill-formed.
-static_assert(std::is_convertible_v<ImplicitSource, ExplicitlyNotConvertible>);
-static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<ExplicitlyNotConvertible, ImplicitSource>,
-                                                             std::less<ExplicitlyNotConvertible>>);
-// An explicit copy constructor is enough for copying a candidate, as long as the reference type converts to the value
-// type without it.
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<CopyOnlyNoMove, CopyOnlyNoMove>,
+                                                             std::less<CopyOnlyNoMove>>);
+// Accepted although the bricks do not compile for them: an element of these iterators cannot be copy-initialized into
+// the value type, so they do not meet the requirements of a forward iterator, which is not detected here either. The
+// value types themselves are copy-constructible, which is stated in terms of direct initialization.
 static_assert(std::is_copy_constructible_v<ExplicitCopyCtor>);
-static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<ExplicitCopyCtor, ExplicitCopyCtorSource>,
-                                                             std::less<ExplicitCopyCtor>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<ExplicitCopyCtor*, std::less<ExplicitCopyCtor>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<ConstCopyOnly*, std::less<ConstCopyOnly>>);
+static_assert(dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<int, OpaqueRef>, std::less<int>>);
 
 // Rejected because of the value type: the first two fail brace initialization, the third copy assignment, and the
 // move-only one copy construction, and with it every other requirement that copies a value.
@@ -389,13 +371,6 @@ static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<AggregateOfExplic
                                                               std::less<AggregateOfExplicitDefaultCtor>>);
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<NoCopyAssign*, std::less<NoCopyAssign>>);
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<MoveOnly*, std::less<MoveOnly>>);
-
-// Rejected because the reference type does not convert to the value type.
-static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<FakeIterator<int, OpaqueRef>, std::less<int>>);
-// The same for a non-const reference to a value type that is only copyable from a const lvalue, and for a value type
-// that is only copyable by direct initialization.
-static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<ConstCopyOnly*, std::less<ConstCopyOnly>>);
-static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<ExplicitCopyCtor*, std::less<ExplicitCopyCtor>>);
 
 // Rejected because an output iterator reports void as its value type.
 static_assert(!dpl_unseq::__is_value_storable_and_comparable_v<std::back_insert_iterator<std::vector<int>>,
