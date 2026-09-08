@@ -1974,11 +1974,10 @@ __pattern_shift_left(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
         return __size_res;
     }
 
-    //2. A rotate by '__n' produces the required prefix and leaves the original head in the tail, whose
-    //content [alg.shift] does not specify. It reverses by swapping, which shift_left does not itself
-    //require of its element type, so the branch exists only where that holds.
+    //2. A rotate by '__n' satisfies shift filling unspecified tail with moved elements, but it requires swappable types
     if constexpr (std::is_swappable_v<oneapi::dpl::__internal::__value_t<_Range>>)
     {
+        // Check if it is beneficial to perform a rotate instead of parallel copying
         if (__should_rotate_shift<oneapi::dpl::__internal::__value_t<_Range>>(_BackendTag{}, __exec, __n, __size_res))
         {
             __pattern_rotate(__tag,
