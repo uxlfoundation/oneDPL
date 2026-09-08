@@ -9,7 +9,7 @@
 
 // Compile-time checks for oneapi::dpl::__internal::__is_value_storable_and_comparable_v and for each of the
 // requirements it is built from: __convertible_to_v, __semiregular_v and __predicate_v, plus the C++17 building blocks
-// of __semiregular_v (__constructible_from_v, __move_constructible_v, __copy_constructible_v, __assignable_from_v, __movable,
+// of __semiregular_v (__constructible_from_v, __move_constructible_v, __copy_constructible_v, __assignable_from_v, __movable_v,
 // __copyable). Every requirement is checked both ways: a type that satisfies it and a type that does not.
 
 #include "support/test_config.h"
@@ -295,10 +295,10 @@ static_assert(dpl_internal::__copy_constructible_v<NoCopyAssign>);
 static_assert(!dpl_internal::__copy_constructible_v<MoveOnly>);
 static_assert(!dpl_internal::__copy_constructible_v<ThrowingDtor>);
 
-static_assert(dpl_internal::__movable<Regular>);
-static_assert(dpl_internal::__movable<MoveOnly>);
-static_assert(!dpl_internal::__movable<VoidAssign>);
-static_assert(!dpl_internal::__movable<int&>);
+static_assert(dpl_internal::__movable_v<Regular>);
+static_assert(dpl_internal::__movable_v<MoveOnly>);
+static_assert(!dpl_internal::__movable_v<VoidAssign>);
+static_assert(!dpl_internal::__movable_v<int&>);
 
 static_assert(dpl_internal::__copyable<Regular>);
 static_assert(dpl_internal::__copyable<NoDefaultCtor>);
@@ -312,7 +312,7 @@ static_assert(!dpl_internal::__constructible_from_v<void>);
 static_assert(!dpl_internal::__assignable_from_v<void, void>);
 static_assert(!dpl_internal::__move_constructible_v<void>);
 static_assert(!dpl_internal::__copy_constructible_v<void>);
-static_assert(!dpl_internal::__movable<void>);
+static_assert(!dpl_internal::__movable_v<void>);
 static_assert(!dpl_internal::__copyable<void>);
 static_assert(!dpl_internal::__copy_constructible_v<const void>);
 static_assert(!dpl_internal::__copyable<const void>);

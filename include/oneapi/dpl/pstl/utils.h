@@ -1159,7 +1159,7 @@ inline constexpr bool __copy_constructible_v<_Tp, std::enable_if_t<!std::is_void
 // std::swappable falls back to a move-based implementation, while std::is_swappable_v would additionally reject a
 // type with a deleted ADL swap.
 template <typename _Tp>
-inline constexpr bool __movable = std::is_object_v<_Tp> && __move_constructible_v<_Tp> && __assignable_from_v<_Tp, _Tp>;
+inline constexpr bool __movable_v = std::is_object_v<_Tp> && __move_constructible_v<_Tp> && __assignable_from_v<_Tp, _Tp>;
 
 // std::copyable. Void is rejected up front for the same reason as in __copy_constructible_v above.
 template <typename _Tp, typename = void>
@@ -1167,7 +1167,7 @@ inline constexpr bool __copyable = false;
 
 template <typename _Tp>
 inline constexpr bool __copyable<_Tp, std::enable_if_t<!std::is_void_v<_Tp>>> =
-    __copy_constructible_v<_Tp> && __movable<_Tp> && __assignable_from_v<_Tp, _Tp&> &&
+    __copy_constructible_v<_Tp> && __movable_v<_Tp> && __assignable_from_v<_Tp, _Tp&> &&
     __assignable_from_v<_Tp, const _Tp&> && __assignable_from_v<_Tp, const _Tp>;
 
 // std::semiregular. std::default_initializable also requires _Tp{} and ::new _Tp to be valid, which
