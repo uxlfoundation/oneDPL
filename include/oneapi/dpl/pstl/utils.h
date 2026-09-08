@@ -1112,7 +1112,7 @@ template <typename _From, typename _To>
 inline constexpr bool __convertible_to_v = std::convertible_to<_From, _To>;
 
 template <typename _Tp>
-inline constexpr bool __semiregular = std::semiregular<_Tp>;
+inline constexpr bool __semiregular_v = std::semiregular<_Tp>;
 
 template <typename _Fp, typename... _Args>
 inline constexpr bool __predicate_v = std::predicate<_Fp, _Args...>;
@@ -1173,7 +1173,7 @@ inline constexpr bool __copyable<_Tp, std::enable_if_t<!std::is_void_v<_Tp>>> =
 // std::semiregular. std::default_initializable also requires _Tp{} and ::new _Tp to be valid, which
 // std::is_default_constructible_v does not check.
 template <typename _Tp>
-inline constexpr bool __semiregular = __copyable<_Tp> && std::is_default_constructible_v<_Tp>;
+inline constexpr bool __semiregular_v = __copyable<_Tp> && std::is_default_constructible_v<_Tp>;
 
 // std::predicate requires the result to be boolean-testable, which is stronger than being convertible to bool, but
 // the difference only shows for types with an unusable operator!.
@@ -1192,7 +1192,7 @@ inline constexpr bool __is_value_storable_and_comparable_v = false;
 template <typename _Iterator, typename _Compare, typename _ReferenceType, typename _ValueType>
 inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ReferenceType, _ValueType,
                                                            std::enable_if_t<!std::is_void_v<_ValueType>>> =
-    __semiregular<_ValueType> && __convertible_to_v<_ReferenceType, _ValueType> &&
+    __semiregular_v<_ValueType> && __convertible_to_v<_ReferenceType, _ValueType> &&
     __predicate_v<_Compare&, const _ValueType&, const _ValueType&>;
 
 // Storage helper since _Tp may not have a default constructor.

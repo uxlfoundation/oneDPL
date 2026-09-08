@@ -8,8 +8,8 @@
 //===------------------------------------------------------===//
 
 // Compile-time checks for oneapi::dpl::__internal::__is_value_storable_and_comparable_v and for each of the
-// requirements it is built from: __convertible_to_v, __semiregular and __predicate_v, plus the C++17 building blocks
-// of __semiregular (__constructible_from, __move_constructible, __copy_constructible, __assignable_from, __movable,
+// requirements it is built from: __convertible_to_v, __semiregular_v and __predicate_v, plus the C++17 building blocks
+// of __semiregular_v (__constructible_from, __move_constructible, __copy_constructible, __assignable_from, __movable,
 // __copyable). Every requirement is checked both ways: a type that satisfies it and a type that does not.
 
 #include "support/test_config.h"
@@ -163,24 +163,24 @@ static_assert(std::is_convertible_v<ImplicitSource, ExplicitlyNotConvertible>);
 static_assert(!dpl_internal::__convertible_to_v<ImplicitSource, ExplicitlyNotConvertible>);
 
 //----------------------------------------------------------------------------//
-// __semiregular
+// __semiregular_v
 //----------------------------------------------------------------------------//
 
-static_assert(dpl_internal::__semiregular<int>);
-static_assert(dpl_internal::__semiregular<int*>);
-static_assert(dpl_internal::__semiregular<Regular>);
-static_assert(dpl_internal::__semiregular<ExplicitDefaultCtor>);
-static_assert(dpl_internal::__semiregular<std::pair<int, int>>);
+static_assert(dpl_internal::__semiregular_v<int>);
+static_assert(dpl_internal::__semiregular_v<int*>);
+static_assert(dpl_internal::__semiregular_v<Regular>);
+static_assert(dpl_internal::__semiregular_v<ExplicitDefaultCtor>);
+static_assert(dpl_internal::__semiregular_v<std::pair<int, int>>);
 
-static_assert(!dpl_internal::__semiregular<NoDefaultCtor>);
-static_assert(!dpl_internal::__semiregular<NoCopyAssign>);
-static_assert(!dpl_internal::__semiregular<VoidAssign>);
-static_assert(!dpl_internal::__semiregular<ThrowingDtor>);
-static_assert(!dpl_internal::__semiregular<MoveOnly>);
-static_assert(!dpl_internal::__semiregular<int&>);
+static_assert(!dpl_internal::__semiregular_v<NoDefaultCtor>);
+static_assert(!dpl_internal::__semiregular_v<NoCopyAssign>);
+static_assert(!dpl_internal::__semiregular_v<VoidAssign>);
+static_assert(!dpl_internal::__semiregular_v<ThrowingDtor>);
+static_assert(!dpl_internal::__semiregular_v<MoveOnly>);
+static_assert(!dpl_internal::__semiregular_v<int&>);
 // Output iterators report void as their value type, so void must be rejected rather than rejecting the program.
-static_assert(!dpl_internal::__semiregular<void>);
-static_assert(!dpl_internal::__semiregular<const void>);
+static_assert(!dpl_internal::__semiregular_v<void>);
+static_assert(!dpl_internal::__semiregular_v<const void>);
 
 //----------------------------------------------------------------------------//
 // __predicate_v
@@ -264,7 +264,7 @@ static_assert(!dpl_internal::__predicate_v<int&, const int&, const int&>);
 static_assert(!dpl_internal::__predicate_v<std::less<int>&, const Regular&, const Regular&>);
 
 //----------------------------------------------------------------------------//
-// C++17 building blocks of __semiregular. In C++20 the standard concepts are used directly, so these helpers only
+// C++17 building blocks of __semiregular_v. In C++20 the standard concepts are used directly, so these helpers only
 // exist in the C++17 branch.
 //----------------------------------------------------------------------------//
 
