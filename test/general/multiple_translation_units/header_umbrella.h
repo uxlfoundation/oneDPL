@@ -18,10 +18,6 @@
 #include <oneapi/dpl/algorithm>
 #include <oneapi/dpl/array>
 
-#if TEST_DPCPP_BACKEND_PRESENT
-#   include <oneapi/dpl/async>
-#endif
-
 #include <oneapi/dpl/cmath>
 #include <oneapi/dpl/complex>
 #include <oneapi/dpl/cstddef>

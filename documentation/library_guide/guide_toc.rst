@@ -19,7 +19,6 @@
    :includehidden:
    :caption: Technology Preview
 
-   /library_guide/parallel_api/async_api
    /library_guide/dynamic_selection_api_main
    /library_guide/kernel_templates_main
 

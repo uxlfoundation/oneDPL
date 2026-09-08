@@ -249,6 +249,9 @@ __check_size(...)
 template <typename _R>
 using __difference_t = std::make_signed_t<decltype(__check_size<_R>(0))>;
 
+template <typename... _Range>
+using __difference_tuple_t = oneapi::dpl::__internal::tuple<__difference_t<_Range>...>;
+
 } //namespace __internal
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
