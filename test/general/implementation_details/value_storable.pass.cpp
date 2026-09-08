@@ -18,6 +18,7 @@
 #include <oneapi/dpl/pstl/unseq_backend_simd.h>
 
 #include <cstddef>
+#include <initializer_list>
 #include <iterator>
 #include <type_traits>
 #include <utility>
@@ -55,6 +56,15 @@ struct ExplicitDefaultCtorMember
 struct AggregateOfExplicitDefaultCtor
 {
     ExplicitDefaultCtorMember member;
+};
+
+// Brace-initializable, but not default-constructible: with no default constructor declared, empty braces select the
+// initializer-list constructor with an empty list, while _ValueType() is ill-formed. The reduction object initializes
+// its members with _ValueType{}, so this is enough for it.
+struct BraceInitOnly
+{
+    int val;
+    BraceInitOnly(std::initializer_list<int> init) : val(init.size() == 0 ? 0 : *init.begin()) {}
 };
 
 struct NoDefaultCtor
@@ -151,8 +161,14 @@ static_assert(dpl_unseq::__is_brace_constructible_v<Regular>);
 static_assert(dpl_unseq::__is_brace_constructible_v<ExplicitDefaultCtor>);
 static_assert(dpl_unseq::__is_brace_constructible_v<MoveOnly>);
 
+// The requirement is brace initialization, and the two directions in which it differs from default construction are
+// both checked: a type which is default-constructible but not brace-initializable, and one which is the other way
+// round.
 static_assert(std::is_default_constructible_v<AggregateOfExplicitDefaultCtor>);
 static_assert(!dpl_unseq::__is_brace_constructible_v<AggregateOfExplicitDefaultCtor>);
+static_assert(!std::is_default_constructible_v<BraceInitOnly>);
+static_assert(dpl_unseq::__is_brace_constructible_v<BraceInitOnly>);
+
 static_assert(!dpl_unseq::__is_brace_constructible_v<NoDefaultCtor>);
 
 //----------------------------------------------------------------------------//
@@ -190,6 +206,7 @@ static_assert(dpl_unseq::__is_value_storable_v<std::vector<int>::iterator>);
 static_assert(dpl_unseq::__is_value_storable_v<std::vector<int>::const_iterator>);
 static_assert(dpl_unseq::__is_value_storable_v<Regular*>);
 static_assert(dpl_unseq::__is_value_storable_v<ExplicitDefaultCtor*>);
+static_assert(dpl_unseq::__is_value_storable_v<BraceInitOnly*>);
 // Accepted: the requirements are brace initialization, copy construction and copy assignment, and nothing else.
 static_assert(dpl_unseq::__is_value_storable_v<CopyOnlyNoMove*>);
 static_assert(dpl_unseq::__is_value_storable_v<VoidAssign*>);

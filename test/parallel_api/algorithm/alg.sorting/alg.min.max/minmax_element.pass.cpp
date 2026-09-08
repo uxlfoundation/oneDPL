@@ -22,6 +22,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <initializer_list>
 #include <set>
 #include <type_traits>
 #include <vector>
@@ -305,6 +306,21 @@ struct ExplicitDefaultCtorCompare
     }
 };
 
+// The value type is not default-constructible, but it is brace-initializable: with no default constructor declared,
+// empty braces select the initializer-list constructor with an empty list. The vector code path is still applicable for
+// it, because the reduction object initializes its members with _ValueType{} and never writes _ValueType().
+struct BraceInitOnlyCompare
+{
+    std::int32_t val;
+    BraceInitOnlyCompare(std::initializer_list<std::int32_t> init) : val(init.size() == 0 ? 0 : *init.begin()) {}
+    BraceInitOnlyCompare(std::int32_t val_) : val(val_) {}
+    bool
+    operator<(const BraceInitOnlyCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
 // The move operations of the value type are deleted: the vector code path is still applicable for it, because the
 // vector code never moves a value.
 struct CopyOnlyNoMoveCompare
@@ -556,6 +572,11 @@ main()
     // This value type is accepted by the vector code path, exactly like OnlyLessCompare above: it differs from it only
     // by an explicit default constructor, which the path has to accept at compile time, so one size is enough.
     test_by_type<ExplicitDefaultCtorCompare>(NSmall);
+
+    // This value type is accepted by the vector code path although it is not default-constructible, which is the other
+    // direction in which brace initialization, the requirement of the vector code path, differs from default
+    // construction. That does not depend on the sequence size either.
+    test_by_type_host_policies<BraceInitOnlyCompare>(NSmall);
 
     // These value types are accepted by the vector code path as well, and the point of checking them is that the vector
     // code is instantiated for them: each of them violates one of the requirements of std::semiregular that the vector
