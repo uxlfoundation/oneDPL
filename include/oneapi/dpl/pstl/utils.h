@@ -1109,7 +1109,7 @@ static constexpr bool __is_type_with_iterator_traits_v = __is_type_with_iterator
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
 
 template <typename _From, typename _To>
-inline constexpr bool __convertible_to = std::convertible_to<_From, _To>;
+inline constexpr bool __convertible_to_v = std::convertible_to<_From, _To>;
 
 template <typename _Tp>
 inline constexpr bool __semiregular = std::semiregular<_Tp>;
@@ -1121,10 +1121,10 @@ inline constexpr bool __predicate_v = std::predicate<_Fp, _Args...>;
 
 // std::convertible_to also requires an explicit conversion, which std::is_convertible_v does not check.
 template <typename _From, typename _To, typename = void>
-inline constexpr bool __convertible_to = false;
+inline constexpr bool __convertible_to_v = false;
 
 template <typename _From, typename _To>
-inline constexpr bool __convertible_to<_From, _To, std::void_t<decltype(static_cast<_To>(std::declval<_From>()))>> =
+inline constexpr bool __convertible_to_v<_From, _To, std::void_t<decltype(static_cast<_To>(std::declval<_From>()))>> =
     std::is_convertible_v<_From, _To>;
 
 // std::assignable_from also requires the assignment to return _Tp&, which std::is_assignable_v does not check.
@@ -1142,7 +1142,7 @@ inline constexpr bool __constructible_from =
 
 // std::move_constructible
 template <typename _Tp>
-inline constexpr bool __move_constructible = __constructible_from<_Tp, _Tp> && __convertible_to<_Tp, _Tp>;
+inline constexpr bool __move_constructible = __constructible_from<_Tp, _Tp> && __convertible_to_v<_Tp, _Tp>;
 
 // std::copy_constructible. Void is rejected up front because the requirement below forms _Tp&, which would be
 // ill-formed rather than merely unsatisfied, and std::copy_constructible is not satisfied for void anyway.
@@ -1151,9 +1151,9 @@ inline constexpr bool __copy_constructible = false;
 
 template <typename _Tp>
 inline constexpr bool __copy_constructible<_Tp, std::enable_if_t<!std::is_void_v<_Tp>>> =
-    __move_constructible<_Tp> && __constructible_from<_Tp, _Tp&> && __convertible_to<_Tp&, _Tp> &&
-    __constructible_from<_Tp, const _Tp&> && __convertible_to<const _Tp&, _Tp> &&
-    __constructible_from<_Tp, const _Tp> && __convertible_to<const _Tp, _Tp>;
+    __move_constructible<_Tp> && __constructible_from<_Tp, _Tp&> && __convertible_to_v<_Tp&, _Tp> &&
+    __constructible_from<_Tp, const _Tp&> && __convertible_to_v<const _Tp&, _Tp> &&
+    __constructible_from<_Tp, const _Tp> && __convertible_to_v<const _Tp, _Tp>;
 
 // std::movable, less std::swappable: the latter is implied by move construction and move assignment, since
 // std::swappable falls back to a move-based implementation, while std::is_swappable_v would additionally reject a
@@ -1192,7 +1192,7 @@ inline constexpr bool __is_value_storable_and_comparable_v = false;
 template <typename _Iterator, typename _Compare, typename _ReferenceType, typename _ValueType>
 inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ReferenceType, _ValueType,
                                                            std::enable_if_t<!std::is_void_v<_ValueType>>> =
-    __semiregular<_ValueType> && __convertible_to<_ReferenceType, _ValueType> &&
+    __semiregular<_ValueType> && __convertible_to_v<_ReferenceType, _ValueType> &&
     __predicate_v<_Compare&, const _ValueType&, const _ValueType&>;
 
 // Storage helper since _Tp may not have a default constructor.

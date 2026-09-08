@@ -8,7 +8,7 @@
 //===------------------------------------------------------===//
 
 // Compile-time checks for oneapi::dpl::__internal::__is_value_storable_and_comparable_v and for each of the
-// requirements it is built from: __convertible_to, __semiregular and __predicate_v, plus the C++17 building blocks
+// requirements it is built from: __convertible_to_v, __semiregular and __predicate_v, plus the C++17 building blocks
 // of __semiregular (__constructible_from, __move_constructible, __copy_constructible, __assignable_from, __movable,
 // __copyable). Every requirement is checked both ways: a type that satisfies it and a type that does not.
 
@@ -125,7 +125,7 @@ struct MoveOnly
 };
 
 //----------------------------------------------------------------------------//
-// __convertible_to
+// __convertible_to_v
 //----------------------------------------------------------------------------//
 
 struct ExplicitFromInt
@@ -149,18 +149,18 @@ struct ExplicitlyNotConvertible
     explicit ExplicitlyNotConvertible(ImplicitSource) = delete;
 };
 
-static_assert(dpl_internal::__convertible_to<int, int>);
-static_assert(dpl_internal::__convertible_to<const int&, int>);
-static_assert(dpl_internal::__convertible_to<int&, long>);
-static_assert(dpl_internal::__convertible_to<const Regular&, Regular>);
-static_assert(dpl_internal::__convertible_to<std::pair<int&, int&>, std::pair<int, int>>);
+static_assert(dpl_internal::__convertible_to_v<int, int>);
+static_assert(dpl_internal::__convertible_to_v<const int&, int>);
+static_assert(dpl_internal::__convertible_to_v<int&, long>);
+static_assert(dpl_internal::__convertible_to_v<const Regular&, Regular>);
+static_assert(dpl_internal::__convertible_to_v<std::pair<int&, int&>, std::pair<int, int>>);
 
-static_assert(!dpl_internal::__convertible_to<int*, int>);
-static_assert(!dpl_internal::__convertible_to<Regular, int>);
-static_assert(!dpl_internal::__convertible_to<int, ExplicitFromInt>);
-static_assert(!dpl_internal::__convertible_to<const MoveOnly&, MoveOnly>);
+static_assert(!dpl_internal::__convertible_to_v<int*, int>);
+static_assert(!dpl_internal::__convertible_to_v<Regular, int>);
+static_assert(!dpl_internal::__convertible_to_v<int, ExplicitFromInt>);
+static_assert(!dpl_internal::__convertible_to_v<const MoveOnly&, MoveOnly>);
 static_assert(std::is_convertible_v<ImplicitSource, ExplicitlyNotConvertible>);
-static_assert(!dpl_internal::__convertible_to<ImplicitSource, ExplicitlyNotConvertible>);
+static_assert(!dpl_internal::__convertible_to_v<ImplicitSource, ExplicitlyNotConvertible>);
 
 //----------------------------------------------------------------------------//
 // __semiregular
