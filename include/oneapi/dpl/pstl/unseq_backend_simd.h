@@ -630,8 +630,6 @@ inline constexpr bool __is_value_storable_v =
     __is_brace_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
     std::is_copy_assignable_v<_ValueType>;
 
-// The implementation keeps copies of the values in the reduction object, so the value type has to be usable in a
-// user-defined reduction: __is_value_storable_v is the requirement checked by the callers.
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 _ForwardIterator
