@@ -615,10 +615,6 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
-// The reduction object initializes its value members with _ValueType{}, which is not what
-// std::is_default_constructible_v checks: that trait stands for _ValueType v;, and the two differ both ways. An
-// aggregate whose member has an explicit default constructor is default-constructible but not brace-initializable,
-// while an aggregate with a const member without a default member initializer is the other way round.
 template <typename _Tp, typename = void>
 inline constexpr bool __is_brace_constructible_v = false;
 
