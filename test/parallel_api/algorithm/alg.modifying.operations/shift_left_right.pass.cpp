@@ -243,7 +243,7 @@ main()
     const std::size_t large_n = 1000000;
     const std::size_t quarter_shift = 250111;
     const std::size_t three_quarters_shift = 750203;
-    const std::size_t small_shift = 1024;
+    const std::size_t small_shift = 1023;
 
     test_shift_by_type<std::uint8_t>(large_n, quarter_shift);
     test_shift_by_type<std::uint8_t>(three_quarters_shift, large_n);
