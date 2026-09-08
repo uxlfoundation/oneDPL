@@ -1129,10 +1129,10 @@ inline constexpr bool __convertible_to_v<_From, _To, std::void_t<decltype(static
 
 // std::assignable_from also requires the assignment to return _Tp&, which std::is_assignable_v does not check.
 template <typename _Tp, typename _Up, typename = void>
-inline constexpr bool __assignable_from = false;
+inline constexpr bool __assignable_from_v = false;
 
 template <typename _Tp, typename _Up>
-inline constexpr bool __assignable_from<_Tp, _Up, std::void_t<decltype(std::declval<_Tp&>() = std::declval<_Up>())>> =
+inline constexpr bool __assignable_from_v<_Tp, _Up, std::void_t<decltype(std::declval<_Tp&>() = std::declval<_Up>())>> =
     std::is_same_v<decltype(std::declval<_Tp&>() = std::declval<_Up>()), _Tp&>;
 
 // std::constructible_from, which includes std::destructible
@@ -1159,7 +1159,7 @@ inline constexpr bool __copy_constructible<_Tp, std::enable_if_t<!std::is_void_v
 // std::swappable falls back to a move-based implementation, while std::is_swappable_v would additionally reject a
 // type with a deleted ADL swap.
 template <typename _Tp>
-inline constexpr bool __movable = std::is_object_v<_Tp> && __move_constructible<_Tp> && __assignable_from<_Tp, _Tp>;
+inline constexpr bool __movable = std::is_object_v<_Tp> && __move_constructible<_Tp> && __assignable_from_v<_Tp, _Tp>;
 
 // std::copyable. Void is rejected up front for the same reason as in __copy_constructible above.
 template <typename _Tp, typename = void>
@@ -1167,8 +1167,8 @@ inline constexpr bool __copyable = false;
 
 template <typename _Tp>
 inline constexpr bool __copyable<_Tp, std::enable_if_t<!std::is_void_v<_Tp>>> =
-    __copy_constructible<_Tp> && __movable<_Tp> && __assignable_from<_Tp, _Tp&> && __assignable_from<_Tp, const _Tp&> &&
-    __assignable_from<_Tp, const _Tp>;
+    __copy_constructible<_Tp> && __movable<_Tp> && __assignable_from_v<_Tp, _Tp&> &&
+    __assignable_from_v<_Tp, const _Tp&> && __assignable_from_v<_Tp, const _Tp>;
 
 // std::semiregular. std::default_initializable also requires _Tp{} and ::new _Tp to be valid, which
 // std::is_default_constructible_v does not check.

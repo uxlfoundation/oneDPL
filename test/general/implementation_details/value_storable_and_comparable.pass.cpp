@@ -9,7 +9,7 @@
 
 // Compile-time checks for oneapi::dpl::__internal::__is_value_storable_and_comparable_v and for each of the
 // requirements it is built from: __convertible_to_v, __semiregular_v and __predicate_v, plus the C++17 building blocks
-// of __semiregular_v (__constructible_from, __move_constructible, __copy_constructible, __assignable_from, __movable,
+// of __semiregular_v (__constructible_from, __move_constructible, __copy_constructible, __assignable_from_v, __movable,
 // __copyable). Every requirement is checked both ways: a type that satisfies it and a type that does not.
 
 #include "support/test_config.h"
@@ -277,13 +277,13 @@ static_assert(!dpl_internal::__constructible_from<NoDefaultCtor>);
 static_assert(!dpl_internal::__constructible_from<ThrowingDtor>);
 static_assert(!dpl_internal::__constructible_from<Regular, int>);
 
-static_assert(dpl_internal::__assignable_from<int, int>);
-static_assert(dpl_internal::__assignable_from<Regular, const Regular&>);
-static_assert(dpl_internal::__assignable_from<MoveOnly, MoveOnly>);
-static_assert(!dpl_internal::__assignable_from<VoidAssign, const VoidAssign&>);
+static_assert(dpl_internal::__assignable_from_v<int, int>);
+static_assert(dpl_internal::__assignable_from_v<Regular, const Regular&>);
+static_assert(dpl_internal::__assignable_from_v<MoveOnly, MoveOnly>);
+static_assert(!dpl_internal::__assignable_from_v<VoidAssign, const VoidAssign&>);
 static_assert(std::is_assignable_v<VoidAssign&, const VoidAssign&>);
-static_assert(!dpl_internal::__assignable_from<NoCopyAssign, const NoCopyAssign&>);
-static_assert(!dpl_internal::__assignable_from<MoveOnly, const MoveOnly&>);
+static_assert(!dpl_internal::__assignable_from_v<NoCopyAssign, const NoCopyAssign&>);
+static_assert(!dpl_internal::__assignable_from_v<MoveOnly, const MoveOnly&>);
 
 static_assert(dpl_internal::__move_constructible<Regular>);
 static_assert(dpl_internal::__move_constructible<MoveOnly>);
@@ -309,7 +309,7 @@ static_assert(!dpl_internal::__copyable<VoidAssign>);
 // Each building block has to yield false for void instead of failing to compile, since forming void& is ill-formed
 // rather than merely unsatisfied.
 static_assert(!dpl_internal::__constructible_from<void>);
-static_assert(!dpl_internal::__assignable_from<void, void>);
+static_assert(!dpl_internal::__assignable_from_v<void, void>);
 static_assert(!dpl_internal::__move_constructible<void>);
 static_assert(!dpl_internal::__copy_constructible<void>);
 static_assert(!dpl_internal::__movable<void>);
