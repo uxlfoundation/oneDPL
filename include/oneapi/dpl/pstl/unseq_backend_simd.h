@@ -627,34 +627,29 @@ inline constexpr bool __is_brace_constructible_v<_Tp, decltype(void(_Tp{}))> = t
 
 // An output iterator reports void as its value type: such a value cannot be stored, and forming const _ValueType&
 // for it would be ill-formed rather than merely unsatisfied, so void is rejected up front.
-template <typename _Iterator, typename _Compare,
-          typename _ValueType = typename std::iterator_traits<_Iterator>::value_type, typename = void>
-inline constexpr bool __is_value_storable_and_comparable_v = false;
+template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type,
+          typename = void>
+inline constexpr bool __is_value_storable_v = false;
 
-// The requirement covers only what the vectorized bricks add on top of the input the algorithms already require: the
-// value type has to be storable in the reduction object and the comparator has to be applicable to the stored copies.
-// What the algorithms require themselves is not re-checked here and fails to compile if it is not met: that *__first is
-// convertible to the value type, and that the result of the comparison can be negated.
+// The requirement covers only what the vectorized bricks add on top of what the algorithms already require: the value
+// type has to be storable in the reduction object. Anything else, the comparison object included, is not looked at and
+// fails to compile if it is not met, exactly as it does without this requirement.
 // Every requirement is the expression the implementation uses rather than the concept it resembles: std::semiregular
 // would also require moving, an assignment returning _ValueType& and a non-throwing destructor.
-template <typename _Iterator, typename _Compare, typename _ValueType>
-inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ValueType,
-                                                           std::enable_if_t<!std::is_void_v<_ValueType>>> =
+template <typename _Iterator, typename _ValueType>
+inline constexpr bool __is_value_storable_v<_Iterator, _ValueType, std::enable_if_t<!std::is_void_v<_ValueType>>> =
     __is_brace_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
-    std::is_copy_assignable_v<_ValueType> &&
-    std::is_invocable_r_v<bool, _Compare&, const _ValueType&, const _ValueType&>;
+    std::is_copy_assignable_v<_ValueType>;
 
-// The implementation keeps copies of the values in the reduction object and compares those copies, so the value
-// type has to be usable in a user-defined reduction and the comparator has to be applicable to the copies:
-// __is_value_storable_and_comparable_v is the requirement checked by the callers.
+// The implementation keeps copies of the values in the reduction object, so the value type has to be usable in a
+// user-defined reduction: __is_value_storable_v is the requirement checked by the callers.
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 _ForwardIterator
 __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
-    static_assert(__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
-                  "The value type of the iterator must be storable in the reduction object and __comp must be "
-                  "a predicate over objects of that type");
+    static_assert(__is_value_storable_v<_ForwardIterator>,
+                  "The value type of the iterator must be storable in the reduction object");
 
     if (__n == 0)
     {
@@ -710,17 +705,15 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     return __first + __init.__min_ind;
 }
 
-// The implementation keeps copies of the values in the reduction object and compares those copies, so the value
-// type has to be usable in a user-defined reduction and the comparator has to be applicable to the copies:
-// __is_value_storable_and_comparable_v is the requirement checked by the callers.
+// The implementation keeps copies of the values in the reduction object, so the value type has to be usable in a
+// user-defined reduction: __is_value_storable_v is the requirement checked by the callers.
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 std::pair<_ForwardIterator, _ForwardIterator>
 __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
-    static_assert(__is_value_storable_and_comparable_v<_ForwardIterator, _Compare>,
-                  "The value type of the iterator must be storable in the reduction object and __comp must be "
-                  "a predicate over objects of that type");
+    static_assert(__is_value_storable_v<_ForwardIterator>,
+                  "The value type of the iterator must be storable in the reduction object");
 
     if (__n == 0)
     {
