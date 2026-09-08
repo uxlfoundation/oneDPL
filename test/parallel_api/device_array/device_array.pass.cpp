@@ -18,16 +18,111 @@
 
 #include "support/utils.h"
 
-// device_array is only available where oneapi::dpl::span is, which under C++17 requires the SYCL
-// implementation to provide sycl::span.
-#if TEST_DPCPP_BACKEND_PRESENT && TEST_SPAN_PRESENT
+#if ONEDPL_HAS_DEVICE_CONTAINERS >= 202608L
+#    define TEST_DEVICE_CONTAINERS_PRESENT 1
+#else
+#    define TEST_DEVICE_CONTAINERS_PRESENT 0
+#endif
+
+// device_array, unlike device_allocator, is only available where oneapi::dpl::span is, which under
+// C++17 requires the SYCL implementation to provide sycl::span.
+#if TEST_DEVICE_CONTAINERS_PRESENT && TEST_SPAN_PRESENT
 #    define TEST_DEVICE_ARRAY_PRESENT 1
 #else
 #    define TEST_DEVICE_ARRAY_PRESENT 0
 #endif
 
+// -- device_allocator, which does not depend on device_array --
+
+#if TEST_DEVICE_CONTAINERS_PRESENT
+#    include "support/utils_sycl.h"
+
+#    include <cstddef>
+#    include <cstdint>
+#    include <type_traits>
+
+namespace
+{
+
+template <typename _Fp>
+bool
+throws_memory_allocation(_Fp __f)
+{
+    try
+    {
+        __f();
+    }
+    catch (const sycl::exception& __e)
+    {
+        return __e.code() == sycl::make_error_code(sycl::errc::memory_allocation);
+    }
+    return false;
+}
+
+void
+test_device_allocator(sycl::queue __q)
+{
+    using alloc_t = oneapi::dpl::experimental::device_allocator<int>;
+
+    static_assert(std::is_same_v<alloc_t::value_type, int>, "device_allocator::value_type");
+    static_assert(!std::is_default_constructible_v<alloc_t>, "device_allocator must not be default constructible");
+    static_assert(std::is_copy_constructible_v<alloc_t>, "device_allocator must be copy constructible");
+    static_assert(std::is_copy_assignable_v<alloc_t>, "device_allocator must be copy assignable");
+    static_assert(std::is_move_constructible_v<alloc_t>, "device_allocator must be move constructible");
+    static_assert(std::is_move_assignable_v<alloc_t>, "device_allocator must be move assignable");
+
+    // Both constructor forms, as on usm_allocator.
+    alloc_t __a(__q);
+    alloc_t __b(__q.get_context(), __q.get_device());
+
+    // The converting constructor carries the allocation target over.
+    oneapi::dpl::experimental::device_allocator<double> __converted(__a);
+
+    // Equality spans the value type and ignores the property list, but distinguishes the alignment, as
+    // SYCL 2020 section 4.8.3.1 requires of usm_allocator.
+    oneapi::dpl::experimental::device_allocator<int, 256> __aligned_a(__q);
+    oneapi::dpl::experimental::device_allocator<double, 256> __aligned_b(__q);
+    EXPECT_TRUE(__a == __b, "allocators on the same context and device must compare equal");
+    EXPECT_TRUE(!(__a != __b), "operator!= must be the negation of operator==");
+    EXPECT_TRUE(__a == __converted, "equality must span the value type");
+    EXPECT_TRUE(__a != __aligned_a, "allocators with different alignments must compare unequal");
+    EXPECT_TRUE(__aligned_a == __aligned_b, "equality must span the value type for a nonzero alignment");
+
+    // A distinct context over the same device makes the allocators non interchangeable.
+    sycl::context __other_ctx(__q.get_device());
+    alloc_t __other(__other_ctx, __q.get_device());
+    EXPECT_TRUE(__a != __other, "allocators on different contexts must compare unequal");
+    EXPECT_TRUE(!(__a == __other), "operator== must be the negation of operator!=");
+
+    // allocate/deallocate round trip, and the count == 0 short circuit.
+    int* __p = __a.allocate(128);
+    EXPECT_TRUE(__p != nullptr, "device_allocator::allocate returned null for a nonzero count");
+    __a.deallocate(__p, 128);
+    EXPECT_TRUE(__a.allocate(0) == nullptr, "device_allocator::allocate(0) must return nullptr");
+    __a.deallocate(nullptr, 0); // must be a no-op
+
+    // The aligned form dispatches to sycl::aligned_alloc_device.
+    oneapi::dpl::experimental::device_allocator<int, 256> __aligned(__q);
+    int* __ap = __aligned.allocate(64);
+    EXPECT_TRUE(__ap != nullptr, "the aligned device_allocator returned null");
+    EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(__ap) % 256 == 0, "the aligned device_allocator ignored _Alignment");
+    __aligned.deallocate(__ap, 64);
+
+    EXPECT_TRUE(throws_memory_allocation([&] { __a.allocate(std::size_t(1) << 50); }),
+                "device_allocator::allocate must throw errc::memory_allocation when allocation fails");
+
+    // An unsupported (non power of two) alignment.
+    oneapi::dpl::experimental::device_allocator<int, 3> __bad_alignment(__q);
+    EXPECT_TRUE(throws_memory_allocation([&] { __bad_alignment.allocate(16); }),
+                "the aligned device_allocator must throw when _Alignment is unsupported");
+}
+
+} // namespace
+#endif // TEST_DEVICE_CONTAINERS_PRESENT
+
+// -- device_array --
+
 #if TEST_DEVICE_ARRAY_PRESENT
-#include "support/utils_sycl.h"
 #include "support/utils_device_copyable.h"
 
 #include <cstddef>
@@ -78,21 +173,6 @@ throws_out_of_range(_Fp __f)
     catch (const std::out_of_range&)
     {
         return true;
-    }
-    return false;
-}
-
-template <typename _Fp>
-bool
-throws_memory_allocation(_Fp __f)
-{
-    try
-    {
-        __f();
-    }
-    catch (const sycl::exception& __e)
-    {
-        return __e.code() == sycl::make_error_code(sycl::errc::memory_allocation);
     }
     return false;
 }
@@ -194,63 +274,10 @@ test_no_span_conversion()
                   "device_array must not implicitly convert to a span, not even for an element type from std");
 }
 
+// device_array construction propagates an allocation failure out of the allocator.
 void
-test_device_allocator(sycl::queue __q)
+test_allocation_failure(sycl::queue __q)
 {
-    using alloc_t = oneapi::dpl::experimental::device_allocator<int>;
-
-    static_assert(std::is_same_v<alloc_t::value_type, int>, "device_allocator::value_type");
-    static_assert(!std::is_default_constructible_v<alloc_t>, "device_allocator must not be default constructible");
-    static_assert(std::is_copy_constructible_v<alloc_t>, "device_allocator must be copy constructible");
-    static_assert(std::is_copy_assignable_v<alloc_t>, "device_allocator must be copy assignable");
-    static_assert(std::is_move_constructible_v<alloc_t>, "device_allocator must be move constructible");
-    static_assert(std::is_move_assignable_v<alloc_t>, "device_allocator must be move assignable");
-
-    // Both constructor forms, as on usm_allocator.
-    alloc_t __a(__q);
-    alloc_t __b(__q.get_context(), __q.get_device());
-
-    // The converting constructor carries the allocation target over.
-    oneapi::dpl::experimental::device_allocator<double> __converted(__a);
-
-    // Equality spans the value type and ignores the property list, but distinguishes the alignment, as
-    // SYCL 2020 section 4.8.3.1 requires of usm_allocator.
-    oneapi::dpl::experimental::device_allocator<int, 256> __aligned_a(__q);
-    oneapi::dpl::experimental::device_allocator<double, 256> __aligned_b(__q);
-    EXPECT_TRUE(__a == __b, "allocators on the same context and device must compare equal");
-    EXPECT_TRUE(!(__a != __b), "operator!= must be the negation of operator==");
-    EXPECT_TRUE(__a == __converted, "equality must span the value type");
-    EXPECT_TRUE(__a != __aligned_a, "allocators with different alignments must compare unequal");
-    EXPECT_TRUE(__aligned_a == __aligned_b, "equality must span the value type for a nonzero alignment");
-
-    // A distinct context over the same device makes the allocators non interchangeable.
-    sycl::context __other_ctx(__q.get_device());
-    alloc_t __other(__other_ctx, __q.get_device());
-    EXPECT_TRUE(__a != __other, "allocators on different contexts must compare unequal");
-    EXPECT_TRUE(!(__a == __other), "operator== must be the negation of operator!=");
-
-    // allocate/deallocate round trip, and the count == 0 short circuit.
-    int* __p = __a.allocate(128);
-    EXPECT_TRUE(__p != nullptr, "device_allocator::allocate returned null for a nonzero count");
-    __a.deallocate(__p, 128);
-    EXPECT_TRUE(__a.allocate(0) == nullptr, "device_allocator::allocate(0) must return nullptr");
-    __a.deallocate(nullptr, 0); // must be a no-op
-
-    // The aligned form dispatches to sycl::aligned_alloc_device.
-    oneapi::dpl::experimental::device_allocator<int, 256> __aligned(__q);
-    int* __ap = __aligned.allocate(64);
-    EXPECT_TRUE(__ap != nullptr, "the aligned device_allocator returned null");
-    EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(__ap) % 256 == 0, "the aligned device_allocator ignored _Alignment");
-    __aligned.deallocate(__ap, 64);
-
-    EXPECT_TRUE(throws_memory_allocation([&] { __a.allocate(std::size_t(1) << 50); }),
-                "device_allocator::allocate must throw errc::memory_allocation when allocation fails");
-
-    // An unsupported (non power of two) alignment.
-    oneapi::dpl::experimental::device_allocator<int, 3> __bad_alignment(__q);
-    EXPECT_TRUE(throws_memory_allocation([&] { __bad_alignment.allocate(16); }),
-                "the aligned device_allocator must throw when _Alignment is unsupported");
-
     EXPECT_TRUE(throws_memory_allocation([&] { device_array<int> __d(std::size_t(1) << 50, __q); }),
                 "device_array construction must throw when its allocation fails");
 }
@@ -841,11 +868,15 @@ test_all_common(sycl::queue __q)
 int
 main()
 {
-#if TEST_DEVICE_ARRAY_PRESENT
+#if TEST_DEVICE_CONTAINERS_PRESENT
     sycl::queue q = TestUtils::get_test_queue();
 
-    test_no_span_conversion();
     test_device_allocator(q);
+#endif // TEST_DEVICE_CONTAINERS_PRESENT
+
+#if TEST_DEVICE_ARRAY_PRESENT
+    test_no_span_conversion();
+    test_allocation_failure(q);
 
     test_all_common<int>(q);
     test_all_common<float>(q);
@@ -858,5 +889,5 @@ main()
     test_depends_on(q);
 #endif // TEST_DEVICE_ARRAY_PRESENT
 
-    return TestUtils::done(TEST_DEVICE_ARRAY_PRESENT);
+    return TestUtils::done(TEST_DEVICE_CONTAINERS_PRESENT);
 }

@@ -22,9 +22,7 @@
 
 #include "support/utils.h"
 
-// device_array is only available where oneapi::dpl::span is, which under C++17 requires the SYCL
-// implementation to provide sycl::span.
-#if TEST_DPCPP_BACKEND_PRESENT && TEST_SPAN_PRESENT
+#if ONEDPL_HAS_DEVICE_CONTAINERS >= 202608L && TEST_SPAN_PRESENT
 #    define TEST_DEVICE_ARRAY_PRESENT 1
 #else
 #    define TEST_DEVICE_ARRAY_PRESENT 0
