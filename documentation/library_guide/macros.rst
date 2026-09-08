@@ -38,6 +38,15 @@ Use these macros to test presence of specific |onedpl_short| functionality.
 ================================== ===============================================
 Macro                              Macro values and the functionality
 ================================== ===============================================
+``ONEDPL_HAS_DEVICE_CONTAINERS``   Device containers and the allocator they use.
+
+                                   The macro is only defined when device execution policies are enabled,
+                                   see ``ONEDPL_USE_DPCPP_BACKEND``.
+
+                                   * ``202608L`` - added ``oneapi::dpl::experimental::device_array``
+                                     (requires ``std::span`` or ``sycl::span`` to be available)
+                                     and a baseline ``oneapi::dpl::experimental::device_allocator``.
+---------------------------------- -----------------------------------------------
 ``ONEDPL_HAS_RANDOM_NUMBERS``      Pseudo-random number generators and distributions.
 
                                    * ``202409L`` - added support of comparison and I/O stream operators and an experimental Philox engine.
