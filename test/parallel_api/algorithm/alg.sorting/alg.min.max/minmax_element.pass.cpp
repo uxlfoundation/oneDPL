@@ -117,6 +117,64 @@ struct check_minmaxelement_predicate
     }
 };
 
+// The comparison object overloads unary operator&, which a user-defined functor is allowed to do, so the vector code
+// path has to take its address with std::addressof. Both overloads are deleted, therefore taking the address with &
+// does not compile.
+struct OverloadedAddressOfLess
+{
+    void operator&() = delete;
+    void operator&() const = delete;
+
+    template <typename T>
+    bool
+    operator()(const T& lhs, const T& rhs) const
+    {
+        return lhs < rhs;
+    }
+};
+
+template <typename Type>
+struct check_minelement_overloaded_address_of
+{
+    template <typename Policy, typename Iterator>
+    void
+    operator()(Policy&& exec, Iterator begin, Iterator end)
+    {
+        const Iterator expect = ::std::min_element(begin, end);
+        const Iterator result =
+            std::min_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        EXPECT_EQ(expect, result, "wrong return result from min_element with a comparator overloading operator&");
+    }
+};
+
+template <typename Type>
+struct check_maxelement_overloaded_address_of
+{
+    template <typename Policy, typename Iterator>
+    void
+    operator()(Policy&& exec, Iterator begin, Iterator end)
+    {
+        const Iterator expect = ::std::max_element(begin, end);
+        const Iterator result =
+            std::max_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        EXPECT_EQ(expect, result, "wrong return result from max_element with a comparator overloading operator&");
+    }
+};
+
+template <typename Type>
+struct check_minmaxelement_overloaded_address_of
+{
+    template <typename Policy, typename Iterator>
+    void
+    operator()(Policy&& exec, Iterator begin, Iterator end)
+    {
+        const ::std::pair<Iterator, Iterator> expect = ::std::minmax_element(begin, end);
+        const std::pair<Iterator, Iterator> got =
+            std::minmax_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        EXPECT_EQ(expect, got, "wrong return result from minmax_element with a comparator overloading operator&");
+    }
+};
+
 template <typename T>
 struct sequence_wrapper
 {
@@ -410,20 +468,41 @@ test_by_type_host_policies(::std::size_t n)
     check_by_type_host_policies<T>(Iterator(data.begin()), Iterator(data.end()));
 }
 
-// A value type with deleted move operations cannot be stored in a std::vector, because the growth path of the container
-// moves its elements, so the sequence is a plain array here and its elements are assigned from const lvalues.
-template <typename T, ::std::size_t N>
+// A value type with deleted move operations cannot be added to a std::vector, because the growth path of the container
+// moves its elements, so the sequence is sized up front here and its elements are assigned from const lvalues. A plain
+// array is deliberately not used: with the bounds of the storage known at compile time, GCC reports a false
+// out-of-bounds subscript in the parallel reduction, which never dereferences its identity iterator, the end of the
+// sequence.
+template <typename T>
 static void
-test_by_type_host_policies_array()
+test_by_type_host_policies_no_move(::std::size_t n)
 {
-    T data[N];
-    for (::std::size_t i = 0; i < N; ++i)
+    ::std::vector<T> data(n);
+    for (::std::size_t i = 0; i < n; ++i)
     {
         const T value(std::int32_t(TestUtils::HashBits(i, 30)));
         data[i] = value;
     }
 
-    check_by_type_host_policies<T>(data, data + N);
+    check_by_type_host_policies<T>(data.begin(), data.end());
+}
+
+// The comparison object is passed to min_element and minmax_element as is, so the vector code path takes its address
+// there, and to max_element wrapped into an internal predicate which reorders the arguments.
+static void
+test_comparator_with_overloaded_address_of(::std::size_t n)
+{
+    Sequence<std::int32_t> in(n, [](::std::size_t i) { return std::int32_t(TestUtils::HashBits(i, 30)); });
+
+#ifdef _PSTL_TEST_MIN_ELEMENT
+    invoke_on_all_host_policies()(check_minelement_overloaded_address_of<std::int32_t>(), in.begin(), in.end());
+#endif
+#ifdef _PSTL_TEST_MAX_ELEMENT
+    invoke_on_all_host_policies()(check_maxelement_overloaded_address_of<std::int32_t>(), in.begin(), in.end());
+#endif
+#ifdef _PSTL_TEST_MINMAX_ELEMENT
+    invoke_on_all_host_policies()(check_minmaxelement_overloaded_address_of<std::int32_t>(), in.begin(), in.end());
+#endif
 }
 
 template <typename T>
@@ -482,7 +561,7 @@ main()
     // These value types are accepted by the vector code path as well, and the point of checking them is that the vector
     // code is instantiated for them: each of them violates one of the requirements of std::semiregular that the vector
     // code does not have. That does not depend on the sequence size either.
-    test_by_type_host_policies_array<CopyOnlyNoMoveCompare, NSmall>();
+    test_by_type_host_policies_no_move<CopyOnlyNoMoveCompare>(NSmall);
     test_by_type_host_policies<VoidAssignCompare>(NSmall);
     test_by_type_host_policies<ThrowingDtorCompare>(NSmall);
 
@@ -496,6 +575,11 @@ main()
     test_by_type_host_policies<NoDefaultCtorCompare>(NSmall);
     test_by_type_host_policies<NoCopyAssignCompare>(NSmall);
     test_by_type_host_policies<MoveOnlyCompare>(NSmall);
+
+    // The comparison object of this check overloads unary operator&, so the point of it is that the vector code path
+    // takes the address of the comparison object with std::addressof: with & it does not compile. The sequence is long
+    // enough for the vector code to process several blocks and to combine their results.
+    test_comparator_with_overloaded_address_of(1000);
 
 #ifdef _PSTL_TEST_MIN_ELEMENT
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const_min_element<std::int32_t>>());
