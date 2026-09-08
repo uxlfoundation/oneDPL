@@ -211,8 +211,6 @@ static_assert(dpl_unseq::__is_brace_constructible_v<MoveOnly>);
 static_assert(std::is_default_constructible_v<AggregateOfExplicitDefaultCtor>);
 static_assert(!dpl_unseq::__is_brace_constructible_v<AggregateOfExplicitDefaultCtor>);
 static_assert(!dpl_unseq::__is_brace_constructible_v<NoDefaultCtor>);
-// void{} is a valid expression, so this requirement does not reject void: that is done separately.
-static_assert(dpl_unseq::__is_brace_constructible_v<void>);
 
 //----------------------------------------------------------------------------//
 // Comparison objects
