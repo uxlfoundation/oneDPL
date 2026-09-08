@@ -627,19 +627,33 @@ __min_max_block_size()
     return __size < 4 ? 4 : (__size > 32 ? 32 : __size);
 }
 
-// A lane keeps an index next to its candidate, and a vector of those indices is never narrower than 32 bits. For value
-// types narrower than that the vectors of indices dominate the block loop, which then loses to the user-defined
-// reduction, so the implementation is chosen by the width of the value type.
+// The block-wise form only pays off for a range of value type widths, so the implementation is chosen by the width.
+// The tags of the two kinds of value types it does not pay off for both select the user-defined reduction; they are
+// distinguished only to record the reason.
+constexpr std::size_t __min_max_max_lane_value_size = 16;
+
 struct __min_max_lanes_tag
 {
 };
 struct __min_max_reduction_tag
 {
 };
+// A lane keeps an index next to its candidate, and a vector of those indices is never narrower than 32 bits. For a
+// value type narrower than that the vectors of indices dominate the block loop.
+struct __min_max_narrow_value_tag : __min_max_reduction_tag
+{
+};
+// A value type wider than a vector element is loaded by the block loop with gathers and copied with scatters, which
+// beyond the width above costs more than the independent lanes save.
+struct __min_max_wide_value_tag : __min_max_reduction_tag
+{
+};
 
 template <typename _ValueType>
-using __min_max_tag_t =
-    std::conditional_t<(sizeof(_ValueType) >= sizeof(std::uint32_t)), __min_max_lanes_tag, __min_max_reduction_tag>;
+using __min_max_tag_t = std::conditional_t<
+    (sizeof(_ValueType) < sizeof(std::uint32_t)), __min_max_narrow_value_tag,
+    std::conditional_t<(sizeof(_ValueType) > __min_max_max_lane_value_size), __min_max_wide_value_tag,
+                       __min_max_lanes_tag>>;
 
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 _ForwardIterator
