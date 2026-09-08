@@ -1147,10 +1147,10 @@ inline constexpr bool __move_constructible_v = __constructible_from_v<_Tp, _Tp> 
 // std::copy_constructible. Void is rejected up front because the requirement below forms _Tp&, which would be
 // ill-formed rather than merely unsatisfied, and std::copy_constructible is not satisfied for void anyway.
 template <typename _Tp, typename = void>
-inline constexpr bool __copy_constructible = false;
+inline constexpr bool __copy_constructible_v = false;
 
 template <typename _Tp>
-inline constexpr bool __copy_constructible<_Tp, std::enable_if_t<!std::is_void_v<_Tp>>> =
+inline constexpr bool __copy_constructible_v<_Tp, std::enable_if_t<!std::is_void_v<_Tp>>> =
     __move_constructible_v<_Tp> && __constructible_from_v<_Tp, _Tp&> && __convertible_to_v<_Tp&, _Tp> &&
     __constructible_from_v<_Tp, const _Tp&> && __convertible_to_v<const _Tp&, _Tp> &&
     __constructible_from_v<_Tp, const _Tp> && __convertible_to_v<const _Tp, _Tp>;
@@ -1161,13 +1161,13 @@ inline constexpr bool __copy_constructible<_Tp, std::enable_if_t<!std::is_void_v
 template <typename _Tp>
 inline constexpr bool __movable = std::is_object_v<_Tp> && __move_constructible_v<_Tp> && __assignable_from_v<_Tp, _Tp>;
 
-// std::copyable. Void is rejected up front for the same reason as in __copy_constructible above.
+// std::copyable. Void is rejected up front for the same reason as in __copy_constructible_v above.
 template <typename _Tp, typename = void>
 inline constexpr bool __copyable = false;
 
 template <typename _Tp>
 inline constexpr bool __copyable<_Tp, std::enable_if_t<!std::is_void_v<_Tp>>> =
-    __copy_constructible<_Tp> && __movable<_Tp> && __assignable_from_v<_Tp, _Tp&> &&
+    __copy_constructible_v<_Tp> && __movable<_Tp> && __assignable_from_v<_Tp, _Tp&> &&
     __assignable_from_v<_Tp, const _Tp&> && __assignable_from_v<_Tp, const _Tp>;
 
 // std::semiregular. std::default_initializable also requires _Tp{} and ::new _Tp to be valid, which
