@@ -10,7 +10,8 @@
 // Compile-time checks for oneapi::dpl::__unseq_backend::__is_value_storable_and_comparable_v and for the requirements
 // it is built from.
 // The only one of them that is not a standard type trait, oneapi::dpl::__unseq_backend::__is_brace_constructible_v, is
-// checked on its own as well. Every requirement is checked both ways: a type that satisfies it and a type that does not.
+// checked on its own as well. Every requirement is checked both ways: a type that satisfies it and a type that does
+// not.
 
 #include "support/test_config.h"
 

@@ -127,9 +127,8 @@ struct OverloadedAddressOfLess
     void
     operator&() const = delete;
 
-    template <typename T>
     bool
-    operator()(const T& lhs, const T& rhs) const
+    operator()(const std::int32_t& lhs, const std::int32_t& rhs) const
     {
         return lhs < rhs;
     }
