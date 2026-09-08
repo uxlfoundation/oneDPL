@@ -49,7 +49,7 @@
 #endif
 
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
-#    include <concepts> // for std::equality_comparable_with, std::convertible_to, std::predicate
+#    include <concepts> // for std::equality_comparable_with, std::predicate
 #endif
 
 #include "functional_impl.h"
