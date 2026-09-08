@@ -40,23 +40,7 @@
 
 // -- Check availability of heterogeneous backends --
 
-// If DPCPP backend is explicitly requested, optimistically assume SYCL availability;
-// otherwise, make sure that it is definitely available additionally checking SYCL_LANGUAGE_VERSION
-#if __has_include(<sycl/sycl.hpp>) || __has_include(<CL/sycl.hpp>)
-#    if SYCL_LANGUAGE_VERSION || CL_SYCL_LANGUAGE_VERSION || ONEDPL_USE_DPCPP_BACKEND
-#        define _ONEDPL_SYCL_AVAILABLE 1
-#    endif
-#else
-#    if ONEDPL_USE_DPCPP_BACKEND
-#        error "Device execution policies are requested, but SYCL* headers are not found"
-#    endif
-#endif
-
-// If DPCPP backend is not explicitly turned off and SYCL is available, enable it
-#if (ONEDPL_USE_DPCPP_BACKEND || !defined(ONEDPL_USE_DPCPP_BACKEND)) && _ONEDPL_SYCL_AVAILABLE
-#    define _ONEDPL_BACKEND_SYCL 1
-#endif
-
+// Due to the use in feature test macros, _ONEDPL_BACKEND_SYCL is defined in version_impl.h
 // If at least one heterogeneous backend is available, enable them
 #if _ONEDPL_BACKEND_SYCL
 #    if _ONEDPL_HETERO_BACKEND
