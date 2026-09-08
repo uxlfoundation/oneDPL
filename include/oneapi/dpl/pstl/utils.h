@@ -1115,7 +1115,7 @@ template <typename _Tp>
 inline constexpr bool __semiregular = std::semiregular<_Tp>;
 
 template <typename _Fp, typename... _Args>
-inline constexpr bool __predicate = std::predicate<_Fp, _Args...>;
+inline constexpr bool __predicate_v = std::predicate<_Fp, _Args...>;
 
 #else
 
@@ -1178,7 +1178,7 @@ inline constexpr bool __semiregular = __copyable<_Tp> && std::is_default_constru
 // std::predicate requires the result to be boolean-testable, which is stronger than being convertible to bool, but
 // the difference only shows for types with an unusable operator!.
 template <typename _Fp, typename... _Args>
-inline constexpr bool __predicate = std::is_invocable_r_v<bool, _Fp, _Args...>;
+inline constexpr bool __predicate_v = std::is_invocable_r_v<bool, _Fp, _Args...>;
 
 #endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
 
@@ -1193,7 +1193,7 @@ template <typename _Iterator, typename _Compare, typename _ReferenceType, typena
 inline constexpr bool __is_value_storable_and_comparable_v<_Iterator, _Compare, _ReferenceType, _ValueType,
                                                            std::enable_if_t<!std::is_void_v<_ValueType>>> =
     __semiregular<_ValueType> && __convertible_to<_ReferenceType, _ValueType> &&
-    __predicate<_Compare&, const _ValueType&, const _ValueType&>;
+    __predicate_v<_Compare&, const _ValueType&, const _ValueType&>;
 
 // Storage helper since _Tp may not have a default constructor.
 template <typename _Tp>

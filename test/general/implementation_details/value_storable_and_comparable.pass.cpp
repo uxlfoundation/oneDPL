@@ -8,7 +8,7 @@
 //===------------------------------------------------------===//
 
 // Compile-time checks for oneapi::dpl::__internal::__is_value_storable_and_comparable_v and for each of the
-// requirements it is built from: __convertible_to, __semiregular and __predicate, plus the C++17 building blocks
+// requirements it is built from: __convertible_to, __semiregular and __predicate_v, plus the C++17 building blocks
 // of __semiregular (__constructible_from, __move_constructible, __copy_constructible, __assignable_from, __movable,
 // __copyable). Every requirement is checked both ways: a type that satisfies it and a type that does not.
 
@@ -183,7 +183,7 @@ static_assert(!dpl_internal::__semiregular<void>);
 static_assert(!dpl_internal::__semiregular<const void>);
 
 //----------------------------------------------------------------------------//
-// __predicate
+// __predicate_v
 //----------------------------------------------------------------------------//
 
 struct NotBool
@@ -250,18 +250,18 @@ struct MoveOnlyLess
     }
 };
 
-static_assert(dpl_internal::__predicate<std::less<int>&, const int&, const int&>);
-static_assert(dpl_internal::__predicate<std::less<>&, const int&, const int&>);
-static_assert(dpl_internal::__predicate<IntResultLess&, const int&, const int&>);
-static_assert(dpl_internal::__predicate<MoveOnlyLess&, const int&, const int&>);
-static_assert(dpl_internal::__predicate<std::less<Regular>&, const Regular&, const Regular&>);
+static_assert(dpl_internal::__predicate_v<std::less<int>&, const int&, const int&>);
+static_assert(dpl_internal::__predicate_v<std::less<>&, const int&, const int&>);
+static_assert(dpl_internal::__predicate_v<IntResultLess&, const int&, const int&>);
+static_assert(dpl_internal::__predicate_v<MoveOnlyLess&, const int&, const int&>);
+static_assert(dpl_internal::__predicate_v<std::less<Regular>&, const Regular&, const Regular&>);
 
-static_assert(!dpl_internal::__predicate<NotBoolResultLess&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate<MutableRefLess&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate<RvalueOnlyLess&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate<UnaryLess&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate<int&, const int&, const int&>);
-static_assert(!dpl_internal::__predicate<std::less<int>&, const Regular&, const Regular&>);
+static_assert(!dpl_internal::__predicate_v<NotBoolResultLess&, const int&, const int&>);
+static_assert(!dpl_internal::__predicate_v<MutableRefLess&, const int&, const int&>);
+static_assert(!dpl_internal::__predicate_v<RvalueOnlyLess&, const int&, const int&>);
+static_assert(!dpl_internal::__predicate_v<UnaryLess&, const int&, const int&>);
+static_assert(!dpl_internal::__predicate_v<int&, const int&, const int&>);
+static_assert(!dpl_internal::__predicate_v<std::less<int>&, const Regular&, const Regular&>);
 
 //----------------------------------------------------------------------------//
 // C++17 building blocks of __semiregular. In C++20 the standard concepts are used directly, so these helpers only
