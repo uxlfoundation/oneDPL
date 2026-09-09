@@ -145,7 +145,8 @@ main()
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
-        [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; }, "remove");
+        // remove() returns the tail holding the removed elements, and the value occurs exactly once.
+        [](auto&&, auto res) { return std::ranges::size(res) == 1; }, "remove");
 
 #if TEST_DPCPP_BACKEND_PRESENT
     // removable_archetype is movable but not device copyable, so remove() is checked on the host
@@ -154,7 +155,8 @@ main()
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
-        [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; }, "remove");
+        // remove() returns the tail holding the removed elements, and the value occurs exactly once.
+        [](auto&&, auto res) { return std::ranges::size(res) == 1; }, "remove");
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     // nocopy_search_value is neither copyable nor movable: the host implementations must refer to
@@ -229,16 +231,16 @@ main()
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
         },
-        [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; },
-        "remove, noncopyable value");
+        // remove() returns the tail holding the removed elements, and the value occurs exactly once.
+        [](auto&&, auto res) { return std::ranges::size(res) == 1; }, "remove, noncopyable value");
 
 #if TEST_DPCPP_BACKEND_PRESENT
     run_algo_hetero_policies<removable_archetype_dc, 9>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
         },
-        [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; },
-        "remove, noncopyable value");
+        // remove() returns the tail holding the removed elements, and the value occurs exactly once.
+        [](auto&&, auto res) { return std::ranges::size(res) == 1; }, "remove, noncopyable value");
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 #endif //_ENABLE_STD_RANGES_TESTING

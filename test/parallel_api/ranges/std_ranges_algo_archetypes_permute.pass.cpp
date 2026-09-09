@@ -123,7 +123,29 @@ main()
         [](auto&& view, auto res) { return std::ranges::size(res) == 0; }, "unique");
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    // prpbably incorrect type applied
+    // partition returns the tail of the elements which do not satisfy the predicate.
+    run_algo_host_policies<permutable_archetype>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::partition(std::forward<decltype(policy)>(policy), view, permutable_pred{});
+        },
+        [](auto&& view, auto res) {
+            return std::ranges::size(res) == std::ranges::size(view) - (std::ranges::size(view) + 2) / 3;
+        },
+        "partition");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo_hetero_policies<permutable_archetype_dc, 6>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::partition(std::forward<decltype(policy)>(policy), view, permutable_pred{});
+        },
+        [](auto&& view, auto res) {
+            return std::ranges::size(res) == std::ranges::size(view) - (std::ranges::size(view) + 2) / 3;
+        },
+        "partition");
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+    // The storage of the harness is filled in ascending order, so sorting it keeps it as it is: what
+    // these two cases check is that the call compiles and leaves the range intact, not the ordering.
     run_algo_host_policies<permutable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});
@@ -135,7 +157,6 @@ main()
         "sort");
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    // prpbably incorrect type applied
     run_algo_hetero_policies<permutable_archetype_dc, 3>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});
@@ -147,7 +168,6 @@ main()
         "sort");
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    // prpbably incorrect type applied
     run_algo_host_policies<permutable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::stable_sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});
@@ -159,7 +179,6 @@ main()
         "stable_sort");
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    // prpbably incorrect type applied
     run_algo_hetero_policies<permutable_archetype_dc, 4>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::stable_sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});

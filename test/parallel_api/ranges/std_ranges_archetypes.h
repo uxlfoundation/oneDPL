@@ -1548,6 +1548,156 @@ static_assert(!std::totally_ordered<storable_archetype>);
 static_assert(std::indirectly_copyable_storable<std::ranges::iterator_t<archetype_view<storable_archetype_dc>>,
                                                 storable_archetype_dc*>);
 
+//------------------------------------------------------------------------------------------------
+// Callables taking their arguments by non-const reference.
+//
+// std::indirectly_unary_invocable, std::indirect_unary_predicate, std::indirect_binary_predicate,
+// std::indirect_strict_weak_order and std::projected are all spelled in terms of iter_value_t<_It>&,
+// iter_reference_t<_It> and iter_common_reference_t<_It>. For archetype_view<_T> all three of them
+// are _T&, i.e. a non-const lvalue reference, so a callable which accepts nothing but _T& satisfies
+// those concepts. The requires-clauses of the algorithms therefore allow such a callable, and an
+// implementation which hands a const lvalue, an rvalue or a copy of the element to the user callable
+// does not compile with the types below.
+//
+// The _mut counterparts only add the non-const parameter list; the element archetypes and the
+// expected results stay exactly the ones of the corresponding family above.
+//------------------------------------------------------------------------------------------------
+
+// Family 1: read-only algorithms parameterized by a callable.
+struct read_unary_fun_mut
+{
+    void operator()(read_archetype&) const {}
+    void operator()(read_archetype_dc&) const {}
+};
+
+struct read_unary_pred_mut
+{
+    bool operator()(read_archetype& __v) const { return __v.val % 3 == 0; }
+    bool operator()(read_archetype_dc& __v) const { return __v.val % 3 == 0; }
+};
+
+struct read_binary_pred_mut
+{
+    bool operator()(read_archetype& __v1, read_archetype& __v2) const { return __v1.val == __v2.val; }
+    bool operator()(read_archetype_dc& __v1, read_archetype_dc& __v2) const { return __v1.val == __v2.val; }
+};
+
+struct read_comp_mut
+{
+    bool operator()(read_archetype& __v1, read_archetype& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(read_archetype_dc& __v1, read_archetype_dc& __v2) const { return __v1.val < __v2.val; }
+};
+
+// A projection taking the element by non-const reference. Its result is a prvalue of an unrelated
+// type, which the pre-existing read_proj_pred consumes: a predicate over a projection cannot take a
+// non-const reference itself, because indirect_unary_predicate also requires it to be invocable with
+// iter_reference_t of the projected iterator, which is that prvalue.
+struct read_proj_mut
+{
+    read_proj_result operator()(read_archetype& __v) const { return read_proj_result{__v.val}; }
+    read_proj_result operator()(read_archetype_dc& __v) const { return read_proj_result{__v.val}; }
+};
+
+static_assert(std::indirectly_unary_invocable<read_unary_fun_mut, read_iterator_t>);
+static_assert(std::indirect_unary_predicate<read_unary_pred_mut, read_iterator_t>);
+static_assert(std::indirect_binary_predicate<read_binary_pred_mut, read_iterator_t, read_iterator_t>);
+static_assert(std::indirect_strict_weak_order<read_comp_mut, read_iterator_t>);
+static_assert(std::indirect_unary_predicate<read_proj_pred, std::projected<read_iterator_t, read_proj_mut>>);
+// The callables really do reject anything but a non-const lvalue of the element type.
+static_assert(!std::invocable<const read_unary_pred_mut&, const read_archetype&>);
+static_assert(!std::invocable<const read_unary_pred_mut&, read_archetype&&>);
+static_assert(!std::invocable<const read_comp_mut&, const read_archetype&, const read_archetype&>);
+static_assert(!std::invocable<const read_proj_mut&, const read_archetype&>);
+
+// Family 2: algorithms taking a search value. The value itself is compared with
+// std::ranges::equal_to, so only the projection is a user callable here. The projection returns the
+// element by reference, which keeps the equality with the search value as it is in the family above.
+struct search_proj_mut
+{
+    searchable_archetype& operator()(searchable_archetype& __v) const { return __v; }
+    searchable_archetype_dc& operator()(searchable_archetype_dc& __v) const { return __v; }
+    removable_archetype& operator()(removable_archetype& __v) const { return __v; }
+    removable_archetype_dc& operator()(removable_archetype_dc& __v) const { return __v; }
+};
+
+static_assert(std::indirect_binary_predicate<std::ranges::equal_to,
+                                             std::projected<searchable_iterator_t, search_proj_mut>,
+                                             const search_value*>);
+static_assert(std::indirect_binary_predicate<std::ranges::equal_to,
+                                             std::projected<removable_iterator_t, search_proj_mut>,
+                                             const search_value*>);
+static_assert(!std::invocable<const search_proj_mut&, const searchable_archetype&>);
+
+// Family 3: two-range algorithms constrained by std::indirectly_comparable. Both references are
+// non-const lvalues, so the predicate may take both of its arguments that way.
+struct cross_pred_mut
+{
+    bool operator()(lhs_archetype& __v1, rhs_archetype& __v2) const { return __v1.val == __v2.val; }
+    bool operator()(lhs_archetype_dc& __v1, rhs_archetype_dc& __v2) const { return __v1.val == __v2.val; }
+};
+
+static_assert(std::indirectly_comparable<lhs_iterator_t, rhs_iterator_t, cross_pred_mut>);
+static_assert(!std::invocable<const cross_pred_mut&, const lhs_archetype&, const rhs_archetype&>);
+
+// Family 8: transform. The functor is only required to be std::copy_constructible and invocable with
+// the projected reference, which is a non-const lvalue.
+struct transform_unary_op_mut
+{
+    transform_result operator()(transform_in_archetype& __v) const { return transform_result{__v.val * 2}; }
+    transform_result operator()(transform_in_archetype_dc& __v) const { return transform_result{__v.val * 2}; }
+};
+
+static_assert(std::indirectly_writable<transform_out_iterator_t,
+                                       std::indirect_result_t<transform_unary_op_mut&, transform_in_iterator_t>>);
+static_assert(!std::invocable<const transform_unary_op_mut&, const transform_in_archetype&>);
+
+// Family 9: permuting and sorting algorithms. The element is mutable by definition here, so the
+// predicate and the comparator may take it by non-const reference as well.
+struct permutable_pred_mut
+{
+    bool operator()(permutable_archetype& __v) const { return __v.val % 3 == 0; }
+    bool operator()(permutable_archetype_dc& __v) const { return __v.val % 3 == 0; }
+};
+
+struct permutable_equiv_mut
+{
+    bool operator()(permutable_archetype& __v1, permutable_archetype& __v2) const { return __v1.val == __v2.val; }
+    bool operator()(permutable_archetype_dc& __v1, permutable_archetype_dc& __v2) const
+    {
+        return __v1.val == __v2.val;
+    }
+};
+
+struct permutable_comp_mut
+{
+    bool operator()(permutable_archetype& __v1, permutable_archetype& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(permutable_archetype_dc& __v1, permutable_archetype_dc& __v2) const { return __v1.val < __v2.val; }
+};
+
+static_assert(std::indirect_unary_predicate<permutable_pred_mut, permutable_iterator_t>);
+static_assert(std::indirect_binary_predicate<permutable_equiv_mut, permutable_iterator_t, permutable_iterator_t>);
+static_assert(std::sortable<permutable_iterator_t, permutable_comp_mut>);
+static_assert(std::sortable<permutable_dc_iterator_t, permutable_comp_mut>);
+static_assert(!std::invocable<const permutable_comp_mut&, const permutable_archetype&, const permutable_archetype&>);
+
+// The merge family and min / max / minmax, whose comparators are constrained the very same way.
+struct merge_comp_mut
+{
+    bool operator()(merge_in_archetype& __v1, merge_in_archetype& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(merge_in_archetype_dc& __v1, merge_in_archetype_dc& __v2) const { return __v1.val < __v2.val; }
+};
+
+struct storable_comp_mut
+{
+    bool operator()(storable_archetype& __v1, storable_archetype& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(storable_archetype_dc& __v1, storable_archetype_dc& __v2) const { return __v1.val < __v2.val; }
+};
+
+static_assert(std::mergeable<merge_in_iterator_t, merge_in_iterator_t, merge_out_iterator_t, merge_comp_mut>);
+static_assert(std::indirect_strict_weak_order<storable_comp_mut, storable_iterator_t>);
+static_assert(!std::invocable<const merge_comp_mut&, const merge_in_archetype&, const merge_in_archetype&>);
+static_assert(!std::invocable<const storable_comp_mut&, const storable_archetype&, const storable_archetype&>);
+
 } // namespace archetypes
 } // namespace test_std_ranges
 

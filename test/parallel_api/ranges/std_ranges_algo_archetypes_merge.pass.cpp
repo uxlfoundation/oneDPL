@@ -88,8 +88,11 @@ main()
         [](auto&& policy, auto&& view1, auto&& view2) {
             using __out_elem =
                 typename std::ranges::range_value_t<std::remove_cvref_t<decltype(view1)>>::out_type;
-            archetype_storage<__out_elem, std::allocator<__out_elem>> out_storage(
-                std::allocator<__out_elem>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
+            // The output range is written by a device kernel, so its storage has to be device
+            // accessible: host memory from std::allocator would be dereferenced on the device.
+            sycl::usm_allocator<__out_elem, sycl::usm::alloc::shared> out_alloc{policy.queue()};
+            archetype_storage<__out_elem, decltype(out_alloc)> out_storage(out_alloc, 2 * archetype_test_size,
+                                                                          [](std::size_t) { return 0; });
             auto out_view = out_storage.view();
             auto res = dpl_ranges::merge(std::forward<decltype(policy)>(policy), view1, view2, out_view, merge_comp{});
             return std::ranges::begin(out_view)[0].val == 0 && std::ranges::begin(out_view)[1].val == 0 &&
@@ -103,8 +106,12 @@ main()
     // instead constructs the output element into raw memory, so the calls below do not compile:
     //  - set_algorithms_utils.h:91 - placement new of _OutValueType from *__it_in, which also takes
     //    the address of the element through std::addressof;
-    //  - set_algorithms_utils.h:127,133,206 / memory_impl.h:96,111 - __uninitialized_copy_or_discard
-    //    default constructs and copy constructs the output element type.
+    //  - set_algorithms_utils.h:127,133,206,250,259 / memory_impl.h:96,111 -
+    //    __uninitialized_copy_or_discard default constructs and copy constructs the output element
+    //    type;
+    //  - utils.h:1124 - the device path does the same through __lazy_ctor_storage::__setup, which
+    //    placement news the output element and takes its address as well; it is reached from
+    //    parallel_backend_sycl_reduce_then_scan.h:67,571,1049 for every set operation.
     // Fixing this means assigning through the output iterator instead of constructing in place.
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_UNION_HOST
     run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
@@ -127,8 +134,11 @@ main()
         [](auto&& policy, auto&& view1, auto&& view2) {
             using __out_elem =
                 typename std::ranges::range_value_t<std::remove_cvref_t<decltype(view1)>>::out_type;
-            archetype_storage<__out_elem, std::allocator<__out_elem>> out_storage(
-                std::allocator<__out_elem>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
+            // The output range is written by a device kernel, so its storage has to be device
+            // accessible: host memory from std::allocator would be dereferenced on the device.
+            sycl::usm_allocator<__out_elem, sycl::usm::alloc::shared> out_alloc{policy.queue()};
+            archetype_storage<__out_elem, decltype(out_alloc)> out_storage(out_alloc, 2 * archetype_test_size,
+                                                                          [](std::size_t) { return 0; });
             auto out_view = out_storage.view();
             auto res =
                 dpl_ranges::set_union(std::forward<decltype(policy)>(policy), view1, view2, out_view, merge_comp{});
@@ -160,8 +170,11 @@ main()
         [](auto&& policy, auto&& view1, auto&& view2) {
             using __out_elem =
                 typename std::ranges::range_value_t<std::remove_cvref_t<decltype(view1)>>::out_type;
-            archetype_storage<__out_elem, std::allocator<__out_elem>> out_storage(
-                std::allocator<__out_elem>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
+            // The output range is written by a device kernel, so its storage has to be device
+            // accessible: host memory from std::allocator would be dereferenced on the device.
+            sycl::usm_allocator<__out_elem, sycl::usm::alloc::shared> out_alloc{policy.queue()};
+            archetype_storage<__out_elem, decltype(out_alloc)> out_storage(out_alloc, 2 * archetype_test_size,
+                                                                          [](std::size_t) { return 0; });
             auto out_view = out_storage.view();
             auto res = dpl_ranges::set_difference(std::forward<decltype(policy)>(policy), view1, view2, out_view,
                                                   merge_comp{});
@@ -170,6 +183,76 @@ main()
         },
         [](auto&&, auto&&, auto res) { return res; }, "set_difference");
 #endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_DIFFERENCE_HETERO
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+    // set_intersection and set_symmetric_difference construct the output element the very same way,
+    // see the note above set_union.
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_INTERSECTION_HOST
+    run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
+                std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res = dpl_ranges::set_intersection(std::forward<decltype(policy)>(policy), view1, view2, out_view,
+                                                    merge_comp{});
+            // The two inputs hold the very same sequence, so the intersection is that sequence itself.
+            return std::ranges::begin(out_view)[7].val == 7 &&
+                   (std::size_t)(res.out - std::ranges::begin(out_view)) == archetype_test_size;
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "set_intersection");
+#endif
+
+#if TEST_DPCPP_BACKEND_PRESENT
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_INTERSECTION_HETERO
+    run_algo2_hetero_policies<merge_in_archetype_dc, merge_in_archetype_dc, 6>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            using __out_elem =
+                typename std::ranges::range_value_t<std::remove_cvref_t<decltype(view1)>>::out_type;
+            sycl::usm_allocator<__out_elem, sycl::usm::alloc::shared> out_alloc{policy.queue()};
+            archetype_storage<__out_elem, decltype(out_alloc)> out_storage(out_alloc, 2 * archetype_test_size,
+                                                                          [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res = dpl_ranges::set_intersection(std::forward<decltype(policy)>(policy), view1, view2, out_view,
+                                                    merge_comp{});
+            // The two inputs hold the very same sequence, so the intersection is that sequence itself.
+            return std::ranges::begin(out_view)[7].val == 7 &&
+                   (std::size_t)(res.out - std::ranges::begin(out_view)) == archetype_test_size;
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "set_intersection");
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_INTERSECTION_HETERO
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_SYMMETRIC_DIFFERENCE_HOST
+    run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            archetype_storage<merge_out_archetype, std::allocator<merge_out_archetype>> out_storage(
+                std::allocator<merge_out_archetype>{}, 2 * archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res = dpl_ranges::set_symmetric_difference(std::forward<decltype(policy)>(policy), view1, view2,
+                                                            out_view, merge_comp{});
+            // The two inputs are equal, so the symmetric difference is empty.
+            return res.out == std::ranges::begin(out_view);
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "set_symmetric_difference");
+#endif
+
+#if TEST_DPCPP_BACKEND_PRESENT
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_SYMMETRIC_DIFFERENCE_HETERO
+    run_algo2_hetero_policies<merge_in_archetype_dc, merge_in_archetype_dc, 7>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            using __out_elem =
+                typename std::ranges::range_value_t<std::remove_cvref_t<decltype(view1)>>::out_type;
+            sycl::usm_allocator<__out_elem, sycl::usm::alloc::shared> out_alloc{policy.queue()};
+            archetype_storage<__out_elem, decltype(out_alloc)> out_storage(out_alloc, 2 * archetype_test_size,
+                                                                          [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res = dpl_ranges::set_symmetric_difference(std::forward<decltype(policy)>(policy), view1, view2,
+                                                            out_view, merge_comp{});
+            // The two inputs are equal, so the symmetric difference is empty.
+            return res.out == std::ranges::begin(out_view);
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "set_symmetric_difference");
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_SYMMETRIC_DIFFERENCE_HETERO
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     run_algo_host_policies<storable_archetype>(
