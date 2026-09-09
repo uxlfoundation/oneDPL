@@ -487,6 +487,23 @@ main()
                                                                       "find_first_of");
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
+    // includes needs a comparator accepting the two element types in all four combinations, see
+    // cross_comp. Both ranges hold the very same ascending sequence, so the second one is included in
+    // the first one.
+    run_algo2_host_policies<lhs_archetype, rhs_archetype>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            return dpl_ranges::includes(std::forward<decltype(policy)>(policy), view1, view2, cross_comp{});
+        },
+        [](auto&&, auto&&, bool res) { return res; }, "includes");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 26>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            return dpl_ranges::includes(std::forward<decltype(policy)>(policy), view1, view2, cross_comp{});
+        },
+        [](auto&&, auto&&, bool res) { return res; }, "includes");
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
