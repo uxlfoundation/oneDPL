@@ -153,7 +153,7 @@ template <typename _T>
 struct __result_keepalive
 {
     _T* __usm_ptr = nullptr;
-    std::optional<sycl::buffer<_T, 1>> __sycl_buf;
+    mutable std::optional<sycl::buffer<_T, 1>> __sycl_buf; // reading data can modify the buffer
     std::size_t __result_sz = 0;
     std::size_t __offset = 0;
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
