@@ -24,48 +24,17 @@
 #include "std_ranges_archetypes.h"
 #include "std_ranges_algo_archetypes_test.h"
 
-namespace test_std_ranges
-{
-namespace dpl_ranges = oneapi::dpl::ranges;
-
 // The value based algorithms are constrained by
 //   std::indirect_binary_predicate<std::ranges::equal_to, std::projected<iterator_t<_R>, _Proj>,
 //                                  const _T*>
 // only. In particular the value type is not required to be copyable, to be comparable with itself
 // with anything but std::ranges::equal_to, or to be related to the element type in any other way,
-// and the element type is not required to be comparable with itself either.
-using searchable_view = archetypes::archetype_view<archetypes::searchable_archetype>;
-using removable_view = archetypes::archetype_view<archetypes::removable_archetype>;
-using seq_policy = decltype(oneapi::dpl::execution::seq);
+// and the element type is not required to be comparable with itself either; the device copyable
+// counterpart of the value satisfies the very same constraints and really is accepted by SYCL without
+// an explicit sycl::is_device_copyable specialization. That is asserted on the archetypes themselves
+// in std_ranges_archetypes.h; what the calls below add is the instantiation of the implementation,
+// which is where an extra requirement shows up as a compile error.
 
-static_assert(std::invocable<decltype(dpl_ranges::find), seq_policy, searchable_view&,
-                             const archetypes::nocopy_search_value&>);
-static_assert(std::invocable<decltype(dpl_ranges::find_last), seq_policy, searchable_view&,
-                             const archetypes::nocopy_search_value&>);
-static_assert(std::invocable<decltype(dpl_ranges::count), seq_policy, searchable_view&,
-                             const archetypes::nocopy_search_value&>);
-static_assert(std::invocable<decltype(dpl_ranges::contains), seq_policy, searchable_view&,
-                             const archetypes::nocopy_search_value&>);
-static_assert(std::invocable<decltype(dpl_ranges::remove), seq_policy, removable_view&,
-                             const archetypes::nocopy_search_value&>);
-
-// The device copyable counterpart of the value satisfies the very same constraints, and it really is
-// accepted by SYCL without an explicit sycl::is_device_copyable specialization.
-using searchable_dc_view = archetypes::archetype_view<archetypes::searchable_archetype_dc>;
-using removable_dc_view = archetypes::archetype_view<archetypes::removable_archetype_dc>;
-
-static_assert(std::invocable<decltype(dpl_ranges::find), seq_policy, searchable_dc_view&,
-                             const archetypes::nocopy_search_value_dc&>);
-static_assert(std::invocable<decltype(dpl_ranges::find_last), seq_policy, searchable_dc_view&,
-                             const archetypes::nocopy_search_value_dc&>);
-static_assert(std::invocable<decltype(dpl_ranges::count), seq_policy, searchable_dc_view&,
-                             const archetypes::nocopy_search_value_dc&>);
-static_assert(std::invocable<decltype(dpl_ranges::contains), seq_policy, searchable_dc_view&,
-                             const archetypes::nocopy_search_value_dc&>);
-static_assert(std::invocable<decltype(dpl_ranges::remove), seq_policy, removable_dc_view&,
-                             const archetypes::nocopy_search_value_dc&>);
-
-} //namespace test_std_ranges
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int

@@ -33,17 +33,6 @@ constexpr int test_mode_id<std::remove_cvref_t<decltype(oneapi::dpl::ranges::uni
 template<>
 constexpr int test_mode_id<std::remove_cvref_t<decltype(oneapi::dpl::ranges::uninitialized_move)>> = 1;
 
-// Every algorithm below must be callable with the archetype which satisfies exactly its declared
-// constraints. A failure here means the constraints are not sufficient to call the algorithm.
-static_assert(std::invocable<decltype(oneapi::dpl::ranges::uninitialized_default_construct),
-                             decltype(oneapi::dpl::execution::seq),
-                             archetypes::archetype_view<archetypes::default_construct_archetype>&>);
-static_assert(std::invocable<decltype(oneapi::dpl::ranges::uninitialized_value_construct),
-                             decltype(oneapi::dpl::execution::seq),
-                             archetypes::archetype_view<archetypes::value_construct_archetype>&>);
-static_assert(std::invocable<decltype(oneapi::dpl::ranges::destroy), decltype(oneapi::dpl::execution::seq),
-                             archetypes::archetype_view<archetypes::destroy_archetype>&>);
-
 // Runs a one-range algorithm over archetype_view, which is random access and sized but neither
 // contiguous nor common, so the implementation cannot fall back to raw pointer arithmetic.
 template <typename Elem, typename Alloc, typename Policy, typename Algo, typename Checker>
