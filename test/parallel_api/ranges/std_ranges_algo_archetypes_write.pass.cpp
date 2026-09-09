@@ -23,20 +23,6 @@
 #if _ENABLE_STD_RANGES_TESTING
 #include "std_ranges_archetypes.h"
 #include "std_ranges_algo_archetypes_test.h"
-
-// fill only requires std::indirectly_writable<iterator_t<_R>, const _T&>: the element type is not
-// required to be copyable, movable or default constructible and _T stays unrelated to it. The copying
-// algorithms only require std::indirectly_copyable, so the output element is merely assignable from a
-// non-const lvalue of the input element type; move requires std::indirectly_movable, which is
-// strictly weaker: assigning from an lvalue is deliberately rejected by move_out_archetype, so an
-// implementation copying instead of moving fails. swap_ranges requires std::indirectly_swappable
-// only, which the hidden friend swap provides without the element being move constructible or move
-// assignable, and transform writes the result of the functor, which is a third unrelated type, while
-// the functor itself only has to be std::copy_constructible. All of those requires-clauses are
-// asserted on the archetypes themselves in std_ranges_archetypes.h; what the calls below add is the
-// instantiation of the implementation, which is where an extra requirement shows up as a compile
-// error.
-
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int

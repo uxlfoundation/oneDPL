@@ -23,18 +23,6 @@
 #if _ENABLE_STD_RANGES_TESTING
 #include "std_ranges_archetypes.h"
 #include "std_ranges_algo_archetypes_test.h"
-
-// The value based algorithms are constrained by
-//   std::indirect_binary_predicate<std::ranges::equal_to, std::projected<iterator_t<_R>, _Proj>,
-//                                  const _T*>
-// only. In particular the value type is not required to be copyable, to be comparable with itself
-// with anything but std::ranges::equal_to, or to be related to the element type in any other way,
-// and the element type is not required to be comparable with itself either; the device copyable
-// counterpart of the value satisfies the very same constraints and really is accepted by SYCL without
-// an explicit sycl::is_device_copyable specialization. That is asserted on the archetypes themselves
-// in std_ranges_archetypes.h; what the calls below add is the instantiation of the implementation,
-// which is where an extra requirement shows up as a compile error.
-
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int

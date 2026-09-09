@@ -23,17 +23,6 @@
 #if _ENABLE_STD_RANGES_TESTING
 #include "std_ranges_archetypes.h"
 #include "std_ranges_algo_archetypes_test.h"
-
-// The indirect callable concepts (std::indirectly_unary_invocable, std::indirect_unary_predicate,
-// std::indirect_binary_predicate, std::indirect_strict_weak_order) and std::projected are spelled in
-// terms of iter_value_t<_It>&, iter_reference_t<_It> and iter_common_reference_t<_It>, all three of
-// which are a non-const lvalue reference for archetype_view. A projection, a predicate or a
-// comparator taking its arguments by non-const reference therefore satisfies the requires-clauses of
-// the algorithms below, and the implementation must pass the element to the user callable as a
-// non-const lvalue: a const lvalue, an rvalue or a copy does not compile here.
-//
-// Every case below is an actual call: instantiating the implementation is the only way to prove that
-// it compiles, a check of the requires-clause alone never leaves the declaration of the algorithm.
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int

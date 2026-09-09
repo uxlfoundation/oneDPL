@@ -23,15 +23,6 @@
 #if _ENABLE_STD_RANGES_TESTING
 #include "std_ranges_archetypes.h"
 #include "std_ranges_algo_archetypes_test.h"
-
-// The permuting algorithms are constrained by std::permutable<iterator_t<_R>> only, which requires
-// the element to be movable, but not copyable, not default constructible and not comparable: any
-// ordering or equality has to come from the comparator passed by the user. std::sortable<It, _Comp,
-// _Proj> == permutable<It> && indirect_strict_weak_order<...>, so the very same element archetype
-// works for the sorting algorithms as well. Those requirements are asserted on the archetypes
-// themselves in std_ranges_archetypes.h; what the calls below add is the instantiation of the
-// implementation, which is where an extra requirement shows up as a compile error.
-
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int

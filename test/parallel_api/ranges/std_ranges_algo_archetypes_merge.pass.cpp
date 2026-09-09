@@ -23,16 +23,6 @@
 #if _ENABLE_STD_RANGES_TESTING
 #include "std_ranges_archetypes.h"
 #include "std_ranges_algo_archetypes_test.h"
-
-// The merge family is constrained by std::mergeable, which asks for indirectly_copyable from both
-// inputs into the output plus a strict weak order: the output element stays non-copyable itself and
-// the ordering never comes from an operator< on the element. min / max / minmax instead require
-// std::indirectly_copyable_storable<iterator_t<_R>, range_value_t<_R>*>, which does need a copy
-// constructor and copy assignment, but still no default constructor and no ordering operator on the
-// element. Both requires-clauses are asserted on the archetypes themselves in
-// std_ranges_archetypes.h; what the calls below add is the instantiation of the implementation,
-// which is where an extra requirement shows up as a compile error.
-
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int
