@@ -14,7 +14,7 @@
 #include <oneapi/dpl/pstl/hetero/dpcpp/utils_storage_sycl.h>
 
 #include <array>
-#include <algorithm> // std::find
+#include <algorithm> // std::find, std::fill
 #include <cstddef>   // std::size_t
 #include <memory>    // std::unique_ptr
 #include <tuple>
@@ -42,7 +42,9 @@ struct inspectable_holder : public hetero::__storage_holder<NScratch, ResultType
     auto scratch_slot(std::size_t i) const { return this->__scratch_slots[i]; }
     template <std::size_t I>
     auto result_slot() const { return std::get<I>(this->__result_slots); }
-    
+    template <std::size_t I>
+    auto& result_slot_ref() { return std::get<I>(this->__result_slots); }
+
     auto /*std::array*/ get_result_ptrs() const
     {
         return std::apply([](const auto&... slot){ return std::array<void*, result_count()>{slot.__usm_ptr...}; },
@@ -123,24 +125,62 @@ take_and_check(hetero::__combined_storage<T>& storage, inspectable_holder<NScrat
     }
 }
 
+template <typename T, typename Generator>
+void
+init_result_keepalive(internal::__result_keepalive<T>& ka, sycl::queue& q,
+                      std::size_t n, sycl::usm::alloc kind, Generator gen)
+{
+    constexpr std::size_t offset = 42 * sizeof(int); // offset is divisible by sizeof(int)
+    constexpr int poison = 0xDEADBEEF;
+
+    ka.__result_sz = n;
+    ka.__kind      = kind;
+
+    if (kind == sycl::usm::alloc::host)
+    {
+        ka.__offset  = 0;
+        T* ptr = sycl::malloc_host<T>(n, q);
+        for (std::size_t i = 0; i < n; ++i)
+            ptr[i] = gen(i);
+        ka.__usm_ptr = ptr;
+    }
+    else
+    {
+        ka.__offset = offset;
+        auto host_buf = std::shared_ptr<T[]>(std::make_unique<T[]>(offset + n)); // make_shared<T[]> requires C++20
+        // poison data in [offset, offset + n)
+        int* iptr = reinterpret_cast<int*>(host_buf.get());
+        std::fill(iptr, iptr + offset * sizeof(T) / sizeof(int), poison);
+        for (std::size_t i = 0; i < n; ++i)
+            host_buf[offset + i] = gen(i);
+
+        if (kind == sycl::usm::alloc::device)
+        {
+            T* ptr = sycl::malloc_device<T>(offset + n, q);
+            q.memcpy(ptr, host_buf.get(), (offset + n) * sizeof(T)).wait();
+            ka.__usm_ptr = ptr;
+        }
+        else // sycl::usm::alloc::unknown for sycl::buffer
+            ka.__sycl_buf = sycl::buffer<T, 1>{host_buf, sycl::range{offset + n}};
+    }
+}
+
 } // namespace Test
 
 // Test struct
 struct StorageHolderTest
 {
     sycl::queue q;
-    sycl::usm::alloc kind;
+    sycl::usm::alloc scratch_kind;
+    sycl::usm::alloc result_kind;
     
     StorageHolderTest(sycl::queue queue) : q(queue)
     {
-        // determine which USM type will be used for result storage
-        sycl::device dvc = q.get_device();
-        if (dvc.has(sycl::aspect::usm_host_allocations))
-            kind = sycl::usm::alloc::host;
-        else if (dvc.has(sycl::aspect::usm_device_allocations))
-            kind = sycl::usm::alloc::device;
-        else
-            kind = sycl::usm::alloc::unknown;
+        // determine which USM type will be used for storage
+        hetero::__device_storage<int> ds(q, 100);
+        hetero::__result_storage<int> rs(q, 100);
+        scratch_kind = ds.__usm_buf ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
+        result_kind = rs.__kind;
     }
 
     template <std::size_t NScratch, typename... ResultTypes>
@@ -193,7 +233,7 @@ struct StorageHolderTest
         Test::take_and_check(ds2, holder);
 
         EXPECT_EQ(NScratch, holder.scratch_count(), "scratch deposits: final scratch count is incorrect");
-        if (kind != sycl::usm::alloc::unknown)
+        if (scratch_kind != sycl::usm::alloc::unknown)
         {
             for (std::size_t s = 0; s < NScratch; ++s)
                 EXPECT_EQ(raw_ptrs[s], holder.scratch_slot(s).__usm_ptr, "scratch deposits: a USM pointer lost or corrupt");
@@ -218,7 +258,7 @@ struct StorageHolderTest
         Test::take_and_check<1>(rs1, holder);
         Test::take_and_check<2>(rs2, holder);
         
-        if (kind != sycl::usm::alloc::unknown)
+        if (result_kind != sycl::usm::alloc::unknown)
         {
             std::array<void*, NResults> stored_ptrs = holder.get_result_ptrs();
             for (std::size_t s = 0; s < NResults; ++s)
@@ -244,10 +284,10 @@ struct StorageHolderTest
         Test::take_and_check   (ds,  holder);
         Test::take_and_check<1>(cs1, holder);
 
-        const std::size_t expected_scratch = /*ds*/1 + (kind == sycl::usm::alloc::host ? /*cs0&1*/2 : 0);
+        const std::size_t expected_scratch = /*ds*/1 + (result_kind == sycl::usm::alloc::host ? /*cs0&1*/2 : 0);
         EXPECT_EQ(expected_scratch, holder.scratch_count(), "combined deposits: final scratch count is incorrect");
 
-        if (kind != sycl::usm::alloc::unknown)
+        if (scratch_kind != sycl::usm::alloc::unknown)
         {
             auto check = [&](void* ptr)
             {
@@ -278,6 +318,65 @@ struct StorageHolderTest
         test_move(std::move(holder));
     }
 
+    void test_copy_result()
+    {
+        using TupleT = std::tuple<int, long>;
+        using HolderT = Test::inspectable_holder<0, TupleT, float, int>;
+        auto gen_tuple = [](std::size_t i){ return TupleT{int(i * 37) % 5, long(i * 19 - 32)}; };
+        auto gen_float = [](std::size_t i){ return float(i) * 2.17f - 3.1415f; };
+        auto gen_int = [](std::size_t i){ return int(i * 3 + 313); };
+
+        auto verify_copy_result = [&](std::size_t n, HolderT& holder)
+        {
+            std::vector<TupleT> rt(n);
+            holder.template __copy_result<0>(rt.data(), n);
+            for (std::size_t i = 0; i < n; ++i)
+                EXPECT_EQ(gen_tuple(i), rt[i], "copy_result: incorrect tuple data");
+
+            std::vector<float> rf(n);
+            holder.template __copy_result<1>(rf.data(), n);
+            for (std::size_t i = 0; i < n; ++i)
+                EXPECT_EQ(gen_float(i), rf[i], "copy_result: incorrect float data");
+
+            std::vector<int> ri(n);
+            holder.template __copy_result<2>(ri.data(), n);
+            for (std::size_t i = 0; i < n; ++i)
+                EXPECT_EQ(gen_int(i), ri[i], "copy_result: incorrect int data");
+        };
+
+        for (std::size_t n : {1, 2, 3, 6, 7})
+        {
+            HolderT holder{q};
+            Test::init_result_keepalive(holder.template result_slot_ref<0>(), q, n, result_kind, gen_tuple);
+            Test::init_result_keepalive(holder.template result_slot_ref<1>(), q, n, scratch_kind, gen_float);
+            Test::init_result_keepalive(holder.template result_slot_ref<2>(), q, n, sycl::usm::alloc::unknown, gen_int);
+            
+            if (n == 3) 
+            {
+                HolderT other(std::move(holder));
+                verify_copy_result(n, other);
+            }
+            else if (n == 6)
+            {
+                HolderT other{sycl::queue{}};
+                other = std::move(holder);
+                verify_copy_result(n, other);
+            }
+            else 
+                verify_copy_result(n, holder);
+        }
+
+        // Edge case: copy zero elements
+        {
+            Test::inspectable_holder<0, int> holder{q};
+            Test::init_result_keepalive(holder.template result_slot_ref<0>(), q, 4, result_kind,
+                                        [](std::size_t i){ return int(i); });
+            int sentinel = 42;
+            holder.__copy_result<0>(&sentinel, 0);
+            EXPECT_EQ(42, sentinel, "copy_result zero: sentinel must be unmodified");
+        }
+    }
+
     // Edge case: NScratch == 0, empty ResultTypes
     void test_empty_holder()
     {
@@ -293,9 +392,7 @@ struct StorageHolderTest
         test_scratch_deposits();
         test_result_deposits();
         test_combined_deposits();
-
-        if (kind == sycl::usm::alloc::unknown)
-            return; // only limited testing for buffer-based storage
+        test_copy_result();
     }
 };
 
