@@ -56,7 +56,11 @@ constexpr int test_mode_id = 0;
 
 // OutElem is the element type of the output range of two-range algorithms (uninitialized_copy,
 // uninitialized_move); it may differ from the input element type Elem.
-template <typename Elem, int no_init_val, int call_id, typename OutElem = Elem>
+//
+// call_id makes the SYCL kernel name of the device call unique within a translation unit: with
+// -fno-sycl-unnamed-lambda two kernels sharing a name are a "definition with same mangled name"
+// error. It is defaulted, so a test running a single algorithm does not have to name it.
+template <typename Elem, int no_init_val, int call_id = 0, typename OutElem = Elem>
 struct test_memory_algo
 {
     void run_host(auto algo, auto checker, auto&&... args)
