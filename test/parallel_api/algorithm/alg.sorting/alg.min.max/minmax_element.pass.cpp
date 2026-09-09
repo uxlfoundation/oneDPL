@@ -573,6 +573,9 @@ main()
     // by an explicit default constructor, which the path has to accept at compile time, so one size is enough.
     test_by_type<ExplicitDefaultCtorCompare>(NSmall);
 
+    // This value type is accepted by the vector code path although it is not default-constructible, which is the other
+    // direction in which brace initialization, the requirement of the vector code path, differs from default
+    // construction. That does not depend on the sequence size either.
     test_by_type_host_policies<BraceInitOnlyCompare>(NSmall);
 
     // These value types are accepted by the vector code path as well, and the point of checking them is that the vector
@@ -593,6 +596,9 @@ main()
     test_by_type_host_policies<NoCopyAssignCompare>(NSmall);
     test_by_type_host_policies<MoveOnlyCompare>(NSmall);
 
+    // The comparison object of this check overloads unary operator&, so the point of it is that the vector code path
+    // takes the address of the comparison object with std::addressof: with & it does not compile. The sequence is long
+    // enough for the vector code to process several blocks and to combine their results.
     test_comparator_with_overloaded_address_of(1000);
 
 #ifdef _PSTL_TEST_MIN_ELEMENT
