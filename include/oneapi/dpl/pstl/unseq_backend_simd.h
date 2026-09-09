@@ -679,8 +679,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        // The candidate is read through a const reference and copied by direct initialization, so that copying it
-        // requires nothing but std::is_copy_constructible_v, which is stated in terms of direct initialization too.
+        // std::as_const соответствует std::is_copy_constructible_v, создавая его из const _ValueType&.
         const _ValueType __min_val(std::as_const(__init).__min_val);
         const _ValueType __current = __first[__i];
         if (std::invoke(__comp, __current, __min_val))
