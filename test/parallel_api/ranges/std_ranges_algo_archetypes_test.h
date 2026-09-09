@@ -86,6 +86,31 @@ run_algo_host_policies(_Algo __algo, _Checker __checker, const char* __algo_name
     run_algo<_Elem>(__alloc, oneapi::dpl::execution::par_unseq, __algo, __checker, __algo_name);
 }
 
+// Runs a one-range algorithm with the sequential host policies only. Used where the parallel host
+// policies are known to require more from a user type than the algorithm declares, so that the
+// coverage of seq and unseq is kept instead of switching the whole case off.
+template <typename _Elem, typename _Algo, typename _Checker>
+void
+run_algo_seq_policies(_Algo __algo, _Checker __checker, const char* __algo_name)
+{
+    std::allocator<_Elem> __alloc;
+    run_algo<_Elem>(__alloc, oneapi::dpl::execution::seq, __algo, __checker, __algo_name);
+    run_algo<_Elem>(__alloc, oneapi::dpl::execution::unseq, __algo, __checker, __algo_name);
+}
+
+// Runs a two-range algorithm with the non vectorized host policies only. Used where the SIMD brick
+// of a two-range algorithm requires more from a user callable than the algorithm declares, so that
+// the coverage of seq and par is kept instead of switching the whole case off.
+template <typename _Elem1, typename _Elem2, typename _Algo, typename _Checker>
+void
+run_algo2_novec_policies(_Algo __algo, _Checker __checker, const char* __algo_name)
+{
+    std::allocator<_Elem1> __alloc1;
+    std::allocator<_Elem2> __alloc2;
+    run_algo2<_Elem1, _Elem2>(__alloc1, __alloc2, oneapi::dpl::execution::seq, __algo, __checker, __algo_name);
+    run_algo2<_Elem1, _Elem2>(__alloc1, __alloc2, oneapi::dpl::execution::par, __algo, __checker, __algo_name);
+}
+
 // Runs a two-range algorithm with the host policies only, see run_algo_host_policies.
 template <typename _Elem1, typename _Elem2, typename _Algo, typename _Checker>
 void
