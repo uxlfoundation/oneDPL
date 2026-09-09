@@ -24,38 +24,15 @@
 #include "std_ranges_archetypes.h"
 #include "std_ranges_algo_archetypes_test.h"
 
-namespace test_std_ranges
-{
-namespace dpl_ranges = oneapi::dpl::ranges;
-
-using seq_policy = decltype(oneapi::dpl::execution::seq);
-
-using merge_in_view = archetypes::archetype_view<archetypes::merge_in_archetype>;
-using merge_out_view = archetypes::archetype_view<archetypes::merge_out_archetype>;
-using storable_view = archetypes::archetype_view<archetypes::storable_archetype>;
-
 // The merge family is constrained by std::mergeable, which asks for indirectly_copyable from both
 // inputs into the output plus a strict weak order: the output element stays non-copyable itself and
-// the ordering never comes from an operator< on the element.
-static_assert(std::invocable<decltype(dpl_ranges::merge), seq_policy, merge_in_view&, merge_in_view&, merge_out_view&,
-                             archetypes::merge_comp>);
-static_assert(std::invocable<decltype(dpl_ranges::set_union), seq_policy, merge_in_view&, merge_in_view&,
-                             merge_out_view&, archetypes::merge_comp>);
-static_assert(std::invocable<decltype(dpl_ranges::set_intersection), seq_policy, merge_in_view&, merge_in_view&,
-                             merge_out_view&, archetypes::merge_comp>);
-static_assert(std::invocable<decltype(dpl_ranges::set_difference), seq_policy, merge_in_view&, merge_in_view&,
-                             merge_out_view&, archetypes::merge_comp>);
-static_assert(std::invocable<decltype(dpl_ranges::set_symmetric_difference), seq_policy, merge_in_view&,
-                             merge_in_view&, merge_out_view&, archetypes::merge_comp>);
+// the ordering never comes from an operator< on the element. min / max / minmax instead require
+// std::indirectly_copyable_storable<iterator_t<_R>, range_value_t<_R>*>, which does need a copy
+// constructor and copy assignment, but still no default constructor and no ordering operator on the
+// element. Both requires-clauses are asserted on the archetypes themselves in
+// std_ranges_archetypes.h; what the calls below add is the instantiation of the implementation,
+// which is where an extra requirement shows up as a compile error.
 
-// min / max / minmax additionally require std::indirectly_copyable_storable<iterator_t<_R>,
-// range_value_t<_R>*>, which does need a copy constructor and copy assignment, but still no default
-// constructor and no ordering operator on the element.
-static_assert(std::invocable<decltype(dpl_ranges::min), seq_policy, storable_view&, archetypes::storable_comp>);
-static_assert(std::invocable<decltype(dpl_ranges::max), seq_policy, storable_view&, archetypes::storable_comp>);
-static_assert(std::invocable<decltype(dpl_ranges::minmax), seq_policy, storable_view&, archetypes::storable_comp>);
-
-} //namespace test_std_ranges
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int

@@ -24,43 +24,19 @@
 #include "std_ranges_archetypes.h"
 #include "std_ranges_algo_archetypes_test.h"
 
-namespace test_std_ranges
-{
-namespace dpl_ranges = oneapi::dpl::ranges;
-
-using seq_policy = decltype(oneapi::dpl::execution::seq);
-
-using writable_view = archetypes::archetype_view<archetypes::writable_archetype>;
-using copy_in_view = archetypes::archetype_view<archetypes::copy_in_archetype>;
-using copy_out_view = archetypes::archetype_view<archetypes::copy_out_archetype>;
-using move_in_view = archetypes::archetype_view<archetypes::move_in_archetype>;
-using move_out_view = archetypes::archetype_view<archetypes::move_out_archetype>;
-using swap_view = archetypes::archetype_view<archetypes::swap_archetype>;
-using transform_in_view = archetypes::archetype_view<archetypes::transform_in_archetype>;
-using transform_out_view = archetypes::archetype_view<archetypes::transform_out_archetype>;
-
 // fill only requires std::indirectly_writable<iterator_t<_R>, const _T&>: the element type is not
-// required to be copyable, movable or default constructible and _T stays unrelated to it.
-static_assert(std::invocable<decltype(dpl_ranges::fill), seq_policy, writable_view&, const archetypes::write_value&>);
+// required to be copyable, movable or default constructible and _T stays unrelated to it. The copying
+// algorithms only require std::indirectly_copyable, so the output element is merely assignable from a
+// non-const lvalue of the input element type; move requires std::indirectly_movable, which is
+// strictly weaker: assigning from an lvalue is deliberately rejected by move_out_archetype, so an
+// implementation copying instead of moving fails. swap_ranges requires std::indirectly_swappable
+// only, which the hidden friend swap provides without the element being move constructible or move
+// assignable, and transform writes the result of the functor, which is a third unrelated type, while
+// the functor itself only has to be std::copy_constructible. All of those requires-clauses are
+// asserted on the archetypes themselves in std_ranges_archetypes.h; what the calls below add is the
+// instantiation of the implementation, which is where an extra requirement shows up as a compile
+// error.
 
-// The copying algorithms only require std::indirectly_copyable, so the output element is merely
-// assignable from a non-const lvalue of the input element type.
-static_assert(std::invocable<decltype(dpl_ranges::copy), seq_policy, copy_in_view&, copy_out_view&>);
-
-// move requires std::indirectly_movable, which is strictly weaker: assigning from an lvalue is
-// deliberately rejected by move_out_archetype, so an implementation copying instead of moving fails.
-static_assert(std::invocable<decltype(dpl_ranges::move), seq_policy, move_in_view&, move_out_view&>);
-
-// swap_ranges requires std::indirectly_swappable only, which the hidden friend swap provides
-// without the element being move constructible or move assignable.
-static_assert(std::invocable<decltype(dpl_ranges::swap_ranges), seq_policy, swap_view&, swap_view&>);
-
-// transform writes the result of the functor, which is a third unrelated type; the functor itself
-// only has to be std::copy_constructible.
-static_assert(std::invocable<decltype(dpl_ranges::transform), seq_policy, transform_in_view&, transform_out_view&,
-                             archetypes::transform_unary_op>);
-
-} //namespace test_std_ranges
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int

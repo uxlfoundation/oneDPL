@@ -24,66 +24,15 @@
 #include "std_ranges_archetypes.h"
 #include "std_ranges_algo_archetypes_test.h"
 
-namespace test_std_ranges
-{
-namespace dpl_ranges = oneapi::dpl::ranges;
+// Every algorithm below is called with an archetype which satisfies exactly its declared
+// constraints, so a compile error here means the implementation requires more from a user type than
+// the requires-clause of the algorithm declares. The declared constraints themselves are asserted on
+// the archetypes in std_ranges_archetypes.h: the element of the read family is neither copyable,
+// movable, default constructible nor comparable, the projection of find_if / count_if returns a
+// completely unrelated type, the search value of find / find_last / count is unrelated to the element
+// type, and the two element types of the two-range algorithms are unrelated to each other and not
+// even comparable with themselves.
 
-// Every algorithm below has to be callable with an archetype which satisfies exactly its declared
-// constraints. A failure here means the implementation requires more from a user type than the
-// requires-clause of the algorithm declares.
-using read_view = archetypes::archetype_view<archetypes::read_archetype>;
-using seq_policy = decltype(oneapi::dpl::execution::seq);
-
-static_assert(std::invocable<decltype(dpl_ranges::for_each), seq_policy, read_view&, archetypes::read_unary_fun>);
-static_assert(std::invocable<decltype(dpl_ranges::find_if), seq_policy, read_view&, archetypes::read_unary_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::find_if_not), seq_policy, read_view&, archetypes::read_unary_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::find_last_if), seq_policy, read_view&, archetypes::read_unary_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::find_last_if_not), seq_policy, read_view&,
-                             archetypes::read_unary_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::any_of), seq_policy, read_view&, archetypes::read_unary_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::all_of), seq_policy, read_view&, archetypes::read_unary_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::none_of), seq_policy, read_view&, archetypes::read_unary_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::count_if), seq_policy, read_view&, archetypes::read_unary_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::is_partitioned), seq_policy, read_view&,
-                             archetypes::read_unary_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::adjacent_find), seq_policy, read_view&,
-                             archetypes::read_binary_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::is_sorted), seq_policy, read_view&, archetypes::read_comp>);
-static_assert(std::invocable<decltype(dpl_ranges::is_sorted_until), seq_policy, read_view&, archetypes::read_comp>);
-static_assert(std::invocable<decltype(dpl_ranges::min_element), seq_policy, read_view&, archetypes::read_comp>);
-static_assert(std::invocable<decltype(dpl_ranges::max_element), seq_policy, read_view&, archetypes::read_comp>);
-static_assert(std::invocable<decltype(dpl_ranges::minmax_element), seq_policy, read_view&, archetypes::read_comp>);
-
-// The projection is allowed to return a completely unrelated type, so the algorithm must never
-// apply the predicate to the raw element.
-static_assert(std::invocable<decltype(dpl_ranges::find_if), seq_policy, read_view&, archetypes::read_proj_pred,
-                             archetypes::read_proj>);
-static_assert(std::invocable<decltype(dpl_ranges::count_if), seq_policy, read_view&, archetypes::read_proj_pred,
-                             archetypes::read_proj>);
-
-// The search value type of find/count/contains is unrelated to the element type.
-using searchable_view = archetypes::archetype_view<archetypes::searchable_archetype>;
-
-static_assert(std::invocable<decltype(dpl_ranges::find), seq_policy, searchable_view&,
-                             const archetypes::search_value&>);
-static_assert(std::invocable<decltype(dpl_ranges::find_last), seq_policy, searchable_view&,
-                             const archetypes::search_value&>);
-static_assert(std::invocable<decltype(dpl_ranges::count), seq_policy, searchable_view&,
-                             const archetypes::search_value&>);
-
-// Two-range algorithms only require the predicate to accept the two projected references; the two
-// element types stay unrelated and neither of them is comparable with itself.
-using lhs_view = archetypes::archetype_view<archetypes::lhs_archetype>;
-using rhs_view = archetypes::archetype_view<archetypes::rhs_archetype>;
-
-static_assert(std::invocable<decltype(dpl_ranges::equal), seq_policy, lhs_view&, rhs_view&, archetypes::cross_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::mismatch), seq_policy, lhs_view&, rhs_view&, archetypes::cross_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::search), seq_policy, lhs_view&, rhs_view&, archetypes::cross_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::find_end), seq_policy, lhs_view&, rhs_view&, archetypes::cross_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::find_first_of), seq_policy, lhs_view&, rhs_view&,
-                             archetypes::cross_pred>);
-
-} //namespace test_std_ranges
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int

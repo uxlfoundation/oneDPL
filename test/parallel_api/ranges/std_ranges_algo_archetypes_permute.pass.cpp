@@ -24,33 +24,14 @@
 #include "std_ranges_archetypes.h"
 #include "std_ranges_algo_archetypes_test.h"
 
-namespace test_std_ranges
-{
-namespace dpl_ranges = oneapi::dpl::ranges;
-
-using seq_policy = decltype(oneapi::dpl::execution::seq);
-
-using permutable_view = archetypes::archetype_view<archetypes::permutable_archetype>;
-
 // The permuting algorithms are constrained by std::permutable<iterator_t<_R>> only, which requires
 // the element to be movable, but not copyable, not default constructible and not comparable: any
-// ordering or equality has to come from the comparator passed by the user.
-static_assert(std::invocable<decltype(dpl_ranges::reverse), seq_policy, permutable_view&>);
-static_assert(std::invocable<decltype(dpl_ranges::remove_if), seq_policy, permutable_view&,
-                             archetypes::permutable_pred>);
-static_assert(std::invocable<decltype(dpl_ranges::unique), seq_policy, permutable_view&, archetypes::permutable_equiv>);
-static_assert(std::invocable<decltype(dpl_ranges::partition), seq_policy, permutable_view&,
-                             archetypes::permutable_pred>);
+// ordering or equality has to come from the comparator passed by the user. std::sortable<It, _Comp,
+// _Proj> == permutable<It> && indirect_strict_weak_order<...>, so the very same element archetype
+// works for the sorting algorithms as well. Those requirements are asserted on the archetypes
+// themselves in std_ranges_archetypes.h; what the calls below add is the instantiation of the
+// implementation, which is where an extra requirement shows up as a compile error.
 
-// std::sortable<It, _Comp, _Proj> == permutable<It> && indirect_strict_weak_order<...>, so the very
-// same element archetype works and the ordering never comes from an operator< on the element.
-static_assert(std::invocable<decltype(dpl_ranges::sort), seq_policy, permutable_view&, archetypes::permutable_comp>);
-static_assert(std::invocable<decltype(dpl_ranges::stable_sort), seq_policy, permutable_view&,
-                             archetypes::permutable_comp>);
-static_assert(std::invocable<decltype(dpl_ranges::is_sorted), seq_policy, permutable_view&,
-                             archetypes::permutable_comp>);
-
-} //namespace test_std_ranges
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int
