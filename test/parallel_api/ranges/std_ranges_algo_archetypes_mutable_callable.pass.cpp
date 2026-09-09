@@ -596,6 +596,83 @@ main()
         "transform, non-const callable");
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
+    // The projection is the one taking the element by non-const reference here: the functor is
+    // invoked with the projected prvalue and cannot take it by non-const reference at all.
+    run_algo2_host_policies<transform_in_archetype, transform_out_archetype>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
+            return dpl_ranges::transform(std::forward<decltype(policy)>(policy), in_view, out_view,
+                                         transform_projected_unary_op{}, transform_proj_mut{});
+        },
+        [](auto&&, auto&& out_view, auto) { return std::ranges::begin(out_view)[7].val == 16; },
+        "transform, non-const projection");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo2_hetero_policies<transform_in_archetype_dc, transform_out_archetype_dc, 45>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
+            return dpl_ranges::transform(std::forward<decltype(policy)>(policy), in_view, out_view,
+                                         transform_projected_unary_op{}, transform_proj_mut{});
+        },
+        [](auto&&, auto&& out_view, auto) { return std::ranges::begin(out_view)[7].val == 16; },
+        "transform, non-const projection");
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+    // The binary overload with a functor taking both input elements by non-const reference. It takes
+    // two input ranges, so the output range is allocated inside the call and checked there as well.
+    run_algo2_host_policies<transform_in_archetype, transform_in_archetype>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            archetype_storage<transform_out_archetype, std::allocator<transform_out_archetype>> out_storage(
+                std::allocator<transform_out_archetype>{}, archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res = dpl_ranges::transform(std::forward<decltype(policy)>(policy), view1, view2, out_view,
+                                             transform_binary_op_mut{});
+            return std::ranges::begin(out_view)[7].val == 14 && res.out == std::ranges::end(out_view);
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "transform, binary, non-const callable");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo2_hetero_policies<transform_in_archetype_dc, transform_in_archetype_dc, 46>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            // The output range is written by a device kernel, so its storage has to be device
+            // accessible: host memory from std::allocator would be dereferenced on the device.
+            sycl::usm_allocator<transform_out_archetype_dc, sycl::usm::alloc::shared> out_alloc{policy.queue()};
+            archetype_storage<transform_out_archetype_dc, decltype(out_alloc)> out_storage(
+                out_alloc, archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res = dpl_ranges::transform(std::forward<decltype(policy)>(policy), view1, view2, out_view,
+                                             transform_binary_op_mut{});
+            return std::ranges::begin(out_view)[7].val == 14 && res.out == std::ranges::end(out_view);
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "transform, binary, non-const callable");
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+    // The binary overload with a non-const projection for either input.
+    run_algo2_host_policies<transform_in_archetype, transform_in_archetype>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            archetype_storage<transform_out_archetype, std::allocator<transform_out_archetype>> out_storage(
+                std::allocator<transform_out_archetype>{}, archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res =
+                dpl_ranges::transform(std::forward<decltype(policy)>(policy), view1, view2, out_view,
+                                      transform_projected_binary_op{}, transform_proj_mut{}, transform_proj_mut{});
+            return std::ranges::begin(out_view)[7].val == 16 && res.out == std::ranges::end(out_view);
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "transform, binary, non-const projections");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo2_hetero_policies<transform_in_archetype_dc, transform_in_archetype_dc, 47>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            sycl::usm_allocator<transform_out_archetype_dc, sycl::usm::alloc::shared> out_alloc{policy.queue()};
+            archetype_storage<transform_out_archetype_dc, decltype(out_alloc)> out_storage(
+                out_alloc, archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res =
+                dpl_ranges::transform(std::forward<decltype(policy)>(policy), view1, view2, out_view,
+                                      transform_projected_binary_op{}, transform_proj_mut{}, transform_proj_mut{});
+            return std::ranges::begin(out_view)[7].val == 16 && res.out == std::ranges::end(out_view);
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "transform, binary, non-const projections");
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
     //----------------------------------------------------------------------------------------------
     // The permuting and the sorting algorithms.
     //----------------------------------------------------------------------------------------------
