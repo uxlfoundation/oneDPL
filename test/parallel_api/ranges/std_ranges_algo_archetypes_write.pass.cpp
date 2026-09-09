@@ -130,6 +130,81 @@ main()
         },
         [](auto&&, auto&& out_view, auto) { return std::ranges::begin(out_view)[7].val == 14; }, "transform");
 #endif // TEST_DPCPP_BACKEND_PRESENT
+
+    // The same overload with a non-identity projection: the functor is invoked with the projected
+    // value, which is neither the element nor the output element type.
+    run_algo2_host_policies<transform_in_archetype, transform_out_archetype>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
+            return dpl_ranges::transform(std::forward<decltype(policy)>(policy), in_view, out_view,
+                                         transform_projected_unary_op{}, transform_proj{});
+        },
+        [](auto&&, auto&& out_view, auto) { return std::ranges::begin(out_view)[7].val == 16; },
+        "transform, projection");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo2_hetero_policies<transform_in_archetype_dc, transform_out_archetype_dc, 5>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
+            return dpl_ranges::transform(std::forward<decltype(policy)>(policy), in_view, out_view,
+                                         transform_projected_unary_op{}, transform_proj{});
+        },
+        [](auto&&, auto&& out_view, auto) { return std::ranges::begin(out_view)[7].val == 16; },
+        "transform, projection");
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+    // The binary overload takes two input ranges, so the output range is allocated inside the call
+    // and the check is done there as well.
+    run_algo2_host_policies<transform_in_archetype, transform_in_archetype>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            archetype_storage<transform_out_archetype, std::allocator<transform_out_archetype>> out_storage(
+                std::allocator<transform_out_archetype>{}, archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res = dpl_ranges::transform(std::forward<decltype(policy)>(policy), view1, view2, out_view,
+                                             transform_binary_op{});
+            return std::ranges::begin(out_view)[7].val == 14 && res.out == std::ranges::end(out_view);
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "transform, binary");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo2_hetero_policies<transform_in_archetype_dc, transform_in_archetype_dc, 6>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            // The output range is written by a device kernel, so its storage has to be device
+            // accessible: host memory from std::allocator would be dereferenced on the device.
+            sycl::usm_allocator<transform_out_archetype_dc, sycl::usm::alloc::shared> out_alloc{policy.queue()};
+            archetype_storage<transform_out_archetype_dc, decltype(out_alloc)> out_storage(
+                out_alloc, archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res = dpl_ranges::transform(std::forward<decltype(policy)>(policy), view1, view2, out_view,
+                                             transform_binary_op{});
+            return std::ranges::begin(out_view)[7].val == 14 && res.out == std::ranges::end(out_view);
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "transform, binary");
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+    // The binary overload has a projection of its own for either input.
+    run_algo2_host_policies<transform_in_archetype, transform_in_archetype>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            archetype_storage<transform_out_archetype, std::allocator<transform_out_archetype>> out_storage(
+                std::allocator<transform_out_archetype>{}, archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res = dpl_ranges::transform(std::forward<decltype(policy)>(policy), view1, view2, out_view,
+                                             transform_projected_binary_op{}, transform_proj{}, transform_proj{});
+            return std::ranges::begin(out_view)[7].val == 16 && res.out == std::ranges::end(out_view);
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "transform, binary, projections");
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run_algo2_hetero_policies<transform_in_archetype_dc, transform_in_archetype_dc, 7>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            sycl::usm_allocator<transform_out_archetype_dc, sycl::usm::alloc::shared> out_alloc{policy.queue()};
+            archetype_storage<transform_out_archetype_dc, decltype(out_alloc)> out_storage(
+                out_alloc, archetype_test_size, [](std::size_t) { return 0; });
+            auto out_view = out_storage.view();
+            auto res = dpl_ranges::transform(std::forward<decltype(policy)>(policy), view1, view2, out_view,
+                                             transform_projected_binary_op{}, transform_proj{}, transform_proj{});
+            return std::ranges::begin(out_view)[7].val == 16 && res.out == std::ranges::end(out_view);
+        },
+        [](auto&&, auto&&, auto res) { return res; }, "transform, binary, projections");
+#endif // TEST_DPCPP_BACKEND_PRESENT
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
