@@ -906,10 +906,29 @@ struct cross_pred
     bool operator()(const lhs_archetype_dc& __v1, const rhs_archetype_dc& __v2) const { return __v1.val == __v2.val; }
 };
 
+// includes is constrained by std::indirect_strict_weak_order over the two projected iterators, which
+// subsumes std::relation and therefore asks for the two element types in all four combinations, not
+// only for (lhs, rhs) the way std::indirectly_comparable does for cross_pred above.
+struct cross_comp
+{
+    bool operator()(const lhs_archetype& __v1, const lhs_archetype& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(const lhs_archetype& __v1, const rhs_archetype& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(const rhs_archetype& __v1, const lhs_archetype& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(const rhs_archetype& __v1, const rhs_archetype& __v2) const { return __v1.val < __v2.val; }
+
+    bool operator()(const lhs_archetype_dc& __v1, const lhs_archetype_dc& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(const lhs_archetype_dc& __v1, const rhs_archetype_dc& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(const rhs_archetype_dc& __v1, const lhs_archetype_dc& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(const rhs_archetype_dc& __v1, const rhs_archetype_dc& __v2) const { return __v1.val < __v2.val; }
+};
+
 using lhs_iterator_t = std::ranges::iterator_t<archetype_view<lhs_archetype>>;
 using rhs_iterator_t = std::ranges::iterator_t<archetype_view<rhs_archetype>>;
 
 static_assert(std::indirectly_comparable<lhs_iterator_t, rhs_iterator_t, cross_pred>);
+static_assert(std::indirect_strict_weak_order<cross_comp, lhs_iterator_t, rhs_iterator_t>);
+static_assert(std::indirect_strict_weak_order<cross_comp, std::ranges::iterator_t<archetype_view<lhs_archetype_dc>>,
+                                              std::ranges::iterator_t<archetype_view<rhs_archetype_dc>>>);
 static_assert(std::indirectly_comparable<std::ranges::iterator_t<archetype_view<lhs_archetype_dc>>,
                                         std::ranges::iterator_t<archetype_view<rhs_archetype_dc>>, cross_pred>);
 static_assert(!std::equality_comparable<lhs_archetype>);
@@ -1638,6 +1657,24 @@ struct cross_pred_mut
 
 static_assert(std::indirectly_comparable<lhs_iterator_t, rhs_iterator_t, cross_pred_mut>);
 static_assert(!std::invocable<const cross_pred_mut&, const lhs_archetype&, const rhs_archetype&>);
+
+// The four-combination comparator of includes, see cross_comp: every reference it is handed by
+// std::indirect_strict_weak_order is a non-const lvalue as well.
+struct cross_comp_mut
+{
+    bool operator()(lhs_archetype& __v1, lhs_archetype& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(lhs_archetype& __v1, rhs_archetype& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(rhs_archetype& __v1, lhs_archetype& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(rhs_archetype& __v1, rhs_archetype& __v2) const { return __v1.val < __v2.val; }
+
+    bool operator()(lhs_archetype_dc& __v1, lhs_archetype_dc& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(lhs_archetype_dc& __v1, rhs_archetype_dc& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(rhs_archetype_dc& __v1, lhs_archetype_dc& __v2) const { return __v1.val < __v2.val; }
+    bool operator()(rhs_archetype_dc& __v1, rhs_archetype_dc& __v2) const { return __v1.val < __v2.val; }
+};
+
+static_assert(std::indirect_strict_weak_order<cross_comp_mut, lhs_iterator_t, rhs_iterator_t>);
+static_assert(!std::invocable<const cross_comp_mut&, const lhs_archetype&, const rhs_archetype&>);
 
 // Family 8: transform. The functor is only required to be std::copy_constructible and invocable with
 // the projected reference, which is a non-const lvalue.
