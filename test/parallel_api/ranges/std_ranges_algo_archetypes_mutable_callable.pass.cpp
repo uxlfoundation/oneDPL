@@ -536,7 +536,7 @@ main()
     };
     auto find_first_of_checker = [](auto&& view1, auto&&, auto res) { return res == std::ranges::begin(view1); };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST_VEC
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST
     run_algo2_host_policies<lhs_archetype, rhs_archetype>(find_first_of_algo, find_first_of_checker,
                                                           "find_first_of, non-const callable");
 #endif
@@ -673,7 +673,7 @@ main()
                std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
     };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT_HOST_PAR
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT_HOST
     run_algo_host_policies<permutable_archetype>(sort_algo, sorted_checker, "sort, non-const comparator");
 #endif
 
@@ -695,7 +695,7 @@ main()
         return dpl_ranges::stable_sort(std::forward<decltype(policy)>(policy), view, permutable_comp_mut{});
     };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HOST_PAR
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HOST
     run_algo_host_policies<permutable_archetype>(stable_sort_algo, sorted_checker, "stable_sort, non-const comparator");
 #endif
 
@@ -808,7 +808,7 @@ main()
         return std::ranges::begin(view)[0].val == 0 && std::ranges::begin(view)[9].val == 9;
     };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST_PAR
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST
     run_algo_host_policies<permutable_archetype>(partial_sort_algo, partial_sort_checker,
                                                  "partial_sort, non-const comparator");
 #endif
@@ -835,7 +835,7 @@ main()
     };
     auto nth_element_checker = [](auto&& view, auto) { return std::ranges::begin(view)[10].val == 10; };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_NTH_ELEMENT_HOST_PAR
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_NTH_ELEMENT_HOST
     run_algo_host_policies<permutable_archetype>(nth_element_algo, nth_element_checker,
                                                  "nth_element, non-const comparator");
 #endif
