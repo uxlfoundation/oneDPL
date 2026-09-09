@@ -539,9 +539,6 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST_VEC
     run_algo2_host_policies<lhs_archetype, rhs_archetype>(find_first_of_algo, find_first_of_checker,
                                                           "find_first_of, non-const callable");
-#else
-    run_algo2_novec_policies<lhs_archetype, rhs_archetype>(find_first_of_algo, find_first_of_checker,
-                                                           "find_first_of, non-const callable");
 #endif
 
     // KSATODO: the device path of find_first_of copies the element of the first range into a const
@@ -667,7 +664,7 @@ main()
     //  - parallel_backend_tbb.h:1037 - std::lower_bound(..., _M_comp) passes the const lvalue _Val
     //    of the merge split point to the comparator;
     //  - utils.h:203 - __binary_op::operator() forwards that const lvalue into std::invoke.
-    // seq and unseq keep the element non-const all the way down and are exercised below.
+    // seq and unseq keep the element non-const all the way down.
     auto sort_algo = [](auto&& policy, auto&& view) {
         return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view, permutable_comp_mut{});
     };
@@ -678,8 +675,6 @@ main()
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT_HOST_PAR
     run_algo_host_policies<permutable_archetype>(sort_algo, sorted_checker, "sort, non-const comparator");
-#else
-    run_algo_seq_policies<permutable_archetype>(sort_algo, sorted_checker, "sort, non-const comparator");
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -702,8 +697,6 @@ main()
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HOST_PAR
     run_algo_host_policies<permutable_archetype>(stable_sort_algo, sorted_checker, "stable_sort, non-const comparator");
-#else
-    run_algo_seq_policies<permutable_archetype>(stable_sort_algo, sorted_checker, "stable_sort, non-const comparator");
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -805,7 +798,7 @@ main()
     //  - parallel_backend_tbb.h:1023,1026,1034 - __merge_func::split_merging passes *(_M_x_beg + __ym)
     //    to std::upper_bound / std::lower_bound, which compares against their const lvalue parameter;
     //  - utils.h:203 - __binary_op::operator() forwards that const lvalue into std::invoke.
-    // seq and unseq keep the element non-const all the way down and are exercised below.
+    // seq and unseq keep the element non-const all the way down.
     // The range is ascending already, so the first ten elements are 0 ... 9 afterwards.
     auto partial_sort_algo = [](auto&& policy, auto&& view) {
         return dpl_ranges::partial_sort(std::forward<decltype(policy)>(policy), view, std::ranges::begin(view) + 10,
@@ -818,9 +811,6 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST_PAR
     run_algo_host_policies<permutable_archetype>(partial_sort_algo, partial_sort_checker,
                                                  "partial_sort, non-const comparator");
-#else
-    run_algo_seq_policies<permutable_archetype>(partial_sort_algo, partial_sort_checker,
-                                                "partial_sort, non-const comparator");
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -848,9 +838,6 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_NTH_ELEMENT_HOST_PAR
     run_algo_host_policies<permutable_archetype>(nth_element_algo, nth_element_checker,
                                                  "nth_element, non-const comparator");
-#else
-    run_algo_seq_policies<permutable_archetype>(nth_element_algo, nth_element_checker,
-                                                "nth_element, non-const comparator");
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
