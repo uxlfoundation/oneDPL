@@ -84,6 +84,7 @@ main()
         },
         "fill");
 
+#if TEST_DPCPP_BACKEND_PRESENT
     // None of the archetypes below is device copyable, so the host policies are the only ones the
     // constraints of these algorithms allow.
     run_algo_hetero_policies<writable_archetype_dc, 0>(
@@ -96,6 +97,7 @@ main()
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == 42;
         },
         "fill");
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     run_algo2_host_policies<copy_in_archetype, copy_out_archetype>(
         [](auto&& policy, auto&& in_view, auto&& out_view) {
@@ -115,7 +117,7 @@ main()
             return std::ranges::begin(out_view)[7].val == std::ranges::begin(in_view)[7].val;
         },
         "copy");
-#endif //TEST_DPCPP_BACKEND_PRESENT
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     run_algo2_host_policies<move_in_archetype, move_out_archetype>(
         [](auto&& policy, auto&& in_view, auto&& out_view) {
@@ -129,7 +131,7 @@ main()
             return dpl_ranges::move(std::forward<decltype(policy)>(policy), in_view, out_view);
         },
         [](auto&&, auto&& out_view, auto) { return std::ranges::begin(out_view)[7].val == 7; }, "move");
-#endif //TEST_DPCPP_BACKEND_PRESENT
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     run_algo2_host_policies<swap_archetype, swap_archetype>(
         [](auto&& policy, auto&& view1, auto&& view2) {
@@ -149,7 +151,7 @@ main()
             return std::ranges::begin(view1)[7].val == 7 && std::ranges::begin(view2)[7].val == 7;
         },
         "swap_ranges");
-#endif //TEST_DPCPP_BACKEND_PRESENT
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     run_algo2_host_policies<transform_in_archetype, transform_out_archetype>(
         [](auto&& policy, auto&& in_view, auto&& out_view) {
@@ -165,7 +167,7 @@ main()
                                          transform_unary_op{});
         },
         [](auto&&, auto&& out_view, auto) { return std::ranges::begin(out_view)[7].val == 14; }, "transform");
-#endif //TEST_DPCPP_BACKEND_PRESENT
+#endif // TEST_DPCPP_BACKEND_PRESENT
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

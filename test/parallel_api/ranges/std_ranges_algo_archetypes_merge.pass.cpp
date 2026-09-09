@@ -96,7 +96,7 @@ main()
                    std::ranges::begin(out_view)[2].val == 1 && res.out == std::ranges::end(out_view);
         },
         [](auto&&, auto&&, auto res) { return res; }, "merge");
-#endif //TEST_DPCPP_BACKEND_PRESENT
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     // KSATODO: the set operations only require std::mergeable, i.e. indirectly_copyable from either
     // input into the output, which is an assignment and not a construction. The implementation
@@ -120,6 +120,8 @@ main()
         },
         [](auto&&, auto&&, auto res) { return res; }, "set_union");
 #endif
+
+#if TEST_DPCPP_BACKEND_PRESENT
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_UNION_HETERO
     run_algo2_hetero_policies<merge_in_archetype_dc, merge_in_archetype_dc, 1>(
         [](auto&& policy, auto&& view1, auto&& view2) {
@@ -135,8 +137,8 @@ main()
                    (std::size_t)(res.out - std::ranges::begin(out_view)) == archetype_test_size;
         },
         [](auto&&, auto&&, auto res) { return res; }, "set_union");
-#endif
-
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_UNION_HETERO
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_DIFFERENCE_HOST
     run_algo2_host_policies<merge_in_archetype, merge_in_archetype>(
@@ -151,6 +153,8 @@ main()
         },
         [](auto&&, auto&&, auto res) { return res; }, "set_difference");
 #endif
+
+#if TEST_DPCPP_BACKEND_PRESENT
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_DIFFERENCE_HETERO
     run_algo2_hetero_policies<merge_in_archetype_dc, merge_in_archetype_dc, 2>(
         [](auto&& policy, auto&& view1, auto&& view2) {
@@ -165,7 +169,8 @@ main()
             return res.out == std::ranges::begin(out_view);
         },
         [](auto&&, auto&&, auto res) { return res; }, "set_difference");
-#endif
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_DIFFERENCE_HETERO
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     run_algo_host_policies<storable_archetype>(
         [](auto&& policy, auto&& view) {
@@ -173,35 +178,41 @@ main()
         },
         [](auto&&, auto res) { return res.val == 0; }, "min");
 
+#if TEST_DPCPP_BACKEND_PRESENT
     run_algo_hetero_policies<storable_archetype_dc, 3>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::min(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto res) { return res.val == 0; }, "min");
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     run_algo_host_policies<storable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::max(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto res) { return res.val == (int)archetype_test_size - 1; }, "max");
-
+    
+#if TEST_DPCPP_BACKEND_PRESENT
     run_algo_hetero_policies<storable_archetype_dc, 4>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::max(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto res) { return res.val == (int)archetype_test_size - 1; }, "max");
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     run_algo_host_policies<storable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::minmax(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto&& res) { return res.min.val == 0 && res.max.val == (int)archetype_test_size - 1; }, "minmax");
-
+    
+#if TEST_DPCPP_BACKEND_PRESENT
     run_algo_hetero_policies<storable_archetype_dc, 5>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::minmax(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto&& res) { return res.min.val == 0 && res.max.val == (int)archetype_test_size - 1; }, "minmax");
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 #endif //_ENABLE_STD_RANGES_TESTING
 

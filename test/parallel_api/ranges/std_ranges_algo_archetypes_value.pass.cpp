@@ -93,7 +93,7 @@ main()
             return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find");
-#endif //TEST_DPCPP_BACKEND_PRESENT
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
@@ -102,12 +102,14 @@ main()
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last");
 
+#if TEST_DPCPP_BACKEND_PRESENT
     run_algo_hetero_policies<searchable_archetype_dc, 1>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last");
+#endif
 
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
@@ -121,7 +123,7 @@ main()
             return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&&, auto res) { return res == 1; }, "count");
-#endif //TEST_DPCPP_BACKEND_PRESENT
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
@@ -135,7 +137,7 @@ main()
             return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&&, auto res) { return res; }, "contains");
-#endif //TEST_DPCPP_BACKEND_PRESENT
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     // removable_archetype is movable but not device copyable, so remove() is checked on the host
     // policies only.
@@ -145,6 +147,7 @@ main()
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; }, "remove");
 
+#if TEST_DPCPP_BACKEND_PRESENT
     // removable_archetype is movable but not device copyable, so remove() is checked on the host
     // policies only.
     run_algo_hetero_policies<removable_archetype_dc, 4>(
@@ -152,6 +155,7 @@ main()
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; }, "remove");
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     // nocopy_search_value is neither copyable nor movable: the host implementations must refer to
     // the value passed by the user instead of storing a copy of it. It cannot be captured by a
@@ -162,6 +166,7 @@ main()
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find, noncopyable value");
 
+#if TEST_DPCPP_BACKEND_PRESENT
     // A device policy copies the value into the kernel, so the hetero runs use the device copyable
     // counterpart of the value: it is still neither default constructible nor ordered.
     run_algo_hetero_policies<searchable_archetype_dc, 5>(
@@ -169,6 +174,7 @@ main()
             return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find, noncopyable value");
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
@@ -177,6 +183,7 @@ main()
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last, noncopyable value");
 
+#if TEST_DPCPP_BACKEND_PRESENT
     run_algo_hetero_policies<searchable_archetype_dc, 6>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view,
@@ -184,6 +191,7 @@ main()
         },
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last, noncopyable value");
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     // count() must refer to the value instead of storing a copy of it: the requires-clause never
     // asks for a copyable value type.
@@ -193,11 +201,13 @@ main()
         },
         [](auto&&, auto res) { return res == 1; }, "count, noncopyable value");
 
+#if TEST_DPCPP_BACKEND_PRESENT
     run_algo_hetero_policies<searchable_archetype_dc, 7>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
         },
         [](auto&&, auto res) { return res == 1; }, "count, noncopyable value");
+#endif // TEST_DPCPP_BACKEND_PRESENT
     
     run_algo_host_policies<searchable_archetype>(
         [](auto&& policy, auto&& view) {
@@ -205,11 +215,13 @@ main()
         },
         [](auto&&, auto res) { return res; }, "contains, noncopyable value");
 
+#if TEST_DPCPP_BACKEND_PRESENT
     run_algo_hetero_policies<searchable_archetype_dc, 8>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
         },
         [](auto&&, auto res) { return res; }, "contains, noncopyable value");
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
     // Same for remove(): the predicate it builds internally must hold a reference to the value for
     // the host policies.
@@ -220,12 +232,14 @@ main()
         [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; },
         "remove, noncopyable value");
 
+#if TEST_DPCPP_BACKEND_PRESENT
     run_algo_hetero_policies<removable_archetype_dc, 9>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
         },
         [](auto&& view, auto res) { return std::ranges::size(res) == std::ranges::size(view) - 1; },
         "remove, noncopyable value");
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 #endif //_ENABLE_STD_RANGES_TESTING
 

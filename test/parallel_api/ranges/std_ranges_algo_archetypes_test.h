@@ -126,7 +126,7 @@ run_algo2_hetero_policies(_Algo __algo, _Checker __checker, const char* __algo_n
     sycl::usm_allocator<_Elem2, sycl::usm::alloc::shared> __q_alloc2{__policy.queue()};
     run_algo2<_Elem1, _Elem2>(__q_alloc1, __q_alloc2, __policy, __algo, __checker, __algo_name);
 }
-#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 } //namespace test_std_ranges
 
