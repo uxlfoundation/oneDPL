@@ -760,9 +760,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        // The candidates are read through a const reference and copied by direct initialization, and the element is
-        // materialized as a _ValueType, so that copying and storing them requires nothing but
-        // std::is_copy_constructible_v and std::is_copy_assignable_v.
+        // std::as_const matches the std::is_copy_constructible_v requirement by constructing from const _ValueType&
         const _ValueType __min_val(std::as_const(__init).__min_val);
         const _ValueType __max_val(std::as_const(__init).__max_val);
         const _ValueType __current = __first[__i];
