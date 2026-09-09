@@ -204,6 +204,102 @@ static_assert(!std::equality_comparable<rhs_archetype>);
 static_assert(!std::copy_constructible<lhs_archetype>);
 static_assert(!std::copy_constructible<rhs_archetype>);
 
+// Family 10: the ordering algorithms called without a comparator, i.e. with the default
+// std::ranges::less. There is no user callable left to carry the ordering, so
+// std::indirect_strict_weak_order over the projected iterator becomes a requirement on the element
+// type itself: it has to be std::totally_ordered. The archetype below adds exactly the two operators
+// that concept asks for and keeps everything else deleted, so an implementation still cannot copy,
+// move or default construct it. Both operators are const members, because std::equality_comparable
+// and the partially-ordered-with exposition-only concept are spelled in terms of const lvalues.
+// Used by: is_sorted, is_sorted_until, is_heap, is_heap_until, min_element, max_element,
+// minmax_element, lexicographical_compare, includes.
+struct ordered_archetype
+{
+    int val;
+
+    explicit ordered_archetype(int __v) : val(__v) {}
+
+    bool operator==(const ordered_archetype& __other) const { return val == __other.val; }
+    std::strong_ordering operator<=>(const ordered_archetype& __other) const { return val <=> __other.val; }
+
+    TEST_ARCHETYPE_DELETED_OPERATIONS(ordered_archetype)
+};
+
+// The device copyable counterpart of ordered_archetype, used with the hetero policies.
+struct ordered_archetype_dc
+{
+    int val;
+
+    explicit ordered_archetype_dc(int __v) : val(__v) {}
+
+    bool operator==(const ordered_archetype_dc& __other) const { return val == __other.val; }
+    std::strong_ordering operator<=>(const ordered_archetype_dc& __other) const { return val <=> __other.val; }
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(ordered_archetype_dc)
+};
+
+// Family 11: the two-range and adjacent algorithms called without a predicate, i.e. with the default
+// std::ranges::equal_to. std::indirectly_comparable and std::indirect_binary_predicate then ask the
+// element type itself for std::equality_comparable and for nothing else, so this archetype has
+// operator== and no ordering at all: an implementation which reaches for operator< anywhere does not
+// compile with it.
+// Used by: equal, mismatch, search, find_end, find_first_of, contains_subrange, starts_with,
+// ends_with, adjacent_find.
+struct equality_archetype
+{
+    int val;
+
+    explicit equality_archetype(int __v) : val(__v) {}
+
+    bool operator==(const equality_archetype& __other) const { return val == __other.val; }
+
+    TEST_ARCHETYPE_DELETED_OPERATIONS(equality_archetype)
+};
+
+// The device copyable counterpart of equality_archetype, used with the hetero policies.
+struct equality_archetype_dc
+{
+    int val;
+
+    explicit equality_archetype_dc(int __v) : val(__v) {}
+
+    bool operator==(const equality_archetype_dc& __other) const { return val == __other.val; }
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(equality_archetype_dc)
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(ordered_archetype_dc)
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(equality_archetype_dc)
+
+using ordered_iterator_t = std::ranges::iterator_t<archetype_view<ordered_archetype>>;
+using ordered_dc_iterator_t = std::ranges::iterator_t<archetype_view<ordered_archetype_dc>>;
+using equality_iterator_t = std::ranges::iterator_t<archetype_view<equality_archetype>>;
+using equality_dc_iterator_t = std::ranges::iterator_t<archetype_view<equality_archetype_dc>>;
+
+// The default comparator of the ordering algorithms is accepted for both element types, and nothing
+// beyond the comparisons themselves has been added back.
+static_assert(std::totally_ordered<ordered_archetype>);
+static_assert(std::totally_ordered<ordered_archetype_dc>);
+static_assert(std::indirect_strict_weak_order<std::ranges::less, ordered_iterator_t>);
+static_assert(std::indirect_strict_weak_order<std::ranges::less, ordered_dc_iterator_t>);
+static_assert(!std::copy_constructible<ordered_archetype>);
+static_assert(!std::move_constructible<ordered_archetype>);
+static_assert(!std::default_initializable<ordered_archetype>);
+static_assert(!std::default_initializable<ordered_archetype_dc>);
+
+// The equality archetype is comparable for equality only: std::ranges::equal_to is accepted, while
+// std::ranges::less is not, which is what makes an accidental use of operator< a compilation error.
+static_assert(std::equality_comparable<equality_archetype>);
+static_assert(std::equality_comparable<equality_archetype_dc>);
+static_assert(!std::totally_ordered<equality_archetype>);
+static_assert(!std::totally_ordered<equality_archetype_dc>);
+static_assert(std::indirectly_comparable<equality_iterator_t, equality_iterator_t, std::ranges::equal_to>);
+static_assert(std::indirectly_comparable<equality_dc_iterator_t, equality_dc_iterator_t, std::ranges::equal_to>);
+static_assert(!std::indirect_strict_weak_order<std::ranges::less, equality_iterator_t>);
+static_assert(!std::copy_constructible<equality_archetype>);
+static_assert(!std::default_initializable<equality_archetype>);
+static_assert(!std::default_initializable<equality_archetype_dc>);
+
 // Family 1: read-only algorithms parameterized by a callable.
 struct read_unary_fun_mut
 {
