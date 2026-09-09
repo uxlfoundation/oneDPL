@@ -23,16 +23,6 @@
 #if _ENABLE_STD_RANGES_TESTING
 #include "std_ranges_archetypes.h"
 #include "std_ranges_algo_archetypes_test.h"
-
-// Every algorithm below is called with an archetype which satisfies exactly its declared
-// constraints, so a compile error here means the implementation requires more from a user type than
-// the requires-clause of the algorithm declares. The declared constraints themselves are asserted on
-// the archetypes in std_ranges_archetypes.h: the element of the read family is neither copyable,
-// movable, default constructible nor comparable, the projection of find_if / count_if returns a
-// completely unrelated type, the search value of find / find_last / count is unrelated to the element
-// type, and the two element types of the two-range algorithms are unrelated to each other and not
-// even comparable with themselves.
-
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int
