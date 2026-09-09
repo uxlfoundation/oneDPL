@@ -351,6 +351,16 @@ main()
         },
         [](auto&&, auto&&, bool res) { return !res; }, "lexicographical_compare, default comparator");
 
+    // The two-range read pattern over plain_archetype_view, i.e. over ranges without the members
+    // std::ranges::view_interface provides; see the plain range section of the read test for what this
+    // proves. equal is the representative shape here: two ranges walked in lockstep, with the number of
+    // elements coming from the sized sentinel of each of them and not from a size() member.
+    run_algo2_plain_all_policies<lhs_archetype, rhs_archetype, lhs_archetype_dc, rhs_archetype_dc, 30>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
+            return dpl_ranges::equal(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
+        },
+        [](auto&&, auto&&, bool res) { return res; }, "equal, plain ranges");
+
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
