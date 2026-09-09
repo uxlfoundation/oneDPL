@@ -132,7 +132,7 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& _
     assert(__first1 < __last1);
 
     using _Functor = unseq_backend::walk_n<_BinaryOperation2>;
-    using _RepackedTp = __par_backend_hetero::__repacked_tuple_t<_Tp>;
+    using _RepackedTp = __internal::__repacked_tuple_t<_Tp>;
 
     auto __n = __last1 - __first1;
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
@@ -161,7 +161,7 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& _
     assert(__first < __last);
 
     using _Functor = unseq_backend::walk_n<_UnaryOperation>;
-    using _RepackedTp = __par_backend_hetero::__repacked_tuple_t<_Tp>;
+    using _RepackedTp = __internal::__repacked_tuple_t<_Tp>;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
@@ -216,7 +216,7 @@ __pattern_transform_scan_async(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy
                                _Iterator1 __last, _Iterator2 __result, _UnaryOperation __unary_op, _Type __init,
                                _BinaryOperation __binary_op, _Inclusive)
 {
-    using _RepackedType = __par_backend_hetero::__repacked_tuple_t<_Type>;
+    using _RepackedType = __internal::__repacked_tuple_t<_Type>;
     using _InitType = unseq_backend::__init_value<_RepackedType>;
 
     return __pattern_transform_scan_base_async(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -232,7 +232,7 @@ __pattern_transform_scan_async(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy
                                _BinaryOperation __binary_op, _Inclusive)
 {
     using _ValueType = typename ::std::iterator_traits<_Iterator1>::value_type;
-    using _RepackedType = __par_backend_hetero::__repacked_tuple_t<_ValueType>;
+    using _RepackedType = __internal::__repacked_tuple_t<_ValueType>;
     using _InitType = unseq_backend::__no_init_value<_RepackedType>;
 
     return __pattern_transform_scan_base_async(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,

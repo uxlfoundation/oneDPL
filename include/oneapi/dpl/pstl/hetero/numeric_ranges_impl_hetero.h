@@ -49,7 +49,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
         return __init;
 
     using _Functor = unseq_backend::walk_n<_BinaryOperation2>;
-    using _RepackedTp = oneapi::dpl::__par_backend_hetero::__repacked_tuple_t<_Tp>;
+    using _RepackedTp = oneapi::dpl::__internal::__repacked_tuple_t<_Tp>;
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
                                                                           ::std::true_type /*is_commutative*/>(
@@ -73,7 +73,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
         return __init;
 
     using _Functor = unseq_backend::walk_n<_UnaryOperation>;
-    using _RepackedTp = oneapi::dpl::__par_backend_hetero::__repacked_tuple_t<_Tp>;
+    using _RepackedTp = oneapi::dpl::__internal::__repacked_tuple_t<_Tp>;
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
                                                                           ::std::true_type /*is_commutative*/>(
@@ -110,7 +110,7 @@ oneapi::dpl::__internal::__difference_t<_Range2>
 __pattern_transform_scan(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                          _UnaryOperation __unary_op, _Type __init, _BinaryOperation __binary_op, _Inclusive)
 {
-    using _RepackedType = __par_backend_hetero::__repacked_tuple_t<_Type>;
+    using _RepackedType = __internal::__repacked_tuple_t<_Type>;
     using _InitType = unseq_backend::__init_value<_RepackedType>;
 
     return __pattern_transform_scan_base(__tag, ::std::forward<_ExecutionPolicy>(__exec),
@@ -126,7 +126,7 @@ __pattern_transform_scan(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                          _UnaryOperation __unary_op, _BinaryOperation __binary_op, _Inclusive)
 {
     using _Type = oneapi::dpl::__internal::__value_t<_Range1>;
-    using _RepackedType = __par_backend_hetero::__repacked_tuple_t<_Type>;
+    using _RepackedType = __internal::__repacked_tuple_t<_Type>;
     using _InitType = unseq_backend::__no_init_value<_RepackedType>;
 
     return __pattern_transform_scan_base(__tag, ::std::forward<_ExecutionPolicy>(__exec),
