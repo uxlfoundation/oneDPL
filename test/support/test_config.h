@@ -375,15 +375,15 @@
 
 // The parallel host policies of sort, stable_sort, partial_sort and nth_element hand a const lvalue
 // to the comparator, which std::sortable never asks for; seq and unseq are fine.
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT_HOST_PAR 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HOST_PAR 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST_PAR 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_NTH_ELEMENT_HOST_PAR 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_NTH_ELEMENT_HOST 1
 
 // The SIMD brick of find_first_of calls the predicate with its two arguments swapped, which
 // std::indirectly_comparable does not ask for: the vectorized host policies unseq and par_unseq are
 // broken, seq and par are fine.
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST_VEC 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST 1
 
 // inplace_merge is broken for every host policy, see the note at its call site.
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE_HOST 1

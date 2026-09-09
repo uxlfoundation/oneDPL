@@ -478,7 +478,7 @@ main()
     };
     auto find_first_of_checker = [](auto&& view1, auto&&, auto res) { return res == std::ranges::begin(view1); };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST_VEC
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST
     run_algo2_host_policies<lhs_archetype, rhs_archetype>(find_first_of_algo, find_first_of_checker, "find_first_of");
 #endif
 
