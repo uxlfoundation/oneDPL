@@ -32,6 +32,9 @@ struct inspectable_holder : public hetero::__storage_holder<NScratch, ResultType
 {
     using base = hetero::__storage_holder<NScratch, ResultTypes...>;
     using base::base; // inherit constructors
+    using base::operator=; // inherit assignments
+
+    const sycl::queue& queue() const { return this->__q; }
 
     static constexpr std::size_t result_count() { return sizeof...(ResultTypes); }
     auto scratch_count() const { return this->__scratch_count; }
@@ -140,6 +143,40 @@ struct StorageHolderTest
             kind = sycl::usm::alloc::unknown;
     }
 
+    template <std::size_t NScratch, typename... ResultTypes>
+    void
+    test_move(Test::inspectable_holder<NScratch, ResultTypes...>&& src)
+    {
+        const sycl::queue src_q     = src.queue();
+        const std::size_t src_count = src.scratch_count();
+
+        const auto check_moved_from = [](const auto& h)
+        {
+            EXPECT_EQ(0u, h.scratch_count(), "move: scratch count in moved-from holder must be 0");
+            for (std::size_t s = 0; s < NScratch; ++s)
+                EXPECT_TRUE(h.scratch_slot(s).__usm_ptr == nullptr,
+                            "move: scratch slot in moved-from holder must be null");
+            for (void* ptr : h.get_result_ptrs())
+                EXPECT_TRUE(ptr == nullptr, "move: result slot in moved-from holder must be null");
+        };
+        const auto check_moved_into = [&](const auto& h)
+        {
+            EXPECT_EQ(src_count, h.scratch_count(), "move: scratch count in moved-into holder must match source");
+            EXPECT_EQ(src_q, h.queue(), "move: queue in moved-into holder must match source");
+        };
+
+        // move construction
+        Test::inspectable_holder<NScratch, ResultTypes...> dst{std::move(src)};
+        check_moved_from(src);
+        check_moved_into(dst);
+
+        // move assignment
+        Test::inspectable_holder<NScratch, ResultTypes...> dst2{sycl::queue{}};
+        dst2 = std::move(dst);
+        check_moved_from(dst);
+        check_moved_into(dst2);
+    }
+
     void test_scratch_deposits()
     {
         constexpr std::size_t NScratch = 3;
@@ -161,6 +198,8 @@ struct StorageHolderTest
             for (std::size_t s = 0; s < NScratch; ++s)
                 EXPECT_EQ(raw_ptrs[s], holder.scratch_slot(s).__usm_ptr, "scratch deposits: a USM pointer lost or corrupt");
         }
+        
+        test_move(std::move(holder));
     }
 
     void test_result_deposits()
@@ -185,6 +224,8 @@ struct StorageHolderTest
             for (std::size_t s = 0; s < NResults; ++s)
                 EXPECT_EQ(raw_ptrs[s], stored_ptrs[s], "result deposits: a USM pointer lost or corrupt");
         }
+
+        test_move(std::move(holder));
     }
 
     void test_combined_deposits()
@@ -233,6 +274,8 @@ struct StorageHolderTest
             for (void* ptr : raw_ptrs)
                 EXPECT_TRUE(ptr == nullptr, "combined deposits: a USM pointer was lost");
         }
+
+        test_move(std::move(holder));
     }
 
     // Edge case: NScratch == 0, empty ResultTypes
