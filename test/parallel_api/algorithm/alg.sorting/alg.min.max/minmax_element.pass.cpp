@@ -20,9 +20,12 @@
 
 #include "support/utils.h"
 
-#include <set>
 #include <cassert>
 #include <cmath>
+#include <initializer_list>
+#include <set>
+#include <type_traits>
+#include <vector>
 
 #if  !defined(_PSTL_TEST_MIN_ELEMENT) && !defined(_PSTL_TEST_MAX_ELEMENT) &&\
      !defined(_PSTL_TEST_MINMAX_ELEMENT) && !_PSTL_ICPX_TEST_MINMAX_ELEMENT_PASS_BROKEN
@@ -40,7 +43,7 @@ struct check_minelement
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        const Iterator expect = ::std::min_element(begin, end);
+        const Iterator expect = std::min_element(begin, end);
         const Iterator result = std::min_element(std::forward<Policy>(exec), begin, end);
         EXPECT_EQ(expect, result, "wrong return result from min_element");
     }
@@ -54,7 +57,7 @@ struct check_minelement_predicate
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         using T = typename std::iterator_traits<Iterator>::value_type;
-        const Iterator expect = ::std::min_element(begin, end);
+        const Iterator expect = std::min_element(begin, end);
         const Iterator result_pred = std::min_element(std::forward<Policy>(exec), begin, end, std::less<T>());
         EXPECT_EQ(expect, result_pred, "wrong return result from min_element with predicate");
     }
@@ -67,7 +70,7 @@ struct check_maxelement
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        const Iterator expect = ::std::max_element(begin, end);
+        const Iterator expect = std::max_element(begin, end);
         const Iterator result = std::max_element(std::forward<Policy>(exec), begin, end);
         EXPECT_EQ(expect, result, "wrong return result from max_element");
     }
@@ -81,7 +84,7 @@ struct check_maxelement_predicate
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         using T = typename std::iterator_traits<Iterator>::value_type;
-        const Iterator expect = ::std::max_element(begin, end);
+        const Iterator expect = std::max_element(begin, end);
         const Iterator result_pred = std::max_element(std::forward<Policy>(exec), begin, end, std::less<T>());
         EXPECT_EQ(expect, result_pred, "wrong return result from max_element with predicate");
     }
@@ -94,7 +97,7 @@ struct check_minmaxelement
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        const ::std::pair<Iterator, Iterator> expect = ::std::minmax_element(begin, end);
+        const std::pair<Iterator, Iterator> expect = std::minmax_element(begin, end);
         const std::pair<Iterator, Iterator> got = std::minmax_element(std::forward<Policy>(exec), begin, end);
         EXPECT_EQ(expect.first, got.first, "wrong return result from minmax_element (min part)");
         EXPECT_EQ(expect.second, got.second, "wrong return result from minmax_element (max part)");
@@ -109,9 +112,66 @@ struct check_minmaxelement_predicate
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         using T = typename std::iterator_traits<Iterator>::value_type;
-        const ::std::pair<Iterator, Iterator> expect = ::std::minmax_element(begin, end);
+        const std::pair<Iterator, Iterator> expect = std::minmax_element(begin, end);
         const std::pair<Iterator, Iterator> got_pred = std::minmax_element(std::forward<Policy>(exec), begin, end, std::less<T>());
         EXPECT_EQ(expect, got_pred, "wrong return result from minmax_element with predicate");
+    }
+};
+
+// The comparison object overloads unary operator&, which a user-defined functor is allowed to do, so the vector code
+// path has to take its address with std::addressof. Both overloads are deleted, therefore taking the address with &
+// does not compile.
+struct OverloadedAddressOfLess
+{
+    void
+    operator&() = delete;
+    void
+    operator&() const = delete;
+
+    bool
+    operator()(const std::int32_t& lhs, const std::int32_t& rhs) const
+    {
+        return lhs < rhs;
+    }
+};
+
+template <typename Type>
+struct check_minelement_overloaded_address_of
+{
+    template <typename Policy, typename Iterator>
+    void
+    operator()(Policy&& exec, Iterator begin, Iterator end)
+    {
+        const Iterator expect = std::min_element(begin, end);
+        const Iterator result = std::min_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        EXPECT_EQ(expect, result, "wrong return result from min_element with a comparator overloading operator&");
+    }
+};
+
+template <typename Type>
+struct check_maxelement_overloaded_address_of
+{
+    template <typename Policy, typename Iterator>
+    void
+    operator()(Policy&& exec, Iterator begin, Iterator end)
+    {
+        const Iterator expect = std::max_element(begin, end);
+        const Iterator result = std::max_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        EXPECT_EQ(expect, result, "wrong return result from max_element with a comparator overloading operator&");
+    }
+};
+
+template <typename Type>
+struct check_minmaxelement_overloaded_address_of
+{
+    template <typename Policy, typename Iterator>
+    void
+    operator()(Policy&& exec, Iterator begin, Iterator end)
+    {
+        const std::pair<Iterator, Iterator> expect = std::minmax_element(begin, end);
+        const std::pair<Iterator, Iterator> got =
+            std::minmax_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        EXPECT_EQ(expect, got, "wrong return result from minmax_element with a comparator overloading operator&");
     }
 };
 
@@ -121,40 +181,40 @@ struct sequence_wrapper
     TestUtils::Sequence<T> seq;
     const T min_value;
     const T max_value;
-    static const ::std::size_t bits = 30; // We assume that T can handle signed 2^bits+1 value
+    static const std::size_t bits = 30; // We assume that T can handle signed 2^bits+1 value
 
     // TestUtils::HashBits returns value between 0 and (1<<bits)-1,
     // therefore we could threat 1<<bits as maximum and -(1<<bits) as a minimum
-    sequence_wrapper(::std::size_t n) : seq(n), min_value(-(1 << bits)), max_value(1 << bits) {}
+    sequence_wrapper(std::size_t n) : seq(n), min_value(-(1 << bits)), max_value(1 << bits) {}
 
     void
     pattern_fill()
     {
-        seq.fill([](::std::size_t i) -> T { return T(TestUtils::HashBits(i, bits)); });
+        seq.fill([](std::size_t i) -> T { return T(TestUtils::HashBits(i, bits)); });
     }
 
     // sets first one at position `at` and bunch of them farther
     void
-    set_desired_value(::std::size_t at, T value)
+    set_desired_value(std::size_t at, T value)
     {
         if (seq.size() == 0)
             return;
         seq[at] = value;
 
         //Producing several red herrings
-        for (::std::size_t i = at + 1; i < seq.size(); i += 1 + TestUtils::HashBits(i, 5))
+        for (std::size_t i = at + 1; i < seq.size(); i += 1 + TestUtils::HashBits(i, 5))
             seq[i] = value;
     }
 };
 
 template <typename T>
 void
-test_by_type(::std::size_t n)
+test_by_type(std::size_t n)
 {
     sequence_wrapper<T> wseq(n);
 
-    // to avoid overtesing we use ::std::set to leave only unique indexes
-    ::std::set<::std::size_t> targets{0};
+    // to avoid overtesing we use std::set to leave only unique indexes
+    std::set<std::size_t> targets{0};
     if (n > 1)
     {
         targets.insert(1);
@@ -164,7 +224,7 @@ test_by_type(::std::size_t n)
         targets.insert(n - 1); // last
     }
 
-    for (::std::set<::std::size_t>::iterator it = targets.begin(); it != targets.end(); ++it)
+    for (std::set<std::size_t>::iterator it = targets.begin(); it != targets.end(); ++it)
     {
         wseq.pattern_fill();
 #ifdef _PSTL_TEST_MIN_ELEMENT
@@ -190,7 +250,7 @@ test_by_type(::std::size_t n)
 #ifdef _PSTL_TEST_MINMAX_ELEMENT
         if (targets.size() > 1)
         {
-            for (::std::set<::std::size_t>::reverse_iterator rit = targets.rbegin(); rit != targets.rend(); ++rit)
+            for (std::set<std::size_t>::reverse_iterator rit = targets.rbegin(); rit != targets.rend(); ++rit)
             {
                 if (*rit == *it) // we requires at least 2 unique indexes in targets
                     break;
@@ -231,6 +291,235 @@ struct OnlyLessCompare
     }
 };
 
+// The value type is default-constructible, but only through an explicit default constructor:
+// the vector code path is still applicable for it, because the reduction object initializes its
+// members with direct-list-initialization.
+struct ExplicitDefaultCtorCompare
+{
+    std::int32_t val;
+    explicit ExplicitDefaultCtorCompare() : val(0) {}
+    ExplicitDefaultCtorCompare(std::int32_t val_) : val(val_) {}
+    bool
+    operator<(const ExplicitDefaultCtorCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The value type is not default-constructible, but it is brace-initializable: with no default constructor declared,
+// empty braces select the initializer-list constructor with an empty list. The vector code path is still applicable for
+// it, because the reduction object initializes its members with _ValueType{} and never writes _ValueType().
+struct BraceInitOnlyCompare
+{
+    std::int32_t val;
+    BraceInitOnlyCompare(std::initializer_list<std::int32_t> init) : val(init.size() == 0 ? 0 : *init.begin()) {}
+    BraceInitOnlyCompare(std::int32_t val_) : val(val_) {}
+    bool
+    operator<(const BraceInitOnlyCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The move operations of the value type are deleted: the vector code path is still applicable for it, because the
+// vector code never moves a value.
+struct CopyOnlyNoMoveCompare
+{
+    std::int32_t val;
+    CopyOnlyNoMoveCompare() : val(0) {}
+    CopyOnlyNoMoveCompare(std::int32_t val_) : val(val_) {}
+    CopyOnlyNoMoveCompare(const CopyOnlyNoMoveCompare&) = default;
+    CopyOnlyNoMoveCompare&
+    operator=(const CopyOnlyNoMoveCompare&) = default;
+    CopyOnlyNoMoveCompare(CopyOnlyNoMoveCompare&&) = delete;
+    CopyOnlyNoMoveCompare&
+    operator=(CopyOnlyNoMoveCompare&&) = delete;
+    bool
+    operator<(const CopyOnlyNoMoveCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The assignment of the value type does not return VoidAssignCompare&: the vector code path is still applicable for it,
+// because the vector code never uses the result of an assignment.
+struct VoidAssignCompare
+{
+    std::int32_t val;
+    VoidAssignCompare() : val(0) {}
+    VoidAssignCompare(std::int32_t val_) : val(val_) {}
+    void
+    operator=(const VoidAssignCompare& other)
+    {
+        val = other.val;
+    }
+    bool
+    operator<(const VoidAssignCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The destructor of the value type is not noexcept: the vector code path is still applicable for it, because storing
+// a value never has to be non-throwing.
+struct ThrowingDtorCompare
+{
+    std::int32_t val;
+    ThrowingDtorCompare() : val(0) {}
+    ThrowingDtorCompare(std::int32_t val_) : val(val_) {}
+    ~ThrowingDtorCompare() noexcept(false) {}
+    bool
+    operator<(const ThrowingDtorCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The value type can be copied and assigned from a const lvalue only. The vector code path is still applicable for it,
+// because the vector code reads both the elements and the stored candidates through const references, but it requires
+// const iterators here: the reference type of a non-const iterator does not convert to such a value type.
+struct ConstCopyOnlyCompare
+{
+    std::int32_t val;
+    ConstCopyOnlyCompare() : val(0) {}
+    ConstCopyOnlyCompare(std::int32_t val_) : val(val_) {}
+    ConstCopyOnlyCompare(const ConstCopyOnlyCompare&) = default;
+    ConstCopyOnlyCompare(ConstCopyOnlyCompare&) = delete;
+    ConstCopyOnlyCompare&
+    operator=(const ConstCopyOnlyCompare&) = default;
+    ConstCopyOnlyCompare&
+    operator=(ConstCopyOnlyCompare&) = delete;
+    bool
+    operator<(const ConstCopyOnlyCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The value type is not default-constructible, so it cannot be used in a user-defined reduction
+// and the vector code path must not be selected for it. The same holds for NoCopyAssignCompare and
+// MoveOnlyCompare below: each of them violates one of the requirements the vector code path puts on the
+// value type, so each of them fails to compile once that path is selected.
+struct NoDefaultCtorCompare
+{
+    std::int32_t val;
+    explicit NoDefaultCtorCompare(std::int32_t val_) : val(val_) {}
+    bool
+    operator<(const NoDefaultCtorCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The value type is not copy-assignable, so it cannot be used in a user-defined reduction
+// and the vector code path must not be selected for it.
+struct NoCopyAssignCompare
+{
+    std::int32_t val;
+    NoCopyAssignCompare() : val(0) {}
+    NoCopyAssignCompare(std::int32_t val_) : val(val_) {}
+    NoCopyAssignCompare(const NoCopyAssignCompare&) = default;
+    NoCopyAssignCompare&
+    operator=(const NoCopyAssignCompare&) = delete;
+    bool
+    operator<(const NoCopyAssignCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The value type is not copy-constructible, so it cannot be used in a user-defined reduction
+// and the vector code path must not be selected for it.
+struct MoveOnlyCompare
+{
+    std::int32_t val;
+    MoveOnlyCompare() : val(0) {}
+    MoveOnlyCompare(std::int32_t val_) : val(val_) {}
+    MoveOnlyCompare(MoveOnlyCompare&&) = default;
+    MoveOnlyCompare&
+    operator=(MoveOnlyCompare&&) = default;
+    MoveOnlyCompare(const MoveOnlyCompare&) = delete;
+    MoveOnlyCompare&
+    operator=(const MoveOnlyCompare&) = delete;
+    bool
+    operator<(const MoveOnlyCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+template <typename T, typename Iterator>
+static void
+check_by_type_host_policies(Iterator first, Iterator last)
+{
+#ifdef _PSTL_TEST_MIN_ELEMENT
+    invoke_on_all_host_policies()(check_minelement<T>(), first, last);
+    invoke_on_all_host_policies()(check_minelement_predicate<T>(), first, last);
+#endif
+#ifdef _PSTL_TEST_MAX_ELEMENT
+    invoke_on_all_host_policies()(check_maxelement<T>(), first, last);
+    invoke_on_all_host_policies()(check_maxelement_predicate<T>(), first, last);
+#endif
+#ifdef _PSTL_TEST_MINMAX_ELEMENT
+    invoke_on_all_host_policies()(check_minmaxelement<T>(), first, last);
+    invoke_on_all_host_policies()(check_minmaxelement_predicate<T>(), first, last);
+#endif
+}
+
+// The sequence is built in place because the value types checked here either do not satisfy the requirements of
+// TestUtils::Sequence (which default-constructs and assigns its elements) or are not trivially copyable, and thus
+// cannot be checked with device policies.
+template <typename T, bool UseConstIterators = false>
+static void
+test_by_type_host_policies(std::size_t n)
+{
+    std::vector<T> data;
+    data.reserve(n);
+    for (std::size_t i = 0; i < n; ++i)
+        data.emplace_back(std::int32_t(TestUtils::HashBits(i, 30)));
+
+    using Iterator = std::conditional_t<UseConstIterators, typename std::vector<T>::const_iterator,
+                                          typename std::vector<T>::iterator>;
+    check_by_type_host_policies<T>(Iterator(data.begin()), Iterator(data.end()));
+}
+
+// A value type with deleted move operations cannot be added to a std::vector, because the growth path of the container
+// moves its elements, so the sequence is sized up front here and its elements are assigned from const lvalues. A plain
+// array is deliberately not used: with the bounds of the storage known at compile time, GCC reports a false
+// out-of-bounds subscript in the parallel reduction, which never dereferences its identity iterator, the end of the
+// sequence.
+template <typename T>
+static void
+test_by_type_host_policies_no_move(std::size_t n)
+{
+    std::vector<T> data(n);
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        const T value(std::int32_t(TestUtils::HashBits(i, 30)));
+        data[i] = value;
+    }
+
+    check_by_type_host_policies<T>(data.begin(), data.end());
+}
+
+// The comparison object is passed to min_element and minmax_element as is, so the vector code path takes its address
+// there, and to max_element wrapped into an internal predicate which reorders the arguments.
+static void
+test_comparator_with_overloaded_address_of(std::size_t n)
+{
+    Sequence<std::int32_t> in(n, [](std::size_t i) { return std::int32_t(TestUtils::HashBits(i, 30)); });
+
+#ifdef _PSTL_TEST_MIN_ELEMENT
+    invoke_on_all_host_policies()(check_minelement_overloaded_address_of<std::int32_t>(), in.begin(), in.end());
+#endif
+#ifdef _PSTL_TEST_MAX_ELEMENT
+    invoke_on_all_host_policies()(check_maxelement_overloaded_address_of<std::int32_t>(), in.begin(), in.end());
+#endif
+#ifdef _PSTL_TEST_MINMAX_ELEMENT
+    invoke_on_all_host_policies()(check_minmaxelement_overloaded_address_of<std::int32_t>(), in.begin(), in.end());
+#endif
+}
+
 template <typename T>
 struct test_non_const_max_element
 {
@@ -268,9 +557,10 @@ int
 main()
 {
     using TestUtils::float64_t;
-    const ::std::size_t N = 100000;
+    const std::size_t N = 100000;
+    const std::size_t NSmall = 10;
 
-    for (::std::size_t n = 0; n < N; n = n < 16 ? n + 1 : size_t(3.14159 * n))
+    for (std::size_t n = 0; n < N; n = n < 16 ? n + 1 : size_t(3.14159 * n))
     {
 #if !ONEDPL_FPGA_DEVICE
         test_by_type<std::int32_t>(n);
@@ -278,6 +568,38 @@ main()
         test_by_type<float64_t>(n);
         test_by_type<OnlyLessCompare>(n);
     }
+
+    // This value type is accepted by the vector code path, exactly like OnlyLessCompare above: it differs from it only
+    // by an explicit default constructor, which the path has to accept at compile time, so one size is enough.
+    test_by_type<ExplicitDefaultCtorCompare>(NSmall);
+
+    // This value type is accepted by the vector code path although it is not default-constructible, which is the other
+    // direction in which brace initialization, the requirement of the vector code path, differs from default
+    // construction. That does not depend on the sequence size either.
+    test_by_type_host_policies<BraceInitOnlyCompare>(NSmall);
+
+    // These value types are accepted by the vector code path as well, and the point of checking them is that the vector
+    // code is instantiated for them: each of them violates one of the requirements of std::semiregular that the vector
+    // code does not have. That does not depend on the sequence size either.
+    test_by_type_host_policies_no_move<CopyOnlyNoMoveCompare>(NSmall);
+    test_by_type_host_policies<VoidAssignCompare>(NSmall);
+    test_by_type_host_policies<ThrowingDtorCompare>(NSmall);
+
+    // This value type is accepted by the vector code path through const iterators, so the point of checking it is that
+    // the vector code copies the elements and the stored candidates from const lvalues only. That does not depend on
+    // the sequence size either.
+    test_by_type_host_policies<ConstCopyOnlyCompare, /*UseConstIterators*/ true>(NSmall);
+
+    // These value types are rejected by the vector code path, so the point of checking them is that the call compiles
+    // and falls back to the serial implementation. That does not depend on the sequence size, so one size is enough.
+    test_by_type_host_policies<NoDefaultCtorCompare>(NSmall);
+    test_by_type_host_policies<NoCopyAssignCompare>(NSmall);
+    test_by_type_host_policies<MoveOnlyCompare>(NSmall);
+
+    // The comparison object of this check overloads unary operator&, so the point of it is that the vector code path
+    // takes the address of the comparison object with std::addressof: with & it does not compile. The sequence is long
+    // enough for the vector code to process several blocks and to combine their results.
+    test_comparator_with_overloaded_address_of(1000);
 
 #ifdef _PSTL_TEST_MIN_ELEMENT
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const_min_element<std::int32_t>>());
