@@ -630,8 +630,6 @@ inline constexpr bool __is_value_storable_v =
     __is_brace_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
     std::is_copy_assignable_v<_ValueType>;
 
-// The implementation keeps copies of the values in the reduction object, so the value type has to be usable in a
-// user-defined reduction: __is_value_storable_v is the requirement checked by the callers.
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 _ForwardIterator
@@ -681,8 +679,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        // The candidate is read through a const reference and copied by direct initialization, so that copying it
-        // requires nothing but std::is_copy_constructible_v, which is stated in terms of direct initialization too.
+        // std::as_const соответствует std::is_copy_constructible_v, создавая его из const _ValueType&.
         const _ValueType __min_val(std::as_const(__init).__min_val);
         const _ValueType __current = __first[__i];
         if (std::invoke(__comp, __current, __min_val))
@@ -694,8 +691,6 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     return __first + __init.__min_ind;
 }
 
-// The implementation keeps copies of the values in the reduction object, so the value type has to be usable in a
-// user-defined reduction: __is_value_storable_v is the requirement checked by the callers.
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 std::pair<_ForwardIterator, _ForwardIterator>
@@ -765,9 +760,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        // The candidates are read through a const reference and copied by direct initialization, and the element is
-        // materialized as a _ValueType, so that copying and storing them requires nothing but
-        // std::is_copy_constructible_v and std::is_copy_assignable_v.
+        // std::as_const matches the std::is_copy_constructible_v requirement by constructing from const _ValueType&
         const _ValueType __min_val(std::as_const(__init).__min_val);
         const _ValueType __max_val(std::as_const(__init).__max_val);
         const _ValueType __current = __first[__i];
