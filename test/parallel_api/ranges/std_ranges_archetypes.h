@@ -1311,6 +1311,57 @@ static_assert(std::indirectly_writable<
 static_assert(!std::copyable<transform_out_archetype>);
 static_assert(!std::default_initializable<transform_out_archetype>);
 
+// Both transform overloads project their input before invoking the functor, and the requires-clause
+// spells the functor over std::projected, so the functor never sees the element itself. The
+// projection returns yet another unrelated type: an implementation which applies the functor to the
+// element, or writes the projected value into the output, does not compile.
+struct transform_proj_result
+{
+    int val;
+};
+
+struct transform_proj
+{
+    transform_proj_result operator()(const transform_in_archetype& __v) const
+    {
+        return transform_proj_result{__v.val + 1};
+    }
+    transform_proj_result operator()(const transform_in_archetype_dc& __v) const
+    {
+        return transform_proj_result{__v.val + 1};
+    }
+};
+
+struct transform_projected_unary_op
+{
+    transform_result operator()(const transform_proj_result& __v) const { return transform_result{__v.val * 2}; }
+};
+
+struct transform_projected_binary_op
+{
+    transform_result operator()(const transform_proj_result& __v1, const transform_proj_result& __v2) const
+    {
+        return transform_result{__v1.val + __v2.val};
+    }
+};
+
+using transform_projected_iterator_t = std::projected<transform_in_iterator_t, transform_proj>;
+
+static_assert(std::copy_constructible<transform_proj>);
+static_assert(std::indirectly_regular_unary_invocable<transform_proj, transform_in_iterator_t>);
+static_assert(std::indirectly_writable<
+              transform_out_iterator_t,
+              std::indirect_result_t<transform_projected_unary_op&, transform_projected_iterator_t>>);
+static_assert(std::indirectly_writable<transform_out_iterator_t,
+                                       std::indirect_result_t<transform_projected_binary_op&,
+                                                              transform_projected_iterator_t,
+                                                              transform_projected_iterator_t>>);
+// The projected functors reject the element type, and the output element rejects the projected
+// value, so neither the projection nor the functor can be skipped by the implementation.
+static_assert(!std::invocable<transform_projected_unary_op&, transform_in_archetype&>);
+static_assert(!std::invocable<transform_projected_binary_op&, transform_in_archetype&, transform_in_archetype&>);
+static_assert(!std::indirectly_writable<transform_out_iterator_t, transform_proj_result>);
+
 // Family 9: permuting algorithms.
 // std::permutable<It> == forward_iterator<It> && indirectly_movable_storable<It, It> &&
 // indirectly_swappable<It, It>, which does require the element to be movable and move
@@ -1684,9 +1735,44 @@ struct transform_unary_op_mut
     transform_result operator()(transform_in_archetype_dc& __v) const { return transform_result{__v.val * 2}; }
 };
 
+struct transform_binary_op_mut
+{
+    transform_result operator()(transform_in_archetype& __v1, transform_in_archetype& __v2) const
+    {
+        return transform_result{__v1.val + __v2.val};
+    }
+    transform_result operator()(transform_in_archetype_dc& __v1, transform_in_archetype_dc& __v2) const
+    {
+        return transform_result{__v1.val + __v2.val};
+    }
+};
+
+// A projection taking its argument by non-const reference. The functor invoked with the projected
+// value cannot do the same: the projection returns a prvalue, which does not bind to a non-const
+// lvalue reference, so the projected functors of the const section are reused with this projection.
+struct transform_proj_mut
+{
+    transform_proj_result operator()(transform_in_archetype& __v) const { return transform_proj_result{__v.val + 1}; }
+    transform_proj_result operator()(transform_in_archetype_dc& __v) const
+    {
+        return transform_proj_result{__v.val + 1};
+    }
+};
+
 static_assert(std::indirectly_writable<transform_out_iterator_t,
                                        std::indirect_result_t<transform_unary_op_mut&, transform_in_iterator_t>>);
 static_assert(!std::invocable<const transform_unary_op_mut&, const transform_in_archetype&>);
+static_assert(std::indirectly_writable<
+              transform_out_iterator_t,
+              std::indirect_result_t<transform_binary_op_mut&, transform_in_iterator_t, transform_in_iterator_t>>);
+static_assert(
+    !std::invocable<const transform_binary_op_mut&, const transform_in_archetype&, const transform_in_archetype&>);
+static_assert(std::indirectly_regular_unary_invocable<transform_proj_mut, transform_in_iterator_t>);
+static_assert(!std::invocable<const transform_proj_mut&, const transform_in_archetype&>);
+static_assert(std::indirectly_writable<
+              transform_out_iterator_t,
+              std::indirect_result_t<transform_projected_unary_op&,
+                                     std::projected<transform_in_iterator_t, transform_proj_mut>>>);
 
 // Family 9: permuting and sorting algorithms. The element is mutable by definition here, so the
 // predicate and the comparator may take it by non-const reference as well.
