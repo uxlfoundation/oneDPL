@@ -43,7 +43,7 @@ struct check_minelement
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        const Iterator expect = ::std::min_element(begin, end);
+        const Iterator expect = std::min_element(begin, end);
         const Iterator result = std::min_element(std::forward<Policy>(exec), begin, end);
         EXPECT_EQ(expect, result, "wrong return result from min_element");
     }
@@ -57,7 +57,7 @@ struct check_minelement_predicate
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         using T = typename std::iterator_traits<Iterator>::value_type;
-        const Iterator expect = ::std::min_element(begin, end);
+        const Iterator expect = std::min_element(begin, end);
         const Iterator result_pred = std::min_element(std::forward<Policy>(exec), begin, end, std::less<T>());
         EXPECT_EQ(expect, result_pred, "wrong return result from min_element with predicate");
     }
@@ -70,7 +70,7 @@ struct check_maxelement
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        const Iterator expect = ::std::max_element(begin, end);
+        const Iterator expect = std::max_element(begin, end);
         const Iterator result = std::max_element(std::forward<Policy>(exec), begin, end);
         EXPECT_EQ(expect, result, "wrong return result from max_element");
     }
@@ -84,7 +84,7 @@ struct check_maxelement_predicate
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         using T = typename std::iterator_traits<Iterator>::value_type;
-        const Iterator expect = ::std::max_element(begin, end);
+        const Iterator expect = std::max_element(begin, end);
         const Iterator result_pred = std::max_element(std::forward<Policy>(exec), begin, end, std::less<T>());
         EXPECT_EQ(expect, result_pred, "wrong return result from max_element with predicate");
     }
@@ -97,7 +97,7 @@ struct check_minmaxelement
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        const ::std::pair<Iterator, Iterator> expect = ::std::minmax_element(begin, end);
+        const std::pair<Iterator, Iterator> expect = std::minmax_element(begin, end);
         const std::pair<Iterator, Iterator> got = std::minmax_element(std::forward<Policy>(exec), begin, end);
         EXPECT_EQ(expect.first, got.first, "wrong return result from minmax_element (min part)");
         EXPECT_EQ(expect.second, got.second, "wrong return result from minmax_element (max part)");
@@ -112,7 +112,7 @@ struct check_minmaxelement_predicate
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         using T = typename std::iterator_traits<Iterator>::value_type;
-        const ::std::pair<Iterator, Iterator> expect = ::std::minmax_element(begin, end);
+        const std::pair<Iterator, Iterator> expect = std::minmax_element(begin, end);
         const std::pair<Iterator, Iterator> got_pred = std::minmax_element(std::forward<Policy>(exec), begin, end, std::less<T>());
         EXPECT_EQ(expect, got_pred, "wrong return result from minmax_element with predicate");
     }
@@ -142,7 +142,7 @@ struct check_minelement_overloaded_address_of
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        const Iterator expect = ::std::min_element(begin, end);
+        const Iterator expect = std::min_element(begin, end);
         const Iterator result = std::min_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
         EXPECT_EQ(expect, result, "wrong return result from min_element with a comparator overloading operator&");
     }
@@ -155,7 +155,7 @@ struct check_maxelement_overloaded_address_of
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        const Iterator expect = ::std::max_element(begin, end);
+        const Iterator expect = std::max_element(begin, end);
         const Iterator result = std::max_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
         EXPECT_EQ(expect, result, "wrong return result from max_element with a comparator overloading operator&");
     }
@@ -168,7 +168,7 @@ struct check_minmaxelement_overloaded_address_of
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        const ::std::pair<Iterator, Iterator> expect = ::std::minmax_element(begin, end);
+        const std::pair<Iterator, Iterator> expect = std::minmax_element(begin, end);
         const std::pair<Iterator, Iterator> got =
             std::minmax_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
         EXPECT_EQ(expect, got, "wrong return result from minmax_element with a comparator overloading operator&");
@@ -181,40 +181,40 @@ struct sequence_wrapper
     TestUtils::Sequence<T> seq;
     const T min_value;
     const T max_value;
-    static const ::std::size_t bits = 30; // We assume that T can handle signed 2^bits+1 value
+    static const std::size_t bits = 30; // We assume that T can handle signed 2^bits+1 value
 
     // TestUtils::HashBits returns value between 0 and (1<<bits)-1,
     // therefore we could threat 1<<bits as maximum and -(1<<bits) as a minimum
-    sequence_wrapper(::std::size_t n) : seq(n), min_value(-(1 << bits)), max_value(1 << bits) {}
+    sequence_wrapper(std::size_t n) : seq(n), min_value(-(1 << bits)), max_value(1 << bits) {}
 
     void
     pattern_fill()
     {
-        seq.fill([](::std::size_t i) -> T { return T(TestUtils::HashBits(i, bits)); });
+        seq.fill([](std::size_t i) -> T { return T(TestUtils::HashBits(i, bits)); });
     }
 
     // sets first one at position `at` and bunch of them farther
     void
-    set_desired_value(::std::size_t at, T value)
+    set_desired_value(std::size_t at, T value)
     {
         if (seq.size() == 0)
             return;
         seq[at] = value;
 
         //Producing several red herrings
-        for (::std::size_t i = at + 1; i < seq.size(); i += 1 + TestUtils::HashBits(i, 5))
+        for (std::size_t i = at + 1; i < seq.size(); i += 1 + TestUtils::HashBits(i, 5))
             seq[i] = value;
     }
 };
 
 template <typename T>
 void
-test_by_type(::std::size_t n)
+test_by_type(std::size_t n)
 {
     sequence_wrapper<T> wseq(n);
 
-    // to avoid overtesing we use ::std::set to leave only unique indexes
-    ::std::set<::std::size_t> targets{0};
+    // to avoid overtesing we use std::set to leave only unique indexes
+    std::set<std::size_t> targets{0};
     if (n > 1)
     {
         targets.insert(1);
@@ -224,7 +224,7 @@ test_by_type(::std::size_t n)
         targets.insert(n - 1); // last
     }
 
-    for (::std::set<::std::size_t>::iterator it = targets.begin(); it != targets.end(); ++it)
+    for (std::set<std::size_t>::iterator it = targets.begin(); it != targets.end(); ++it)
     {
         wseq.pattern_fill();
 #ifdef _PSTL_TEST_MIN_ELEMENT
@@ -250,7 +250,7 @@ test_by_type(::std::size_t n)
 #ifdef _PSTL_TEST_MINMAX_ELEMENT
         if (targets.size() > 1)
         {
-            for (::std::set<::std::size_t>::reverse_iterator rit = targets.rbegin(); rit != targets.rend(); ++rit)
+            for (std::set<std::size_t>::reverse_iterator rit = targets.rbegin(); rit != targets.rend(); ++rit)
             {
                 if (*rit == *it) // we requires at least 2 unique indexes in targets
                     break;
@@ -471,15 +471,15 @@ check_by_type_host_policies(Iterator first, Iterator last)
 // cannot be checked with device policies.
 template <typename T, bool UseConstIterators = false>
 static void
-test_by_type_host_policies(::std::size_t n)
+test_by_type_host_policies(std::size_t n)
 {
-    ::std::vector<T> data;
+    std::vector<T> data;
     data.reserve(n);
-    for (::std::size_t i = 0; i < n; ++i)
+    for (std::size_t i = 0; i < n; ++i)
         data.emplace_back(std::int32_t(TestUtils::HashBits(i, 30)));
 
-    using Iterator = ::std::conditional_t<UseConstIterators, typename ::std::vector<T>::const_iterator,
-                                          typename ::std::vector<T>::iterator>;
+    using Iterator = std::conditional_t<UseConstIterators, typename std::vector<T>::const_iterator,
+                                          typename std::vector<T>::iterator>;
     check_by_type_host_policies<T>(Iterator(data.begin()), Iterator(data.end()));
 }
 
@@ -490,10 +490,10 @@ test_by_type_host_policies(::std::size_t n)
 // sequence.
 template <typename T>
 static void
-test_by_type_host_policies_no_move(::std::size_t n)
+test_by_type_host_policies_no_move(std::size_t n)
 {
-    ::std::vector<T> data(n);
-    for (::std::size_t i = 0; i < n; ++i)
+    std::vector<T> data(n);
+    for (std::size_t i = 0; i < n; ++i)
     {
         const T value(std::int32_t(TestUtils::HashBits(i, 30)));
         data[i] = value;
@@ -505,9 +505,9 @@ test_by_type_host_policies_no_move(::std::size_t n)
 // The comparison object is passed to min_element and minmax_element as is, so the vector code path takes its address
 // there, and to max_element wrapped into an internal predicate which reorders the arguments.
 static void
-test_comparator_with_overloaded_address_of(::std::size_t n)
+test_comparator_with_overloaded_address_of(std::size_t n)
 {
-    Sequence<std::int32_t> in(n, [](::std::size_t i) { return std::int32_t(TestUtils::HashBits(i, 30)); });
+    Sequence<std::int32_t> in(n, [](std::size_t i) { return std::int32_t(TestUtils::HashBits(i, 30)); });
 
 #ifdef _PSTL_TEST_MIN_ELEMENT
     invoke_on_all_host_policies()(check_minelement_overloaded_address_of<std::int32_t>(), in.begin(), in.end());
