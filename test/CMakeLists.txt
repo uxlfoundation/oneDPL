@@ -192,7 +192,7 @@ macro(onedpl_add_test test_source_file switch_off_checked_iterators)
     set(std_ranges_set_op_cpp26_variant_tests "std_ranges_set_union.pass" "std_ranges_set_difference.pass"
         "std_ranges_set_symmetric_difference.pass" "std_ranges_set_intersection.pass")
 
-    # KT radix sort integration tests: built with ONEDPL_ENABLE_KT_RADIX_SORT_IN_SORT=1
+    # KT radix sort integration tests: built with ONEDPL_ENABLE_KT_IN_SORT=1
     set(kt_radix_sort_integration_tests "kt_radix_sort_integration.pass" "kt_radix_sort_fallback.pass" "kt_radix_sort_traits.pass")
 
     set(extra_test_label "")
@@ -215,8 +215,8 @@ macro(onedpl_add_test test_source_file switch_off_checked_iterators)
         string(REPLACE "\.pass" "_cpp26\.pass" _test_name ${_test_name})
         onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-DONEDPL_SET_RANGE_ALGS_CPP26_LIKE=1" "${extra_test_label}")
     elseif (_test_name IN_LIST kt_radix_sort_integration_tests)
-        # Build with ONEDPL_ENABLE_KT_RADIX_SORT_IN_SORT=1 to test the KT path
-        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-DONEDPL_ENABLE_KT_RADIX_SORT_IN_SORT=1" "${extra_test_label}")
+        # Build with ONEDPL_ENABLE_KT_IN_SORT=1 to test the KT path
+        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-DONEDPL_ENABLE_KT_IN_SORT=1" "${extra_test_label}")
     else()
         onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "" "${extra_test_label}")
     endif()

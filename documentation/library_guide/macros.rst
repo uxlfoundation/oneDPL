@@ -147,7 +147,7 @@ Macro                                    Description
                                          .. Note:: The standard conformant behavior for these algorithms will be fully enabled
                                          in a future release, at which point any value of the macro will have no effect.
 ---------------------------------------- ------------------------------
-``ONEDPL_ENABLE_KT_RADIX_SORT_IN_SORT``  This macro allows sorting algorithms executed with device policies to use
+``ONEDPL_ENABLE_KT_IN_SORT``             This macro allows sorting algorithms executed with device policies to use
                                          the experimental SYCL* radix sort :doc:`kernel template <kernel_templates_main>`
                                          instead of the default implementation. (Disabled by default.)
 
