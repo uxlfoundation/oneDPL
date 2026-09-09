@@ -46,28 +46,28 @@ namespace kr = oneapi::dpl::__par_backend_hetero::__kt_radix;
 namespace ranges = oneapi::dpl::__ranges;
 
 // Test view compatibility traits
-static_assert(kr::__is_kt_radix_compatible_view<ranges::guard_view<std::uint32_t*>>,
+static_assert(ranges::__is_contiguous_backed_view<ranges::guard_view<std::uint32_t*>>,
               "guard_view over pointer should be compatible");
 
-static_assert(kr::__is_kt_radix_compatible_view<
+static_assert(ranges::__is_contiguous_backed_view<
     ranges::all_view<std::uint32_t, sycl::access::mode::read_write, false,
                     __dpl_sycl::__target::device, sycl::access::placeholder::false_t>>,
               "all_view (buffer accessor) should be compatible");
 
-static_assert(!kr::__is_kt_radix_compatible_view<
+static_assert(!ranges::__is_contiguous_backed_view<
     ranges::permutation_view_simple<ranges::all_view<std::uint32_t, sycl::access::mode::read_write, false,
                     __dpl_sycl::__target::device, sycl::access::placeholder::false_t>,
                     ranges::all_view<std::uint32_t, sycl::access::mode::read_write, false,
                     __dpl_sycl::__target::device, sycl::access::placeholder::false_t>>>,
               "permutation_view_simple should not be compatible");
 
-static_assert(!kr::__is_kt_radix_compatible_view<
+static_assert(!ranges::__is_contiguous_backed_view<
     ranges::transform_view_simple<ranges::guard_view<std::uint32_t*>, oneapi::dpl::identity>>,
               "transform_view_simple should not be compatible");
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 // Contiguous range (std::span) should be compatible via the C++20 path
-static_assert(kr::__is_kt_radix_compatible_view<std::span<std::uint32_t>>,
+static_assert(ranges::__is_contiguous_backed_view<std::span<std::uint32_t>>,
               "std::span should be compatible");
 #endif
 
