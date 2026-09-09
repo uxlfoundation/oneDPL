@@ -33,52 +33,33 @@ main()
     using namespace test_std_ranges::archetypes;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
+    // The read_archetype family: the read-only algorithms which are parameterized by a callable only.
+    // Covers for_each, find_if, find_if_not, find_last_if, find_last_if_not, any_of, all_of, none_of,
+    // is_partitioned, count_if, min_element, max_element, minmax_element, is_sorted, is_sorted_until and
+    // adjacent_find, first with const callables and then with callables taking non-const references.
+
     // read_archetype is neither copyable, movable, default constructible nor comparable; the only
     // operations available are the ones the callables of the algorithm provide.
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::for_each(std::forward<decltype(policy)>(policy), view, read_unary_fun{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view); }, "for_each");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 15>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::for_each(std::forward<decltype(policy)>(policy), view, read_unary_fun{});
-        },
-        [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view); }, "for_each");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_if(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "find_if");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 0>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::find_if(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
-        },
-        [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "find_if");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_if_not(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + 1; }, "find_if_not");
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 1>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::find_if_not(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
-        },
-        [](auto&& view, auto res) { return res == std::ranges::begin(view) + 1; }, "find_if_not");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
     // The last element whose value is divisible by three, and the last one whose value is not.
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last_if(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
@@ -88,19 +69,7 @@ main()
         },
         "find_last_if");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 16>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::find_last_if(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
-        },
-        [](auto&& view, auto res) {
-            auto __n = (int)std::ranges::size(view);
-            return std::ranges::begin(res) == std::ranges::begin(view) + (__n - 1) / 3 * 3;
-        },
-        "find_last_if");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last_if_not(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
@@ -110,158 +79,71 @@ main()
         },
         "find_last_if_not");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 17>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::find_last_if_not(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
-        },
-        [](auto&& view, auto res) {
-            auto __n = (int)std::ranges::size(view);
-            return std::ranges::begin(res) == std::ranges::begin(view) + ((__n - 1) % 3 == 0 ? __n - 2 : __n - 1);
-        },
-        "find_last_if_not");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::any_of(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
         [](auto&&, bool res) { return res; }, "any_of");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 2>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::any_of(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
-        },
-        [](auto&&, bool res) { return res; }, "any_of");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::all_of(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
         [](auto&&, bool res) { return !res; }, "all_of");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 3>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::all_of(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
-        },
-        [](auto&&, bool res) { return !res; }, "all_of");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::none_of(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
         [](auto&&, bool res) { return !res; }, "none_of");
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 18>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::none_of(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
-        },
-        [](auto&&, bool res) { return !res; }, "none_of");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
     // The predicate holds for 0, fails for 1 and holds again for 3, so the range is not partitioned.
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::is_partitioned(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
         [](auto&&, bool res) { return !res; }, "is_partitioned");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 19>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::is_partitioned(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
-        },
-        [](auto&&, bool res) { return !res; }, "is_partitioned");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::count_if(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
         },
         [](auto&& view, auto res) { return res == (std::ranges::range_difference_t<decltype(view)>)
                                                       ((std::ranges::size(view) + 2) / 3); }, "count_if");
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 4>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::count_if(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
-        },
-        [](auto&& view, auto res) { return res == (std::ranges::range_difference_t<decltype(view)>)
-                                                      ((std::ranges::size(view) + 2) / 3); }, "count_if");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
     // The projection returns an unrelated prvalue type, so the predicate can only ever be applied to
     // the projected value.
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_if(std::forward<decltype(policy)>(policy), view, read_proj_pred{}, read_proj{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "find_if with proj");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 20>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::find_if(std::forward<decltype(policy)>(policy), view, read_proj_pred{}, read_proj{});
-        },
-        [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "find_if with proj");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::count_if(std::forward<decltype(policy)>(policy), view, read_proj_pred{}, read_proj{});
         },
         [](auto&& view, auto res) { return res == (std::ranges::range_difference_t<decltype(view)>)
                                                       ((std::ranges::size(view) + 2) / 3); }, "count_if with proj");
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 5>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::count_if(std::forward<decltype(policy)>(policy), view, read_proj_pred{}, read_proj{});
-        },
-        [](auto&& view, auto res) { return res == (std::ranges::range_difference_t<decltype(view)>)
-                                                      ((std::ranges::size(view) + 2) / 3); }, "count_if with proj");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
     // min_element/max_element/minmax_element only require std::indirect_strict_weak_order on the
     // projected iterator, so the element type stays non-copyable and non-default-constructible: both
     // backends carry an index and dereference the iterator for the comparison instead of storing the
     // element by value.
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::min_element(std::forward<decltype(policy)>(policy), view, read_comp{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "min_element");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 12>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::min_element(std::forward<decltype(policy)>(policy), view, read_comp{});
-        },
-        [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "min_element");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::max_element(std::forward<decltype(policy)>(policy), view, read_comp{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view) - 1; },
         "max_element");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 13>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::max_element(std::forward<decltype(policy)>(policy), view, read_comp{});
-        },
-        [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view) - 1; },
-        "max_element");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::minmax_element(std::forward<decltype(policy)>(policy), view, read_comp{});
         },
@@ -271,238 +153,172 @@ main()
         },
         "minmax_element");
 
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 14>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::minmax_element(std::forward<decltype(policy)>(policy), view, read_comp{});
-        },
-        [](auto&& view, auto res) {
-            return res.min == std::ranges::begin(view) &&
-                   res.max == std::ranges::begin(view) + std::ranges::size(view) - 1;
-        },
-        "minmax_element");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::is_sorted(std::forward<decltype(policy)>(policy), view, read_comp{});
         },
         [](auto&&, bool res) { return res; }, "is_sorted");
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 6>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::is_sorted(std::forward<decltype(policy)>(policy), view, read_comp{});
-        },
-        [](auto&&, bool res) { return res; }, "is_sorted");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
     // The whole range is sorted, so the scan stops at its end.
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::is_sorted_until(std::forward<decltype(policy)>(policy), view, read_comp{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view); },
         "is_sorted_until");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 21>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::is_sorted_until(std::forward<decltype(policy)>(policy), view, read_comp{});
-        },
-        [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view); },
-        "is_sorted_until");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<read_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::adjacent_find(std::forward<decltype(policy)>(policy), view, read_binary_pred{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view); },
         "adjacent_find");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<read_archetype_dc, 7>(
+    //----------------------------------------------------------------------------------------------
+    // The same algorithms with callables taking their arguments by non-const reference.
+    //----------------------------------------------------------------------------------------------
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::adjacent_find(std::forward<decltype(policy)>(policy), view, read_binary_pred{});
+            return dpl_ranges::for_each(std::forward<decltype(policy)>(policy), view, read_unary_fun_mut{});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view); },
-        "adjacent_find");
-#endif // TEST_DPCPP_BACKEND_PRESENT
+        "for_each, non-const callable");
 
-    // The search value type is unrelated to the element type.
-    run_algo_host_policies<searchable_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, search_value{7});
+            return dpl_ranges::find_if(std::forward<decltype(policy)>(policy), view, read_unary_pred_mut{});
         },
-        [](auto&& view, auto res) { return res == std::ranges::begin(view) + 7; }, "find");
+        [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "find_if, non-const callable");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<searchable_archetype_dc, 8>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, search_value{7});
+            return dpl_ranges::find_if_not(std::forward<decltype(policy)>(policy), view, read_unary_pred_mut{});
         },
-        [](auto&& view, auto res) { return res == std::ranges::begin(view) + 7; }, "find");
-#endif // TEST_DPCPP_BACKEND_PRESENT
+        [](auto&& view, auto res) { return res == std::ranges::begin(view) + 1; }, "find_if_not, non-const callable");
 
-    // find_last returns the tail of the range starting at the last occurrence of the value.
-    run_algo_host_policies<searchable_archetype>(
+    // The last element whose value is divisible by three, and the last one whose value is not.
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{7});
+            return dpl_ranges::find_last_if(std::forward<decltype(policy)>(policy), view, read_unary_pred_mut{});
         },
         [](auto&& view, auto res) {
-            return std::ranges::begin(res) == std::ranges::begin(view) + 7 &&
-                   std::ranges::size(res) == (std::ranges::range_difference_t<decltype(view)>)std::ranges::size(view) - 7;
+            auto __n = (int)std::ranges::size(view);
+            return std::ranges::begin(res) == std::ranges::begin(view) + (__n - 1) / 3 * 3;
         },
-        "find_last");
+        "find_last_if, non-const callable");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<searchable_archetype_dc, 22>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{7});
+            return dpl_ranges::find_last_if_not(std::forward<decltype(policy)>(policy), view, read_unary_pred_mut{});
         },
         [](auto&& view, auto res) {
-            return std::ranges::begin(res) == std::ranges::begin(view) + 7 &&
-                   std::ranges::size(res) == (std::ranges::range_difference_t<decltype(view)>)std::ranges::size(view) - 7;
+            auto __n = (int)std::ranges::size(view);
+            return std::ranges::begin(res) == std::ranges::begin(view) + ((__n - 1) % 3 == 0 ? __n - 2 : __n - 1);
         },
-        "find_last");
-#endif // TEST_DPCPP_BACKEND_PRESENT
+        "find_last_if_not, non-const callable");
 
-    run_algo_host_policies<searchable_archetype>(
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, search_value{7});
+            return dpl_ranges::any_of(std::forward<decltype(policy)>(policy), view, read_unary_pred_mut{});
         },
-        [](auto&&, auto res) { return res == 1; }, "count");
+        [](auto&&, bool res) { return res; }, "any_of, non-const callable");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<searchable_archetype_dc, 9>(
+    // Every third element satisfies the predicate, so the range is neither all nor none of it, and it
+    // is not partitioned either.
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, search_value{7});
+            return dpl_ranges::all_of(std::forward<decltype(policy)>(policy), view, read_unary_pred_mut{});
         },
-        [](auto&&, auto res) { return res == 1; }, "count");
-#endif // TEST_DPCPP_BACKEND_PRESENT
+        [](auto&&, bool res) { return !res; }, "all_of, non-const callable");
 
-    // Two ranges of unrelated element types, compared only through the user predicate.
-    run_algo2_host_policies<lhs_archetype, rhs_archetype>(
-        [](auto&& policy, auto&& view1, auto&& view2) {
-            return dpl_ranges::equal(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::none_of(std::forward<decltype(policy)>(policy), view, read_unary_pred_mut{});
         },
-        [](auto&&, auto&&, bool res) { return res; }, "equal");
+        [](auto&&, bool res) { return !res; }, "none_of, non-const callable");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 10>(
-        [](auto&& policy, auto&& view1, auto&& view2) {
-            return dpl_ranges::equal(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
+    // KSATODO: std::indirect_unary_predicate only requires the predicate to be invocable with
+    // iter_reference_t<_It>, a non-const lvalue here, but the device path applies it to a const
+    // lvalue, so the call does not compile:
+    //  - algorithm_impl_hetero.h:1078,1080 - __pattern_is_partitioned_transform_fn::operator() is
+    //    const and takes the accessor by value, so __acc[__gidx] yields a const reference which is
+    //    passed straight into the predicate.
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__, true,
+                          !_TEST_CPP20_RANGES_BROKEN_REQUIRES_IS_PARTITIONED_HETERO>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::is_partitioned(std::forward<decltype(policy)>(policy), view, read_unary_pred_mut{});
         },
-        [](auto&&, auto&&, bool res) { return res; }, "equal");
-#endif // TEST_DPCPP_BACKEND_PRESENT
+        [](auto&&, bool res) { return !res; }, "is_partitioned, non-const callable");
 
-    run_algo2_host_policies<lhs_archetype, rhs_archetype>(
-        [](auto&& policy, auto&& view1, auto&& view2) {
-            return dpl_ranges::mismatch(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::count_if(std::forward<decltype(policy)>(policy), view, read_unary_pred_mut{});
         },
-        [](auto&& view1, auto&& view2, auto res) {
-            return res.in1 == std::ranges::begin(view1) + std::ranges::size(view1) &&
-                   res.in2 == std::ranges::begin(view2) + std::ranges::size(view2);
+        [](auto&& view, auto res) {
+            return res == (std::ranges::range_difference_t<decltype(view)>)((std::ranges::size(view) + 2) / 3);
         },
-        "mismatch");
+        "count_if, non-const callable");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 11>(
-        [](auto&& policy, auto&& view1, auto&& view2) {
-            return dpl_ranges::mismatch(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
+    // The projection takes the element by non-const reference; the predicate sees its prvalue result.
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::find_if(std::forward<decltype(policy)>(policy), view, read_proj_pred{}, read_proj_mut{});
         },
-        [](auto&& view1, auto&& view2, auto res) {
-            return res.in1 == std::ranges::begin(view1) + std::ranges::size(view1) &&
-                   res.in2 == std::ranges::begin(view2) + std::ranges::size(view2);
-        },
-        "mismatch");
-#endif // TEST_DPCPP_BACKEND_PRESENT
+        [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "find_if, non-const projection");
 
-    // The two ranges hold the very same sequence, so the second one occurs in the first one exactly
-    // once, at its very beginning.
-    run_algo2_host_policies<lhs_archetype, rhs_archetype>(
-        [](auto&& policy, auto&& view1, auto&& view2) {
-            return dpl_ranges::search(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::count_if(std::forward<decltype(policy)>(policy), view, read_proj_pred{},
+                                        read_proj_mut{});
         },
-        [](auto&& view1, auto&& view2, auto res) {
-            return std::ranges::begin(res) == std::ranges::begin(view1) &&
-                   std::ranges::size(res) == std::ranges::size(view2);
+        [](auto&& view, auto res) {
+            return res == (std::ranges::range_difference_t<decltype(view)>)((std::ranges::size(view) + 2) / 3);
         },
-        "search");
+        "count_if, non-const projection");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 23>(
-        [](auto&& policy, auto&& view1, auto&& view2) {
-            return dpl_ranges::search(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::adjacent_find(std::forward<decltype(policy)>(policy), view, read_binary_pred_mut{});
         },
-        [](auto&& view1, auto&& view2, auto res) {
-            return std::ranges::begin(res) == std::ranges::begin(view1) &&
-                   std::ranges::size(res) == std::ranges::size(view2);
-        },
-        "search");
-#endif // TEST_DPCPP_BACKEND_PRESENT
+        [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view); },
+        "adjacent_find, non-const callable");
 
-    run_algo2_host_policies<lhs_archetype, rhs_archetype>(
-        [](auto&& policy, auto&& view1, auto&& view2) {
-            return dpl_ranges::find_end(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::is_sorted(std::forward<decltype(policy)>(policy), view, read_comp_mut{});
         },
-        [](auto&& view1, auto&& view2, auto res) {
-            return std::ranges::begin(res) == std::ranges::begin(view1) &&
-                   std::ranges::size(res) == std::ranges::size(view2);
+        [](auto&&, bool res) { return res; }, "is_sorted, non-const comparator");
+
+    // The whole range is sorted, so the scan stops at its end.
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::is_sorted_until(std::forward<decltype(policy)>(policy), view, read_comp_mut{});
         },
-        "find_end");
+        [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view); },
+        "is_sorted_until, non-const comparator");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 24>(
-        [](auto&& policy, auto&& view1, auto&& view2) {
-            return dpl_ranges::find_end(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::min_element(std::forward<decltype(policy)>(policy), view, read_comp_mut{});
         },
-        [](auto&& view1, auto&& view2, auto res) {
-            return std::ranges::begin(res) == std::ranges::begin(view1) &&
-                   std::ranges::size(res) == std::ranges::size(view2);
+        [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "min_element, non-const comparator");
+
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::max_element(std::forward<decltype(policy)>(policy), view, read_comp_mut{});
         },
-        "find_end");
-#endif // TEST_DPCPP_BACKEND_PRESENT
+        [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view) - 1; },
+        "max_element, non-const comparator");
 
-    // KSATODO: std::indirectly_comparable<_It1, _It2, _Pred> only requires the predicate to be
-    // invocable as __pred(*__it1, *__it2), never the other way round. The SIMD brick swaps the two
-    // arguments, so the vectorized host policies unseq and par_unseq do not compile:
-    //  - unseq_backend_simd.h:827 - __simd_find_first_of builds __u_pred as
-    //    __pred(__val, *__first) with __val taken from the second range and *__first from the first
-    //    one; the branch is a plain if, so it is instantiated whatever the sizes of the ranges are.
-    // Fixing this means keeping the argument order of the two ranges in both branches.
-    auto find_first_of_algo = [](auto&& policy, auto&& view1, auto&& view2) {
-        return dpl_ranges::find_first_of(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
-    };
-    auto find_first_of_checker = [](auto&& view1, auto&&, auto res) { return res == std::ranges::begin(view1); };
-
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST
-    run_algo2_host_policies<lhs_archetype, rhs_archetype>(find_first_of_algo, find_first_of_checker, "find_first_of");
-#endif
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 25>(find_first_of_algo, find_first_of_checker,
-                                                                      "find_first_of");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    // includes needs a comparator accepting the two element types in all four combinations, see
-    // cross_comp. Both ranges hold the very same ascending sequence, so the second one is included in
-    // the first one.
-    run_algo2_host_policies<lhs_archetype, rhs_archetype>(
-        [](auto&& policy, auto&& view1, auto&& view2) {
-            return dpl_ranges::includes(std::forward<decltype(policy)>(policy), view1, view2, cross_comp{});
+    run_algo_all_policies<read_archetype, read_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::minmax_element(std::forward<decltype(policy)>(policy), view, read_comp_mut{});
         },
-        [](auto&&, auto&&, bool res) { return res; }, "includes");
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 26>(
-        [](auto&& policy, auto&& view1, auto&& view2) {
-            return dpl_ranges::includes(std::forward<decltype(policy)>(policy), view1, view2, cross_comp{});
+        [](auto&& view, auto res) {
+            return res.min == std::ranges::begin(view) &&
+                   res.max == std::ranges::begin(view) + std::ranges::size(view) - 1;
         },
-        [](auto&&, auto&&, bool res) { return res; }, "includes");
-#endif // TEST_DPCPP_BACKEND_PRESENT
+        "minmax_element, non-const comparator");
 
 #endif //_ENABLE_STD_RANGES_TESTING
 

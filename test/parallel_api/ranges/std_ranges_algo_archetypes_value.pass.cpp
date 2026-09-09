@@ -33,172 +33,149 @@ main()
     using namespace test_std_ranges::archetypes;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
+    // This file covers the search value archetype family: searchable_archetype and
+    // removable_archetype (with their device copyable _dc counterparts) as the element type, and
+    // search_value / nocopy_search_value as the searched value. The algorithms are find, find_last,
+    // count, contains and remove, both with const callables and with a non-const projection.
+
     // The storage is filled with the values 0, 1, 2, ... so the value 3 is found exactly once.
     constexpr int searched = 3;
 
+    //----------------------------------------------------------------------------------------------
+    // The value based algorithms: the search value is compared with std::ranges::equal_to, so the
+    // value type itself is the only requirement beyond the element type.
+    //----------------------------------------------------------------------------------------------
     // search_value is trivially copyable and thus device copyable, so it can be used with all the
     // policies including the device ones.
-    run_algo_host_policies<searchable_archetype>(
+    run_algo_all_policies<searchable_archetype, searchable_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<searchable_archetype_dc, 0>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, search_value{searched});
-        },
-        [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<searchable_archetype>(
+    run_algo_all_policies<searchable_archetype, searchable_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<searchable_archetype_dc, 1>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{searched});
-        },
-        [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
-        "find_last");
-#endif
-
-    run_algo_host_policies<searchable_archetype>(
+    run_algo_all_policies<searchable_archetype, searchable_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&&, auto res) { return res == 1; }, "count");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<searchable_archetype_dc, 2>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, search_value{searched});
-        },
-        [](auto&&, auto res) { return res == 1; }, "count");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<searchable_archetype>(
+    run_algo_all_policies<searchable_archetype, searchable_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&&, auto res) { return res; }, "contains");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<searchable_archetype_dc, 3>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, search_value{searched});
-        },
-        [](auto&&, auto res) { return res; }, "contains");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    // removable_archetype is movable but not device copyable, so remove() is checked on the host
-    // policies only.
-    run_algo_host_policies<removable_archetype>(
+    // remove() moves the surviving elements over the removed ones, so its element type has to be
+    // movable: removable_archetype adds a move constructor and move assignment to the searchable
+    // archetype and nothing else.
+    run_algo_all_policies<removable_archetype, removable_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         // remove() returns the tail holding the removed elements, and the value occurs exactly once.
         [](auto&&, auto res) { return std::ranges::size(res) == 1; }, "remove");
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    // removable_archetype is movable but not device copyable, so remove() is checked on the host
-    // policies only.
-    run_algo_hetero_policies<removable_archetype_dc, 4>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, search_value{searched});
-        },
-        // remove() returns the tail holding the removed elements, and the value occurs exactly once.
-        [](auto&&, auto res) { return std::ranges::size(res) == 1; }, "remove");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
     // nocopy_search_value is neither copyable nor movable: the host implementations must refer to
-    // the value passed by the user instead of storing a copy of it. It cannot be captured by a
-    // device kernel, hence the host policies only.
-    run_algo_host_policies<searchable_archetype>(
+    // the value passed by the user instead of storing a copy of it.
+    //
+    // A device policy has to copy the value into the kernel, so the hetero runs cannot use that very
+    // type and take its device copyable counterpart instead, which is still neither default
+    // constructible nor ordered. The element archetype names the matching value type as
+    // nocopy_value_type, so one generic lambda serves both sides.
+    run_algo_all_policies<searchable_archetype, searchable_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
+            using elem_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(view)>>;
+            return dpl_ranges::find(std::forward<decltype(policy)>(policy), view,
+                                    typename elem_t::nocopy_value_type{searched});
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find, noncopyable value");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    // A device policy copies the value into the kernel, so the hetero runs use the device copyable
-    // counterpart of the value: it is still neither default constructible nor ordered.
-    run_algo_hetero_policies<searchable_archetype_dc, 5>(
+    run_algo_all_policies<searchable_archetype, searchable_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
-        },
-        [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find, noncopyable value");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-    run_algo_host_policies<searchable_archetype>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
-        },
-        [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
-        "find_last, noncopyable value");
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<searchable_archetype_dc, 6>(
-        [](auto&& policy, auto&& view) {
+            using elem_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(view)>>;
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view,
-                                         nocopy_search_value_dc{searched});
+                                         typename elem_t::nocopy_value_type{searched});
         },
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last, noncopyable value");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
     // count() must refer to the value instead of storing a copy of it: the requires-clause never
     // asks for a copyable value type.
-    run_algo_host_policies<searchable_archetype>(
+    run_algo_all_policies<searchable_archetype, searchable_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
+            using elem_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(view)>>;
+            return dpl_ranges::count(std::forward<decltype(policy)>(policy), view,
+                                     typename elem_t::nocopy_value_type{searched});
         },
         [](auto&&, auto res) { return res == 1; }, "count, noncopyable value");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<searchable_archetype_dc, 7>(
+    run_algo_all_policies<searchable_archetype, searchable_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
-        },
-        [](auto&&, auto res) { return res == 1; }, "count, noncopyable value");
-#endif // TEST_DPCPP_BACKEND_PRESENT
-    
-    run_algo_host_policies<searchable_archetype>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
+            using elem_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(view)>>;
+            return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view,
+                                        typename elem_t::nocopy_value_type{searched});
         },
         [](auto&&, auto res) { return res; }, "contains, noncopyable value");
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<searchable_archetype_dc, 8>(
-        [](auto&& policy, auto&& view) {
-            return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
-        },
-        [](auto&&, auto res) { return res; }, "contains, noncopyable value");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
     // Same for remove(): the predicate it builds internally must hold a reference to the value for
     // the host policies.
-    run_algo_host_policies<removable_archetype>(
+    run_algo_all_policies<removable_archetype, removable_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, nocopy_search_value{searched});
+            using elem_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(view)>>;
+            return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view,
+                                      typename elem_t::nocopy_value_type{searched});
         },
         // remove() returns the tail holding the removed elements, and the value occurs exactly once.
         [](auto&&, auto res) { return std::ranges::size(res) == 1; }, "remove, noncopyable value");
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    run_algo_hetero_policies<removable_archetype_dc, 9>(
+    //----------------------------------------------------------------------------------------------
+    // Callables taking their arguments by non-const reference: the value based algorithms with a
+    // projection taking the element by non-const reference.
+    //----------------------------------------------------------------------------------------------
+    run_algo_all_policies<searchable_archetype, searchable_archetype_dc, __LINE__>(
         [](auto&& policy, auto&& view) {
-            return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, nocopy_search_value_dc{searched});
+            return dpl_ranges::find(std::forward<decltype(policy)>(policy), view, search_value{searched},
+                                    search_proj_mut{});
         },
-        // remove() returns the tail holding the removed elements, and the value occurs exactly once.
-        [](auto&&, auto res) { return std::ranges::size(res) == 1; }, "remove, noncopyable value");
-#endif // TEST_DPCPP_BACKEND_PRESENT
+        [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; },
+        "find, non-const projection");
+
+    run_algo_all_policies<searchable_archetype, searchable_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{searched},
+                                         search_proj_mut{});
+        },
+        [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
+        "find_last, non-const projection");
+
+    run_algo_all_policies<searchable_archetype, searchable_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::count(std::forward<decltype(policy)>(policy), view, search_value{searched},
+                                     search_proj_mut{});
+        },
+        [](auto&&, auto res) { return res == 1; }, "count, non-const projection");
+
+    run_algo_all_policies<searchable_archetype, searchable_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::contains(std::forward<decltype(policy)>(policy), view, search_value{searched},
+                                        search_proj_mut{});
+        },
+        [](auto&&, auto res) { return res; }, "contains, non-const projection");
+
+    run_algo_all_policies<removable_archetype, removable_archetype_dc, __LINE__>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::remove(std::forward<decltype(policy)>(policy), view, search_value{searched},
+                                      search_proj_mut{});
+        },
+        // remove() returns the tail holding the removed elements, and the value 3 occurs exactly once.
+        [](auto&&, auto res) { return std::ranges::size(res) == 1; }, "remove, non-const projection");
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
