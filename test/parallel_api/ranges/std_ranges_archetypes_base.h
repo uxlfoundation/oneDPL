@@ -25,6 +25,7 @@
 #include <compare>
 #include <concepts>
 #include <cstddef>
+#include <functional>
 #include <iterator>
 #include <memory>
 #include <ranges>
@@ -40,8 +41,8 @@
 // compiles and works with an archetype, the implementation does not silently require more from a
 // user type than it declares; otherwise the extra requirement shows up as a compilation error.
 //
-// Each archetype keeps two observable fields, val1 and val2, so that a test can check which part of
-// the raw memory has been written, exactly as the pre-existing Elem/Elem_0 types do.
+// Each archetype keeps one observable field, val, so that a test can check what has been written into
+// the raw memory it owns, exactly as the pre-existing Elem/Elem_0 types do.
 
 // Unary operator& is not required by any constraint, so a conforming implementation has to use
 // std::addressof instead of taking the address directly. Define this macro to 0 to relax the
@@ -78,8 +79,8 @@
 // Checks that a device copyable archetype really is accepted by SYCL without an explicit
 // sycl::is_device_copyable specialization.
 #if TEST_DPCPP_BACKEND_PRESENT
-#    define TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(_Name)                                                                 \
-        static_assert(std::is_trivially_copyable_v<_Name>);                                                             \
+#    define TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(_Name)                                                                \
+        static_assert(std::is_trivially_copyable_v<_Name>);                                                            \
         static_assert(sycl::is_device_copyable_v<_Name>);
 #else
 #    define TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(_Name) static_assert(std::is_trivially_copyable_v<_Name>);
@@ -104,7 +105,9 @@ class archetype_iterator
     using value_type = T;
     using difference_type = std::ptrdiff_t;
     using reference = T&;
-    using pointer = T*;
+    // No pointer typedef and no operator-> on purpose: std::random_access_iterator asks for neither,
+    // and both of them would hand the implementation the address of an element whose operator& the
+    // archetypes deliberately delete.
 
     archetype_iterator() = default;
     explicit archetype_iterator(T* p) : ptr(p) {}
@@ -112,7 +115,6 @@ class archetype_iterator
     T* base() const { return ptr; }
 
     reference operator*() const { return *ptr; }
-    pointer operator->() const { return ptr; }
     reference operator[](difference_type n) const { return ptr[n]; }
 
     archetype_iterator& operator++() { ++ptr; return *this; }
@@ -167,11 +169,36 @@ class archetype_view : public std::ranges::view_interface<archetype_view<T>>
     archetype_sentinel<T> end() const { return archetype_sentinel<T>(last); }
 };
 
+// The very same range without std::ranges::view_interface. It satisfies exactly the same concepts,
+// all of them through its iterator and its sentinel alone, but it has no size(), no operator[], no
+// empty(), no front() and no back(). No requires-clause of any algorithm asks for those members, so
+// an implementation which reads the user range through anything but std::ranges::begin / end / size
+// does not compile with it.
+template <typename T>
+class plain_archetype_view
+{
+    T* first = nullptr;
+    T* last = nullptr;
+
+  public:
+    plain_archetype_view() = default;
+    plain_archetype_view(T* p, std::size_t n) : first(p), last(p + n) {}
+
+    archetype_iterator<T> begin() const { return archetype_iterator<T>(first); }
+    archetype_sentinel<T> end() const { return archetype_sentinel<T>(last); }
+};
+
 } // namespace archetypes
 } // namespace test_std_ranges
 
 template <typename T>
 inline constexpr bool std::ranges::enable_borrowed_range<test_std_ranges::archetypes::archetype_view<T>> = true;
+
+// view_interface is what marks archetype_view as a view, so the plain range has to say so itself.
+template <typename T>
+inline constexpr bool std::ranges::enable_borrowed_range<test_std_ranges::archetypes::plain_archetype_view<T>> = true;
+template <typename T>
+inline constexpr bool std::ranges::enable_view<test_std_ranges::archetypes::plain_archetype_view<T>> = true;
 
 namespace test_std_ranges
 {
@@ -187,6 +214,31 @@ static_assert(std::ranges::sized_range<archetype_view<int>>);
 static_assert(std::ranges::borrowed_range<archetype_view<int>>);
 static_assert(!std::ranges::contiguous_range<archetype_view<int>>);
 static_assert(!std::ranges::common_range<archetype_view<int>>);
+
+static_assert(std::ranges::view<plain_archetype_view<int>>);
+static_assert(std::ranges::random_access_range<plain_archetype_view<int>>);
+static_assert(std::ranges::sized_range<plain_archetype_view<int>>);
+static_assert(std::ranges::borrowed_range<plain_archetype_view<int>>);
+static_assert(!std::ranges::contiguous_range<plain_archetype_view<int>>);
+static_assert(!std::ranges::common_range<plain_archetype_view<int>>);
+static_assert(std::same_as<std::ranges::range_reference_t<plain_archetype_view<int>>, int&>);
+
+// The members std::ranges::view_interface provides for a sized random access range. They are a concept
+// and not a requires-expression on the type itself, because a requirement whose expression is
+// non-dependent is diagnosed right away instead of being a substitution failure. back() is not in the
+// list: view_interface constrains it to a common_range, which neither of the two views is.
+template <typename _R>
+concept has_view_interface_members = requires(_R& __r) {
+    __r.size();
+    __r[0];
+    __r.empty();
+    __r.front();
+};
+
+// All of them are deliberately missing from the plain range: its size is only reachable through the
+// difference of its sentinel and its iterator, and its elements only through its iterator.
+static_assert(has_view_interface_members<archetype_view<int>>);
+static_assert(!has_view_interface_members<plain_archetype_view<int>>);
 
 // The two extra requirements of __nothrow_random_access_range beyond random_access_range.
 static_assert(std::is_lvalue_reference_v<std::ranges::range_reference_t<archetype_view<int>>>);
@@ -228,7 +280,13 @@ class archetype_storage
     std::size_t size() const { return count; }
     T* begin_ptr() const { return data; }
 
-    archetype_view<T> view() const { return archetype_view<T>(data, count); }
+    // The range handed to the algorithms. The view template is a parameter so that one and the same
+    // storage can also be presented as plain_archetype_view, see run_algo_plain.
+    template <template <typename> class _View = archetype_view>
+    _View<T> view() const
+    {
+        return _View<T>(data, count);
+    }
 };
 
 

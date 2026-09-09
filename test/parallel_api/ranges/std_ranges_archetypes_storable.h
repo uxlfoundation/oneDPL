@@ -85,6 +85,63 @@ static_assert(!std::totally_ordered<storable_archetype>);
 static_assert(std::indirectly_copyable_storable<std::ranges::iterator_t<archetype_view<storable_archetype_dc>>,
                                                 storable_archetype_dc*>);
 
+// min / max / minmax called without a comparator, i.e. with the default std::ranges::less: the
+// element type has to be std::totally_ordered itself then, so this archetype is storable_archetype
+// plus exactly the two comparison operators that concept asks for. It stays non default
+// constructible, and the copy operations are the ones std::indirectly_copyable_storable needs.
+struct storable_ordered_archetype
+{
+    int val;
+
+    explicit storable_ordered_archetype(int __v) : val(__v) {}
+
+    storable_ordered_archetype(const storable_ordered_archetype& __other) : val(__other.val) {}
+
+    storable_ordered_archetype& operator=(const storable_ordered_archetype& __other)
+    {
+        val = __other.val;
+        return *this;
+    }
+
+    bool operator==(const storable_ordered_archetype& __other) const { return val == __other.val; }
+
+    std::strong_ordering operator<=>(const storable_ordered_archetype& __other) const
+    {
+        return val <=> __other.val;
+    }
+
+    TEST_ARCHETYPE_DELETED_ADDRESSOF
+};
+
+// The device copyable counterpart of the archetype above, used with the hetero policies.
+struct storable_ordered_archetype_dc
+{
+    int val;
+
+    explicit storable_ordered_archetype_dc(int __v) : val(__v) {}
+
+    bool operator==(const storable_ordered_archetype_dc& __other) const { return val == __other.val; }
+
+    std::strong_ordering operator<=>(const storable_ordered_archetype_dc& __other) const
+    {
+        return val <=> __other.val;
+    }
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(storable_ordered_archetype_dc)
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(storable_ordered_archetype_dc)
+
+using storable_ordered_iterator_t = std::ranges::iterator_t<archetype_view<storable_ordered_archetype>>;
+using storable_ordered_dc_iterator_t = std::ranges::iterator_t<archetype_view<storable_ordered_archetype_dc>>;
+
+static_assert(std::indirectly_copyable_storable<storable_ordered_iterator_t, storable_ordered_archetype*>);
+static_assert(std::indirectly_copyable_storable<storable_ordered_dc_iterator_t, storable_ordered_archetype_dc*>);
+static_assert(std::indirect_strict_weak_order<std::ranges::less, storable_ordered_iterator_t>);
+static_assert(std::indirect_strict_weak_order<std::ranges::less, storable_ordered_dc_iterator_t>);
+static_assert(!std::default_initializable<storable_ordered_archetype>);
+static_assert(!std::default_initializable<storable_ordered_archetype_dc>);
+
 struct storable_comp_mut
 {
     bool operator()(storable_archetype& __v1, storable_archetype& __v2) const { return __v1.val < __v2.val; }

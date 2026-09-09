@@ -137,6 +137,125 @@ static_assert(!std::copy_constructible<merge_in_archetype>);
 static_assert(!std::copy_constructible<merge_out_archetype>);
 static_assert(!std::default_initializable<merge_out_archetype>);
 
+// merge called without a comparator, i.e. with the default std::ranges::less: std::mergeable then
+// asks the input element type itself for std::totally_ordered, on top of the assignment into the
+// output element. The two archetypes below are merge_in_archetype and merge_out_archetype plus
+// exactly the two comparison operators that concept needs; the output element stays uncomparable,
+// because nothing ever compares it.
+// The set operations share the requires-clause of merge, but their calls are disabled for every
+// policy anyway, see the notes in std_ranges_algo_archetypes_merge.pass.cpp, so a default comparator
+// would not add any compiled branch there.
+struct merge_ordered_out_archetype;
+
+struct merge_ordered_in_archetype
+{
+    int val;
+
+    // The output element type the algorithm has to be called with, see merge_in_archetype::out_type.
+    using out_type = merge_ordered_out_archetype;
+
+    explicit merge_ordered_in_archetype(int __v) : val(__v) {}
+
+    merge_ordered_in_archetype(merge_ordered_in_archetype&& __other) : val(__other.val) {}
+
+    merge_ordered_in_archetype& operator=(merge_ordered_in_archetype&& __other)
+    {
+        val = __other.val;
+        return *this;
+    }
+
+    bool operator==(const merge_ordered_in_archetype& __other) const { return val == __other.val; }
+
+    std::strong_ordering operator<=>(const merge_ordered_in_archetype& __other) const
+    {
+        return val <=> __other.val;
+    }
+
+    merge_ordered_in_archetype(const merge_ordered_in_archetype&) = delete;
+    merge_ordered_in_archetype& operator=(const merge_ordered_in_archetype&) = delete;
+    TEST_ARCHETYPE_DELETED_ADDRESSOF
+};
+
+struct merge_ordered_out_archetype
+{
+    int val;
+
+    explicit merge_ordered_out_archetype(int __v) : val(__v) {}
+
+    merge_ordered_out_archetype(merge_ordered_out_archetype&& __other) : val(__other.val) {}
+
+    merge_ordered_out_archetype& operator=(merge_ordered_out_archetype&& __other)
+    {
+        val = __other.val;
+        return *this;
+    }
+
+    merge_ordered_out_archetype(const merge_ordered_out_archetype&) = delete;
+    merge_ordered_out_archetype& operator=(const merge_ordered_out_archetype&) = delete;
+    TEST_ARCHETYPE_DELETED_ADDRESSOF
+
+    merge_ordered_out_archetype& operator=(merge_ordered_in_archetype& __v)
+    {
+        val = __v.val;
+        return *this;
+    }
+};
+
+// The device copyable counterparts of the two archetypes above, used with the hetero policies.
+struct merge_ordered_out_archetype_dc;
+
+struct merge_ordered_in_archetype_dc
+{
+    int val;
+
+    // The matching output element type, see merge_in_archetype_dc::out_type.
+    using out_type = merge_ordered_out_archetype_dc;
+
+    explicit merge_ordered_in_archetype_dc(int __v) : val(__v) {}
+
+    bool operator==(const merge_ordered_in_archetype_dc& __other) const { return val == __other.val; }
+
+    std::strong_ordering operator<=>(const merge_ordered_in_archetype_dc& __other) const
+    {
+        return val <=> __other.val;
+    }
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(merge_ordered_in_archetype_dc)
+};
+
+struct merge_ordered_out_archetype_dc
+{
+    int val;
+
+    explicit merge_ordered_out_archetype_dc(int __v) : val(__v) {}
+
+    TEST_ARCHETYPE_DEFAULTED_OPERATIONS(merge_ordered_out_archetype_dc)
+
+    merge_ordered_out_archetype_dc& operator=(merge_ordered_in_archetype_dc& __v)
+    {
+        val = __v.val;
+        return *this;
+    }
+};
+
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(merge_ordered_in_archetype_dc)
+TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(merge_ordered_out_archetype_dc)
+
+using merge_ordered_in_iterator_t = std::ranges::iterator_t<archetype_view<merge_ordered_in_archetype>>;
+using merge_ordered_out_iterator_t = std::ranges::iterator_t<archetype_view<merge_ordered_out_archetype>>;
+using merge_ordered_in_dc_iterator_t = std::ranges::iterator_t<archetype_view<merge_ordered_in_archetype_dc>>;
+using merge_ordered_out_dc_iterator_t = std::ranges::iterator_t<archetype_view<merge_ordered_out_archetype_dc>>;
+
+static_assert(std::mergeable<merge_ordered_in_iterator_t, merge_ordered_in_iterator_t, merge_ordered_out_iterator_t,
+                             std::ranges::less>);
+static_assert(std::mergeable<merge_ordered_in_dc_iterator_t, merge_ordered_in_dc_iterator_t,
+                             merge_ordered_out_dc_iterator_t, std::ranges::less>);
+static_assert(std::totally_ordered<merge_ordered_in_archetype>);
+static_assert(!std::totally_ordered<merge_ordered_out_archetype>);
+static_assert(!std::copy_constructible<merge_ordered_in_archetype>);
+static_assert(!std::copy_constructible<merge_ordered_out_archetype>);
+static_assert(!std::default_initializable<merge_ordered_out_archetype>);
+
 // The merge family and min / max / minmax, whose comparators are constrained the very same way.
 struct merge_comp_mut
 {
