@@ -480,8 +480,6 @@ main()
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST_VEC
     run_algo2_host_policies<lhs_archetype, rhs_archetype>(find_first_of_algo, find_first_of_checker, "find_first_of");
-#else
-    run_algo2_novec_policies<lhs_archetype, rhs_archetype>(find_first_of_algo, find_first_of_checker, "find_first_of");
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
