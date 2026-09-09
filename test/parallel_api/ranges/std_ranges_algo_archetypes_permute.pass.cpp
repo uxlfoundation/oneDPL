@@ -601,6 +601,20 @@ main()
 #endif
     }
 
+    // The permuting pattern over plain_archetype_view, i.e. over a range without the members
+    // std::ranges::view_interface provides; see the plain range section of the read test for what this
+    // proves. sort is the representative shape here, because it is the pattern which splits the range
+    // into sub ranges of its own and therefore has the most reasons to ask the user range for its size.
+    run_algo_plain_all_policies<permutable_archetype, permutable_archetype_dc, 34>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});
+        },
+        [](auto&& view, auto) {
+            return std::ranges::begin(view)[0].val == 0 &&
+                   std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
+        },
+        "sort, plain range");
+
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

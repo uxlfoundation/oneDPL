@@ -601,6 +601,23 @@ main()
 #endif
     }
 
+    // The writing pattern over plain_archetype_view, i.e. over ranges without the members
+    // std::ranges::view_interface provides; see the plain range section of the read test for what this
+    // proves. copy is the representative shape here: the number of elements to write is the smaller of
+    // the two range sizes, which the implementation has to obtain through std::ranges::size and not
+    // through a size() member of the user range. Both storages start as 0, 1, 2, ..., so only the two
+    // returned iterators say something here; that the assignment happens at all is what the call at id 1
+    // above checks.
+    run_algo2_plain_all_policies<copy_in_archetype, copy_out_archetype, copy_in_archetype_dc, copy_out_archetype_dc,
+                                 32>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
+            return dpl_ranges::copy(std::forward<decltype(policy)>(policy), in_view, out_view);
+        },
+        [](auto&& in_view, auto&& out_view, auto res) {
+            return res.in == std::ranges::begin(in_view) + std::ranges::size(in_view) &&
+                   res.out == std::ranges::begin(out_view) + std::ranges::size(out_view);
+        },
+        "copy, plain ranges");
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

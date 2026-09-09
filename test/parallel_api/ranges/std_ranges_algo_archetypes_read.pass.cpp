@@ -439,6 +439,32 @@ main()
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view); },
         "adjacent_find, default predicate");
 
+    //----------------------------------------------------------------------------------------------
+    // The same algorithms over plain_archetype_view, i.e. over a range which does not derive from
+    // std::ranges::view_interface and therefore has neither size(), operator[], empty(), front() nor
+    // back(). No requires-clause of any algorithm asks a range for those members: random_access_range
+    // and sized_range are satisfied through begin(), end() and the sized sentinel alone, so an
+    // implementation which reaches for a member of the user range instead of going through
+    // std::ranges::begin / end / size does not compile here.
+    //
+    // Only one call per pattern shape is run this way, here and in the cross, the permute and the write
+    // test: how the user range is accessed is a property of the dispatch and of the pattern and not of
+    // the individual algorithm. The values are the ones of the calls above, so what is new is the range
+    // and nothing else.
+    //----------------------------------------------------------------------------------------------
+    run_algo_plain_all_policies<read_archetype, read_archetype_dc, 48>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::for_each(std::forward<decltype(policy)>(policy), view, read_unary_fun{});
+        },
+        [](auto&& view, auto res) { return res == std::ranges::begin(view) + std::ranges::size(view); },
+        "for_each, plain range");
+
+    run_algo_plain_all_policies<read_archetype, read_archetype_dc, 49>(
+        [](auto&& policy, auto&& view) {
+            return dpl_ranges::find_if(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
+        },
+        [](auto&& view, auto res) { return res == std::ranges::begin(view); }, "find_if, plain range");
+
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
