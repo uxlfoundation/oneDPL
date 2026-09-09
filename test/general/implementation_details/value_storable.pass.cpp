@@ -7,11 +7,7 @@
 //
 //===------------------------------------------------------===//
 
-// Compile-time checks for oneapi::dpl::__unseq_backend::__is_value_storable_v and for the requirements it is built
-// from.
-// The only one of them that is not a standard type trait, oneapi::dpl::__unseq_backend::__is_brace_constructible_v, is
-// checked on its own as well. Every requirement is checked both ways: a type that satisfies it and a type that does
-// not.
+// Compile-time checks for oneapi::dpl::__unseq_backend::__is_value_storable_v and __is_brace_constructible_v.
 
 #include "support/test_config.h"
 
@@ -38,7 +34,6 @@ struct Regular
     int val = 0;
 };
 
-// An explicit default constructor is enough, since _ValueType{} is a direct initialization, which may use it.
 struct ExplicitDefaultCtor
 {
     int val;
@@ -51,16 +46,14 @@ struct ExplicitDefaultCtorMember
     explicit ExplicitDefaultCtorMember() : val(0) {}
 };
 
-// Default-constructible, but not brace-initializable: an aggregate is initialized member by member, and the member is
-// copy-initialized from an empty list, which may not use its explicit default constructor.
+// Default-constructible, but not brace-initializable: the member is copy-initialized from an empty list, which may not
+// use its explicit default constructor.
 struct AggregateOfExplicitDefaultCtor
 {
     ExplicitDefaultCtorMember member;
 };
 
-// Brace-initializable, but not default-constructible: with no default constructor declared, empty braces select the
-// initializer-list constructor with an empty list, while _ValueType() is ill-formed. The reduction object initializes
-// its members with _ValueType{}, so this is enough for it.
+// Brace-initializable, but not default-constructible: empty braces select the initializer-list constructor.
 struct BraceInitOnly
 {
     int val;
@@ -82,7 +75,7 @@ struct NoCopyAssign
     operator=(const NoCopyAssign&) = delete;
 };
 
-// The assignment does not return VoidAssign&, which is enough here because the result is never used.
+// The copy assignment returns void instead of VoidAssign&.
 struct VoidAssign
 {
     int val = 0;
@@ -93,7 +86,7 @@ struct VoidAssign
     }
 };
 
-// The destructor is not noexcept, which is enough here because storing a value never has to be non-throwing.
+// The destructor is not noexcept.
 struct ThrowingDtor
 {
     int val = 0;
@@ -112,7 +105,7 @@ struct MoveOnly
     operator=(const MoveOnly&) = delete;
 };
 
-// Deleting the move operations while keeping the copy ones is enough here, because the value is never moved.
+// Copyable, but with deleted move operations.
 struct CopyOnlyNoMove
 {
     int val = 0;
@@ -125,8 +118,7 @@ struct CopyOnlyNoMove
     operator=(CopyOnlyNoMove&&) = delete;
 };
 
-// Copyable and assignable from a const lvalue only, which is enough here, because the candidates are read through
-// std::as_const and the element is materialized as a const _ValueType.
+// Copyable and assignable from a const lvalue only.
 struct ConstCopyOnly
 {
     int val = 0;
@@ -139,9 +131,7 @@ struct ConstCopyOnly
     operator=(ConstCopyOnly&) = delete;
 };
 
-// A value type whose copy constructor is explicit, which is enough for copying the candidates, because they are copied
-// by direct initialization, and so is std::is_copy_constructible_v defined. Copy-initializing an element of such a type
-// is ill-formed, so an iterator over it does not meet the requirements of a forward iterator.
+// The copy constructor is explicit, so the type is copy-constructible, but its elements cannot be copy-initialized.
 struct ExplicitCopyCtor
 {
     int val = 0;
@@ -161,9 +151,7 @@ static_assert(dpl_unseq::__is_brace_constructible_v<Regular>);
 static_assert(dpl_unseq::__is_brace_constructible_v<ExplicitDefaultCtor>);
 static_assert(dpl_unseq::__is_brace_constructible_v<MoveOnly>);
 
-// The requirement is brace initialization, and the two directions in which it differs from default construction are
-// both checked: a type which is default-constructible but not brace-initializable, and one which is the other way
-// round.
+// Brace initialization differs from default construction in both directions.
 static_assert(std::is_default_constructible_v<AggregateOfExplicitDefaultCtor>);
 static_assert(!dpl_unseq::__is_brace_constructible_v<AggregateOfExplicitDefaultCtor>);
 static_assert(!std::is_default_constructible_v<BraceInitOnly>);
@@ -175,9 +163,7 @@ static_assert(!dpl_unseq::__is_brace_constructible_v<NoDefaultCtor>);
 // Reference types
 //----------------------------------------------------------------------------//
 
-// A reference type that does not convert to the value type: an iterator reporting it does not meet the requirements of
-// a forward iterator, which state that *__first is convertible to the value type, so the requirement does not look at
-// the reference type at all.
+// A reference type that does not convert to the value type.
 struct OpaqueRef
 {
 };
@@ -199,7 +185,7 @@ struct FakeIterator
 // __is_value_storable_v
 //----------------------------------------------------------------------------//
 
-// Accepted: the value type is storable in the reduction object.
+// Accepted value types.
 static_assert(dpl_unseq::__is_value_storable_v<int*>);
 static_assert(dpl_unseq::__is_value_storable_v<const int*>);
 static_assert(dpl_unseq::__is_value_storable_v<std::vector<int>::iterator>);
@@ -207,28 +193,25 @@ static_assert(dpl_unseq::__is_value_storable_v<std::vector<int>::const_iterator>
 static_assert(dpl_unseq::__is_value_storable_v<Regular*>);
 static_assert(dpl_unseq::__is_value_storable_v<ExplicitDefaultCtor*>);
 static_assert(dpl_unseq::__is_value_storable_v<BraceInitOnly*>);
-// Accepted: the requirements are brace initialization, copy construction and copy assignment, and nothing else.
+// The requirements are brace initialization, copy construction and copy assignment, and nothing else.
 static_assert(dpl_unseq::__is_value_storable_v<CopyOnlyNoMove*>);
 static_assert(dpl_unseq::__is_value_storable_v<VoidAssign*>);
 static_assert(dpl_unseq::__is_value_storable_v<ThrowingDtor*>);
-// Accepted: copying and storing a value only ever reads it through a const reference.
 static_assert(dpl_unseq::__is_value_storable_v<const ConstCopyOnly*>);
-// The reference type is not part of the requirement, so a proxy reference and an iterator returning the value type by
-// value are accepted like any other.
+// The reference type is not part of the requirement.
 static_assert(dpl_unseq::__is_value_storable_v<std::vector<bool>::iterator>);
 static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<int, int>>);
 static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<std::pair<int, int>, std::pair<int&, int&>>>);
 static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<CopyOnlyNoMove, CopyOnlyNoMove>>);
-// Accepted although the bricks do not compile for them: an element of these iterators cannot be copy-initialized into
-// the value type, so they do not meet the requirements of a forward iterator, which is not detected here. The value
-// types themselves are copy-constructible, which is stated in terms of direct initialization.
+// Accepted although the bricks do not compile for them: these iterators do not meet the requirements of a forward
+// iterator, which is not detected here.
 static_assert(std::is_copy_constructible_v<ExplicitCopyCtor>);
 static_assert(dpl_unseq::__is_value_storable_v<ExplicitCopyCtor*>);
 static_assert(dpl_unseq::__is_value_storable_v<ConstCopyOnly*>);
 static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<int, OpaqueRef>>);
 
-// Rejected because of the value type: the first two fail brace initialization, the third copy assignment, and the
-// move-only one copy construction, and with it every other requirement that copies a value.
+// Rejected because of the value type: the first two fail brace initialization, the third copy assignment, and the last
+// one copy construction.
 static_assert(!dpl_unseq::__is_value_storable_v<NoDefaultCtor*>);
 static_assert(!dpl_unseq::__is_value_storable_v<AggregateOfExplicitDefaultCtor*>);
 static_assert(!dpl_unseq::__is_value_storable_v<NoCopyAssign*>);
