@@ -167,18 +167,11 @@ main()
         [](auto&&, auto&&, auto res) { return res; }, "set_difference");
 #endif
 
-    // KSATODO: min / max / minmax only require std::indirectly_copyable_storable, which needs a copy
-    // constructor and copy assignment, but no default constructor. The helpers of __simd_min_element
-    // and __simd_minmax_element at unseq_backend_simd.h:635 and :695 value initialize their
-    // _ValueType members in the default constructor, so the calls below do not compile with a
-    // non-default-constructible element type.
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MIN_HOST
     run_algo_host_policies<storable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::min(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto res) { return res.val == 0; }, "min");
-#endif
 
     run_algo_hetero_policies<storable_archetype_dc, 3>(
         [](auto&& policy, auto&& view) {
@@ -186,13 +179,11 @@ main()
         },
         [](auto&&, auto res) { return res.val == 0; }, "min");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MAX_HOST
     run_algo_host_policies<storable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::max(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto res) { return res.val == (int)archetype_test_size - 1; }, "max");
-#endif
 
     run_algo_hetero_policies<storable_archetype_dc, 4>(
         [](auto&& policy, auto&& view) {
@@ -200,13 +191,11 @@ main()
         },
         [](auto&&, auto res) { return res.val == (int)archetype_test_size - 1; }, "max");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MINMAX_HOST
     run_algo_host_policies<storable_archetype>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::minmax(std::forward<decltype(policy)>(policy), view, storable_comp{});
         },
         [](auto&&, auto&& res) { return res.min.val == 0 && res.max.val == (int)archetype_test_size - 1; }, "minmax");
-#endif
 
     run_algo_hetero_policies<storable_archetype_dc, 5>(
         [](auto&& policy, auto&& view) {
