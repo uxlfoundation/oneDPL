@@ -55,73 +55,73 @@ struct inspectable_holder : public hetero::__storage_holder<NScratch, ResultType
 // Test helpers
 template <typename T, std::size_t NScratch, typename... ResultTypes>
 void
-take_and_check(hetero::__device_storage<T>& storage, inspectable_holder<NScratch, ResultTypes...>& holder)
+store_and_check(hetero::__device_storage<T>& storage, inspectable_holder<NScratch, ResultTypes...>& holder)
 {
     void* const raw_ptr = storage.__usm_buf.get();
     const std::size_t count_before = holder.scratch_count();
 
-    holder.__take(std::move(storage));
+    holder.__store_scratch(std::move(storage));
 
-    EXPECT_TRUE(storage.__usm_buf == nullptr, "error in __take: the moved-from storage is not cleared");
-    EXPECT_EQ(count_before + 1, holder.scratch_count(), "error in __take: scratch count change is not equal to 1");
+    EXPECT_TRUE(storage.__usm_buf == nullptr, "error in __store_scratch: the moved-from storage is not cleared");
+    EXPECT_EQ(count_before + 1, holder.scratch_count(), "error in __store_scratch: scratch count change is not equal to 1");
     
     const auto& scratch_slot = holder.scratch_slot(count_before);
     EXPECT_EQ(raw_ptr, scratch_slot.__usm_ptr, // also holds for nullptr
-              "error in __take: scratch slot does not hold the original USM pointer");
+              "error in __store_scratch: scratch slot does not hold the original USM pointer");
     EXPECT_EQ(raw_ptr == nullptr, scratch_slot.__sycl_buf.has_value(), 
-              "error in __take: sycl::buffer was handled incorrectly");
+              "error in __store_scratch: sycl::buffer was handled incorrectly");
 }
 
 template <std::size_t I, typename T, std::size_t NScratch, typename... ResultTypes>
 void
-take_and_check(hetero::__result_storage<T>& storage, inspectable_holder<NScratch, ResultTypes...>& holder)
+store_and_check(hetero::__result_storage<T>& storage, inspectable_holder<NScratch, ResultTypes...>& holder)
 {
     T* const raw_ptr = storage.__usm_buf.get();
     const sycl::usm::alloc kind = storage.__kind;
     const std::size_t count_before = holder.scratch_count();
 
-    holder.template __take<I>(std::move(storage));
+    holder.template __store<I>(std::move(storage));
     
-    EXPECT_TRUE(storage.__usm_buf == nullptr, "error in __take: the moved-from storage is not cleared");
-    EXPECT_EQ(count_before, holder.scratch_count(), "error in __take: scratch count changed by result deposit");
+    EXPECT_TRUE(storage.__usm_buf == nullptr, "error in __store: the moved-from storage is not cleared");
+    EXPECT_EQ(count_before, holder.scratch_count(), "error in __store: scratch count changed by result deposit");
 
     const auto& result_slot = holder.template result_slot<I>();
     EXPECT_EQ(raw_ptr, result_slot.__usm_ptr, // also holds for nullptr
-              "error in __take: result slot does not hold the original USM pointer");
+              "error in __store: result slot does not hold the original USM pointer");
     EXPECT_EQ(kind == sycl::usm::alloc::unknown, result_slot.__sycl_buf.has_value(),
-              "error in __take: sycl::buffer was handled incorrectly");
+              "error in __store: sycl::buffer was handled incorrectly");
 }
 
 template <std::size_t I, typename T, std::size_t NScratch, typename... ResultTypes>
 void
-take_and_check(hetero::__combined_storage<T>& storage, inspectable_holder<NScratch, ResultTypes...>& holder)
+store_and_check(hetero::__combined_storage<T>& storage, inspectable_holder<NScratch, ResultTypes...>& holder)
 {
     void* const scratch_raw = storage.__usm_buf.get();
     void* const result_raw  = storage.__result_buf.get();
     const sycl::usm::alloc kind = storage.__kind;
     const std::size_t count_before = holder.scratch_count();
 
-    holder.template __take<I>(std::move(storage));
+    holder.template __store<I>(std::move(storage));
 
-    EXPECT_TRUE(storage.__usm_buf == nullptr, "error in __take: the moved-from storage is not cleared");
-    EXPECT_TRUE(storage.__result_buf == nullptr, "error in __take: the moved-from storage is not cleared");
+    EXPECT_TRUE(storage.__usm_buf == nullptr, "error in __store: the moved-from storage is not cleared");
+    EXPECT_TRUE(storage.__result_buf == nullptr, "error in __store: the moved-from storage is not cleared");
 
     const auto& result_slot = holder.template result_slot<I>();
     EXPECT_EQ(kind == sycl::usm::alloc::unknown, result_slot.__sycl_buf.has_value(),
-              "error in __take: sycl::buffer was handled incorrectly");
+              "error in __store: sycl::buffer was handled incorrectly");
     if (kind == sycl::usm::alloc::host)
     {
-        EXPECT_EQ(count_before + 1, holder.scratch_count(), "error in __take: scratch count change is not equal to 1");
+        EXPECT_EQ(count_before + 1, holder.scratch_count(), "error in __store: scratch count change is not equal to 1");
         EXPECT_EQ(scratch_raw, holder.scratch_slot(count_before).__usm_ptr,
-                  "error in __take: scratch slot does not hold the original USM pointer");
+                  "error in __store: scratch slot does not hold the original USM pointer");
         EXPECT_EQ(result_raw, result_slot.__usm_ptr,
-                  "error in __take: result slot does not hold the original USM pointer");
+                  "error in __store: result slot does not hold the original USM pointer");
     }
     else
     {
-        EXPECT_EQ(count_before, holder.scratch_count(), "error in __take: scratch count changed by combined deposit");
+        EXPECT_EQ(count_before, holder.scratch_count(), "error in __store: scratch count changed by combined deposit");
         EXPECT_EQ(scratch_raw, result_slot.__usm_ptr, // also holds for nullptr
-                  "error in __take: result slot does not hold the original USM pointer");
+                  "error in __store: result slot does not hold the original USM pointer");
     }
 }
 
@@ -228,9 +228,9 @@ struct StorageHolderTest
 
         std::array<void*, NScratch> raw_ptrs{ds0.__usm_buf.get(), ds1.__usm_buf.get(), ds2.__usm_buf.get()};
 
-        Test::take_and_check(ds0, holder);
-        Test::take_and_check(ds1, holder);
-        Test::take_and_check(ds2, holder);
+        Test::store_and_check(ds0, holder);
+        Test::store_and_check(ds1, holder);
+        Test::store_and_check(ds2, holder);
 
         EXPECT_EQ(NScratch, holder.scratch_count(), "scratch deposits: final scratch count is incorrect");
         if (scratch_kind != sycl::usm::alloc::unknown)
@@ -254,9 +254,9 @@ struct StorageHolderTest
 
         std::array<void*, NResults> raw_ptrs{rs0.__usm_buf.get(), rs1.__usm_buf.get(), rs2.__usm_buf.get()};
 
-        Test::take_and_check<0>(rs0, holder);
-        Test::take_and_check<1>(rs1, holder);
-        Test::take_and_check<2>(rs2, holder);
+        Test::store_and_check<0>(rs0, holder);
+        Test::store_and_check<1>(rs1, holder);
+        Test::store_and_check<2>(rs2, holder);
         
         if (result_kind != sycl::usm::alloc::unknown)
         {
@@ -280,9 +280,9 @@ struct StorageHolderTest
         std::vector<void*> raw_ptrs{cs0.__usm_buf.get(), cs0.__result_buf.get(), ds.__usm_buf.get(),
                                     cs1.__usm_buf.get(), cs1.__result_buf.get()};
 
-        Test::take_and_check<0>(cs0, holder);
-        Test::take_and_check   (ds,  holder);
-        Test::take_and_check<1>(cs1, holder);
+        Test::store_and_check<0>(cs0, holder);
+        Test::store_and_check   (ds,  holder);
+        Test::store_and_check<1>(cs1, holder);
 
         const std::size_t expected_scratch = /*ds*/1 + (result_kind == sycl::usm::alloc::host ? /*cs0&1*/2 : 0);
         EXPECT_EQ(expected_scratch, holder.scratch_count(), "combined deposits: final scratch count is incorrect");
