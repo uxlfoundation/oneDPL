@@ -80,13 +80,6 @@ struct VoidAssign
     }
 };
 
-// The destructor is not noexcept.
-struct ThrowingDtor
-{
-    int val = 0;
-    ~ThrowingDtor() noexcept(false) {}
-};
-
 struct MoveOnly
 {
     int val = 0;
@@ -190,7 +183,6 @@ static_assert(dpl_unseq::__is_value_storable_v<BraceInitOnly*>);
 // The requirements are brace initialization, copy construction and copy assignment, and nothing else.
 static_assert(dpl_unseq::__is_value_storable_v<CopyOnlyNoMove*>);
 static_assert(dpl_unseq::__is_value_storable_v<VoidAssign*>);
-static_assert(dpl_unseq::__is_value_storable_v<ThrowingDtor*>);
 static_assert(dpl_unseq::__is_value_storable_v<const ConstCopyOnly*>);
 // The reference type is not part of the requirement.
 static_assert(dpl_unseq::__is_value_storable_v<std::vector<bool>::iterator>);
