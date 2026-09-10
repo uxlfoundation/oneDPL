@@ -11,6 +11,7 @@
 #define _ONEDPL_UTILS_STORAGE_SYCL_H
 //!!! NOTE: This file should be included under the macro _ONEDPL_BACKEND_SYCL
 
+#include <array>
 #include <memory>
 #include <type_traits>
 #include <tuple>
@@ -560,7 +561,7 @@ class __storage_holder
 
     template <typename _T>
     void
-    __take(__device_storage<_T>&& __st)
+    __store_scratch(__device_storage<_T>&& __st)
     {
         assert(__scratch_count < _NScratch);
         std::move(__st).__move_state_to(__scratch_slots[__scratch_count++]);
@@ -568,7 +569,7 @@ class __storage_holder
 
     template <std::size_t _I, typename _T>
     void
-    __take(__result_storage<_T>&& __st)
+    __store(__result_storage<_T>&& __st)
     {
         static_assert(_I < sizeof...(_ResultTypes), "Result slot index out of range");
         static_assert(std::is_same_v<_T, std::tuple_element_t<_I, std::tuple<_ResultTypes...>>>);
@@ -579,7 +580,7 @@ class __storage_holder
 
     template <std::size_t _I, typename _T>
     void
-    __take(__combined_storage<_T>&& __st)
+    __store(__combined_storage<_T>&& __st)
     {
         static_assert(_I < sizeof...(_ResultTypes), "Result index out of range");
         static_assert(std::is_same_v<_T, std::tuple_element_t<_I, std::tuple<_ResultTypes...>>>);

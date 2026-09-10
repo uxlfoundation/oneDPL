@@ -715,7 +715,7 @@ __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __l
         __event_sort = __merge_sort_copy_back_submitter<_CopyBackKernel>()(__q, __rng, __temp_buf, __event_sort);
     }
 
-    __holder.__take(std::move(__temp_sp_storages));
+    __holder.__store_scratch(std::move(__temp_sp_storages));
     return __event_sort;
 }
 
