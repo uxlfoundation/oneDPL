@@ -126,12 +126,11 @@ template <typename... _Name>
 struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name...>>
 {
     template <typename _Fp, typename _Index, typename... _Ranges>
-    __future<sycl::event>
+    sycl::event
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         _PRINT_INFO_IN_DEBUG_MODE(__q);
-        auto __event = __q.submit([__rngs..., __brick, __count](sycl::handler& __cgh) {
-
+        return __q.submit([__rngs..., __brick, __count](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
@@ -141,8 +140,6 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
                 __brick(std::true_type{}, __idx, __pfor_params_simple{}, __rngs...);
             });
         });
-
-        return __future{std::move(__event)};
     }
 };
 
@@ -261,14 +258,14 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     }
 
     template <typename _Fp, typename _Index, typename... _Ranges>
-    __future<sycl::event>
+    sycl::event
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         using __params_t = __pfor_params<_Ranges...>;
         const std::uint16_t __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__q, __work_group_size_limit);
         _PRINT_INFO_IN_DEBUG_MODE(__q);
-        auto __event = __q.submit([__rngs..., __brick, __work_group_size, __count](sycl::handler& __cgh) {
+        return __q.submit([__rngs..., __brick, __work_group_size, __count](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             constexpr std::uint8_t __iters_per_work_item = __iterations_per_item_v<_Fp, _Ranges...>;
@@ -291,15 +288,13 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
                                                      __params_t{}, __rngs...);
                 });
         });
-
-        return __future{std::move(__event)};
     }
 };
 
 //General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
 //for some algorithms happens that size of processing range is n, but amount of iterations is n/2.
 template <typename _CustomName, typename _Fp, typename _Index, typename... _Ranges>
-__future<sycl::event>
+sycl::event
 __parallel_for_impl(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs)
 {
     assert(oneapi::dpl::__ranges::__min_size_calc{}(__rngs...) > 0);
@@ -329,7 +324,7 @@ __parallel_for_impl(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... 
 //General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
 //for some algorithms happens that size of processing range is n, but amount of iterations is n/2.
 template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
-__future<sycl::event>
+sycl::event
 __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Fp __brick, _Index __count,
                _Ranges&&... __rngs)
 {
