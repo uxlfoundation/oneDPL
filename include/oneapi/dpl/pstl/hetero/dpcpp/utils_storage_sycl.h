@@ -205,9 +205,10 @@ struct __copyable_storage_state
 {
     std::shared_ptr<_T> __result_buf;
     std::shared_ptr<_T> __scratch_buf;
-    sycl::buffer<_T, 1> __sycl_buf;
-    std::size_t         __scratch_sz = 0;
-    sycl::usm::alloc    __kind = sycl::usm::alloc::unknown;
+    std::optional<sycl::buffer<_T, 1>> __sycl_buf;
+    std::size_t __result_sz = 0;
+    std::size_t __offset = 0;
+    sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
 };
 
 template <typename _T, sycl::access_mode _AccessMode>
@@ -496,7 +497,8 @@ struct __combined_storage : public __device_storage<_T>
     __copyable_storage_state<_T>
     __move_state() &&
     {
-        return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf), __sz, __kind};
+        return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf),
+                __result_sz, __sz, __kind};
     }
 };
 
