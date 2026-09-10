@@ -1796,7 +1796,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __get_accessor(sycl::write_only, __scratch_storage, __cgh, __dpl_sycl::__no_init{});
-            auto __stop_pos_acc = __get_accessor(sycl::write_only, __stop_pos_storage, __cgh);
+            auto __stop_pos_acc = __get_accessor(sycl::write_only, __stop_pos_storage, __cgh, __dpl_sycl::__no_init{});
             __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi)
                     [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_req_sg_sz_device())]] {
                 const __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
@@ -1986,7 +1986,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
             auto __temp_acc = __get_accessor(sycl::read_write, __scratch_storage, __cgh);
             auto __res_acc = __get_result_accessor(sycl::write_only, __scratch_storage, __cgh, __dpl_sycl::__no_init{});
-            auto __stop_pos_acc = __get_accessor(sycl::read_write, __stop_pos_storage, __cgh);
+            auto __stop_pos_acc = __get_accessor(sycl::read_write, __stop_pos_storage, __cgh, __dpl_sycl::__no_init{});
 
             __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi)
                     [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_req_sg_sz_device())]] {

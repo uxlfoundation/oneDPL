@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- parallel_backend_sycl_utils.h -------------------------------------===//
+//===-- utils_storage_sycl.h ----------------------------------------------===//
 //
 // Copyright (C) Intel Corporation
 //

@@ -1,7 +1,7 @@
 // -*- C++ -*-
 //===------------------------------------------------------===//
 //
-// Copyright (C) 2025 UXL Foundation Contributors
+// Copyright (C) UXL Foundation Contributors
 //
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
