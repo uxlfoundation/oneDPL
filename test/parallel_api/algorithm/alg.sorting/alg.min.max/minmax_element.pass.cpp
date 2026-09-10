@@ -302,7 +302,8 @@ struct ExplicitDefaultCtorCompare
     }
 };
 
-// Not default-constructible, but brace-initializable: empty braces select the initializer-list constructor.
+// Not default-constructible: neither constructor can be called without arguments, so `BraceInitOnlyCompare obj;` is
+// ill-formed. Empty braces, in contrast, select the initializer-list constructor.
 struct BraceInitOnlyCompare
 {
     std::int32_t val;
@@ -527,13 +528,13 @@ main()
     // These value types are accepted by the vector code path: it must be instantiated for them. Whether it compiles
     // does not depend on the sequence size, so a single small size is enough for all the checks below.
     test_by_type<ExplicitDefaultCtorCompare>(NSmall);
-    test_by_type_host_policies<BraceInitOnlyCompare>(NSmall);
     test_by_type_host_policies_no_move<CopyOnlyNoMoveCompare>(NSmall);
     test_by_type_host_policies<VoidAssignCompare>(NSmall);
     test_by_type_host_policies<ConstCopyOnlyCompare, /*UseConstIterators*/ true>(NSmall);
 
     // These value types are rejected by the vector code path: the call must compile and fall back to the serial one.
     test_by_type_host_policies<TestUtils::NoDefaultCtorWrapper<std::int32_t>>(NSmall);
+    test_by_type_host_policies<BraceInitOnlyCompare>(NSmall);
     test_by_type_host_policies<NoCopyAssignCompare>(NSmall);
     test_by_type_host_policies<MoveOnlyCompare>(NSmall);
 
