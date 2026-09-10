@@ -40,17 +40,11 @@ struct ExplicitDefaultCtor
     explicit ExplicitDefaultCtor() : val(0) {}
 };
 
-struct ExplicitDefaultCtorMember
-{
-    int val;
-    explicit ExplicitDefaultCtorMember() : val(0) {}
-};
-
 // Default-constructible, but not brace-initializable: the member is copy-initialized from an empty list, which may not
 // use its explicit default constructor.
 struct AggregateOfExplicitDefaultCtor
 {
-    ExplicitDefaultCtorMember member;
+    ExplicitDefaultCtor member;
 };
 
 // Brace-initializable, but not default-constructible: empty braces select the initializer-list constructor.
