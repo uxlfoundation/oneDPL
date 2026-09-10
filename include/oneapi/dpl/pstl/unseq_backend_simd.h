@@ -614,19 +614,14 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
-template <typename _Tp, typename = void>
-inline constexpr bool __is_brace_constructible_v = false;
-
-template <typename _Tp>
-inline constexpr bool __is_brace_constructible_v<_Tp, decltype(void(_Tp{}))> = true;
-
 // Requirements needed by __simd_min_element and __simd_minmax_element implementations:
-// - __is_brace_constructible_v: the _ComplexType default constructor needs _ValueType{} to be well-formed.
-// - std::is_copy_constructible_v: _ComplexType copy constructor is deleted if _ValueType is not copy constructible.
+// - std::is_default_constructible_v: the _ComplexType default constructor value-initializes its _ValueType members.
+// - std::is_copy_constructible_v: _ComplexType copy-constructs its _ValueType members from a const _ValueType&, and its
+//   copy constructor is deleted if _ValueType is not copy constructible.
 // - std::is_copy_assignable_v: the _ONEDPL_PRAGMA_SIMD_REDUCTION loop assigns _ValueType.
 template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type>
 inline constexpr bool __is_value_storable_v =
-    __is_brace_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
+    std::is_default_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
     std::is_copy_assignable_v<_ValueType>;
 
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
@@ -651,7 +646,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         // The default constructor is not used during the algorithm, so it is not required for it.
         // However, some compilers may require it.
 
-        _ComplexType() : __min_val{} {}
+        _ComplexType() : __min_val() {}
         _ComplexType(const _ValueType& val, const _Compare* comp)
             : __min_val(val), __min_comp(const_cast<_Compare*>(comp))
         {
@@ -712,7 +707,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         // The default constructor is not used during the algorithm, so it is not required for it.
         // However, some compilers may require it.
 
-        _ComplexType() : __min_val{}, __max_val{} {}
+        _ComplexType() : __min_val(), __max_val() {}
         _ComplexType(const _ValueType& min_val, const _ValueType& max_val, const _Compare* comp)
             : __min_val(min_val), __max_val(max_val), __minmax_comp(const_cast<_Compare*>(comp))
         {

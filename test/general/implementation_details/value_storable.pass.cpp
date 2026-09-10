@@ -7,7 +7,7 @@
 //
 //===------------------------------------------------------===//
 
-// Compile-time checks for oneapi::dpl::__unseq_backend::__is_value_storable_v and __is_brace_constructible_v.
+// Compile-time checks for oneapi::dpl::__unseq_backend::__is_value_storable_v.
 
 #include "support/test_config.h"
 
@@ -40,14 +40,14 @@ struct ExplicitDefaultCtor
     explicit ExplicitDefaultCtor() : val(0) {}
 };
 
-// Default-constructible, but not brace-initializable: the member is copy-initialized from an empty list, which may not
-// use its explicit default constructor.
+// Default-constructible: default-initializing the aggregate default-initializes the member through its explicit default
+// constructor.
 struct AggregateOfExplicitDefaultCtor
 {
     ExplicitDefaultCtor member;
 };
 
-// Brace-initializable, but not default-constructible: empty braces select the initializer-list constructor.
+// Not default-constructible: the only constructor takes an initializer list, so `BraceInitOnly obj;` is ill-formed.
 struct BraceInitOnly
 {
     int val;
@@ -125,24 +125,6 @@ struct ExplicitCopyCtor
 };
 
 //----------------------------------------------------------------------------//
-// __is_brace_constructible_v
-//----------------------------------------------------------------------------//
-
-static_assert(dpl_unseq::__is_brace_constructible_v<int>);
-static_assert(dpl_unseq::__is_brace_constructible_v<int*>);
-static_assert(dpl_unseq::__is_brace_constructible_v<Regular>);
-static_assert(dpl_unseq::__is_brace_constructible_v<ExplicitDefaultCtor>);
-static_assert(dpl_unseq::__is_brace_constructible_v<MoveOnly>);
-
-// Brace initialization differs from default construction in both directions.
-static_assert(std::is_default_constructible_v<AggregateOfExplicitDefaultCtor>);
-static_assert(!dpl_unseq::__is_brace_constructible_v<AggregateOfExplicitDefaultCtor>);
-static_assert(!std::is_default_constructible_v<BraceInitOnly>);
-static_assert(dpl_unseq::__is_brace_constructible_v<BraceInitOnly>);
-
-static_assert(!dpl_unseq::__is_brace_constructible_v<TestUtils::NoDefaultCtorWrapper<int>>);
-
-//----------------------------------------------------------------------------//
 // Reference types
 //----------------------------------------------------------------------------//
 
@@ -175,8 +157,8 @@ static_assert(dpl_unseq::__is_value_storable_v<std::vector<int>::iterator>);
 static_assert(dpl_unseq::__is_value_storable_v<std::vector<int>::const_iterator>);
 static_assert(dpl_unseq::__is_value_storable_v<Regular*>);
 static_assert(dpl_unseq::__is_value_storable_v<ExplicitDefaultCtor*>);
-static_assert(dpl_unseq::__is_value_storable_v<BraceInitOnly*>);
-// The requirements are brace initialization, copy construction and copy assignment, and nothing else.
+static_assert(dpl_unseq::__is_value_storable_v<AggregateOfExplicitDefaultCtor*>);
+// The requirements are default construction, copy construction and copy assignment, and nothing else.
 static_assert(dpl_unseq::__is_value_storable_v<CopyOnlyNoMove*>);
 static_assert(dpl_unseq::__is_value_storable_v<VoidAssign*>);
 static_assert(dpl_unseq::__is_value_storable_v<const ConstCopyOnly*>);
@@ -192,10 +174,10 @@ static_assert(dpl_unseq::__is_value_storable_v<ExplicitCopyCtor*>);
 static_assert(dpl_unseq::__is_value_storable_v<ConstCopyOnly*>);
 static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<int, OpaqueRef>>);
 
-// Rejected because of the value type: the first two fail brace initialization, the third copy assignment, and the last
+// Rejected because of the value type: the first two fail default construction, the third copy assignment, and the last
 // one copy construction.
 static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::NoDefaultCtorWrapper<int>*>);
-static_assert(!dpl_unseq::__is_value_storable_v<AggregateOfExplicitDefaultCtor*>);
+static_assert(!dpl_unseq::__is_value_storable_v<BraceInitOnly*>);
 static_assert(!dpl_unseq::__is_value_storable_v<NoCopyAssign*>);
 static_assert(!dpl_unseq::__is_value_storable_v<MoveOnly*>);
 
