@@ -302,6 +302,19 @@ struct ExplicitDefaultCtorCompare
     }
 };
 
+// Default-constructible, but not brace-initializable: default-initializing the aggregate default-initializes the member
+// through its explicit default constructor, while empty braces would copy-list-initialize it, which the explicit
+// constructor rejects.
+struct AggregateOfExplicitDefaultCtorCompare
+{
+    ExplicitDefaultCtorCompare member;
+    bool
+    operator<(const AggregateOfExplicitDefaultCtorCompare& other) const
+    {
+        return member < other.member;
+    }
+};
+
 // Not default-constructible: neither constructor can be called without arguments, so `BraceInitOnlyCompare obj;` is
 // ill-formed. Empty braces, in contrast, select the initializer-list constructor.
 struct BraceInitOnlyCompare
@@ -443,6 +456,20 @@ test_by_type_host_policies(std::size_t n)
     check_by_type_host_policies<T>(Iterator(data.begin()), Iterator(data.end()));
 }
 
+// An aggregate cannot be constructed with parentheses before C++20, so the elements are brace-initialized instead of
+// being emplaced.
+template <typename T>
+static void
+test_by_type_host_policies_brace_init(std::size_t n)
+{
+    std::vector<T> data;
+    data.reserve(n);
+    for (std::size_t i = 0; i < n; ++i)
+        data.push_back(T{std::int32_t(TestUtils::HashBits(i, 30))});
+
+    check_by_type_host_policies<T>(data.begin(), data.end());
+}
+
 // A type with deleted move operations cannot be pushed into a std::vector, so the vector is sized up front and its
 // elements are assigned. A plain array is not used on purpose: with the bounds known at compile time, GCC reports a
 // false out-of-bounds subscript in the parallel reduction.
@@ -528,6 +555,7 @@ main()
     // These value types are accepted by the vector code path: it must be instantiated for them. Whether it compiles
     // does not depend on the sequence size, so a single small size is enough for all the checks below.
     test_by_type<ExplicitDefaultCtorCompare>(NSmall);
+    test_by_type_host_policies_brace_init<AggregateOfExplicitDefaultCtorCompare>(NSmall);
     test_by_type_host_policies_no_move<CopyOnlyNoMoveCompare>(NSmall);
     test_by_type_host_policies<VoidAssignCompare>(NSmall);
     test_by_type_host_policies<ConstCopyOnlyCompare, /*UseConstIterators*/ true>(NSmall);
