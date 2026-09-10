@@ -101,11 +101,11 @@ test_copy_assignment()
 
     EXPECT_EQ(9, trans6[5], "transform_iterator returns the incorrect result");
 
-    //should NOT copy __x state of functor (but still allows assignment of iterator)
+    //should still copy __x state of functor (despite not being copy-assignable)
     trans6 = trans5;
 
     //trans6 functor.__x remains the same, but iterator has been updated to be 100 elements later in the counting iter
-    EXPECT_EQ(109, trans6[5], "transform_iterator assignment with non-copy-assignable functor copies functor");
+    EXPECT_EQ(108, trans6[5], "transform_iterator assignment with non-copy-assignable functor still copies functor");
 }
 
 void
