@@ -405,6 +405,19 @@
         } while (0)
 #endif
 
+// DIAGNOSTIC BUILD ONLY, DO NOT MERGE. Candidate mitigations for the segfault that a copy back following six or more
+// consecutive zero-survivor segments takes on the Windows debug GPU runtime. Each is a separate TU-level switch so one
+// CI run can tell which of them removes the trigger.
+#if !defined(_ONEDPL_COMPACTION_DIAG_WAIT)
+#    define _ONEDPL_COMPACTION_DIAG_WAIT 0 // queue wait at the end of every iteration
+#endif
+#if !defined(_ONEDPL_COMPACTION_DIAG_FRESH_BUF)
+#    define _ONEDPL_COMPACTION_DIAG_FRESH_BUF 0 // a staging temporary per iteration rather than one per call
+#endif
+#if !defined(_ONEDPL_COMPACTION_DIAG_KEEPALIVE)
+#    define _ONEDPL_COMPACTION_DIAG_KEEPALIVE 0 // identity write so that no iteration is read-only
+#endif
+
 #if defined(ONEDPL_USE_PREDEFINED_POLICIES)
 #    undef _ONEDPL_PREDEFINED_POLICIES
 #    define _ONEDPL_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES

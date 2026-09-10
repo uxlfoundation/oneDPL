@@ -210,4 +210,19 @@ run_case(Policy&& exec, Algo algo, std::size_t n, std::size_t run_length, std::s
     run_one<MemTag>(exec, algo, make_input(n, run_length), segment_size);
     std::cout << "    ok" << std::endl;
 }
+
+// The coordinate that crashed 12 of 12 jobs of run 34440826733, repeated. One call makes 128 copy backs that follow a
+// run of seven zero-survivor segments and each of those has an independent few-percent chance of dying, so a variant
+// that only lowers that chance would look clean in a single call. Repeating it removes that reading.
+template <typename MemTag, typename Algo, typename Policy>
+void
+run_crash_coordinate(Policy&& exec, Algo algo, std::size_t repetitions)
+{
+    for (std::size_t i = 0; i < repetitions; ++i)
+    {
+        std::cout << "rep " << i << std::endl;
+        run_case<MemTag>(exec, algo, 1024, 8, 1);
+    }
+    std::cout << "=== complete ===" << std::endl;
+}
 #endif // TEST_DPCPP_BACKEND_PRESENT

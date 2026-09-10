@@ -997,6 +997,9 @@ struct copy_back_wrapper2;
 template <typename _Name>
 struct copy_back_wrapper3;
 
+template <typename _Name>
+struct copy_back_wrapper4;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Predicate>
 _Iterator
 __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
@@ -1057,8 +1060,10 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
 
     // Segments after the first are staged over their input extended one element back, so that their leading element is
     // compared against its predecessor; that staged predecessor is then dropped.
+#if !_ONEDPL_COMPACTION_DIAG_FRESH_BUF
     oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__segment_size + 1);
     auto __stage_first = __buf.get();
+#endif
 
     // A segment's survivors never outnumber its input and segments are taken in order, so a segment's copy back stops
     // at its own input end. The only element it can reach that a later segment still needs is that segment's
@@ -1067,6 +1072,10 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
     _ONEDPL_COMPACTION_TRACE_PRINT("n %ld s %ld\n", (long)__n, (long)__segment_size);
     for (_DiffType __in_pos = 0; __in_pos < __n; __in_pos += __segment_size)
     {
+#if _ONEDPL_COMPACTION_DIAG_FRESH_BUF
+        oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__segment_size + 1);
+        auto __stage_first = __buf.get();
+#endif
         const bool __has_predecessor = __in_pos > 0;
         _ONEDPL_COMPACTION_TRACE_PRINT("A %ld %ld\n", (long)__in_pos, (long)__out_pos);
         auto __stage_last =
@@ -1084,8 +1093,21 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
             __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper3>(__exec), __stage_out_first,
             __stage_last, __first + __out_pos, __brick_copy<__hetero_tag<_BackendTag>>{});
 
+#if _ONEDPL_COMPACTION_DIAG_KEEPALIVE
+        // A zero-survivor segment writes nothing, so its iteration only reads the input. Copy the last survivor onto
+        // itself so that every iteration is also a writer; the source is the destination, so the value cannot change.
+        if (__stage_last == __stage_out_first && __out_pos > 0)
+            __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
+                                   /*_IsOutNoInitRequested=*/false>(
+                __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper4>(__exec), __first + __out_pos - 1,
+                __first + __out_pos, __first + __out_pos - 1, __brick_copy<__hetero_tag<_BackendTag>>{});
+#endif
+
         __out_pos += __stage_last - __stage_out_first;
         _ONEDPL_COMPACTION_TRACE_PRINT("C %ld %ld\n", (long)__in_pos, (long)__out_pos);
+#if _ONEDPL_COMPACTION_DIAG_WAIT
+        __exec.queue().wait();
+#endif
     }
 
     return __first + __out_pos;
