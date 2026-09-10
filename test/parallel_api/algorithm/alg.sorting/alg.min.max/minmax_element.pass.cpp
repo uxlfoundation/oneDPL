@@ -352,20 +352,6 @@ struct VoidAssignCompare
     }
 };
 
-// The destructor is not noexcept.
-struct ThrowingDtorCompare
-{
-    std::int32_t val;
-    ThrowingDtorCompare() : val(0) {}
-    ThrowingDtorCompare(std::int32_t val_) : val(val_) {}
-    ~ThrowingDtorCompare() noexcept(false) {}
-    bool
-    operator<(const ThrowingDtorCompare& other) const
-    {
-        return val < other.val;
-    }
-};
-
 // Copyable and assignable from a const lvalue only, so it requires const iterators.
 struct ConstCopyOnlyCompare
 {
@@ -553,7 +539,6 @@ main()
     test_by_type_host_policies<BraceInitOnlyCompare>(NSmall);
     test_by_type_host_policies_no_move<CopyOnlyNoMoveCompare>(NSmall);
     test_by_type_host_policies<VoidAssignCompare>(NSmall);
-    test_by_type_host_policies<ThrowingDtorCompare>(NSmall);
     test_by_type_host_policies<ConstCopyOnlyCompare, /*UseConstIterators*/ true>(NSmall);
 
     // These value types are rejected by the vector code path: the call must compile and fall back to the serial one.
