@@ -29,6 +29,7 @@
 #    include "dpcpp/unseq_backend_sycl.h"
 #endif
 
+#include <cassert> // assert
 #include <cstddef> // std::nullptr_t
 #include <utility> // std::forward
 
@@ -1902,9 +1903,48 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
 template <typename _Name>
 struct __shift_left_right;
 
+template <typename _Name>
+struct __shift_via_rotate;
+
+// Rotate instead of walking in place when the walk - '__n' chains of 'size_res / __n' dependent moves -
+// is too narrow to fill the device and long enough to pay for a second full-width pass.
+template <typename _Tp, typename _ExecutionPolicy, typename _DiffType>
+bool
+__should_rotate_shift(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _DiffType __n,
+                      _DiffType __size_res)
+{
+    sycl::queue __q_local = __exec.queue();
+    if (!__q_local.get_device().is_gpu())
+        return false;
+
+    if (__n <= 0 || __size_res <= 0)
+        return false;
+
+    const std::size_t __n_u = static_cast<std::size_t>(__n);
+    // Empirically derived values
+    constexpr std::size_t __walk_distance_threshold = 64;
+    constexpr std::size_t __device_scale_ratio = 4;
+
+    // If the in-place work-item walk is short enough, in-place will be faster than rotate because of the extra
+    // kernel launch and pass of the data required for rotate.
+    if (static_cast<std::size_t>(__size_res) / __n_u < __walk_distance_threshold)
+        return false;
+
+    const std::size_t __device_scale =
+        oneapi::dpl::__internal::__max_work_group_size(
+            __q_local, oneapi::dpl::__par_backend_hetero::__parallel_for_work_group_size_limit) *
+        oneapi::dpl::__internal::__max_compute_units(__q_local);
+
+    // The walk is only '__n' work items wide, so a shift that is narrow relative to the device leaves it idle
+    // and the rotate wins. The measured crossover scales with the device but is denominated in bytes of shifted
+    // payload, not elements.
+    const std::size_t __bytes_per_step = __n_u * sizeof(_Tp);
+    return __bytes_per_step <= __device_scale / __device_scale_ratio;
+}
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__difference_t<_Range>
-__pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range __rng,
+__pattern_shift_left(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range __rng,
                      oneapi::dpl::__internal::__difference_t<_Range> __n)
 {
     //If (n > 0 && n < m), returns first + (m - n). Otherwise, if n  > 0, returns first. Otherwise, returns last.
@@ -1931,17 +1971,31 @@ __pattern_shift_left(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rang
         oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
                                                           __brick, __size_res, __src, __dst)
             .__checked_deferrable_wait();
+        return __size_res;
     }
-    else //2. n < size/2; 'n' parallel copying
+
+    //2. A rotate by '__n' satisfies shift filling unspecified tail with moved elements, but it requires swappable types
+    if constexpr (std::is_swappable_v<oneapi::dpl::__internal::__value_t<_Range>>)
     {
-        auto __brick = unseq_backend::__brick_shift_left<_DiffType>{__size, __n};
-        oneapi::dpl::__par_backend_hetero::__parallel_for(
-            _BackendTag{},
-            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_right>(
-                ::std::forward<_ExecutionPolicy>(__exec)),
-            __brick, __n, __rng)
-            .__checked_deferrable_wait();
+        // Check if it is beneficial to perform a rotate instead of parallel copying
+        if (__should_rotate_shift<oneapi::dpl::__internal::__value_t<_Range>>(_BackendTag{}, __exec, __n, __size_res))
+        {
+            __pattern_rotate(__tag,
+                             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_via_rotate>(
+                                 std::forward<_ExecutionPolicy>(__exec)),
+                             __rng, static_cast<std::size_t>(__n));
+            return __size_res;
+        }
     }
+
+    //3. n < size/2; 'n' parallel copying
+    auto __brick = unseq_backend::__brick_shift_left<_DiffType>{__size, __n};
+    oneapi::dpl::__par_backend_hetero::__parallel_for(
+        _BackendTag{},
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_left_right>(
+            ::std::forward<_ExecutionPolicy>(__exec)),
+        __brick, __n, __rng)
+        .__checked_deferrable_wait();
 
     return __size_res;
 }

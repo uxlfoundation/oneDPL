@@ -146,14 +146,16 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
     }
 };
 
+// Limit the work-group size to 512 which has empirically yielded the best results across different architectures.
+inline constexpr std::uint16_t __parallel_for_work_group_size_limit = 512;
+
 template <typename _KernelName>
 struct __parallel_for_large_submitter;
 
 template <typename... _Name>
 struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name...>>
 {
-    // Limit the work-group size to 512 which has empirically yielded the best results across different architectures.
-    static constexpr std::uint16_t __work_group_size_limit = 512;
+    static constexpr std::uint16_t __work_group_size_limit = __parallel_for_work_group_size_limit;
 
     template <typename _Fp>
     static std::size_t
