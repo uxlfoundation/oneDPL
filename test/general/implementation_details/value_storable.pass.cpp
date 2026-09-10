@@ -40,14 +40,13 @@ struct ExplicitDefaultCtor
     explicit ExplicitDefaultCtor() : val(0) {}
 };
 
-// Default-constructible: default-initializing the aggregate default-initializes the member through its explicit default
-// constructor.
+// Default-constructible: the aggregate default-initializes its member through its explicit default constructor.
 struct AggregateOfExplicitDefaultCtor
 {
     ExplicitDefaultCtor member;
 };
 
-// Not default-constructible: the only constructor takes an initializer list, so `BraceInitOnly obj;` is ill-formed.
+// Not default-constructible: its only constructor takes an initializer list.
 struct BraceInitOnly
 {
     int val;
@@ -174,8 +173,7 @@ static_assert(dpl_unseq::__is_value_storable_v<ExplicitCopyCtor*>);
 static_assert(dpl_unseq::__is_value_storable_v<ConstCopyOnly*>);
 static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<int, OpaqueRef>>);
 
-// Rejected because of the value type: the first two fail default construction, the third copy assignment, and the last
-// one copy construction.
+// Rejected because of the value type: default construction (the first two), copy assignment, copy construction.
 static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::NoDefaultCtorWrapper<int>*>);
 static_assert(!dpl_unseq::__is_value_storable_v<BraceInitOnly*>);
 static_assert(!dpl_unseq::__is_value_storable_v<NoCopyAssign*>);

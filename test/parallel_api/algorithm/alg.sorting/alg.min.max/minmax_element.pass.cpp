@@ -302,9 +302,8 @@ struct ExplicitDefaultCtorCompare
     }
 };
 
-// Default-constructible, but not brace-initializable: default-initializing the aggregate default-initializes the member
-// through its explicit default constructor, while empty braces would copy-list-initialize it, which the explicit
-// constructor rejects.
+// Default-constructible, but not brace-initializable: empty braces copy-list-initialize the member, which its explicit
+// default constructor rejects.
 struct AggregateOfExplicitDefaultCtorCompare
 {
     ExplicitDefaultCtorCompare member;
@@ -315,8 +314,7 @@ struct AggregateOfExplicitDefaultCtorCompare
     }
 };
 
-// Not default-constructible: neither constructor can be called without arguments, so `BraceInitOnlyCompare obj;` is
-// ill-formed. Empty braces, in contrast, select the initializer-list constructor.
+// Not default-constructible: neither constructor takes zero arguments. Empty braces select the initializer-list one.
 struct BraceInitOnlyCompare
 {
     std::int32_t val;
@@ -456,8 +454,7 @@ test_by_type_host_policies(std::size_t n)
     check_by_type_host_policies<T>(Iterator(data.begin()), Iterator(data.end()));
 }
 
-// An aggregate cannot be constructed with parentheses before C++20, so the elements are brace-initialized instead of
-// being emplaced.
+// An aggregate cannot be constructed with parentheses before C++20, so elements are brace-initialized, not emplaced.
 template <typename T>
 static void
 test_by_type_host_policies_brace_init(std::size_t n)

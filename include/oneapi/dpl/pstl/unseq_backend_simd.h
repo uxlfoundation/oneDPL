@@ -614,11 +614,10 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
-// Requirements needed by __simd_min_element and __simd_minmax_element implementations:
-// - std::is_default_constructible_v: the _ComplexType default constructor value-initializes its _ValueType members.
-// - std::is_copy_constructible_v: _ComplexType copy-constructs its _ValueType members from a const _ValueType&, and its
-//   copy constructor is deleted if _ValueType is not copy constructible.
-// - std::is_copy_assignable_v: the _ONEDPL_PRAGMA_SIMD_REDUCTION loop assigns _ValueType.
+// The _ValueType operations __simd_min_element / __simd_minmax_element perform through _ComplexType, and nothing else:
+// - default construction: its default constructor value-initializes the value members.
+// - copy construction: its value-taking constructor and its defaulted copy constructor.
+// - copy assignment: the _ONEDPL_PRAGMA_SIMD_REDUCTION loop and the combiner.
 template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type>
 inline constexpr bool __is_value_storable_v =
     std::is_default_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
