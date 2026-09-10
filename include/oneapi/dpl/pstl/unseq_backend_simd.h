@@ -17,6 +17,9 @@
 #define _ONEDPL_UNSEQ_BACKEND_SIMD_H
 
 #include <type_traits>
+#include <memory>   // for std::addressof
+#include <iterator> // for std::iterator_traits
+#include <utility>  // for std::as_const
 
 #include "utils.h"
 
@@ -612,12 +615,29 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
-// [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
+template <typename _Tp, typename = void>
+inline constexpr bool __is_brace_constructible_v = false;
+
+template <typename _Tp>
+inline constexpr bool __is_brace_constructible_v<_Tp, decltype(void(_Tp{}))> = true;
+
+// Requirements needed by __simd_min_element and __simd_minmax_element implementations:
+// - __is_brace_constructible_v: the _ComplexType default constructor needs _ValueType{} to be well-formed.
+// - std::is_copy_constructible_v: _ComplexType copy constructor is deleted if _ValueType is not copy constructible.
+// - std::is_copy_assignable_v: the _ONEDPL_PRAGMA_SIMD_REDUCTION loop assigns _ValueType.
+template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type>
+inline constexpr bool __is_value_storable_v =
+    __is_brace_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
+    std::is_copy_assignable_v<_ValueType>;
+
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 _ForwardIterator
 __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
+    static_assert(__is_value_storable_v<_ForwardIterator>,
+                  "The value type of the iterator must be storable in the reduction object");
+
     if (__n == 0)
     {
         return __first;
@@ -652,14 +672,15 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         }
     };
 
-    _ComplexType __init{*__first, &__comp};
+    _ComplexType __init{*__first, std::addressof(__comp)};
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType)
 
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        const _ValueType __min_val = __init.__min_val;
+        // std::as_const соответствует std::is_copy_constructible_v, создавая его из const _ValueType&.
+        const _ValueType __min_val(std::as_const(__init).__min_val);
         const _ValueType __current = __first[__i];
         if (std::invoke(__comp, __current, __min_val))
         {
@@ -670,12 +691,14 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     return __first + __init.__min_ind;
 }
 
-// [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
-::std::pair<_ForwardIterator, _ForwardIterator>
+std::pair<_ForwardIterator, _ForwardIterator>
 __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
+    static_assert(__is_value_storable_v<_ForwardIterator>,
+                  "The value type of the iterator must be storable in the reduction object");
+
     if (__n == 0)
     {
         return ::std::make_pair(__first, __first);
@@ -730,16 +753,17 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         }
     };
 
-    _ComplexType __init{*__first, *__first, &__comp};
+    _ComplexType __init{*__first, *__first, std::addressof(__comp)};
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType);
 
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        auto __min_val = __init.__min_val;
-        auto __max_val = __init.__max_val;
-        auto __current = __first[__i];
+        // std::as_const matches the std::is_copy_constructible_v requirement by constructing from const _ValueType&
+        const _ValueType __min_val(std::as_const(__init).__min_val);
+        const _ValueType __max_val(std::as_const(__init).__max_val);
+        const _ValueType __current = __first[__i];
         if (std::invoke(__comp, __current, __min_val))
         {
             __init.__min_val = __current;
