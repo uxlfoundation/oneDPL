@@ -371,17 +371,8 @@ struct ConstCopyOnlyCompare
     }
 };
 
-// Not default-constructible.
-struct NoDefaultCtorCompare
-{
-    std::int32_t val;
-    explicit NoDefaultCtorCompare(std::int32_t val_) : val(val_) {}
-    bool
-    operator<(const NoDefaultCtorCompare& other) const
-    {
-        return val < other.val;
-    }
-};
+// A type that is not default-constructible is taken from the test utilities:
+// TestUtils::NoDefaultCtorWrapper<std::int32_t>. It compares through its conversion to the underlying type.
 
 // Not copy-assignable.
 struct NoCopyAssignCompare
@@ -542,7 +533,7 @@ main()
     test_by_type_host_policies<ConstCopyOnlyCompare, /*UseConstIterators*/ true>(NSmall);
 
     // These value types are rejected by the vector code path: the call must compile and fall back to the serial one.
-    test_by_type_host_policies<NoDefaultCtorCompare>(NSmall);
+    test_by_type_host_policies<TestUtils::NoDefaultCtorWrapper<std::int32_t>>(NSmall);
     test_by_type_host_policies<NoCopyAssignCompare>(NSmall);
     test_by_type_host_policies<MoveOnlyCompare>(NSmall);
 

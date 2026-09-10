@@ -54,11 +54,7 @@ struct BraceInitOnly
     BraceInitOnly(std::initializer_list<int> init) : val(init.size() == 0 ? 0 : *init.begin()) {}
 };
 
-struct NoDefaultCtor
-{
-    int val;
-    explicit NoDefaultCtor(int v) : val(v) {}
-};
+// A type that is not default-constructible is taken from the test utilities: TestUtils::NoDefaultCtorWrapper<int>.
 
 struct NoCopyAssign
 {
@@ -144,7 +140,7 @@ static_assert(!dpl_unseq::__is_brace_constructible_v<AggregateOfExplicitDefaultC
 static_assert(!std::is_default_constructible_v<BraceInitOnly>);
 static_assert(dpl_unseq::__is_brace_constructible_v<BraceInitOnly>);
 
-static_assert(!dpl_unseq::__is_brace_constructible_v<NoDefaultCtor>);
+static_assert(!dpl_unseq::__is_brace_constructible_v<TestUtils::NoDefaultCtorWrapper<int>>);
 
 //----------------------------------------------------------------------------//
 // Reference types
@@ -198,7 +194,7 @@ static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<int, OpaqueRef>>);
 
 // Rejected because of the value type: the first two fail brace initialization, the third copy assignment, and the last
 // one copy construction.
-static_assert(!dpl_unseq::__is_value_storable_v<NoDefaultCtor*>);
+static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::NoDefaultCtorWrapper<int>*>);
 static_assert(!dpl_unseq::__is_value_storable_v<AggregateOfExplicitDefaultCtor*>);
 static_assert(!dpl_unseq::__is_value_storable_v<NoCopyAssign*>);
 static_assert(!dpl_unseq::__is_value_storable_v<MoveOnly*>);
