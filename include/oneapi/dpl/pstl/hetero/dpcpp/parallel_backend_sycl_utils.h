@@ -474,8 +474,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
     __result_and_scratch_storage(__copyable_storage_state<_T>&& __transfer)
         : __scratch_buf(std::move(__transfer.__scratch_buf)), __result_buf(std::move(__transfer.__result_buf)),
-          __sycl_buf(std::move(__transfer.__sycl_buf)), __scratch_n(__transfer.__scratch_sz),
-          __use_USM_host(__transfer.__kind == sycl::usm::alloc::host),
+          __sycl_buf(std::move(__transfer.__sycl_buf).value_or(__sycl_buffer_t{nullptr, sycl::range{0}})),
+          __scratch_n(__transfer.__offset), __use_USM_host(__transfer.__kind == sycl::usm::alloc::host),
           __supports_USM_device(__transfer.__kind != sycl::usm::alloc::unknown)
         {}
 
