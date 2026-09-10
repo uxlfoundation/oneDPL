@@ -1064,13 +1064,16 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
     // at its own input end. The only element it can reach that a later segment still needs is that segment's
     // predecessor, and only when nothing has been dropped yet, in which case the write is an identity write.
     _DiffType __out_pos = 0;
+    _ONEDPL_COMPACTION_TRACE_PRINT("n %ld s %ld\n", (long)__n, (long)__segment_size);
     for (_DiffType __in_pos = 0; __in_pos < __n; __in_pos += __segment_size)
     {
         const bool __has_predecessor = __in_pos > 0;
+        _ONEDPL_COMPACTION_TRACE_PRINT("A %ld %ld\n", (long)__in_pos, (long)__out_pos);
         auto __stage_last =
             __pattern_unique_copy(__tag, __exec, __first + (__has_predecessor ? __in_pos - 1 : __in_pos),
                                   __first + std::min<_DiffType>(__in_pos + __segment_size, __n), __stage_first, __pred);
         auto __stage_out_first = __stage_first + (__has_predecessor ? 1 : 0);
+        _ONEDPL_COMPACTION_TRACE_PRINT("B %ld %ld\n", (long)__in_pos, (long)(__stage_last - __stage_out_first));
 
         // no_init would discard the input outside the written sub-range, including the segments already compacted
         // below __out_pos. __buf's destructor does not block, so the walk must still provide the blocking wait.
@@ -1082,6 +1085,7 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
             __stage_last, __first + __out_pos, __brick_copy<__hetero_tag<_BackendTag>>{});
 
         __out_pos += __stage_last - __stage_out_first;
+        _ONEDPL_COMPACTION_TRACE_PRINT("C %ld %ld\n", (long)__in_pos, (long)__out_pos);
     }
 
     return __first + __out_pos;

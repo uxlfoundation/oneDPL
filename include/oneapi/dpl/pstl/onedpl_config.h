@@ -388,6 +388,23 @@
 #    define _ONEDPL_COMPACTION_SEGMENT_SIZE_FORCED 0
 #endif
 
+// DIAGNOSTIC BUILD ONLY, DO NOT MERGE. Per-iteration trace of the segmented compaction loop, so that a crash inside it
+// names its iteration and which of the two submissions it was in. Flushed per line because the process dies.
+#if defined(_ONEDPL_COMPACTION_TRACE) && _ONEDPL_COMPACTION_TRACE
+#    include <cstdio>
+#    define _ONEDPL_COMPACTION_TRACE_PRINT(...)                                                                        \
+        do                                                                                                             \
+        {                                                                                                              \
+            std::printf(__VA_ARGS__);                                                                                  \
+            std::fflush(stdout);                                                                                       \
+        } while (0)
+#else
+#    define _ONEDPL_COMPACTION_TRACE_PRINT(...)                                                                        \
+        do                                                                                                             \
+        {                                                                                                              \
+        } while (0)
+#endif
+
 #if defined(ONEDPL_USE_PREDEFINED_POLICIES)
 #    undef _ONEDPL_PREDEFINED_POLICIES
 #    define _ONEDPL_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES

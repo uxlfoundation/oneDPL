@@ -121,16 +121,16 @@ make_input(std::size_t n, std::size_t run_length)
     return v;
 }
 
-// One oneapi::dpl::unique over n elements with the segment bound set so the pattern runs exactly
-// `segments` iterations. `segments` must divide n.
+// One oneapi::dpl::unique over n elements with the segment bound set to `segment_size` elements, so the pattern runs
+// ceil(n / segment_size) iterations and the last one covers the remainder. segment_size need not divide n.
 template <typename MemTag, typename Algo, typename Policy>
 void
-run_one(Policy&& exec, Algo algo, const std::vector<value_type>& input, std::size_t segments)
+run_one(Policy&& exec, Algo algo, const std::vector<value_type>& input, std::size_t segment_size)
 {
     using kernel_name = unique_ramp_kernel<MemTag, Algo>;
 
     const std::size_t n = input.size();
-    ::segment_size_override::bytes = (n / segments) * sizeof(value_type);
+    ::segment_size_override::bytes = segment_size * sizeof(value_type);
 
     std::vector<value_type> expected(input);
     const std::size_t expected_n = std::size_t(algo.reference(expected.begin(), expected.end()) - expected.begin());
@@ -169,7 +169,7 @@ run_ramp(Policy&& exec, Algo algo, std::size_t run_length)
         {
             std::cout << Algo::name << " | " << MemTag::name << " | runs=" << run_length << " n=" << n
                       << " segments=" << segments << " s=" << n / segments << std::endl;
-            run_one<MemTag>(exec, algo, input, segments);
+            run_one<MemTag>(exec, algo, input, n / segments);
             std::cout << "    ok" << std::endl;
         }
     }
@@ -188,8 +188,26 @@ run_repeat(Policy&& exec, Algo algo, std::size_t run_length, std::size_t iterati
     {
         if (i % 50 == 0)
             std::cout << "  call " << i << std::endl;
-        run_one<MemTag>(exec, algo, input, segments);
+        run_one<MemTag>(exec, algo, input, n / segments);
     }
+    std::cout << "    ok" << std::endl;
+}
+
+// Window 8 narrowed the crash to segment_size == 1 combined with a drop rate above 2:1: at one element per segment the
+// 2:1 ramp is clean and the 8:1 ones die, while at two elements per segment 8:1 is clean. The sweeps below separate the
+// two candidate mechanisms — a segment_size of exactly 1, versus a long run of segments that contribute no survivor
+// (run_length - 1 of them at segment_size 1) — and ask whether the shipping geometry, a large segment followed by a
+// short tail, reaches either.
+
+// One case, labelled by every coordinate that matters, so a crashing sweep names where it stopped.
+template <typename MemTag, typename Algo, typename Policy>
+void
+run_case(Policy&& exec, Algo algo, std::size_t n, std::size_t run_length, std::size_t segment_size)
+{
+    std::cout << Algo::name << " | " << MemTag::name << " | n=" << n << " runs=" << run_length
+              << " s=" << segment_size << " segments=" << (n + segment_size - 1) / segment_size
+              << " zero_run=" << (run_length > segment_size ? run_length / segment_size - 1 : 0) << std::endl;
+    run_one<MemTag>(exec, algo, make_input(n, run_length), segment_size);
     std::cout << "    ok" << std::endl;
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
