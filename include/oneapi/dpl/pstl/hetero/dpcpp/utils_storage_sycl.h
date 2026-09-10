@@ -188,6 +188,50 @@ struct __no_result_needed_tag
     using type = std::size_t; // a safe default
 };
 
+// The type to exchange information between storage types.
+// Useful for the interoperability during the transition period
+// TODO: afterwards, remove together with __combined_storage::__move_state
+template <typename _T>
+struct __copyable_storage_state
+{
+    std::shared_ptr<_T> __result_buf = nullptr;
+    std::shared_ptr<_T> __scratch_buf = nullptr;
+    std::optional<sycl::buffer<_T, 1>> __sycl_buf;
+    std::size_t __result_sz = 0;
+    std::size_t __offset = 0;
+    sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
+};
+
+inline __copyable_storage_state<std::byte>
+__move_state(__scratch_keepalive&& __ka, const sycl::queue& __q)
+{
+    __copyable_storage_state<std::byte> __state{nullptr, nullptr, std::move(__ka.__sycl_buf)};
+    if (__ka.__usm_ptr)
+    {
+        __state.__kind = sycl::usm::alloc::device;
+        __state.__scratch_buf =
+            std::shared_ptr<std::byte>(static_cast<std::byte*>(__ka.__usm_ptr), __sycl_usm_free{__q});
+        __ka.__usm_ptr = nullptr;
+    }
+    __ka.__sycl_buf.reset();
+    return __state;
+}
+
+template <typename _T>
+__copyable_storage_state<_T>
+__move_state(__result_keepalive<_T>&& __ka, const sycl::queue& __q)
+{
+    __copyable_storage_state<_T> __state{nullptr, nullptr, std::move(__ka.__sycl_buf),
+                                         __ka.__result_sz, __ka.__offset, __ka.__kind};
+    if (__ka.__usm_ptr)
+    {
+        __state.__result_buf = std::shared_ptr<_T>(__ka.__usm_ptr, __sycl_usm_free{__q});
+        __ka.__usm_ptr = nullptr;
+    }
+    __ka.__sycl_buf.reset();
+    return __state;
+}
+
 } // namespace __internal
 
 template <typename _T>
@@ -196,20 +240,6 @@ using __buffer = __internal::__buffer_impl<_T>;
 //-----------------------------------------------------------------------
 // types to create and use data on a device and return those to the host
 //-----------------------------------------------------------------------
-
-// The type to exchange information between storage types.
-// Useful for the interoperability during the transition period
-// TODO: afterwards, remove together with __combined_storage::__move_state
-template <typename _T>
-struct __copyable_storage_state
-{
-    std::shared_ptr<_T> __result_buf;
-    std::shared_ptr<_T> __scratch_buf;
-    std::optional<sycl::buffer<_T, 1>> __sycl_buf;
-    std::size_t __result_sz = 0;
-    std::size_t __offset = 0;
-    sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
-};
 
 template <typename _T, sycl::access_mode _AccessMode>
 struct __combi_accessor
@@ -494,7 +524,7 @@ struct __combined_storage : public __device_storage<_T>
         }
     }
 
-    __copyable_storage_state<_T>
+    __internal::__copyable_storage_state<_T>
     __move_state() &&
     {
         return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf),
@@ -519,6 +549,16 @@ class __storage_holder
     std::tuple<__internal::__result_keepalive<_ResultTypes>...> __result_slots = {};
     std::array<__internal::__scratch_keepalive, _NScratch> __scratch_slots = {};
     std::size_t __scratch_count = 0;
+
+    template <std::size_t... _ScratchIs, std::size_t... _ResultIs>
+    auto
+    __extract_impl(std::index_sequence<_ResultIs...>, std::index_sequence<_ScratchIs...>) &&
+    {
+        return std::make_tuple(
+            __internal::__move_state(std::move(std::get<_ResultIs>(__result_slots)), __q)...,
+            __internal::__move_state(std::move(__scratch_slots[_ScratchIs]), __q)...
+        );
+    }
 
   public:
     explicit __storage_holder(const sycl::queue& __q) : __q(__q) {}
@@ -601,6 +641,13 @@ class __storage_holder
     __copy_result(std::tuple_element_t<_I, std::tuple<_ResultTypes...>>* __dst, std::size_t __n)
     {
         __internal::__copy_n(__dst, __n, std::get<_I>(__result_slots), __q);
+    }
+
+    auto
+    __extract() &&
+    {
+        return std::move(*this).__extract_impl(std::index_sequence_for<_ResultTypes...>{},
+                                               std::make_index_sequence<_NScratch>{});
     }
 };
 
