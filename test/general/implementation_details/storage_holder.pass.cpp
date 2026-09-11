@@ -167,6 +167,21 @@ init_result_keepalive(internal::__result_keepalive<T>& ka, sycl::queue& q,
 
 } // namespace Test
 
+// custom operators to compare internal types
+template <typename _T>
+bool operator==(const internal::__result_keepalive<_T>& ka, const internal::__copyable_storage_state<_T>& state)
+{
+    return ka.__usm_ptr   == state.__result_buf.get() && ka.__kind      == state.__kind   &&
+           ka.__result_sz == state.__result_sz        && ka.__offset    == state.__offset &&
+           ka.__sycl_buf.has_value() == state.__sycl_buf.has_value() && state.__scratch_buf == nullptr;
+}
+
+bool operator==(const internal::__scratch_keepalive& ka, const internal::__copyable_storage_state<std::byte>& state)
+{
+    return ka.__usm_ptr == state.__scratch_buf.get() && ka.__sycl_buf.has_value() == state.__sycl_buf.has_value() &&
+           state.__result_buf == nullptr;;
+}
+
 // Test struct
 struct StorageHolderTest
 {
@@ -331,17 +346,17 @@ struct StorageHolderTest
             std::vector<TupleT> rt(n);
             holder.template __copy_result<0>(rt.data(), n);
             for (std::size_t i = 0; i < n; ++i)
-                EXPECT_EQ(gen_tuple(i), rt[i], "copy_result: incorrect tuple data");
+                EXPECT_EQ(gen_tuple(i), rt[i], "__copy_result: incorrect tuple data");
 
             std::vector<float> rf(n);
             holder.template __copy_result<1>(rf.data(), n);
             for (std::size_t i = 0; i < n; ++i)
-                EXPECT_EQ(gen_float(i), rf[i], "copy_result: incorrect float data");
+                EXPECT_EQ(gen_float(i), rf[i], "__copy_result: incorrect float data");
 
             std::vector<int> ri(n);
             holder.template __copy_result<2>(ri.data(), n);
             for (std::size_t i = 0; i < n; ++i)
-                EXPECT_EQ(gen_int(i), ri[i], "copy_result: incorrect int data");
+                EXPECT_EQ(gen_int(i), ri[i], "__copy_result: incorrect int data");
         };
 
         for (std::size_t n : {1, 2, 3, 6, 7})
@@ -373,8 +388,49 @@ struct StorageHolderTest
                                         [](std::size_t i){ return int(i); });
             int sentinel = 42;
             holder.__copy_result<0>(&sentinel, 0);
-            EXPECT_EQ(42, sentinel, "copy_result zero: sentinel must be unmodified");
+            EXPECT_EQ(42, sentinel, "__copy_result: destination must not be modified by zero-size copy");
         }
+    }
+
+    void test_extract()
+    {
+        constexpr std::size_t NScratch = 4; // 2 device and at most 2 combined storages
+        Test::inspectable_holder<NScratch, float, char, int> holder{q};
+
+        // Populate the holder with a mix of storage types
+        holder.__store_scratch(hetero::__device_storage<long>(q, 196));
+        holder.template __store<2>(hetero::__result_storage<int>(q, 2));
+        holder.template __store<1>(hetero::__combined_storage<char>(q, 64, 3));
+        holder.__store_scratch(hetero::__device_storage<double>(q, 128));
+        holder.template __store<0>(hetero::__combined_storage<float>(q, 32, 1));
+
+        // Capture keepalive state before extraction
+        const auto kr0 = holder.template result_slot<0>();
+        const auto kr1 = holder.template result_slot<1>();
+        const auto kr2 = holder.template result_slot<2>();
+        const auto ks0 = holder.scratch_slot(0);
+        const auto ks1 = holder.scratch_slot(1);
+        const auto ks2 = holder.scratch_slot(2);
+        const auto ks3 = holder.scratch_slot(3);
+
+        auto extracted = std::move(holder).__extract();
+
+        // Verify holder is cleared
+        EXPECT_EQ(0u, holder.scratch_count(), "__extract: scratch count in extracted-from holder must be 0");
+        for (std::size_t s = 0; s < NScratch; ++s)
+            EXPECT_TRUE(holder.scratch_slot(s).__usm_ptr == nullptr,
+                        "__extract: scratch slot in extracted-from holder must be null");
+        for (void* ptr : holder.get_result_ptrs())
+            EXPECT_TRUE(ptr == nullptr, "__extract: result slot in extracted-from holder must be null");
+
+        // Verify extracted state matches pre-extract keepalives
+        EXPECT_TRUE(kr0 == std::get<0>(extracted), "__extract: result slot mismatch");
+        EXPECT_TRUE(kr1 == std::get<1>(extracted), "__extract: result slot mismatch");
+        EXPECT_TRUE(kr2 == std::get<2>(extracted), "__extract: result slot mismatch");
+        EXPECT_TRUE(ks0 == std::get<3>(extracted), "__extract: scratch slot mismatch");
+        EXPECT_TRUE(ks1 == std::get<4>(extracted), "__extract: scratch slot mismatch");
+        EXPECT_TRUE(ks2 == std::get<5>(extracted), "__extract: scratch slot mismatch");
+        EXPECT_TRUE(ks3 == std::get<6>(extracted), "__extract: scratch slot mismatch");
     }
 
     // Edge case: NScratch == 0, empty ResultTypes
@@ -383,16 +439,19 @@ struct StorageHolderTest
         hetero::__storage_holder<0> src{q};
         hetero::__storage_holder<0> dst{std::move(src)};
         // Both must destruct cleanly — no slots, no counts to check
+        auto extracted = std::move(src).__extract();
+        static_assert(std::tuple_size_v<decltype(extracted)> == 0, "__extract: empty holder must produce empty tuple");
     }
 
     // Run all tests
     void run()
     {
-        test_empty_holder();
         test_scratch_deposits();
         test_result_deposits();
         test_combined_deposits();
         test_copy_result();
+        test_extract();
+        test_empty_holder();
     }
 };
 

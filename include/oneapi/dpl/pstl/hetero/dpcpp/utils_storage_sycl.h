@@ -554,6 +554,7 @@ class __storage_holder
     auto
     __extract_impl(std::index_sequence<_ResultIs...>, std::index_sequence<_ScratchIs...>) &&
     {
+        __scratch_count = 0;
         return std::make_tuple(
             __internal::__move_state(std::move(std::get<_ResultIs>(__result_slots)), __q)...,
             __internal::__move_state(std::move(__scratch_slots[_ScratchIs]), __q)...
