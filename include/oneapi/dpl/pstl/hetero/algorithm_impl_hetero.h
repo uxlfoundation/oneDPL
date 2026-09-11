@@ -1326,31 +1326,44 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
     auto __n = __last - __first;
 
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __true_buf(__n);
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __false_buf(__n);
-    auto __true_result = __true_buf.get();
-    auto __false_result = __false_buf.get();
+    // The two sides hold exactly __n elements between them, so a single staging buffer holds both: the true side
+    // fills it from the front and the false side fills it, reversed, from the back. Their index sets are
+    // [0, __true_count) and [__true_count, __n) for every possible __true_count, so they never overlap.
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__n);
+    auto __stage = __buf.get();
 
-    auto copy_result = __pattern_partition_copy(__tag, __exec, __first, __last, __true_result, __false_result, __pred);
-    auto true_count = copy_result.first - __true_result;
+    std::ptrdiff_t __true_count = 0;
+    {
+        auto __keep_in = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
+        auto __in_buf = __keep_in(__first, __last);
+
+        auto __keep_stage = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write,
+                                                                   /*_IsNoInitRequested=*/true>();
+        auto __stage_buf = __keep_stage(__stage, __stage + __n);
+        auto __out_true = __stage_buf.all_view();
+        oneapi::dpl::__ranges::reverse_view_simple<decltype(__out_true)> __out_false{__stage_buf.all_view()};
+
+        __true_count = oneapi::dpl::__par_backend_hetero::__parallel_partition_copy</*_Bounded*/ false>(
+            _BackendTag{}, __exec, __in_buf.all_view(), __out_true, __out_false, __pred)[0];
+    }
 
     //TODO: optimize copy back if possible (inplace, decrease number of submits)
     __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
                            /*_IsOutNoInitRequested=*/true>(
-        __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __true_result, copy_result.first,
+        __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __stage, __stage + __true_count,
         __first, __brick_move<__hetero_tag<_BackendTag>>{});
 
-    __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
-                           /*_IsOutNoInitRequested=*/true>(
+    // The false side lies reversed in the tail of the staging buffer, so its copy back reads it back to front.
+    __pattern_reverse_copy(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper2>(::std::forward<_ExecutionPolicy>(__exec)),
-        __false_result, copy_result.second, __first + true_count, __brick_move<__hetero_tag<_BackendTag>>{});
+        __stage + __true_count, __stage + __n, __first + __true_count);
 
     //TODO: A buffer is constructed from a range, the destructor does not need to block.
     // The synchronization between these patterns is not required due to the data are being processed independently.
     // So, sycl::event::wait(event1, event2) should be call. __pattern_hetero_walk2 calls above should be asynchronous and
     // return event1 and event2.
 
-    return __first + true_count;
+    return __first + __true_count;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _UnaryPredicate>
