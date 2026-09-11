@@ -17,8 +17,10 @@
 #define _ONEDPL_UNSEQ_BACKEND_SIMD_H
 
 #include <type_traits>
-#include <memory>   // for std::addressof
-#include <iterator> // for std::iterator_traits
+#include <memory>     // for std::addressof
+#include <iterator>   // for std::iterator_traits
+#include <functional> // for std::invoke
+#include <utility>    // for std::pair, std::make_pair
 
 #include "utils.h"
 
@@ -625,9 +627,13 @@ inline constexpr bool __is_value_storable_v =
 
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
-std::enable_if_t<__is_value_storable_v<_ForwardIterator>, _ForwardIterator>
+_ForwardIterator
 __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
+    static_assert(__is_value_storable_v<_ForwardIterator>,
+                  "The value type of the iterator must be default-constructible, copy-constructible and "
+                  "copy-assignable");
+
     if (__n == 0)
     {
         return __first;
@@ -643,10 +649,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         // However, some compilers may require it.
 
         _ComplexType() : __min_val(), __min_ind(0), __min_comp(nullptr) {}
-        _ComplexType(const _ValueType& val, const _Compare* comp)
-            : __min_val(val), __min_ind(0), __min_comp(const_cast<_Compare*>(comp))
-        {
-        }
+        _ComplexType(const _ValueType& val, _Compare* comp) : __min_val(val), __min_ind(0), __min_comp(comp) {}
         _ComplexType(const _ComplexType& __obj) = default;
 
         _ONEDPL_PRAGMA_DECLARE_SIMD
@@ -662,7 +665,8 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         }
     };
 
-    _ComplexType __init{*__first, std::addressof(__comp)};
+    // Parentheses, not braces: list-initialization would reject a narrowing conversion from the reference type.
+    _ComplexType __init(*__first, std::addressof(__comp));
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType)
 
@@ -681,9 +685,13 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
 
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
-std::enable_if_t<__is_value_storable_v<_ForwardIterator>, std::pair<_ForwardIterator, _ForwardIterator>>
+std::pair<_ForwardIterator, _ForwardIterator>
 __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
+    static_assert(__is_value_storable_v<_ForwardIterator>,
+                  "The value type of the iterator must be default-constructible, copy-constructible and "
+                  "copy-assignable");
+
     if (__n == 0)
     {
         return ::std::make_pair(__first, __first);
@@ -701,9 +709,8 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         // However, some compilers may require it.
 
         _ComplexType() : __min_val(), __max_val(), __min_ind(0), __max_ind(0), __minmax_comp(nullptr) {}
-        _ComplexType(const _ValueType& min_val, const _ValueType& max_val, const _Compare* comp)
-            : __min_val(min_val), __max_val(max_val), __min_ind(0), __max_ind(0),
-              __minmax_comp(const_cast<_Compare*>(comp))
+        _ComplexType(const _ValueType& min_val, const _ValueType& max_val, _Compare* comp)
+            : __min_val(min_val), __max_val(max_val), __min_ind(0), __max_ind(0), __minmax_comp(comp)
         {
         }
         _ComplexType(const _ComplexType& __obj) = default;
@@ -738,7 +745,8 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         }
     };
 
-    _ComplexType __init{*__first, *__first, std::addressof(__comp)};
+    // Parentheses, not braces: list-initialization would reject a narrowing conversion from the reference type.
+    _ComplexType __init(*__first, *__first, std::addressof(__comp));
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType);
 
