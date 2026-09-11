@@ -726,7 +726,7 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
     }
 
     // Initial stop pos state
-    const auto __stop_pos_initial_state = __create_initial_final_and_oob_pos_state<_Bounded>(__set_tag, __rng1, __rng2);
+    auto __stop_pos_initial_state = __create_initial_final_and_oob_pos_state<_Bounded>(__set_tag, __rng1, __rng2);
     __transform_scan_storage_holder<_Bounded, _Size, decltype(__stop_pos_initial_state)> __holder(__q);
 
     __partition_event = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
