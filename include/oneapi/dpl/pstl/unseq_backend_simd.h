@@ -650,9 +650,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         _ValueType __min_val;
         _Size __min_ind;
         _Compare* __min_comp;
-        // No default constructor: the reduction object is always built from a value, and requiring one of _ValueType
-        // would exclude value types that work perfectly well here. Verified with gcc 16.1, clang 23.1 and icpx 2026.1;
-        // MSVC never gets here, as it reports _OPENMP=200203 even with /openmp:llvm, so _ONEDPL_UDR_PRESENT is 0.
+
         _ComplexType(const _ValueType& val, _Compare* comp) : __min_val(val), __min_ind(0), __min_comp(comp) {}
         _ComplexType(const _ComplexType& __obj) = default;
 
@@ -708,9 +706,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         _Size __min_ind;
         _Size __max_ind;
         _Compare* __minmax_comp;
-        // No default constructor: the reduction object is always built from a value, and requiring one of _ValueType
-        // would exclude value types that work perfectly well here. Verified with gcc 16.1, clang 23.1 and icpx 2026.1;
-        // MSVC never gets here, as it reports _OPENMP=200203 even with /openmp:llvm, so _ONEDPL_UDR_PRESENT is 0.
+
         _ComplexType(const _ValueType& min_val, const _ValueType& max_val, _Compare* comp)
             : __min_val(min_val), __max_val(max_val), __min_ind(0), __max_ind(0), __minmax_comp(comp)
         {
