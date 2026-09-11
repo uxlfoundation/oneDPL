@@ -629,6 +629,14 @@ class __future : private std::tuple<_Args...>
 
     template <typename _T>
     _T
+    __wait_and_get_value(const __copyable_storage_state<_T>& __st)
+    {
+        __copyable_storage_state<_T> __st_copy = __st;
+        return __wait_and_get_value(__result_and_scratch_storage(std::move(__st_copy)));
+    }
+
+    template <typename _T>
+    _T
     __wait_and_get_value(const _T& __val)
     {
         wait();
