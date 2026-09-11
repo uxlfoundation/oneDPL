@@ -3144,7 +3144,9 @@ __brick_merge(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator>
 using _merge_path_out_lim_return_t = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>;
 
-// Find the starting input positions (__r, __c) corresponding to output offset __diag; __r + __c = __diag
+// This implementation is based on the Merge Path algorithm described in:
+// O. Green, S. Odeh, and Y. Birk,
+// "Merge Path - A Visually Intuitive Approach to Parallel Merging", arXiv:1406.2628, 2014.
 template <typename _Index, typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _Comp,
           typename _Proj1, typename _Proj2>
 std::pair<_Index, _Index>
@@ -3198,10 +3200,6 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
 inline constexpr std::size_t __merge_path_cut_off = 2000;
 inline constexpr std::size_t __merge_path_parallel_partition_cut_off = 64;
 
-// This implementation is based on the Merge Path algorithm described in:
-// O. Green, S. Odeh, and Y. Birk,
-// "Merge Path - A Visually Intuitive Approach to Parallel Merging,"
-// arXiv:1406.2628, 2014.
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
@@ -3291,11 +3289,36 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
+    // Nothing to merge
     if (__first == __middle || __middle == __last)
     {
         return;
     }
+    // Already merged
+    if (!__comp(*__middle, *(__middle - 1)))
+    {
+        return;
+    }
+    // Too few elements
+    if (__last - __first <= __merge_path_cut_off)
+    {
+        std::inplace_merge(__first, __middle, __last, __comp);
+        return;
+    }
 
+    // Narrow the range to merge
+    __first = std::upper_bound(__first, __middle, *__middle, __comp);
+    __last = std::lower_bound(__middle, __last, *(__middle - 1), __comp);
+
+    // The second sequence precedes the first one
+    if (__comp(*(__last - 1), *__first))
+    {
+        __internal::__pattern_rotate(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first,
+                                     __middle, __last);
+        return;
+    }
+
+    // Do parallel merge
     using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
     using _Index = std::common_type_t<typename std::iterator_traits<_RandomAccessIterator>::difference_type,
                                       std::ptrdiff_t>;
@@ -3349,17 +3372,17 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
                     const _Index __r_end = __split[__k + 1];
                     const _Index __c_end = __j - __r_end;
 
-                    if (__r == __r_end) // Chunk contains only A elements
+                    if (__r == __r_end) // Chunk contains only elements of the second sequence
                     {
                         __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __n_1 + __c, __b + __n_1 + __c_end,
                                                                          __first + __i, _IsVector{});
                     }
-                    else if (__c == __c_end) // Chunk contains only B elements
+                    else if (__c == __c_end) // Chunk contains only elements of the first sequence
                     {
                         __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __r, __b + __r_end, __first + __i,
                                                                          _IsVector{});
                     }
-                    else // Chunk contains both A and B elements
+                    else // Chunk contains elements of both sequences
                     {
                         __serial_merge_out_lim(__b + __r, __b + __r_end, __b + __n_1 + __c, __b + __n_1 + __c_end,
                                                __first + __i, __first + __j, __comp, oneapi::dpl::identity{},
