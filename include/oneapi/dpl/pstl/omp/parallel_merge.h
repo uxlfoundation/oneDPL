@@ -68,37 +68,6 @@ __parallel_merge_body(std::size_t __size_x, std::size_t __size_y, _RandomAccessI
     _ONEDPL_PRAGMA(omp taskwait)
 }
 
-template <class _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
-          typename _RandomAccessIterator3, typename _Compare, typename _LeafMerge>
-void
-__parallel_merge(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&& /*__exec*/, _RandomAccessIterator1 __xs,
-                 _RandomAccessIterator1 __xe, _RandomAccessIterator2 __ys, _RandomAccessIterator2 __ye,
-                 _RandomAccessIterator3 __zs, _Compare __comp, _LeafMerge __leaf_merge)
-{
-    std::size_t __size_x = __xe - __xs;
-    std::size_t __size_y = __ye - __ys;
-
-    /*
-     * Run the merge in parallel by chunking it up. Use the smaller range (if any) as the iteration range, and the
-     * larger range as the search range.
-     */
-
-    if (omp_in_parallel())
-    {
-        oneapi::dpl::__omp_backend::__parallel_merge_body(__size_x, __size_y, __xs, __xe, __ys, __ye, __zs, __comp,
-                                                          __leaf_merge);
-    }
-    else
-    {
-        _ONEDPL_PRAGMA(omp parallel)
-        {
-            _ONEDPL_PRAGMA(omp single nowait)
-            oneapi::dpl::__omp_backend::__parallel_merge_body(__size_x, __size_y, __xs, __xe, __ys, __ye, __zs, __comp,
-                                                              __leaf_merge);
-        }
-    }
-}
-
 } // namespace __omp_backend
 } // namespace dpl
 } // namespace oneapi
