@@ -625,12 +625,9 @@ inline constexpr bool __is_value_storable_v =
 
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
-_ForwardIterator
+std::enable_if_t<__is_value_storable_v<_ForwardIterator>, _ForwardIterator>
 __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
-    static_assert(__is_value_storable_v<_ForwardIterator>,
-                  "The value type of the iterator must be storable in the reduction object");
-
     if (__n == 0)
     {
         return __first;
@@ -684,12 +681,9 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
 
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
-std::pair<_ForwardIterator, _ForwardIterator>
+std::enable_if_t<__is_value_storable_v<_ForwardIterator>, std::pair<_ForwardIterator, _ForwardIterator>>
 __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
-    static_assert(__is_value_storable_v<_ForwardIterator>,
-                  "The value type of the iterator must be storable in the reduction object");
-
     if (__n == 0)
     {
         return ::std::make_pair(__first, __first);
