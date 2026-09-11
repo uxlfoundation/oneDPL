@@ -190,7 +190,6 @@ struct __no_result_needed_tag
 
 // The type to exchange information between storage types.
 // Useful for the interoperability during the transition period
-// TODO: afterwards, remove together with __combined_storage::__move_state
 template <typename _T>
 struct __copyable_storage_state
 {
@@ -225,7 +224,10 @@ __move_state(__result_keepalive<_T>&& __ka, const sycl::queue& __q)
                                          __ka.__result_sz, __ka.__offset, __ka.__kind};
     if (__ka.__usm_ptr)
     {
-        __state.__result_buf = std::shared_ptr<_T>(__ka.__usm_ptr, __sycl_usm_free{__q});
+        if (__ka.__kind == sycl::usm::alloc::host)
+            __state.__result_buf = std::shared_ptr<_T>(__ka.__usm_ptr, __sycl_usm_free{__q});
+        else
+            __state.__scratch_buf = std::shared_ptr<_T>(__ka.__usm_ptr, __sycl_usm_free{__q});
         __ka.__usm_ptr = nullptr;
     }
     __ka.__sycl_buf.reset();
@@ -523,23 +525,7 @@ struct __combined_storage : public __device_storage<_T>
                 __cgh, __st.__sycl_buf, __st.__usm_buf.get(), /*offset*/ __st.__sz, __st.__result_sz, __prop_list);
         }
     }
-
-    __internal::__copyable_storage_state<_T>
-    __move_state() &&
-    {
-        return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf),
-                __result_sz, __sz, __kind};
-    }
 };
-
-template <typename _T, template <typename> typename _Storage>
-std::enable_if_t<std::is_default_constructible_v<_T>, _T>
-__load_result(_Storage<_T>& __storage)
-{
-    _T __result{};
-    __storage.__copy_result(&__result, 1);
-    return __result;
-}
 
 template <std::size_t _NScratch, typename... _ResultTypes>
 class __storage_holder
@@ -549,6 +535,9 @@ class __storage_holder
     std::tuple<__internal::__result_keepalive<_ResultTypes>...> __result_slots = {};
     std::array<__internal::__scratch_keepalive, _NScratch> __scratch_slots = {};
     std::size_t __scratch_count = 0;
+
+    template <std::size_t _I>
+    using __result_value_t = std::tuple_element_t<_I, std::tuple<_ResultTypes...>>;
 
     template <std::size_t... _ScratchIs, std::size_t... _ResultIs>
     auto
@@ -593,7 +582,7 @@ class __storage_holder
     {
         for (auto& __ka : __scratch_slots)
             __internal::__free_usm(__q, __ka.__usm_ptr);
-        std::apply([this](auto&... __ka) {
+        std::apply([&__q = this->__q](auto&... __ka) {
             ((__internal::__free_usm(__q, __ka.__usm_ptr)), ...);
         }, __result_slots);
     }
@@ -611,7 +600,7 @@ class __storage_holder
     __store(__result_storage<_T>&& __st)
     {
         static_assert(_I < sizeof...(_ResultTypes), "Result slot index out of range");
-        static_assert(std::is_same_v<_T, std::tuple_element_t<_I, std::tuple<_ResultTypes...>>>);
+        static_assert(std::is_same_v<_T, __result_value_t<_I>>);
         auto& __ka = std::get<_I>(__result_slots);
         assert(__ka.__usm_ptr == nullptr && !__ka.__sycl_buf.has_value());
         std::move(__st).__move_state_to(__ka);
@@ -622,7 +611,7 @@ class __storage_holder
     __store(__combined_storage<_T>&& __st)
     {
         static_assert(_I < sizeof...(_ResultTypes), "Result index out of range");
-        static_assert(std::is_same_v<_T, std::tuple_element_t<_I, std::tuple<_ResultTypes...>>>);
+        static_assert(std::is_same_v<_T, __result_value_t<_I>>);
         auto& __ka = std::get<_I>(__result_slots);
         assert(__ka.__usm_ptr == nullptr && !__ka.__sycl_buf.has_value());
         void* __scratch_ptr = std::move(__st).__move_state_to(__ka);
@@ -635,9 +624,22 @@ class __storage_holder
 
     template <std::size_t _I>
     void
-    __copy_result(std::tuple_element_t<_I, std::tuple<_ResultTypes...>>* __dst, std::size_t __n)
+    __copy_result(__result_value_t<_I>* __dst, std::size_t __n)
     {
         __internal::__copy_n(__dst, __n, std::get<_I>(__result_slots), __q);
+    }
+
+    std::enable_if_t<(std::is_default_constructible_v<_ResultTypes> && ...), std::tuple<_ResultTypes...>>
+    __get_results()
+    {
+        return std::apply([&__q = this->__q](auto&... __slots) {
+            auto __load_one = [&](auto& __rs, auto* __p) {
+                std::remove_pointer_t<decltype(__p)> __dst{};
+                __internal::__copy_n(&__dst, 1, __rs, __q);
+                return __dst;
+            };
+            return std::tuple{__load_one(__slots, static_cast<_ResultTypes*>(nullptr))...};
+        }, __result_slots);
     }
 
     auto
