@@ -597,7 +597,7 @@ __parallel_copy_if_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _OutRng
 
 template <typename _CustomName, typename _InRng, typename _Size, typename _GenMask, typename _WriteOp,
           typename _IsUniquePattern>
-__transform_reduce_then_scan_result_t</*_Bounded=*/false, _Size, _Size>
+_Size
 __parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size __n, _GenMask __generate_mask,
                                     _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
@@ -614,12 +614,19 @@ __parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size _
     // kernel launches.
     // TODO: check if performance difference between 1 and 2 element sizes warrants additional tuning
     constexpr std::uint32_t __bytes_per_iter = sizeof(_ElementT) * 2;
+    __transform_scan_storage_holder_simple<_Size> __holder(__q);
 
-    return __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_iter, _CustomName,
-                                                 /*the type of extra storage*/_ElementT>(
+    sycl::event __event = __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_iter, _CustomName,
+                                                                /*the type of extra storage*/_ElementT>(
         __q, __n, __in_rng, __in_rng, _GenReduceInput{__generate_mask}, std::plus<_Size>{},
         _GenScanInput{__generate_mask, __par_backend_hetero::__get_first_range{}}, _ScanInputTransform{}, __write_op,
-        oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
+        oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, __holder, /*_Inclusive=*/std::true_type{},
+        __is_unique_pattern);
+    __event.wait_and_throw();
+    
+    _Size __new_size;
+    __holder.template __copy_result<0>(&__new_size, 1);
+    return __new_size;
 }
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size,
@@ -781,16 +788,11 @@ __parallel_remove_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
     }
     else
     {
-        std::tuple __res = __parallel_compact_reduce_then_scan<_CustomName>(
+        return __parallel_compact_reduce_then_scan<_CustomName>(
             __q_local, std::forward<_InRng>(__in_rng), __n,
             __par_backend_hetero::__gen_mask<oneapi::dpl::__internal::__not_pred<_Pred>>{__keep_pred},
             __par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>{std::size_t(__n)},
             /*_IsUniquePattern=*/std::false_type{});
-
-        std::get<0>(__res).wait_and_throw();
-        _Size __new_size;
-        std::get<1>(__res).__copy_result(&__new_size, 1);
-        return __new_size;
     }
 }
 
