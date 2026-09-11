@@ -532,15 +532,6 @@ struct __combined_storage : public __device_storage<_T>
     }
 };
 
-template <typename _T, template <typename> typename _Storage>
-std::enable_if_t<std::is_default_constructible_v<_T>, _T>
-__load_result(_Storage<_T>& __storage)
-{
-    _T __result{};
-    __storage.__copy_result(&__result, 1);
-    return __result;
-}
-
 template <std::size_t _NScratch, typename... _ResultTypes>
 class __storage_holder
 {
@@ -549,6 +540,9 @@ class __storage_holder
     std::tuple<__internal::__result_keepalive<_ResultTypes>...> __result_slots = {};
     std::array<__internal::__scratch_keepalive, _NScratch> __scratch_slots = {};
     std::size_t __scratch_count = 0;
+
+    template <std::size_t _I>
+    using __result_slot_value_t = std::tuple_element_t<_I, std::tuple<_ResultTypes...>>;
 
     template <std::size_t... _ScratchIs, std::size_t... _ResultIs>
     auto
@@ -611,7 +605,7 @@ class __storage_holder
     __store(__result_storage<_T>&& __st)
     {
         static_assert(_I < sizeof...(_ResultTypes), "Result slot index out of range");
-        static_assert(std::is_same_v<_T, std::tuple_element_t<_I, std::tuple<_ResultTypes...>>>);
+        static_assert(std::is_same_v<_T, __result_slot_value_t<_I>);
         auto& __ka = std::get<_I>(__result_slots);
         assert(__ka.__usm_ptr == nullptr && !__ka.__sycl_buf.has_value());
         std::move(__st).__move_state_to(__ka);
@@ -622,7 +616,7 @@ class __storage_holder
     __store(__combined_storage<_T>&& __st)
     {
         static_assert(_I < sizeof...(_ResultTypes), "Result index out of range");
-        static_assert(std::is_same_v<_T, std::tuple_element_t<_I, std::tuple<_ResultTypes...>>>);
+        static_assert(std::is_same_v<_T, __result_slot_value_t<_I>);
         auto& __ka = std::get<_I>(__result_slots);
         assert(__ka.__usm_ptr == nullptr && !__ka.__sycl_buf.has_value());
         void* __scratch_ptr = std::move(__st).__move_state_to(__ka);
@@ -635,9 +629,18 @@ class __storage_holder
 
     template <std::size_t _I>
     void
-    __copy_result(std::tuple_element_t<_I, std::tuple<_ResultTypes...>>* __dst, std::size_t __n)
+    __copy_result(__result_slot_value_t<_I>* __dst, std::size_t __n)
     {
         __internal::__copy_n(__dst, __n, std::get<_I>(__result_slots), __q);
+    }
+
+    template <std::size_t _I>
+    std::enable_if_t<std::is_default_constructible_v<__result_slot_value_t<_I>>, __result_slot_value_t<_I>>
+    __load_result()
+    {
+        __result_slot_value_t<_I> __result{};
+        __copy_result(&__result, 1);
+        return __result;
     }
 
     auto
