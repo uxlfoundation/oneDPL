@@ -502,16 +502,16 @@ using __buffer = __internal::__buffer_impl<_T>;
 
 // Element count of the temporary that an in-place compaction pattern stages its output through. The driver makes the
 // whole temporary resident before the kernel using it runs, so an __n-sized one lets allocation dominate at large __n.
-template <typename _T, typename _Size>
+template <typename _T, typename _ExecutionPolicy, typename _Size>
 _Size
-__compaction_segment_size(const sycl::queue& __q, _Size __n)
+__compaction_segment_size(_ExecutionPolicy&& __exec, _Size __n)
 {
     // Lazy allocation on a non-GPU device leaves nothing to bound, and segmenting only adds submissions.
-    if (!_ONEDPL_COMPACTION_SEGMENT_SIZE_FORCED && !__q.get_device().is_gpu())
+    if (!_ONEDPL_COMPACTION_SEGMENT_SIZE_FORCED && !__exec.queue().get_device().is_gpu())
         return __n;
 
     // Empirically tuned; the saving is flat from 64 to 128 MiB on the GPUs tested and falls off either side.
-    const _Size __max_segment_size = static_cast<_Size>(_ONEDPL_COMPACTION_SEGMENT_SIZE_BYTES / sizeof(_T));
+    const _Size __max_segment_size = static_cast<_Size>((_ONEDPL_COMPACTION_SEGMENT_SIZE_BYTES) / sizeof(_T));
     return std::max<_Size>(1, std::min<_Size>(__n, __max_segment_size));
 }
 

@@ -1038,8 +1038,7 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
     using _DiffType = typename ::std::iterator_traits<_Iterator>::difference_type;
 
     const _DiffType __n = __last - __first;
-    const _DiffType __segment_size =
-        __par_backend_hetero::__compaction_segment_size<_ValueType>(__exec.queue(), __n);
+    const _DiffType __segment_size = __par_backend_hetero::__compaction_segment_size<_ValueType>(__exec, __n);
 
     if (__segment_size >= __n)
     {
@@ -1077,23 +1076,24 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
 
         // no_init would discard the input outside the written sub-range, including the segments already compacted
         // below __out_pos. __buf's destructor does not block, so the walk must still provide the blocking wait.
-        // This kernel differs from the single-segment path's in _IsOutNoInitRequested, so it needs a name of its own
-        // to stay distinguishable under an explicit kernel name.
         __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
                                /*_IsOutNoInitRequested=*/false>(
             __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper3>(__exec), __stage_out_first,
             __stage_last, __first + __out_pos, __brick_copy<__hetero_tag<_BackendTag>>{});
 
-        // A segment with no survivor makes the copy back empty, and an empty walk submits nothing, so the iteration
-        // only reads the input. Six or more such iterations in a row fault inside the next copy back on the Windows
-        // debug GPU runtime; the same sequence built from public unique_copy faults identically, so the defect is
-        // below this loop. Rewriting the last survivor over itself keeps every iteration a writer, and since the
-        // source is the destination it cannot change the result whatever the predicate.
-        if (__stage_last == __stage_out_first && __out_pos > 0)
-            __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
-                                   /*_IsOutNoInitRequested=*/false>(
-                __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper4>(__exec), __first + __out_pos - 1,
-                __first + __out_pos, __first + __out_pos - 1, __brick_copy<__hetero_tag<_BackendTag>>{});
+        // An empty copy back submits nothing, so such an iteration only reads the input, and a run of read-only
+        // command groups on one buffer faults in the next writing one on the Windows debug GPU runtime. Rewriting the
+        // last survivor over itself keeps every iteration a writer and cannot change the result. Only a buffer-backed
+        // input accumulates such a run; the other paths take a fresh memory object per iteration.
+        if constexpr (oneapi::dpl::__ranges::is_hetero_iterator_v<_Iterator>)
+        {
+            if (__stage_last == __stage_out_first && __out_pos > 0)
+                __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode,
+                                       __par_backend_hetero::access_mode::write, /*_IsOutNoInitRequested=*/false>(
+                    __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper4>(__exec),
+                    __first + __out_pos - 1, __first + __out_pos, __first + __out_pos - 1,
+                    __brick_copy<__hetero_tag<_BackendTag>>{});
+        }
 
         __out_pos += __stage_last - __stage_out_first;
     }
