@@ -416,10 +416,11 @@ main()
     test_by_type_host_policies_no_move<CopyOnlyNoMoveCompare>(NSmall);
     test_by_type_host_policies<VoidAssignCompare>(NSmall);
     test_by_type_host_policies<ConstCopyOnlyCompare, /*UseConstIterators*/ true>(NSmall);
-
-    // These value types are rejected by the vector code path: the call must compile and fall back to the serial one.
+    // Default construction is not required, so these two are accepted as well.
     test_by_type_host_policies<TestUtils::NoDefaultCtorWrapper<std::int32_t>>(NSmall);
     test_by_type_host_policies<BraceInitOnlyCompare>(NSmall);
+
+    // These value types are rejected by the vector code path: the call must compile and fall back to the serial one.
     test_by_type_host_policies<NoCopyAssignCompare>(NSmall);
     test_by_type_host_policies<MoveOnlyCompare>(NSmall);
 

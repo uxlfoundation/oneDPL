@@ -63,28 +63,39 @@ static_assert(dpl_unseq::__is_value_storable_v<std::vector<int>::const_iterator>
 static_assert(dpl_unseq::__is_value_storable_v<TestUtils::OnlyLessCompare*>);
 static_assert(dpl_unseq::__is_value_storable_v<TestUtils::ExplicitDefaultCtorCompare*>);
 static_assert(dpl_unseq::__is_value_storable_v<TestUtils::AggregateOfExplicitDefaultCtorCompare*>);
-// The requirements are default construction, copy construction and copy assignment, and nothing else.
+// Default construction is not required: the reduction object is always built from a value.
+static_assert(!std::is_default_constructible_v<TestUtils::NoDefaultCtorWrapper<int>>);
+static_assert(dpl_unseq::__is_value_storable_v<TestUtils::NoDefaultCtorWrapper<int>*>);
+static_assert(!std::is_default_constructible_v<TestUtils::BraceInitOnlyCompare>);
+static_assert(dpl_unseq::__is_value_storable_v<TestUtils::BraceInitOnlyCompare*>);
+// The requirements are copy construction, copy assignment and copy-initialization from the reference type, and nothing
+// else - in particular the move operations are not required.
 static_assert(dpl_unseq::__is_value_storable_v<TestUtils::CopyOnlyNoMoveCompare*>);
 static_assert(dpl_unseq::__is_value_storable_v<TestUtils::VoidAssignCompare*>);
 static_assert(dpl_unseq::__is_value_storable_v<const TestUtils::ConstCopyOnlyCompare*>);
-// The reference type is not part of the requirement.
+// A proxy reference is accepted as long as the value type can be copy-initialized from it.
 static_assert(dpl_unseq::__is_value_storable_v<std::vector<bool>::iterator>);
 static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<int, int>>);
 static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<std::pair<int, int>, std::pair<int&, int&>>>);
-static_assert(
-    dpl_unseq::__is_value_storable_v<FakeIterator<TestUtils::CopyOnlyNoMoveCompare, TestUtils::CopyOnlyNoMoveCompare>>);
-// Accepted although the bricks do not compile for them: these iterators do not meet the requirements of a forward
-// iterator, which is not detected here.
-static_assert(std::is_copy_constructible_v<TestUtils::ExplicitCopyCtorCompare>);
-static_assert(dpl_unseq::__is_value_storable_v<TestUtils::ExplicitCopyCtorCompare*>);
-static_assert(dpl_unseq::__is_value_storable_v<TestUtils::ConstCopyOnlyCompare*>);
-static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<int, OpaqueRef>>);
 
-// Rejected because of the value type: default construction (the first two), copy assignment, copy construction.
-static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::NoDefaultCtorWrapper<int>*>);
-static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::BraceInitOnlyCompare*>);
+// Rejected because of the value type: copy assignment, copy construction.
 static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::NoCopyAssignCompare*>);
 static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::MoveOnlyCompare*>);
+
+// Rejected because the value cannot be copy-initialized from what the iterator dereferences to, which is how the
+// bricks read an element. Copy-constructibility of the value type alone does not imply that: it also holds for an
+// explicit copy constructor and for a type whose copy constructor is deleted for a non-const lvalue.
+static_assert(std::is_copy_constructible_v<TestUtils::ExplicitCopyCtorCompare>);
+static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::ExplicitCopyCtorCompare*>);
+static_assert(std::is_copy_constructible_v<TestUtils::ConstCopyOnlyCompare>);
+static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::ConstCopyOnlyCompare*>);
+static_assert(!dpl_unseq::__is_value_storable_v<FakeIterator<int, OpaqueRef>>);
+
+// Rejected conservatively: the conversion is checked from an rvalue of the reference type, while the bricks initialize
+// from *__first, which is a prvalue here and needs no move constructor. Such an iterator stays correct through the
+// serial fallback, it only misses vectorization.
+static_assert(!dpl_unseq::__is_value_storable_v<
+              FakeIterator<TestUtils::CopyOnlyNoMoveCompare, TestUtils::CopyOnlyNoMoveCompare>>);
 
 // Rejected because an output iterator reports void as its value type.
 static_assert(!dpl_unseq::__is_value_storable_v<std::back_insert_iterator<std::vector<int>>>);

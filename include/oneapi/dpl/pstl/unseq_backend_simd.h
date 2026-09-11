@@ -616,14 +616,23 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
-// The _ValueType operations __simd_min_element / __simd_minmax_element perform through _ComplexType, and nothing else:
-// - default construction: its default constructor value-initializes the value members.
-// - copy construction: its value-taking constructor and its defaulted copy constructor.
-// - copy assignment: the _ONEDPL_PRAGMA_SIMD_REDUCTION loop and the combiner.
-template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type>
+// Implementation detail of __simd_min_element / __simd_minmax_element, not a contract of the algorithms: it states
+// exactly what those two do with an element, and nothing more. Each requirement has one reason to be here:
+// - copy construction: the _ComplexType reduction object below is built from a value, and the OpenMP clause
+//   initializer(omp_priv = omp_orig) copy-initializes the whole reduction object, hence its members.
+// - copy assignment: the reduction combiner and the loop body overwrite the current best value.
+// - convertibility of the reference type: the value is copy-initialized from what the iterator dereferences to, both
+//   to build the initial reduction object and to read every element. Copy-constructibility does not imply this - it
+//   also holds for an explicit copy constructor and for one deleted for non-const lvalues.
+template <typename _ValueType, typename _ReferenceType>
+inline constexpr bool __is_value_storable_from_v =
+    std::is_copy_constructible_v<_ValueType> && std::is_copy_assignable_v<_ValueType> &&
+    std::is_convertible_v<_ReferenceType, _ValueType>;
+
+template <typename _Iterator>
 inline constexpr bool __is_value_storable_v =
-    std::is_default_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
-    std::is_copy_assignable_v<_ValueType>;
+    __is_value_storable_from_v<typename std::iterator_traits<_Iterator>::value_type,
+                               typename std::iterator_traits<_Iterator>::reference>;
 
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
@@ -631,8 +640,8 @@ _ForwardIterator
 __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
     static_assert(__is_value_storable_v<_ForwardIterator>,
-                  "The value type of the iterator must be default-constructible, copy-constructible and "
-                  "copy-assignable");
+                  "The value type of the iterator must be copy-constructible, copy-assignable and copy-initializable "
+                  "from the iterator's reference type");
 
     if (__n == 0)
     {
@@ -645,10 +654,9 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         _ValueType __min_val;
         _Size __min_ind;
         _Compare* __min_comp;
-        // The default constructor is not used during the algorithm, so it is not required for it.
-        // However, some compilers may require it.
-
-        _ComplexType() : __min_val(), __min_ind(0), __min_comp(nullptr) {}
+        // No default constructor: the reduction object is always built from a value, and requiring one of _ValueType
+        // would exclude value types that work perfectly well here. Verified with gcc 16.1, clang 23.1 and icpx 2026.1;
+        // MSVC never gets here, as it reports _OPENMP=200203 even with /openmp:llvm, so _ONEDPL_UDR_PRESENT is 0.
         _ComplexType(const _ValueType& val, _Compare* comp) : __min_val(val), __min_ind(0), __min_comp(comp) {}
         _ComplexType(const _ComplexType& __obj) = default;
 
@@ -689,8 +697,8 @@ std::pair<_ForwardIterator, _ForwardIterator>
 __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
     static_assert(__is_value_storable_v<_ForwardIterator>,
-                  "The value type of the iterator must be default-constructible, copy-constructible and "
-                  "copy-assignable");
+                  "The value type of the iterator must be copy-constructible, copy-assignable and copy-initializable "
+                  "from the iterator's reference type");
 
     if (__n == 0)
     {
@@ -705,10 +713,9 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         _Size __min_ind;
         _Size __max_ind;
         _Compare* __minmax_comp;
-        // The default constructor is not used during the algorithm, so it is not required for it.
-        // However, some compilers may require it.
-
-        _ComplexType() : __min_val(), __max_val(), __min_ind(0), __max_ind(0), __minmax_comp(nullptr) {}
+        // No default constructor: the reduction object is always built from a value, and requiring one of _ValueType
+        // would exclude value types that work perfectly well here. Verified with gcc 16.1, clang 23.1 and icpx 2026.1;
+        // MSVC never gets here, as it reports _OPENMP=200203 even with /openmp:llvm, so _ONEDPL_UDR_PRESENT is 0.
         _ComplexType(const _ValueType& min_val, const _ValueType& max_val, _Compare* comp)
             : __min_val(min_val), __max_val(max_val), __min_ind(0), __max_ind(0), __minmax_comp(comp)
         {
