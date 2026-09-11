@@ -396,6 +396,9 @@ main()
     using TestUtils::float64_t;
     const std::size_t N = 100000;
     const std::size_t NSmall = 10;
+    // Large enough for the parallel backend to split the sequence into several chunks and to combine their results, and
+    // for the vector loop to reduce over several lanes rather than to fall entirely into its remainder.
+    const std::size_t NMultiChunk = 1000;
 
     for (std::size_t n = 0; n < N; n = n < 16 ? n + 1 : size_t(3.14159 * n))
     {
@@ -421,8 +424,9 @@ main()
     test_by_type_host_policies<NoCopyAssignCompare>(NSmall);
     test_by_type_host_policies<MoveOnlyCompare>(NSmall);
 
-    // The sequence is long enough for the vector code to process several blocks and to combine their results.
-    test_comparator_with_overloaded_address_of(1000);
+    // The comparator has to work both inside the vector loop and in the combining of its results, so the sequence is
+    // not a small one here.
+    test_comparator_with_overloaded_address_of(NMultiChunk);
 
 #ifdef _PSTL_TEST_MIN_ELEMENT
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const_min_element<std::int32_t>>());
