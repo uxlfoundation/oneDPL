@@ -135,23 +135,23 @@ __allocate_usm(const sycl::queue& __q, std::size_t __elements)
     return __result;
 }
 
-// __scratch_keepalive and __result_keepalive are deliberately simple structs with raw pointers
+// __scratch_raw_state and __result_raw_state are deliberately simple structs with raw pointers
 // and no ownership semantics. They should only be used as an implementation detail of storage
 // ownership and transfer utilities, with memory and lifetime safety ensured at that level.
 
-// type-erased lifetime keeper for temporary storage (either USM or sycl::buffer)
-struct __scratch_keepalive
+// type-erased transient state for temporary storage (either USM or sycl::buffer)
+struct __scratch_raw_state
 {
     void* __usm_ptr = nullptr;
     std::optional<sycl::buffer<std::byte, 1>> __sycl_buf;
 };
 
-// struct to keep the result data (either USM or sycl::buffer)
+// transient state of the result data in either USM or sycl::buffer
 // If __kind == sycl::usm::alloc::host, __usm_ptr points directly to the result.
 // If __kind == sycl::usm::alloc::device, the result is at __usm_ptr + __offset in device memory.
 // If __kind == sycl::usm::alloc::unknown, the result is in __sycl_buf at __offset.
 template <typename _T>
-struct __result_keepalive
+struct __result_raw_state
 {
     _T* __usm_ptr = nullptr;
     mutable std::optional<sycl::buffer<_T, 1>> __sycl_buf; // reading data can modify the buffer
@@ -163,22 +163,22 @@ struct __result_keepalive
 // Extracts result data to the given destination array
 template <typename _T>
 void
-__copy_n(_T* __dst, std::size_t __n, const __result_keepalive<_T>& __ka, sycl::queue& __q)
+__copy_n(_T* __dst, std::size_t __n, const __result_raw_state<_T>& __raw_st, sycl::queue& __q)
 {
-    const std::size_t __count = std::min(__n, __ka.__result_sz);
-    if (__ka.__kind == sycl::usm::alloc::host)
+    const std::size_t __count = std::min(__n, __raw_st.__result_sz);
+    if (__raw_st.__kind == sycl::usm::alloc::host)
     {
-        std::copy_n(__ka.__usm_ptr, __count, __dst);
+        std::copy_n(__raw_st.__usm_ptr, __count, __dst);
     }
-    else if (__ka.__kind == sycl::usm::alloc::device)
+    else if (__raw_st.__kind == sycl::usm::alloc::device)
     {
-        assert(__ka.__usm_ptr);
-        __q.memcpy(__dst, __ka.__usm_ptr + __ka.__offset, __count * sizeof(_T)).wait();
+        assert(__raw_st.__usm_ptr);
+        __q.memcpy(__dst, __raw_st.__usm_ptr + __raw_st.__offset, __count * sizeof(_T)).wait();
     }
     else
     {
-        assert(__ka.__kind == sycl::usm::alloc::unknown && __ka.__sycl_buf.has_value());
-        std::copy_n(__ka.__sycl_buf->get_host_access(sycl::read_only).begin() + __ka.__offset, __count, __dst);
+        assert(__raw_st.__kind == sycl::usm::alloc::unknown && __raw_st.__sycl_buf.has_value());
+        std::copy_n(__raw_st.__sycl_buf->get_host_access(sycl::read_only).begin() + __raw_st.__offset, __count, __dst);
     }
 }
 
@@ -203,32 +203,32 @@ struct __copyable_storage_state
 };
 
 inline __copyable_storage_state<std::byte>
-__move_state(__scratch_keepalive&& __ka, const sycl::queue& __q)
+__move_state(__scratch_raw_state&& __raw_st, const sycl::queue& __q)
 {
-    __copyable_storage_state<std::byte> __state{nullptr, nullptr, std::move(__ka.__sycl_buf)};
-    if (__ka.__usm_ptr)
+    __copyable_storage_state<std::byte> __state{nullptr, nullptr, std::move(__raw_st.__sycl_buf)};
+    if (__raw_st.__usm_ptr)
     {
         __state.__kind = sycl::usm::alloc::device;
         __state.__scratch_buf =
-            std::shared_ptr<std::byte>(static_cast<std::byte*>(__ka.__usm_ptr), __sycl_usm_free{__q});
-        __ka.__usm_ptr = nullptr;
+            std::shared_ptr<std::byte>(static_cast<std::byte*>(__raw_st.__usm_ptr), __sycl_usm_free{__q});
+        __raw_st.__usm_ptr = nullptr;
     }
-    __ka.__sycl_buf.reset();
+    __raw_st.__sycl_buf.reset();
     return __state;
 }
 
 template <typename _T>
 __copyable_storage_state<_T>
-__move_state(__result_keepalive<_T>&& __ka, const sycl::queue& __q)
+__move_state(__result_raw_state<_T>&& __raw_st, const sycl::queue& __q)
 {
-    __copyable_storage_state<_T> __state{nullptr, nullptr, std::move(__ka.__sycl_buf),
-                                         __ka.__result_sz, __ka.__offset, __ka.__kind};
-    if (__ka.__usm_ptr)
+    __copyable_storage_state<_T> __state{nullptr, nullptr, std::move(__raw_st.__sycl_buf),
+                                         __raw_st.__result_sz, __raw_st.__offset, __raw_st.__kind};
+    if (__raw_st.__usm_ptr)
     {
-        __state.__result_buf = std::shared_ptr<_T>(__ka.__usm_ptr, __sycl_usm_free{__q});
-        __ka.__usm_ptr = nullptr;
+        __state.__result_buf = std::shared_ptr<_T>(__raw_st.__usm_ptr, __sycl_usm_free{__q});
+        __raw_st.__usm_ptr = nullptr;
     }
-    __ka.__sycl_buf.reset();
+    __raw_st.__sycl_buf.reset();
     return __state;
 }
 
@@ -290,13 +290,13 @@ struct __combi_accessor
 // A function-style "trait" to apply to a result of __get_accessor
 template <typename _T>
 constexpr bool
-__has_real_data(const _T&)
+__is_combi_accessor(const _T&)
 {
     return false;
 }
 template <typename _T, sycl::access_mode _AccessMode>
 constexpr bool
-__has_real_data(const __combi_accessor<_T, _AccessMode>&)
+__is_combi_accessor(const __combi_accessor<_T, _AccessMode>&)
 {
     return true;
 }
@@ -326,9 +326,9 @@ struct __device_storage
     }
 
     void
-    __move_state_to(__internal::__scratch_keepalive& __ka) &&
+    __move_state_to(__internal::__scratch_raw_state& __raw_st) &&
     {
-        std::move(*this).__move_base_state_to(__ka);
+        std::move(*this).__move_base_state_to(__raw_st);
     }
 
   protected:
@@ -364,21 +364,21 @@ struct __device_storage
         }
     }
 
-    template <typename _Keepalive>
+    template <typename _RawState>
     void
-    __move_base_state_to(_Keepalive& __ka) &&
+    __move_base_state_to(_RawState& __raw_st) &&
     {
         if (__usm_buf)
-            __ka.__usm_ptr = __usm_buf.release();
+            __raw_st.__usm_ptr = __usm_buf.release();
         else
         {
-            if constexpr (std::is_same_v<_Keepalive, __internal::__scratch_keepalive>)
+            if constexpr (std::is_same_v<_RawState, __internal::__scratch_raw_state>)
             {
                 // use ranged reinterpret as a workaround for a SYCL implementation bug
-                __ka.__sycl_buf = __sycl_buf.template reinterpret<std::byte, 1>({__sycl_buf.size() * sizeof(_T)});
+                __raw_st.__sycl_buf = __sycl_buf.template reinterpret<std::byte, 1>({__sycl_buf.size() * sizeof(_T)});
             }
             else
-                __ka.__sycl_buf = std::move(__sycl_buf);
+                __raw_st.__sycl_buf = std::move(__sycl_buf);
         }
     }
 };
@@ -434,12 +434,12 @@ struct __result_storage : public __device_storage<_T>
     }
 
     void
-    __move_state_to(__internal::__result_keepalive<_T>& __ka) &&
+    __move_state_to(__internal::__result_raw_state<_T>& __raw_st) &&
     {
-        __ka.__kind = __kind;
-        __ka.__result_sz = __result_sz;
-        __ka.__offset = 0;
-        std::move(*this).__move_base_state_to(__ka);
+        __raw_st.__kind = __kind;
+        __raw_st.__result_sz = __result_sz;
+        __raw_st.__offset = 0;
+        std::move(*this).__move_base_state_to(__raw_st);
     }
 };
 
@@ -492,17 +492,17 @@ struct __combined_storage : public __device_storage<_T>
     }
 
     void*
-    __move_state_to(__internal::__result_keepalive<_T>& __ka) &&
+    __move_state_to(__internal::__result_raw_state<_T>& __raw_st) &&
     {
         void* __scratch_ptr = nullptr;
-        __ka.__kind = __kind;
-        __ka.__result_sz = __result_sz;
-        __ka.__offset = __sz;
-        std::move(*this).__move_base_state_to(__ka);
+        __raw_st.__kind = __kind;
+        __raw_st.__result_sz = __result_sz;
+        __raw_st.__offset = __sz;
+        std::move(*this).__move_base_state_to(__raw_st);
         if (__kind == sycl::usm::alloc::host)
         {
-            __scratch_ptr = __ka.__usm_ptr;
-            __ka.__usm_ptr = __result_buf.release();
+            __scratch_ptr = __raw_st.__usm_ptr;
+            __raw_st.__usm_ptr = __result_buf.release();
         }
         return __scratch_ptr;
     }
@@ -546,8 +546,8 @@ class __storage_holder
 {
   protected: // to allow inspection by tests
     sycl::queue __q;
-    std::tuple<__internal::__result_keepalive<_ResultTypes>...> __result_slots = {};
-    std::array<__internal::__scratch_keepalive, _NScratch> __scratch_slots = {};
+    std::tuple<__internal::__result_raw_state<_ResultTypes>...> __result_slots = {};
+    std::array<__internal::__scratch_raw_state, _NScratch> __scratch_slots = {};
     std::size_t __scratch_count = 0;
 
     template <std::size_t... _ScratchIs, std::size_t... _ResultIs>
@@ -555,10 +555,8 @@ class __storage_holder
     __extract_impl(std::index_sequence<_ResultIs...>, std::index_sequence<_ScratchIs...>) &&
     {
         __scratch_count = 0;
-        return std::make_tuple(
-            __internal::__move_state(std::move(std::get<_ResultIs>(__result_slots)), __q)...,
-            __internal::__move_state(std::move(__scratch_slots[_ScratchIs]), __q)...
-        );
+        return std::make_tuple(__internal::__move_state(std::move(std::get<_ResultIs>(__result_slots)), __q)...,
+                               __internal::__move_state(std::move(__scratch_slots[_ScratchIs]), __q)...);
     }
 
   public:
@@ -572,11 +570,10 @@ class __storage_holder
           __scratch_slots(std::move(__other.__scratch_slots)), __scratch_count(__other.__scratch_count)
     {
         __other.__scratch_count = 0;
-        for (auto& __ka : __other.__scratch_slots)
-            __ka.__usm_ptr = nullptr;
-        std::apply([](auto&... __ka)
-        {
-            ((__ka.__usm_ptr = nullptr), ...);
+        for (auto& __slot : __other.__scratch_slots)
+            __slot.__usm_ptr = nullptr;
+        std::apply([](auto&... __slot) {
+            ((__slot.__usm_ptr = nullptr), ...);
         }, __other.__result_slots);
     }
 
@@ -594,11 +591,10 @@ class __storage_holder
 
     ~__storage_holder()
     {
-        for (auto& __ka : __scratch_slots)
-            __internal::__free_usm(__q, __ka.__usm_ptr);
-        std::apply([this](auto&... __ka)
-        {
-            ((__internal::__free_usm(__q, __ka.__usm_ptr)), ...);
+        for (auto& __slot : __scratch_slots)
+            __internal::__free_usm(__q, __slot.__usm_ptr);
+        std::apply([this](auto&... __slot) {
+            ((__internal::__free_usm(__q, __slot.__usm_ptr)), ...);
         }, __result_slots);
     }
 
@@ -616,9 +612,9 @@ class __storage_holder
     {
         static_assert(_I < sizeof...(_ResultTypes), "Result slot index out of range");
         static_assert(std::is_same_v<_T, std::tuple_element_t<_I, std::tuple<_ResultTypes...>>>);
-        auto& __ka = std::get<_I>(__result_slots);
-        assert(__ka.__usm_ptr == nullptr && !__ka.__sycl_buf.has_value());
-        std::move(__st).__move_state_to(__ka);
+        auto& __slot = std::get<_I>(__result_slots);
+        assert(__slot.__usm_ptr == nullptr && !__slot.__sycl_buf.has_value());
+        std::move(__st).__move_state_to(__slot);
     }
 
     template <std::size_t _I, typename _T>
@@ -627,9 +623,9 @@ class __storage_holder
     {
         static_assert(_I < sizeof...(_ResultTypes), "Result index out of range");
         static_assert(std::is_same_v<_T, std::tuple_element_t<_I, std::tuple<_ResultTypes...>>>);
-        auto& __ka = std::get<_I>(__result_slots);
-        assert(__ka.__usm_ptr == nullptr && !__ka.__sycl_buf.has_value());
-        void* __scratch_ptr = std::move(__st).__move_state_to(__ka);
+        auto& __slot = std::get<_I>(__result_slots);
+        assert(__slot.__usm_ptr == nullptr && !__slot.__sycl_buf.has_value());
+        void* __scratch_ptr = std::move(__st).__move_state_to(__slot);
         if (__scratch_ptr)
         {
             assert(__scratch_count < _NScratch);

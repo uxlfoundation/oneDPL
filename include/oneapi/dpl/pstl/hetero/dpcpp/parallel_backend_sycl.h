@@ -1446,8 +1446,7 @@ struct __is_radix_sort_usable_for_type
 #if _ONEDPL_USE_RADIX_SORT
 template <typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
           std::enable_if_t<__is_radix_sort_usable_for_type<oneapi::dpl::__internal::__projected_value_t<_Proj, _Range>,
-                                                           _Compare>::value,
-                           int> = 0>
+                                                           _Compare>::value, int> = 0>
 __future<sycl::event>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                        _Compare, _Proj __proj)
@@ -1460,7 +1459,7 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _Execution
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj,
           std::enable_if_t<!__is_radix_sort_usable_for_type<oneapi::dpl::__internal::__projected_value_t<_Proj, _Range>,
-                           _Compare>::value, int> = 0>
+                                                            _Compare>::value, int> = 0>
 auto /*__future<sycl::event, ...>*/
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                        _Compare __comp, _Proj __proj)

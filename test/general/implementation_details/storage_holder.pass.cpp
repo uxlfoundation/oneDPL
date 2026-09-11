@@ -127,26 +127,26 @@ store_and_check(hetero::__combined_storage<T>& storage, inspectable_holder<NScra
 
 template <typename T, typename Generator>
 void
-init_result_keepalive(internal::__result_keepalive<T>& ka, sycl::queue& q,
-                      std::size_t n, sycl::usm::alloc kind, Generator gen)
+init_result_slot(internal::__result_raw_state<T>& rst, sycl::queue& q,
+                 std::size_t n, sycl::usm::alloc kind, Generator gen)
 {
     constexpr std::size_t offset = 42 * sizeof(int); // offset is divisible by sizeof(int)
     constexpr int poison = 0xDEADBEEF;
 
-    ka.__result_sz = n;
-    ka.__kind      = kind;
+    rst.__result_sz = n;
+    rst.__kind      = kind;
 
     if (kind == sycl::usm::alloc::host)
     {
-        ka.__offset  = 0;
+        rst.__offset  = 0;
         T* ptr = sycl::malloc_host<T>(n, q);
         for (std::size_t i = 0; i < n; ++i)
             ptr[i] = gen(i);
-        ka.__usm_ptr = ptr;
+        rst.__usm_ptr = ptr;
     }
     else
     {
-        ka.__offset = offset;
+        rst.__offset = offset;
         auto host_buf = std::shared_ptr<T[]>(std::make_unique<T[]>(offset + n)); // make_shared<T[]> requires C++20
         // poison data in [offset, offset + n)
         int* iptr = reinterpret_cast<int*>(host_buf.get());
@@ -158,10 +158,10 @@ init_result_keepalive(internal::__result_keepalive<T>& ka, sycl::queue& q,
         {
             T* ptr = sycl::malloc_device<T>(offset + n, q);
             q.memcpy(ptr, host_buf.get(), (offset + n) * sizeof(T)).wait();
-            ka.__usm_ptr = ptr;
+            rst.__usm_ptr = ptr;
         }
         else // sycl::usm::alloc::unknown for sycl::buffer
-            ka.__sycl_buf = sycl::buffer<T, 1>{host_buf, sycl::range{offset + n}};
+            rst.__sycl_buf = sycl::buffer<T, 1>{host_buf, sycl::range{offset + n}};
     }
 }
 
@@ -169,16 +169,16 @@ init_result_keepalive(internal::__result_keepalive<T>& ka, sycl::queue& q,
 
 // custom operators to compare internal types
 template <typename _T>
-bool operator==(const internal::__result_keepalive<_T>& ka, const internal::__copyable_storage_state<_T>& state)
+bool operator==(const internal::__result_raw_state<_T>& rst, const internal::__copyable_storage_state<_T>& state)
 {
-    return ka.__usm_ptr   == state.__result_buf.get() && ka.__kind      == state.__kind   &&
-           ka.__result_sz == state.__result_sz        && ka.__offset    == state.__offset &&
-           ka.__sycl_buf.has_value() == state.__sycl_buf.has_value() && state.__scratch_buf == nullptr;
+    return rst.__usm_ptr   == state.__result_buf.get() && rst.__kind      == state.__kind   &&
+           rst.__result_sz == state.__result_sz        && rst.__offset    == state.__offset &&
+           rst.__sycl_buf.has_value() == state.__sycl_buf.has_value() && state.__scratch_buf == nullptr;
 }
 
-bool operator==(const internal::__scratch_keepalive& ka, const internal::__copyable_storage_state<std::byte>& state)
+bool operator==(const internal::__scratch_raw_state& rst, const internal::__copyable_storage_state<std::byte>& state)
 {
-    return ka.__usm_ptr == state.__scratch_buf.get() && ka.__sycl_buf.has_value() == state.__sycl_buf.has_value() &&
+    return rst.__usm_ptr == state.__scratch_buf.get() && rst.__sycl_buf.has_value() == state.__sycl_buf.has_value() &&
            state.__result_buf == nullptr;;
 }
 
@@ -362,9 +362,9 @@ struct StorageHolderTest
         for (std::size_t n : {1, 2, 3, 6, 7})
         {
             HolderT holder{q};
-            Test::init_result_keepalive(holder.template result_slot_ref<0>(), q, n, result_kind, gen_tuple);
-            Test::init_result_keepalive(holder.template result_slot_ref<1>(), q, n, scratch_kind, gen_float);
-            Test::init_result_keepalive(holder.template result_slot_ref<2>(), q, n, sycl::usm::alloc::unknown, gen_int);
+            Test::init_result_slot(holder.template result_slot_ref<0>(), q, n, result_kind, gen_tuple);
+            Test::init_result_slot(holder.template result_slot_ref<1>(), q, n, scratch_kind, gen_float);
+            Test::init_result_slot(holder.template result_slot_ref<2>(), q, n, sycl::usm::alloc::unknown, gen_int);
             
             if (n == 3) 
             {
@@ -384,7 +384,7 @@ struct StorageHolderTest
         // Edge case: copy zero elements
         {
             Test::inspectable_holder<0, int> holder{q};
-            Test::init_result_keepalive(holder.template result_slot_ref<0>(), q, 4, result_kind,
+            Test::init_result_slot(holder.template result_slot_ref<0>(), q, 4, result_kind,
                                         [](std::size_t i){ return int(i); });
             int sentinel = 42;
             holder.__copy_result<0>(&sentinel, 0);
@@ -404,14 +404,14 @@ struct StorageHolderTest
         holder.__store_scratch(hetero::__device_storage<double>(q, 128));
         holder.template __store<0>(hetero::__combined_storage<float>(q, 32, 1));
 
-        // Capture keepalive state before extraction
-        const auto kr0 = holder.template result_slot<0>();
-        const auto kr1 = holder.template result_slot<1>();
-        const auto kr2 = holder.template result_slot<2>();
-        const auto ks0 = holder.scratch_slot(0);
-        const auto ks1 = holder.scratch_slot(1);
-        const auto ks2 = holder.scratch_slot(2);
-        const auto ks3 = holder.scratch_slot(3);
+        // Capture raw states before extraction
+        const auto r0 = holder.template result_slot<0>();
+        const auto r1 = holder.template result_slot<1>();
+        const auto r2 = holder.template result_slot<2>();
+        const auto s0 = holder.scratch_slot(0);
+        const auto s1 = holder.scratch_slot(1);
+        const auto s2 = holder.scratch_slot(2);
+        const auto s3 = holder.scratch_slot(3);
 
         auto extracted = std::move(holder).__extract();
 
@@ -423,14 +423,14 @@ struct StorageHolderTest
         for (void* ptr : holder.get_result_ptrs())
             EXPECT_TRUE(ptr == nullptr, "__extract: result slot in extracted-from holder must be null");
 
-        // Verify extracted state matches pre-extract keepalives
-        EXPECT_TRUE(kr0 == std::get<0>(extracted), "__extract: result slot mismatch");
-        EXPECT_TRUE(kr1 == std::get<1>(extracted), "__extract: result slot mismatch");
-        EXPECT_TRUE(kr2 == std::get<2>(extracted), "__extract: result slot mismatch");
-        EXPECT_TRUE(ks0 == std::get<3>(extracted), "__extract: scratch slot mismatch");
-        EXPECT_TRUE(ks1 == std::get<4>(extracted), "__extract: scratch slot mismatch");
-        EXPECT_TRUE(ks2 == std::get<5>(extracted), "__extract: scratch slot mismatch");
-        EXPECT_TRUE(ks3 == std::get<6>(extracted), "__extract: scratch slot mismatch");
+        // Verify extracted state matches pre-extract raw states
+        EXPECT_TRUE(r0 == std::get<0>(extracted), "__extract: result slot mismatch");
+        EXPECT_TRUE(r1 == std::get<1>(extracted), "__extract: result slot mismatch");
+        EXPECT_TRUE(r2 == std::get<2>(extracted), "__extract: result slot mismatch");
+        EXPECT_TRUE(s0 == std::get<3>(extracted), "__extract: scratch slot mismatch");
+        EXPECT_TRUE(s1 == std::get<4>(extracted), "__extract: scratch slot mismatch");
+        EXPECT_TRUE(s2 == std::get<5>(extracted), "__extract: scratch slot mismatch");
+        EXPECT_TRUE(s3 == std::get<6>(extracted), "__extract: scratch slot mismatch");
     }
 
     // Edge case: NScratch == 0, empty ResultTypes
