@@ -997,6 +997,9 @@ struct copy_back_wrapper2;
 template <typename _Name>
 struct copy_back_wrapper3;
 
+template <typename _Name>
+struct copy_back_wrapper4;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator, typename _Predicate>
 _Iterator
 __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
@@ -1080,6 +1083,17 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
                                /*_IsOutNoInitRequested=*/false>(
             __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper3>(__exec), __stage_out_first,
             __stage_last, __first + __out_pos, __brick_copy<__hetero_tag<_BackendTag>>{});
+
+        // A segment with no survivor makes the copy back empty, and an empty walk submits nothing, so the iteration
+        // only reads the input. Six or more such iterations in a row fault inside the next copy back on the Windows
+        // debug GPU runtime; the same sequence built from public unique_copy faults identically, so the defect is
+        // below this loop. Rewriting the last survivor over itself keeps every iteration a writer, and since the
+        // source is the destination it cannot change the result whatever the predicate.
+        if (__stage_last == __stage_out_first && __out_pos > 0)
+            __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
+                                   /*_IsOutNoInitRequested=*/false>(
+                __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper4>(__exec), __first + __out_pos - 1,
+                __first + __out_pos, __first + __out_pos - 1, __brick_copy<__hetero_tag<_BackendTag>>{});
 
         __out_pos += __stage_last - __stage_out_first;
     }
