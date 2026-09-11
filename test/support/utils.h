@@ -26,6 +26,7 @@
 #include <atomic>
 #include <cstdint>
 #include <cstdlib>
+#include <initializer_list>
 #include <cstring>
 #include <iostream>
 #include <iterator>
@@ -1402,6 +1403,179 @@ struct NoDefaultCtorWrapper {
     ~NoDefaultCtorWrapper()
     {
         value.~_T();
+    }
+};
+
+//----------------------------------------------------------------------------//
+// Value types with restricted operations
+//----------------------------------------------------------------------------//
+//
+// Each of these types provides the minimal interface of an algorithm's element - default construction, construction
+// from std::int32_t and operator< - with exactly one further operation restricted, so that a test can tell which
+// operations an implementation really requires of its value type. The name says what the restriction is.
+//
+// They are shared by test/parallel_api/algorithm/alg.sorting/alg.min.max/minmax_element.pass.cpp, which runs the
+// algorithms on them, and test/general/implementation_details/value_storable.pass.cpp, which checks the trait that
+// selects the vector code path for them. Keep them in lock-step: a type accepted by the trait has to be one the
+// algorithms actually compile for.
+
+// Nothing is restricted: this is the baseline the others are compared against.
+struct OnlyLessCompare
+{
+    std::int32_t val;
+    OnlyLessCompare() : val(0) {}
+    OnlyLessCompare(std::int32_t val_) : val(val_) {}
+    bool
+    operator<(const OnlyLessCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// Default-constructible through an explicit default constructor only.
+struct ExplicitDefaultCtorCompare
+{
+    std::int32_t val;
+    explicit ExplicitDefaultCtorCompare() : val(0) {}
+    ExplicitDefaultCtorCompare(std::int32_t val_) : val(val_) {}
+    bool
+    operator<(const ExplicitDefaultCtorCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// Default-constructible, but not brace-initializable: empty braces copy-list-initialize the member, which its explicit
+// default constructor rejects. It is an aggregate, so it takes no std::int32_t constructor.
+struct AggregateOfExplicitDefaultCtorCompare
+{
+    ExplicitDefaultCtorCompare member;
+    bool
+    operator<(const AggregateOfExplicitDefaultCtorCompare& other) const
+    {
+        return member < other.member;
+    }
+};
+
+// Not default-constructible: neither constructor takes zero arguments. Empty braces select the initializer-list one.
+struct BraceInitOnlyCompare
+{
+    std::int32_t val;
+    BraceInitOnlyCompare(std::initializer_list<std::int32_t> init) : val(init.size() == 0 ? 0 : *init.begin()) {}
+    BraceInitOnlyCompare(std::int32_t val_) : val(val_) {}
+    bool
+    operator<(const BraceInitOnlyCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// Copyable, but with deleted move operations.
+struct CopyOnlyNoMoveCompare
+{
+    std::int32_t val;
+    CopyOnlyNoMoveCompare() : val(0) {}
+    CopyOnlyNoMoveCompare(std::int32_t val_) : val(val_) {}
+    CopyOnlyNoMoveCompare(const CopyOnlyNoMoveCompare&) = default;
+    CopyOnlyNoMoveCompare&
+    operator=(const CopyOnlyNoMoveCompare&) = default;
+    CopyOnlyNoMoveCompare(CopyOnlyNoMoveCompare&&) = delete;
+    CopyOnlyNoMoveCompare&
+    operator=(CopyOnlyNoMoveCompare&&) = delete;
+    bool
+    operator<(const CopyOnlyNoMoveCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// The copy assignment returns void instead of VoidAssignCompare&. The copy constructor has to be declared explicitly:
+// a user-declared copy assignment operator only deprecates the implicit one, which -Wdeprecated-copy reports.
+struct VoidAssignCompare
+{
+    std::int32_t val;
+    VoidAssignCompare() : val(0) {}
+    VoidAssignCompare(std::int32_t val_) : val(val_) {}
+    VoidAssignCompare(const VoidAssignCompare&) = default;
+    void
+    operator=(const VoidAssignCompare& other)
+    {
+        val = other.val;
+    }
+    bool
+    operator<(const VoidAssignCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// Copyable and assignable from a const lvalue only, so it requires const iterators.
+struct ConstCopyOnlyCompare
+{
+    std::int32_t val;
+    ConstCopyOnlyCompare() : val(0) {}
+    ConstCopyOnlyCompare(std::int32_t val_) : val(val_) {}
+    ConstCopyOnlyCompare(const ConstCopyOnlyCompare&) = default;
+    ConstCopyOnlyCompare(ConstCopyOnlyCompare&) = delete;
+    ConstCopyOnlyCompare&
+    operator=(const ConstCopyOnlyCompare&) = default;
+    ConstCopyOnlyCompare&
+    operator=(ConstCopyOnlyCompare&) = delete;
+    bool
+    operator<(const ConstCopyOnlyCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// Copy-constructible, but its elements cannot be copy-initialized, because the copy constructor is explicit.
+struct ExplicitCopyCtorCompare
+{
+    std::int32_t val;
+    ExplicitCopyCtorCompare() : val(0) {}
+    ExplicitCopyCtorCompare(std::int32_t val_) : val(val_) {}
+    explicit ExplicitCopyCtorCompare(const ExplicitCopyCtorCompare& other) : val(other.val) {}
+    ExplicitCopyCtorCompare&
+    operator=(const ExplicitCopyCtorCompare&) = default;
+    bool
+    operator<(const ExplicitCopyCtorCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// Not copy-assignable.
+struct NoCopyAssignCompare
+{
+    std::int32_t val;
+    NoCopyAssignCompare() : val(0) {}
+    NoCopyAssignCompare(std::int32_t val_) : val(val_) {}
+    NoCopyAssignCompare(const NoCopyAssignCompare&) = default;
+    NoCopyAssignCompare&
+    operator=(const NoCopyAssignCompare&) = delete;
+    bool
+    operator<(const NoCopyAssignCompare& other) const
+    {
+        return val < other.val;
+    }
+};
+
+// Not copy-constructible.
+struct MoveOnlyCompare
+{
+    std::int32_t val;
+    MoveOnlyCompare() : val(0) {}
+    MoveOnlyCompare(std::int32_t val_) : val(val_) {}
+    MoveOnlyCompare(MoveOnlyCompare&&) = default;
+    MoveOnlyCompare&
+    operator=(MoveOnlyCompare&&) = default;
+    MoveOnlyCompare(const MoveOnlyCompare&) = delete;
+    MoveOnlyCompare&
+    operator=(const MoveOnlyCompare&) = delete;
+    bool
+    operator<(const MoveOnlyCompare& other) const
+    {
+        return val < other.val;
     }
 };
 
