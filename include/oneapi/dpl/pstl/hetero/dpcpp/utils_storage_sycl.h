@@ -290,13 +290,13 @@ struct __combi_accessor
 // A function-style "trait" to apply to a result of __get_accessor
 template <typename _T>
 constexpr bool
-__has_real_data(const _T&)
+__is_combi_accessor(const _T&)
 {
     return false;
 }
 template <typename _T, sycl::access_mode _AccessMode>
 constexpr bool
-__has_real_data(const __combi_accessor<_T, _AccessMode>&)
+__is_combi_accessor(const __combi_accessor<_T, _AccessMode>&)
 {
     return true;
 }
@@ -555,10 +555,8 @@ class __storage_holder
     __extract_impl(std::index_sequence<_ResultIs...>, std::index_sequence<_ScratchIs...>) &&
     {
         __scratch_count = 0;
-        return std::make_tuple(
-            __internal::__move_state(std::move(std::get<_ResultIs>(__result_slots)), __q)...,
-            __internal::__move_state(std::move(__scratch_slots[_ScratchIs]), __q)...
-        );
+        return std::make_tuple(__internal::__move_state(std::move(std::get<_ResultIs>(__result_slots)), __q)...,
+                               __internal::__move_state(std::move(__scratch_slots[_ScratchIs]), __q)...);
     }
 
   public:
@@ -574,8 +572,7 @@ class __storage_holder
         __other.__scratch_count = 0;
         for (auto& __ka : __other.__scratch_slots)
             __ka.__usm_ptr = nullptr;
-        std::apply([](auto&... __ka)
-        {
+        std::apply([](auto&... __ka) {
             ((__ka.__usm_ptr = nullptr), ...);
         }, __other.__result_slots);
     }
@@ -596,8 +593,7 @@ class __storage_holder
     {
         for (auto& __ka : __scratch_slots)
             __internal::__free_usm(__q, __ka.__usm_ptr);
-        std::apply([this](auto&... __ka)
-        {
+        std::apply([this](auto&... __ka) {
             ((__internal::__free_usm(__q, __ka.__usm_ptr)), ...);
         }, __result_slots);
     }
