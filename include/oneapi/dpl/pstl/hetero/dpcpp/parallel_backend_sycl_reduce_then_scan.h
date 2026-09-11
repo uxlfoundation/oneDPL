@@ -2287,15 +2287,13 @@ template <bool _Bounded, typename _ScanOpsTag, std::uint32_t __bytes_per_work_it
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
           typename _IsUniquePattern, typename _StopPosInitState>
 sycl::event
-__parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng,
-                                           _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
-                                           _ReduceOp __reduce_op, _GenScanInput __gen_scan_input,
-                                           _ScanInputTransform __scan_input_transform, _WriteOp __write_op,
-                                           _InitType __init,
-                                           __transform_scan_storage_holder<_Bounded, typename _InitType::__value_type,
-                                                                           _StopPosInitState>& __holder,
-                                           _Inclusive, _IsUniquePattern, bool __use_subgroup_ops,
-                                           _StopPosInitState __stop_pos_initial_state, sycl::event __prior_event)
+__parallel_transform_reduce_then_scan_impl(
+    sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
+    _ReduceOp __reduce_op, _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
+    _WriteOp __write_op, _InitType __init,
+    __transform_scan_storage_holder<_Bounded, typename _InitType::__value_type, _StopPosInitState>& __holder,
+    _Inclusive, _IsUniquePattern, bool __use_subgroup_ops, _StopPosInitState __stop_pos_initial_state,
+    sycl::event __prior_event)
 {
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_reduce_kernel<_ScanOpsTag, _CustomName>>;
@@ -2503,14 +2501,13 @@ template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _Cus
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
           typename _IsUniquePattern, typename _StopPosInitState = oneapi::dpl::__internal::__difference_t<_InRng>>
 sycl::event
-__parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
-                                      _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
-                                      _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
-                                      _WriteOp __write_op, _InitType __init,
-                                      __transform_scan_storage_holder<_Bounded, typename _InitType::__value_type,
-                                                                      _StopPosInitState>& __holder,
-                                      _Inclusive __inclusive, _IsUniquePattern __is_unique_pattern,
-                                      _StopPosInitState __stop_pos_initial_state = {}, sycl::event __prior_event = {})
+__parallel_transform_reduce_then_scan(
+    sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
+    _ReduceOp __reduce_op, _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
+    _WriteOp __write_op, _InitType __init,
+    __transform_scan_storage_holder<_Bounded, typename _InitType::__value_type, _StopPosInitState>& __holder,
+    _Inclusive __inclusive, _IsUniquePattern __is_unique_pattern, _StopPosInitState __stop_pos_initial_state = {},
+    sycl::event __prior_event = {})
 {
     using _ValueType = typename _InitType::__value_type;
 
