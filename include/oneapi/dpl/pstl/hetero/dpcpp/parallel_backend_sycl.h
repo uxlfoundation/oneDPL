@@ -466,7 +466,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
     // Each work-item iteration reads a single input element to evaluate the mask and to copy it to the output.
     constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(oneapi::dpl::__internal::__value_t<_InRng>);
 
-    sycl::event __event =  __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
+    sycl::event __event = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
         __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask},
         _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, __holder, /*_Inclusive=*/std::true_type{},
@@ -732,8 +732,8 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
     __partition_event = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
         __q, __num_diagonals, std::move(__in_in_tmp_rng), std::forward<_Range3>(__result), __gen_reduce_input,
         _ReduceOp{}, _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2},
-        _ScanInputTransform{}, _WriteOp{__n_out}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-        __holder, /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}, __stop_pos_initial_state,
+        _ScanInputTransform{}, _WriteOp{__n_out}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, __holder,
+        /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}, __stop_pos_initial_state,
         __partition_event);
     __partition_event.wait_and_throw();
 
