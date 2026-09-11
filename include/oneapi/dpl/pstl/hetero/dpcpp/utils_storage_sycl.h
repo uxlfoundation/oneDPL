@@ -629,14 +629,13 @@ class __storage_holder
         __internal::__copy_n(__dst, __n, std::get<_I>(__result_slots), __q);
     }
 
-    template <std::size_t _I>
     std::enable_if_t<(std::is_default_constructible_v<_ResultTypes> && ...), std::tuple<_ResultTypes...>>
     __get_results()
     {
-        std::apply([&__q = this->__q](auto&... __slots) {
+        return std::apply([&__q = this->__q](auto&... __slots) {
             auto __load_one = [&](auto& __rs, auto* __p) {
                 std::remove_pointer_t<decltype(__p)> __dst{};
-                __internal::__copy_n(__dst, 1, __rs, __q);
+                __internal::__copy_n(&__dst, 1, __rs, __q);
                 return __dst;
             };
             return std::tuple{__load_one(__slots, static_cast<_ResultTypes*>(nullptr))...};
