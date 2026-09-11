@@ -20,12 +20,9 @@
 
 #include "support/utils.h"
 
+#include <set>
 #include <cassert>
 #include <cmath>
-#include <initializer_list>
-#include <set>
-#include <type_traits>
-#include <vector>
 
 #if  !defined(_PSTL_TEST_MIN_ELEMENT) && !defined(_PSTL_TEST_MAX_ELEMENT) &&\
      !defined(_PSTL_TEST_MINMAX_ELEMENT) && !_PSTL_ICPX_TEST_MINMAX_ELEMENT_PASS_BROKEN
