@@ -629,9 +629,9 @@ class __future : private std::tuple<_Args...>
 
     template <typename _T>
     _T
-    __wait_and_get_value(const __copyable_storage_state<_T>& __st)
+    __wait_and_get_value(const __internal::__copyable_storage_state<_T>& __st)
     {
-        __copyable_storage_state<_T> __st_copy = __st;
+        __internal::__copyable_storage_state<_T> __st_copy = __st;
         return __wait_and_get_value(__result_and_scratch_storage(std::move(__st_copy)));
     }
 
@@ -705,13 +705,6 @@ class __future : private std::tuple<_Args...>
         return __future<_Event, _T, _Args...>(__my_event, new_tuple);
     }
 };
-
-template <typename _ValueType>
-auto
-__create_future(sycl::event&& __event, __combined_storage<_ValueType>&& __payload)
-{
-    return __future(std::move(__event), __result_and_scratch_storage<_ValueType>(std::move(__payload).__move_state()));
-}
 
 struct __scalar_load_op
 {

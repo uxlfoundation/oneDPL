@@ -461,7 +461,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     std::array<_Size, 2> __ret{};
-    __transform_scan_storage_holder<_Bounded, _Size, _Size> __holder;
+    __transform_scan_storage_holder<_Bounded, _Size, _Size> __holder(__q);
 
     // Each work-item iteration reads a single input element to evaluate the mask and to copy it to the output.
     constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(oneapi::dpl::__internal::__value_t<_InRng>);
@@ -582,11 +582,11 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
         oneapi::dpl::__internal::make_tuple(std::forward<_Range2>(__out_true), std::forward<_Range3>(__out_false));
 
     sycl::queue __q_local = __exec.queue();
-    __transform_scan_storage_holder<_Bounded, diff_t, _WriteOp::__position_type> __holder;
+    __transform_scan_storage_holder<_Bounded, diff_t, _WriteOp::__position_type> __holder(__q_local);
     // Each work-item iteration reads a single input element to evaluate the mask and to copy it to the output.
     constexpr std::uint32_t __bytes_per_work_item_iter = sizeof(oneapi::dpl::__internal::__value_t<_Range1>);
 
-    sycl__event __event = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
+    sycl::event __event = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
         __q_local, __n, std::forward<_Range1>(__rng), std::move(__zipped_output), _GenReduceInput{_GenMask{__pred}},
         std::plus<diff_t>{}, _GenScanInput{_GenMask{__pred}}, _ScanInputTransform{}, _WriteOp{__n_out1, __n_out2},
         oneapi::dpl::unseq_backend::__no_init_value<diff_t>{}, __holder, /*_Inclusive=*/std::true_type{},
@@ -727,7 +727,7 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
 
     // Initial stop pos state
     const auto __stop_pos_initial_state = __create_initial_final_and_oob_pos_state<_Bounded>(__set_tag, __rng1, __rng2);
-    __transform_scan_storage_holder<_Bounded, _Size, decltype(__stop_pos_initial_state)> __holder;
+    __transform_scan_storage_holder<_Bounded, _Size, decltype(__stop_pos_initial_state)> __holder(__q);
 
     __partition_event = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
         __q, __num_diagonals, std::move(__in_in_tmp_rng), std::forward<_Range3>(__result), __gen_reduce_input,
@@ -737,7 +737,7 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
         __partition_event);
     __partition_event.wait_and_throw();
 
-    return std::tuple{__holder.template __load_result<0>(), __holder.template __load_result<1>()};
+    return __holder.__get_results();
 }
 
 template <bool _Bounded, typename _SetTag, typename _ExecutionPolicy, typename _Range1, typename _Range2,
