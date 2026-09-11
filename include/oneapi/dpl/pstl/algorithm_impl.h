@@ -1246,39 +1246,6 @@ __brick_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAcc
     return __unseq_backend::__simd_copy_by_mask<__Bounded>(__first, __in_len, __result, __out_len, __mask, __assigner);
 }
 
-template <class _ForwardIterator, class _OutputIterator1, class _OutputIterator2>
-void
-__brick_partition_by_mask(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator1 __out_true,
-                          _OutputIterator2 __out_false, bool* __mask, /*vector=*/::std::false_type) noexcept
-{
-    for (; __first != __last; ++__first, (void)++__mask)
-    {
-        if (*__mask)
-        {
-            *__out_true = *__first;
-            ++__out_true;
-        }
-        else
-        {
-            *__out_false = *__first;
-            ++__out_false;
-        }
-    }
-}
-
-template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3>
-void
-__brick_partition_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last,
-                          _RandomAccessIterator2 __out_true, _RandomAccessIterator3 __out_false, bool* __mask,
-                          /*vector=*/::std::true_type) noexcept
-{
-#if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
-    __unseq_backend::__simd_partition_by_mask(__first, __last - __first, __out_true, __out_false, __mask);
-#else
-    __internal::__brick_partition_by_mask(__first, __last, __out_true, __out_false, __mask, ::std::false_type());
-#endif
-}
-
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType,
           class _RandomAccessIterator2, class _IndexPredicate>
 std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
@@ -2456,30 +2423,63 @@ __pattern_stable_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 //------------------------------------------------------------------------
 
 template <class _ForwardIterator, class _OutputIterator1, class _OutputIterator2, class _UnaryPredicate>
-::std::pair<_OutputIterator1, _OutputIterator2>
+std::pair<_OutputIterator1, _OutputIterator2>
 __brick_partition_copy(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator1 __out_true,
-                       _OutputIterator2 __out_false, _UnaryPredicate __pred, /*is_vector=*/::std::false_type) noexcept
+                       _OutputIterator2 __out_false, _UnaryPredicate __pred, /*is_vector=*/std::false_type) noexcept
 {
-    return ::std::partition_copy(__first, __last, __out_true, __out_false, __pred);
+    return std::partition_copy(__first, __last, __out_true, __out_false, __pred);
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3,
           class _UnaryPredicate>
-::std::pair<_RandomAccessIterator2, _RandomAccessIterator3>
+std::pair<_RandomAccessIterator2, _RandomAccessIterator3>
 __brick_partition_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __out_true,
                        _RandomAccessIterator3 __out_false, _UnaryPredicate __pred,
-                       /*is_vector=*/::std::true_type) noexcept
+                       /*is_vector=*/std::true_type) noexcept
 {
 #if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
     return __unseq_backend::__simd_partition_copy(__first, __last - __first, __out_true, __out_false, __pred);
 #else
-    return ::std::partition_copy(__first, __last, __out_true, __out_false, __pred);
+    return std::partition_copy(__first, __last, __out_true, __out_false, __pred);
+#endif
+}
+
+template <class _ForwardIterator, class _OutputIterator1, class _OutputIterator2>
+void
+__brick_partition_by_mask(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator1 __out_true,
+                          _OutputIterator2 __out_false, bool* __mask, /*vector=*/std::false_type) noexcept
+{
+    for (; __first != __last; ++__first, (void)++__mask)
+    {
+        if (*__mask)
+        {
+            *__out_true = *__first;
+            ++__out_true;
+        }
+        else
+        {
+            *__out_false = *__first;
+            ++__out_false;
+        }
+    }
+}
+
+template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3>
+void
+__brick_partition_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last,
+                          _RandomAccessIterator2 __out_true, _RandomAccessIterator3 __out_false, bool* __mask,
+                          /*vector=*/std::true_type) noexcept
+{
+#if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
+    __unseq_backend::__simd_partition_by_mask(__first, __last - __first, __out_true, __out_false, __mask);
+#else
+    __internal::__brick_partition_by_mask(__first, __last, __out_true, __out_false, __mask, std::false_type());
 #endif
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator1, class _OutputIterator2,
           class _UnaryPredicate>
-::std::pair<_OutputIterator1, _OutputIterator2>
+std::pair<_OutputIterator1, _OutputIterator2>
 __pattern_partition_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
                          _OutputIterator1 __out_true, _OutputIterator2 __out_false, _UnaryPredicate __pred) noexcept
 {
@@ -2491,7 +2491,7 @@ __pattern_partition_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Fo
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _UnaryPredicate>
-::std::pair<_RandomAccessIterator2, _RandomAccessIterator3>
+std::pair<_RandomAccessIterator2, _RandomAccessIterator3>
 __pattern_partition_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
                          _RandomAccessIterator1 __last, _RandomAccessIterator2 __out_true,
                          _RandomAccessIterator3 __out_false, _UnaryPredicate __pred)
@@ -2515,7 +2515,7 @@ __pattern_partition_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
                                                             __mask + __i, _IsVector{});
                 },
                 [](const _ReturnType& __x, const _ReturnType& __y) -> _ReturnType {
-                    return ::std::make_pair(__x.first + __y.first, __x.second + __y.second);
+                    return std::make_pair(__x.first + __y.first, __x.second + __y.second);
                 },                                                                       // Combine
                 [=](_DifferenceType __i, _DifferenceType __len, _ReturnType __initial) { // Scan
                     __internal::__brick_partition_by_mask(__first + __i, __first + (__i + __len),
@@ -2523,7 +2523,7 @@ __pattern_partition_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
                                                           __mask + __i, _IsVector{});
                 },
                 [&__m](_ReturnType __total) { __m = __total; });
-            return ::std::make_pair(__out_true + __m.first, __out_false + __m.second);
+            return std::make_pair(__out_true + __m.first, __out_false + __m.second);
         });
     }
     // trivial sequence - use serial algorithm
