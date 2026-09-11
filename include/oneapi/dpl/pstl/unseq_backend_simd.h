@@ -673,7 +673,6 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         }
     };
 
-    // Parentheses, not braces: list-initialization would reject a narrowing conversion from the reference type.
     _ComplexType __init(*__first, std::addressof(__comp));
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType)
@@ -752,7 +751,6 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         }
     };
 
-    // Parentheses, not braces: list-initialization would reject a narrowing conversion from the reference type.
     _ComplexType __init(*__first, *__first, std::addressof(__comp));
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType);
