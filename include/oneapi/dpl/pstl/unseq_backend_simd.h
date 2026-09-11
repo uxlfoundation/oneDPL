@@ -624,15 +624,11 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
 // - convertibility of the reference type: the value is copy-initialized from what the iterator dereferences to, both
 //   to build the initial reduction object and to read every element. Copy-constructibility does not imply this - it
 //   also holds for an explicit copy constructor and for one deleted for non-const lvalues.
-template <typename _ValueType, typename _ReferenceType>
-inline constexpr bool __is_value_storable_from_v =
+template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type,
+          typename _ReferenceType = typename std::iterator_traits<_Iterator>::reference>
+inline constexpr bool __is_value_storable_v =
     std::is_copy_constructible_v<_ValueType> && std::is_copy_assignable_v<_ValueType> &&
     std::is_convertible_v<_ReferenceType, _ValueType>;
-
-template <typename _Iterator>
-inline constexpr bool __is_value_storable_v =
-    __is_value_storable_from_v<typename std::iterator_traits<_Iterator>::value_type,
-                               typename std::iterator_traits<_Iterator>::reference>;
 
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
