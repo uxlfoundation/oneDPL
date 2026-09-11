@@ -594,14 +594,14 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     __event.wait_and_throw();
 
     std::array<diff_t, 2> __ret{};
-    __holder.template __copy_result<0>(__ret.data(), 1);
+    std::tuple __results = __holder.__get_results();
+    __ret[0] = std::get<0>(__results);
     if constexpr (_Bounded)
     {
-        _WriteOp::__position_type __stop;
-        __holder.template __copy_result<1>(&__stop, 1);
-        __ret[1] = std::get<0>(__stop); // input stop
-        if (std::get<1>(__stop) < __ret[0])
-            __ret[0] = std::get<1>(__stop); // proper output stop
+        auto [__stop_in, __stop_out1] = std::get<1>(__results);
+        __ret[1] = __stop_in;
+        if (__stop_out1 < __ret[0])
+            __ret[0] = __stop_out1;
     }
     else
         __ret[1] = __n;
