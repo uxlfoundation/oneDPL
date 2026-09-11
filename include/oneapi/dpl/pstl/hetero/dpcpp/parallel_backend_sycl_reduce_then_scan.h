@@ -2274,11 +2274,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 };
 
 template <bool _Bounded, typename _ValueType, typename _StopPosType>
-using __transform_scan_storage_holder =
-    __storage_holder<1, ValueType, std::conditional_t<_Bounded, _StopPosType, void>>;
-
+using __transform_scan_storage_holder = std::conditional_t<_Bounded, __storage_holder<1, _ValueType, _StopPosType>,
+                                                                     __storage_holder<1, _ValueType>>;
 template <typename _ValueType>
-using __transform_scan_storage_holder_simple = __storage_holder<1, ValueType, void>;
+using __transform_scan_storage_holder_simple = __storage_holder<1, _ValueType>;
 
 // Helper for __parallel_transform_reduce_then_scan templated on the choice of sub-group communication
 // strategy via _ScanOpsTag, which selects which communication path(s) are compiled into the kernel. The
@@ -2479,9 +2478,9 @@ __parallel_transform_reduce_then_scan_impl(sycl::queue& __q, const std::size_t _
         }
     }
 
-    __holder.template __take<0>(std::move(__result_and_scratch));
+    __holder.template __store<0>(std::move(__result_and_scratch));
     if constexpr (_Bounded)
-        __holder.template __take<1>(std::move(__stop_pos_storage));
+        __holder.template __store<1>(std::move(__stop_pos_storage));
     return __prior_event;
 }
 
