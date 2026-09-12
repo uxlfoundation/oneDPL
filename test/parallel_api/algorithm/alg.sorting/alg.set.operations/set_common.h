@@ -332,6 +332,56 @@ test_set(Compare compare, bool comp_flag)
     }
 }
 
+template <template <typename T> typename TestType, typename T>
+void
+test_set_sizes(std::size_t n1, std::size_t n2)
+{
+    // A value range that grows more slowly than the index produces long runs of duplicates, which is what
+    // drives the balanced path star correction of the hetero partitioned merge path.
+    Sequence<T> in1(n1, [](std::size_t k) { return rand() % std::max(std::size_t{3}, k >> 4); });
+    Sequence<T> in2(n2, [](std::size_t k) { return rand() % std::max(std::size_t{3}, k >> 4); });
+
+    ::std::sort(in1.begin(), in1.end());
+    ::std::sort(in2.begin(), in2.end());
+
+    invoke_on_all_policies<0>()(TestType<T>(), in1.begin(), in1.end(), in2.cbegin(), in2.cend(),
+                                oneapi::dpl::__internal::__pstl_less());
+}
+
+// Runs all four set operations over input sizes straddling _ONEDPL_SET_OP_PARTITION_THRESHOLD. Meaningful
+// only for a test that lowers that threshold, since its default is above every size used here.
+inline void
+run_test_set_partitioned()
+{
+    using T = std::int32_t;
+
+    const std::pair<std::size_t, std::size_t> sizes[] = {
+        {511, 512},        // total 1023: below a threshold lowered to 1024, so the unpartitioned fallback
+        {512, 512},        // total 1024: the smallest partitioned input
+        {1000, 24},        // at the threshold, strongly asymmetric
+        {8192, 8192},      //
+        {8193, 8192},      // one diagonal past a power of two
+        {20000, 5000},     // asymmetric
+        {50000, 50000},    //
+        {100000, 100000},  // the largest input the suite uses
+        {100000, 3}        // extreme asymmetry: the rng1 tail drain dominates
+    };
+
+    const std::size_t n_max = TestUtils::get_scan_test_set_max_n();
+
+    ::std::srand(4200);
+    for (const auto& s : sizes)
+    {
+        if (std::max(s.first, s.second) > n_max)
+            continue;
+
+        test_set_sizes<test_set_union, T>(s.first, s.second);
+        test_set_sizes<test_set_intersection, T>(s.first, s.second);
+        test_set_sizes<test_set_difference, T>(s.first, s.second);
+        test_set_sizes<test_set_symmetric_difference, T>(s.first, s.second);
+    }
+}
+
 template <typename T>
 struct ValueLessOp
 {

@@ -692,7 +692,7 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
     const auto __total_size = __n1 + __n2;
 
     const std::int32_t __num_diagonals = oneapi::dpl::__internal::__dpl_ceiling_div(__total_size, __diagonal_spacing);
-    const std::size_t __partition_threshold = 2 * 1024 * 1024;
+    const std::size_t __partition_threshold = _ONEDPL_SET_OP_PARTITION_THRESHOLD;
     // Should be safe to use the type of the range size as the temporary type. Diagonal index will fit in the positive
     // portion of the range so star flag can use sign bit.
     // Const is removed to make sure the buffer can be written to.
@@ -707,9 +707,13 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
     // it. The tile bounds the balanced path search of every diagonal in the tile, so a cache-resident tile is what
     // keeps those searches cheap. __tile_size is counted in diagonals, so the byte budget is divided by the number
     // of elements a diagonal covers.
+#if _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS
+    const std::size_t __partition_size = _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS;
+#else
     const std::size_t __partition_size = std::max(
         std::size_t{1}, __q.get_device().template get_info<sycl::info::device::local_mem_size>() /
                             (__average_input_ele_size * 2 * std::size_t{__diagonal_spacing}));
+#endif
 
     _GenReduceInput __gen_reduce_input{_SetOperation{},
                                        __diagonal_spacing,

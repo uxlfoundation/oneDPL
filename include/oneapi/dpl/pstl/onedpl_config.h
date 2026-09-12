@@ -363,6 +363,20 @@
 #    define ONEDPL_ALLOW_DEFERRED_WAITING 0
 #endif
 
+// Total input size at or above which the hetero set operations partition the merge path into tiles. The
+// default is above the largest input the test suite uses, so lowering it is the only way to reach the
+// partitioned path from a test.
+#ifndef _ONEDPL_SET_OP_PARTITION_THRESHOLD // Check if overridden for testing
+#    define _ONEDPL_SET_OP_PARTITION_THRESHOLD (2 * 1024 * 1024)
+#endif
+
+// Tile size of the partitioned path, in merge path diagonals; zero derives it from the device. Overriding
+// it with a small value is what makes tile boundaries dense enough for a test to cover them, since the
+// derived size exceeds the whole input at every size the test suite uses.
+#ifndef _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS // Check if overridden for testing
+#    define _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS 0
+#endif
+
 #if defined(ONEDPL_USE_PREDEFINED_POLICIES)
 #    undef _ONEDPL_PREDEFINED_POLICIES
 #    define _ONEDPL_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES
