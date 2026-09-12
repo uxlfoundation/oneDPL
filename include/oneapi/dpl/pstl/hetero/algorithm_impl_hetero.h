@@ -1326,9 +1326,11 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
     auto __n = __last - __first;
 
-    // The two sides hold exactly __n elements between them, so a single staging buffer holds both: the true side
-    // fills it from the front and the false side fills it, reversed, from the back. Their index sets are
-    // [0, __true_count) and [__true_count, __n) for every possible __true_count, so they never overlap.
+    // The two sides hold exactly __n elements between them, so one staging buffer holds both: the true side fills
+    // it from the front, the false side fills it reversed from the back. The index sets are [0, __true_count) and
+    // [__true_count, __n), disjoint for every __true_count. Both output views span the whole buffer, so the backend
+    // cannot bound-check the pair; _Bounded must stay false, and disjointness rests on __pred evaluating
+    // consistently across the counting and scan passes, which stable_partition requires of it anyway.
     oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__n);
     auto __stage = __buf.get();
 
