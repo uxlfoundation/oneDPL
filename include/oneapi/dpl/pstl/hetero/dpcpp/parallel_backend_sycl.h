@@ -703,10 +703,13 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
 
     constexpr std::uint32_t __average_input_ele_size = (sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2;
 
-    // Partition into blocks based on SLM size. We want this to fit within L1 cache, and SLM is a related concept and
-    // can be queried based upon the device. Performance is not sensitive to exact size in practice.
-    const std::size_t __partition_size =
-        __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 2);
+    // Partition into tiles sized so a tile's input elements fit within L1 cache; SLM size is a queryable proxy for
+    // it. The tile bounds the balanced path search of every diagonal in the tile, so a cache-resident tile is what
+    // keeps those searches cheap. __tile_size is counted in diagonals, so the byte budget is divided by the number
+    // of elements a diagonal covers.
+    const std::size_t __partition_size = std::max(
+        std::size_t{1}, __q.get_device().template get_info<sycl::info::device::local_mem_size>() /
+                            (__average_input_ele_size * 2 * std::size_t{__diagonal_spacing}));
 
     _GenReduceInput __gen_reduce_input{_SetOperation{},
                                        __diagonal_spacing,
