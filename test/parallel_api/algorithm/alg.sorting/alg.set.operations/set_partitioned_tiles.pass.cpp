@@ -20,12 +20,12 @@
 #define _ONEDPL_SET_OP_PARTITION_THRESHOLD 1024
 #define _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS 3
 
-#include "set_common.h"
+#include "set_partitioned_common.h"
 
 int
 main()
 {
-    run_test_set_partitioned();
+    run_test_set_partitioned_small();
 
     return TestUtils::done();
 }

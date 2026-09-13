@@ -710,9 +710,11 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
 #if _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS
     const std::size_t __partition_size = _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS;
 #else
-    const std::size_t __partition_size = std::max(
-        std::size_t{1}, __q.get_device().template get_info<sycl::info::device::local_mem_size>() /
-                            (__average_input_ele_size * 2 * std::size_t{__diagonal_spacing}));
+    // local_mem_size is not std::size_t on every implementation, so narrow it before use.
+    const std::size_t __local_mem_size =
+        static_cast<std::size_t>(__q.get_device().template get_info<sycl::info::device::local_mem_size>());
+    const std::size_t __partition_size =
+        std::max(std::size_t{1}, __local_mem_size / (__average_input_ele_size * 2 * std::size_t{__diagonal_spacing}));
 #endif
 
     _GenReduceInput __gen_reduce_input{_SetOperation{},
