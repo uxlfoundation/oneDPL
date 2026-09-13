@@ -782,11 +782,22 @@ struct __get_bounds_partitioned
         const _SizeType __wg_end_idx = std::min<_SizeType>(((__id / __signed_tile_size) + 1) * __signed_tile_size,
                                                            oneapi::dpl::__ranges::__size(__rng_tmp_diag) - 1);
 
+#if _ONEDPL_SET_OP_DIAG_FULL_RANGE_BOUNDS
+        // NOT FOR MERGE. Widen every tile's box to the whole input, so that no work item reads the
+        // temporary that its siblings are writing. Correct but slow: the searches are no longer bounded.
+        (void)__wg_begin_idx;
+        (void)__wg_end_idx;
+        return std::make_tuple(_SizeType{0},
+                               static_cast<_SizeType>(oneapi::dpl::__ranges::__size(std::get<0>(__tuple))),
+                               _SizeType{0},
+                               static_cast<_SizeType>(oneapi::dpl::__ranges::__size(std::get<1>(__tuple))));
+#else
         const auto [begin_rng1, begin_rng2] =
             __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
         const auto [end_rng1, end_rng2] =
             __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
         return std::make_tuple(_SizeType{begin_rng1}, _SizeType{end_rng1}, _SizeType{begin_rng2}, _SizeType{end_rng2});
+#endif
     }
     __temp_data_array_idx_t __diagonal_spacing;
     std::size_t __tile_size;
@@ -970,7 +981,16 @@ struct __gen_set_balanced_path
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
         }
+#if _ONEDPL_SET_OP_DIAG_NO_LAST_STORE
+        // NOT FOR MERGE. Send the last diagonal down the decode branch instead of recomputing and storing it.
+        // The partitioning pass already stored a full-range — strictly more accurate — value there, and it is
+        // the only entry this kernel both writes and reads.
+        else if (__id % __get_bounds.__tile_size != 0 &&
+                 static_cast<std::size_t>(__id) + 1 != static_cast<std::size_t>(
+                                                           oneapi::dpl::__ranges::__size(__rng_tmp_diag)))
+#else
         else if (__id % __get_bounds.__tile_size != 0)
+#endif
         {
             // If partitioned, but not on the boundary, we must calculate intersection with the balanced path, and
             // we can use bounds for our search established in the partitioning phase by __get_bounds.

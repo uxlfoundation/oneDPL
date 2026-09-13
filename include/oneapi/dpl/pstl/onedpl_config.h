@@ -377,6 +377,16 @@
 #    define _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS 0
 #endif
 
+// NOT FOR MERGE. Diagnostic switches that isolate the two accesses to the last entry of the balanced path
+// temporary, which the reduce kernel writes while sibling work items read it as their tile's far corner.
+// Each removes one side of that overlap; a build with neither defined is unmodified upstream code.
+#ifndef _ONEDPL_SET_OP_DIAG_NO_LAST_STORE // NOT FOR MERGE: removes the write side
+#    define _ONEDPL_SET_OP_DIAG_NO_LAST_STORE 0
+#endif
+#ifndef _ONEDPL_SET_OP_DIAG_FULL_RANGE_BOUNDS // NOT FOR MERGE: removes the read side
+#    define _ONEDPL_SET_OP_DIAG_FULL_RANGE_BOUNDS 0
+#endif
+
 #if defined(ONEDPL_USE_PREDEFINED_POLICIES)
 #    undef _ONEDPL_PREDEFINED_POLICIES
 #    define _ONEDPL_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES

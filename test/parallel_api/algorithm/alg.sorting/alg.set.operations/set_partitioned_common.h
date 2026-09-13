@@ -50,10 +50,18 @@ inline void
 announce_partition_config()
 {
     std::cout << "set_partitioned: threshold=" << std::size_t{_ONEDPL_SET_OP_PARTITION_THRESHOLD}
-              << " tile_diagonals_override=" << std::size_t{_ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS};
+              << " tile_diagonals_override=" << std::size_t{_ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS}
+              << " no_last_store=" << int{_ONEDPL_SET_OP_DIAG_NO_LAST_STORE}
+              << " full_range_bounds=" << int{_ONEDPL_SET_OP_DIAG_FULL_RANGE_BOUNDS};
 #if TEST_DPCPP_BACKEND_PRESENT
-    std::cout << " local_mem_size=" << TestUtils::get_test_queue().get_device().get_info<sycl::info::device::local_mem_size>()
-              << " is_cpu=" << TestUtils::test_queue_is_cpu();
+    const auto device = TestUtils::get_test_queue().get_device();
+    std::cout << " local_mem_size=" << device.get_info<sycl::info::device::local_mem_size>()
+              << " is_cpu=" << TestUtils::test_queue_is_cpu()
+              << " name='" << device.get_info<sycl::info::device::name>() << "'"
+              << " driver='" << device.get_info<sycl::info::device::driver_version>() << "'"
+              << " max_wg=" << device.get_info<sycl::info::device::max_work_group_size>() << " sub_groups=";
+    for (std::size_t sg : device.get_info<sycl::info::device::sub_group_sizes>())
+        std::cout << sg << ",";
 #endif
     std::cout << std::endl;
 }
