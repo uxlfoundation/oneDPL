@@ -192,6 +192,10 @@ macro(onedpl_add_test test_source_file switch_off_checked_iterators)
     set(std_ranges_set_op_cpp26_variant_tests "std_ranges_set_union.pass" "std_ranges_set_difference.pass"
         "std_ranges_set_symmetric_difference.pass" "std_ranges_set_intersection.pass")
 
+    # The set operations' partitioned merge path is gated behind an input size above anything the suite uses,
+    # and its tile size is derived from the device, so only overridden builds reach a tile boundary.
+    set(set_op_partition_variant_tests "set_partitioned.pass")
+
     set(extra_test_label "")
     if (_test_name IN_LIST pstloffload_smoke_tests)
         set(extra_test_label "pstloffload_smoke_tests")
@@ -207,6 +211,12 @@ macro(onedpl_add_test test_source_file switch_off_checked_iterators)
     elseif(_test_name STREQUAL "free_after_unload.pass")
         onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "" "${extra_test_label}")
         onedpl_construct_exec(${test_source_file} ${_test_name}.after_pstl_offload ${switch_off_checked_iterators} "" "${extra_test_label}")
+    elseif (_test_name IN_LIST set_op_partition_variant_tests)
+        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "" "${extra_test_label}")
+        string(REPLACE "\.pass" "_low_threshold\.pass" _variant_test_name ${_test_name})
+        onedpl_construct_exec(${test_source_file} ${_variant_test_name} ${switch_off_checked_iterators} "-D_ONEDPL_TEST_SET_OP_LOW_THRESHOLD=1" "${extra_test_label}")
+        string(REPLACE "\.pass" "_dense_tiles\.pass" _variant_test_name ${_test_name})
+        onedpl_construct_exec(${test_source_file} ${_variant_test_name} ${switch_off_checked_iterators} "-D_ONEDPL_TEST_SET_OP_DENSE_TILES=1" "${extra_test_label}")
     elseif (_test_name IN_LIST std_ranges_set_op_cpp26_variant_tests)
         onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-DONEDPL_SET_RANGE_ALGS_CPP26_LIKE=0" "${extra_test_label}")
         string(REPLACE "\.pass" "_cpp26\.pass" _test_name ${_test_name})
