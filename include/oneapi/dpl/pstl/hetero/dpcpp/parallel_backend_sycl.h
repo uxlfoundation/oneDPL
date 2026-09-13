@@ -659,6 +659,20 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     return __ret;
 }
 
+// Total input size at or above which the set operations partition the merge path into tiles. The default is
+// above the largest input the test suite uses, so lowering it is the only way to reach the partitioned path
+// from a test.
+#ifndef _ONEDPL_SET_OP_PARTITION_THRESHOLD // Check if overridden for testing
+#    define _ONEDPL_SET_OP_PARTITION_THRESHOLD (2 * 1024 * 1024)
+#endif // _ONEDPL_SET_OP_PARTITION_THRESHOLD
+
+// Tile size of the partitioned path, in merge path diagonals; zero derives it from the device. The derived value
+// scales with the device's local memory and with the input value types, so overriding it is how a test covers a
+// fixed number of tile boundaries independently of the device it runs on.
+#ifndef _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS // Check if overridden for testing
+#    define _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS 0
+#endif // _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS
+
 // balanced path
 template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
@@ -692,7 +706,6 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
     const auto __total_size = __n1 + __n2;
 
     const std::int32_t __num_diagonals = oneapi::dpl::__internal::__dpl_ceiling_div(__total_size, __diagonal_spacing);
-    const std::size_t __partition_threshold = _ONEDPL_SET_OP_PARTITION_THRESHOLD;
     // Should be safe to use the type of the range size as the temporary type. Diagonal index will fit in the positive
     // portion of the range so star flag can use sign bit.
     // Const is removed to make sure the buffer can be written to.
@@ -705,21 +718,28 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
 
     // Partition into tiles sized so a tile's input elements fit within L1 cache; SLM size is a queryable proxy for
     // it. The tile bounds the balanced path search of every diagonal in the tile, so a cache-resident tile is what
-    // keeps those searches cheap. __tile_size is counted in diagonals, so the byte budget is divided by the number
-    // of elements a diagonal covers.
-#if _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS
-    const std::size_t __partition_size = _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS;
-#else
-    // local_mem_size is not std::size_t on every implementation, so narrow it before use.
+    // keeps those searches cheap. The tile is counted in diagonals, so the byte budget is divided by the number of
+    // elements a diagonal covers. local_mem_size is not std::size_t on every implementation, so narrow it first.
+    constexpr std::size_t __tile_diagonals_override = _ONEDPL_SET_OP_PARTITION_TILE_DIAGONALS;
     const std::size_t __local_mem_size =
         static_cast<std::size_t>(__q.get_device().template get_info<sycl::info::device::local_mem_size>());
-    const std::size_t __partition_size =
-        std::max(std::size_t{1}, __local_mem_size / (__average_input_ele_size * 2 * std::size_t{__diagonal_spacing}));
-#endif
+    const std::size_t __tile_diagonals =
+        __tile_diagonals_override != 0
+            ? __tile_diagonals_override
+            : std::max(std::size_t{1},
+                       __local_mem_size / (__average_input_ele_size * 2 * std::size_t{__diagonal_spacing}));
+
+    // A single-diagonal tile makes every diagonal a tile boundary, so the partition pass does a full-range search for
+    // each one and costs as much as not partitioning at all; wide value types on a small-SLM device reach that. Both
+    // the host gate below and the device gate read __partition_threshold, so putting it out of range is what disables
+    // partitioning consistently. An explicit override is honoured as given, since it exists to force a tiling.
+    const bool __tile_degenerate = __tile_diagonals_override == 0 && __tile_diagonals <= 1;
+    const std::size_t __partition_threshold =
+        __tile_degenerate ? std::numeric_limits<std::size_t>::max() : std::size_t{_ONEDPL_SET_OP_PARTITION_THRESHOLD};
 
     _GenReduceInput __gen_reduce_input{_SetOperation{},
                                        __diagonal_spacing,
-                                       _BoundsProvider{__diagonal_spacing, __partition_size, __partition_threshold},
+                                       _BoundsProvider{__diagonal_spacing, __tile_diagonals, __partition_threshold},
                                        __comp,
                                        __proj1,
                                        __proj2};

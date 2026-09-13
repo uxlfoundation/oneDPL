@@ -777,19 +777,19 @@ struct __get_bounds_partitioned
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
 
         // diagonal index of the tile begin
-        const _SizeType __wg_begin_idx = (__id / __tile_size) * __tile_size;
-        const _SizeType __signed_tile_size = static_cast<_SizeType>(__tile_size);
-        const _SizeType __wg_end_idx = std::min<_SizeType>(((__id / __signed_tile_size) + 1) * __signed_tile_size,
-                                                           oneapi::dpl::__ranges::__size(__rng_tmp_diag) - 1);
+        const _SizeType __tile_begin_idx = (__id / __tile_diagonals) * __tile_diagonals;
+        const _SizeType __tile_diags = static_cast<_SizeType>(__tile_diagonals);
+        const _SizeType __tile_end_idx = std::min<_SizeType>(((__id / __tile_diags) + 1) * __tile_diags,
+                                                             oneapi::dpl::__ranges::__size(__rng_tmp_diag) - 1);
 
         const auto [begin_rng1, begin_rng2] =
-            __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
+            __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __tile_begin_idx, __diagonal_spacing);
         const auto [end_rng1, end_rng2] =
-            __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
+            __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __tile_end_idx, __diagonal_spacing);
         return std::make_tuple(_SizeType{begin_rng1}, _SizeType{end_rng1}, _SizeType{begin_rng2}, _SizeType{end_rng2});
     }
     __temp_data_array_idx_t __diagonal_spacing;
-    std::size_t __tile_size;
+    std::size_t __tile_diagonals; // tile size in merge path diagonals, not elements
     std::size_t __partition_threshold;
 };
 
@@ -970,7 +970,7 @@ struct __gen_set_balanced_path
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
         }
-        else if (__id % __get_bounds.__tile_size != 0)
+        else if (__id % __get_bounds.__tile_diagonals != 0)
         {
             // If partitioned, but not on the boundary, we must calculate intersection with the balanced path, and
             // we can use bounds for our search established in the partitioning phase by __get_bounds.
@@ -1068,18 +1068,19 @@ struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional
     sycl::event
     operator()(sycl::queue& __q, _InInOutRng&& __in_in_out_rng, std::size_t __num_diagonals) const
     {
-        const std::size_t __tile_size = __gen_input.__get_bounds.__tile_size;
+        const std::size_t __tile_diagonals = __gen_input.__get_bounds.__tile_diagonals;
         const std::size_t __n =
-            oneapi::dpl::__internal::__dpl_ceiling_div(__num_diagonals + __tile_size - 1, __tile_size);
+            oneapi::dpl::__internal::__dpl_ceiling_div(__num_diagonals + __tile_diagonals - 1, __tile_diagonals);
         return __q.submit([&__in_in_out_rng, this, __n, __num_diagonals](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __in_in_out_rng);
 
             __cgh.parallel_for<_KernelName...>(
                 sycl::range</*dim=*/1>(__n), [=, *this](sycl::item</*dim=*/1> __item_id) {
                     auto __global_idx = __item_id.get_linear_id();
-                    const std::size_t __tile_size = __gen_input.__get_bounds.__tile_size;
-                    std::size_t __id = (__global_idx * __tile_size < __num_diagonals) ? __global_idx * __tile_size
-                                                                                      : __num_diagonals - 1;
+                    const std::size_t __tile_diagonals = __gen_input.__get_bounds.__tile_diagonals;
+                    std::size_t __id = (__global_idx * __tile_diagonals < __num_diagonals)
+                                           ? __global_idx * __tile_diagonals
+                                           : __num_diagonals - 1;
                     __gen_input.__calc_partition_bounds(__in_in_out_rng, __id);
                 });
         });
