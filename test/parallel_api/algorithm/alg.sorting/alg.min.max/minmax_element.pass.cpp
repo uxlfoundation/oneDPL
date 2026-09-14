@@ -273,9 +273,7 @@ test_by_type(std::size_t n)
     }
 }
 
-// The value types with restricted operations that the test runs the algorithms on - OnlyLessCompare and the rest, plus
-// TestUtils::NoDefaultCtorWrapper<std::int32_t>, which is not default-constructible - are defined in
-// test/support/utils.h.
+// The value types with restricted operations that the test runs the algorithms on are defined in test/support/utils.h.
 
 template <typename T, typename Iterator>
 static void
@@ -408,8 +406,8 @@ main()
         test_by_type<OnlyLessCompare>(n);
     }
 
-    // These value types are accepted by the vector code path: it must be instantiated for them. Whether it compiles
-    // does not depend on the sequence size, so a single small size is enough for all the checks below.
+    // These value types are accepted by the vector code path: it must be instantiated for them. Compiling it does not
+    // depend on the sequence size, so a single small size is enough for all the checks below.
     test_by_type<ExplicitDefaultCtorCompare>(NSmall);
     test_by_type_host_policies_brace_init<AggregateOfExplicitDefaultCtorCompare>(NSmall);
     test_by_type_host_policies_no_move<CopyOnlyNoMoveCompare>(NSmall);
@@ -423,8 +421,6 @@ main()
     test_by_type_host_policies<NoCopyAssignCompare>(NSmall);
     test_by_type_host_policies<MoveOnlyCompare>(NSmall);
 
-    // The comparator has to work both inside the vector loop and in the combining of its results, so the sequence is
-    // not a small one here.
     test_comparator_with_overloaded_address_of(NMultiChunk);
 
 #ifdef _PSTL_TEST_MIN_ELEMENT
