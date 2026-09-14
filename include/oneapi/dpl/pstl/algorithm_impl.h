@@ -3126,19 +3126,19 @@ template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterato
 _OutputIterator
 __brick_merge(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
               _ForwardIterator2 __last2, _OutputIterator __d_first, _Compare __comp,
-              /* __is_vector = */ ::std::false_type) noexcept
+              /* __is_vector = */ std::false_type) noexcept
 {
-    return ::std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
+    return std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
 __brick_merge(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
               _RandomAccessIterator2 __last2, _RandomAccessIterator3 __d_first, _Compare __comp,
-              /* __is_vector = */ ::std::true_type) noexcept
+              /* __is_vector = */ std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return ::std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
+    return std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
 }
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator>
@@ -3203,6 +3203,8 @@ inline constexpr std::size_t __merge_serial_cut_off = std::is_arithmetic_v<_Tp> 
 template <typename _Tp>
 inline constexpr std::size_t __inplace_merge_serial_cut_off = std::is_arithmetic_v<_Tp> ? 8000 : 1000;
 
+inline constexpr std::size_t __inplace_merge_diagonal_cut_off = 64;
+
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
@@ -3266,18 +3268,18 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
 template <class _BidirectionalIterator, class _Compare>
 void
 __brick_inplace_merge(_BidirectionalIterator __first, _BidirectionalIterator __middle, _BidirectionalIterator __last,
-                      _Compare __comp, /* __is_vector = */ ::std::false_type) noexcept
+                      _Compare __comp, /* __is_vector = */ std::false_type) noexcept
 {
-    ::std::inplace_merge(__first, __middle, __last, __comp);
+    std::inplace_merge(__first, __middle, __last, __comp);
 }
 
 template <class _RandomAccessIterator, class _Compare>
 void
 __brick_inplace_merge(_RandomAccessIterator __first, _RandomAccessIterator __middle, _RandomAccessIterator __last,
-                      _Compare __comp, /* __is_vector = */ ::std::true_type) noexcept
+                      _Compare __comp, /* __is_vector = */ std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial")
-    ::std::inplace_merge(__first, __middle, __last, __comp);
+    std::inplace_merge(__first, __middle, __last, __comp);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _BidirectionalIterator, class _Compare>
@@ -3337,28 +3339,31 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
     const _Index __n = __n_1 + __n_2;
 
     constexpr _Index __chunk_size = static_cast<_Index>(__inplace_merge_serial_cut_off<_Tp>);
-    const _Index __n_chunks = (__n - 1) / __chunk_size + 1;
+    const _Index __n_chunks = __internal::__dpl_ceiling_div(__n, __chunk_size);
 
     __par_backend::__buffer<_Tp> __buf(__n);
-    __par_backend::__buffer<_Index> __split_buf(__n_chunks + 1);
+    __par_backend::__buffer<_Index> __split_buf(__n_chunks + 1); // +1 to store the final boundary
 
     __internal::__except_handler([&]() {
         _Tp* __b = __buf.get();
         _Index* __split = __split_buf.get();
 
         // 1. Partition
-        auto __partition = [=](_Index __i_c, _Index __j_c) {
-            for (_Index __k = __i_c; __k < __j_c; ++__k)
+        __split[0] = 0;
+        __split[__n_chunks] = __n_1;
+        auto __partition = [=](_Index __c_first, _Index __c_last) {
+            for (_Index __c = __c_first; __c < __c_last; ++__c)
             {
-                const _Index __diag = std::min(__k * __chunk_size, __n);
-                __split[__k] = __merge_path_intersection(__diag, __n_1, __n_2, __first, __middle, __comp,
+                const _Index __diag = std::min(__c * __chunk_size, __n);
+                __split[__c] = __merge_path_intersection(__diag, __n_1, __n_2, __first, __middle, __comp,
                                                          oneapi::dpl::identity{}, oneapi::dpl::identity{}).first;
             }
         };
-        if (__n_chunks < static_cast<_Index>(__merge_path_parallel_partition_cut_off))
-            __partition(_Index{0}, __n_chunks + 1);
+        if (__n_chunks < static_cast<_Index>(__inplace_merge_diagonal_cut_off))
+            __partition(_Index{1}, __n_chunks);
         else
-            __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{0}, __n_chunks + 1, __partition);
+            __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{1}, __n_chunks, __partition,
+                __inplace_merge_diagonal_cut_off);
 
         // 2. Move to the temporary buffer to merge to the original range later
         __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{0}, __n, [=](_Index __i, _Index __j) {
@@ -3370,33 +3375,34 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
 
         __par_backend::__parallel_for(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_chunks,
-            [=](_Index __i_c, _Index __j_c) {
-                for (_Index __k = __i_c; __k < __j_c; ++__k)
+            [=](_Index __c_first, _Index __c_last) {
+                for (_Index __c = __c_first; __c < __c_last; ++__c)
                 {
-                    const _Index __i = __k * __chunk_size;
+                    const _Index __i = __c * __chunk_size;
                     const _Index __j = std::min(__i + __chunk_size, __n);
-                    const _Index __r = __split[__k];
-                    const _Index __c = __i - __r;
-                    const _Index __r_end = __split[__k + 1];
-                    const _Index __c_end = __j - __r_end;
+                    const _Index __row = __split[__c];
+                    const _Index __col = __i - __row;
+                    const _Index __row_end = __split[__c + 1];
+                    const _Index __col_end = __j - __row_end;
 
-                    if (__r == __r_end) // Chunk contains only elements of the second sequence
+                    if (__row == __row_end) // Chunk contains only elements of the second sequence
                     {
-                        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __n_1 + __c, __b + __n_1 + __c_end,
+                        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __n_1 + __col, __b + __n_1 + __col_end,
                                                                          __first + __i, _IsVector{});
                     }
-                    else if (__c == __c_end) // Chunk contains only elements of the first sequence
+                    else if (__col == __col_end) // Chunk contains only elements of the first sequence
                     {
-                        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __r, __b + __r_end, __first + __i,
+                        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __row, __b + __row_end, __first + __i,
                                                                          _IsVector{});
                     }
                     else // Chunk contains elements of both sequences
                     {
-                        __serial_merge_out_lim(__b + __r, __b + __r_end, __b + __n_1 + __c, __b + __n_1 + __c_end,
+                        __serial_merge_out_lim(__b + __row, __b + __row_end, __b + __n_1 + __col,
+                                               __b + __n_1 + __col_end,
                                                __first + __i, __first + __j, __comp, oneapi::dpl::identity{},
                                                oneapi::dpl::identity{}, __move_assign);
-                        __internal::__brick_destroy(__b + __r, __b + __r_end, _IsVector{});
-                        __internal::__brick_destroy(__b + __n_1 + __c, __b + __n_1 + __c_end, _IsVector{});
+                        __internal::__brick_destroy(__b + __row, __b + __row_end, _IsVector{});
+                        __internal::__brick_destroy(__b + __n_1 + __col, __b + __n_1 + __col_end, _IsVector{});
                     }
                 }
             });
