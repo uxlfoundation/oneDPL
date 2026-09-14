@@ -64,7 +64,7 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
     {
     }
 
-    [[sycl::reqd_sub_group_size(__sub_group_size)]] void
+    [[sycl::reqd_sub_group_size(__sub_group_size)]] [[sycl::device_has(sycl::aspect::gpu)]] void
     operator()(sycl::nd_item<1> __idx) const
     {
         std::uint32_t* __slm = __slm_acc.get_multi_ptr<sycl::access::decorated::no>().get();
@@ -685,12 +685,18 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     auto
     get(syclex::properties_tag) const
     {
+        // work group progress must be set as a property
         return syclex::properties{syclex::work_group_progress<syclex::forward_progress_guarantee::concurrent,
                                                               syclex::execution_scope::root_group>,
                                   syclex::sub_group_size<32>};
     }
 
-    void
+// Suppress incorrect warnings about ignored attributes when combining device_has with properties.
+// In practice, both the properties and the device_has attribute are respected, and must be specified like this to
+// function.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-attributes"
+    [[sycl::device_has(sycl::aspect::gpu)]] void
     operator()(sycl::nd_item<1> __idx) const
     {
         sycl::group __group = __idx.get_group();
@@ -750,6 +756,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             sycl::atomic_fence(sycl::memory_order::release, sycl::memory_scope::device);
         }
     }
+#pragma GCC diagnostic pop
 };
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
