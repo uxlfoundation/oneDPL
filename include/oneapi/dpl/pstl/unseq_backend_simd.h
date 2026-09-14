@@ -667,6 +667,8 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         }
     };
 
+    // Parentheses, not braces: the reference type is only required to convert to the value type, and braces would
+    // additionally reject that conversion when it narrows, which the serial path accepts.
     _ComplexType __init(*__first, std::addressof(__comp));
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType)
@@ -743,6 +745,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         }
     };
 
+    // Parenthesized for the reason given in __simd_min_element.
     _ComplexType __init(*__first, *__first, std::addressof(__comp));
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType);
