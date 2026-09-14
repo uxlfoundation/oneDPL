@@ -816,28 +816,33 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
 
     if constexpr (__is_parallel_tag_v<_Tag>)
     {
-        using __backend_tag = typename _Tag::__backend_tag;
-        _merge_path_out_lim_return_t<decltype(__first1), decltype(__first2), decltype(__first3)> __result{
-            __first1, __first2, __first3};
+        // Too few elements to be worth splitting up, in which case the serial merge below is used
+        using _Tp = std::iter_value_t<decltype(__first1)>;
+        if (static_cast<std::size_t>(__n_out) > oneapi::dpl::__internal::__merge_serial_cut_off<_Tp>)
+        {
+            using __backend_tag = typename _Tag::__backend_tag;
+            _merge_path_out_lim_return_t<decltype(__first1), decltype(__first2), decltype(__first3)> __result{
+                __first1, __first2, __first3};
 
-        oneapi::dpl::__internal::__except_handler([&]() {
-            oneapi::dpl::__par_backend::__parallel_for(
-                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
-                [=, &__result](_IndexCommon __i, _IndexCommon __j) {
-                    const auto [__r, __c] = oneapi::dpl::__internal::__merge_path_intersection(
-                        __i, __n1, __n2, __first1, __first2, __comp, __proj1, __proj2);
+            oneapi::dpl::__internal::__except_handler([&]() {
+                oneapi::dpl::__par_backend::__parallel_for(
+                    __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
+                    [=, &__result](_IndexCommon __i, _IndexCommon __j) {
+                        const auto [__r, __c] = oneapi::dpl::__internal::__merge_path_intersection(
+                            __i, __n1, __n2, __first1, __first2, __comp, __proj1, __proj2);
 
-                    const auto __merge_out_lim_res = oneapi::dpl::__internal::__serial_merge_out_lim(
-                        __first1 + __r, __first1 + __n1, __first2 + __c, __first2 + __n2, __first3 + __i,
-                        __first3 + __j, __comp, __proj1, __proj2);
+                        const auto __merge_out_lim_res = oneapi::dpl::__internal::__serial_merge_out_lim(
+                            __first1 + __r, __first1 + __n1, __first2 + __c, __first2 + __n2, __first3 + __i,
+                            __first3 + __j, __comp, __proj1, __proj2);
 
-                    if (__j == __n_out)
-                        __result = __merge_out_lim_res;
-                },
-                oneapi::dpl::__internal::__merge_path_cut_off);
-        });
+                        if (__j == __n_out)
+                            __result = __merge_out_lim_res;
+                    },
+                    oneapi::dpl::__internal::__merge_serial_cut_off<_Tp>);
+            });
 
-        return {std::get<0>(__result), std::get<1>(__result), std::get<2>(__result)};
+            return {std::get<0>(__result), std::get<1>(__result), std::get<2>(__result)};
+        }
     }
 
     auto [__it1, __it2, __it3] = oneapi::dpl::__internal::__serial_merge_out_lim(
