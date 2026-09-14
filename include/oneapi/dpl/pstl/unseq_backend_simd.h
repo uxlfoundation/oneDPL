@@ -616,14 +616,10 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
-// Implementation detail of __simd_min_element / __simd_minmax_element, not a contract of the algorithms: it states
-// exactly what those two do with an element, and nothing more. Each requirement has one reason to be here:
-// - copy construction: the _ComplexType reduction object below is built from a value, and the OpenMP clause
-//   initializer(omp_priv = omp_orig) copy-initializes the whole reduction object, hence its members.
-// - copy assignment: the reduction combiner and the loop body overwrite the current best value.
-// - convertibility of the reference type: the value is copy-initialized from what the iterator dereferences to, both
-//   to build the initial reduction object and to read every element. Copy-constructibility does not imply this - it
-//   also holds for an explicit copy constructor and for one deleted for non-const lvalues.
+// Implementation detail of __simd_min_element / __simd_minmax_element, not a contract of the algorithms. Copy
+// construction is needed because the OpenMP clause initializer(omp_priv = omp_orig) copy-initializes the whole
+// reduction object, hence its members. Convertibility of the reference type is not implied by copy-constructibility -
+// it also holds for an explicit copy constructor and for one deleted for non-const lvalues.
 template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type,
           typename _ReferenceType = typename std::iterator_traits<_Iterator>::reference>
 inline constexpr bool __is_value_storable_v =
@@ -667,8 +663,8 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         }
     };
 
-    // Parentheses, not braces: the reference type is only required to convert to the value type, and braces would
-    // additionally reject that conversion when it narrows, which the serial path accepts.
+    // Parentheses, not braces: braces would reject a narrowing reference-to-value conversion that the serial path
+    // accepts.
     _ComplexType __init(*__first, std::addressof(__comp));
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType)
