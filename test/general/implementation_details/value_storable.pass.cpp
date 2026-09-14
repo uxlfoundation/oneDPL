@@ -14,13 +14,13 @@
 
 #include <oneapi/dpl/pstl/unseq_backend_simd.h>
 
-#include <cstddef>
-#include <cstdint>
-#include <functional>
-#include <iterator>
-#include <type_traits>
-#include <utility>
-#include <vector>
+#include <cstddef>     // for std::ptrdiff_t
+#include <cstdint>     // for std::int32_t
+#include <functional>  // for std::less
+#include <iterator>    // for std::random_access_iterator_tag, std::back_insert_iterator
+#include <type_traits> // for std::is_default_constructible_v, std::is_copy_constructible_v
+#include <utility>     // for std::pair
+#include <vector>      // for std::vector
 
 #include "support/utils.h"
 
