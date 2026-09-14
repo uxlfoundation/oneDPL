@@ -1414,9 +1414,7 @@ struct NoDefaultCtorWrapper {
 // tell which operations an implementation really requires of its value type. The name says what the restriction is.
 //
 // All of them are less-than-comparable through a member operator<. Most are also default-constructible and
-// constructible from std::int32_t, but the two whose restriction is the initialization itself are not:
-// AggregateOfExplicitDefaultCtorCompare has no constructor from std::int32_t and is not initializable from empty
-// braces, and BraceInitOnlyCompare is not default-constructible.
+// constructible from std::int32_t; the exceptions are noted on the types themselves.
 //
 // They are shared by test/parallel_api/algorithm/alg.sorting/alg.min.max/minmax_element.pass.cpp, which runs the
 // algorithms on them, and test/general/implementation_details/value_storable.pass.cpp, which checks the trait that
@@ -1436,7 +1434,6 @@ struct OnlyLessCompare
     }
 };
 
-// Default-constructible through an explicit default constructor only.
 struct ExplicitDefaultCtorCompare
 {
     std::int32_t val;
@@ -1474,7 +1471,6 @@ struct BraceInitOnlyCompare
     }
 };
 
-// Copyable, but with deleted move operations.
 struct CopyOnlyNoMoveCompare
 {
     std::int32_t val;
@@ -1548,7 +1544,6 @@ struct ExplicitCopyCtorCompare
     }
 };
 
-// Not copy-assignable.
 struct NoCopyAssignCompare
 {
     std::int32_t val;
@@ -1564,7 +1559,6 @@ struct NoCopyAssignCompare
     }
 };
 
-// Not copy-constructible.
 struct MoveOnlyCompare
 {
     std::int32_t val;
