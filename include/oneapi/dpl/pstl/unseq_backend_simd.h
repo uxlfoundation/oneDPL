@@ -16,11 +16,11 @@
 #ifndef _ONEDPL_UNSEQ_BACKEND_SIMD_H
 #define _ONEDPL_UNSEQ_BACKEND_SIMD_H
 
-#include <type_traits>
-#include <memory>     // for std::addressof
-#include <iterator>   // for std::iterator_traits
-#include <functional> // for std::invoke
-#include <utility>    // for std::pair, std::make_pair
+#include <functional>  // for std::invoke
+#include <iterator>    // for std::iterator_traits
+#include <memory>      // for std::addressof
+#include <type_traits> // for std::true_type, std::is_copy_constructible_v
+#include <utility>     // for std::pair, std::make_pair
 
 #include "utils.h"
 
