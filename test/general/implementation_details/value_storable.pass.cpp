@@ -15,6 +15,8 @@
 #include <oneapi/dpl/pstl/unseq_backend_simd.h>
 
 #include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <iterator>
 #include <type_traits>
 #include <utility>
@@ -24,10 +26,8 @@
 
 namespace dpl_unseq = oneapi::dpl::__unseq_backend;
 
-// The value types with restricted operations are defined in test/support/utils.h, so that
-// test/parallel_api/algorithm/alg.sorting/alg.min.max/minmax_element.pass.cpp runs the algorithms on the very same set
-// that is checked against the trait here. TestUtils::NoDefaultCtorWrapper<int> is the type that is not
-// default-constructible.
+// The value types with restricted operations are defined in test/support/utils.h; TestUtils::NoDefaultCtorWrapper<int>
+// is the one that is not default-constructible.
 
 //----------------------------------------------------------------------------//
 // Reference types
@@ -49,6 +49,41 @@ struct FakeIterator
 
     reference
     operator*() const;
+};
+
+// An iterator whose reference type converts to its value type through a narrowing conversion. The bricks are
+// instantiated for it below, which is what covers the parenthesized initialization of their reduction object: braces
+// there would reject the narrowing and fail to compile.
+struct NarrowingIterator
+{
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = std::int32_t;
+    using difference_type = std::ptrdiff_t;
+    using pointer = void;
+    using reference = double;
+
+    const double* ptr;
+
+    reference
+    operator*() const
+    {
+        return *ptr;
+    }
+    reference
+    operator[](difference_type __i) const
+    {
+        return ptr[__i];
+    }
+    NarrowingIterator
+    operator+(difference_type __i) const
+    {
+        return NarrowingIterator{ptr + __i};
+    }
+    difference_type
+    operator-(const NarrowingIterator& __other) const
+    {
+        return ptr - __other.ptr;
+    }
 };
 
 //----------------------------------------------------------------------------//
@@ -77,14 +112,15 @@ static_assert(dpl_unseq::__is_value_storable_v<const TestUtils::ConstCopyOnlyCom
 static_assert(dpl_unseq::__is_value_storable_v<std::vector<bool>::iterator>);
 static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<int, int>>);
 static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<std::pair<int, int>, std::pair<int&, int&>>>);
+// A conversion that narrows is accepted as well: the bricks copy-initialize the value, they do not list-initialize it.
+static_assert(dpl_unseq::__is_value_storable_v<NarrowingIterator>);
 
 // Rejected because of the value type: copy assignment, copy construction.
 static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::NoCopyAssignCompare*>);
 static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::MoveOnlyCompare*>);
 
 // Rejected because the value cannot be copy-initialized from what the iterator dereferences to, which is how the
-// bricks read an element. Copy-constructibility of the value type alone does not imply that: it also holds for an
-// explicit copy constructor and for a type whose copy constructor is deleted for a non-const lvalue.
+// bricks read an element - copy-constructibility of the value type alone does not imply that.
 static_assert(std::is_copy_constructible_v<TestUtils::ExplicitCopyCtorCompare>);
 static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::ExplicitCopyCtorCompare*>);
 static_assert(std::is_copy_constructible_v<TestUtils::ConstCopyOnlyCompare>);
@@ -103,5 +139,22 @@ static_assert(!dpl_unseq::__is_value_storable_v<std::back_insert_iterator<std::v
 int
 main()
 {
+#if _ONEDPL_UDR_PRESENT
+    // The bricks are instantiated here for an iterator whose reference narrows to the value type, so that a switch of
+    // their reduction object back to list-initialization is caught at compile time. They store the elements in the
+    // value type, where these truncate to {3, 1, 2, 1}: the minimum is the first of the two ones and the maximum is
+    // the single three.
+    const double __data[] = {3.5, 1.25, 2.75, 1.75};
+    const NarrowingIterator __first{__data};
+    const std::ptrdiff_t __n = sizeof(__data) / sizeof(__data[0]);
+
+    EXPECT_EQ(1, dpl_unseq::__simd_min_element(__first, __n, std::less<>{}) - __first,
+              "wrong __simd_min_element on an iterator whose reference narrows to the value type");
+    const auto __minmax = dpl_unseq::__simd_minmax_element(__first, __n, std::less<>{});
+    EXPECT_EQ(1, __minmax.first - __first,
+              "wrong minimum from __simd_minmax_element on an iterator whose reference narrows to the value type");
+    EXPECT_EQ(0, __minmax.second - __first,
+              "wrong maximum from __simd_minmax_element on an iterator whose reference narrows to the value type");
+#endif
     return TestUtils::done();
 }
