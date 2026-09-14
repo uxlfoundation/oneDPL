@@ -1410,9 +1410,13 @@ struct NoDefaultCtorWrapper {
 // Value types with restricted operations
 //----------------------------------------------------------------------------//
 //
-// Each of these types provides the minimal interface of an algorithm's element - default construction, construction
-// from std::int32_t and operator< - with exactly one further operation restricted, so that a test can tell which
-// operations an implementation really requires of its value type. The name says what the restriction is.
+// Each of these types is an element of an algorithm with one aspect of its interface restricted, so that a test can
+// tell which operations an implementation really requires of its value type. The name says what the restriction is.
+//
+// All of them are less-than-comparable through a member operator<. Most are also default-constructible and
+// constructible from std::int32_t, but the two whose restriction is the initialization itself are not:
+// AggregateOfExplicitDefaultCtorCompare has no constructor from std::int32_t and is not initializable from empty
+// braces, and BraceInitOnlyCompare is not default-constructible.
 //
 // They are shared by test/parallel_api/algorithm/alg.sorting/alg.min.max/minmax_element.pass.cpp, which runs the
 // algorithms on them, and test/general/implementation_details/value_storable.pass.cpp, which checks the trait that
