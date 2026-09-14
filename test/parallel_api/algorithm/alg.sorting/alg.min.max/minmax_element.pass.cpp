@@ -275,8 +275,7 @@ test_by_type(std::size_t n)
 
 // The value types with restricted operations that the test runs the algorithms on - OnlyLessCompare and the rest, plus
 // TestUtils::NoDefaultCtorWrapper<std::int32_t>, which is not default-constructible - are defined in
-// test/support/utils.h, because test/general/implementation_details/value_storable.pass.cpp checks the very same set
-// against the trait that selects the vector code path.
+// test/support/utils.h.
 
 template <typename T, typename Iterator>
 static void
