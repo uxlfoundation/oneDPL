@@ -818,7 +818,7 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     {
         // Too few elements to be worth splitting up, in which case the serial merge below is used
         using _Tp = std::iter_value_t<decltype(__first1)>;
-        if (static_cast<std::size_t>(__n_out) > oneapi::dpl::__internal::__merge_serial_cut_off<_Tp>)
+        if (static_cast<std::size_t>(__n_out) > oneapi::dpl::__internal::__merge_chunk_size<_Tp>)
         {
             using __backend_tag = typename _Tag::__backend_tag;
             _merge_path_out_lim_return_t<decltype(__first1), decltype(__first2), decltype(__first3)> __result{
@@ -838,7 +838,7 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
                         if (__j == __n_out)
                             __result = __merge_out_lim_res;
                     },
-                    oneapi::dpl::__internal::__merge_serial_cut_off<_Tp>);
+                    oneapi::dpl::__internal::__merge_chunk_size<_Tp>);
             });
 
             return {std::get<0>(__result), std::get<1>(__result), std::get<2>(__result)};

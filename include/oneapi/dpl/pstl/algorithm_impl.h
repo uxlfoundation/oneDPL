@@ -3197,13 +3197,9 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
                                      typename _Tag::__is_vector{});
 }
 
+// Assume that non-arithmetic types and the associated operations are more expensive
 template <typename _Tp>
-inline constexpr std::size_t __merge_serial_cut_off = std::is_arithmetic_v<_Tp> ? 4000 : 500;
-
-template <typename _Tp>
-inline constexpr std::size_t __inplace_merge_serial_cut_off = std::is_arithmetic_v<_Tp> ? 8000 : 1000;
-
-inline constexpr std::size_t __inplace_merge_diagonal_cut_off = 64;
+inline constexpr std::size_t __merge_chunk_size = std::is_arithmetic_v<_Tp> ? 2000 : 500;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
@@ -3227,39 +3223,68 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
     if (__n_out == 0)
         return __first3;
 
-    // Too few elements to be worth splitting up
+    // Too few elements
     using _Tp = typename std::iterator_traits<_RandomAccessIterator1>::value_type;
-    if (static_cast<std::size_t>(__n_out) <= __merge_serial_cut_off<_Tp>)
+    if (static_cast<std::size_t>(__n_out) <= __merge_chunk_size<_Tp>)
+    {
         return __internal::__brick_merge(__first1, __last1, __first2, __last2, __first3, __comp, _IsVector{});
-
+    }
+    // One of the input ranges is empty
     if (__n_1 == 0)
     {
         return __pattern_walk2_brick(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first2,
                                      __last2, __first3, __brick_copy<__parallel_tag<_IsVector>>{});
     }
-
     if (__n_2 == 0)
     {
         return __pattern_walk2_brick(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first1,
                                      __last1, __first3, __brick_copy<__parallel_tag<_IsVector>>{});
     }
-
-    __internal::__except_handler([&]() {
+    return __internal::__except_handler([&]() {
+        // The first sequence is ordered before the second sequence
+        if (!__comp(*__first2, *(__last1 - 1)))
+        {
+            __par_backend::__parallel_invoke(
+                __backend_tag{}, __exec,
+                [=, &__exec]() {
+                    __pattern_walk2_brick(__parallel_tag<_IsVector>{}, __exec, __first1, __last1, __first3,
+                                          __brick_copy<__parallel_tag<_IsVector>>{});
+                },
+                [=, &__exec]() {
+                    __pattern_walk2_brick(__parallel_tag<_IsVector>{}, __exec, __first2, __last2, __first3 + __n_1,
+                                          __brick_copy<__parallel_tag<_IsVector>>{});
+                });
+            return __first3 + __n_out;
+        }
+        // The second sequence is strictly ordered before the first sequence
+        if (__comp(*(__last2 - 1), *__first1))
+        {
+            __par_backend::__parallel_invoke(
+                __backend_tag{}, __exec,
+                [=, &__exec]() {
+                    __pattern_walk2_brick(__parallel_tag<_IsVector>{}, __exec, __first2, __last2, __first3,
+                                          __brick_copy<__parallel_tag<_IsVector>>{});
+                },
+                [=, &__exec]() {
+                    __pattern_walk2_brick(__parallel_tag<_IsVector>{}, __exec, __first1, __last1, __first3 + __n_2,
+                                          __brick_copy<__parallel_tag<_IsVector>>{});
+                });
+            return __first3 + __n_out;
+        }
+        // Do parallel partition and merge
         __par_backend::__parallel_for(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
             [=](_IndexCommon __i, _IndexCommon __j) {
                 const auto [__r, __c] = __merge_path_intersection(__i, __n_1, __n_2, __first1, __first2, __comp,
                                                                   oneapi::dpl::identity{}, oneapi::dpl::identity{});
-
-                // Although the full output range has sufficient capacity, each parallel task must be limited to its
-                // assigned [__i, __j) output range to prevent overlapping writes by different tasks.
-                __serial_merge_out_lim(__first1 + __r, __last1, __first2 + __c, __last2, __first3 + __i, __first3 + __j,
-                                       __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                // Bounded merge is used to ensure that each task only writes to its assigned output range
+                __serial_merge_out_lim(__first1 + __r, __last1, __first2 + __c, __last2, __first3 + __i,
+                                       __first3 + __j, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
-            __merge_serial_cut_off<_Tp>);
-    });
+            __merge_chunk_size<_Tp>);
 
-    return __first3 + __n_out;
+        return __first3 + __n_out;
+    });
 }
 
 //------------------------------------------------------------------------
@@ -3310,8 +3335,10 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
         return;
     }
     // Too few elements
+    // 4x the serial merge chunk size to ammortize the allocation overhead
+    // - conservative estimate across different platforms and types
     using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
-    if (static_cast<std::size_t>(__last - __first) <= __inplace_merge_serial_cut_off<_Tp>)
+    if (static_cast<std::size_t>(__last - __first) <= 4 * __merge_chunk_size<_Tp>)
     {
         std::inplace_merge(__first, __middle, __last, __comp);
         return;
@@ -3338,7 +3365,7 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
     const _Index __n_2 = __last - __middle;
     const _Index __n = __n_1 + __n_2;
 
-    constexpr _Index __chunk_size = static_cast<_Index>(__inplace_merge_serial_cut_off<_Tp>);
+    constexpr _Index __chunk_size = static_cast<_Index>(__merge_chunk_size<_Tp>);
     const _Index __n_chunks = __internal::__dpl_ceiling_div(__n, __chunk_size);
 
     __par_backend::__buffer<_Tp> __buf(__n);
@@ -3359,11 +3386,12 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
                                                          oneapi::dpl::identity{}, oneapi::dpl::identity{}).first;
             }
         };
-        if (__n_chunks < static_cast<_Index>(__inplace_merge_diagonal_cut_off))
+        constexpr _Index __diagonal_chunk_size = 64; // empirically determined
+        if (__n_chunks < __diagonal_chunk_size)
             __partition(_Index{1}, __n_chunks);
         else
             __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{1}, __n_chunks, __partition,
-                __inplace_merge_diagonal_cut_off);
+                __diagonal_chunk_size);
 
         // 2. Move to the temporary buffer to merge to the original range later
         __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{0}, __n, [=](_Index __i, _Index __j) {
