@@ -560,8 +560,11 @@ struct __internal::__is_sorted_until_fn
     {
         auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
 
+        auto __relax_non_const_comp =
+            oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+
         auto __it = oneapi::dpl::ranges::adjacent_find(std::forward<_ExecutionPolicy>(__exec), __r,
-                                                       oneapi::dpl::__internal::__reorder_pred<_Comp>(__comp), __proj);
+            oneapi::dpl::__internal::__reorder_pred(__relax_non_const_comp), __proj);
         return __it == __last ? __last : ++__it;
     }
 }; //__is_sorted_until_fn
@@ -729,8 +732,11 @@ struct __internal::__max_element_fn
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
+        auto __relax_non_const_comp =
+            oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+
         return oneapi::dpl::ranges::min_element(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__reorder_pred(__comp), __proj);
+            oneapi::dpl::__internal::__reorder_pred(__relax_non_const_comp), __proj);
     }
 }; //__max_element_fn
 inline constexpr __internal::__max_element_fn max_element;
@@ -785,8 +791,11 @@ struct __internal::__max_fn
     {
         assert(std::ranges::size(__r) > 0);
 
+        auto __relax_non_const_comp =
+            oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+
         return oneapi::dpl::ranges::min(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__reorder_pred(__comp), __proj);
+                                        oneapi::dpl::__internal::__reorder_pred(__relax_non_const_comp), __proj);
     }
 }; //__max_fn
 inline constexpr __internal::__max_fn max;
@@ -2269,10 +2278,14 @@ is_sorted_until(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng);
 
-    auto __view = views::all_read(::std::forward<_Range>(__rng));
+    auto __view = views::all_read(std::forward<_Range>(__rng));
+
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_Range>>(__comp);
+
     const auto __res = oneapi::dpl::__internal::__ranges::__pattern_adjacent_find(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __view,
-        oneapi::dpl::__internal::__reorder_pred<_Compare>(__comp), oneapi::dpl::__internal::__first_semantic());
+        __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __view,
+        oneapi::dpl::__internal::__reorder_pred(__relax_non_const_comp), oneapi::dpl::__internal::__first_semantic());
 
     return __res == __view.size() ? __res : __res + 1;
 }
@@ -2291,10 +2304,14 @@ is_sorted(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng);
 
-    auto __view = views::all_read(::std::forward<_Range>(__rng));
+    auto __view = views::all_read(std::forward<_Range>(__rng));
+
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_Range>>(__comp);
+
     return oneapi::dpl::__internal::__ranges::__pattern_adjacent_find(
-               __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __view,
-               oneapi::dpl::__internal::__reorder_pred<_Compare>(__comp),
+               __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __view,
+               oneapi::dpl::__internal::__reorder_pred(__relax_non_const_comp),
                oneapi::dpl::__internal::__or_semantic()) == __view.size();
 }
 
@@ -2394,17 +2411,19 @@ template <typename _ExecutionPolicy, typename _Range, typename _Compare>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, oneapi::dpl::__internal::__difference_t<_Range>>
 max_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
-    return min_element(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
-                       oneapi::dpl::__internal::__reorder_pred<_Compare>(__comp));
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_Range>>(__comp);
+
+    return min_element(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng),
+                       oneapi::dpl::__internal::__reorder_pred(__relax_non_const_comp));
 }
 
 template <typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, oneapi::dpl::__internal::__difference_t<_Range>>
 max_element(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
-    return min_element(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
-                       oneapi::dpl::__internal::__reorder_pred<oneapi::dpl::__internal::__pstl_less>(
-                           oneapi::dpl::__internal::__pstl_less()));
+    return min_element(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng),
+                       oneapi::dpl::__internal::__reorder_pred(oneapi::dpl::__internal::__pstl_less()));
 }
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
