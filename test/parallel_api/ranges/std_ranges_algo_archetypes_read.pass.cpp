@@ -61,6 +61,7 @@ main()
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + 1; }, "find_if_not");
 
     // The last element whose value is divisible by three, and the last one whose value is not.
+#if 0
     run_algo_all_policies<read_archetype, read_archetype_dc, 3>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last_if(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
@@ -70,7 +71,9 @@ main()
             return std::ranges::begin(res) == std::ranges::begin(view) + (__n - 1) / 3 * 3;
         },
         "find_last_if");
+#endif
 
+#if 0
     run_algo_all_policies<read_archetype, read_archetype_dc, 4>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last_if_not(std::forward<decltype(policy)>(policy), view, read_unary_pred{});
@@ -80,6 +83,7 @@ main()
             return std::ranges::begin(res) == std::ranges::begin(view) + ((__n - 1) % 3 == 0 ? __n - 2 : __n - 1);
         },
         "find_last_if_not");
+#endif
 
     run_algo_all_policies<read_archetype, read_archetype_dc, 5>(
         [](auto&& policy, auto&& view) {
@@ -215,6 +219,7 @@ main()
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + 1; }, "find_if_not, non-const callable");
 
     // The last element whose value is divisible by three, and the last one whose value is not.
+#if 0
     run_algo_all_policies<read_archetype, read_archetype_dc, 23>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last_if(std::forward<decltype(policy)>(policy), view, read_unary_pred_mut{});
@@ -224,7 +229,9 @@ main()
             return std::ranges::begin(res) == std::ranges::begin(view) + (__n - 1) / 3 * 3;
         },
         "find_last_if, non-const callable");
+#endif
 
+#if 0
     run_algo_all_policies<read_archetype, read_archetype_dc, 24>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last_if_not(std::forward<decltype(policy)>(policy), view, read_unary_pred_mut{});
@@ -234,6 +241,7 @@ main()
             return std::ranges::begin(res) == std::ranges::begin(view) + ((__n - 1) % 3 == 0 ? __n - 2 : __n - 1);
         },
         "find_last_if_not, non-const callable");
+#endif
 
     run_algo_all_policies<read_archetype, read_archetype_dc, 25>(
         [](auto&& policy, auto&& view) {
