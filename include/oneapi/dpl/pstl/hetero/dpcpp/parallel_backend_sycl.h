@@ -613,7 +613,7 @@ __parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size _
     // To ensure the buffer is in cache, all input reads need to be in cache as well; but that will double
     // kernel launches.
     // TODO: check if performance difference between 1 and 2 element sizes warrants additional tuning
-    constexpr std::uint32_t __bytes_per_iter = sizeof(_ElementT); // * 2;
+    constexpr std::uint32_t __bytes_per_iter = sizeof(_ElementT) * 3 / 2;
     __transform_scan_storage_holder_simple<_Size> __holder(__q);
 
     sycl::event __event = __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_iter, _CustomName,
