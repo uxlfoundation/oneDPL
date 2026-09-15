@@ -274,8 +274,11 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
 
     using _ReduceValueType = std::int32_t;
     __pattern_lexicographical_compare_reduce_fn<_ReduceValueType> __reduce_fn;
-    __pattern_lexicographical_compare_transform_fn<__binary_op<_Comp, _Proj1, _Proj2>, _ReduceValueType>
-        __transform_fn{__binary_op{__comp, __proj1, __proj2}};
+    __binary_op __pred_2{
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R1>,
+                                                            oneapi::dpl::__internal::__value_t<_R2>>(__comp),
+        __proj1, __proj2};
+    __pattern_lexicographical_compare_transform_fn<decltype(__pred_2), _ReduceValueType> __transform_fn{__pred_2};
 
     auto __ret_idx = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
                                                                                     std::false_type /*is_commutative*/>(
@@ -814,9 +817,13 @@ __pattern_nth_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 {
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_Range>>(__comp);
+
     oneapi::dpl::__internal::__pattern_nth_element(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __nth, __last,
-        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+        oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj>{__relax_non_const_comp,
+                                                                                             __proj, __proj});
 
     return __last;
 }
@@ -893,7 +900,10 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 bool
 __pattern_is_sorted(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+    oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __pred_2{
+        __relax_non_const_comp, __proj, __proj};
 
     return oneapi::dpl::__internal::__ranges::__pattern_adjacent_find(
                __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r),
@@ -1025,7 +1035,10 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&&
     if (__n == 0 || __n_out == 0)
         return {std::ranges::begin(__r), std::ranges::begin(__out_r)};
 
-    oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+    oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __pred_2{
+        __relax_non_const_comp, __proj, __proj};
 
     std::array<_Size, 2> __stops = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy</*_Bounded*/ true>(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r),
@@ -1074,7 +1087,10 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 std::ranges::borrowed_subrange_t<_R>
 __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+    oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __pred_2{
+        __relax_non_const_comp, __proj, __proj};
 
     auto __beg = std::ranges::begin(__r);
     auto __end = __beg + std::ranges::size(__r);
@@ -1095,7 +1111,10 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 bool
 __pattern_is_heap(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+    oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __pred_2{
+        __relax_non_const_comp, __proj, __proj};
 
     auto __beg = std::ranges::begin(__r);
     auto __end = __beg + std::ranges::size(__r);
@@ -1115,7 +1134,10 @@ std::ranges::borrowed_iterator_t<_R>
 __pattern_is_heap_until(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp,
                         _Proj __proj)
 {
-    oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+    oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __pred_2{
+        __relax_non_const_comp, __proj, __proj};
 
     auto __beg = std::ranges::begin(__r);
     auto __end = __beg + std::ranges::size(__r);
@@ -1176,7 +1198,10 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range3>(__rng3)), __comp, __proj1, __proj2);
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range3>(__rng3)),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_Range1>,
+                                                            oneapi::dpl::__internal::__value_t<_Range2>>(__comp),
+        __proj1, __proj2);
 
     auto __val = __res.get();
     return {__val.first, __val.second};
@@ -1198,8 +1223,10 @@ __pattern_merge_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exe
 
     const std::pair __res = oneapi::dpl::__internal::__ranges::__pattern_merge(
         __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r1),
-        oneapi::dpl::__ranges::views::all_read(__r2), oneapi::dpl::__ranges::views::all_write(__out_r), __comp, __proj1,
-        __proj2);
+        oneapi::dpl::__ranges::views::all_read(__r2), oneapi::dpl::__ranges::views::all_write(__out_r),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R1>,
+                                                            oneapi::dpl::__internal::__value_t<_R2>>(__comp),
+        __proj1, __proj2);
 
     return {std::ranges::begin(__r1) + __res.first, std::ranges::begin(__r2) + __res.second,
             std::ranges::begin(__out_r) + __n_out};
@@ -1218,9 +1245,13 @@ __pattern_inplace_merge_ranges(__hetero_tag<_Tag> __tag, _ExecutionPolicy&& __ex
 {
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+
     oneapi::dpl::__internal::__pattern_inplace_merge(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
-        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+        oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj>{__relax_non_const_comp,
+                                                                                             __proj, __proj});
 
     return __last;
 }
@@ -1250,13 +1281,18 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R1&& _
     if (__n1 == 0 || __n2 > __n1)
         return false;
 
-    using __brick_include_type = unseq_backend::__brick_includes<decltype(__n1), decltype(__n2), _Comp, _Proj1, _Proj2>;
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R1>,
+                                                            oneapi::dpl::__internal::__value_t<_R2>>(__comp);
+
+    using __brick_include_type = unseq_backend::__brick_includes<decltype(__n1), decltype(__n2),
+                                                                 decltype(__relax_non_const_comp), _Proj1, _Proj2>;
     using _TagType = __par_backend_hetero::__parallel_or_tag;
     using __size_calc = oneapi::dpl::__ranges::__second_size_calc;
 
     return !oneapi::dpl::__par_backend_hetero::__parallel_find_or(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        __brick_include_type{__n1, __n2, __comp, __proj1, __proj2}, _TagType{}, __size_calc{},
+        __brick_include_type{__n1, __n2, __relax_non_const_comp, __proj1, __proj2}, _TagType{}, __size_calc{},
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R1>(__r1)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R2>(__r2)));
 }
@@ -1313,7 +1349,10 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     const auto [__stop1, __stop2, __stop3] = __par_backend_hetero::__parallel_set_op</*_Bounded*/ true>(
         _BackendTag{}, unseq_backend::_UnionTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
-        oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
+        oneapi::dpl::__ranges::__get_subscription_view(__out_r),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R1>,
+                                                            oneapi::dpl::__internal::__value_t<_R2>>(__comp),
+        __proj1, __proj2);
 
     return {__first1 + __stop1, __first2 + __stop2, __result + __stop3};
 }
@@ -1336,7 +1375,10 @@ __pattern_set_intersection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     const auto [__stop1, __stop2, __stop3] = __par_backend_hetero::__parallel_set_op</*_Bounded*/ true>(
         _BackendTag{}, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
-        oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
+        oneapi::dpl::__ranges::__get_subscription_view(__out_r),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R1>,
+                                                            oneapi::dpl::__internal::__value_t<_R2>>(__comp),
+        __proj1, __proj2);
 
     return {__first1 + __stop1, __first2 + __stop2, __result + __stop3};
 }
@@ -1376,7 +1418,10 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     const auto [__stop1, __stop2, __stop3] = __par_backend_hetero::__parallel_set_op</*_Bounded*/ true>(
         _BackendTag{}, unseq_backend::_DifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
-        oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
+        oneapi::dpl::__ranges::__get_subscription_view(__out_r),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R1>,
+                                                            oneapi::dpl::__internal::__value_t<_R2>>(__comp),
+        __proj1, __proj2);
 
     return oneapi::dpl::__utils::__create_set_difference_result(__first1 + __stop1, __first2 + __stop2,
                                                                 __result + __stop3);
@@ -1435,7 +1480,10 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
     const auto [__stop1, __stop2, __stop3] = __par_backend_hetero::__parallel_set_op</*_Bounded*/ true>(
         _BackendTag{}, unseq_backend::_SymmetricDifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
-        oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
+        oneapi::dpl::__ranges::__get_subscription_view(__out_r),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R1>,
+                                                            oneapi::dpl::__internal::__value_t<_R2>>(__comp),
+        __proj1, __proj2);
 
     return {__first1 + __stop1, __first2 + __stop2, __result + __stop3};
 }
@@ -1485,7 +1533,9 @@ __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     {
         __par_backend_hetero::__parallel_stable_sort(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)), __comp, __proj)
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)),
+            oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_Range>>(__comp),
+            __proj)
             .__checked_deferrable_wait();
     }
 }
@@ -1497,8 +1547,9 @@ std::ranges::borrowed_iterator_t<_R>
 __pattern_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj,
                       _LeafSort = {})
 {
-    oneapi::dpl::__internal::__ranges::__pattern_stable_sort(__tag, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::views::all(__r), __comp, __proj);
+    oneapi::dpl::__internal::__ranges::__pattern_stable_sort(
+        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all(__r),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp), __proj);
 
     return std::ranges::begin(__r) + oneapi::dpl::__ranges::__size(__r);
 }
@@ -1512,9 +1563,13 @@ __pattern_partial_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
 {
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+
     oneapi::dpl::__internal::__pattern_partial_sort(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
-        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+        oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj>{__relax_non_const_comp,
+                                                                                             __proj, __proj});
 
     return __last;
 }
@@ -1530,10 +1585,14 @@ __pattern_partial_sort_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPo
     auto [__first1, __last1] = oneapi::dpl::__ranges::__bounds(__r);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__out_r);
 
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+
     // __pattern_partial_sort_copy sorts after copying, so _Proj1 is not used
     auto __out_finish = oneapi::dpl::__internal::__pattern_partial_sort_copy(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __out_it, __out_end,
-        oneapi::dpl::__internal::__binary_op<_Comp, _Proj2, _Proj2>{__comp, __proj2, __proj2});
+        oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj2, _Proj2>{__relax_non_const_comp,
+                                                                                               __proj2, __proj2});
 
     return {__last1, __out_finish};
 }
@@ -1553,9 +1612,13 @@ __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&
     using _IndexValueType = oneapi::dpl::__internal::__difference_t<_Range>;
     using _ReduceValueType = oneapi::dpl::__internal::tuple<_IndexValueType, _IteratorValueType>;
 
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_Range>>(__comp);
+
     // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
     // not commutative.
-    __pattern_min_element_reduce_fn<_ReduceValueType, _Compare> __reduce_fn{__comp};
+    __pattern_min_element_reduce_fn<_ReduceValueType, decltype(__relax_non_const_comp)> __reduce_fn{
+        __relax_non_const_comp};
     oneapi::dpl::__internal::__pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
 
     [[maybe_unused]] auto [__idx, __val] =
@@ -1577,9 +1640,10 @@ __pattern_min_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     if (oneapi::dpl::__ranges::__size(__rng) < 2)
         return 0;
 
-    [[maybe_unused]] auto [__idx, __val] =
-        __pattern_min_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                   oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)), __comp);
+    [[maybe_unused]] auto [__idx, __val] = __pattern_min_element_impl(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_Range>>(__comp));
 
     return __idx;
 }
@@ -1589,7 +1653,10 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 std::ranges::borrowed_iterator_t<_R>
 __pattern_min_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+    oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __comp_2{
+        __relax_non_const_comp, __proj, __proj};
 
     const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_min_element(
         __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
@@ -1601,11 +1668,13 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 std::ranges::range_value_t<_R>
 __pattern_min(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+    oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __comp_2{
+        __relax_non_const_comp, __proj, __proj};
 
-    [[maybe_unused]] const auto& [__idx, __val] =
-        __pattern_min_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
+    [[maybe_unused]] const auto& [__idx, __val] = __pattern_min_element_impl(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
 
     return __val;
 }
@@ -1629,7 +1698,10 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
 
     // This operator doesn't track the lowest found index in case of equal min. values and the highest found index in
     // case of equal max. values. Thus, this operator is not commutative.
-    oneapi::dpl::__internal::__pattern_minmax_element_reduce_fn<_Compare, _ReduceValueType> __reduce_fn{__comp};
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_Range>>(__comp);
+    oneapi::dpl::__internal::__pattern_minmax_element_reduce_fn<decltype(__relax_non_const_comp), _ReduceValueType>
+        __reduce_fn{__relax_non_const_comp};
 
     // TODO: Doesn't work with `zip_iterator`.
     //       In that case the first and the second arguments of `_ReduceValueType` will be
@@ -1657,7 +1729,8 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 
     [[maybe_unused]] const auto& [__res_min, __res_max] = __pattern_minmax_element_impl(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)), __comp);
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_Range>>(__comp));
 
     [[maybe_unused]] const auto& [__idx_min, __min] = __res_min;
     [[maybe_unused]] const auto& [__idx_max, __max] = __res_max;
@@ -1671,11 +1744,13 @@ std::pair<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t
 __pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp,
                          _Proj __proj)
 {
-    oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+    oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __comp_2{
+        __relax_non_const_comp, __proj, __proj};
 
-    const auto [__min_idx, __max_idx] =
-        oneapi::dpl::__internal::__ranges::__pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
+    const auto [__min_idx, __max_idx] = oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
+        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
 
     return {std::ranges::begin(__r) + __min_idx, std::ranges::begin(__r) + __max_idx};
 }
@@ -1684,7 +1759,10 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 std::pair<std::ranges::range_value_t<_R>, std::ranges::range_value_t<_R>>
 __pattern_minmax(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
-    oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
+    auto __relax_non_const_comp =
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+    oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __comp_2{
+        __relax_non_const_comp, __proj, __proj};
 
     [[maybe_unused]] const auto& [__res_min, __res_max] =
         __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
