@@ -484,6 +484,13 @@ struct __replace_if_fun
 template <typename _T>
 using __mutable_lvalue_t = std::remove_const_t<std::remove_reference_t<_T>>&;
 
+template <typename _T>
+constexpr __mutable_lvalue_t<_T>
+__as_mutable_lvalue(_T&& __x) noexcept
+{
+    return const_cast<__mutable_lvalue_t<_T>>(__x);
+}
+
 //! Like ::std::next, but with specialization for dpcpp case
 template <typename _Iter>
 _Iter
