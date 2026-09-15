@@ -126,17 +126,22 @@ __pattern_find_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred,
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred);
+
     return oneapi::dpl::__internal::__pattern_find_if(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r),
-        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+        oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>{__relax_non_const_pred, __proj});
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_find_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    return std::ranges::find_if(std::forward<_R>(__r), __pred, __proj);
+    return std::ranges::find_if(
+        std::forward<_R>(__r),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred), __proj);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -151,11 +156,16 @@ __pattern_find_first_of(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&&
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R1>,
+                                                            std::ranges::range_value_t<_R2>>(__pred);
+
     return oneapi::dpl::__internal::__pattern_find_first_of(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
         std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
         std::ranges::begin(__r2) + std::ranges::size(__r2),
-        oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2>{__pred, __proj1, __proj2});
+        oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj1, _Proj2>{__relax_non_const_pred,
+                                                                                               __proj1, __proj2});
 }
 
 template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
@@ -163,7 +173,12 @@ std::ranges::borrowed_iterator_t<_R1>
 __pattern_find_first_of(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2,
                         _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
 {
-    return std::ranges::find_first_of(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R1>,
+                                                            std::ranges::range_value_t<_R2>>(__pred);
+
+    return std::ranges::find_first_of(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __relax_non_const_pred, __proj1,
+                                      __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -187,9 +202,14 @@ __pattern_find_end(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
     auto __first2 = std::ranges::begin(__r2);
     auto __last2 = __first2 + __n2;
 
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R1>,
+                                                            std::ranges::range_value_t<_R2>>(__pred);
+
     auto __it = oneapi::dpl::__internal::__pattern_find_end(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
-        oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2>{__pred, __proj1, __proj2});
+        oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj1, _Proj2>{__relax_non_const_pred,
+                                                                                               __proj1, __proj2});
 
     return {__it, __it + (__it == __last1 ? 0 : __n2)};
 }
@@ -199,7 +219,11 @@ std::ranges::borrowed_subrange_t<_R1>
 __pattern_find_end(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Pred __pred,
                    _Proj1 __proj1, _Proj2 __proj2)
 {
-    return std::ranges::find_end(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+    return std::ranges::find_end(
+        std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R1>,
+                                                            std::ranges::range_value_t<_R2>>(__pred),
+        __proj1, __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -212,17 +236,22 @@ __pattern_any_of(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    return oneapi::dpl::__internal::__pattern_any_of(__tag, std::forward<_ExecutionPolicy>(__exec),
-                                                     std::ranges::begin(__r),
-                                                     std::ranges::begin(__r) + std::ranges::size(__r),
-                                                     oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred);
+
+    return oneapi::dpl::__internal::__pattern_any_of(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+        std::ranges::begin(__r) + std::ranges::size(__r),
+        oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>{__relax_non_const_pred, __proj});
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 bool
 __pattern_any_of(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    return std::ranges::any_of(std::forward<_R>(__r), __pred, __proj);
+    return std::ranges::any_of(
+        std::forward<_R>(__r),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred), __proj);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -235,10 +264,14 @@ __pattern_adjacent_find_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred);
+
     return oneapi::dpl::__internal::__pattern_adjacent_find(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r),
-        oneapi::dpl::__internal::__binary_op<_Pred, _Proj, _Proj>{__pred, __proj, __proj},
+        oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj, _Proj>{__relax_non_const_pred,
+                                                                                             __proj, __proj},
         oneapi::dpl::__internal::__first_semantic());
 }
 
@@ -247,7 +280,9 @@ std::ranges::borrowed_iterator_t<_R>
 __pattern_adjacent_find_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
                                _Proj __proj)
 {
-    return std::ranges::adjacent_find(std::forward<_R>(__r), __pred, __proj);
+    return std::ranges::adjacent_find(
+        std::forward<_R>(__r),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred), __proj);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -269,9 +304,14 @@ __pattern_search(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, 
     auto __first2 = std::ranges::begin(__r2);
     auto __last2 = __first2 + __n2;
 
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R1>,
+                                                            std::ranges::range_value_t<_R2>>(__pred);
+
     auto __res = oneapi::dpl::__internal::__pattern_search(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
-        oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2>{__pred, __proj1, __proj2});
+        oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj1, _Proj2>{__relax_non_const_pred,
+                                                                                               __proj1, __proj2});
 
     return {__res, __res == __last1 ? __res : __res + __n2};
 }
@@ -281,7 +321,11 @@ std::ranges::borrowed_subrange_t<_R1>
 __pattern_search(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Pred __pred,
                  _Proj1 __proj1, _Proj2 __proj2)
 {
-    return std::ranges::search(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+    return std::ranges::search(
+        std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R1>,
+                                                            std::ranges::range_value_t<_R2>>(__pred),
+        __proj1, __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -295,10 +339,14 @@ __pattern_search_n(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::ranges:
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred);
+
     auto __res = oneapi::dpl::__internal::__pattern_search_n(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r), __count, __value,
-        oneapi::dpl::__internal::__binary_op<_Pred, _Proj, oneapi::dpl::identity>{__pred, __proj});
+        oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj, oneapi::dpl::identity>{
+            __relax_non_const_pred, __proj});
 
     return {__res, __res == std::ranges::end(__r) ? __res : __res + __count};
 }
@@ -308,7 +356,9 @@ std::ranges::borrowed_subrange_t<_R>
 __pattern_search_n(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r,
                    std::ranges::range_difference_t<_R> __count, const _T& __value, _Pred __pred, _Proj __proj)
 {
-    return std::ranges::search_n(std::forward<_R>(__r), __count, __value, __pred, __proj);
+    return std::ranges::search_n(
+        std::forward<_R>(__r), __count, __value,
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred), __proj);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -321,17 +371,22 @@ __pattern_count_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    return oneapi::dpl::__internal::__pattern_count(__tag, std::forward<_ExecutionPolicy>(__exec),
-                                                    std::ranges::begin(__r),
-                                                    std::ranges::begin(__r) + std::ranges::size(__r),
-                                                    oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred);
+
+    return oneapi::dpl::__internal::__pattern_count(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+        std::ranges::begin(__r) + std::ranges::size(__r),
+        oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>{__relax_non_const_pred, __proj});
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
 std::ranges::range_difference_t<_R>
 __pattern_count_if(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred, _Proj __proj)
 {
-    return std::ranges::count_if(std::forward<_R>(__r), __pred, __proj);
+    return std::ranges::count_if(
+        std::forward<_R>(__r),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred), __proj);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -369,19 +424,29 @@ __pattern_equal(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R1>,
+                                                            std::ranges::range_value_t<_R2>>(__pred);
+
     return oneapi::dpl::__internal::__pattern_equal(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
         std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
         std::ranges::begin(__r2) + std::ranges::size(__r2),
-        oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2>{__pred, __proj1, __proj2});
+        oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj1, _Proj2>{__relax_non_const_pred,
+                                                                                               __proj1, __proj2});
 }
 
 template<typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
          typename _Proj2>
 bool
-__pattern_equal(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_equal(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Pred __pred,
+                _Proj1 __proj1, _Proj2 __proj2)
 {
-    return std::ranges::equal(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+    return std::ranges::equal(
+        std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R1>,
+                                                            std::ranges::range_value_t<_R2>>(__pred),
+        __proj1, __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -747,20 +812,25 @@ __pattern_copy_if_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     _Size __sz_in = std::ranges::size(__in_r);
     _Size __sz_out = std::ranges::size(__out_r);
 
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_InRange>>(__pred);
+
     // TODO: test if redirecting to "regular" copy_if for sufficient output performs better
     if (__sz_in > 0 && __sz_out > 0)
     {
         auto /*std::pair*/ __res = oneapi::dpl::__internal::__pattern_bounded_copy_if(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first_in, __sz_in, __first_out, __sz_out,
-            oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+            oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>{__relax_non_const_pred,
+                                                                                         __proj});
 
         return {__res.first, __res.second};
     }
     else if (__sz_in > 0)
     {
         __first_in = __pattern_find_if(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r),
-                                       __pred, __proj);
+                                       __relax_non_const_pred, __proj);
     }
+
     return {__first_in, __first_out};
 }
 
@@ -769,9 +839,13 @@ std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ran
 __pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::true_type>, _ExecutionPolicy&&, _InRange&& __in_r,
                          _OutRange&& __out_r, _Pred __pred, _Proj __proj)
 {
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_InRange>>(__pred);
+
     auto /*std::pair*/ __res = oneapi::dpl::__internal::__brick_bounded_copy_if(
         std::ranges::begin(__in_r), std::ranges::size(__in_r), std::ranges::begin(__out_r), std::ranges::size(__out_r),
-        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj}, /*vector=*/std::true_type{});
+        oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>{__relax_non_const_pred, __proj},
+        /*vector=*/std::true_type{});
 
     return {__res.first, __res.second};
 }
@@ -785,9 +859,13 @@ __pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionP
     auto __it_out = std::ranges::begin(__out_r);
     auto __end_in = std::ranges::end(__in_r);
     auto __end_out = std::ranges::end(__out_r);
+
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_InRange>>(__pred);
+
     for (; __it_in != __end_in; ++__it_in)
     {
-        if (std::invoke(__pred, std::invoke(__proj, *__it_in)))
+        if (std::invoke(__relax_non_const_pred, std::invoke(__proj, *__it_in)))
         {
             if (__it_out != __end_out)
             {
@@ -1711,9 +1789,14 @@ __pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
     auto __first1 = std::ranges::begin(__r1);
     auto __first2 = std::ranges::begin(__r2);
 
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R1>,
+                                                            std::ranges::range_value_t<_R2>>(__pred);
+
     const auto& [first, second] = oneapi::dpl::__internal::__pattern_mismatch(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + std::ranges::size(__r1), __first2,
-        __first2 + std::ranges::size(__r2), oneapi::dpl::__internal::__binary_op{__pred, __proj1, __proj2});
+        __first2 + std::ranges::size(__r2),
+        oneapi::dpl::__internal::__binary_op{__relax_non_const_pred, __proj1, __proj2});
 
     return {first, second};
 }
@@ -1723,7 +1806,11 @@ __mismatch_return_t<_R1, _R2>
 __pattern_mismatch(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Pred __pred,
                    _Proj1 __proj1, _Proj2 __proj2)
 {
-    return std::ranges::mismatch(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+    return std::ranges::mismatch(
+        std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R1>,
+                                                            std::ranges::range_value_t<_R2>>(__pred),
+        __proj1, __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -1771,9 +1858,12 @@ __pattern_is_partitioned(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred 
 
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred);
+
     return oneapi::dpl::__internal::__pattern_is_partitioned(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
-        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+        oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>{__relax_non_const_pred, __proj});
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
@@ -1781,7 +1871,9 @@ bool
 __pattern_is_partitioned(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
                          _Proj __proj)
 {
-    return std::ranges::is_partitioned(std::forward<_R>(__r), __pred, __proj);
+    return std::ranges::is_partitioned(
+        std::forward<_R>(__r),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred), __proj);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -1796,9 +1888,12 @@ __pattern_remove_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pre
 
     auto __end = std::ranges::begin(__r) + std::ranges::size(__r);
 
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred);
+
     auto __it = oneapi::dpl::__internal::__pattern_remove_if(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r), __end,
-        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+        oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>{__relax_non_const_pred, __proj});
 
     return {__it, __end};
 }
@@ -1808,7 +1903,9 @@ std::ranges::borrowed_subrange_t<_R>
 __pattern_remove_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
                     _Proj __proj)
 {
-    return std::ranges::remove_if(std::forward<_R>(__r), __pred, __proj);
+    return std::ranges::remove_if(
+        std::forward<_R>(__r),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred), __proj);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -1871,8 +1968,12 @@ __pattern_replace_copy_if(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __r,
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
     assert(std::ranges::size(__r) <= std::ranges::size(__out_r));
 
-    oneapi::dpl::__internal::__replace_copy_functor<_T, oneapi::dpl::__internal::__unary_op<_Pred, _Proj>>
-        __f{__new_value, {__pred, __proj}};
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_InRange>>(__pred);
+
+    oneapi::dpl::__internal::__replace_copy_functor<
+        _T, oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>>
+        __f{__new_value, {__relax_non_const_pred, __proj}};
 
     oneapi::dpl::__internal::__pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
                                              std::ranges::begin(__r) + std::ranges::size(__r),
@@ -1884,7 +1985,11 @@ void
 __pattern_replace_copy_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __r,
                           _OutRange&& __out_r, _Pred __pred, const _T& __new_value, _Proj __proj)
 {
-    std::ranges::replace_copy_if(std::forward<_InRange>(__r), std::ranges::begin(__out_r), __pred, __new_value, __proj);
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_InRange>>(__pred);
+
+    std::ranges::replace_copy_if(std::forward<_InRange>(__r), std::ranges::begin(__out_r), __relax_non_const_pred,
+                                 __new_value, __proj);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -2047,9 +2152,12 @@ __pattern_partition(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pre
 
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
-    auto __middle =
-        oneapi::dpl::__internal::__pattern_partition(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                                     oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred);
+
+    auto __middle = oneapi::dpl::__internal::__pattern_partition(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+        oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>{__relax_non_const_pred, __proj});
 
     return {__middle, __last};
 }
@@ -2059,7 +2167,9 @@ std::ranges::borrowed_subrange_t<_R>
 __pattern_partition(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
                     _Proj __proj)
 {
-    return std::ranges::partition(std::forward<_R>(__r), __pred, __proj);
+    return std::ranges::partition(
+        std::forward<_R>(__r),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred), __proj);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -2074,9 +2184,12 @@ __pattern_stable_partition(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pre
 
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred);
+
     auto __middle = oneapi::dpl::__internal::__pattern_stable_partition(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
-        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+        oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>{__relax_non_const_pred, __proj});
 
     return {__middle, __last};
 }
@@ -2086,7 +2199,9 @@ std::ranges::borrowed_subrange_t<_R>
 __pattern_stable_partition(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
                            _Proj __proj)
 {
-    return std::ranges::stable_partition(std::forward<_R>(__r), __pred, __proj);
+    return std::ranges::stable_partition(
+        std::forward<_R>(__r),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_R>>(__pred), __proj);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -2129,10 +2244,13 @@ std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
 __pattern_partition_copy_ranges(__serial_tag<_IsVector>, _ExecutionPolicy&&, _InRange&& __in_r,
                                 _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
 {
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_InRange>>(__pred);
+
     auto [__it_in, __it_out1, __it_out2] = __brick_bounded_partition_copy(
         std::ranges::begin(__in_r), std::ranges::end(__in_r), std::ranges::begin(__out_true_r),
         std::ranges::end(__out_true_r), std::ranges::begin(__out_false_r), std::ranges::end(__out_false_r),
-        [=](auto __it, std::size_t /*__i*/) -> bool { return std::invoke(__pred, std::invoke(__proj, *__it)); },
+        [=](auto __it, std::size_t /*__i*/) -> bool { return std::invoke(__relax_non_const_pred, std::invoke(__proj, *__it)); },
         _IsVector{});
     return {__it_in, __it_out1, __it_out2};
 }
@@ -2146,7 +2264,12 @@ __pattern_partition_copy_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolic
                                 _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
-    __internal::__pred_at_index __idx_pred{__internal::__unary_op<_Pred, _Proj>{__pred, __proj}};
+
+    auto __relax_non_const_pred =
+        oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_InRange>>(__pred);
+
+    __internal::__pred_at_index __idx_pred{
+        __internal::__unary_op<decltype(__relax_non_const_pred), _Proj>{__relax_non_const_pred, __proj}};
 
     const std::intptr_t __n = std::ranges::size(__in_r);
     using _OutputPos = std::pair<std::intptr_t, std::intptr_t>;
