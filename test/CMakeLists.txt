@@ -74,7 +74,7 @@ add_custom_target(run-onedpl-tests
     DEPENDS build-onedpl-tests
     COMMENT "Build and run all oneDPL tests")
 
-macro(onedpl_construct_exec test_source_file _test_name switch_off_checked_iterators custom_define extra_test_label)
+macro(onedpl_construct_exec test_source_file _test_name switch_off_checked_iterators custom_define)
     # Disable checked iterators on Windows for debug mode
     # For details please see
     #    https://learn.microsoft.com/en-us/cpp/standard-library/iterator-debug-level?view=msvc-170
@@ -86,90 +86,84 @@ macro(onedpl_construct_exec test_source_file _test_name switch_off_checked_itera
         set(_use_release_in_debug 0)
     endif()
 
-    if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off AND _use_release_in_debug)
-        # link with release runtime is not supported for debug PSTL offload while one is requested, skip
-    else()
-        add_executable(${_test_name} EXCLUDE_FROM_ALL "${test_source_file}")
-        target_compile_definitions(${_test_name} PRIVATE _PSTL_TEST_SUCCESSFUL_KEYWORD=1)
+    add_executable(${_test_name} EXCLUDE_FROM_ALL "${test_source_file}")
+    target_compile_definitions(${_test_name} PRIVATE _PSTL_TEST_SUCCESSFUL_KEYWORD=1)
 
-        if (NOT ${custom_define} STREQUAL "")
-            target_compile_definitions(${_test_name} PRIVATE ${custom_define})
-        endif()
-        if (MSVC)
-            target_compile_options(${_test_name} PRIVATE /bigobj)
-        endif()
+    if (NOT ${custom_define} STREQUAL "")
+        target_compile_definitions(${_test_name} PRIVATE ${custom_define})
+    endif()
+    if (MSVC)
+        target_compile_options(${_test_name} PRIVATE /bigobj)
+    endif()
 
-        if (_use_release_in_debug)
-            target_compile_definitions(${_test_name} PRIVATE _ITERATOR_DEBUG_LEVEL=0)
-            target_compile_options(${_test_name} PRIVATE "/MD$<$<CONFIG:Debug>:>")
-        endif()
+    if (_use_release_in_debug)
+        target_compile_definitions(${_test_name} PRIVATE _ITERATOR_DEBUG_LEVEL=0)
+        target_compile_options(${_test_name} PRIVATE "/MD$<$<CONFIG:Debug>:>")
+    endif()
 
-        # oneDPL test harness may initialize a C++ iterator using iterator with different type
-        # that may break code when using Intel(R) C++ Compiler Classic with -O3 flag on Linux
-        if (CMAKE_SYSTEM_NAME MATCHES "Linux" AND CMAKE_CXX_COMPILER_ID STREQUAL Intel)
-            target_compile_options(${_test_name} PRIVATE $<$<CONFIG:Release>:-fno-strict-aliasing>)
-        endif()
+    # oneDPL test harness may initialize a C++ iterator using iterator with different type
+    # that may break code when using Intel(R) C++ Compiler Classic with -O3 flag on Linux
+    if (CMAKE_SYSTEM_NAME MATCHES "Linux" AND CMAKE_CXX_COMPILER_ID STREQUAL Intel)
+        target_compile_options(${_test_name} PRIVATE $<$<CONFIG:Release>:-fno-strict-aliasing>)
+    endif()
 
-        target_include_directories(${_test_name} PRIVATE "${CMAKE_CURRENT_LIST_DIR}")
-        target_link_libraries(${_test_name} PRIVATE oneDPL)
-        if (_gcc_link_tbb)
-            target_link_libraries(${_test_name} PRIVATE TBB::tbb)
-        endif()
-        set_target_properties(${_test_name} PROPERTIES CXX_EXTENSIONS NO)
+    target_include_directories(${_test_name} PRIVATE "${CMAKE_CURRENT_LIST_DIR}")
+    target_link_libraries(${_test_name} PRIVATE oneDPL)
+    if (_gcc_link_tbb)
+        target_link_libraries(${_test_name} PRIVATE TBB::tbb)
+    endif()
+    set_target_properties(${_test_name} PROPERTIES CXX_EXTENSIONS NO)
 
-        add_test(NAME ${_test_name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${_test_name})
+    add_test(NAME ${_test_name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${_test_name})
 
-        if (DEFINED ${_test_name}_timeout_${_build_type_in_lower})
-            message(STATUS
+    if (DEFINED ${_test_name}_timeout_${_build_type_in_lower})
+        message(STATUS
             "Timeout for ${_test_name} is set to ${${_test_name}_timeout_${_build_type_in_lower}}, "
             "it overrides user-defined timeout for CTest")
-            set_tests_properties(${_test_name} PROPERTIES TIMEOUT ${${_test_name}_timeout_${_build_type_in_lower}})
-        elseif (DEFINED ${_test_name}_timeout_release)
-            # Apply default (release) timeout
-            message(STATUS
+        set_tests_properties(${_test_name} PROPERTIES TIMEOUT ${${_test_name}_timeout_${_build_type_in_lower}})
+    elseif (DEFINED ${_test_name}_timeout_release)
+        # Apply default (release) timeout
+        message(STATUS
             "Timeout for ${_test_name} is set to ${${_test_name}_timeout_release}, "
             "it overrides user-defined timeout for CTest")
-            set_tests_properties(${_test_name} PROPERTIES TIMEOUT ${${_test_name}_timeout_release})
-        endif()
-
-        set_tests_properties(${_test_name} PROPERTIES SKIP_RETURN_CODE 77)
-
-        add_custom_target(run-${_test_name}
-            COMMAND "${CMAKE_CTEST_COMMAND}" -R ^${_test_name}$$ --output-on-failure --no-label-summary
-            USES_TERMINAL
-            DEPENDS ${_test_name}
-            COMMENT "Build and run test ${_test_name}")
-
-        # Add labels and group targets
-        set(_test_labels "")
-
-        file(RELATIVE_PATH _test_rel_path ${CMAKE_CURRENT_SOURCE_DIR} ${test_source_file})
-        get_filename_component(_test_rel_path ${_test_rel_path} DIRECTORY)
-        if (_test_rel_path)
-            string(REPLACE "/" ";" _test_labels ${_test_rel_path})
-        endif()
-
-        list(APPEND _test_labels ${extra_test_label})
-
-        if (_test_labels)
-            set_tests_properties(${_test_name} PROPERTIES LABELS "${_test_labels}")
-        endif()
-
-        foreach (_label ${_test_labels})
-            if (NOT TARGET build-onedpl-${_label}-tests)
-                add_custom_target(build-onedpl-${_label}-tests COMMENT "Build tests with label ${_label}")
-
-                add_custom_target(run-onedpl-${_label}-tests
-                    COMMAND "${CMAKE_CTEST_COMMAND}" -L ^${_label}$$ --output-on-failure --no-label-summary
-                    USES_TERMINAL
-                    DEPENDS build-onedpl-${_label}-tests
-                    COMMENT "Build and run tests with label ${_label}")
-            endif()
-            add_dependencies(build-onedpl-${_label}-tests ${_test_name})
-        endforeach()
-        add_dependencies(build-onedpl-tests ${_test_name})
-
+        set_tests_properties(${_test_name} PROPERTIES TIMEOUT ${${_test_name}_timeout_release})
     endif()
+
+    set_tests_properties(${_test_name} PROPERTIES SKIP_RETURN_CODE 77)
+
+    add_custom_target(run-${_test_name}
+        COMMAND "${CMAKE_CTEST_COMMAND}" -R ^${_test_name}$$ --output-on-failure --no-label-summary
+        USES_TERMINAL
+        DEPENDS ${_test_name}
+        COMMENT "Build and run test ${_test_name}")
+
+    # Add labels and group targets
+    set(_test_labels "")
+
+    file(RELATIVE_PATH _test_rel_path ${CMAKE_CURRENT_SOURCE_DIR} ${test_source_file})
+    get_filename_component(_test_rel_path ${_test_rel_path} DIRECTORY)
+    if (_test_rel_path)
+        string(REPLACE "/" ";" _test_labels ${_test_rel_path})
+    endif()
+
+    if (_test_labels)
+        set_tests_properties(${_test_name} PROPERTIES LABELS "${_test_labels}")
+    endif()
+
+    foreach (_label ${_test_labels})
+        if (NOT TARGET build-onedpl-${_label}-tests)
+            add_custom_target(build-onedpl-${_label}-tests COMMENT "Build tests with label ${_label}")
+
+            add_custom_target(run-onedpl-${_label}-tests
+                COMMAND "${CMAKE_CTEST_COMMAND}" -L ^${_label}$$ --output-on-failure --no-label-summary
+                USES_TERMINAL
+                DEPENDS build-onedpl-${_label}-tests
+                COMMENT "Build and run tests with label ${_label}")
+        endif()
+        add_dependencies(build-onedpl-${_label}-tests ${_test_name})
+    endforeach()
+    add_dependencies(build-onedpl-tests ${_test_name})
+
 endmacro()
 
 macro(onedpl_add_test test_source_file switch_off_checked_iterators)
@@ -183,93 +177,47 @@ macro(onedpl_add_test test_source_file switch_off_checked_iterators)
 
     set(coal_tests "reduce.pass" "transform_reduce.pass" "count.pass" "sycl_iterator_reduce.pass" "minmax_element.pass")
     set(workaround_for_igpu_64bit_reduction_tests "reduce_by_segment.pass")
-    # mark those tests with pstloffload_smoke_tests label
-    set (pstloffload_smoke_tests "adjacent_find.pass" "copy_move.pass" "merge.pass" "partial_sort.pass" "remove_copy.pass"
-        "transform_reduce.pass" "transform_reduce.pass.coal" "transform_scan.pass" "algorithm.pass"
-        "execution.pass" "functional.pass" "algorithms_redirection.pass" "usm_memory_replacement.pass")
-
     # Tests that are built in two variants: with and without ONEDPL_SET_RANGE_ALGS_CPP26_LIKE
     set(std_ranges_set_op_cpp26_variant_tests "std_ranges_set_union.pass" "std_ranges_set_difference.pass"
         "std_ranges_set_symmetric_difference.pass" "std_ranges_set_intersection.pass")
 
-    set(extra_test_label "")
-    if (_test_name IN_LIST pstloffload_smoke_tests)
-        set(extra_test_label "pstloffload_smoke_tests")
-    endif()
-
     if (_test_name IN_LIST coal_tests)
-        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-D_ONEDPL_DETECT_SPIRV_COMPILATION=1" "${extra_test_label}")
-        onedpl_construct_exec(${test_source_file} ${_test_name}.coal ${switch_off_checked_iterators} "-D_ONEDPL_DETECT_SPIRV_COMPILATION=0" "${extra_test_label}")
+        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-D_ONEDPL_DETECT_SPIRV_COMPILATION=1")
+        onedpl_construct_exec(${test_source_file} ${_test_name}.coal ${switch_off_checked_iterators} "-D_ONEDPL_DETECT_SPIRV_COMPILATION=0")
     elseif (_test_name IN_LIST workaround_for_igpu_64bit_reduction_tests)
-        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "" "${extra_test_label}")
+        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "")
         string(REPLACE "\.pass" "_workaround_64bit_reduction\.pass" _test_name ${_test_name})
-        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-D_ONEDPL_TEST_FORCE_WORKAROUND_FOR_IGPU_64BIT_REDUCTION=1" "${extra_test_label}")
-    elseif(_test_name STREQUAL "free_after_unload.pass")
-        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "" "${extra_test_label}")
-        onedpl_construct_exec(${test_source_file} ${_test_name}.after_pstl_offload ${switch_off_checked_iterators} "" "${extra_test_label}")
+        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-D_ONEDPL_TEST_FORCE_WORKAROUND_FOR_IGPU_64BIT_REDUCTION=1")
     elseif (_test_name IN_LIST std_ranges_set_op_cpp26_variant_tests)
-        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-DONEDPL_SET_RANGE_ALGS_CPP26_LIKE=0" "${extra_test_label}")
+        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-DONEDPL_SET_RANGE_ALGS_CPP26_LIKE=0")
         string(REPLACE "\.pass" "_cpp26\.pass" _test_name ${_test_name})
-        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-DONEDPL_SET_RANGE_ALGS_CPP26_LIKE=1" "${extra_test_label}")
+        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-DONEDPL_SET_RANGE_ALGS_CPP26_LIKE=1")
     else()
-        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "" "${extra_test_label}")
+        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "")
     endif()
 endmacro()
 
 set(_regexp_dpcpp_backend_required "(xpu_api/ranges|xpu_api/algorithms|test/xpu_api/cmath/nearbyint|test/xpu_api/containers|xpu_api/functional|test/xpu_api/iterators|test/xpu_api/language.support/support.initlist|test/xpu_api/language.support/support.types|xpu_api/numerics|test/xpu_api/random|test/xpu_api/ratio|test/xpu_api/tuple|test/xpu_api/utilities|parallel_api/dynamic_selection/sycl)")
 set(_regexp_switch_off_checked_it  "(test/general/header_order_ranges|test/parallel_api/algorithm/alg.sorting/alg.min.max|test/parallel_api/ranges|test/parallel_api/dynamic_selection|test/xpu_api/iterators/iterator.primitives|test/xpu_api/random/device_tests|test/xpu_api/random/interface_tests|test/xpu_api/random/statistics_tests|test/parallel_api/numeric/numeric.ops/transform_scan)")
 
-set(_regexp_pstl_offload_only "(test/pstl_offload)")
-set(_regexp_pstl_offload_parallel_api "(test/xpu_api|test/parallel_api/algorithm|test/parallel_api/memory|test/parallel_api/numeric)")
-set(_regexp_pstl_offload_exclude "(test/parallel_api/algorithm/alg.sorting/alg.binary.search|test/parallel_api/numeric/numeric.ops/.*_by_segment)")
-
-# Some of the headers tests C++20/23 files that can or cannot be available in C++17 mode
-# So we need to check file presence and skip the test if no header available
-# The test should be placed in the special folder and the name should be the same as the header that is required to be present
-set(_regexp_pstl_offload_header_presence_required "(test/pstl_offload/headers/headers.standard/requires_header_presence)")
-
 file(GLOB_RECURSE UNIT_TESTS "*.pass.cpp")
 foreach (_file IN LISTS UNIT_TESTS)
-    if (_file MATCHES "${_regexp_pstl_offload_only}")
-        if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
-            if (_file MATCHES "${_regexp_pstl_offload_header_presence_required}")
-                get_filename_component(_filename "${_file}" NAME_WE)
-                _onedpl_push_quiet_checks()
-                CHECK_INCLUDE_FILE_CXX(${_filename} _has_header_file)
-                _onedpl_pop_quiet_checks()
-                if (_has_header_file)
-                    onedpl_add_test(${_file} false)
-                endif()
-                unset(_has_header_file CACHE)
-            else()
-                onedpl_add_test(${_file} false)
-            endif()
-        else()
-            continue()
-        endif()
-    elseif (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
-        if (_file MATCHES "${_regexp_pstl_offload_parallel_api}" AND NOT _file MATCHES "${_regexp_pstl_offload_exclude}")
+    if (_file MATCHES "${_regexp_dpcpp_backend_required}")
+        if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
+            # Switch off checked iterators
             onedpl_add_test(${_file} true)
+        else()
+            message(STATUS "Skip test ${_file} as it requires DPC++ backend")
         endif()
     else()
-        if (_file MATCHES "${_regexp_dpcpp_backend_required}")
-            if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
-                # Switch off checked iterators
-                onedpl_add_test(${_file} true)
-            else()
-                message(STATUS "Skip test ${_file} as it requires DPC++ backend")
-            endif()
+        if (_file MATCHES "${_regexp_switch_off_checked_it}")
+            # Switch off checked iterators
+            onedpl_add_test(${_file} true)
         else()
-            if (_file MATCHES "${_regexp_switch_off_checked_it}")
-                # Switch off checked iterators
-                onedpl_add_test(${_file} true)
-            else()
-                # Do not switch off checked iterators
-                onedpl_add_test(${_file} false)
-            endif()
+            # Do not switch off checked iterators
+            onedpl_add_test(${_file} false)
         endif()
     endif()
-
 endforeach()
 
 # add additional TUs if required

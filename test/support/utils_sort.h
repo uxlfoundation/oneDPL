@@ -324,16 +324,9 @@ check_results(SortTestConfig config,
     }
 }
 
-// Additional check for std::execution::par_unseq is required because standard execution policy is
-// not a host execution policy in terms of oneDPL and the eligible overload of run_test would not be found
-// while testing PSTL offload
 template <typename Policy, typename InputIterator, typename OutputIterator, typename OutputIterator2, typename Size,
           typename... Compare>
-std::enable_if_t<oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value
-#if __SYCL_PSTL_OFFLOAD__
-                 || std::is_same_v<std::decay_t<Policy>, std::execution::parallel_unsequenced_policy>
-#endif
-                 >
+std::enable_if_t<oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value>
 run_test(SortTestConfig config,
          Policy&& exec, OutputIterator tmp_first, OutputIterator tmp_last,OutputIterator2 expected_first,
          OutputIterator2 expected_last, InputIterator first, InputIterator /*last*/, Size n, Compare ...compare)
