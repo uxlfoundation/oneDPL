@@ -136,7 +136,7 @@ struct check_minelement_overloaded_address_of
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         const Iterator expect = std::min_element(begin, end);
-        const Iterator result = std::min_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        const Iterator result = oneapi::dpl::min_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
         EXPECT_EQ(expect, result, "wrong return result from min_element with a comparator overloading operator&");
     }
 };
@@ -149,7 +149,7 @@ struct check_maxelement_overloaded_address_of
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         const Iterator expect = std::max_element(begin, end);
-        const Iterator result = std::max_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        const Iterator result = oneapi::dpl::max_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
         EXPECT_EQ(expect, result, "wrong return result from max_element with a comparator overloading operator&");
     }
 };
@@ -162,8 +162,7 @@ struct check_minmaxelement_overloaded_address_of
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         const std::pair<Iterator, Iterator> expect = std::minmax_element(begin, end);
-        const std::pair<Iterator, Iterator> got =
-            std::minmax_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        const std::pair<Iterator, Iterator> got = oneapi::dpl::minmax_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
         EXPECT_EQ(expect, got, "wrong return result from minmax_element with a comparator overloading operator&");
     }
 };
@@ -359,7 +358,7 @@ struct test_non_const_max_element
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        max_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
+        std::max_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
     }
 };
 
@@ -370,7 +369,7 @@ struct test_non_const_min_element
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        min_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
+        std::min_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
     }
 };
 
@@ -381,7 +380,7 @@ struct test_non_const_minmax_element
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        minmax_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
+        std::minmax_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
     }
 };
 
