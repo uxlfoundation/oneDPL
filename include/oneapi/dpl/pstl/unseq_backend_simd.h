@@ -616,16 +616,13 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
-// Implementation detail of __simd_min_element / __simd_minmax_element, not a contract of the algorithms. Copy
-// construction is needed because the OpenMP clause initializer(omp_priv = omp_orig) copy-initializes the whole
-// reduction object, hence its members. Convertibility of the reference type is not implied by copy-constructibility -
-// it also holds for an explicit copy constructor and for one deleted for non-const lvalues.
 template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type,
           typename _ReferenceType = typename std::iterator_traits<_Iterator>::reference>
 inline constexpr bool __is_value_storable_v =
     std::is_copy_constructible_v<_ValueType> && std::is_copy_assignable_v<_ValueType> &&
     std::is_convertible_v<_ReferenceType, _ValueType>;
 
+// [restriction] - the restrictions are formulated in the trait __is_value_storable_v
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 _ForwardIterator
@@ -680,6 +677,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     return __first + __init.__min_ind;
 }
 
+// [restriction] - the restrictions are formulated in the trait __is_value_storable_v
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 std::pair<_ForwardIterator, _ForwardIterator>
