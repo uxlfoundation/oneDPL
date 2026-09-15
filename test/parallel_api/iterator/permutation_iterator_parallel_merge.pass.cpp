@@ -18,7 +18,7 @@
 
 #include "permutation_iterator_common.h"
 
-// dpl::merge, dpl::inplace_merge -> __parallel_merge
+// dpl::merge, dpl::inplace_merge -> __parallel_for (host, merge path), __parallel_merge (hetero)
 DEFINE_TEST_PERM_IT(test_merge, PermItIndexTag)
 {
     DEFINE_TEST_PERM_IT_CONSTRUCTOR(test_merge, 2.0f, 0.65f)
@@ -145,7 +145,7 @@ run_algo_tests()
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     // Run tests on <std::vector::iterator> + <all_host_policies>
-    // dpl::merge, dpl::inplace_merge -> __parallel_merge
+    // dpl::merge, dpl::inplace_merge -> __parallel_for (merge path)
     test_algo_three_sequences<ValueType, test_merge<ValueType, PermItIndexTag>>(2, kZeroOffset, kZeroOffset, kZeroOffset);
 }
 

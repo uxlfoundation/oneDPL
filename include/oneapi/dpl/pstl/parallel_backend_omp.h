@@ -57,9 +57,4 @@
 #include "./omp/parallel_stable_partial_sort.h"
 #include "./omp/parallel_stable_sort.h"
 
-//------------------------------------------------------------------------
-// parallel_merge
-//------------------------------------------------------------------------
-#include "./omp/parallel_merge.h"
-
 #endif //_ONEDPL_PARALLEL_BACKEND_OMP_H
