@@ -526,6 +526,38 @@ __get_relax_non_const_comp(_Comp&& __comp)
         return std::forward<_Comp>(__comp);
 }
 
+template <typename _Pred>
+class __relax_const_pred
+{
+    mutable _Pred _M_pred;
+
+  public:
+    explicit __relax_const_pred(_Pred __pred) : _M_pred(std::move(__pred)) {}
+
+    template <typename... _Args, std::enable_if_t<std::is_invocable_v<_Pred&, __mutable_lvalue_t<_Args>...>, int> = 0>
+    std::invoke_result_t<_Pred&, __mutable_lvalue_t<_Args>...>
+    operator()(_Args&&... __args) const
+    {
+        return std::invoke(_M_pred, __as_mutable_lvalue(std::forward<_Args>(__args))...);
+    }
+};
+
+template <typename _Pred, typename... _T>
+inline constexpr bool __pred_wants_mutable_args_v =
+    sizeof...(_T) > 0 && !std::is_invocable_v<_Pred&, const _T&...> && std::is_invocable_v<_Pred&, _T&...>;
+
+template <typename... _T, typename _Pred>
+constexpr auto
+__get_relax_non_const_pred(_Pred&& __pred)
+{
+    using _PredType = std::remove_reference_t<_Pred>;
+
+    if constexpr (__pred_wants_mutable_args_v<_PredType, _T...>)
+        return __relax_const_pred<_PredType>{std::forward<_Pred>(__pred)};
+    else
+        return std::forward<_Pred>(__pred);
+}
+
 //! Like ::std::next, but with specialization for dpcpp case
 template <typename _Iter>
 _Iter
