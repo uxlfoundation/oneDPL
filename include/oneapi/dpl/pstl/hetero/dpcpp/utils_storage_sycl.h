@@ -629,26 +629,31 @@ class __storage_holder
         __internal::__copy_n(__dst, __n, std::get<_I>(__result_slots), __q);
     }
 
-    std::enable_if_t<(std::is_default_constructible_v<_ResultTypes> && ...), std::tuple<_ResultTypes...>>
-    __get_results()
-    {
-        return std::apply([&__q = this->__q](auto&... __slots) {
-            auto __load_one = [&](auto& __rs, auto* __p) {
-                std::remove_pointer_t<decltype(__p)> __dst{};
-                __internal::__copy_n(&__dst, 1, __rs, __q);
-                return __dst;
-            };
-            return std::tuple{__load_one(__slots, static_cast<_ResultTypes*>(nullptr))...};
-        }, __result_slots);
-    }
-
     auto
     __extract() &&
     {
         return std::move(*this).__extract_impl(std::index_sequence_for<_ResultTypes...>{},
                                                std::make_index_sequence<_NScratch>{});
     }
+
+    template <std::size_t _N, typename... _Types>
+    friend std::enable_if_t<(std::is_default_constructible_v<_Types> && ...), std::tuple<_Types...>>
+    __get_results(__storage_holder<_N, _Types...>&);
 };
+
+template <std::size_t _NScratch, typename... _Types>
+std::enable_if_t<(std::is_default_constructible_v<_Types> && ...), std::tuple<_Types...>>
+__get_results(__storage_holder<_NScratch, _Types...>& __h)
+{
+    return std::apply([&__q = __h.__q](auto&... __slots) {
+        auto __load_one = [&](auto& __rs, auto* __p) {
+            std::remove_pointer_t<decltype(__p)> __dst{};
+            __internal::__copy_n(&__dst, 1, __rs, __q);
+            return __dst;
+        };
+        return std::tuple<_Types...>{__load_one(__slots, static_cast<_Types*>(nullptr))...};
+    }, __h.__result_slots);
+}
 
 } // namespace __par_backend_hetero
 } // namespace oneapi::dpl
