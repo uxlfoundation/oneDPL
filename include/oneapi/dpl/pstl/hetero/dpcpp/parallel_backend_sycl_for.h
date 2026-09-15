@@ -106,6 +106,25 @@ class __iterations_per_item
 template <typename _Brick, typename... _Ranges>
 inline constexpr std::uint8_t __iterations_per_item_v = __iterations_per_item<_Brick, _Ranges...>::value;
 
+// A brick may set __batched to opt out of the strided loop and receive all of its indices at once,
+// which lets it overlap work that would otherwise be serialized between successive iterations.
+template <typename _Brick>
+class __brick_is_batched
+{
+    template <typename _F>
+    static std::bool_constant<_F::__batched>
+    test(int);
+
+    template <typename>
+    static std::false_type
+    test(...);
+
+  public:
+    constexpr static bool value = decltype(test<_Brick>(0))::value;
+};
+template <typename _Brick>
+inline constexpr bool __brick_is_batched_v = __brick_is_batched<_Brick>::value;
+
 template <typename... Name>
 class __parallel_for_small_kernel;
 
@@ -231,11 +250,21 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     __execute(std::size_t __bound, bool __is_full, std::size_t __idx, std::uint16_t __stride, const _Fp& __brick,
               bool /*hint*/, _Args&&... __args)
     {
-        __strided_loop<__num_strides> __loop{__bound};
-        if (__is_full)
-            __loop(std::true_type{}, __idx, __stride, __brick, __args...);
+        if constexpr (__brick_is_batched_v<_Fp>)
+        {
+            if (__is_full)
+                __brick.template __execute_batch<__num_strides>(std::true_type{}, __bound, __idx, __stride, __args...);
+            else
+                __brick.template __execute_batch<__num_strides>(std::false_type{}, __bound, __idx, __stride, __args...);
+        }
         else
-            __loop(std::false_type{}, __idx, __stride, __brick, __args...);
+        {
+            __strided_loop<__num_strides> __loop{__bound};
+            if (__is_full)
+                __loop(std::true_type{}, __idx, __stride, __brick, __args...);
+            else
+                __loop(std::false_type{}, __idx, __stride, __brick, __args...);
+        }
     }
 
     template <std::uint8_t __num_strides, typename _Brick1, typename _Brick2, typename... _Args>

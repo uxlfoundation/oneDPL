@@ -38,6 +38,20 @@ enum class search_algorithm
 };
 
 #if _ONEDPL_BACKEND_SYCL
+
+// Searches a work item keeps in flight at once, per index width. Each in-flight search carries a few
+// registers of per-lane state and 64-bit indexing doubles that; measured on PVC, a fourth 64-bit
+// search is what makes IGC select the large-GRF mode, which halves resident threads and gives back the
+// parallelism the interleaving buys. Both index widths are compiled into one kernel and the GRF mode
+// is chosen for the kernel, so the 64-bit bound has to stay low even where only 32-bit indexing runs.
+// Check if overridden for testing
+#ifndef _ONEDPL_BINARY_SEARCH_IN_FLIGHT_32
+#    define _ONEDPL_BINARY_SEARCH_IN_FLIGHT_32 4
+#endif
+#ifndef _ONEDPL_BINARY_SEARCH_IN_FLIGHT_64
+#    define _ONEDPL_BINARY_SEARCH_IN_FLIGHT_64 2
+#endif
+
 template <typename Comp, typename T, search_algorithm func>
 struct __custom_brick
 {
@@ -84,6 +98,85 @@ struct __custom_brick
             search_impl<std::uint32_t>(idx, acc);
         else
             search_impl<std::uint64_t>(idx, acc);
+    }
+
+    // Each search is a chain of dependent probes, so running a work item's searches one after another
+    // leaves one load outstanding at a time. Take the indices as a batch instead and interleave the
+    // searches, which issues _C probes per round without changing which probes are performed.
+    static constexpr bool __batched = true;
+    static constexpr std::uint8_t max_in_flight_32 = _ONEDPL_BINARY_SEARCH_IN_FLIGHT_32;
+    static constexpr std::uint8_t max_in_flight_64 = _ONEDPL_BINARY_SEARCH_IN_FLIGHT_64;
+
+    template <typename _Size, std::size_t _C, typename _IsFull, typename _Acc>
+    void
+    search_batch(_IsFull, std::size_t bound, std::size_t idx, std::uint16_t stride, _Acc acc) const
+    {
+        using std::get;
+        auto haystack = get<0>(acc.base());
+        using _KeyType = std::decay_t<decltype(get<1>(acc[idx]))>;
+
+        // Every probe index Shar's algorithm forms lies within [0, size), so a lane whose key is past
+        // the end can safely repeat the last in-range search; only in-range lanes store a result.
+        auto key_index = [=](std::size_t j) {
+            const std::size_t i = idx + j * stride;
+            if constexpr (_IsFull::value)
+                return i;
+            else
+                return std::min(i, bound - 1);
+        };
+
+        _KeyType value[_C];
+        _Size result[_C];
+        _ONEDPL_PRAGMA_UNROLL
+        for (std::size_t j = 0; j < _C; ++j)
+            value[j] = get<1>(acc[key_index(j)]);
+
+        const _Size start_orig = 0;
+        const _Size end_orig = size;
+        if constexpr (func == search_algorithm::upper_bound)
+            oneapi::dpl::__internal::__shars_upper_bound_batched<_C>(haystack, start_orig, end_orig, value, result,
+                                                                     comp);
+        else
+            oneapi::dpl::__internal::__shars_lower_bound_batched<_C>(haystack, start_orig, end_orig, value, result,
+                                                                     comp);
+
+        _ONEDPL_PRAGMA_UNROLL
+        for (std::size_t j = 0; j < _C; ++j)
+        {
+            if (_IsFull::value || idx + j * stride < bound)
+            {
+                if constexpr (func == search_algorithm::binary_search)
+                    get<2>(acc[key_index(j)]) = (result[j] != end_orig) && (value[j] == haystack[result[j]]);
+                else
+                    get<2>(acc[key_index(j)]) = result[j];
+            }
+        }
+    }
+
+    template <typename _Size, std::uint8_t _NumStrides, std::uint8_t _MaxInFlight, typename _IsFull, typename _Acc>
+    void
+    search_rounds(_IsFull, std::size_t bound, std::size_t idx, std::uint16_t stride, _Acc acc) const
+    {
+        constexpr std::size_t batch = std::min<std::size_t>(_NumStrides, _MaxInFlight);
+        constexpr std::size_t full_batches = _NumStrides / batch;
+        constexpr std::size_t tail = _NumStrides % batch;
+        _ONEDPL_PRAGMA_UNROLL
+        for (std::size_t b = 0; b < full_batches; ++b)
+            search_batch<_Size, batch>(_IsFull{}, bound, idx + b * batch * stride, stride, acc);
+        if constexpr (tail > 0)
+            search_batch<_Size, tail>(_IsFull{}, bound, idx + full_batches * batch * stride, stride, acc);
+    }
+
+    template <std::uint8_t _NumStrides, typename _IsFull, typename _Params, typename _Acc>
+    void
+    __execute_batch(_IsFull, std::size_t bound, std::size_t idx, std::uint16_t stride, _Params, _Acc acc) const
+    {
+        static_assert(_Params::__vector_size == 1,
+                      "The brick operates with tuples which must be excluded from vectorizable types");
+        if (use_32bit_indexing)
+            search_rounds<std::uint32_t, _NumStrides, max_in_flight_32>(_IsFull{}, bound, idx, stride, acc);
+        else
+            search_rounds<std::uint64_t, _NumStrides, max_in_flight_64>(_IsFull{}, bound, idx, stride, acc);
     }
 };
 #endif

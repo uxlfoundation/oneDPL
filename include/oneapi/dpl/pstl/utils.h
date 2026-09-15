@@ -1022,6 +1022,61 @@ __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
                                    oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
+// __C independent Shar's lower bound searches run in lock step, each round issuing __C probes.
+// A single search is a serial chain of dependent loads whose length is fixed by __last - __first and
+// is therefore the same for every value, which is what lets the searches share the loop. Interleaving
+// them performs exactly the probes __shars_lower_bound would, in an order that leaves __C loads
+// outstanding per work item instead of one.
+template <std::size_t __C, typename _Acc, typename _Size, typename _Value, typename _Compare>
+void
+__shars_lower_bound_batched(_Acc __acc, _Size __first, _Size __last, const _Value (&__value)[__C],
+                            _Size (&__result)[__C], _Compare __comp)
+{
+    static_assert(::std::is_unsigned_v<_Size>, "__shars_lower_bound_batched requires an unsigned size type");
+    const _Size __n = __last - __first;
+    if (__n == 0)
+    {
+        _ONEDPL_PRAGMA_UNROLL
+        for (std::size_t __j = 0; __j < __C; ++__j)
+            __result[__j] = __first;
+        return;
+    }
+    const _Size __pow2_top = __dpl_bit_floor(__n);
+    const _Size __midpoint = __n / 2;
+    _Size __shifted_first[__C];
+    _Size __search_offset[__C];
+    _ONEDPL_PRAGMA_UNROLL
+    for (std::size_t __j = 0; __j < __C; ++__j)
+    {
+        __shifted_first[__j] = std::invoke(__comp, __acc[__midpoint], __value[__j]) ? __n + 1 - __pow2_top : __first;
+        __search_offset[__j] = 0;
+    }
+    for (_Size __cur_pow2 = __pow2_top >> 1; __cur_pow2 > 0; __cur_pow2 >>= 1)
+    {
+        _ONEDPL_PRAGMA_UNROLL
+        for (std::size_t __j = 0; __j < __C; ++__j)
+        {
+            const _Size __search_idx = __shifted_first[__j] + (__search_offset[__j] | __cur_pow2) - 1;
+            if (std::invoke(__comp, __acc[__search_idx], __value[__j]))
+                __search_offset[__j] |= __cur_pow2;
+        }
+    }
+    _ONEDPL_PRAGMA_UNROLL
+    for (std::size_t __j = 0; __j < __C; ++__j)
+        __result[__j] = __shifted_first[__j] + __search_offset[__j];
+}
+
+template <std::size_t __C, typename _Acc, typename _Size, typename _Value, typename _Compare>
+void
+__shars_upper_bound_batched(_Acc __acc, _Size __first, _Size __last, const _Value (&__value)[__C],
+                            _Size (&__result)[__C], _Compare __comp)
+{
+    __shars_lower_bound_batched<__C>(
+        __acc, __first, __last, __value, __result,
+        oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__reorder_pred<_Compare>>{
+            oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
+}
+
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
 
 template <typename _Iterator1, typename _Iterator2>
