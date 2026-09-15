@@ -278,7 +278,7 @@ main()
         };
 
         run_algo_host_policies<permutable_archetype>(call, check, "partition, non-const callable");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTITION_HETERO
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo_hetero_policies<permutable_archetype_dc, 17>(call, check, "partition, non-const callable");
 #endif
     }
@@ -300,7 +300,7 @@ main()
         };
 
         run_algo_host_policies<permutable_archetype>(call, check, "stable_partition, non-const callable");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_PARTITION_HETERO
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo_hetero_policies<permutable_archetype_dc, 18>(call, check, "stable_partition, non-const callable");
 #endif
     }
@@ -460,7 +460,7 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE_HOST
         run_algo_host_policies<permutable_archetype>(call, check, "inplace_merge, non-const comparator");
 #endif
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE_HETERO
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo_hetero_policies<permutable_archetype_dc, 25>(call, check, "inplace_merge, non-const comparator");
 #endif
     }

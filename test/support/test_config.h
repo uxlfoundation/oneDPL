@@ -405,17 +405,6 @@
 // inplace_merge is broken for every host policy, see the note at its call site.
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE_HOST 1
 
-// The device path of these algorithms hands a const lvalue (or a const copy) of the element to
-// the user callable, which none of their requires-clauses asks for. See the notes at the call sites.
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_IS_PARTITIONED_HETERO 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HETERO 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTITION_HETERO 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_PARTITION_HETERO 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE_HETERO 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_IS_HEAP_HETERO 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_IS_HEAP_UNTIL_HETERO 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE_HETERO 1
-
 // The device path of rotate_copy assigns the output element from a const prvalue of the input one,
 // while std::indirectly_copyable only asks for an assignment from iter_reference_t of the input
 // iterator, i.e. from a non-const lvalue. This one is independent of any user callable.

@@ -277,7 +277,7 @@ main()
         auto check = [](auto&&, bool res) { return !res; };
 
         run_algo_host_policies<read_archetype>(call, check, "is_partitioned, non-const callable");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_IS_PARTITIONED_HETERO
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo_hetero_policies<read_archetype_dc, 28>(call, check, "is_partitioned, non-const callable");
 #endif
     }
@@ -343,7 +343,7 @@ main()
         auto check = [](auto&&, bool res) { return !res; };
 
         run_algo_host_policies<read_archetype>(call, check, "is_heap, non-const comparator");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_IS_HEAP_HETERO
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo_hetero_policies<read_archetype_dc, 35>(call, check, "is_heap, non-const comparator");
 #endif
     }
@@ -357,7 +357,7 @@ main()
         auto check = [](auto&& view, auto res) { return res == std::ranges::begin(view) + 1; };
 
         run_algo_host_policies<read_archetype>(call, check, "is_heap_until, non-const comparator");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_IS_HEAP_UNTIL_HETERO
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo_hetero_policies<read_archetype_dc, 36>(call, check, "is_heap_until, non-const comparator");
 #endif
     }
