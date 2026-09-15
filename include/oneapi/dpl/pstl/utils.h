@@ -491,6 +491,25 @@ __as_mutable_lvalue(_T&& __x) noexcept
     return const_cast<__mutable_lvalue_t<_T>>(__x);
 }
 
+template <typename _Comp>
+class __relax_const_comp
+{
+    mutable _Comp _M_comp;
+
+  public:
+    explicit __relax_const_comp(_Comp __comp) : _M_comp(std::move(__comp)) {}
+
+    template <
+        typename _T, typename _U,
+        std::enable_if_t<std::is_invocable_r_v<bool, _Comp&, __mutable_lvalue_t<_T>, __mutable_lvalue_t<_U>>, int> = 0>
+    bool
+    operator()(_T&& __x, _U&& __y) const
+    {
+        return std::invoke(_M_comp, __as_mutable_lvalue(std::forward<_T>(__x)),
+                           __as_mutable_lvalue(std::forward<_U>(__y)));
+    }
+};
+
 //! Like ::std::next, but with specialization for dpcpp case
 template <typename _Iter>
 _Iter
