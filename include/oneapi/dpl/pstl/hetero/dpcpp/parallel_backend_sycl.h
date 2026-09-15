@@ -594,7 +594,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     __event.wait_and_throw();
 
     std::array<diff_t, 2> __ret{};
-    std::tuple __results = __holder.__get_results();
+    std::tuple __results = __get_results(__holder);
     __ret[0] = std::get<0>(__results);
     if constexpr (_Bounded)
     {
@@ -737,7 +737,7 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
         __partition_event);
     __partition_event.wait_and_throw();
 
-    return __holder.__get_results();
+    return __get_results(__holder);
 }
 
 template <bool _Bounded, typename _SetTag, typename _ExecutionPolicy, typename _Range1, typename _Range2,
