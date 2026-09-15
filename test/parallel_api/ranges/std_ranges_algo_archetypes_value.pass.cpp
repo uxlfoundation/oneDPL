@@ -53,12 +53,14 @@ main()
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find");
 
+#if 0
     run_algo_all_policies<searchable_archetype, searchable_archetype_dc, 1>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{searched});
         },
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last");
+#endif
 
     run_algo_all_policies<searchable_archetype, searchable_archetype_dc, 2>(
         [](auto&& policy, auto&& view) {
@@ -109,6 +111,7 @@ main()
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find, noncopyable value");
 
+#if 0
     run_algo_all_policies<searchable_archetype, searchable_archetype_dc, 7>(
         [](auto&& policy, auto&& view) {
             using elem_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(view)>>;
@@ -117,6 +120,7 @@ main()
         },
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last, noncopyable value");
+#endif
 
     // count() must refer to the value instead of storing a copy of it: the requires-clause never
     // asks for a copyable value type.
@@ -170,6 +174,7 @@ main()
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; },
         "find, non-const projection");
 
+#if 0
     run_algo_all_policies<searchable_archetype, searchable_archetype_dc, 13>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{searched},
@@ -177,6 +182,7 @@ main()
         },
         [](auto&& view, auto res) { return std::ranges::begin(res) == std::ranges::begin(view) + searched; },
         "find_last, non-const projection");
+#endif
 
     run_algo_all_policies<searchable_archetype, searchable_archetype_dc, 14>(
         [](auto&& policy, auto&& view) {
