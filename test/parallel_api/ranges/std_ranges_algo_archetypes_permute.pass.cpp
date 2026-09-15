@@ -330,9 +330,7 @@ main()
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
         };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT_HOST
         run_algo_host_policies<permutable_archetype>(call, check, "sort, non-const comparator");
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
         run_algo_hetero_policies<permutable_archetype_dc, 20>(call, check, "sort, non-const comparator");
 #endif
@@ -349,9 +347,7 @@ main()
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
         };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HOST
         run_algo_host_policies<permutable_archetype>(call, check, "stable_sort, non-const comparator");
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
         run_algo_hetero_policies<permutable_archetype_dc, 21>(call, check, "stable_sort, non-const comparator");
 #endif
@@ -374,9 +370,7 @@ main()
             return std::ranges::begin(view)[0].val == 0 && std::ranges::begin(view)[9].val == 9;
         };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST
         run_algo_host_policies<permutable_archetype>(call, check, "partial_sort, non-const comparator");
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
         run_algo_hetero_policies<permutable_archetype_dc, 22>(call, check, "partial_sort, non-const comparator");
 #endif
@@ -431,9 +425,7 @@ main()
         };
         auto check = [](auto&& view, auto) { return std::ranges::begin(view)[10].val == 10; };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_NTH_ELEMENT_HOST
         run_algo_host_policies<permutable_archetype>(call, check, "nth_element, non-const comparator");
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
         run_algo_hetero_policies<permutable_archetype_dc, 24>(call, check, "nth_element, non-const comparator");
 #endif

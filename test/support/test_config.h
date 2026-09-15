@@ -384,14 +384,6 @@
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_SYMMETRIC_DIFFERENCE_HOST 1
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_SYMMETRIC_DIFFERENCE_HETERO 1
 
-// The parallel host patterns of sort, stable_sort, partial_sort and nth_element hand a const lvalue
-// to the comparator, which std::sortable never asks for. The serial patterns keep the element
-// non-const and would compile.
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT_HOST 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HOST 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_NTH_ELEMENT_HOST 1
-
 // partial_sort_copy inherits that defect through the very same parallel merge sort, and its parallel
 // host pattern additionally copy constructs the output element from the input one. Its device path
 // assigns the output element from a const lvalue of the input one, like rotate_copy below. See the
