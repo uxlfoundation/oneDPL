@@ -7,140 +7,24 @@
 //
 //===------------------------------------------------------===//
 
-// Compile-time checks for oneapi::dpl::__unseq_backend::__is_value_storable_v and __is_brace_constructible_v.
+// Compile-time checks for oneapi::dpl::__unseq_backend::__is_value_storable_v, the condition that selects the vector
+// code path of min_element and minmax_element.
 
 #include "support/test_config.h"
 
 #include <oneapi/dpl/pstl/unseq_backend_simd.h>
 
-#include <cstddef>
-#include <initializer_list>
-#include <iterator>
-#include <type_traits>
-#include <utility>
-#include <vector>
+#include <cstddef>     // for std::ptrdiff_t
+#include <cstdint>     // for std::int32_t
+#include <functional>  // for std::less
+#include <iterator>    // for std::random_access_iterator_tag, std::back_insert_iterator
+#include <type_traits> // for std::is_default_constructible_v, std::is_copy_constructible_v
+#include <utility>     // for std::pair
+#include <vector>      // for std::vector
 
 #include "support/utils.h"
 
 namespace dpl_unseq = oneapi::dpl::__unseq_backend;
-
-//----------------------------------------------------------------------------//
-// Value types
-//----------------------------------------------------------------------------//
-
-// Satisfies every requirement: default-constructible, copy-constructible, copy-assignable.
-struct Regular
-{
-    int val = 0;
-};
-
-struct ExplicitDefaultCtor
-{
-    int val;
-    explicit ExplicitDefaultCtor() : val(0) {}
-};
-
-// Default-constructible, but not brace-initializable: the member is copy-initialized from an empty list, which may not
-// use its explicit default constructor.
-struct AggregateOfExplicitDefaultCtor
-{
-    ExplicitDefaultCtor member;
-};
-
-// Brace-initializable, but not default-constructible: empty braces select the initializer-list constructor.
-struct BraceInitOnly
-{
-    int val;
-    BraceInitOnly(std::initializer_list<int> init) : val(init.size() == 0 ? 0 : *init.begin()) {}
-};
-
-// A type that is not default-constructible is taken from the test utilities: TestUtils::NoDefaultCtorWrapper<int>.
-
-struct NoCopyAssign
-{
-    int val = 0;
-    NoCopyAssign() = default;
-    NoCopyAssign(const NoCopyAssign&) = default;
-    NoCopyAssign&
-    operator=(const NoCopyAssign&) = delete;
-};
-
-// The copy assignment returns void instead of VoidAssign&.
-struct VoidAssign
-{
-    int val = 0;
-    void
-    operator=(const VoidAssign& other)
-    {
-        val = other.val;
-    }
-};
-
-struct MoveOnly
-{
-    int val = 0;
-    MoveOnly() = default;
-    MoveOnly(MoveOnly&&) = default;
-    MoveOnly&
-    operator=(MoveOnly&&) = default;
-    MoveOnly(const MoveOnly&) = delete;
-    MoveOnly&
-    operator=(const MoveOnly&) = delete;
-};
-
-// Copyable, but with deleted move operations.
-struct CopyOnlyNoMove
-{
-    int val = 0;
-    CopyOnlyNoMove() = default;
-    CopyOnlyNoMove(const CopyOnlyNoMove&) = default;
-    CopyOnlyNoMove&
-    operator=(const CopyOnlyNoMove&) = default;
-    CopyOnlyNoMove(CopyOnlyNoMove&&) = delete;
-    CopyOnlyNoMove&
-    operator=(CopyOnlyNoMove&&) = delete;
-};
-
-// Copyable and assignable from a const lvalue only.
-struct ConstCopyOnly
-{
-    int val = 0;
-    ConstCopyOnly() = default;
-    ConstCopyOnly(const ConstCopyOnly&) = default;
-    ConstCopyOnly&
-    operator=(const ConstCopyOnly&) = default;
-    ConstCopyOnly(ConstCopyOnly&) = delete;
-    ConstCopyOnly&
-    operator=(ConstCopyOnly&) = delete;
-};
-
-// The copy constructor is explicit, so the type is copy-constructible, but its elements cannot be copy-initialized.
-struct ExplicitCopyCtor
-{
-    int val = 0;
-    ExplicitCopyCtor() = default;
-    explicit ExplicitCopyCtor(const ExplicitCopyCtor& other) : val(other.val) {}
-    ExplicitCopyCtor&
-    operator=(const ExplicitCopyCtor&) = default;
-};
-
-//----------------------------------------------------------------------------//
-// __is_brace_constructible_v
-//----------------------------------------------------------------------------//
-
-static_assert(dpl_unseq::__is_brace_constructible_v<int>);
-static_assert(dpl_unseq::__is_brace_constructible_v<int*>);
-static_assert(dpl_unseq::__is_brace_constructible_v<Regular>);
-static_assert(dpl_unseq::__is_brace_constructible_v<ExplicitDefaultCtor>);
-static_assert(dpl_unseq::__is_brace_constructible_v<MoveOnly>);
-
-// Brace initialization differs from default construction in both directions.
-static_assert(std::is_default_constructible_v<AggregateOfExplicitDefaultCtor>);
-static_assert(!dpl_unseq::__is_brace_constructible_v<AggregateOfExplicitDefaultCtor>);
-static_assert(!std::is_default_constructible_v<BraceInitOnly>);
-static_assert(dpl_unseq::__is_brace_constructible_v<BraceInitOnly>);
-
-static_assert(!dpl_unseq::__is_brace_constructible_v<TestUtils::NoDefaultCtorWrapper<int>>);
 
 //----------------------------------------------------------------------------//
 // Reference types
@@ -164,6 +48,39 @@ struct FakeIterator
     operator*() const;
 };
 
+// An iterator whose reference narrows to its value type; the bricks are instantiated for it in main().
+struct NarrowingIterator
+{
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = std::int32_t;
+    using difference_type = std::ptrdiff_t;
+    using pointer = void;
+    using reference = double;
+
+    const double* ptr;
+
+    reference
+    operator*() const
+    {
+        return *ptr;
+    }
+    reference
+    operator[](difference_type __i) const
+    {
+        return ptr[__i];
+    }
+    NarrowingIterator
+    operator+(difference_type __i) const
+    {
+        return NarrowingIterator{ptr + __i};
+    }
+    difference_type
+    operator-(const NarrowingIterator& __other) const
+    {
+        return ptr - __other.ptr;
+    }
+};
+
 //----------------------------------------------------------------------------//
 // __is_value_storable_v
 //----------------------------------------------------------------------------//
@@ -173,31 +90,42 @@ static_assert(dpl_unseq::__is_value_storable_v<int*>);
 static_assert(dpl_unseq::__is_value_storable_v<const int*>);
 static_assert(dpl_unseq::__is_value_storable_v<std::vector<int>::iterator>);
 static_assert(dpl_unseq::__is_value_storable_v<std::vector<int>::const_iterator>);
-static_assert(dpl_unseq::__is_value_storable_v<Regular*>);
-static_assert(dpl_unseq::__is_value_storable_v<ExplicitDefaultCtor*>);
-static_assert(dpl_unseq::__is_value_storable_v<BraceInitOnly*>);
-// The requirements are brace initialization, copy construction and copy assignment, and nothing else.
-static_assert(dpl_unseq::__is_value_storable_v<CopyOnlyNoMove*>);
-static_assert(dpl_unseq::__is_value_storable_v<VoidAssign*>);
-static_assert(dpl_unseq::__is_value_storable_v<const ConstCopyOnly*>);
-// The reference type is not part of the requirement.
+static_assert(dpl_unseq::__is_value_storable_v<TestUtils::OnlyLessCompare*>);
+static_assert(dpl_unseq::__is_value_storable_v<TestUtils::ExplicitDefaultCtorCompare*>);
+static_assert(dpl_unseq::__is_value_storable_v<TestUtils::AggregateOfExplicitDefaultCtorCompare*>);
+// Default construction is not required: the reduction object is always built from a value.
+static_assert(!std::is_default_constructible_v<TestUtils::NoDefaultCtorWrapper<int>>);
+static_assert(dpl_unseq::__is_value_storable_v<TestUtils::NoDefaultCtorWrapper<int>*>);
+static_assert(!std::is_default_constructible_v<TestUtils::BraceInitOnlyCompare>);
+static_assert(dpl_unseq::__is_value_storable_v<TestUtils::BraceInitOnlyCompare*>);
+// The requirements are copy construction, copy assignment and copy-initialization from the reference type, and nothing
+// else - in particular the move operations are not required.
+static_assert(dpl_unseq::__is_value_storable_v<TestUtils::CopyOnlyNoMoveCompare*>);
+static_assert(dpl_unseq::__is_value_storable_v<TestUtils::VoidAssignCompare*>);
+static_assert(dpl_unseq::__is_value_storable_v<const TestUtils::ConstCopyOnlyCompare*>);
+// A proxy reference is accepted as long as the value type can be copy-initialized from it.
 static_assert(dpl_unseq::__is_value_storable_v<std::vector<bool>::iterator>);
 static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<int, int>>);
 static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<std::pair<int, int>, std::pair<int&, int&>>>);
-static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<CopyOnlyNoMove, CopyOnlyNoMove>>);
-// Accepted although the bricks do not compile for them: these iterators do not meet the requirements of a forward
-// iterator, which is not detected here.
-static_assert(std::is_copy_constructible_v<ExplicitCopyCtor>);
-static_assert(dpl_unseq::__is_value_storable_v<ExplicitCopyCtor*>);
-static_assert(dpl_unseq::__is_value_storable_v<ConstCopyOnly*>);
-static_assert(dpl_unseq::__is_value_storable_v<FakeIterator<int, OpaqueRef>>);
+// Narrowing is accepted: the bricks copy-initialize the value, they do not list-initialize it.
+static_assert(dpl_unseq::__is_value_storable_v<NarrowingIterator>);
 
-// Rejected because of the value type: the first two fail brace initialization, the third copy assignment, and the last
-// one copy construction.
-static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::NoDefaultCtorWrapper<int>*>);
-static_assert(!dpl_unseq::__is_value_storable_v<AggregateOfExplicitDefaultCtor*>);
-static_assert(!dpl_unseq::__is_value_storable_v<NoCopyAssign*>);
-static_assert(!dpl_unseq::__is_value_storable_v<MoveOnly*>);
+// Rejected because of the value type: copy assignment, copy construction.
+static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::NoCopyAssignCompare*>);
+static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::MoveOnlyCompare*>);
+
+// Rejected because the value cannot be copy-initialized from what the iterator dereferences to, which is how the
+// bricks read an element - copy-constructibility of the value type alone does not imply that.
+static_assert(std::is_copy_constructible_v<TestUtils::ExplicitCopyCtorCompare>);
+static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::ExplicitCopyCtorCompare*>);
+static_assert(std::is_copy_constructible_v<TestUtils::ConstCopyOnlyCompare>);
+static_assert(!dpl_unseq::__is_value_storable_v<TestUtils::ConstCopyOnlyCompare*>);
+static_assert(!dpl_unseq::__is_value_storable_v<FakeIterator<int, OpaqueRef>>);
+
+// Rejected conservatively: the conversion is checked from an rvalue of the reference type, while the bricks initialize
+// from *__first, which is a prvalue here and needs no move constructor; such an iterator only misses vectorization.
+static_assert(!dpl_unseq::__is_value_storable_v<
+              FakeIterator<TestUtils::CopyOnlyNoMoveCompare, TestUtils::CopyOnlyNoMoveCompare>>);
 
 // Rejected because an output iterator reports void as its value type.
 static_assert(!dpl_unseq::__is_value_storable_v<std::back_insert_iterator<std::vector<int>>>);
@@ -205,5 +133,19 @@ static_assert(!dpl_unseq::__is_value_storable_v<std::back_insert_iterator<std::v
 int
 main()
 {
+#if _ONEDPL_UDR_PRESENT
+    // Instantiating the bricks for NarrowingIterator catches a switch of their reduction object back to
+    // list-initialization at compile time. Truncated to the value type the data is {3, 1, 2, 1}, so the minimum is the
+    // first of the two ones and the maximum is the single three.
+    const double __data[] = {3.5, 1.25, 2.75, 1.75};
+    const NarrowingIterator __first{__data};
+    const std::ptrdiff_t __n = sizeof(__data) / sizeof(__data[0]);
+
+    EXPECT_EQ(1, dpl_unseq::__simd_min_element(__first, __n, std::less<>{}) - __first,
+              "wrong __simd_min_element on NarrowingIterator");
+    const auto __minmax = dpl_unseq::__simd_minmax_element(__first, __n, std::less<>{});
+    EXPECT_EQ(1, __minmax.first - __first, "wrong minimum from __simd_minmax_element on NarrowingIterator");
+    EXPECT_EQ(0, __minmax.second - __first, "wrong maximum from __simd_minmax_element on NarrowingIterator");
+#endif
     return TestUtils::done();
 }

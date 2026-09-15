@@ -16,10 +16,11 @@
 #ifndef _ONEDPL_UNSEQ_BACKEND_SIMD_H
 #define _ONEDPL_UNSEQ_BACKEND_SIMD_H
 
-#include <type_traits>
-#include <memory>   // for std::addressof
-#include <iterator> // for std::iterator_traits
-#include <utility>  // for std::as_const
+#include <functional>  // for std::invoke
+#include <iterator>    // for std::iterator_traits
+#include <memory>      // for std::addressof
+#include <type_traits> // for std::true_type, std::is_copy_constructible_v
+#include <utility>     // for std::pair, std::make_pair
 
 #include "utils.h"
 
@@ -615,20 +616,15 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
-template <typename _Tp, typename = void>
-inline constexpr bool __is_brace_constructible_v = false;
-
-template <typename _Tp>
-inline constexpr bool __is_brace_constructible_v<_Tp, decltype(void(_Tp{}))> = true;
-
-// Requirements needed by __simd_min_element and __simd_minmax_element implementations:
-// - __is_brace_constructible_v: the _ComplexType default constructor needs _ValueType{} to be well-formed.
-// - std::is_copy_constructible_v: _ComplexType copy constructor is deleted if _ValueType is not copy constructible.
-// - std::is_copy_assignable_v: the _ONEDPL_PRAGMA_SIMD_REDUCTION loop assigns _ValueType.
-template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type>
+// Implementation detail of __simd_min_element / __simd_minmax_element, not a contract of the algorithms. Copy
+// construction is needed because the OpenMP clause initializer(omp_priv = omp_orig) copy-initializes the whole
+// reduction object, hence its members. Convertibility of the reference type is not implied by copy-constructibility -
+// it also holds for an explicit copy constructor and for one deleted for non-const lvalues.
+template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type,
+          typename _ReferenceType = typename std::iterator_traits<_Iterator>::reference>
 inline constexpr bool __is_value_storable_v =
-    __is_brace_constructible_v<_ValueType> && std::is_copy_constructible_v<_ValueType> &&
-    std::is_copy_assignable_v<_ValueType>;
+    std::is_copy_constructible_v<_ValueType> && std::is_copy_assignable_v<_ValueType> &&
+    std::is_convertible_v<_ReferenceType, _ValueType>;
 
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
@@ -636,7 +632,8 @@ _ForwardIterator
 __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
     static_assert(__is_value_storable_v<_ForwardIterator>,
-                  "The value type of the iterator must be storable in the reduction object");
+                  "The value type of the iterator must be copy-constructible, copy-assignable and copy-initializable "
+                  "from the iterator's reference type");
 
     if (__n == 0)
     {
@@ -649,14 +646,8 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         _ValueType __min_val;
         _Size __min_ind;
         _Compare* __min_comp;
-        // The default constructor is not used during the algorithm, so it is not required for it.
-        // However, some compilers may require it.
 
-        _ComplexType() : __min_val{}, __min_ind{}, __min_comp(nullptr) {}
-        _ComplexType(const _ValueType& val, const _Compare* comp)
-            : __min_val(val), __min_ind(0), __min_comp(const_cast<_Compare*>(comp))
-        {
-        }
+        _ComplexType(const _ValueType& val, _Compare* comp) : __min_val(val), __min_ind(0), __min_comp(comp) {}
         _ComplexType(const _ComplexType& __obj) = default;
 
         _ONEDPL_PRAGMA_DECLARE_SIMD
@@ -672,16 +663,15 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         }
     };
 
-    _ComplexType __init{*__first, std::addressof(__comp)};
+    _ComplexType __init(*__first, std::addressof(__comp));
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType)
 
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        const _ValueType __min_val(std::as_const(__init).__min_val);
         const _ValueType __current = __first[__i];
-        if (std::invoke(__comp, __current, __min_val))
+        if (std::invoke(__comp, __current, __init.__min_val))
         {
             __init.__min_val = __current;
             __init.__min_ind = __i;
@@ -696,7 +686,8 @@ std::pair<_ForwardIterator, _ForwardIterator>
 __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
     static_assert(__is_value_storable_v<_ForwardIterator>,
-                  "The value type of the iterator must be storable in the reduction object");
+                  "The value type of the iterator must be copy-constructible, copy-assignable and copy-initializable "
+                  "from the iterator's reference type");
 
     if (__n == 0)
     {
@@ -711,13 +702,9 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         _Size __min_ind;
         _Size __max_ind;
         _Compare* __minmax_comp;
-        // The default constructor is not used during the algorithm, so it is not required for it.
-        // However, some compilers may require it.
 
-        _ComplexType() : __min_val{}, __max_val{}, __min_ind{}, __max_ind{}, __minmax_comp(nullptr) {}
-        _ComplexType(const _ValueType& min_val, const _ValueType& max_val, const _Compare* comp)
-            : __min_val(min_val), __max_val(max_val), __min_ind(0), __max_ind(0),
-              __minmax_comp(const_cast<_Compare*>(comp))
+        _ComplexType(const _ValueType& min_val, const _ValueType& max_val, _Compare* comp)
+            : __min_val(min_val), __max_val(max_val), __min_ind(0), __max_ind(0), __minmax_comp(comp)
         {
         }
         _ComplexType(const _ComplexType& __obj) = default;
@@ -752,22 +739,20 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         }
     };
 
-    _ComplexType __init{*__first, *__first, std::addressof(__comp)};
+    _ComplexType __init(*__first, *__first, std::addressof(__comp));
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType);
 
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        const _ValueType __min_val(std::as_const(__init).__min_val);
-        const _ValueType __max_val(std::as_const(__init).__max_val);
         const _ValueType __current = __first[__i];
-        if (std::invoke(__comp, __current, __min_val))
+        if (std::invoke(__comp, __current, __init.__min_val))
         {
             __init.__min_val = __current;
             __init.__min_ind = __i;
         }
-        else if (!std::invoke(__comp, __current, __max_val))
+        else if (!std::invoke(__comp, __current, __init.__max_val))
         {
             __init.__max_val = __current;
             __init.__max_ind = __i;
