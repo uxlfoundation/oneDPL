@@ -510,6 +510,10 @@ class __relax_const_comp
     }
 };
 
+template <typename _Comp, typename _T, typename _U = _T>
+inline constexpr bool __comp_wants_mutable_args_v =
+    !std::is_invocable_r_v<bool, _Comp&, const _T&, const _U&> && std::is_invocable_r_v<bool, _Comp&, _T&, _U&>;
+
 //! Like ::std::next, but with specialization for dpcpp case
 template <typename _Iter>
 _Iter
