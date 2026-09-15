@@ -364,4 +364,88 @@
 // std::input_iterator and std::output_iterator on the same pre-P2325R3 implementations.
 #define _ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 
+// Known gaps between the requires-clause of a range algorithm and what its implementation actually
+// asks of a user type. The archetype tests of test/parallel_api/ranges close the affected calls with
+// an #if on these macros, and the KSATODO note at the call site names the place in the implementation
+// to fix. The suffix says which side of the implementation is broken:
+//   _HOST   - the host policies, i.e. seq, unseq, par and par_unseq
+//   _HETERO - the device policy
+// A gap which in fact affects one host dispatch only, e.g. the parallel patterns or the vectorized
+// bricks, still switches every host policy off; the note at the call site names the branch which is
+// the broken one.
+// Every macro is hard-coded to 1, i.e. it states a defect of the current implementation; setting
+// one to 0 re-enables the calls, which is how a fix is verified.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_DIFFERENCE_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_DIFFERENCE_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_UNION_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_UNION_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_INTERSECTION_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_INTERSECTION_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_SYMMETRIC_DIFFERENCE_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_SYMMETRIC_DIFFERENCE_HETERO 1
+
+// The parallel host patterns of sort, stable_sort, partial_sort and nth_element hand a const lvalue
+// to the comparator, which std::sortable never asks for. The serial patterns keep the element
+// non-const and would compile.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_NTH_ELEMENT_HOST 1
+
+// partial_sort_copy inherits that defect through the very same parallel merge sort, and its parallel
+// host pattern additionally copy constructs the output element from the input one. Its device path
+// assigns the output element from a const lvalue of the input one, like rotate_copy below. See the
+// notes at the call sites.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HETERO 1
+
+// The radix sort of the device backend, which sort and stable_sort select for an integral projected
+// key, takes the address of the element with a plain operator& instead of std::addressof, and nothing
+// in std::sortable asks the element type for an operator& at all. This is not a defect of the two
+// algorithms themselves, only of that one backend, so it guards their projected key calls only.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_RADIX_SORT_HETERO 1
+
+// The SIMD brick of find_first_of calls the predicate with its two arguments swapped, which
+// std::indirectly_comparable does not ask for. The scalar brick keeps the argument order and would
+// compile.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST 1
+
+// inplace_merge is broken for every host policy, see the note at its call site.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE_HOST 1
+
+// The device path of these algorithms hands a const lvalue (or a const copy) of the element to
+// the user callable, which none of their requires-clauses asks for. See the notes at the call sites.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_IS_PARTITIONED_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTITION_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_PARTITION_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_IS_HEAP_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_IS_HEAP_UNTIL_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE_HETERO 1
+
+// The device path of rotate_copy assigns the output element from a const prvalue of the input one,
+// while std::indirectly_copyable only asks for an assignment from iter_reference_t of the input
+// iterator, i.e. from a non-const lvalue. This one is independent of any user callable.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_ROTATE_COPY_HETERO 1
+
+// The device paths of the conditionally copying algorithms assign a const copy of the input element to
+// the output one, while std::indirectly_copyable only asks for an assignment from iter_reference_t of
+// the input iterator, i.e. from a non-const lvalue. See the notes at the call sites. The host paths
+// are fine.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_COPY_IF_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_IF_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_UNIQUE_COPY_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTITION_COPY_HETERO 1
+// remove_copy delegates to copy_if with a negated equality predicate, so it inherits the very same
+// defect. replace, which delegates to for_each, is fine on the device.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_HETERO 1
+
+// Every host path of replace_copy_if and replace_copy but the serial scalar one stores the new value in
+// __replace_copy_functor by value and therefore copy constructs it, while
+// std::indirectly_writable<iterator_t<_OutR>, const _T&> only asks for an assignment from a const
+// lvalue. See the note at the call site. The device path legitimately copies the value into the kernel.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_IF_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_HOST 1
+
 #endif // _TEST_CONFIG_H
