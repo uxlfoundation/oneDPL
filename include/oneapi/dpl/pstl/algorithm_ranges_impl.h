@@ -852,26 +852,24 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
     constexpr _Index __merge_chunk = static_cast<_Index>(__internal::__merge_chunk_size<_Tp>);
     if (__n_out <= __merge_chunk)
     {
-        return __serial_merge_ranges(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-                                     std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
+        return __serial_merge_ranges(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                                     __comp, __proj1, __proj2);
     }
 
     // {1} is empty
     if (__n1 == 0)
     {
         auto __last2 = __first2 + std::min<_Index>(__n2, __n_out);
-        auto __last_out = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
-                                                                         __first2, __last2, __first3,
-                                                                         __internal::__brick_copy<_Tag>{});
+        auto __last_out = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2,
+                                                            __last2, __first3, __internal::__brick_copy<_Tag>{});
         return {__first1, __last2, __last_out};
     }
     // {2} is empty
     if (__n2 == 0)
     {
         auto __last1 = __first1 + std::min<_Index>(__n1, __n_out);
-        auto __last_out = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
-                                                                         __first1, __last1, __first3,
-                                                                         __internal::__brick_copy<_Tag>{});
+        auto __last_out = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
+                                                            __last1, __first3, __internal::__brick_copy<_Tag>{});
         return {__last1, __first2, __last_out};
     }
 
@@ -881,12 +879,11 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
         const _Index __k_b = __n_out - __k_a;
         auto __copy = [=, &__exec](auto __first_in, _Index __n, _Index __out_offset) {
             if (__n > 0)
-                __internal::__pattern_walk2_brick(__tag, __exec, __first_in, __first_in + __n,
-                                                  __first3 + __out_offset, __internal::__brick_copy<_Tag>{});
+                __internal::__pattern_walk2_brick(__tag, __exec, __first_in, __first_in + __n, __first3 + __out_offset,
+                                                  __internal::__brick_copy<_Tag>{});
         };
         __internal::__except_handler([=, &__exec]() {
-            __par_backend::__parallel_invoke(
-                _BackendTag{}, __exec,
+            __par_backend::__parallel_invoke(_BackendTag{}, __exec,
                 [=] { __copy(__first_a, __k_a, _Index{0}); },
                 [=] { __copy(__first_b, __k_b, __k_a); });
         });
@@ -911,13 +908,11 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
         __par_backend::__parallel_for(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_out,
             [=, &__result](_Index __i, _Index __j) {
-                const auto [__r, __c] = __internal::__merge_path_intersection(
-                    __i, __n1, __n2, __first1, __first2, __comp, __proj1, __proj2);
-
-                const auto [__it1, __it2, __it3] = __internal::__serial_merge_out_lim(
-                    __first1 + __r, __first1 + __n1, __first2 + __c, __first2 + __n2, __first3 + __i, __first3 + __j,
-                    __comp, __proj1, __proj2);
-
+                const auto [__r, __c] = __internal::__merge_path_intersection(__i, __n1, __n2, __first1, __first2,
+                                                                              __comp, __proj1, __proj2);
+                const auto [__it1, __it2, __it3] =
+                    __internal::__serial_merge_out_lim(__first1 + __r, __first1 + __n1, __first2 + __c, __first2 + __n2,
+                                                       __first3 + __i, __first3 + __j, __comp, __proj1, __proj2);
                 if (__j == __n_out)
                     __result = {__it1, __it2, __it3};
             },

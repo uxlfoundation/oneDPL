@@ -3175,7 +3175,7 @@ __merge_path_intersection(_Index __diag, _Index __n_1, _Index __n_2, _RandomAcce
         assert(__c_tmp < __n_2);
 
         const auto __res = std::invoke(__comp, std::invoke(__proj2, __first2[__c_tmp]),
-                                               std::invoke(__proj1, __first1[__r_tmp])) ? 0 : 1;
+                                               std::invoke(__proj1, __first1[__r_tmp])) ? 0: 1;
         return __res < __val;
     });
     const _Index __res_d = *__found; // __found == end -> __search_size, which is intentional
@@ -3246,14 +3246,12 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
                                   __brick_copy<__parallel_tag<_IsVector>>{});
         };
         const _Index __offset_b = __last_a - __first_a;
-        return __internal::__except_handler(
-            [=, &__exec]() {
-                __par_backend::__parallel_invoke(
-                    __backend_tag{}, __exec,
-                    [=] { __copy(__first_a, __last_a, _Index{0}); },
-                    [=] { __copy(__first_b, __last_b, __offset_b); });
-                return __first3 + __n_out;
-            });
+        return __internal::__except_handler([=, &__exec]() {
+            __par_backend::__parallel_invoke(__backend_tag{}, __exec,
+                [=] { __copy(__first_a, __last_a, _Index{0}); },
+                [=] { __copy(__first_b, __last_b, __offset_b); });
+            return __first3 + __n_out;
+        });
     };
     // {1} is ordered before {2}
     if (!__comp(*__first2, *(__last1 - 1)))
