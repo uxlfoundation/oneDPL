@@ -771,7 +771,7 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, 
           typename _Proj1, typename _Proj2>
 std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                           std::ranges::borrowed_iterator_t<_OutRange>>
-__pattern_merge_ranges(_Tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+__pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                        _Proj1 __proj1, _Proj2 __proj2)
 {
     auto __first1 = std::ranges::begin(__r1);
@@ -812,6 +812,7 @@ __pattern_merge_ranges(_Tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, 
                                                                          oneapi::dpl::__internal::__brick_copy<_Tag>{});
         return {__last1, __first2, __last_out};
     }
+    // TODO: handle this edge case as well: {1} ordered before {2} and vice versa
 
     if constexpr (__is_parallel_tag_v<_Tag>)
     {
@@ -843,6 +844,8 @@ __pattern_merge_ranges(_Tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, 
         }
     }
 
+    // It serves as both the main routine for seq/unseq policies, and a serial fallback for small ranges.
+    // TODO: issue a warning for non-vectorized execution with unseq policy.
     auto [__it1, __it2, __it3] = oneapi::dpl::__internal::__serial_merge_out_lim(
         __first1, __first1 + __n1, __first2, __first2 + __n2, __first3, __first3 + __n_out, __comp, __proj1, __proj2);
 

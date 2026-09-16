@@ -3241,8 +3241,9 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
         return __pattern_walk2_brick(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first1,
                                      __last1, __first3, __brick_copy<__parallel_tag<_IsVector>>{});
     }
+    // TODO: handle this edge case as well: {1} ordered before {2} and vice versa
+
     return __internal::__except_handler([&]() {
-        // Do parallel partition and merge
         __par_backend::__parallel_for(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
             [=](_IndexCommon __i, _IndexCommon __j) {
@@ -3308,7 +3309,11 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
         std::inplace_merge(__first, __middle, __last, __comp);
         return;
     }
-    // Do parallel merge
+    // TODO: handle other edge cases:
+    // - {1} ordered before {2}: do nothing
+    // - {2} ordered before {1}: rotate
+    // - narrow inplace_merge: do nothing with {1}'s head and {2}'s tail
+
     using _Index = std::common_type_t<typename std::iterator_traits<_RandomAccessIterator>::difference_type,
                                       std::ptrdiff_t>;
     static_assert(std::is_signed_v<_Index>);
