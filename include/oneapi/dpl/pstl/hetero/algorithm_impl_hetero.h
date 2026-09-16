@@ -1359,7 +1359,7 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
     //TODO: A buffer is constructed from a range, the destructor does not need to block.
     // The synchronization between these patterns is not required due to the data are being processed independently.
-    // So, sycl::event::wait(event1, event2) should be call. __pattern_hetero_walk2 calls above should be asynchronous and
+    // So, sycl::event::wait(event1, event2) should be call. The copy backs above should be asynchronous and
     // return event1 and event2.
 
     return __first + __true_count;
