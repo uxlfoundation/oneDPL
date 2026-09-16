@@ -17,7 +17,7 @@
 // enough for __parallel_for's large submitter, which no other test reaches: the gate scales with the
 // device's compute unit count, so on a large GPU it sits above a million keys. This test derives the
 // gate from the device and sizes itself to cross it, over the value type sizes that select each
-// distinct batch geometry.
+// distinct batch geometry, and over two key distributions.
 
 #include "support/test_config.h"
 
@@ -84,6 +84,16 @@ struct key_traits<Key3>
 template <typename KeyT, typename ResT, int Idx>
 class policy_name;
 
+// How the keys are drawn. A uniform draw over the haystack's range leaves the classes that only a
+// key outside that range produces -- a search that runs off either end of the haystack -- to a
+// handful of lanes, so absent_heavy draws a quarter of the lanes past the last element and a quarter
+// below the first, per lane, so that the classes mix within a work item's batch whatever its stride.
+enum class key_mix
+{
+    uniform,
+    absent_heavy
+};
+
 // Mirrors __parallel_for_large_submitter's dispatch gate.
 std::size_t
 batched_path_min_keys(sycl::queue __q, std::size_t __min_type_size)
@@ -129,20 +139,47 @@ run_and_check(const std::vector<KeyT>& __hay, const std::vector<KeyT>& __keys, c
 
 template <typename KeyT, typename ResT>
 void
-run_case(sycl::queue __q, std::size_t __n_keys, const std::string& __label)
+run_case(sycl::queue __q, std::size_t __n_keys, key_mix __mix, const std::string& __label)
 {
     // An odd haystack length keeps the search range off a power of two.
     const std::size_t __n_hay = __n_keys | 1;
     const std::uint32_t __span = std::uint32_t(std::min<std::size_t>(4 * __n_hay, key_traits<KeyT>::max_value));
+    // Lifting the haystack off zero makes keys below its first element representable.
+    const std::uint32_t __base = (__mix == key_mix::absent_heavy) ? 8 : 0;
 
     std::vector<KeyT> __hay(__n_hay), __keys(__n_keys);
     for (std::size_t __i = 0; __i != __n_hay; ++__i)
-        __hay[__i] = key_traits<KeyT>::make(std::uint32_t(std::uint64_t(__i) * __span / __n_hay));
+        __hay[__i] = key_traits<KeyT>::make(__base + std::uint32_t(std::uint64_t(__i) * (__span - __base) / __n_hay));
 
     std::mt19937 __gen(777);
     std::uniform_int_distribution<std::uint32_t> __dist(0, __span);
     for (std::size_t __i = 0; __i != __n_keys; ++__i)
         __keys[__i] = key_traits<KeyT>::make(__dist(__gen));
+    if (__mix == key_mix::absent_heavy)
+    {
+        const std::uint32_t __hay_max =
+            __base + std::uint32_t(std::uint64_t(__n_hay - 1) * (__span - __base) / __n_hay);
+        std::uniform_int_distribution<std::uint32_t> __past(__hay_max + 1, __span);
+        std::uniform_int_distribution<std::uint32_t> __below(0, __base - 1);
+        std::uniform_int_distribution<std::size_t> __element(0, __n_hay - 1);
+        for (std::size_t __i = 0; __i != __n_keys; ++__i)
+        {
+            switch (__gen() & 3u)
+            {
+            case 0:
+                __keys[__i] = __hay[__element(__gen)];
+                break;
+            case 1:
+                __keys[__i] = key_traits<KeyT>::make(__past(__gen));
+                break;
+            case 2:
+                __keys[__i] = key_traits<KeyT>::make(__below(__gen));
+                break;
+            default:
+                break;
+            }
+        }
+    }
     // Pin the ends: a key below every element and one above every element.
     __keys[0] = key_traits<KeyT>::make(0);
     __keys[__n_keys - 1] = key_traits<KeyT>::make(__span);
@@ -210,8 +247,10 @@ run_type(sycl::queue __q, const std::string& __type_label)
 
     // At the gate every work item has its full complement of keys; three keys past it the trailing
     // item is partial, which is a separate code path in the batched brick.
-    run_case<KeyT, ResT>(__q, __min_keys, __type_label + " full");
-    run_case<KeyT, ResT>(__q, __min_keys + 3, __type_label + " partial");
+    run_case<KeyT, ResT>(__q, __min_keys, key_mix::uniform, __type_label + " full");
+    run_case<KeyT, ResT>(__q, __min_keys + 3, key_mix::uniform, __type_label + " partial");
+    run_case<KeyT, ResT>(__q, __min_keys, key_mix::absent_heavy, __type_label + " full, absent heavy");
+    run_case<KeyT, ResT>(__q, __min_keys + 3, key_mix::absent_heavy, __type_label + " partial, absent heavy");
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
@@ -225,7 +264,8 @@ main()
     // batch geometry: one short batch, one full batch, two full batches, and a batch plus a tail.
     run_type<std::uint64_t, std::uint64_t>(__q, "uint64");
     run_type<std::uint32_t, std::uint32_t>(__q, "uint32");
-    run_type<std::uint16_t, std::uint16_t>(__q, "uint16");
+    // A 16-bit result would take the expected and actual indices mod 65536 and compare them blind.
+    run_type<std::uint16_t, std::uint32_t>(__q, "uint16");
     run_type<Key3, std::int32_t>(__q, "key3");
 #endif // TEST_DPCPP_BACKEND_PRESENT
 

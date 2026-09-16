@@ -39,19 +39,6 @@ enum class search_algorithm
 
 #if _ONEDPL_BACKEND_SYCL
 
-// Searches a work item keeps in flight at once, per index width. Each in-flight search carries a few
-// registers of per-lane state and 64-bit indexing doubles that; measured on PVC, a fourth 64-bit
-// search is what makes IGC select the large-GRF mode, which halves resident threads and gives back the
-// parallelism the interleaving buys. Both index widths are compiled into one kernel and the GRF mode
-// is chosen for the kernel, so the 64-bit bound has to stay low even where only 32-bit indexing runs.
-// Check if overridden for testing
-#ifndef _ONEDPL_BINARY_SEARCH_IN_FLIGHT_32
-#    define _ONEDPL_BINARY_SEARCH_IN_FLIGHT_32 4
-#endif
-#ifndef _ONEDPL_BINARY_SEARCH_IN_FLIGHT_64
-#    define _ONEDPL_BINARY_SEARCH_IN_FLIGHT_64 2
-#endif
-
 template <typename Comp, typename T, search_algorithm func>
 struct __custom_brick
 {
@@ -104,8 +91,12 @@ struct __custom_brick
     // leaves one load outstanding at a time. Take the indices as a batch instead and interleave the
     // searches, which issues _C probes per round without changing which probes are performed.
     static constexpr bool __batched = true;
-    static constexpr std::uint8_t max_in_flight_32 = _ONEDPL_BINARY_SEARCH_IN_FLIGHT_32;
-    static constexpr std::uint8_t max_in_flight_64 = _ONEDPL_BINARY_SEARCH_IN_FLIGHT_64;
+
+    // A fourth 64-bit search makes IGC select the large-GRF mode, halving resident threads. Both index
+    // widths compile into one kernel and the mode is chosen per kernel, so the 64-bit bound constrains
+    // the 32-bit path too.
+    static constexpr std::uint8_t max_in_flight_32 = 4;
+    static constexpr std::uint8_t max_in_flight_64 = 2;
 
     template <typename _Size, std::size_t _C, typename _IsFull, typename _Acc>
     void
@@ -114,9 +105,10 @@ struct __custom_brick
         using std::get;
         auto haystack = get<0>(acc.base());
         using _KeyType = std::decay_t<decltype(get<1>(acc[idx]))>;
+        using _HaystackType = std::decay_t<decltype(get<0>(acc[idx]))>;
 
-        // Every probe index Shar's algorithm forms lies within [0, size), so a lane whose key is past
-        // the end can safely repeat the last in-range search; only in-range lanes store a result.
+        // A lane whose index is past the end of the key range repeats the last in-range search rather
+        // than branching around it; only in-range lanes store a result.
         auto key_index = [=](std::size_t j) {
             const std::size_t i = idx + j * stride;
             if constexpr (_IsFull::value)
@@ -142,25 +134,32 @@ struct __custom_brick
 
         if constexpr (func == search_algorithm::binary_search)
         {
-            // The confirming probe is one more dependent load, so batch it too. Guarding it against
-            // result[j] == end_orig in place would make it conditional and serialize it again; the
-            // haystack is non-empty here, so index 0 is a safe stand-in for the not-found lanes.
-            _KeyType probe[_C];
+            // The confirming probe is one more dependent load, so batch it as well. A lane that found
+            // nothing has result == end_orig, which is out of range; substitute index 0, which exists
+            // because an empty haystack returns before the kernel is submitted. Such a lane compares
+            // unequal either way, since its key is greater than every element.
+            _HaystackType probe[_C];
             _ONEDPL_PRAGMA_UNROLL
             for (std::size_t j = 0; j < _C; ++j)
                 probe[j] = haystack[result[j] != end_orig ? result[j] : _Size{0}];
 
             _ONEDPL_PRAGMA_UNROLL
             for (std::size_t j = 0; j < _C; ++j)
-                if (_IsFull::value || idx + j * stride < bound)
-                    get<2>(acc[key_index(j)]) = (result[j] != end_orig) && (value[j] == probe[j]);
+            {
+                const std::size_t i = idx + j * stride;
+                if (_IsFull::value || i < bound)
+                    get<2>(acc[i]) = (result[j] != end_orig) && (value[j] == probe[j]);
+            }
         }
         else
         {
             _ONEDPL_PRAGMA_UNROLL
             for (std::size_t j = 0; j < _C; ++j)
-                if (_IsFull::value || idx + j * stride < bound)
-                    get<2>(acc[key_index(j)]) = result[j];
+            {
+                const std::size_t i = idx + j * stride;
+                if (_IsFull::value || i < bound)
+                    get<2>(acc[i]) = result[j];
+            }
         }
     }
 
@@ -168,6 +167,7 @@ struct __custom_brick
     void
     search_rounds(_IsFull, std::size_t bound, std::size_t idx, std::uint16_t stride, _Acc acc) const
     {
+        static_assert(_MaxInFlight > 0);
         constexpr std::size_t batch = std::min<std::size_t>(_NumStrides, _MaxInFlight);
         constexpr std::size_t full_batches = _NumStrides / batch;
         constexpr std::size_t tail = _NumStrides % batch;
