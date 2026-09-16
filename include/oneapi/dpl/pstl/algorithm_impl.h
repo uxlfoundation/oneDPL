@@ -3179,8 +3179,9 @@ __merge_path_intersection(_Index __diag, _Index __n_1, _Index __n_2, _RandomAcce
                                                std::invoke(__proj1, __first1[__r_tmp])) ? 0 : 1;
         return __res < __val;
     });
-    const _Index __res_d = static_cast<_Index>(*__found);
+    const _Index __res_d = *__found; // __found == end -> __d_size, which is intentional
 
+    // +1 to get a merge matrix ceil, lying on the current diagonal
     return {__get_row(__res_d) + 1, __get_column(__res_d)};
 }
 
@@ -3302,7 +3303,7 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
         return;
     }
     // Too few elements
-    // multiple of the serial merge chunk size to ammortize the allocation overhead
+    // multiple of the serial merge chunk size to amortize the allocation overhead
     using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
     if (static_cast<std::size_t>(__last - __first) <= 4 * __merge_chunk_size<_Tp>)
     {
