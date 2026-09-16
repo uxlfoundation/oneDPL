@@ -217,30 +217,16 @@ main()
         },
         [](auto&& view, auto) { return std::ranges::begin(view)[10].val == 10; }, "nth_element");
 
-    // KSATODO: inplace_merge does not compile with any host policy even with a const comparator, because
-    // of a defect which has nothing to do with the comparator at all:
-    //  - algorithm_ranges_impl.h:848 - the serial path returns __end(__r), i.e. the sentinel of the
-    //    range, while the declared return type is std::ranges::borrowed_iterator_t<_R>. The two types
-    //    differ for every range which is not a common_range, so seq already fails to compile.
-    // Both halves of the ascending range are sorted, so merging them keeps it as it is.
-    {
-        auto call = [](auto&& policy, auto&& view) {
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 14>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::inplace_merge(std::forward<decltype(policy)>(policy), view,
-                                             std::ranges::begin(view) + std::ranges::size(view) / 2,
-                                             permutable_comp{});
-        };
-        auto check = [](auto&& view, auto) {
+                                             std::ranges::begin(view) + std::ranges::size(view) / 2, permutable_comp{});
+        },
+        [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 &&
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
-        };
-
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE_HOST
-        run_algo_host_policies<permutable_archetype>(call, check, "inplace_merge");
-#endif
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo_hetero_policies<permutable_archetype_dc, 14>(call, check, "inplace_merge");
-#endif
-    }
+        },
+        "inplace_merge");
 
     //----------------------------------------------------------------------------------------------
     // Callables taking their arguments by non-const reference. The element of a permutable range is
@@ -368,29 +354,17 @@ main()
     //    parallel_backend_tbb.h:1240,1245 does the same through std::upper_bound / std::lower_bound
     //    for par and par_unseq.
     // Both halves of the ascending range are sorted, so merging them keeps it as it is.
-    //
-    // KSATODO: the device path of inplace_merge compares two const lvalues, which std::sortable does
-    // not ask for, so the call does not compile:
-    //  - parallel_backend_sycl_merge.h:128-133 - the lambda of __find_start_point captures __rng1 and
-    //    __rng2 and subscripts them as const, and both results go into the comparator.
-    {
-        auto call = [](auto&& policy, auto&& view) {
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 25>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::inplace_merge(std::forward<decltype(policy)>(policy), view,
                                              std::ranges::begin(view) + std::ranges::size(view) / 2,
                                              permutable_comp_mut{});
-        };
-        auto check = [](auto&& view, auto) {
+        },
+        [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 &&
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
-        };
-
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE_HOST
-        run_algo_host_policies<permutable_archetype>(call, check, "inplace_merge, non-const comparator");
-#endif
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo_hetero_policies<permutable_archetype_dc, 25>(call, check, "inplace_merge, non-const comparator");
-#endif
-    }
+        },
+        "inplace_merge, non-const comparator");
 
     //----------------------------------------------------------------------------------------------
     // The same algorithms called without a comparator at all, i.e. with the default
@@ -440,28 +414,16 @@ main()
         [](auto&& view, auto) { return std::ranges::begin(view)[10].val == 10; },
         "nth_element, default comparator");
 
-    // KSATODO: the host defect of inplace_merge is the return type of its serial path, see the note
-    // above, so it stays broken whatever the comparator is. The device defect is the const-ness of the
-    // comparator arguments only, which std::ranges::less accepts, so the device call is expected to
-    // compile here.
-    // Both halves of the ascending range are sorted, so merging them keeps it as it is.
-    {
-        auto call = [](auto&& policy, auto&& view) {
+    run_algo_all_policies<permutable_ordered_archetype, permutable_ordered_archetype_dc, 30>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::inplace_merge(std::forward<decltype(policy)>(policy), view,
                                              std::ranges::begin(view) + std::ranges::size(view) / 2);
-        };
-        auto check = [](auto&& view, auto) {
+        },
+        [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 &&
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
-        };
-
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE_HOST
-        run_algo_host_policies<permutable_ordered_archetype>(call, check, "inplace_merge, default comparator");
-#endif
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo_hetero_policies<permutable_ordered_archetype_dc, 30>(call, check, "inplace_merge, default comparator");
-#endif
-    }
+        },
+        "inplace_merge, default comparator");
 
     // unique defaults its equivalence relation to std::ranges::equal_to, which needs the equality of
     // the element type and no ordering at all. All the elements are unique, so nothing is dropped.

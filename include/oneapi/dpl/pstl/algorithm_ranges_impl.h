@@ -990,10 +990,13 @@ std::ranges::borrowed_iterator_t<_R>
 __pattern_inplace_merge_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&& __exec, _R&& __r,
                                std::ranges::iterator_t<_R> __middle, _Comp __comp, _Proj __proj)
 {
+    [[maybe_unused]] auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
     std::ranges::inplace_merge(
         __r, __middle,
         oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp), __proj);
-    return oneapi::dpl::__ranges::__end(__r);
+
+    return __last;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
