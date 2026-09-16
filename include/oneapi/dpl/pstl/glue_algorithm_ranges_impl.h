@@ -1351,10 +1351,11 @@ struct __internal::__rotate_copy_fn
         auto __first_out = std::ranges::begin(__result);
         const std::size_t __min_size = std::min<std::size_t>(__in_size, std::ranges::size(__result));
 
-        auto __stop_out = oneapi::dpl::__internal::__pattern_rotate_copy(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first_in, __middle, __last_in, __first_out,
-            __min_size);
-        assert(__stop_out == __first_out + __min_size);
+        auto __stop_out = __first_out + __min_size;
+
+        oneapi::dpl::__internal::__ranges::__pattern_rotate_copy(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::subrange(__first_in, __last_in),
+            std::ranges::subrange(__first_out, __stop_out), std::size_t(__middle - __first_in));
 
         if (__min_size < std::size_t(__last_in - __middle))
             return {__middle + __min_size, __first_in, __stop_out};

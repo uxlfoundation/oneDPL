@@ -1000,6 +1000,29 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _In
 }
 
 //------------------------------------------------------------------------
+// rotate_copy
+//------------------------------------------------------------------------
+template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+void
+__pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r,
+                      std::size_t __shift)
+{
+    const std::size_t __n = oneapi::dpl::__ranges::__size(__in_r);
+    const std::size_t __n_out = oneapi::dpl::__ranges::__size(__out_r);
+
+    assert(__n_out <= __n); // the output range must be trimmed on the caller side
+
+    if (__n == 0 || __n_out == 0)
+        return;
+
+    oneapi::dpl::__par_backend_hetero::__parallel_for(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__rotate_copy{__n_out, __n, __shift},
+        __n_out, oneapi::dpl::__ranges::__get_subscription_view(std::forward<_InRange>(__in_r)),
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_OutRange>(__out_r)))
+        .__checked_deferrable_wait();
+}
+
+//------------------------------------------------------------------------
 // replace_copy
 //------------------------------------------------------------------------
 template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred,

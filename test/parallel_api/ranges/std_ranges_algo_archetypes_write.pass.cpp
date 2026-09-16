@@ -85,28 +85,17 @@ main()
         },
         "reverse_copy");
 
-    // KSATODO: std::indirectly_copyable only asks for *__out = *__in, i.e. for an assignment from
-    // iter_reference_t of the input iterator, which is a non-const lvalue for archetype_view. The device
-    // path assigns from a const prvalue instead, so the call does not compile:
-    //  - unseq_backend_sycl.h:885 - __rotate_copy::operator() writes __rng2[__idx] = __rng1[__shifted]
-    //    with __rng1 a const all_view of access mode read, whose subscript returns const _Elem by value.
-    // Assigning through a non-const reference to the input element fixes it; the host path already does.
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_all_policies<copy_in_archetype, copy_out_archetype, copy_in_archetype_dc, copy_out_archetype_dc, 3>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::rotate_copy(std::forward<decltype(policy)>(policy), in_view,
                                            std::ranges::begin(in_view) + 10, out_view);
-        };
-        auto check = [](auto&& in_view, auto&& out_view, auto) {
+        },
+        [](auto&& in_view, auto&& out_view, auto) {
             const auto n = std::ranges::size(in_view);
             return std::ranges::begin(out_view)[0].val == std::ranges::begin(in_view)[10].val &&
                    std::ranges::begin(out_view)[n - 10].val == std::ranges::begin(in_view)[0].val;
-        };
-
-        run_algo2_host_policies<copy_in_archetype, copy_out_archetype>(call, check, "rotate_copy");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_ROTATE_COPY_HETERO
-        run_algo2_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 3>(call, check, "rotate_copy");
-#endif
-    }
+        },
+        "rotate_copy");
 
     run_algo2_offset_all_policies<move_in_archetype, move_out_archetype, move_in_archetype_dc, move_out_archetype_dc,
                                   4>(

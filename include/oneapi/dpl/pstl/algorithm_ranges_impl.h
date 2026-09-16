@@ -1956,6 +1956,27 @@ __pattern_reverse_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPol
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// __pattern_rotate_copy
+//---------------------------------------------------------------------------------------------------------------------
+
+// __in_r is the whole input range while __out_r is already trimmed to the number of elements to write on the caller
+// side. The iterator-based pattern honors that number, so there is no separate serial overload calling
+// std::ranges::rotate_copy, which would always write the whole input.
+template <typename _Tag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>
+void
+__pattern_rotate_copy(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r,
+                      std::size_t __shift)
+{
+    auto [__first_in, __last_in] = oneapi::dpl::__ranges::__bounds(__in_r);
+
+    [[maybe_unused]] auto __stop_out = oneapi::dpl::__internal::__pattern_rotate_copy(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first_in, __first_in + __shift, __last_in,
+        std::ranges::begin(__out_r), std::ranges::size(__out_r));
+
+    assert(__stop_out == std::ranges::end(__out_r));
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // __pattern_replace_copy_if
 //---------------------------------------------------------------------------------------------------------------------
 
