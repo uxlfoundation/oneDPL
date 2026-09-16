@@ -106,18 +106,6 @@ struct __get_zeroth_element
     }
 };
 
-// Extracts the second component (temporary buffer) from a zipped range.
-// Used as _RangeTransform in __gen_expand_count_mask.
-struct __get_first_range
-{
-    template <typename... _Ranges>
-    auto
-    operator()(const oneapi::dpl::__ranges::zip_view<_Ranges...>& __a) const
-    {
-        return std::get<1>(__a.base());
-    }
-};
-
 // Storage for per-element temporary data, set at reduce and read at scan by "input generators".
 // To support block processing like in reduce-then-scan, elements are accessible via global index.
 template <typename _T>
@@ -569,24 +557,6 @@ struct __gen_count_mask
     _GenMask __gen_mask;
 };
 
-// A generator for the reduce step of the compact pattern.
-// Evaluates the keep-predicate on the original input (get<0> of the zipped range),
-// copies matching elements to the temporary buffer (get<1> of the zipped range),
-// and returns the count. Replaces __gen_count_mask for the compact pattern.
-template <typename _GenMask, typename _RetType>
-struct __gen_count_mask_and_copy
-{
-    template <typename _InRng, typename _BufRng>
-    _RetType
-    operator()(const oneapi::dpl::__ranges::zip_view<_InRng, _BufRng>& __zip_rng, _RetType __id) const
-    {
-        bool __mask = __gen_mask(std::get<0>(__zip_rng.base()), __id);
-        std::get<1>(__zip_rng[__id]) = std::get<0>(__zip_rng[__id]);
-        return __mask ? _RetType{1} : _RetType{0};
-    }
-    _GenMask __gen_mask;
-};
-
 // A generator which expands the mask generator to return a tuple containing the count, mask, and the element at the
 // specified index.
 template <typename _GenMask, typename _RetType, typename _RangeTransform = oneapi::dpl::identity>
@@ -613,6 +583,67 @@ struct __gen_expand_count_mask
     }
     _GenMask __gen_mask;
     _RangeTransform __rng_transform;
+};
+
+// A base class for generators used by in-place compaction algorithms
+template <typename _RetType>
+struct __optimized_input_buffering
+{
+    static constexpr bool __block_carry_required = true;
+    static bool
+    __transform_block_carry(_RetType* __carry_ptr, std::size_t __block_num, std::size_t __block_size)
+    {
+        // Even if all elements in an input block would have to be written, their new places are before the block.
+        // The result is passed to operator().
+        return __block_num == 0 || (*__carry_ptr) + __block_size >= __block_num * __block_size;
+    }
+};
+
+// A generator for the reduce step of the compact pattern.
+// Evaluates the keep-predicate on the original input (get<0> of the zipped range),
+// copies matching elements to the temporary buffer (get<1> of the zipped range),
+// and returns the count.
+template <typename _GenMask, typename _RetType>
+struct __gen_count_mask_and_copy : public __optimized_input_buffering<_RetType>
+{
+    __gen_count_mask_and_copy(_GenMask __gen) : __optimized_input_buffering<_RetType>{}, __gen_mask{__gen} {}
+
+    template <typename _InRng, typename _BufRng>
+    _RetType
+    operator()(const oneapi::dpl::__ranges::zip_view<_InRng, _BufRng>& __zip_rng, _RetType __id, bool __copy) const
+    {
+        bool __mask = __gen_mask(std::get<0>(__zip_rng.base()), __id);
+        if (__copy)
+            std::get<1>(__zip_rng[__id]) = std::get<0>(__zip_rng[__id]);
+        return __mask ? _RetType{1} : _RetType{0};
+    }
+    _GenMask __gen_mask;
+};
+
+// A generator for the scan step of the compact pattern.
+// Expands the mask generator to return a tuple containing the count, mask, and the element at the specified index
+// that might be read from original input or the temporary buffer.
+template <typename _GenMask, typename _RetType>
+struct __gen_expand_count_mask_from_copy : public __optimized_input_buffering<_RetType>
+{
+    template <typename _InRng>
+    using __element_t = oneapi::dpl::__internal::__value_t<_InRng>;
+
+    template <typename _InRng>
+    using __result_t = std::tuple<_RetType, bool, __element_t<_InRng>>;
+
+    __gen_expand_count_mask_from_copy(_GenMask __gen) : __optimized_input_buffering<_RetType>{}, __gen_mask{__gen} {}
+
+    template <typename _InRng, typename _BufRng>
+    __result_t<_InRng>
+    operator()(const oneapi::dpl::__ranges::zip_view<_InRng, _BufRng>& __zip_rng, _RetType __id, bool __read_copy) const
+    {
+        auto&& [__input, __buffer] = __zip_rng.base();
+        __element_t<_InRng> __ele = __read_copy ? __buffer[__id] : __input[__id];
+        bool __mask = __read_copy ? __gen_mask(__buffer, __id) : __gen_mask(__input, __id);
+        return __result_t<_InRng>(__mask ? _RetType{1} : _RetType{0}, __mask, __ele);
+    }
+    _GenMask __gen_mask;
 };
 
 // __parallel_unique_copy
@@ -1735,6 +1766,33 @@ __scan_through_elements_impl(const sycl::nd_item<1>& __ndi, _GenInput __gen_inpu
     });
 }
 
+// Detecting if an input generator uses block carry values
+template <typename, typename = void>
+struct __block_carry_opt
+{
+    static constexpr bool __is_required = false;
+
+    static __internal::__no_result_needed_tag
+    __transform_block_carry(void*, std::size_t, std::size_t)
+    {
+        return {};
+    }
+};
+
+template <typename _T>
+struct __block_carry_opt<_T, std::void_t<decltype(_T::__block_carry_required)>>
+{
+    static constexpr bool __is_required = _T::__block_carry_required;
+
+    template <typename _ValueType>
+    static auto
+    __transform_block_carry(_ValueType* __carry_ptr, std::size_t __block_num, std::size_t __block_size)
+    {
+        // if __block_num == 0, *__carry_ptr must not be read as the value is not initialized
+        return _T::__transform_block_carry(__carry_ptr, __block_num, __block_size);
+    }
+};
+
 template <typename _ScanOpsTag, typename _InitValueType>
 struct __comm_slm_handler
 {
@@ -1781,6 +1839,12 @@ struct __comm_slm_handler<__subgroup_only_tag, _InitValueType>
 // Helper functions to communicate between processing blocks via temporary storage.
 // Each block writes a carry-out partial sum which serves as the carry-in for the next block.
 // To prevent data race within the block, carry-in and carry-out values flip between odd & even blocks.
+template <typename _ValueType>
+_ValueType*
+__get_block_carry_in_ptr(const std::size_t __block_num, _ValueType* __tmp_ptr)
+{
+    return __tmp_ptr + (__block_num % 2);
+}
 
 template <typename _ValueType>
 _ValueType
@@ -1815,6 +1879,30 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
                                                     _GenReduceInput, _ReduceOp, _InitType,
                                                     __internal::__optional_kernel_name<_KernelName...>>
 {
+    using _InitValueType = typename _InitType::__value_type;
+
+    template <typename _ValueType, typename _InRng, typename _CommTag>
+    void
+    __scan_through_elements(const sycl::nd_item<1>& __ndi,
+                            oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __sub_group_carry,
+                            const _InRng& __in_rng, std::size_t __start_id, std::uint32_t __iters_per_item,
+                            std::size_t __subgroup_start_id, std::size_t __block_num, _InitValueType* __block_carry_ptr,
+                            _CommTag __comm_tag) const
+    {
+        using __block_carry_t = __block_carry_opt<_GenReduceInput>;
+        auto __carry = __block_carry_t::__transform_block_carry(__block_carry_ptr, __block_num, __max_block_size);
+
+        auto __gen_input = [&](const _InRng& __rng, std::size_t __id) {
+            if constexpr (__block_carry_t::__is_required)
+                return __gen_reduce_input(__rng, __id, __carry);
+            else
+                return __gen_reduce_input(__rng, __id);
+        };
+        __scan_through_elements_impl<__is_inclusive>(
+            __ndi, __gen_input, oneapi::dpl::identity{}, __reduce_op, oneapi::dpl::__internal::__ignore_call_op{},
+            __sub_group_carry, __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __comm_tag);
+    }
+
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
     template <typename _InRng, typename _TmpStorage, typename _StopPosStorage, typename _StopPosInitState>
@@ -1823,7 +1911,6 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
                const sycl::event& __prior_event, const std::uint32_t __inputs_per_item, const std::size_t __block_num,
                _StopPosStorage& __stop_pos_storage, _StopPosInitState __stop_pos_initial_state) const
     {
-        using _InitValueType = typename _InitType::__value_type;
         const std::uint32_t __inputs_per_work_group = __inputs_per_item * __work_group_size;
         return __q.submit([&, this](sycl::handler& __cgh) {
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
@@ -1867,10 +1954,10 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
                 {
                     oneapi::dpl::__internal::__opt_lazy_ctor_storage<_InitValueType> __sub_group_carry;
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
-                    __scan_through_elements_impl<__is_inclusive>(
-                        __ndi, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op,
-                        oneapi::dpl::__internal::__ignore_call_op{}, __sub_group_carry, __in_rng, __start_id, __n,
-                        __inputs_per_item, __subgroup_start_id, __comm_scan_tag);
+                    __scan_through_elements(
+                        __ndi, __sub_group_carry, __in_rng, __start_id, __inputs_per_item, __subgroup_start_id,
+                        __block_num, __get_block_carry_in_ptr(__block_num, __temp_ptr + __max_num_sub_groups_global),
+                        __comm_scan_tag);
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__get_cref();
                 }
@@ -1948,6 +2035,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
     const std::uint32_t __work_group_size;
     const std::size_t __max_block_size;
     const std::uint32_t __max_num_sub_groups_local;
+    const std::uint32_t __max_num_sub_groups_global;
     const std::size_t __n;
 
     const _GenReduceInput __gen_reduce_input;
@@ -1975,13 +2063,15 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
     __scan_through_elements(const sycl::nd_item<1>& __ndi,
                             oneapi::dpl::__internal::__opt_lazy_ctor_storage<_InitValueType>& __sub_group_carry,
                             const _InRng& __in_rng, _OutRng& __out_rng, std::size_t __start_id,
-                            std::uint32_t __iters_per_item, std::size_t __subgroup_start_id, _CommTag __comm_tag,
-                            _StopPosAcc __stop_pos_acc) const
+                            std::uint32_t __iters_per_item, std::size_t __subgroup_start_id, std::size_t __block_num,
+                            _InitValueType* __block_carry_ptr, _CommTag __comm_tag, _StopPosAcc __stop_pos_acc) const
     {
         using __temp_data_required_t = __temp_data_required<_GenScanInput>;
         using _TempData = typename __temp_data_required_t::type;
+        using __block_carry_t = __block_carry_opt<_GenScanInput>;
 
         constexpr bool __is_temp_data_required = __temp_data_required_t::value;
+        auto __carry = __block_carry_t::__transform_block_carry(__block_carry_ptr, __block_num, __max_block_size);
         _TempData __temp_data{};
 
         auto __gen_input = [&](const _InRng& __rng, std::size_t __id) {
@@ -1997,6 +2087,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
             }
             else if constexpr (__is_temp_data_required)
                 return __gen_scan_input(__rng, __id, __temp_data, __internal::__no_callback_tag{});
+            else if constexpr (__block_carry_t::__is_required)
+                return __gen_scan_input(__rng, __id, __carry);
             else
                 return __gen_scan_input(__rng, __id);
         };
@@ -2297,8 +2389,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
                     std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                    __scan_through_elements(__ndi, __sub_group_carry, __in_rng, __out_rng, __start_id,
-                                            __inputs_per_item, __subgroup_start_id, __comm_scan_tag, __stop_pos_acc);
+                    __scan_through_elements(
+                        __ndi, __sub_group_carry, __in_rng, __out_rng, __start_id, __inputs_per_item,
+                        __subgroup_start_id, __block_num,
+                        __get_block_carry_in_ptr(__block_num, __tmp_ptr + __max_num_sub_groups_global),
+                        __comm_scan_tag, __stop_pos_acc);
                 }
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block
@@ -2497,6 +2592,7 @@ __parallel_transform_reduce_then_scan_impl(
                                         __work_group_size,
                                         __max_inputs_per_block,
                                         __max_num_sub_groups_local,
+                                        __max_num_sub_groups_global,
                                         __n,
                                         __gen_reduce_input,
                                         __reduce_op,
