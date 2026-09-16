@@ -179,7 +179,7 @@ main()
     //    ask the output element for default construction; copying the input into the output range and
     //    sorting it in place, as the other branch at algorithm_impl.h:2686 does, needs no construction
     //    at all.
-    // The serial pattern (algorithm_ranges_impl.h:521) forwards to std::ranges::partial_sort_copy and
+    // The serial pattern (algorithm_ranges_impl.h:617) forwards to std::ranges::partial_sort_copy and
     // is conforming by construction, so seq and unseq would compile; the gap macro covers the host side
     // as a whole and switches them off as well.
     {
@@ -302,9 +302,10 @@ main()
     // parallel merge sort, see the note above partial_sort.
     //
     // KSATODO: the parallel host and the device patterns drop _Proj1 altogether
-    // (algorithm_ranges_impl.h:503,513 and hetero/algorithm_ranges_impl_hetero.h:1528,1536 build
-    // __binary_op<_Comp, _Proj2, _Proj2>), so they project the input range with the projection of the
-    // output range and never call the comparator with the mixed argument pair the requires-clause asks
+    // (algorithm_ranges_impl.h:608 and hetero/algorithm_ranges_impl_hetero.h:1701 build
+    // __binary_op<_Comp, _Proj2, _Proj2>), so when the output range is shorter than the input one they
+    // select the elements to keep by projecting copies of the input elements with the projection of the
+    // output range, and never call the comparator with the mixed argument pair the requires-clause asks
     // for. That is a wrong result and not a compilation failure, so it stays invisible here: both
     // projections below return the element itself. The serial pattern forwards the two projections to
     // std::ranges::partial_sort_copy and is correct.
