@@ -852,8 +852,10 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
     constexpr _Index __merge_chunk = static_cast<_Index>(__internal::__merge_chunk_size<_Tp>);
     if (__n_out <= __merge_chunk)
     {
-        return __serial_merge_ranges(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
-                                     __comp, __proj1, __proj2);
+        return __internal::__except_handler([&]() {
+            return __serial_merge_ranges(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                         std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
+        });
     }
 
     // {1} is empty

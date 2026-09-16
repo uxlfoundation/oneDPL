@@ -3122,25 +3122,6 @@ __serial_merge_out_lim(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _F
     return {__first1, __first2, __first3};
 }
 
-template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
-_OutputIterator
-__brick_merge(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-              _ForwardIterator2 __last2, _OutputIterator __d_first, _Compare __comp,
-              /* __is_vector = */ std::false_type) noexcept
-{
-    return std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
-}
-
-template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3, class _Compare>
-_RandomAccessIterator3
-__brick_merge(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-              _RandomAccessIterator2 __last2, _RandomAccessIterator3 __d_first, _Compare __comp,
-              /* __is_vector = */ std::true_type) noexcept
-{
-    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
-}
-
 // This implementation is based on the Merge Path algorithm described in:
 // O. Green, S. Odeh, and Y. Birk,
 // "Merge Path - A Visually Intuitive Approach to Parallel Merging", arXiv:1406.2628, 2014.
@@ -3180,6 +3161,25 @@ __merge_path_intersection(_Index __diag, _Index __n_1, _Index __n_2, _RandomAcce
     });
     const _Index __res_d = *__found; // __found == end -> __search_size, which is intentional
     return {__row_begin - __res_d, __get_column(__res_d)};
+}
+
+template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
+_OutputIterator
+__brick_merge(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+              _ForwardIterator2 __last2, _OutputIterator __d_first, _Compare __comp,
+              /* __is_vector = */ std::false_type) noexcept
+{
+    return std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
+}
+
+template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3, class _Compare>
+_RandomAccessIterator3
+__brick_merge(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+              _RandomAccessIterator2 __last2, _RandomAccessIterator3 __d_first, _Compare __comp,
+              /* __is_vector = */ std::true_type) noexcept
+{
+    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
+    return std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
