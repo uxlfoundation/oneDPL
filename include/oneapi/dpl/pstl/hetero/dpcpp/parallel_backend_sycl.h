@@ -1303,8 +1303,8 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _Execution
 //-----------------------------------------------------------------------
 
 // TODO: check if it makes sense to move these wrappers out of backend to a common place
-// partial_sort's tail is unspecified and need not be stable, so a full sort satisfies the contract.
-// __parallel_sort_impl, not __parallel_stable_sort: the radix path the latter selects is slower here.
+// partial_sort's tail is unspecified, so a full sort satisfies the contract. Bypassing the radix dispatch is
+// deliberate: radix loses to this path at every size on CUDA, and below a few million elements on Intel GPUs.
 template <typename _ExecutionPolicy, typename _Iterator, typename _Compare>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Iterator __first,
