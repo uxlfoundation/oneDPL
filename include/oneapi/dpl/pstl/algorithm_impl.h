@@ -3250,8 +3250,8 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
                 const auto [__r, __c] = __merge_path_intersection(__i, __n_1, __n_2, __first1, __first2, __comp,
                                                                   oneapi::dpl::identity{}, oneapi::dpl::identity{});
                 // Bounded merge is used to ensure that each task only writes to its assigned output range
-                __serial_merge_out_lim(__first1 + __r, __last1, __first2 + __c, __last2, __first3 + __i,
-                                       __first3 + __j, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                __serial_merge_out_lim(__first1 + __r, __last1, __first2 + __c, __last2, __first3 + __i, __first3 + __j,
+                                       __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
             __merge_chunk_size<_Tp>);
 
@@ -3348,7 +3348,7 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
             __partition(_Index{1}, __n_chunks);
         else
             __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{1}, __n_chunks, __partition,
-                __diagonal_chunk_size);
+                                          __diagonal_chunk_size);
 
         // 2. Move to the temporary buffer to merge to the original range later
         __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{0}, __n, [=](_Index __i, _Index __j) {
@@ -3373,19 +3373,18 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
                     if (__row == __row_end) // Chunk contains only elements of {2}
                     {
                         __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __n_1 + __col, __b + __n_1 + __col_end,
-                                                                         __first + __i, _IsVector{});
+                                                                          __first + __i, _IsVector{});
                     }
                     else if (__col == __col_end) // Chunk contains only elements of {1}
                     {
                         __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __row, __b + __row_end, __first + __i,
-                                                                         _IsVector{});
+                                                                          _IsVector{});
                     }
                     else // Chunk contains elements of both {1} and {2}
                     {
                         __serial_merge_out_lim(__b + __row, __b + __row_end, __b + __n_1 + __col,
-                                               __b + __n_1 + __col_end,
-                                               __first + __i, __first + __j, __comp, oneapi::dpl::identity{},
-                                               oneapi::dpl::identity{}, __move_assign);
+                                               __b + __n_1 + __col_end, __first + __i, __first + __j, __comp,
+                                               oneapi::dpl::identity{}, oneapi::dpl::identity{}, __move_assign);
                         __internal::__brick_destroy(__b + __row, __b + __row_end, _IsVector{});
                         __internal::__brick_destroy(__b + __n_1 + __col, __b + __n_1 + __col_end, _IsVector{});
                     }
