@@ -59,7 +59,7 @@
 #    include "parallel_backend_sycl_radix_sort.h"
 #endif
 
-#if _ONEDPL_ENABLE_KT_IN_SORT
+#if !_ONEDPL_DISABLE_KT_IN_SORT
 #    include "parallel_backend_sycl_radix_sort_kt.h"
 #endif
 
@@ -1456,7 +1456,7 @@ __future<sycl::event>
 __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range&& __rng,
                        _Compare, _Proj __proj)
 {
-#    if _ONEDPL_ENABLE_KT_IN_SORT && _ONEDPL_KT_RADIX_SORT_IN_SORT_ACTIVE
+#    if !_ONEDPL_DISABLE_KT_IN_SORT && _ONEDPL_KT_RADIX_SORT_IN_SORT_ACTIVE
     // Attempt KT radix sort; ineligible shapes, devices, or sizes fall through to legacy below.
     constexpr bool __is_ascending = __internal::__is_comp_ascending<std::decay_t<_Compare>>::value;
     constexpr auto __shape = __kt_radix::__kt_radix_sort_shape<std::decay_t<_Range>, _Proj>;
@@ -1467,7 +1467,7 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _Execution
         if (__kt_radix::__try_parallel_kt_radix_sort<__is_ascending, __shape>(__exec.queue(), __rng, __event))
             return __future<sycl::event>{__event};
     }
-#    endif // _ONEDPL_ENABLE_KT_IN_SORT && _ONEDPL_KT_RADIX_SORT_IN_SORT_ACTIVE
+#    endif // !_ONEDPL_DISABLE_KT_IN_SORT && _ONEDPL_KT_RADIX_SORT_IN_SORT_ACTIVE
 
     return __parallel_radix_sort<__internal::__is_comp_ascending<::std::decay_t<_Compare>>::value>(
         oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),

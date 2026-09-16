@@ -33,11 +33,11 @@ int main() { return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT); }
 #include <span>
 #endif
 
-// Only test when the macro is enabled
-#if !_ONEDPL_ENABLE_KT_IN_SORT
+// Only test when the macro is 0 (KTs are enabled)
+#if _ONEDPL_DISABLE_KT_IN_SORT
 int main()
 {
-    std::cout << "KT radix sort integration is disabled (ONEDPL_ENABLE_KT_IN_SORT=0)" << std::endl;
+    std::cout << "KT radix sort integration is disabled (ONEDPL_DISABLE_KT_IN_SORT=1)" << std::endl;
     return TestUtils::done(/*is_done=*/false);
 }
 #else
@@ -183,5 +183,5 @@ int main()
     return TestUtils::done();
 }
 
-#endif // _ONEDPL_ENABLE_KT_IN_SORT
+#endif // !_ONEDPL_DISABLE_KT_IN_SORT
 #endif // TEST_DPCPP_BACKEND_PRESENT

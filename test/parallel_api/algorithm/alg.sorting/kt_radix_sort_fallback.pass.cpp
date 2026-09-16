@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 // Test that ineligible cases correctly fall back to the legacy radix sort or
-// merge sort when ONEDPL_ENABLE_KT_IN_SORT=1. These tests verify
+// merge sort when ONEDPL_DISABLE_KT_IN_SORT=0. These tests verify
 // that the eligibility traits correctly reject cases that KT cannot handle.
 
 #include "support/test_config.h"

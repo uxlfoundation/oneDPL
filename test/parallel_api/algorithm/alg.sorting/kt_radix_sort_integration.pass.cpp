@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// Test for ONEDPL_ENABLE_KT_IN_SORT=1 integration: verifies that
+// Test for ONEDPL_DISABLE_KT_IN_SORT=0 integration: verifies that
 // eligible sorts route to the KT radix sort path on capable hardware, and that
 // ineligible sorts correctly fall back to the legacy radix sort.
 

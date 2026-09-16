@@ -147,11 +147,11 @@ Macro                                    Description
                                          .. Note:: The standard conformant behavior for these algorithms will be fully enabled
                                          in a future release, at which point any value of the macro will have no effect.
 ---------------------------------------- ------------------------------
-``ONEDPL_ENABLE_KT_IN_SORT``             This macro allows sorting algorithms executed with device policies to use
+``ONEDPL_DISABLE_KT_IN_SORT``            This macro prevents sorting algorithms executed with device policies from using
                                          the experimental SYCL* radix sort :doc:`kernel template <kernel_templates_main>`
                                          instead of the default implementation. (Disabled by default.)
 
-                                         When the macro evaluates to non-zero, ``sort``, ``stable_sort``,
+                                         When the macro evaluates to zero, ``sort``, ``stable_sort``,
                                          ``sort_by_key``, ``stable_sort_by_key``, ``ranges::sort`` and
                                          ``experimental::sort_async`` may use the kernel template when all of the
                                          following hold at run time: the key type is an integral or floating point
@@ -162,14 +162,10 @@ Macro                                    Description
                                          SYCL extensions are unavailable, the default implementation is used and
                                          results are unaffected.
 
-                                         Enabling this macro increases kernel compilation time and binary size,
-                                         because eligibility is a run-time property and therefore both
-                                         implementations are instantiated.
+                                         Enabling this macro decreases kernel compilation time and binary size,
+                                         because eligibility is a run-time property and only the default
+                                         implementation is instantiated rather than both.
 
-                                         .. Note:: This behavior is experimental. The set of supported devices
-                                            and the input sizes at which the kernel template is chosen may
-                                            change in any release. The macro has no effect on the results
-                                            produced by these algorithms, only on how they are computed.
 ---------------------------------------- ------------------------------
 ``ONEDPL_FPGA_DEVICE``                   Use this macro to build your code containing |onedpl_short| parallel
                                          algorithms for FPGA devices. (Disabled by default.)
