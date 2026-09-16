@@ -145,21 +145,15 @@ struct __custom_brick
 
             _ONEDPL_PRAGMA_UNROLL
             for (std::size_t j = 0; j < _C; ++j)
-            {
-                const std::size_t i = idx + j * stride;
-                if (_IsFull::value || i < bound)
-                    get<2>(acc[i]) = (result[j] != end_orig) && (value[j] == probe[j]);
-            }
+                if (_IsFull::value || idx + j * stride < bound)
+                    get<2>(acc[key_index(j)]) = (result[j] != end_orig) && (value[j] == probe[j]);
         }
         else
         {
             _ONEDPL_PRAGMA_UNROLL
             for (std::size_t j = 0; j < _C; ++j)
-            {
-                const std::size_t i = idx + j * stride;
-                if (_IsFull::value || i < bound)
-                    get<2>(acc[i]) = result[j];
-            }
+                if (_IsFull::value || idx + j * stride < bound)
+                    get<2>(acc[key_index(j)]) = result[j];
         }
     }
 
