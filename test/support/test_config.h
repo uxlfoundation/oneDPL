@@ -385,11 +385,9 @@
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_SYMMETRIC_DIFFERENCE_HETERO 1
 
 // partial_sort_copy inherits that defect through the very same parallel merge sort, and its parallel
-// host pattern additionally copy constructs the output element from the input one. Its device path
-// assigns the output element from a const lvalue of the input one, like rotate_copy below. See the
-// notes at the call sites.
+// host pattern additionally copy constructs the output element from the input one. See the notes at
+// the call sites.
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HOST 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HETERO 1
 
 // The device paths of the conditionally copying algorithms assign a const copy of the input element to
 // the output one, while std::indirectly_copyable only asks for an assignment from iter_reference_t of

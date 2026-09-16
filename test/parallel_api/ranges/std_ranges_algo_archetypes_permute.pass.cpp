@@ -182,13 +182,6 @@ main()
     // The serial pattern (algorithm_ranges_impl.h:521) forwards to std::ranges::partial_sort_copy and
     // is conforming by construction, so seq and unseq would compile; the gap macro covers the host side
     // as a whole and switches them off as well.
-    //
-    // KSATODO: the device path assigns the output element from a const lvalue of the input one, which
-    // std::indirectly_copyable does not ask for, exactly like rotate_copy:
-    //  - hetero/algorithm_impl_hetero.h:1512,1541,1556 - the three initial copies go through
-    //    __pattern_hetero_walk2 with the input read through an access_mode::read accessor, so
-    //    __brick_copy (hetero/algorithm_impl_hetero.h:397) assigns from a const _Tp&.
-    // Requesting read_write access for the input of those walks is enough to fix it.
     {
         auto call = [](auto&& policy, auto&& view) {
             using elem_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(view)>>;
@@ -205,7 +198,7 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HOST
         run_algo_host_policies<psort_copy_in_archetype>(call, check, "partial_sort_copy");
 #endif
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HETERO
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo_hetero_policies<psort_copy_in_archetype_dc, 12>(call, check, "partial_sort_copy");
 #endif
     }
@@ -304,9 +297,9 @@ main()
 
     // partial_sort_copy projects its input range and its output range with two distinct callables, so
     // both of them are passed here by non-const reference on top of the comparator, see family 14. The
-    // two gaps of the const case above are independent of the callables and break the very same
-    // policies here; the parallel host pattern additionally inherits the const comparator argument of
-    // the parallel merge sort, see the note above partial_sort.
+    // gap of the const case above is independent of the callables and breaks the very same policies
+    // here; the parallel host pattern additionally inherits the const comparator argument of the
+    // parallel merge sort, see the note above partial_sort.
     //
     // KSATODO: the parallel host and the device patterns drop _Proj1 altogether
     // (algorithm_ranges_impl.h:503,513 and hetero/algorithm_ranges_impl_hetero.h:1528,1536 build
@@ -332,7 +325,7 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HOST
         run_algo_host_policies<psort_copy_in_archetype>(call, check, "partial_sort_copy, non-const callables");
 #endif
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HETERO
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo_hetero_policies<psort_copy_in_archetype_dc, 23>(call, check, "partial_sort_copy, non-const callables");
 #endif
     }
