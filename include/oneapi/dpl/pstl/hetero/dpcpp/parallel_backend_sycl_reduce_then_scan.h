@@ -1617,11 +1617,8 @@ __scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __g
     std::uint32_t __elements_to_process = static_cast<std::uint32_t>(__subgroup_n - (__iters - 1) * __sub_group_size);
     __sub_group_scan_partial<__is_inclusive>(__ndi, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                                              __elements_to_process, __comm_tag);
-    if constexpr (!std::is_same_v<_WriteOp, oneapi::dpl::__internal::__ignore_call_op>)
-    {
-        if (__offset < __n)
-            __write_op(__offset, __v);
-    }
+    if (__offset < __n)
+        __write_op(__offset, __v);
 }
 
 // Detecting TempData type alias in the specified structure
@@ -1757,6 +1754,24 @@ struct __comm_slm_handler<__subgroup_only_tag, _InitValueType>
         return __subgroup_only_tag{};
     }
 };
+
+// Helper functions to communicate between processing blocks via temporary storage.
+// Each block writes a carry-out partial sum which serves as the carry-in for the next block.
+// To prevent data race within the block, carry-in and carry-out values flip between odd & even blocks.
+
+template <typename _ValueType>
+_ValueType
+__get_block_carry_in(const std::size_t __block_num, _ValueType* __tmp_ptr)
+{
+    return __tmp_ptr[__block_num % 2];
+}
+
+template <typename _ValueType>
+void
+__set_block_carry_out(const std::size_t __block_num, _ValueType* __tmp_ptr, const _ValueType __block_carry_out)
+{
+    __tmp_ptr[1 - (__block_num % 2)] = __block_carry_out;
+}
 
 template <typename... _Name>
 class __reduce_then_scan_partition_kernel;
@@ -1932,22 +1947,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                                                   __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
-
-    template <typename _TmpAcc>
-    _InitValueType
-    __get_block_carry_in(const std::size_t __block_num, _TmpAcc __tmp_acc,
-                         const std::size_t __num_sub_groups_global) const
-    {
-        return __tmp_acc[__num_sub_groups_global + (__block_num % 2)];
-    }
-
-    template <typename _TmpAcc, typename _ValueType>
-    void
-    __set_block_carry_out(const std::size_t __block_num, _TmpAcc __tmp_acc, const _ValueType __block_carry_out,
-                          const std::size_t __num_sub_groups_global) const
-    {
-        __tmp_acc[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
-    }
 
     template <typename _InRng, typename _OutRng, typename _TmpStorage, typename _StopPosStorage>
     sycl::event
@@ -2157,23 +2156,21 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                 }
                 else
                 {
+                    _InitValueType __carry_in =
+                        __get_block_carry_in(__block_num, __tmp_ptr + __max_num_sub_groups_global);
                     if (__sub_group_id > 0)
                     {
                         _InitValueType __value =
                             __sub_group_partials[std::min(__sub_group_id - 1, __active_subgroups - 1)];
-                        __sub_group_carry.__setup(__reduce_op(
-                            __get_block_carry_in(__block_num, __tmp_ptr, __max_num_sub_groups_global), __value));
+                        __sub_group_carry.__setup(__reduce_op(__carry_in, __value));
                     }
                     else if (__group_id > 0)
                     {
-                        __sub_group_carry.__setup(
-                            __reduce_op(__get_block_carry_in(__block_num, __tmp_ptr, __max_num_sub_groups_global),
-                                        __sub_group_partials[__active_subgroups]));
+                        __sub_group_carry.__setup(__reduce_op(__carry_in, __sub_group_partials[__active_subgroups]));
                     }
                     else
                     {
-                        __sub_group_carry.__setup(
-                            __get_block_carry_in(__block_num, __tmp_ptr, __max_num_sub_groups_global));
+                        __sub_group_carry.__setup(__carry_in);
                     }
                 }
 
@@ -2249,8 +2246,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     else
                     {
                         // capture the last carry out for the next block
-                        __set_block_carry_out(__block_num, __tmp_ptr, __sub_group_carry.__get_cref(),
-                                              __max_num_sub_groups_global);
+                        __set_block_carry_out(__block_num, __tmp_ptr + __max_num_sub_groups_global,
+                                              __sub_group_carry.__get_cref());
                     }
                 }
             });
