@@ -391,11 +391,6 @@
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HOST 1
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HETERO 1
 
-// The SIMD brick of find_first_of calls the predicate with its two arguments swapped, which
-// std::indirectly_comparable does not ask for. The scalar brick keeps the argument order and would
-// compile.
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST 1
-
 // The device paths of the conditionally copying algorithms assign a const copy of the input element to
 // the output one, while std::indirectly_copyable only asks for an assignment from iter_reference_t of
 // the input iterator, i.e. from a non-const lvalue. See the notes at the call sites. The host paths

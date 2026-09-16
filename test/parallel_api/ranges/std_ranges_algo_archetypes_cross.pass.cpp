@@ -79,28 +79,11 @@ main()
         },
         "find_end");
 
-    // KSATODO: std::indirectly_comparable<_It1, _It2, _Pred> only requires the predicate to be
-    // invocable as __pred(*__it1, *__it2), never the other way round. The SIMD brick swaps the two
-    // arguments, so the vectorized host policies unseq and par_unseq do not compile:
-    //  - unseq_backend_simd.h:827 - __simd_find_first_of builds __u_pred as
-    //    __pred(__val, *__first) with __val taken from the second range and *__first from the first
-    //    one; the branch is a plain if, so it is instantiated whatever the sizes of the ranges are.
-    // Fixing this means keeping the argument order of the two ranges in both branches. The scalar brick
-    // of seq and par keeps the order and would compile, but the gap macro covers the host side as a
-    // whole, so those two are switched off as well.
-    {
-        auto call = [](auto&& policy, auto&& view1, auto&& view2) {
+    run_algo2_all_policies<lhs_archetype, rhs_archetype, lhs_archetype_dc, rhs_archetype_dc, 4>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
             return dpl_ranges::find_first_of(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
-        };
-        auto check = [](auto&& view1, auto&&, auto res) { return res == std::ranges::begin(view1); };
-
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST
-        run_algo2_host_policies<lhs_archetype, rhs_archetype>(call, check, "find_first_of");
-#endif
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 4>(call, check, "find_first_of");
-#endif
-    }
+        },
+        [](auto&& view1, auto&&, auto res) { return res == std::ranges::begin(view1); }, "find_first_of");
 
     // includes needs a comparator accepting the two element types in all four combinations, see
     // cross_comp. Both ranges hold the very same ascending sequence, so the second one is included in
@@ -183,36 +166,12 @@ main()
         },
         "find_end, non-const callable");
 
-    // KSATODO: std::indirectly_comparable<_It1, _It2, _Pred> only requires the predicate to be
-    // invocable as __pred(*__it1, *__it2), never the other way round. The SIMD brick swaps the two
-    // arguments, so the vectorized host policies unseq and par_unseq do not compile:
-    //  - unseq_backend_simd.h:827 - __simd_find_first_of builds __u_pred as
-    //    __pred(__val, *__first) with __val taken from the second range and *__first from the first
-    //    one; the branch is a plain if, so it is instantiated whatever the sizes of the ranges are.
-    // Fixing this means keeping the argument order of the two ranges in both branches. The scalar brick
-    // of seq and par keeps the order and would compile, but the gap macro covers the host side as a
-    // whole, so those two are switched off as well.
-    //
-    // KSATODO: the device path of find_first_of copies the element of the first range into a const
-    // local, which std::indirectly_comparable neither asks for nor allows to require, so the call does
-    // not compile:
-    //  - unseq_backend_sycl.h:632,636 - first_match_pred::operator() writes
-    //    const auto __elem = __acc[__shifted_idx]; and passes __elem to the predicate. A forwarding
-    //    reference instead of the const copy fixes both the const-ness and the extra copy.
-    {
-        auto call = [](auto&& policy, auto&& view1, auto&& view2) {
+    run_algo2_all_policies<lhs_archetype, rhs_archetype, lhs_archetype_dc, rhs_archetype_dc, 14>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
             return dpl_ranges::find_first_of(std::forward<decltype(policy)>(policy), view1, view2, cross_pred_mut{});
-        };
-        auto check = [](auto&& view1, auto&&, auto res) { return res == std::ranges::begin(view1); };
-
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST
-        run_algo2_host_policies<lhs_archetype, rhs_archetype>(call, check, "find_first_of, non-const callable");
-#endif
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 14>(call, check,
-                                                                         "find_first_of, non-const callable");
-#endif
-    }
+        },
+        [](auto&& view1, auto&&, auto res) { return res == std::ranges::begin(view1); },
+        "find_first_of, non-const callable");
 
     // includes needs a comparator accepting the two element types in all four combinations, see
     // cross_comp_mut. Both ranges hold the very same ascending sequence, so the second one is included
