@@ -835,20 +835,12 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
     using _Tag = __parallel_tag<_IsVector>;
     using __backend_tag = typename _Tag::__backend_tag;
 
-    auto __first1 = std::ranges::begin(__r1);
-    auto __first2 = std::ranges::begin(__r2);
-    auto __first3 = std::ranges::begin(__out_r);
+    // sign is needed in __merge_path_intersection
+    using _Index = std::make_signed_t<oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>>;
 
-    using _Tp = std::iter_value_t<decltype(__first1)>;
-    using _Index1 = typename std::iterator_traits<decltype(__first1)>::difference_type;
-    using _Index2 = typename std::iterator_traits<decltype(__first2)>::difference_type;
-    using _Index3 = typename std::iterator_traits<decltype(__first3)>::difference_type;
-    using _Index = std::common_type_t<_Index1, _Index2, _Index3>;
-    static_assert(std::is_signed_v<_Index>); // sign is needed in __merge_path_intersection
-
-    const _Index __n1 = static_cast<_Index>(std::ranges::size(__r1));
-    const _Index __n2 = static_cast<_Index>(std::ranges::size(__r2));
-    const _Index __n3 = static_cast<_Index>(std::ranges::size(__out_r));
+    auto [__first1, __n1] = oneapi::dpl::__ranges::__begin_and_size(__r1);
+    auto [__first2, __n2] = oneapi::dpl::__ranges::__begin_and_size(__r2);
+    auto [__first3, __n3] = oneapi::dpl::__ranges::__begin_and_size(__out_r);
 
     if (__n3 == 0)
         return {__first1, __first2, __first3};
@@ -857,7 +849,9 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
     const _Index __n_out = (__n1 < __n3 - __n2) ? __n1 + __n2 : __n3;
 
     // Too few elements
-    if (__n_out <= static_cast<_Index>(__internal::__merge_chunk_size<_Tp>))
+    using _Tp = std::ranges::range_value_t<_OutRange>;
+    constexpr _Index __merge_chunk = static_cast<_Index>(__internal::__merge_chunk_size<_Tp>);
+    if (__n_out <= __merge_chunk)
     {
         return __serial_merge_ranges(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
                                      std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
@@ -928,7 +922,7 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
                 if (__j == __n_out)
                     __result = {__it1, __it2, __it3};
             },
-            __internal::__merge_chunk_size<_Tp>);
+            __merge_chunk);
     });
 
     return __result;

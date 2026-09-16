@@ -3150,6 +3150,8 @@ std::pair<_Index, _Index>
 __merge_path_intersection(_Index __diag, _Index __n_1, _Index __n_2, _RandomAccessIterator1 __first1,
                           _RandomAccessIterator2 __first2, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
+    static_assert(std::is_signed_v<_Index>);
+
     if (__diag == 0)
         return {0, 0};
 
@@ -3211,8 +3213,8 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
     using _Index1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _Index2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _Index3 = typename std::iterator_traits<_RandomAccessIterator3>::difference_type;
-    using _Index = std::common_type_t<_Index1, _Index2, _Index3>;
-    static_assert(std::is_signed_v<_Index>); // sign is needed in __merge_path_intersection
+    // sign is needed in __merge_path_intersection
+    using _Index = std::make_signed_t<std::common_type_t<_Index1, _Index2, _Index3>>;
 
     const _Index __n_1 = __last1 - __first1;
     const _Index __n_2 = __last2 - __first2;
@@ -3222,7 +3224,7 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
         return __first3;
 
     // Too few elements
-    using _Tp = typename std::iterator_traits<_RandomAccessIterator1>::value_type;
+    using _Tp = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
     if (static_cast<std::size_t>(__n_out) <= __merge_chunk_size<_Tp>)
     {
         return __internal::__brick_merge(__first1, __last1, __first2, __last2, __first3, __comp, _IsVector{});
@@ -3319,6 +3321,10 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
                         _RandomAccessIterator __middle, _RandomAccessIterator __last, _Compare __comp)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+    // sign is needed in __merge_path_intersection
+    using _Index = std::make_signed_t<std::iterator_traits<_RandomAccessIterator>::difference_type>;
+    using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
+    constexpr _Index __merge_chunk = static_cast<_Index>(__merge_chunk_size<_Tp>);
 
     // Nothing to merge
     if (__first == __middle || __middle == __last)
@@ -3330,7 +3336,6 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
     {
         return;
     }
-    using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
     // {2} is ordered before {1}: rotate
     if (__comp(*(__last - 1), *__first))
     {
@@ -3345,22 +3350,16 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
 
     // Too few elements
     // multiple of the serial merge chunk size to amortize the allocation overhead
-    if (static_cast<std::size_t>(__last - __first) <= 4 * __merge_chunk_size<_Tp>)
+    if (static_cast<std::size_t>(__last - __first) <= 4 * __merge_chunk)
     {
         std::inplace_merge(__first, __middle, __last, __comp);
         return;
     }
 
-    using _Index = std::common_type_t<typename std::iterator_traits<_RandomAccessIterator>::difference_type,
-                                      std::ptrdiff_t>;
-    static_assert(std::is_signed_v<_Index>);
-
     const _Index __n_1 = __middle - __first;
     const _Index __n_2 = __last - __middle;
     const _Index __n = __n_1 + __n_2;
-
-    constexpr _Index __chunk_size = static_cast<_Index>(__merge_chunk_size<_Tp>);
-    const _Index __n_chunks = __internal::__dpl_ceiling_div(__n, __chunk_size);
+    const _Index __n_chunks = __internal::__dpl_ceiling_div(__n, __merge_chunk);
 
     __par_backend::__buffer<_Tp> __buf(__n);
     __par_backend::__buffer<_Index> __split_buf(__n_chunks + 1); // +1 to store the final boundary
@@ -3375,7 +3374,7 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
         auto __partition = [=](_Index __c_first, _Index __c_last) {
             for (_Index __c = __c_first; __c < __c_last; ++__c)
             {
-                const _Index __diag = std::min(__c * __chunk_size, __n);
+                const _Index __diag = std::min(__c * __merge_chunk, __n);
                 __split[__c] = __merge_path_intersection(__diag, __n_1, __n_2, __first, __middle, __comp,
                                                          oneapi::dpl::identity{}, oneapi::dpl::identity{}).first;
             }
@@ -3400,8 +3399,8 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
             [=](_Index __c_first, _Index __c_last) {
                 for (_Index __c = __c_first; __c < __c_last; ++__c)
                 {
-                    const _Index __i = __c * __chunk_size;
-                    const _Index __j = std::min(__i + __chunk_size, __n);
+                    const _Index __i = __c * __merge_chunk;
+                    const _Index __j = std::min(__i + __merge_chunk, __n);
                     const _Index __row = __split[__c];
                     const _Index __col = __i - __row;
                     const _Index __row_end = __split[__c + 1];
