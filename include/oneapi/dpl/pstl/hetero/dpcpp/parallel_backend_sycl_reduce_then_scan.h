@@ -150,36 +150,27 @@ struct __write_to_id_if
         return (__carry_in + __max_write_offset > __out_size);
     }
 
+    // __v holds the element to write by value and is taken by a non-const reference, because the output element type
+    // may be assignable from a non-const lvalue of the input one only, see oneapi::dpl::__internal::__pstl_assign.
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, _SizeType __id, _ValueType& __v) const
     {
-        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
-        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
-        // through.
-        using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
         if (std::get<1>(__v))
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
+            __assign(oneapi::dpl::__internal::__tuple_type_cast(std::get<2>(__v), __out_rng),
+                     __out_rng[std::get<0>(__v) - 1 + __offset]);
     }
 
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _OnOOBReached __on_oob_reached) const
+    operator()(_OutRng& __out_rng, _SizeType __id, _ValueType& __v, _OnOOBReached __on_oob_reached) const
     {
-        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
-        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
-        // through.
-        using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
         if (std::get<1>(__v))
         {
             const std::size_t __out_idx = std::get<0>(__v) - 1 + __offset;
 
             if (__out_idx < __out_size)
-                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
+                __assign(oneapi::dpl::__internal::__tuple_type_cast(std::get<2>(__v), __out_rng), __out_rng[__out_idx]);
             if (__out_idx == __out_size)
                 __on_oob_reached(__id, __id);
         }
@@ -216,18 +207,6 @@ struct __write_partitioned
                 || (__start_idx - __mask_prefix) + __max_write_offset > __out2_size);
     }
 
-    template <typename _ValueType, typename _Range>
-    static constexpr auto
-    __tuple_type_cast(_ValueType&& __value, _Range&&)
-    {
-        // An explicit cast to our internal tuple type is required to resolve conversion issues between an
-        // internal tuple and a std::tuple. If the underlying type is not a tuple, it just passes through.
-        // _Range is only used for type deduction; no runtime access occurs.
-        using _ConvertedType = typename oneapi::dpl::__internal::__get_tuple_type<
-            std::decay_t<_ValueType>, std::decay_t<decltype(std::declval<_Range>()[0])>>::__type;
-        return static_cast<_ConvertedType>(std::forward<_ValueType>(__value));
-    }
-
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
@@ -235,9 +214,9 @@ struct __write_partitioned
         const auto& [__mask_prefix, __mask, __value] = __v;
         auto& [__out1_rng, __out2_rng] = __out_rng; // unpack the tuple of outputs
         if (__mask)
-            __out1_rng[__mask_prefix - 1] = __tuple_type_cast(__value, __out1_rng);
+            __out1_rng[__mask_prefix - 1] = oneapi::dpl::__internal::__tuple_type_cast(__value, __out1_rng);
         else
-            __out2_rng[__id - __mask_prefix] = __tuple_type_cast(__value, __out2_rng);
+            __out2_rng[__id - __mask_prefix] = oneapi::dpl::__internal::__tuple_type_cast(__value, __out2_rng);
     }
 
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
@@ -259,9 +238,9 @@ struct __write_partitioned
             if (__target_idx_in_bound)
             {
                 if (__mask)
-                    __out1_rng[__out1_idx] = __tuple_type_cast(__value, __out1_rng);
+                    __out1_rng[__out1_idx] = oneapi::dpl::__internal::__tuple_type_cast(__value, __out1_rng);
                 else
-                    __out2_rng[__out2_idx] = __tuple_type_cast(__value, __out2_rng);
+                    __out2_rng[__out2_idx] = oneapi::dpl::__internal::__tuple_type_cast(__value, __out2_rng);
             }
             // If out-of-bound conditions detected, report stop positions in the input and the 1st output
             if (__oob_reached)
@@ -1688,7 +1667,9 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                     __iters_per_item * __sg_size * _TempData::__max_outputs_per_input;
                 if (__write_op.__oob_write_possible(__max_write_offset, __subgroup_start_id, __sub_group_carry))
                 {
-                    auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
+                    // __v is taken by a non-const reference to let a write operation assign from a non-const lvalue
+                    // of the input element, which is all std::indirectly_copyable requires it to be assignable from
+                    auto __bounded_write_op = [&](std::size_t __id, auto& __v) {
                         if constexpr (__is_temp_data_required)
                             __write_op(__out_rng, __id, __v, __temp_data, __on_oob_reached);
                         else
@@ -1702,7 +1683,7 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
                 }
             }
 
-            auto __unbounded_write_op = [&](std::size_t __id, const auto& __v) {
+            auto __unbounded_write_op = [&](std::size_t __id, auto& __v) {
                 if constexpr (__is_temp_data_required)
                     __write_op(__out_rng, __id, __v, __temp_data);
                 else

@@ -413,8 +413,5 @@
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_IF_HETERO 1
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_UNIQUE_COPY_HETERO 1
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTITION_COPY_HETERO 1
-// remove_copy delegates to copy_if with a negated equality predicate, so it inherits the very same
-// defect. replace, which delegates to for_each, is fine on the device.
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_HETERO 1
 
 #endif // _TEST_CONFIG_H

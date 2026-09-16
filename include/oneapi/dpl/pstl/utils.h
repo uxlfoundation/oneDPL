@@ -165,11 +165,13 @@ class __pstl_assign
   public:
     // rvalue reference used for output parameter to allow assignment of std::tuple of references.
     // The output is the second argument because the output range is passed to the algorithm as the second range.
+    // The input is forwarded rather than taken by a const reference, because std::indirectly_copyable only asks for
+    // an assignment from a non-const lvalue of the input element, which a const parameter would rule out.
     template <typename _Xp, typename _Yp>
     void
-    operator()(const _Xp& __x, _Yp&& __y) const
+    operator()(_Xp&& __x, _Yp&& __y) const
     {
-        ::std::forward<_Yp>(__y) = __x;
+        std::forward<_Yp>(__y) = std::forward<_Xp>(__x);
     }
 };
 
