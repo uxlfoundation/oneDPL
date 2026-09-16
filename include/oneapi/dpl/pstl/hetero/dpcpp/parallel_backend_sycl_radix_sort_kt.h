@@ -129,13 +129,13 @@ __try_parallel_kt_radix_sort(sycl::queue __q, _Range&& __rng, sycl::event& __eve
         auto __pack = [&]() {
             if constexpr (__shape == __kt_sort_shape::__keys_only)
             {
-                return __kt_impl::__range_pack{__dpl_ranges::__normalize_contiguous_view(__rng)};
+                return __kt_impl::__rng_pack{__dpl_ranges::__normalize_contiguous_view(__rng)};
             }
             else // __by_key: KT consumes keys and values as separate ranges, so decompose the zip_view.
             {
                 auto __base = __rng.base();
-                return __kt_impl::__range_pack{__dpl_ranges::__normalize_contiguous_view(std::get<0>(__base)),
-                                               __dpl_ranges::__normalize_contiguous_view(std::get<1>(__base))};
+                return __kt_impl::__rng_pack{__dpl_ranges::__normalize_contiguous_view(std::get<0>(__base)),
+                                             __dpl_ranges::__normalize_contiguous_view(std::get<1>(__base))};
             }
         }();
         __event = __kt_impl::__radix_sort<__is_ascending, /*__radix_bits=*/8, /*__in_place=*/true>(
