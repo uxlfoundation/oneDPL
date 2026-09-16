@@ -1972,7 +1972,7 @@ __pattern_replace_copy_if(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __r,
         oneapi::dpl::__internal::__get_relax_non_const_pred<std::ranges::range_value_t<_InRange>>(__pred);
 
     oneapi::dpl::__internal::__replace_copy_functor<
-        _T, oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>>
+        decltype(__new_value), oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>>
         __f{__new_value, {__relax_non_const_pred, __proj}};
 
     oneapi::dpl::__internal::__pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),

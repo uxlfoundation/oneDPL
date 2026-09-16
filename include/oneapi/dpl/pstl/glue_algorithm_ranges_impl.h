@@ -147,8 +147,9 @@ struct __internal::__find_if_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_find_if(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_find_if(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj);
     }
 }; //__find_if_fn
 inline constexpr __internal::__find_if_fn find_if;
@@ -202,7 +203,9 @@ struct __internal::__find_last_if_fn
     {
         std::ranges::reverse_view __reverse_r{__r};
 
-        auto __res = oneapi::dpl::ranges::find_if(std::forward<_ExecutionPolicy>(__exec), __reverse_r, __pred, __proj);
+        auto __res = oneapi::dpl::ranges::find_if(
+            std::forward<_ExecutionPolicy>(__exec), __reverse_r,
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj);
 
         auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
         return {(__res == __reverse_r.end()) ? __last : __res.base() - 1, __last};
@@ -263,7 +266,7 @@ struct __internal::__find_first_of_fn
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_find_first_of(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-            __pred, __proj1, __proj2);
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj1, __proj2);
     }
 }; //__find_first_of_fn
 inline constexpr __internal::__find_first_of_fn find_first_of;
@@ -285,7 +288,7 @@ struct __internal::__find_end_fn
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_find_end(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-            __pred, __proj1, __proj2);
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj1, __proj2);
     }
 }; //__find_end_fn
 inline constexpr __internal::__find_end_fn find_end;
@@ -302,8 +305,9 @@ struct __internal::__any_of_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_any_of(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_any_of(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj);
     }
 }; //__any_of_fn
 inline constexpr __internal::__any_of_fn any_of;
@@ -338,7 +342,7 @@ struct __internal::__none_of_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
     {
         return !oneapi::dpl::ranges::any_of(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            __pred, __proj);
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj);
     }
 }; //__none_of_fn
 inline constexpr __internal::__none_of_fn none_of;
@@ -357,8 +361,9 @@ struct __internal::__adjacent_find_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_adjacent_find_ranges(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_adjacent_find_ranges(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj);
     }
 }; //__adjacent_find_fn
 inline constexpr __internal::__adjacent_find_fn adjacent_find;
@@ -378,9 +383,9 @@ struct __internal::__search_fn
                _Proj2 __proj2 = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_search(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred, __proj1,
-            __proj2);
+        return oneapi::dpl::__internal::__ranges::__pattern_search(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj1, __proj2);
     }
 }; //__search_fn
 inline constexpr __internal::__search_fn search;
@@ -398,8 +403,9 @@ struct __internal::__search_n_fn
                _Pred __pred = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_search_n(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __count, __value, __pred, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_search_n(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __count, __value,
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj);
     }
 }; //__search_n_fn
 inline constexpr __internal::__search_n_fn search_n;
@@ -437,8 +443,11 @@ struct __internal::__contains_subrange_fn
                _Proj2 __proj2 = {}) const
     {
         // To ensure no dangling subrange is returned, __r1 may not be forwarded
-        return std::ranges::empty(__r2) || !(oneapi::dpl::ranges::search(std::forward<_ExecutionPolicy>(__exec), __r1, __r2,
-                                                                 __pred, __proj1, __proj2).empty());
+        return std::ranges::empty(__r2) ||
+               !(oneapi::dpl::ranges::search(std::forward<_ExecutionPolicy>(__exec), __r1, __r2,
+                                             oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred),
+                                             __proj1, __proj2)
+                     .empty());
     }
 };
 inline constexpr __internal::__contains_subrange_fn contains_subrange;
@@ -455,8 +464,9 @@ struct __internal::__count_if_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_count_if(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_count_if(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj);
     }
 }; //__count_if_fn
 inline constexpr __internal::__count_if_fn count_if;
@@ -497,8 +507,9 @@ struct __internal::__equal_fn
         else
         {
             const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-            return oneapi::dpl::__internal::__ranges::__pattern_equal(__dispatch_tag,
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred,
+            return oneapi::dpl::__internal::__ranges::__pattern_equal(
+                __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1),
+                std::forward<_R2>(__r2), oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred),
                 __proj1, __proj2);
         }
     }
@@ -861,8 +872,10 @@ struct __internal::__copy_if_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         // No minimum common size is calculated here, because the size of the output range is unknown
-        return oneapi::dpl::__internal::__ranges::__pattern_copy_if_ranges(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::forward<_R>(__r), std::forward<_OutR>(__result), __pred, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_copy_if_ranges(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            std::forward<_OutR>(__result), oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred),
+            __proj);
     }
 }; //__copy_if_fn
 inline constexpr __internal::__copy_if_fn copy_if;
@@ -1191,7 +1204,8 @@ struct __internal::__replace_copy_if_fn
 
         oneapi::dpl::__internal::__ranges::__pattern_replace_copy_if(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::take_view(__r, __size),
-            std::ranges::take_view(__result, __size), __pred,
+            std::ranges::take_view(__result, __size),
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred),
             oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>{__new_value}, __proj);
 
         return {std::ranges::begin(__r) + __size, std::ranges::begin(__result) + __size};
@@ -1423,7 +1437,8 @@ struct __internal::__mismatch_fn
         {
             const auto& [__it_1, __it_2] = oneapi::dpl::__internal::__ranges::__pattern_mismatch(
                 __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1),
-                std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+                std::forward<_R2>(__r2), oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred),
+                __proj1, __proj2);
 
             return {__it_1, __it_2};
         }
@@ -1432,8 +1447,8 @@ struct __internal::__mismatch_fn
             auto __sized_range =
                 std::ranges::subrange(std::ranges::begin(__r1), std::ranges::begin(__r1) + std::ranges::size(__r2));
             const auto& [__it_1, __it_2] = oneapi::dpl::__internal::__ranges::__pattern_mismatch(
-                __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __sized_range, std::forward<_R2>(__r2), __pred,
-                __proj1, __proj2);
+                __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __sized_range, std::forward<_R2>(__r2),
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj1, __proj2);
 
             return {std::ranges::begin(__r1) + (__it_1 - __sized_range.begin()), __it_2};
         }
@@ -1444,8 +1459,8 @@ struct __internal::__mismatch_fn
             auto __sized_range =
                 std::ranges::subrange(std::ranges::begin(__r2), std::ranges::begin(__r2) + std::ranges::size(__r1));
             const auto& [__it_1, __it_2] = oneapi::dpl::__internal::__ranges::__pattern_mismatch(
-                __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), __sized_range, __pred,
-                __proj1, __proj2);
+                __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), __sized_range,
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj1, __proj2);
 
             return {__it_1, std::ranges::begin(__r2) + (__it_2 - __sized_range.begin())};
         }
@@ -1468,8 +1483,11 @@ struct __internal::__starts_with_fn
                _Proj2 __proj2 = {}) const
     {
         // To ensure no dangling iterator is returned, __r2 may not be forwarded
-        return std::ranges::end(__r2) == oneapi::dpl::ranges::mismatch(std::forward<_ExecutionPolicy>(__exec), __r1,
-                                                                       __r2, __pred, __proj1, __proj2).in2;
+        return std::ranges::end(__r2) ==
+               oneapi::dpl::ranges::mismatch(std::forward<_ExecutionPolicy>(__exec), __r1, __r2,
+                                             oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred),
+                                             __proj1, __proj2)
+                   .in2;
     }
 };
 inline constexpr __internal::__starts_with_fn starts_with;
@@ -1497,8 +1515,9 @@ struct __internal::__ends_with_fn
 #else
         auto __r1_dropped = std::views::all(__r1) | std::views::drop(__size_diff);
 #endif
-        return oneapi::dpl::ranges::equal(std::forward<_ExecutionPolicy>(__exec), std::move(__r1_dropped),
-                                          std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+        return oneapi::dpl::ranges::equal(
+            std::forward<_ExecutionPolicy>(__exec), std::move(__r1_dropped), std::forward<_R2>(__r2),
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj1, __proj2);
     }
 };
 inline constexpr __internal::__ends_with_fn ends_with;
@@ -1516,8 +1535,9 @@ struct __internal::__remove_if_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_remove_if(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+        return oneapi::dpl::__internal::__ranges::__pattern_remove_if(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj);
     }
 }; //__remove_if_fn
 inline constexpr __internal::__remove_if_fn remove_if;
@@ -1644,7 +1664,8 @@ struct __internal::__partition_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_partition(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj);
     }
 }; //__partition_fn
 inline constexpr __internal::__partition_fn partition;
@@ -1661,7 +1682,8 @@ struct __internal::__stable_partition_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_stable_partition(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj);
     }
 }; //__stable_partition_fn
 inline constexpr __internal::__stable_partition_fn stable_partition;
@@ -1687,7 +1709,8 @@ struct __internal::__partition_copy_fn
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_partition_copy_ranges(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            std::forward<_OutR1>(__out_true_r), std::forward<_OutR2>(__out_false_r), __pred, __proj);
+            std::forward<_OutR1>(__out_true_r), std::forward<_OutR2>(__out_false_r),
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj);
     }
 }; //__partition_copy_fn
 inline constexpr __internal::__partition_copy_fn partition_copy;
@@ -1725,7 +1748,8 @@ struct __internal::__is_partitioned_fn
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_is_partitioned(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred), __proj);
     }
 }; //__is_partitioned_fn
 inline constexpr __internal::__is_partitioned_fn is_partitioned;

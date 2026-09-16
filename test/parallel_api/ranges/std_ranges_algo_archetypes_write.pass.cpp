@@ -350,9 +350,7 @@ main()
                    std::ranges::begin(out_view)[2].val == 2;
         };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_IF_HOST
         run_algo2_offset_host_policies<copy_in_archetype, copy_out_archetype>(call, check, "replace_copy_if");
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_offset_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 17>(call, check,
                                                                                          "replace_copy_if");
@@ -370,9 +368,7 @@ main()
             return std::ranges::begin(out_view)[3].val == 42 && std::ranges::begin(out_view)[2].val == 2;
         };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_HOST
         run_algo2_offset_host_policies<remove_copy_in_archetype, copy_out_archetype>(call, check, "replace_copy");
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_offset_hetero_policies<remove_copy_in_archetype_dc, copy_out_archetype_dc, 18>(call, check,
                                                                                                 "replace_copy");
@@ -571,10 +567,8 @@ main()
                    std::ranges::begin(out_view)[2].val == 2;
         };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_IF_HOST
         run_algo2_offset_host_policies<copy_in_archetype, copy_out_archetype>(
             call, check, "replace_copy_if, non-const predicate");
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_offset_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 30>(
             call, check, "replace_copy_if, non-const predicate");
@@ -591,10 +585,8 @@ main()
             return std::ranges::begin(out_view)[3].val == 42 && std::ranges::begin(out_view)[2].val == 2;
         };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_HOST
         run_algo2_offset_host_policies<remove_copy_in_archetype, copy_out_archetype>(
             call, check, "replace_copy, non-const projection");
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_offset_hetero_policies<remove_copy_in_archetype_dc, copy_out_archetype_dc, 31>(
             call, check, "replace_copy, non-const projection");

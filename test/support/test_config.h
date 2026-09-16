@@ -422,11 +422,4 @@
 // defect. replace, which delegates to for_each, is fine on the device.
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_HETERO 1
 
-// Every host path of replace_copy_if and replace_copy but the serial scalar one stores the new value in
-// __replace_copy_functor by value and therefore copy constructs it, while
-// std::indirectly_writable<iterator_t<_OutR>, const _T&> only asks for an assignment from a const
-// lvalue. See the note at the call site. The device path legitimately copies the value into the kernel.
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_IF_HOST 1
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_HOST 1
-
 #endif // _TEST_CONFIG_H
