@@ -263,47 +263,23 @@ main()
         [](auto&&, auto res) { return std::ranges::size(res) == 0; }, "unique, non-const callable");
 
     // partition returns the tail of the elements which do not satisfy the predicate.
-    //
-    // KSATODO: the device path of partition applies the predicate to a const lvalue, which
-    // std::indirect_unary_predicate over a permutable iterator does not ask for, so it does not
-    // compile:
-    //  - unseq_backend_sycl.h:122 - walk_n::operator() is const and calls __f(__rngs[__idx]...) on
-    //    the const range members of single_match_pred_by_idx.
-    {
-        auto call = [](auto&& policy, auto&& view) {
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 17>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::partition(std::forward<decltype(policy)>(policy), view, permutable_pred_mut{});
-        };
-        auto check = [](auto&& view, auto res) {
+        },
+        [](auto&& view, auto res) {
             return std::ranges::size(res) == std::ranges::size(view) - (std::ranges::size(view) + 2) / 3;
-        };
+        },
+        "partition, non-const callable");
 
-        run_algo_host_policies<permutable_archetype>(call, check, "partition, non-const callable");
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo_hetero_policies<permutable_archetype_dc, 17>(call, check, "partition, non-const callable");
-#endif
-    }
-
-    // KSATODO: the device path of stable_partition applies the predicate to a const lvalue, which
-    // std::indirect_unary_predicate over a permutable iterator does not ask for, so it does not
-    // compile:
-    //  - utils.h:187 - __unary_op::operator() is const and forwards what it is handed into std::invoke;
-    //  - unseq_backend_sycl.h:555,557 - single_match_pred_by_idx passes the accessor on as const, so
-    //    walk_n subscripts a const range;
-    //  - parallel_backend_sycl_reduce_then_scan.h:473,475 - __gen_mask::operator() is const as well and
-    //    subscripts the range it is handed, which reaches it as a const one.
-    {
-        auto call = [](auto&& policy, auto&& view) {
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 18>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::stable_partition(std::forward<decltype(policy)>(policy), view, permutable_pred_mut{});
-        };
-        auto check = [](auto&& view, auto res) {
+        },
+        [](auto&& view, auto res) {
             return std::ranges::size(res) == std::ranges::size(view) - (std::ranges::size(view) + 2) / 3;
-        };
-
-        run_algo_host_policies<permutable_archetype>(call, check, "stable_partition, non-const callable");
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo_hetero_policies<permutable_archetype_dc, 18>(call, check, "stable_partition, non-const callable");
-#endif
-    }
+        },
+        "stable_partition, non-const callable");
 
     // The very same comparator as the one the sorting algorithms below are called with.
     run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 19>(
@@ -312,69 +288,33 @@ main()
         },
         [](auto&&, bool res) { return res; }, "is_sorted of a permutable range, non-const comparator");
 
-    // KSATODO: std::sortable<_It, _Comp> only requires the comparator to be invocable with
-    // iter_reference_t<_It>, which is a non-const lvalue for archetype_view, so a comparator taking
-    // its arguments by non-const reference is enough. The parallel host merge sort compares against a
-    // const lvalue instead, so par and par_unseq do not compile:
-    //  - parallel_backend_tbb.h:1037 - std::lower_bound(..., _M_comp) passes the const lvalue _Val
-    //    of the merge split point to the comparator;
-    //  - utils.h:203 - __binary_op::operator() forwards that const lvalue into std::invoke.
-    // seq and unseq keep the element non-const all the way down, but the gap macro covers the host side
-    // as a whole, so they are switched off together with par and par_unseq.
-    {
-        auto call = [](auto&& policy, auto&& view) {
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 20>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view, permutable_comp_mut{});
-        };
-        auto check = [](auto&& view, auto) {
+        },
+        [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 &&
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
-        };
+        },
+        "sort, non-const comparator");
 
-        run_algo_host_policies<permutable_archetype>(call, check, "sort, non-const comparator");
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo_hetero_policies<permutable_archetype_dc, 20>(call, check, "sort, non-const comparator");
-#endif
-    }
-
-    // KSATODO: stable_sort shares the merge sort of the parallel host policies with sort, so it is
-    // broken for par and par_unseq in exactly the same way, see the note above.
-    {
-        auto call = [](auto&& policy, auto&& view) {
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 21>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::stable_sort(std::forward<decltype(policy)>(policy), view, permutable_comp_mut{});
-        };
-        auto check = [](auto&& view, auto) {
+        },
+        [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 &&
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
-        };
+        },
+        "stable_sort, non-const comparator");
 
-        run_algo_host_policies<permutable_archetype>(call, check, "stable_sort, non-const comparator");
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo_hetero_policies<permutable_archetype_dc, 21>(call, check, "stable_sort, non-const comparator");
-#endif
-    }
-
-    // KSATODO: partial_sort shares the parallel merge sort with sort, so the parallel host policies
-    // hand a const lvalue to the comparator here as well and par / par_unseq do not compile:
-    //  - parallel_backend_tbb.h:1023,1026,1034 - __merge_func::split_merging passes *(_M_x_beg + __ym)
-    //    to std::upper_bound / std::lower_bound, which compares against their const lvalue parameter;
-    //  - utils.h:203 - __binary_op::operator() forwards that const lvalue into std::invoke.
-    // seq and unseq keep the element non-const all the way down, but the gap macro covers the host side
-    // as a whole, so they are switched off together with par and par_unseq.
-    // The range is ascending already, so the first ten elements are 0 ... 9 afterwards.
-    {
-        auto call = [](auto&& policy, auto&& view) {
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 22>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::partial_sort(std::forward<decltype(policy)>(policy), view, std::ranges::begin(view) + 10,
                                             permutable_comp_mut{});
-        };
-        auto check = [](auto&& view, auto) {
-            return std::ranges::begin(view)[0].val == 0 && std::ranges::begin(view)[9].val == 9;
-        };
-
-        run_algo_host_policies<permutable_archetype>(call, check, "partial_sort, non-const comparator");
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo_hetero_policies<permutable_archetype_dc, 22>(call, check, "partial_sort, non-const comparator");
-#endif
-    }
+        },
+        [](auto&& view, auto) { return std::ranges::begin(view)[0].val == 0 && std::ranges::begin(view)[9].val == 9; },
+        "partial_sort, non-const comparator");
 
     // partial_sort_copy projects its input range and its output range with two distinct callables, so
     // both of them are passed here by non-const reference on top of the comparator, see family 14. The
@@ -411,25 +351,12 @@ main()
 #endif
     }
 
-    // KSATODO: std::sortable only requires the comparator to be invocable with the non-const
-    // reference of the element, but the parallel path of nth_element compares against a const lvalue,
-    // so par and par_unseq do not compile:
-    //  - algorithm_impl.h:2841 - the partition predicate of the quickselect loop takes const _Tp& and
-    //    passes it into std::invoke(__comp, __x, *__first).
-    // Taking the element by reference in that lambda is enough to fix it. seq and unseq are fine, but the
-    // gap macro covers the host side as a whole and switches them off as well.
-    {
-        auto call = [](auto&& policy, auto&& view) {
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 24>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::nth_element(std::forward<decltype(policy)>(policy), view, std::ranges::begin(view) + 10,
                                            permutable_comp_mut{});
-        };
-        auto check = [](auto&& view, auto) { return std::ranges::begin(view)[10].val == 10; };
-
-        run_algo_host_policies<permutable_archetype>(call, check, "nth_element, non-const comparator");
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo_hetero_policies<permutable_archetype_dc, 24>(call, check, "nth_element, non-const comparator");
-#endif
-    }
+        },
+        [](auto&& view, auto) { return std::ranges::begin(view)[10].val == 10; }, "nth_element, non-const comparator");
 
     // KSATODO: inplace_merge does not compile with any host policy, for two independent reasons:
     //  - algorithm_ranges_impl.h:848 - the serial path returns __end(__r), i.e. the sentinel of the
