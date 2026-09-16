@@ -140,16 +140,27 @@ struct __custom_brick
             oneapi::dpl::__internal::__shars_lower_bound_batched<_C>(haystack, start_orig, end_orig, value, result,
                                                                      comp);
 
-        _ONEDPL_PRAGMA_UNROLL
-        for (std::size_t j = 0; j < _C; ++j)
+        if constexpr (func == search_algorithm::binary_search)
         {
-            if (_IsFull::value || idx + j * stride < bound)
-            {
-                if constexpr (func == search_algorithm::binary_search)
-                    get<2>(acc[key_index(j)]) = (result[j] != end_orig) && (value[j] == haystack[result[j]]);
-                else
+            // The confirming probe is one more dependent load, so batch it too. Guarding it against
+            // result[j] == end_orig in place would make it conditional and serialize it again; the
+            // haystack is non-empty here, so index 0 is a safe stand-in for the not-found lanes.
+            _KeyType probe[_C];
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::size_t j = 0; j < _C; ++j)
+                probe[j] = haystack[result[j] != end_orig ? result[j] : _Size{0}];
+
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::size_t j = 0; j < _C; ++j)
+                if (_IsFull::value || idx + j * stride < bound)
+                    get<2>(acc[key_index(j)]) = (result[j] != end_orig) && (value[j] == probe[j]);
+        }
+        else
+        {
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::size_t j = 0; j < _C; ++j)
+                if (_IsFull::value || idx + j * stride < bound)
                     get<2>(acc[key_index(j)]) = result[j];
-            }
         }
     }
 
