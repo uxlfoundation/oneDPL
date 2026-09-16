@@ -1657,25 +1657,101 @@ __pattern_partial_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
+
+//Dummy names to avoid kernel problems
+template <typename _Name>
+struct __partial_sort_copy_out_copy;
+template <typename _Name>
+struct __partial_sort_copy_out_sort;
+template <typename _Name>
+struct __partial_sort_copy_buf_copy;
+template <typename _Name>
+struct __partial_sort_copy_buf_sort;
+template <typename _Name>
+struct __partial_sort_copy_move_back;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp, typename _Proj1,
           typename _Proj2>
 std::ranges::partial_sort_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
 __pattern_partial_sort_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r,
                                    _OutR&& __out_r, _Comp __comp, _Proj1, _Proj2 __proj2)
 {
-    auto [__first1, __last1] = oneapi::dpl::__ranges::__bounds(__r);
-    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__out_r);
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+    auto [__out_first, __out_last] = oneapi::dpl::__ranges::__bounds(__out_r);
 
-    auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__value_t<_R>>(__comp);
+    const auto __n = __last - __first;
+    const auto __n_out = __out_last - __out_first;
 
-    // __pattern_partial_sort_copy sorts after copying, so _Proj1 is not used
-    auto __out_finish = oneapi::dpl::__internal::__pattern_partial_sort_copy(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __out_it, __out_end,
-        oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj2, _Proj2>{__relax_non_const_comp,
-                                                                                               __proj2, __proj2});
+    if (__n == 0 || __n_out == 0)
+        return {__last, __out_first};
 
-    return {__last1, __out_finish};
+    using _OutValueType = oneapi::dpl::__internal::__value_t<_OutR>;
+
+    // Both the comparator and __proj2 are relaxed: the sorts below are given a single callable comparing
+    // two output elements, and they pass const lvalues of those to it, which std::sortable does not ask
+    // __comp and __proj2 to accept.
+    auto __relax_non_const_comp = oneapi::dpl::__internal::__get_relax_non_const_comp<_OutValueType>(__comp);
+    auto __relax_non_const_proj2 = oneapi::dpl::__internal::__get_relax_non_const_pred<_OutValueType>(__proj2);
+
+    // The output elements are projected by the comparator itself and not by a projection passed to the sort
+    // separately: the latter is only invocable with a prvalue of the value type, while a projection is
+    // allowed to take its argument by a non-const reference.
+    // _Proj1 is not used: the standard sorts the result with respect to __comp and __proj2, and the sort
+    // below is what selects the elements to keep.
+    oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), decltype(__relax_non_const_proj2),
+                                         decltype(__relax_non_const_proj2)>
+        __comp_2{__relax_non_const_comp, __relax_non_const_proj2, __relax_non_const_proj2};
+
+    // The input range is viewed as a mutable one (views::all and not views::all_read): the elements are
+    // copied out of it with *__out = *__in, which is the only copy std::indirectly_copyable grants, and it
+    // takes a non-const lvalue of the input element, while a read only view exposes them as const.
+    if (__n <= __n_out)
+    {
+        // The output range is large enough for the whole input: copy the input there and sort it in place.
+        oneapi::dpl::__internal::__ranges::__pattern_walk_n(
+            __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__partial_sort_copy_out_copy>(__exec),
+            oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
+            oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)),
+            oneapi::dpl::__ranges::views::all_write(__out_r));
+
+        // Only the prefix the input has been copied into is sorted. A full sort is used because
+        // partial_sort_copy isn't required to be stable, and the device sort is a stable one anyway.
+        oneapi::dpl::__internal::__ranges::__pattern_stable_sort(
+            __tag,
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__partial_sort_copy_out_sort>(
+                std::forward<_ExecutionPolicy>(__exec)),
+            oneapi::dpl::__ranges::views::all(__out_r) | oneapi::dpl::experimental::ranges::views::take(__n), __comp_2,
+            oneapi::dpl::identity{});
+
+        return {__last, __out_first + __n};
+    }
+
+    // The output range is shorter than the input one: sort a copy of the whole input in a temporary buffer
+    // and move the sorted prefix out of it. The buffer holds the output value type, because an input
+    // element is not required to be movable at all, while std::sortable makes an output element movable.
+    oneapi::dpl::__par_backend_hetero::__buffer<_OutValueType> __buf(__n);
+    auto __buf_rng = oneapi::dpl::__ranges::views::all(__buf.get_buffer());
+
+    oneapi::dpl::__internal::__ranges::__pattern_walk_n(
+        __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__partial_sort_copy_buf_copy>(__exec),
+        oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{},
+        oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)), __buf_rng);
+
+    oneapi::dpl::__internal::__pattern_partial_sort(
+        __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__partial_sort_copy_buf_sort>(__exec),
+        __buf.get(), __buf.get() + __n_out, __buf.get() + __n, __comp_2);
+
+    // The elements are moved out of the temporary buffer and not copied: std::sortable grants a move
+    // assignment of an output element (through std::permutable), never a copy assignment.
+    oneapi::dpl::__internal::__ranges::__pattern_walk_n(
+        __tag,
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__partial_sort_copy_move_back>(
+            std::forward<_ExecutionPolicy>(__exec)),
+        oneapi::dpl::__internal::__brick_move<__hetero_tag<_BackendTag>>{},
+        __buf_rng | oneapi::dpl::experimental::ranges::views::take(__n_out),
+        oneapi::dpl::__ranges::views::all_write(__out_r));
+
+    return {__last, __out_first + __n_out};
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
