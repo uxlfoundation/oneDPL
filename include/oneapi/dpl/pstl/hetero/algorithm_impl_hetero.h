@@ -1327,10 +1327,7 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     auto __n = __last - __first;
 
     // The two sides hold exactly __n elements between them, so one staging buffer holds both: the true side fills
-    // it from the front, the false side fills it reversed from the back. The index sets are [0, __true_count) and
-    // [__true_count, __n), disjoint for every __true_count. Both output views span the whole buffer, so the backend
-    // cannot bound-check the pair; _Bounded must stay false, and disjointness rests on __pred evaluating
-    // consistently across the counting and scan passes, which stable_partition requires of it anyway.
+    // it from the front, the false side fills it reversed from the back.
     oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__n);
     auto __stage = __buf.get();
 
@@ -1345,6 +1342,7 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
         auto __out_true = __stage_buf.all_view();
         oneapi::dpl::__ranges::reverse_view_simple<decltype(__out_true)> __out_false{__stage_buf.all_view()};
 
+        // Both views span the whole buffer, so there is no output bound to check.
         __true_count = oneapi::dpl::__par_backend_hetero::__parallel_partition_copy</*_Bounded*/ false>(
             _BackendTag{}, __exec, __in_buf.all_view(), __out_true, __out_false, __pred)[0];
     }
@@ -1355,7 +1353,6 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __stage, __stage + __true_count,
         __first, __brick_move<__hetero_tag<_BackendTag>>{});
 
-    // The false side lies reversed in the tail of the staging buffer, so its copy back reads it back to front.
     __pattern_reverse_copy(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper2>(::std::forward<_ExecutionPolicy>(__exec)),
         __stage + __true_count, __stage + __n, __first + __true_count);
