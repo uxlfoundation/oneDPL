@@ -605,8 +605,7 @@ __parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size _
 
     using _ElementT = oneapi::dpl::__internal::__value_t<_InRng>;
     using _GenReduceInput = __par_backend_hetero::__gen_count_mask_and_copy<_GenMask, _Size>;
-    using _GenScanInput =
-        __par_backend_hetero::__gen_expand_count_mask<_GenMask, _Size, __par_backend_hetero::__get_first_range>;
+    using _GenScanInput = __par_backend_hetero::__gen_expand_count_mask_from_copy<_GenMask, _Size>;
     using _ScanInputTransform = __par_backend_hetero::__get_zeroth_element;
 
     // Reduce reads one input element and stores it in the buffer, then scan reads the element from the buffer.
@@ -619,7 +618,7 @@ __parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size _
     sycl::event __event = __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_iter, _CustomName,
                                                                 /*the type of extra storage*/_ElementT>(
         __q, __n, __in_rng, __in_rng, _GenReduceInput{__generate_mask}, std::plus<_Size>{},
-        _GenScanInput{__generate_mask, __par_backend_hetero::__get_first_range{}}, _ScanInputTransform{}, __write_op,
+        _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, __holder, /*_Inclusive=*/std::true_type{},
         __is_unique_pattern);
     __event.wait_and_throw();
