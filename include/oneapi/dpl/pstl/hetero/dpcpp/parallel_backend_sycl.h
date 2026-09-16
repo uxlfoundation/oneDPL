@@ -254,10 +254,6 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
                _Assign __assign, std::size_t __max_wg_size)
     {
         assert(__max_wg_size <= std::numeric_limits<std::uint16_t>::max());
-        // This type is used as a workaround for when an internal tuple is assigned to std::tuple, such as
-        // with zip_iterator
-        using __tuple_type = typename oneapi::dpl::__internal::__get_tuple_type<
-            std::decay_t<decltype(__in_rng[0])>, std::decay_t<decltype(__out_rng[0])>>::__type;
 
         __result_storage<_Size> __result{__q, 2};
 
@@ -295,7 +291,8 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
                         if (__lacc[__idx]) {
                             _ValueType __out_idx = __lacc[__idx + __n_uniform];
                             if (__out_idx < __n_out)
-                                __assign(static_cast<__tuple_type>(__in_rng[__idx]), __out_rng[__out_idx]);
+                                __assign(oneapi::dpl::__internal::__tuple_type_cast(__in_rng[__idx], __out_rng),
+                                         __out_rng[__out_idx]);
                             if (__out_idx == __n_out)
                                 __lacc[2 * __n_uniform] = __idx; // the actual stop position in the input
                         }

@@ -126,18 +126,18 @@ _RandomAccessIterator2 __brick_walk2_n(_RandomAccessIterator1, _Size, _RandomAcc
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Function>
 _ForwardIterator2
-__pattern_walk2(_Tag, _ExecutionPolicy&&, _ForwardIterator1, _ForwardIterator1, _ForwardIterator2, _Function) noexcept;
+__pattern_walk2(_Tag, _ExecutionPolicy&&, _ForwardIterator1, _ForwardIterator1, _ForwardIterator2, _Function&&) noexcept;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _Function>
 _RandomAccessIterator2
 __pattern_walk2(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1, _RandomAccessIterator1,
-                _RandomAccessIterator2, _Function);
+                _RandomAccessIterator2, _Function&&);
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Function>
 _ForwardIterator2
 __pattern_walk2(__parallel_forward_tag, _ExecutionPolicy&&, _ForwardIterator1, _ForwardIterator1, _ForwardIterator2,
-                _Function);
+                _Function&&);
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _Size, class _ForwardIterator2,
           class _Function>

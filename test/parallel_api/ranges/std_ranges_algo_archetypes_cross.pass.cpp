@@ -208,7 +208,7 @@ main()
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HOST
         run_algo2_host_policies<lhs_archetype, rhs_archetype>(call, check, "find_first_of, non-const callable");
 #endif
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HETERO
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 14>(call, check,
                                                                          "find_first_of, non-const callable");
 #endif
@@ -257,7 +257,7 @@ main()
 
         run_algo2_host_policies<lhs_archetype, rhs_archetype>(call, check,
                                                              "lexicographical_compare, non-const comparator");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE_HETERO
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 19>(
             call, check, "lexicographical_compare, non-const comparator");
 #endif

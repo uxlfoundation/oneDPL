@@ -85,28 +85,17 @@ main()
         },
         "reverse_copy");
 
-    // KSATODO: std::indirectly_copyable only asks for *__out = *__in, i.e. for an assignment from
-    // iter_reference_t of the input iterator, which is a non-const lvalue for archetype_view. The device
-    // path assigns from a const prvalue instead, so the call does not compile:
-    //  - unseq_backend_sycl.h:885 - __rotate_copy::operator() writes __rng2[__idx] = __rng1[__shifted]
-    //    with __rng1 a const all_view of access mode read, whose subscript returns const _Elem by value.
-    // Assigning through a non-const reference to the input element fixes it; the host path already does.
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_all_policies<copy_in_archetype, copy_out_archetype, copy_in_archetype_dc, copy_out_archetype_dc, 3>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::rotate_copy(std::forward<decltype(policy)>(policy), in_view,
                                            std::ranges::begin(in_view) + 10, out_view);
-        };
-        auto check = [](auto&& in_view, auto&& out_view, auto) {
+        },
+        [](auto&& in_view, auto&& out_view, auto) {
             const auto n = std::ranges::size(in_view);
             return std::ranges::begin(out_view)[0].val == std::ranges::begin(in_view)[10].val &&
                    std::ranges::begin(out_view)[n - 10].val == std::ranges::begin(in_view)[0].val;
-        };
-
-        run_algo2_host_policies<copy_in_archetype, copy_out_archetype>(call, check, "rotate_copy");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_ROTATE_COPY_HETERO
-        run_algo2_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 3>(call, check, "rotate_copy");
-#endif
-    }
+        },
+        "rotate_copy");
 
     run_algo2_offset_all_policies<move_in_archetype, move_out_archetype, move_in_archetype_dc, move_out_archetype_dc,
                                   4>(
@@ -301,9 +290,7 @@ main()
         "replace");
 
     // remove_copy is the copying family and the value family at once: it drops the elements equal to
-    // the searched value and assigns the surviving ones to the output range. It delegates to copy_if
-    // with a negated equality predicate, so its device path assigns a const copy of the input element
-    // exactly like the conditionally copying algorithms above and is guarded for the same reason.
+    // the searched value and assigns the surviving ones to the output range.
     {
         auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::remove_copy(std::forward<decltype(policy)>(policy), in_view, out_view, search_value{3});
@@ -316,7 +303,7 @@ main()
         };
 
         run_algo2_host_policies<remove_copy_in_archetype, copy_out_archetype>(call, check, "remove_copy");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_HETERO
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_hetero_policies<remove_copy_in_archetype_dc, copy_out_archetype_dc, 16>(call, check, "remove_copy");
 #endif
     }
@@ -350,9 +337,7 @@ main()
                    std::ranges::begin(out_view)[2].val == 2;
         };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_IF_HOST
         run_algo2_offset_host_policies<copy_in_archetype, copy_out_archetype>(call, check, "replace_copy_if");
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_offset_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 17>(call, check,
                                                                                          "replace_copy_if");
@@ -370,9 +355,7 @@ main()
             return std::ranges::begin(out_view)[3].val == 42 && std::ranges::begin(out_view)[2].val == 2;
         };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_HOST
         run_algo2_offset_host_policies<remove_copy_in_archetype, copy_out_archetype>(call, check, "replace_copy");
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_offset_hetero_policies<remove_copy_in_archetype_dc, copy_out_archetype_dc, 18>(call, check,
                                                                                                 "replace_copy");
@@ -537,8 +520,7 @@ main()
         },
         "replace, non-const projection");
 
-    // remove_copy is guarded here for the very same reason as above: the const copy of the input element
-    // breaks the device call before the projection is ever reached.
+    // remove_copy with a projection taking the element by non-const reference, as replace above.
     {
         auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::remove_copy(std::forward<decltype(policy)>(policy), in_view, out_view, search_value{3},
@@ -551,8 +533,8 @@ main()
         };
 
         run_algo2_host_policies<remove_copy_in_archetype, copy_out_archetype>(call, check,
-                                                                               "remove_copy, non-const projection");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_HETERO
+                                                                              "remove_copy, non-const projection");
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_hetero_policies<remove_copy_in_archetype_dc, copy_out_archetype_dc, 29>(
             call, check, "remove_copy, non-const projection");
 #endif
@@ -571,10 +553,8 @@ main()
                    std::ranges::begin(out_view)[2].val == 2;
         };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_IF_HOST
         run_algo2_offset_host_policies<copy_in_archetype, copy_out_archetype>(
             call, check, "replace_copy_if, non-const predicate");
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_offset_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 30>(
             call, check, "replace_copy_if, non-const predicate");
@@ -591,10 +571,8 @@ main()
             return std::ranges::begin(out_view)[3].val == 42 && std::ranges::begin(out_view)[2].val == 2;
         };
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_HOST
         run_algo2_offset_host_policies<remove_copy_in_archetype, copy_out_archetype>(
             call, check, "replace_copy, non-const projection");
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_offset_hetero_policies<remove_copy_in_archetype_dc, copy_out_archetype_dc, 31>(
             call, check, "replace_copy, non-const projection");
