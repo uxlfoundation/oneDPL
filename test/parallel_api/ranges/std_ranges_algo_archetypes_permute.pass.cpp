@@ -475,50 +475,27 @@ main()
     // only calls of the whole suite which reach the radix sort of the device backend: it is selected
     // by the projected key type and never by the element type, so an archetype element can only get
     // there through such a projection.
-    //----------------------------------------------------------------------------------------------
-    // KSATODO: the radix sort these two calls select on the device takes the address of the element
-    // with a plain operator&, which nothing in std::sortable asks the element type for:
-    //  - parallel_backend_sycl_radix_sort_one_wg.h:123 - new (&__values[__i]) _ValueT(__src[__idx])
-    //    in __block_load, which is also what makes the __block_load call at :200 fail to resolve;
-    //  - parallel_backend_sycl_radix_sort_one_wg.h:311 - new (&__exchange_lacc[__r]) _ValT(...).
-    // Spelling both of them std::addressof is enough; the placement new itself is legitimate here,
-    // because the local storage of the kernel is raw memory. Note that the same two lines also copy
-    // construct, respectively move construct, the element, which std::sortable does allow for the move
-    // and does not for the copy at :123 - a device archetype has to be trivially copyable, so this test
-    // cannot tell the two apart and the addressof is the only part it pins down.
-    // The host policies have no radix sort at all and are expected to compile.
-    // The range is ascending already, so sorting it keeps it as it is.
-    {
-        auto call = [](auto&& policy, auto&& view) {
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 32>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view, std::ranges::less{},
                                     permutable_proj_key{});
-        };
-        auto check = [](auto&& view, auto) {
+        },
+        [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 &&
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
-        };
+        },
+        "sort, projected key");
 
-        run_algo_host_policies<permutable_archetype>(call, check, "sort, projected key");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_RADIX_SORT_HETERO
-        run_algo_hetero_policies<permutable_archetype_dc, 32>(call, check, "sort, projected key");
-#endif
-    }
-
-    {
-        auto call = [](auto&& policy, auto&& view) {
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 33>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::stable_sort(std::forward<decltype(policy)>(policy), view, std::ranges::less{},
                                            permutable_proj_key{});
-        };
-        auto check = [](auto&& view, auto) {
+        },
+        [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 &&
                    std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
-        };
-
-        run_algo_host_policies<permutable_archetype>(call, check, "stable_sort, projected key");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_RADIX_SORT_HETERO
-        run_algo_hetero_policies<permutable_archetype_dc, 33>(call, check, "stable_sort, projected key");
-#endif
-    }
+        },
+        "stable_sort, projected key");
 
     // The permuting pattern over plain_archetype_view, i.e. over a range without the members
     // std::ranges::view_interface provides; see the plain range section of the read test for what this

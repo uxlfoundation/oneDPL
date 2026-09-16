@@ -120,7 +120,7 @@ struct __subgroup_radix_sort
         {
             const uint16_t __idx = __wi * __block_size + __i;
             if (__idx < __n)
-                new (&__values[__i]) _ValueT(__src[__idx]);
+                new (std::addressof(__values[__i])) _ValueT(__src[__idx]);
         }
     }
 
@@ -308,7 +308,7 @@ struct __subgroup_radix_sort
                                 {
                                     const std::uint16_t __r = __indices[__i];
                                     if (__r < __n)
-                                        new (&__exchange_lacc[__r]) _ValT(std::move(__values.__v[__i]));
+                                        new (std::addressof(__exchange_lacc[__r])) _ValT(std::move(__values.__v[__i]));
                                 }
                             }
                             else

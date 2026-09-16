@@ -391,12 +391,6 @@
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HOST 1
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HETERO 1
 
-// The radix sort of the device backend, which sort and stable_sort select for an integral projected
-// key, takes the address of the element with a plain operator& instead of std::addressof, and nothing
-// in std::sortable asks the element type for an operator& at all. This is not a defect of the two
-// algorithms themselves, only of that one backend, so it guards their projected key calls only.
-#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_RADIX_SORT_HETERO 1
-
 // The SIMD brick of find_first_of calls the predicate with its two arguments swapped, which
 // std::indirectly_comparable does not ask for. The scalar brick keeps the argument order and would
 // compile.
