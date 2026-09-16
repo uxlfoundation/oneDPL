@@ -820,8 +820,6 @@ template <typename _SetOpCount, typename _BoundsProvider, typename _RetType, typ
           typename _Proj2>
 struct __gen_set_balanced_path
 {
-    using TempData = __noop_temp_data;
-
     // Locates and returns the "intersection" of a diagonal on the balanced path, based on merge path coordinates.
     // It returns coordinates in each set of the intersection with a boolean representing if the diagonal is "starred",
     // meaning that the balanced path "intersection" point does not lie directly on the diagonal, but one step forward in
@@ -939,9 +937,9 @@ struct __gen_set_balanced_path
     }
 
     // Entry point for reduce then scan reduce input
-    template <typename _InRng, typename _IndexT, typename _FinalPosSaver>
+    template <typename _InRng, typename _IndexT>
     _RetType
-    operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data, _FinalPosSaver __final_pos_saver) const
+    operator()(const _InRng& __in_rng, _IndexT __id) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -988,13 +986,14 @@ struct __gen_set_balanced_path
             __star = __local_star;
         }
 
+        __noop_temp_data __temp_data{}; // lvalue is required to call __set_op_count
         const __temp_data_array_idx_t __eles_to_process = static_cast<__temp_data_array_idx_t>(
             std::min(_IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
                      oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2) -
                          _IndexT{__id * __diagonal_spacing - 1}));
 
         return _RetType{__set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos, __eles_to_process,
-                                       __temp_data, __comp, __proj1, __proj2, __final_pos_saver)};
+                                       __temp_data, __comp, __proj1, __proj2, __internal::__no_callback_tag{})};
     }
     _SetOpCount __set_op_count;
     __temp_data_array_idx_t __diagonal_spacing;
@@ -1577,13 +1576,11 @@ __sub_group_scan_partial(const sycl::nd_item<1>& __ndi, _ValueType& __value, _Bi
 template <bool __is_inclusive, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp,
           typename _ValueType, typename _InRng, typename _CommTag>
 void
-__scan_through_elements_helper_impl(const sycl::nd_item<1>& __ndi, _GenInput __gen_input,
-                                    _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op,
-                                    _WriteOp __write_op,
-                                    oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __sub_group_carry,
-                                    const _InRng& __in_rng, std::size_t __start_id, std::size_t __n,
-                                    std::uint32_t __iters_per_item, std::size_t __subgroup_start_id,
-                                    _CommTag __comm_tag)
+__scan_through_elements_impl(const sycl::nd_item<1>& __ndi, _GenInput __gen_input,
+                             _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
+                             oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __sub_group_carry,
+                             const _InRng& __in_rng, std::size_t __start_id, std::size_t __n,
+                             std::uint32_t __iters_per_item, std::size_t __subgroup_start_id, _CommTag __comm_tag)
 {
     using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t>;
 
@@ -1640,17 +1637,17 @@ struct __temp_data_required<_T, std::void_t<typename _T::TempData>>
     using type = typename _T::TempData;
 };
 
-template <bool _Bounded, bool __is_inclusive, bool __is_unique_pattern_v, typename _GenInput,
+// Group scan for the scan stage
+template <bool __is_inclusive, bool __is_bounded, bool __is_unique_pattern_v, typename _GenInput,
           typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp, typename _ValueType, typename _InRng,
-          typename _OutRng, typename _CommTag, typename _OnOOBReached = __internal::__no_callback_tag,
-          typename _FinalPosSaver = __internal::__no_callback_tag>
+          typename _OutRng, typename _CommTag, typename _OnOOBReached, typename _FinalPosSaver>
 void
-__scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_input,
-                               _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
-                               oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __sub_group_carry,
-                               const _InRng& __in_rng, _OutRng& __out_rng, std::size_t __start_id, std::size_t __n,
-                               std::uint32_t __iters_per_item, std::size_t __subgroup_start_id, _CommTag __comm_tag,
-                               _OnOOBReached __on_oob_reached = {}, _FinalPosSaver __final_pos_saver = {})
+__scan_through_elements(const sycl::nd_item<1>& __ndi, _GenInput __gen_input,
+                        _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
+                        oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __sub_group_carry,
+                        const _InRng& __in_rng, _OutRng& __out_rng, std::size_t __start_id, std::size_t __n,
+                        std::uint32_t __iters_per_item, std::size_t __subgroup_start_id, _CommTag __comm_tag,
+                        _OnOOBReached __on_oob_reached, _FinalPosSaver __final_pos_saver)
 {
     using __temp_data_required_t = __temp_data_required<_GenInput>;
     constexpr bool __is_temp_data_required = __temp_data_required_t::value;
@@ -1665,49 +1662,40 @@ __scan_through_elements_helper(const sycl::nd_item<1>& __ndi, _GenInput __gen_in
             return __gen_input(__rng, __id);
     };
 
-    if constexpr (std::is_same_v<_WriteOp, oneapi::dpl::__internal::__ignore_call_op>)
+    if constexpr (__is_bounded)
     {
-        __scan_through_elements_helper_impl<__is_inclusive>(
-            __ndi, __gen_input_impl, __scan_input_transform, __binary_op, oneapi::dpl::__internal::__ignore_call_op{},
-            __sub_group_carry, __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __comm_tag);
-    }
-    else
-    {
-        if constexpr (_Bounded)
+        const std::uint8_t __sg_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
+        // A single scanned element may emit up to _TempData::__max_outputs_per_input output elements:
+        // one for copy_if/unique, but up to __diagonal_spacing for set operations, where each scanned
+        // element is a diagonal written through __write_multiple_to_id. The estimate must account for
+        // this many writes per scanned element, otherwise the unchecked write path could be selected for
+        // set operations and overrun __out_rng (corrupting memory and skipping OOB position detection).
+        const std::size_t __max_write_offset =
+            std::size_t{__is_unique_pattern_v} + __iters_per_item * __sg_size * _TempData::__max_outputs_per_input;
+        if (__write_op.__oob_write_possible(__max_write_offset, __subgroup_start_id, __sub_group_carry))
         {
-            const std::uint8_t __sg_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
-            // A single scanned element may emit up to _TempData::__max_outputs_per_input output elements:
-            // one for copy_if/unique, but up to __diagonal_spacing for set operations, where each scanned
-            // element is a diagonal written through __write_multiple_to_id. The estimate must account for
-            // this many writes per scanned element, otherwise the unchecked write path could be selected for
-            // set operations and overrun __out_rng (corrupting memory and skipping OOB position detection).
-            const std::size_t __max_write_offset =
-                std::size_t{__is_unique_pattern_v} + __iters_per_item * __sg_size * _TempData::__max_outputs_per_input;
-            if (__write_op.__oob_write_possible(__max_write_offset, __subgroup_start_id, __sub_group_carry))
-            {
-                auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
-                    if constexpr (__is_temp_data_required)
-                        __write_op(__out_rng, __id, __v, __temp_data, __on_oob_reached);
-                    else
-                        __write_op(__out_rng, __id, __v, __on_oob_reached);
-                };
-                __scan_through_elements_helper_impl<__is_inclusive>(
-                    __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __bounded_write_op, __sub_group_carry,
-                    __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __comm_tag);
-                return;
-            }
+            auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
+                if constexpr (__is_temp_data_required)
+                    __write_op(__out_rng, __id, __v, __temp_data, __on_oob_reached);
+                else
+                    __write_op(__out_rng, __id, __v, __on_oob_reached);
+            };
+            __scan_through_elements_impl<__is_inclusive>(__ndi, __gen_input_impl, __scan_input_transform, __binary_op,
+                                                         __bounded_write_op, __sub_group_carry, __in_rng, __start_id,
+                                                         __n, __iters_per_item, __subgroup_start_id, __comm_tag);
+            return;
         }
-
-        auto __unbounded_write_op = [&](std::size_t __id, const auto& __v) {
-            if constexpr (__is_temp_data_required)
-                __write_op(__out_rng, __id, __v, __temp_data);
-            else
-                __write_op(__out_rng, __id, __v);
-        };
-        __scan_through_elements_helper_impl<__is_inclusive>(
-            __ndi, __gen_input_impl, __scan_input_transform, __binary_op, __unbounded_write_op, __sub_group_carry,
-            __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __comm_tag);
     }
+
+    auto __unbounded_write_op = [&](std::size_t __id, const auto& __v) {
+        if constexpr (__is_temp_data_required)
+            __write_op(__out_rng, __id, __v, __temp_data);
+        else
+            __write_op(__out_rng, __id, __v);
+    };
+    __scan_through_elements_impl<__is_inclusive>(__ndi, __gen_input_impl, __scan_input_transform, __binary_op,
+                                                 __unbounded_write_op, __sub_group_carry, __in_rng, __start_id,
+                                                 __n, __iters_per_item, __subgroup_start_id, __comm_tag);
 }
 
 template <typename _ScanOpsTag, typename _InitValueType>
@@ -1817,7 +1805,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
 
                 _InitValueType* __temp_ptr = __temp_acc.__data();
                 // The sub-group-ops vs SLM-fallback decision is dispatched at each sub-group-scan region
-                // (see __scan_through_elements_helper and the carry-computation block below).
+                // (see __scan_through_elements and the carry-computation block below).
                 const _ScanOpsTag __comm_scan_tag = __comm_handler.__get_tag_with_workspace(__comm_acc_or_placeholder);
                 std::size_t __group_id = __ndi.get_group(0);
                 std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
@@ -1841,12 +1829,11 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
                 if (__sub_group_id < __active_subgroups)
                 {
                     oneapi::dpl::__internal::__opt_lazy_ctor_storage<_InitValueType> __sub_group_carry;
-                    // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
-                    __scan_through_elements_helper</*_Bounded*/ false, __is_inclusive, __is_unique_pattern_v>(
+                    __scan_through_elements_impl<__is_inclusive>(
                         __ndi, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op,
-                        oneapi::dpl::__internal::__ignore_call_op{}, __sub_group_carry, __in_rng, /*unused*/ __in_rng,
-                        __start_id, __n, __inputs_per_item, __subgroup_start_id, __comm_scan_tag);
+                        oneapi::dpl::__internal::__ignore_call_op{}, __sub_group_carry, __in_rng, __start_id, __n,
+                        __inputs_per_item, __subgroup_start_id, __comm_scan_tag);
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__get_cref();
                 }
@@ -2182,8 +2169,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
                     std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                    auto __call_scan_through_elements_helper = [&](auto __on_oob_reached, auto __final_pos_saver) {
-                        __scan_through_elements_helper<_Bounded, __is_inclusive, __is_unique_pattern_v>(
+                    auto __call_scan_through_elements = [&](auto __on_oob_reached, auto __final_pos_saver) {
+                        __scan_through_elements<__is_inclusive, _Bounded, __is_unique_pattern_v>(
                             __ndi, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op, __sub_group_carry,
                             __in_rng, __out_rng, __start_id, __n, __inputs_per_item, __subgroup_start_id,
                             __comm_scan_tag, __on_oob_reached, __final_pos_saver);
@@ -2206,7 +2193,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         if constexpr (__internal::__has_final_pos<__stop_pos_handler_type>)
                         {
                             using __final_pos_t = typename __stop_pos_handler_type::__final_pos_t;
-                            __call_scan_through_elements_helper(__on_oob_reached, [&](__final_pos_t __final_pos) {
+                            __call_scan_through_elements(__on_oob_reached, [&](__final_pos_t __final_pos) {
                                 // Exactly one work-item reaches the edge crossing, so no synchronization is needed
                                 // to store the shared final position.
                                 __stop_pos_acc_data.__final_pos = __final_pos;
@@ -2221,15 +2208,14 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         }
                         else
                         {
-                            __call_scan_through_elements_helper(__on_oob_reached, __internal::__no_callback_tag{});
+                            __call_scan_through_elements(__on_oob_reached, __internal::__no_callback_tag{});
                             if (__oob_detected)
                                 __stop_pos_acc_data = __oob_position;
                         }
                     }
                     else
                     {
-                        __call_scan_through_elements_helper(__internal::__no_callback_tag{},
-                                                            __internal::__no_callback_tag{});
+                        __call_scan_through_elements(__internal::__no_callback_tag{}, __internal::__no_callback_tag{});
                     }
                 }
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
