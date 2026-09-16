@@ -3229,48 +3229,19 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
     {
         return __internal::__brick_merge(__first1, __last1, __first2, __last2, __first3, __comp, _IsVector{});
     }
-    // One of the input ranges is empty
+    // {1} is empty
     if (__n_1 == 0)
     {
         return __pattern_walk2_brick(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first2,
                                      __last2, __first3, __brick_copy<__parallel_tag<_IsVector>>{});
     }
+    // {2} is empty
     if (__n_2 == 0)
     {
         return __pattern_walk2_brick(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first1,
                                      __last1, __first3, __brick_copy<__parallel_tag<_IsVector>>{});
     }
     return __internal::__except_handler([&]() {
-        // The first sequence is ordered before the second sequence
-        if (!__comp(*__first2, *(__last1 - 1)))
-        {
-            __par_backend::__parallel_invoke(
-                __backend_tag{}, __exec,
-                [=, &__exec]() {
-                    __pattern_walk2_brick(__parallel_tag<_IsVector>{}, __exec, __first1, __last1, __first3,
-                                          __brick_copy<__parallel_tag<_IsVector>>{});
-                },
-                [=, &__exec]() {
-                    __pattern_walk2_brick(__parallel_tag<_IsVector>{}, __exec, __first2, __last2, __first3 + __n_1,
-                                          __brick_copy<__parallel_tag<_IsVector>>{});
-                });
-            return __first3 + __n_out;
-        }
-        // The second sequence is strictly ordered before the first sequence
-        if (__comp(*(__last2 - 1), *__first1))
-        {
-            __par_backend::__parallel_invoke(
-                __backend_tag{}, __exec,
-                [=, &__exec]() {
-                    __pattern_walk2_brick(__parallel_tag<_IsVector>{}, __exec, __first2, __last2, __first3,
-                                          __brick_copy<__parallel_tag<_IsVector>>{});
-                },
-                [=, &__exec]() {
-                    __pattern_walk2_brick(__parallel_tag<_IsVector>{}, __exec, __first1, __last1, __first3 + __n_2,
-                                          __brick_copy<__parallel_tag<_IsVector>>{});
-                });
-            return __first3 + __n_out;
-        }
         // Do parallel partition and merge
         __par_backend::__parallel_for(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
@@ -3329,33 +3300,14 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
     {
         return;
     }
-    // Already merged
-    if (!__comp(*__middle, *(__middle - 1)))
-    {
-        return;
-    }
     // Too few elements
-    // 4x the serial merge chunk size to ammortize the allocation overhead
-    // - conservative estimate across different platforms and types
+    // multiple of the serial merge chunk size to ammortize the allocation overhead
     using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
     if (static_cast<std::size_t>(__last - __first) <= 4 * __merge_chunk_size<_Tp>)
     {
         std::inplace_merge(__first, __middle, __last, __comp);
         return;
     }
-
-    // Narrow the range to merge
-    __first = std::upper_bound(__first, __middle, *__middle, __comp);
-    __last = std::lower_bound(__middle, __last, *(__middle - 1), __comp);
-
-    // The second sequence precedes the first one
-    if (__comp(*(__last - 1), *__first))
-    {
-        __internal::__pattern_rotate(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first,
-                                     __middle, __last);
-        return;
-    }
-
     // Do parallel merge
     using _Index = std::common_type_t<typename std::iterator_traits<_RandomAccessIterator>::difference_type,
                                       std::ptrdiff_t>;
@@ -3413,17 +3365,17 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
                     const _Index __row_end = __split[__c + 1];
                     const _Index __col_end = __j - __row_end;
 
-                    if (__row == __row_end) // Chunk contains only elements of the second sequence
+                    if (__row == __row_end) // Chunk contains only elements of {2}
                     {
                         __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __n_1 + __col, __b + __n_1 + __col_end,
                                                                          __first + __i, _IsVector{});
                     }
-                    else if (__col == __col_end) // Chunk contains only elements of the first sequence
+                    else if (__col == __col_end) // Chunk contains only elements of {1}
                     {
                         __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __row, __b + __row_end, __first + __i,
                                                                          _IsVector{});
                     }
-                    else // Chunk contains elements of both sequences
+                    else // Chunk contains elements of both {1} and {2}
                     {
                         __serial_merge_out_lim(__b + __row, __b + __row_end, __b + __n_1 + __col,
                                                __b + __n_1 + __col_end,

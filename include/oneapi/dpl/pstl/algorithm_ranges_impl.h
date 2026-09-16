@@ -771,7 +771,7 @@ template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, 
           typename _Proj1, typename _Proj2>
 std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                           std::ranges::borrowed_iterator_t<_OutRange>>
-__pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+__pattern_merge_ranges(_Tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                        _Proj1 __proj1, _Proj2 __proj2)
 {
     auto __first1 = std::ranges::begin(__r1);
@@ -794,8 +794,7 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     // equivalent of min(n1 + n2, n3) with no signed overflow risk
     const _IndexCommon __n_out = (__n1 < __n3 - __n2) ? __n1 + __n2 : __n3;
 
-    auto __last3 = __first3 + __n_out;
-
+    // {1} is empty
     if (__n1 == 0)
     {
         auto __last2 = __first2 + std::min<_IndexCommon>(__n2, __n_out);
@@ -804,7 +803,7 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
                                                                          oneapi::dpl::__internal::__brick_copy<_Tag>{});
         return {__first1, __last2, __last_out};
     }
-
+    // {2} is empty
     if (__n2 == 0)
     {
         auto __last1 = __first1 + std::min<_IndexCommon>(__n1, __n_out);
@@ -816,7 +815,6 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
 
     if constexpr (__is_parallel_tag_v<_Tag>)
     {
-        // Too few elements to be worth splitting up, in which case the serial merge below is used
         using _Tp = std::iter_value_t<decltype(__first1)>;
         if (static_cast<std::size_t>(__n_out) > oneapi::dpl::__internal::__merge_chunk_size<_Tp>)
         {
@@ -846,7 +844,7 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     }
 
     auto [__it1, __it2, __it3] = oneapi::dpl::__internal::__serial_merge_out_lim(
-        __first1, __first1 + __n1, __first2, __first2 + __n2, __first3, __last3, __comp, __proj1, __proj2);
+        __first1, __first1 + __n1, __first2, __first2 + __n2, __first3, __first3 + __n_out, __comp, __proj1, __proj2);
 
     return {__it1, __it2, __it3};
 }
