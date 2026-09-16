@@ -1534,6 +1534,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         auto __buf_first = __buf.get();
 
+        // This copy does not wait: accessors on __buf are what order it before the sort below.
         auto __buf_last =
             __pattern_hetero_walk2<__par_backend_hetero::__async_mode, __par_backend_hetero::access_mode::write,
                                    /*_IsOutNoInitRequested=*/true>(
