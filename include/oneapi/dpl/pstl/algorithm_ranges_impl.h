@@ -767,89 +767,171 @@ __pattern_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _
 // pattern_merge_ranges
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _R1, typename _R2, typename _OutRange>
+using __merge_ranges_return_t =
+    std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                              std::ranges::borrowed_iterator_t<_OutRange>>;
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+__merge_ranges_return_t<_R1, _R2, _OutRange>
+__serial_merge_ranges(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    using _Index = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
+
+    const _Index __n1 = static_cast<_Index>(std::ranges::size(__r1));
+    const _Index __n2 = static_cast<_Index>(std::ranges::size(__r2));
+    const _Index __n3 = static_cast<_Index>(std::ranges::size(__out_r));
+    const _Index __n_out = std::min(__n1 + __n2, __n3);
+
+    auto __first1 = std::ranges::begin(__r1);
+    auto __first2 = std::ranges::begin(__r2);
+    auto __first3 = std::ranges::begin(__out_r);
+    auto __last1 = __first1 + __n1;
+    auto __last2 = __first2 + __n2;
+    auto __last3 = __first3 + __n_out;
+
+    auto [__it1, __it2, __it3] = oneapi::dpl::__internal::__serial_merge_out_lim(
+        __first1, __last1, __first2, __last2, __first3, __last3, __comp, __proj1, __proj2);
+    return {__it1, __it2, __it3};
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+__merge_ranges_return_t<_R1, _R2, _OutRange>
+__brick_merge_ranges(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                     /*__is_vector=*/std::false_type) noexcept
+{
+    return __serial_merge_ranges(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                                 __comp, __proj1, __proj2);
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+__merge_ranges_return_t<_R1, _R2, _OutRange>
+__brick_merge_ranges(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+                     /*__is_vector=*/std::true_type) noexcept
+{
+    _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
+    return __serial_merge_ranges(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                                 __comp, __proj1, __proj2);
+}
+
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                          std::ranges::borrowed_iterator_t<_OutRange>>
-__pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+__merge_ranges_return_t<_R1, _R2, _OutRange>
+__pattern_merge_ranges(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                        _Proj1 __proj1, _Proj2 __proj2)
 {
+    static_assert(__is_serial_tag_v<_Tag>);
+
+    return __brick_merge_ranges(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                                __comp, __proj1, __proj2, typename _Tag::__is_vector{});
+}
+
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
+__merge_ranges_return_t<_R1, _R2, _OutRange>
+__pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                       _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    using _Tag = __parallel_tag<_IsVector>;
+    using __backend_tag = typename _Tag::__backend_tag;
+
     auto __first1 = std::ranges::begin(__r1);
     auto __first2 = std::ranges::begin(__r2);
     auto __first3 = std::ranges::begin(__out_r);
 
+    using _Tp = std::iter_value_t<decltype(__first1)>;
     using _Index1 = typename std::iterator_traits<decltype(__first1)>::difference_type;
     using _Index2 = typename std::iterator_traits<decltype(__first2)>::difference_type;
     using _Index3 = typename std::iterator_traits<decltype(__first3)>::difference_type;
-    using _IndexCommon = std::common_type_t<_Index1, _Index2, _Index3>;
-    static_assert(std::is_signed_v<_IndexCommon>);
+    using _Index = std::common_type_t<_Index1, _Index2, _Index3>;
+    static_assert(std::is_signed_v<_Index>); // sign is needed in __merge_path_intersection
 
-    const _IndexCommon __n1 = static_cast<_IndexCommon>(std::ranges::size(__r1));
-    const _IndexCommon __n2 = static_cast<_IndexCommon>(std::ranges::size(__r2));
-    const _IndexCommon __n3 = static_cast<_IndexCommon>(std::ranges::size(__out_r));
+    const _Index __n1 = static_cast<_Index>(std::ranges::size(__r1));
+    const _Index __n2 = static_cast<_Index>(std::ranges::size(__r2));
+    const _Index __n3 = static_cast<_Index>(std::ranges::size(__out_r));
 
     if (__n3 == 0)
         return {__first1, __first2, __first3};
 
-    // equivalent of min(n1 + n2, n3) with no signed overflow risk
-    const _IndexCommon __n_out = (__n1 < __n3 - __n2) ? __n1 + __n2 : __n3;
+     // equivalent of min(n1 + n2, n3) with no signed overflow risk
+    const _Index __n_out = (__n1 < __n3 - __n2) ? __n1 + __n2 : __n3;
+
+    // Too few elements
+    if (__n_out <= static_cast<_Index>(__internal::__merge_chunk_size<_Tp>))
+    {
+        return __serial_merge_ranges(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+                                     std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
+    }
 
     // {1} is empty
     if (__n1 == 0)
     {
-        auto __last2 = __first2 + std::min<_IndexCommon>(__n2, __n_out);
-        auto __last_out = oneapi::dpl::__internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
+        auto __last2 = __first2 + std::min<_Index>(__n2, __n_out);
+        auto __last_out = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
                                                                          __first2, __last2, __first3,
-                                                                         oneapi::dpl::__internal::__brick_copy<_Tag>{});
+                                                                         __internal::__brick_copy<_Tag>{});
         return {__first1, __last2, __last_out};
     }
     // {2} is empty
     if (__n2 == 0)
     {
-        auto __last1 = __first1 + std::min<_IndexCommon>(__n1, __n_out);
-        auto __last_out = oneapi::dpl::__internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
+        auto __last1 = __first1 + std::min<_Index>(__n1, __n_out);
+        auto __last_out = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
                                                                          __first1, __last1, __first3,
-                                                                         oneapi::dpl::__internal::__brick_copy<_Tag>{});
+                                                                         __internal::__brick_copy<_Tag>{});
         return {__last1, __first2, __last_out};
     }
-    // TODO: handle this edge case as well: {1} ordered before {2} and vice versa
 
-    if constexpr (__is_parallel_tag_v<_Tag>)
+    // {1} is ordered before {2} or vice versa
+    auto __copy_ordered = [=, &__exec](auto __first_a, _Index __n_a, auto __first_b) {
+        const _Index __k_a = std::min<_Index>(__n_a, __n_out);
+        const _Index __k_b = __n_out - __k_a;
+        auto __copy = [=, &__exec](auto __in, _Index __n, _Index __out_offset) {
+            if (__n > 0)
+                __internal::__pattern_walk2_brick(__tag, __exec, __in, __in + __n, __first3 + __out_offset,
+                                                __internal::__brick_copy<_Tag>{});
+        };
+        __internal::__except_handler([=, &__exec]() {
+            __par_backend::__parallel_invoke(
+                __backend_tag{}, __exec,
+                [=] { __copy(__first_a, __k_a, _Index{0}); },
+                [=] { __copy(__first_b, __k_b, __k_a); });
+        });
+        return std::make_pair(__k_a, __k_b);
+    };
+    // {1} is ordered before {2}
+    if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *(__first1 + __n1 - 1))))
     {
-        using _Tp = std::iter_value_t<decltype(__first1)>;
-        if (static_cast<std::size_t>(__n_out) > oneapi::dpl::__internal::__merge_chunk_size<_Tp>)
-        {
-            using __backend_tag = typename _Tag::__backend_tag;
-            _merge_path_out_lim_return_t<decltype(__first1), decltype(__first2), decltype(__first3)> __result{
-                __first1, __first2, __first3};
-
-            oneapi::dpl::__internal::__except_handler([&]() {
-                oneapi::dpl::__par_backend::__parallel_for(
-                    __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
-                    [=, &__result](_IndexCommon __i, _IndexCommon __j) {
-                        const auto [__r, __c] = oneapi::dpl::__internal::__merge_path_intersection(
-                            __i, __n1, __n2, __first1, __first2, __comp, __proj1, __proj2);
-
-                        const auto __merge_out_lim_res = oneapi::dpl::__internal::__serial_merge_out_lim(
-                            __first1 + __r, __first1 + __n1, __first2 + __c, __first2 + __n2, __first3 + __i,
-                            __first3 + __j, __comp, __proj1, __proj2);
-
-                        if (__j == __n_out)
-                            __result = __merge_out_lim_res;
-                    },
-                    oneapi::dpl::__internal::__merge_chunk_size<_Tp>);
-            });
-
-            return {std::get<0>(__result), std::get<1>(__result), std::get<2>(__result)};
-        }
+        const auto [__k1, __k2] = __copy_ordered(__first1, __n1, __first2);
+        return {__first1 + __k1, __first2 + __k2, __first3 + __n_out};
+    }
+    // {2} is ordered before {1}
+    if (std::invoke(__comp, std::invoke(__proj2, *(__first2 + __n2 - 1)), std::invoke(__proj1, *__first1)))
+    {
+        const auto [__k2, __k1] = __copy_ordered(__first2, __n2, __first1);
+        return {__first1 + __k1, __first2 + __k2, __first3 + __n_out};
     }
 
-    // It serves as both the main routine for seq/unseq policies, and a serial fallback for small ranges.
-    // TODO: issue a warning for non-vectorized execution with unseq policy.
-    auto [__it1, __it2, __it3] = oneapi::dpl::__internal::__serial_merge_out_lim(
-        __first1, __first1 + __n1, __first2, __first2 + __n2, __first3, __first3 + __n_out, __comp, __proj1, __proj2);
+    __merge_ranges_return_t<_R1, _R2, _OutRange> __result{__first1, __first2, __first3};
 
-    return {__it1, __it2, __it3};
+    __internal::__except_handler([&]() {
+        __par_backend::__parallel_for(
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_out,
+            [=, &__result](_Index __i, _Index __j) {
+                const auto [__r, __c] = __internal::__merge_path_intersection(
+                    __i, __n1, __n2, __first1, __first2, __comp, __proj1, __proj2);
+
+                const auto [__it1, __it2, __it3] = __internal::__serial_merge_out_lim(
+                    __first1 + __r, __first1 + __n1, __first2 + __c, __first2 + __n2, __first3 + __i, __first3 + __j,
+                    __comp, __proj1, __proj2);
+
+                if (__j == __n_out)
+                    __result = {__it1, __it2, __it3};
+            },
+            __internal::__merge_chunk_size<_Tp>);
+    });
+
+    return __result;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
