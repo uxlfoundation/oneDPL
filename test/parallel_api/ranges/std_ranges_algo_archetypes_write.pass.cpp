@@ -290,9 +290,7 @@ main()
         "replace");
 
     // remove_copy is the copying family and the value family at once: it drops the elements equal to
-    // the searched value and assigns the surviving ones to the output range. It delegates to copy_if
-    // with a negated equality predicate, so its device path assigns a const copy of the input element
-    // exactly like the conditionally copying algorithms above and is guarded for the same reason.
+    // the searched value and assigns the surviving ones to the output range.
     {
         auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::remove_copy(std::forward<decltype(policy)>(policy), in_view, out_view, search_value{3});
@@ -305,7 +303,7 @@ main()
         };
 
         run_algo2_host_policies<remove_copy_in_archetype, copy_out_archetype>(call, check, "remove_copy");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_HETERO
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_hetero_policies<remove_copy_in_archetype_dc, copy_out_archetype_dc, 16>(call, check, "remove_copy");
 #endif
     }
@@ -522,8 +520,7 @@ main()
         },
         "replace, non-const projection");
 
-    // remove_copy is guarded here for the very same reason as above: the const copy of the input element
-    // breaks the device call before the projection is ever reached.
+    // remove_copy with a projection taking the element by non-const reference, as replace above.
     {
         auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::remove_copy(std::forward<decltype(policy)>(policy), in_view, out_view, search_value{3},
@@ -536,8 +533,8 @@ main()
         };
 
         run_algo2_host_policies<remove_copy_in_archetype, copy_out_archetype>(call, check,
-                                                                               "remove_copy, non-const projection");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_HETERO
+                                                                              "remove_copy, non-const projection");
+#if TEST_DPCPP_BACKEND_PRESENT
         run_algo2_hetero_policies<remove_copy_in_archetype_dc, copy_out_archetype_dc, 29>(
             call, check, "remove_copy, non-const projection");
 #endif
