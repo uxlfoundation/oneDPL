@@ -778,14 +778,14 @@ __serial_merge_ranges(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
 {
     using _Index = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
 
+    auto __first1 = std::ranges::begin(__r1);
+    auto __first2 = std::ranges::begin(__r2);
+    auto __first3 = std::ranges::begin(__out_r);
     const _Index __n1 = static_cast<_Index>(std::ranges::size(__r1));
     const _Index __n2 = static_cast<_Index>(std::ranges::size(__r2));
     const _Index __n3 = static_cast<_Index>(std::ranges::size(__out_r));
     const _Index __n_out = std::min(__n1 + __n2, __n3);
 
-    auto __first1 = std::ranges::begin(__r1);
-    auto __first2 = std::ranges::begin(__r2);
-    auto __first3 = std::ranges::begin(__out_r);
     auto __last1 = __first1 + __n1;
     auto __last2 = __first2 + __n2;
     auto __last3 = __first3 + __n_out;
@@ -833,20 +833,19 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
                        _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _Tag = __parallel_tag<_IsVector>;
-    using __backend_tag = typename _Tag::__backend_tag;
+    using _BackendTag = typename _Tag::__backend_tag;
+    using _Index = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
 
-    // sign is needed in __merge_path_intersection
-    using _Index = std::make_signed_t<oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>>;
-
-    auto [__first1, __n1] = oneapi::dpl::__ranges::__begin_and_size(__r1);
-    auto [__first2, __n2] = oneapi::dpl::__ranges::__begin_and_size(__r2);
-    auto [__first3, __n3] = oneapi::dpl::__ranges::__begin_and_size(__out_r);
+    auto __first1 = std::ranges::begin(__r1);
+    auto __first2 = std::ranges::begin(__r2);
+    auto __first3 = std::ranges::begin(__out_r);
+    const _Index __n1 = static_cast<_Index>(std::ranges::size(__r1));
+    const _Index __n2 = static_cast<_Index>(std::ranges::size(__r2));
+    const _Index __n3 = static_cast<_Index>(std::ranges::size(__out_r));
+    const _Index __n_out = std::min(__n1 + __n2, __n3);
 
     if (__n3 == 0)
         return {__first1, __first2, __first3};
-
-     // equivalent of min(n1 + n2, n3) with no signed overflow risk
-    const _Index __n_out = (__n1 < __n3 - __n2) ? __n1 + __n2 : __n3;
 
     // Too few elements
     using _Tp = std::ranges::range_value_t<_OutRange>;
@@ -880,14 +879,14 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
     auto __copy_ordered = [=, &__exec](auto __first_a, _Index __n_a, auto __first_b) {
         const _Index __k_a = std::min<_Index>(__n_a, __n_out);
         const _Index __k_b = __n_out - __k_a;
-        auto __copy = [=, &__exec](auto __in, _Index __n, _Index __out_offset) {
+        auto __copy = [=, &__exec](auto __first_in, _Index __n, _Index __out_offset) {
             if (__n > 0)
-                __internal::__pattern_walk2_brick(__tag, __exec, __in, __in + __n, __first3 + __out_offset,
-                                                __internal::__brick_copy<_Tag>{});
+                __internal::__pattern_walk2_brick(__tag, __exec, __first_in, __first_in + __n,
+                                                  __first3 + __out_offset, __internal::__brick_copy<_Tag>{});
         };
         __internal::__except_handler([=, &__exec]() {
             __par_backend::__parallel_invoke(
-                __backend_tag{}, __exec,
+                _BackendTag{}, __exec,
                 [=] { __copy(__first_a, __k_a, _Index{0}); },
                 [=] { __copy(__first_b, __k_b, __k_a); });
         });
@@ -908,9 +907,9 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
 
     __merge_ranges_return_t<_R1, _R2, _OutRange> __result{__first1, __first2, __first3};
 
-    __internal::__except_handler([&]() {
+    __internal::__except_handler([=, &__exec, &__result]() {
         __par_backend::__parallel_for(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_out,
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_out,
             [=, &__result](_Index __i, _Index __j) {
                 const auto [__r, __c] = __internal::__merge_path_intersection(
                     __i, __n1, __n2, __first1, __first2, __comp, __proj1, __proj2);
