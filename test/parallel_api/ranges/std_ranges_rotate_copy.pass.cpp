@@ -19,8 +19,14 @@
 // Wrapper to adjust rotate_copy to the format expected by the test harness
 struct
 {
+    // The return type is spelled out rather than deduced on purpose: the dangling iterators check of the test
+    // harness asks for it with decltype, and a deduced one would make that check instantiate the whole body,
+    // Kernels included, for range types which are never really used.
     template <typename Policy, std::ranges::random_access_range InRange, std::ranges::random_access_range OutRange>
-    auto operator()(Policy&& exec, InRange&& r_in, OutRange&& r_out, int pivot_pos = -1)
+    std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<InRange>,
+                                  std::ranges::borrowed_iterator_t<InRange>,
+                                  std::ranges::borrowed_iterator_t<OutRange>>
+    operator()(Policy&& exec, InRange&& r_in, OutRange&& r_out, int pivot_pos = -1)
     {
         const int in_size = std::ranges::size(r_in);
         auto middle = std::ranges::begin(r_in) + ((pivot_pos < 0)? in_size/3 : std::min<int>(pivot_pos, in_size));
