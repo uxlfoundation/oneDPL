@@ -1921,25 +1921,24 @@ __should_rotate_shift(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         return false;
 
     const std::size_t __n_u = static_cast<std::size_t>(__n);
-    // Both empirical, measured on Arc B580 and PVC over 1-16 byte element types. 64 is the conservative
-    // end of the measured walk depth crossover; 4 is the largest width fraction that lost on neither.
+    // Empirical, measured on Arc B580 and PVC over 1-16 byte element types: 64 is the conservative end of
+    // a crossover that a power of two sweep cannot resolve below 32.
     constexpr std::size_t __walk_distance_threshold = 64;
-    constexpr std::size_t __device_scale_ratio = 4;
+    // Bytes the walk must keep outstanding to saturate memory, per unit of '__max_compute_units' (an EU on
+    // Intel GPUs). Empirical on the same GPUs and widths: it is bandwidth x latency, neither of them queryable.
+    constexpr std::size_t __bytes_in_flight_per_compute_unit = 128;
 
     // If the in-place work-item walk is short enough, in-place will be faster than rotate because of the extra
     // kernel launch and pass of the data required for rotate.
     if (static_cast<std::size_t>(__size_res) / __n_u < __walk_distance_threshold)
         return false;
 
-    const std::size_t __device_scale =
-        oneapi::dpl::__internal::__max_work_group_size(
-            __q_local, oneapi::dpl::__par_backend_hetero::__parallel_for_work_group_size_limit) *
-        oneapi::dpl::__internal::__max_compute_units(__q_local);
-
-    // The walk is only '__n' work items wide, so a shift narrow relative to the device leaves it idle and the
-    // rotate wins. The crossover scales with the device but is denominated in bytes of payload, not elements.
-    const std::size_t __bytes_per_step = __n_u * sizeof(_Tp);
-    return __bytes_per_step <= __device_scale / __device_scale_ratio;
+    // The walk's moves are dependent, so each of its '__n' work items holds a single load in flight and the walk
+    // has '__n * sizeof(_Tp)' bytes outstanding. Below what the device needs to saturate memory the walk is
+    // latency bound at any element width, which is why this compares bytes and not a work item count.
+    const std::size_t __bytes_in_flight = __n_u * sizeof(_Tp);
+    return __bytes_in_flight <=
+           __bytes_in_flight_per_compute_unit * oneapi::dpl::__internal::__max_compute_units(__q_local);
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range>
