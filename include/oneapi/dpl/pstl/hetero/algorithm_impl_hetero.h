@@ -1921,7 +1921,8 @@ __should_rotate_shift(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         return false;
 
     const std::size_t __n_u = static_cast<std::size_t>(__n);
-    // Empirically derived values
+    // Both empirical, measured on Arc B580 and PVC over 1-16 byte element types. 64 is the conservative
+    // end of the measured walk depth crossover; 4 is the largest width fraction that lost on neither.
     constexpr std::size_t __walk_distance_threshold = 64;
     constexpr std::size_t __device_scale_ratio = 4;
 
@@ -1935,9 +1936,8 @@ __should_rotate_shift(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
             __q_local, oneapi::dpl::__par_backend_hetero::__parallel_for_work_group_size_limit) *
         oneapi::dpl::__internal::__max_compute_units(__q_local);
 
-    // The walk is only '__n' work items wide, so a shift that is narrow relative to the device leaves it idle
-    // and the rotate wins. The measured crossover scales with the device but is denominated in bytes of shifted
-    // payload, not elements.
+    // The walk is only '__n' work items wide, so a shift narrow relative to the device leaves it idle and the
+    // rotate wins. The crossover scales with the device but is denominated in bytes of payload, not elements.
     const std::size_t __bytes_per_step = __n_u * sizeof(_Tp);
     return __bytes_per_step <= __device_scale / __device_scale_ratio;
 }
