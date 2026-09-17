@@ -309,12 +309,13 @@ main()
     // the parallel merge sort, see the note above partial_sort.
     //
     // KSATODO: the parallel host and the device patterns drop _Proj1 altogether
-    // (algorithm_ranges_impl.h:503,513 and hetero/algorithm_ranges_impl_hetero.h:1528,1536 build
+    // (algorithm_ranges_impl.h:595,608 and hetero/algorithm_ranges_impl_hetero.h:1664,1675 build
     // __binary_op<_Comp, _Proj2, _Proj2>), so they project the input range with the projection of the
     // output range and never call the comparator with the mixed argument pair the requires-clause asks
     // for. That is a wrong result and not a compilation failure, so it stays invisible here: both
     // projections below return the element itself. The serial pattern forwards the two projections to
-    // std::ranges::partial_sort_copy and is correct.
+    // std::ranges::partial_sort_copy and is correct. std_ranges_partial_sort_copy.pass.cpp sees the
+    // wrong result itself, see _TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1_HOST.
     {
         auto call = [](auto&& policy, auto&& view) {
             using elem_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(view)>>;

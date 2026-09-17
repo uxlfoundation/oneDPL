@@ -404,4 +404,26 @@
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_IF 1
 #define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_IF_NOT 1
 
+// The vectorized brick of lexicographical_compare compares a pair of elements in both directions, but
+// it swaps the elements themselves instead of the values the projections make of them, so it applies
+// the first projection to an element of the second sequence. See the note at the call site.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE_HOST 1
+
+// Known wrong results of a range algorithm, i.e. a defect which is not about what the implementation
+// asks of a user type but about what it computes. The suffixes and the hard-coded 1 mean the same as
+// for the _BROKEN_REQUIRES_ macros above, and the KSATODO note at the call site names the place in the
+// implementation to fix.
+//
+// The parallel host pattern and the device pattern of partial_sort_copy project the input sequence with
+// the projection of the output sequence, so the elements they select are the ones the first projection
+// does not order.
+#define _TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1_HETERO 1
+
+// The same swap in the vectorized brick of lexicographical_compare, see
+// _TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE_HOST above, makes the brick take a pair of
+// elements for equal ones although the projections make different values of them, so with two
+// projections which are not interchangeable the answer comes from a later pair of elements.
+#define _TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_LEXICOGRAPHICAL_COMPARE_PROJ1_HOST 1
+
 #endif // _TEST_CONFIG_H
