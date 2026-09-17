@@ -1921,22 +1921,25 @@ __should_rotate_shift(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         return false;
 
     const std::size_t __n_u = static_cast<std::size_t>(__n);
-    // Empirical, measured on Arc B580 and PVC over 1-16 byte element types: 64 is the conservative end of
-    // a crossover that a power of two sweep cannot resolve below 32.
-    constexpr std::size_t __walk_distance_threshold = 64;
-    // Bytes the walk must keep outstanding to saturate memory, per unit of '__max_compute_units' (an EU on
-    // Intel GPUs). Empirical on the same GPUs and widths: it is bandwidth x latency, neither of them queryable.
+
+    // Empirical value, size where walk is small enough that the extra kernel launch of rotate is too costly to overcome
+    constexpr std::size_t __small_walk_threshold = 64;
+
+    // Empirical value, Bytes of read the parallel walk must keep "in flight" to be better than rotate on a per EU basis
     constexpr std::size_t __bytes_in_flight_per_compute_unit = 128;
+
+    const std::size_t __walk_distance = static_cast<std::size_t>(__size_res) / __n_u;
 
     // If the in-place work-item walk is short enough, in-place will be faster than rotate because of the extra
     // kernel launch and pass of the data required for rotate.
-    if (static_cast<std::size_t>(__size_res) / __n_u < __walk_distance_threshold)
+    if (__walk_distance < __small_walk_threshold)
         return false;
 
-    // The walk's moves are dependent, so each of its '__n' work items holds a single load in flight and the walk
-    // has '__n * sizeof(_Tp)' bytes outstanding. Below what the device needs to saturate memory the walk is
-    // latency bound at any element width, which is why this compares bytes and not a work item count.
+    // The walk's moves are ordered and can't continue until the previous step is finished, so each of its '__n' work
+    // items holds a single load in flight and the walk has '__n * sizeof(_Tp)' bytes to read per step.
     const std::size_t __bytes_in_flight = __n_u * sizeof(_Tp);
+
+    // If the bytes in flight per step are less than what each compute unit can handle efficiently, prefer rotate.
     return __bytes_in_flight <=
            __bytes_in_flight_per_compute_unit * oneapi::dpl::__internal::__max_compute_units(__q_local);
 }
