@@ -53,7 +53,7 @@ main()
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find");
 
-#if 0
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST
     run_algo_all_policies<searchable_archetype, searchable_archetype_dc, 1>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{searched});
@@ -111,7 +111,7 @@ main()
         },
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; }, "find, noncopyable value");
 
-#if 0
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST
     run_algo_all_policies<searchable_archetype, searchable_archetype_dc, 7>(
         [](auto&& policy, auto&& view) {
             using elem_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(view)>>;
@@ -174,7 +174,7 @@ main()
         [](auto&& view, auto res) { return res == std::ranges::begin(view) + searched; },
         "find, non-const projection");
 
-#if 0
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST
     run_algo_all_policies<searchable_archetype, searchable_archetype_dc, 13>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::find_last(std::forward<decltype(policy)>(policy), view, search_value{searched},
