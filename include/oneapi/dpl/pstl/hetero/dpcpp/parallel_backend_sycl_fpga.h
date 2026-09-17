@@ -130,7 +130,7 @@ namespace __internal
 // into the device one. The FPGA backend runs a single task, so a rotate's wider parallelism buys nothing.
 template <typename _Tp, typename _ExecutionPolicy, typename _DiffType>
 bool
-__should_rotate_shift(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&&, _DiffType, _DiffType)
+__should_shift_via_rotate(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&&, _DiffType, _DiffType)
 {
     return false;
 }

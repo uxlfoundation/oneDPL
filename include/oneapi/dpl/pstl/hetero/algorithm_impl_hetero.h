@@ -1906,11 +1906,12 @@ struct __shift_left_right;
 template <typename _Name>
 struct __shift_via_rotate;
 
-// Rotate instead of walking in place when the walk - '__n' chains of 'size_res / __n' dependent moves -
-// is too narrow to fill the device and long enough to pay for a second full-width pass.
+// Estimate when the rotate pattern is faster than shift.
+// Shift does a number of iterations per work-item (referred as walk distance) depending on the shift and size, but has
+// one kernel. Rotate has a constant load per work-item, but has 2 kernels.
 template <typename _Tp, typename _ExecutionPolicy, typename _DiffType>
 bool
-__should_rotate_shift(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _DiffType __n,
+__should_shift_via_rotate(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _DiffType __n,
                       _DiffType __size_res)
 {
     sycl::queue __q_local = __exec.queue();
@@ -1925,7 +1926,7 @@ __should_rotate_shift(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
     // Empirical value, size where walk is small enough that the extra kernel launch of rotate is too costly to overcome
     constexpr std::size_t __small_walk_threshold = 64;
 
-    // Empirical value, Bytes of read the parallel walk must keep "in flight" to be better than rotate on a per EU basis
+    // Empirical value, bytes of read the parallel walk must keep "in flight" to be better than rotate on a per EU basis
     constexpr std::size_t __bytes_in_flight_per_compute_unit = 128;
 
     const std::size_t __walk_distance = static_cast<std::size_t>(__size_res) / __n_u;
@@ -1935,11 +1936,12 @@ __should_rotate_shift(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
     if (__walk_distance < __small_walk_threshold)
         return false;
 
-    // The walk's moves are ordered and can't continue until the previous step is finished, so each of its '__n' work
+    // The walk's steps are ordered and can't continue until the previous step is finished, so each of its '__n' work
     // items holds a single load in flight and the walk has '__n * sizeof(_Tp)' bytes to read per step.
     const std::size_t __bytes_in_flight = __n_u * sizeof(_Tp);
 
-    // If the bytes in flight per step are less than what each compute unit can handle efficiently, prefer rotate.
+    // If the bytes in flight per step are less than what each compute unit can handle efficiently, prefer rotate
+    // for better utilization of the hardware.
     return __bytes_in_flight <=
            __bytes_in_flight_per_compute_unit * oneapi::dpl::__internal::__max_compute_units(__q_local);
 }
@@ -1979,8 +1981,7 @@ __pattern_shift_left(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
     //2. A rotate by '__n' satisfies shift filling unspecified tail with moved elements, but it requires swappable types
     if constexpr (std::is_swappable_v<oneapi::dpl::__internal::__value_t<_Range>>)
     {
-        // Check if it is beneficial to perform a rotate instead of parallel copying
-        if (__should_rotate_shift<oneapi::dpl::__internal::__value_t<_Range>>(_BackendTag{}, __exec, __n, __size_res))
+        if (__should_shift_via_rotate<oneapi::dpl::__internal::__value_t<_Range>>(_BackendTag{}, __exec, __n, __size_res))
         {
             __pattern_rotate(__tag,
                              oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_via_rotate>(
