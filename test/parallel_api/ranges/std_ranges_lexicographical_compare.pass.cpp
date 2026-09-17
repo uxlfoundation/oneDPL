@@ -34,6 +34,10 @@ main()
     launcher<4, int, decltype(plus_one)>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::less{}, plus_one);
     launcher<5, int, data_gen_needle>{}(dpl_ranges::lexicographical_compare, checker);
     launcher<6, int, data_gen_needle>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::greater{});
+#if TEST_DPCPP_BACKEND_PRESENT
+    check_mixed_types_in_in_device(dpl_ranges::lexicographical_compare, checker, {{1}, {2}, {3}}, {{1}, {2}, {4}},
+                                   result_as_is, std::ranges::less{}, proj_a, proj_b);
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
