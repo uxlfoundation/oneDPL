@@ -127,7 +127,8 @@ __pattern_find_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred,
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
 
     return oneapi::dpl::__internal::__pattern_find_if(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
@@ -141,7 +142,8 @@ __pattern_find_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&
 {
     return std::ranges::find_if(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred),
         __proj);
 }
 
@@ -158,8 +160,9 @@ __pattern_find_first_of(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&&
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred);
 
     return oneapi::dpl::__internal::__pattern_find_first_of(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
@@ -175,8 +178,9 @@ __pattern_find_first_of(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPo
                         _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
 {
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred);
 
     return std::ranges::find_first_of(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __relax_non_const_pred, __proj1,
                                       __proj2);
@@ -204,8 +208,9 @@ __pattern_find_end(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
     auto __last2 = __first2 + __n2;
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred);
 
     auto __it = oneapi::dpl::__internal::__pattern_find_end(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
@@ -222,8 +227,9 @@ __pattern_find_end(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&
 {
     return std::ranges::find_end(
         std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred),
         __proj1, __proj2);
 }
 
@@ -238,7 +244,8 @@ __pattern_any_of(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, 
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
 
     return oneapi::dpl::__internal::__pattern_any_of(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
@@ -252,7 +259,8 @@ __pattern_any_of(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, 
 {
     return std::ranges::any_of(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred),
         __proj);
 }
 
@@ -267,8 +275,9 @@ __pattern_adjacent_find_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, 
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
 
     return oneapi::dpl::__internal::__pattern_adjacent_find(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
@@ -285,8 +294,9 @@ __pattern_adjacent_find_ranges(__serial_tag</*IsVector*/ std::false_type>, _Exec
 {
     return std::ranges::adjacent_find(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred),
         __proj);
 }
 
@@ -310,8 +320,9 @@ __pattern_search(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, 
     auto __last2 = __first2 + __n2;
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred);
 
     auto __res = oneapi::dpl::__internal::__pattern_search(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
@@ -328,8 +339,9 @@ __pattern_search(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&,
 {
     return std::ranges::search(
         std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred),
         __proj1, __proj2);
 }
 
@@ -345,7 +357,8 @@ __pattern_search_n(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::ranges:
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>, _T>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>,
+                                                            _T>(__pred);
 
     auto __res = oneapi::dpl::__internal::__pattern_search_n(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
@@ -363,7 +376,8 @@ __pattern_search_n(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&
 {
     return std::ranges::search_n(
         std::forward<_R>(__r), __count, __value,
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>, _T>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>,
+                                                            _T>(__pred),
         __proj);
 }
 
@@ -378,7 +392,8 @@ __pattern_count_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
 
     return oneapi::dpl::__internal::__pattern_count(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
@@ -392,7 +407,8 @@ __pattern_count_if(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&
 {
     return std::ranges::count_if(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred),
         __proj);
 }
 
@@ -432,8 +448,9 @@ __pattern_equal(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred);
 
     return oneapi::dpl::__internal::__pattern_equal(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r1),
@@ -451,8 +468,9 @@ __pattern_equal(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, 
 {
     return std::ranges::equal(
         std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred),
         __proj1, __proj2);
 }
 
@@ -468,8 +486,9 @@ __pattern_lexicographical_compare(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& _
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp);
 
     return oneapi::dpl::__internal::__pattern_lexicographical_compare(
         __tag, std::forward<_ExecutionPolicy>(__exec),
@@ -486,8 +505,9 @@ __pattern_lexicographical_compare(__serial_tag</*IsVector*/std::false_type>, _Ex
 {
     return std::ranges::lexicographical_compare(
         std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2);
 }
 
@@ -502,7 +522,8 @@ __pattern_is_sorted(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __com
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     return oneapi::dpl::__internal::__pattern_adjacent_find(
                __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
@@ -519,7 +540,8 @@ __pattern_is_sorted(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&
 {
     return std::ranges::is_sorted(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp),
         __proj);
 }
 
@@ -538,7 +560,8 @@ __pattern_sort_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
     auto __last = __first + std::ranges::size(__r);
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     oneapi::dpl::__internal::__pattern_sort(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -556,7 +579,8 @@ __pattern_sort_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPoli
 {
     return __leaf_sort(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp),
         __proj);
 }
 
@@ -574,7 +598,8 @@ __pattern_partial_sort_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, s
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     oneapi::dpl::__internal::__pattern_partial_sort(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
@@ -591,7 +616,8 @@ __pattern_partial_sort_ranges(__serial_tag</*IsVector*/ std::false_type>, _Execu
 {
     return std::ranges::partial_sort(
         std::forward<_R>(__r), __middle,
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp),
         __proj);
 }
 
@@ -609,8 +635,8 @@ __pattern_partial_sort_copy_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& _
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
     auto [__out_first, __out_last] = oneapi::dpl::__ranges::__bounds(__out_r);
 
-    auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj2, _OutR>>(__comp);
+    auto __relax_non_const_comp = oneapi::dpl::__internal::__get_relax_non_const_comp<
+        oneapi::dpl::__internal::__projected_value_t<_Proj2, _OutR>>(__comp);
 
     // __pattern_partial_sort_copy sorts after copying, so _Proj1 is not used
     auto __out_finish = oneapi::dpl::__internal::__pattern_partial_sort_copy(
@@ -628,11 +654,11 @@ __pattern_partial_sort_copy_ranges(__serial_tag<_IsVector>, _ExecutionPolicy&& _
                                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     // Use the standard implementation for both seq and unseq policies
-    return std::ranges::partial_sort_copy(
-        std::forward<_R>(__r), std::forward<_OutR>(__out_r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _OutR>>(__comp),
-        __proj1, __proj2);
+    return std::ranges::partial_sort_copy(std::forward<_R>(__r), std::forward<_OutR>(__out_r),
+                                          oneapi::dpl::__internal::__get_relax_non_const_comp<
+                                              oneapi::dpl::__internal::__projected_value_t<_Proj1, _R>,
+                                              oneapi::dpl::__internal::__projected_value_t<_Proj2, _OutR>>(__comp),
+                                          __proj1, __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -646,7 +672,8 @@ __pattern_is_heap(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp,
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     return oneapi::dpl::__internal::__pattern_is_heap(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
@@ -661,7 +688,8 @@ __pattern_is_heap(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&
 {
     return std::ranges::is_heap(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp),
         __proj);
 }
 
@@ -676,7 +704,8 @@ __pattern_is_heap_until(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp _
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     return oneapi::dpl::__internal::__pattern_is_heap_until(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
@@ -692,7 +721,8 @@ __pattern_is_heap_until(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPo
 {
     return std::ranges::is_heap_until(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp),
         __proj);
 }
 
@@ -709,7 +739,8 @@ __pattern_min_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
     //decltype(__comp)::dummy;
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     return oneapi::dpl::__internal::__pattern_min_element(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
@@ -725,7 +756,8 @@ __pattern_min_element(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPoli
 {
     return std::ranges::min_element(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp),
         __proj);
 }
 
@@ -752,7 +784,8 @@ __pattern_minmax_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp 
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     return oneapi::dpl::__internal::__pattern_minmax_element(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
@@ -768,7 +801,8 @@ __pattern_minmax_element(__serial_tag</*IsVector*/ std::false_type>, _ExecutionP
 {
     return std::ranges::minmax_element(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp),
         __proj);
 }
 
@@ -782,7 +816,8 @@ __pattern_minmax(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, 
 {
     auto [__it_min, __it_max] = __pattern_minmax_element(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp),
         __proj);
 
     return {*__it_min, *__it_max};
@@ -828,8 +863,8 @@ __pattern_copy_if_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     _Size __sz_in = std::ranges::size(__in_r);
     _Size __sz_out = std::ranges::size(__out_r);
 
-    auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _InRange>>(__pred);
+    auto __relax_non_const_pred = oneapi::dpl::__internal::__get_relax_non_const_pred<
+        oneapi::dpl::__internal::__projected_value_t<_Proj, _InRange>>(__pred);
 
     // TODO: test if redirecting to "regular" copy_if for sufficient output performs better
     if (__sz_in > 0 && __sz_out > 0)
@@ -855,8 +890,8 @@ std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ran
 __pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::true_type>, _ExecutionPolicy&&, _InRange&& __in_r,
                          _OutRange&& __out_r, _Pred __pred, _Proj __proj)
 {
-    auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _InRange>>(__pred);
+    auto __relax_non_const_pred = oneapi::dpl::__internal::__get_relax_non_const_pred<
+        oneapi::dpl::__internal::__projected_value_t<_Proj, _InRange>>(__pred);
 
     auto /*std::pair*/ __res = oneapi::dpl::__internal::__brick_bounded_copy_if(
         std::ranges::begin(__in_r), std::ranges::size(__in_r), std::ranges::begin(__out_r), std::ranges::size(__out_r),
@@ -876,8 +911,8 @@ __pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionP
     auto __end_in = std::ranges::end(__in_r);
     auto __end_out = std::ranges::end(__out_r);
 
-    auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _InRange>>(__pred);
+    auto __relax_non_const_pred = oneapi::dpl::__internal::__get_relax_non_const_pred<
+        oneapi::dpl::__internal::__projected_value_t<_Proj, _InRange>>(__pred);
 
     for (; __it_in != __end_in; ++__it_in)
     {
@@ -970,8 +1005,9 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     auto [__it1, __it2, __it3] = __merge_path_out_lim(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n1, __first2, __first2 + __n2, __first3,
         __first3 + std::min<_IndexCommon>(__n1 + __n2, __n3),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2);
 
     return {__it1, __it2, __it3};
@@ -991,7 +1027,8 @@ __pattern_inplace_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, 
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     oneapi::dpl::__internal::__pattern_inplace_merge(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
@@ -1010,7 +1047,8 @@ __pattern_inplace_merge_ranges(__serial_tag</*IsVector*/ std::false_type>, _Exec
 
     std::ranges::inplace_merge(
         __r, __middle,
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp),
         __proj);
 
     return __last;
@@ -1027,8 +1065,9 @@ __brick_includes(_R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1, _Proj2 __
 {
     return std::ranges::includes(
         std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2);
 }
 
@@ -1040,8 +1079,9 @@ __brick_includes(_R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1, _Proj2 __
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
     return std::ranges::includes(
         std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2);
 }
 
@@ -1054,8 +1094,9 @@ __pattern_includes(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Comp __com
 
     return __brick_includes(
         std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2, typename _Tag::__is_vector{});
 }
 
@@ -1071,8 +1112,9 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
     const auto __n2 = std::ranges::size(__r2);
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp);
 
     // use serial algorithm
     if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
@@ -1262,8 +1304,9 @@ __pattern_set_union(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutRange&
 
     return __brick_set_union(
         std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2, typename _Tag::__is_vector{});
 }
 
@@ -1278,8 +1321,9 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     auto [__result1, __result2] = oneapi::dpl::__ranges::__bounds(__out_r);
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp);
 
     // use serial algorithm
     if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
@@ -1386,8 +1430,9 @@ __pattern_set_intersection(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Ou
 
     return __brick_set_intersection(
         std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2, typename _Tag::__is_vector{});
 }
 
@@ -1420,8 +1465,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return {__first1, __first2, __result1};
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp);
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_1 =
@@ -1564,8 +1610,9 @@ __pattern_set_difference(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutR
 
     return __brick_set_difference(
         std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2, typename _Tag::__is_vector{});
 }
 
@@ -1591,8 +1638,9 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         return oneapi::dpl::__utils::__create_set_difference_result(__first1, __first2, __result1);
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp);
 
     // {1} \ {}: parallel copying just first sequence
     if (__n2 == 0)
@@ -1757,8 +1805,9 @@ __pattern_set_symmetric_difference(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& _
 
     return __brick_set_symmetric_difference(
         std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2, typename _Tag::__is_vector{});
 }
 
@@ -1773,8 +1822,9 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     auto [__result1, __result2] = oneapi::dpl::__ranges::__bounds(__out_r);
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp);
 
     // use serial algorithm
     if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
@@ -1810,8 +1860,9 @@ __pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
     auto __first2 = std::ranges::begin(__r2);
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred);
 
     const auto& [first, second] = oneapi::dpl::__internal::__pattern_mismatch(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + std::ranges::size(__r1), __first2,
@@ -1828,8 +1879,9 @@ __pattern_mismatch(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&
 {
     return std::ranges::mismatch(
         std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred),
         __proj1, __proj2);
 }
 
@@ -1845,7 +1897,8 @@ __pattern_nth_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::rang
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     auto [__beg, __end] = oneapi::dpl::__ranges::__bounds(__r);
     oneapi::dpl::__internal::__pattern_nth_element(
@@ -1863,7 +1916,8 @@ __pattern_nth_element(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPoli
 {
     return std::ranges::nth_element(
         std::forward<_R>(__r), __nth,
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp),
         __proj);
 }
 
@@ -1880,7 +1934,8 @@ __pattern_is_partitioned(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred 
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
 
     return oneapi::dpl::__internal::__pattern_is_partitioned(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -1894,7 +1949,8 @@ __pattern_is_partitioned(__serial_tag</*IsVector*/ std::false_type>, _ExecutionP
 {
     return std::ranges::is_partitioned(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred),
         __proj);
 }
 
@@ -1911,7 +1967,8 @@ __pattern_remove_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pre
     auto __end = std::ranges::begin(__r) + std::ranges::size(__r);
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
 
     auto __it = oneapi::dpl::__internal::__pattern_remove_if(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r), __end,
@@ -1927,7 +1984,8 @@ __pattern_remove_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy
 {
     return std::ranges::remove_if(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred),
         __proj);
 }
 
@@ -2012,8 +2070,8 @@ __pattern_replace_copy_if(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __r,
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
     assert(std::ranges::size(__r) <= std::ranges::size(__out_r));
 
-    auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _InRange>>(__pred);
+    auto __relax_non_const_pred = oneapi::dpl::__internal::__get_relax_non_const_pred<
+        oneapi::dpl::__internal::__projected_value_t<_Proj, _InRange>>(__pred);
 
     oneapi::dpl::__internal::__replace_copy_functor<
         decltype(__new_value), oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>>
@@ -2029,8 +2087,8 @@ void
 __pattern_replace_copy_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __r,
                           _OutRange&& __out_r, _Pred __pred, const _T& __new_value, _Proj __proj)
 {
-    auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _InRange>>(__pred);
+    auto __relax_non_const_pred = oneapi::dpl::__internal::__get_relax_non_const_pred<
+        oneapi::dpl::__internal::__projected_value_t<_Proj, _InRange>>(__pred);
 
     std::ranges::replace_copy_if(std::forward<_InRange>(__r), std::ranges::begin(__out_r), __relax_non_const_pred,
                                  __new_value, __proj);
@@ -2093,7 +2151,8 @@ __pattern_unique(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, 
     auto __beg = std::ranges::begin(__r);
     auto __end = __beg + std::ranges::size(__r);
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     auto __it = oneapi::dpl::__internal::__pattern_unique(
         __tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end,
@@ -2109,7 +2168,8 @@ __pattern_unique(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&,
 {
     return std::ranges::unique(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp),
         __proj);
 }
 
@@ -2131,7 +2191,8 @@ __pattern_unique_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
     _DiffType __sz_out = std::ranges::ssize(__out_r);
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     auto /*std::pair*/ __res = oneapi::dpl::__internal::__pattern_bounded_unique_copy(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r), __sz_in, std::ranges::begin(__out_r),
@@ -2148,7 +2209,8 @@ __pattern_unique_copy(__serial_tag</*IsVector*/ std::true_type>, _ExecutionPolic
                       _Comp __comp, _Proj __proj)
 {
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     auto /*std::pair*/ __res = oneapi::dpl::__internal::__brick_bounded_unique_copy(
         std::ranges::begin(__r), std::ranges::ssize(__r), std::ranges::begin(__out_r), std::ranges::ssize(__out_r),
@@ -2170,7 +2232,8 @@ __pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPoli
     auto __end_out = std::ranges::end(__out_r);
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
     auto __not_comp = std::not_fn(__relax_non_const_comp);
 
     for (; __it_out != __end_out && __it_in != __end_in; ++__it_out)
@@ -2198,7 +2261,8 @@ __pattern_partition(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pre
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
 
     auto __middle = oneapi::dpl::__internal::__pattern_partition(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -2214,7 +2278,8 @@ __pattern_partition(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy
 {
     return std::ranges::partition(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred),
         __proj);
 }
 
@@ -2231,7 +2296,8 @@ __pattern_stable_partition(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pre
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
 
     auto __middle = oneapi::dpl::__internal::__pattern_stable_partition(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -2247,7 +2313,8 @@ __pattern_stable_partition(__serial_tag</*IsVector*/ std::false_type>, _Executio
 {
     return std::ranges::stable_partition(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred),
         __proj);
 }
 
@@ -2291,8 +2358,8 @@ std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
 __pattern_partition_copy_ranges(__serial_tag<_IsVector>, _ExecutionPolicy&&, _InRange&& __in_r,
                                 _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
 {
-    auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _InRange>>(__pred);
+    auto __relax_non_const_pred = oneapi::dpl::__internal::__get_relax_non_const_pred<
+        oneapi::dpl::__internal::__projected_value_t<_Proj, _InRange>>(__pred);
 
     auto [__it_in, __it_out1, __it_out2] = __brick_bounded_partition_copy(
         std::ranges::begin(__in_r), std::ranges::end(__in_r), std::ranges::begin(__out_true_r),
@@ -2312,8 +2379,8 @@ __pattern_partition_copy_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolic
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _InRange>>(__pred);
+    auto __relax_non_const_pred = oneapi::dpl::__internal::__get_relax_non_const_pred<
+        oneapi::dpl::__internal::__projected_value_t<_Proj, _InRange>>(__pred);
 
     __internal::__pred_at_index __idx_pred{
         __internal::__unary_op<decltype(__relax_non_const_pred), _Proj>{__relax_non_const_pred, __proj}};

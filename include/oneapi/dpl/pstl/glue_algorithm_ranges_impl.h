@@ -571,8 +571,8 @@ struct __internal::__is_sorted_until_fn
     {
         auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
 
-        auto __relax_non_const_comp =
-            oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        auto __relax_non_const_comp = oneapi::dpl::__internal::__get_relax_non_const_comp<
+            oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(__comp);
 
         auto __it = oneapi::dpl::ranges::adjacent_find(std::forward<_ExecutionPolicy>(__exec), __r,
             oneapi::dpl::__internal::__reorder_pred(__relax_non_const_comp), __proj);
@@ -743,8 +743,8 @@ struct __internal::__max_element_fn
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
-        auto __relax_non_const_comp =
-            oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        auto __relax_non_const_comp = oneapi::dpl::__internal::__get_relax_non_const_comp<
+            oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(__comp);
 
         return oneapi::dpl::ranges::min_element(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             oneapi::dpl::__internal::__reorder_pred(__relax_non_const_comp), __proj);
@@ -802,8 +802,8 @@ struct __internal::__max_fn
     {
         assert(std::ranges::size(__r) > 0);
 
-        auto __relax_non_const_comp =
-            oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        auto __relax_non_const_comp = oneapi::dpl::__internal::__get_relax_non_const_comp<
+            oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(__comp);
 
         return oneapi::dpl::ranges::min(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
                                         oneapi::dpl::__internal::__reorder_pred(__relax_non_const_comp), __proj);
@@ -1145,8 +1145,8 @@ struct __internal::__replace_if_fn
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, const _T& __new_value, _Proj __proj = {}) const
     {
-        auto __relax_non_const_pred =
-            oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        auto __relax_non_const_pred = oneapi::dpl::__internal::__get_relax_non_const_pred<
+            oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(__pred);
 
         return oneapi::dpl::ranges::for_each(
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),

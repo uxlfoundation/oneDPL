@@ -243,8 +243,9 @@ __pattern_equal(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&
                  _Proj1 __proj1, _Proj2 __proj2)
 {
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred);
 
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj1, _Proj2> __pred_2(
         __relax_non_const_pred, __proj1, __proj2);
@@ -280,8 +281,9 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
     using _ReduceValueType = std::int32_t;
     __pattern_lexicographical_compare_reduce_fn<_ReduceValueType> __reduce_fn;
     __binary_op __pred_2{
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2};
     __pattern_lexicographical_compare_transform_fn<decltype(__pred_2), _ReduceValueType> __transform_fn{__pred_2};
 
@@ -325,7 +327,8 @@ std::ranges::borrowed_iterator_t<_R>
 __pattern_find_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
 
     oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj> __pred_1{__relax_non_const_pred, __proj};
 
@@ -385,8 +388,9 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
                    _Proj1 __proj1, _Proj2 __proj2)
 {
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred);
 
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj1, _Proj2> __bin_pred{
         __relax_non_const_pred, __proj1, __proj2};
@@ -438,8 +442,9 @@ __pattern_find_first_of(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __ex
                         _Pred __pred, _Proj1 __proj1, _Proj2 __proj2)
 {
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj1, _Proj2> __bin_pred{
         __relax_non_const_pred, __proj1, __proj2};
 
@@ -476,7 +481,8 @@ bool
 __pattern_any_of(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
     oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj> __pred_1{__relax_non_const_pred,
                                                                                           __proj};
 
@@ -531,8 +537,9 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1
                  _Proj1 __proj1, _Proj2 __proj2)
 {
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj1, _Proj2> __pred_2{
         __relax_non_const_pred, __proj1, __proj2};
 
@@ -587,7 +594,8 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
                    std::ranges::range_difference_t<_R> __count, const _T& __value, _Pred __pred, _Proj __proj)
 {
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>, _T>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>,
+                                                            _T>(__pred);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj, std::identity> __pred_2{
         __relax_non_const_pred, __proj, std::identity{}};
 
@@ -653,8 +661,9 @@ __pattern_adjacent_find_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy
                                _Proj __proj)
 {
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj, _Proj> __pred_2{
         __relax_non_const_pred, __proj, __proj};
 
@@ -697,7 +706,8 @@ std::ranges::range_difference_t<_R>
 __pattern_count_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
     oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj> __pred_1{__relax_non_const_pred, __proj};
 
     return oneapi::dpl::__internal::__ranges::__pattern_count(
@@ -749,8 +759,8 @@ __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     if (__n == 0)
         return {std::ranges::begin(__in_r), std::ranges::begin(__out_r)};
 
-    auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _InRange>>(__pred);
+    auto __relax_non_const_pred = oneapi::dpl::__internal::__get_relax_non_const_pred<
+        oneapi::dpl::__internal::__projected_value_t<_Proj, _InRange>>(__pred);
 
     _Size __n_out = oneapi::dpl::__ranges::__size(__out_r);
     if (__n_out == 0)
@@ -783,7 +793,8 @@ __pattern_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
 
     auto __middle = oneapi::dpl::__internal::__pattern_partition(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -806,7 +817,8 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
 
     auto __middle = oneapi::dpl::__internal::__pattern_stable_partition(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -835,8 +847,8 @@ __pattern_partition_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolic
     if (__in_size == 0 || (__out1_size == 0 && __out2_size == 0))
         return {__in_first, __out1_first, __out2_first};
 
-    auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _InRange>>(__pred);
+    auto __relax_non_const_pred = oneapi::dpl::__internal::__get_relax_non_const_pred<
+        oneapi::dpl::__internal::__projected_value_t<_Proj, _InRange>>(__pred);
     oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj> __pred_1{__relax_non_const_pred,
                                                                                           __proj};
 
@@ -863,8 +875,8 @@ __pattern_nth_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 {
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
-    auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _Range>>(__comp);
+    auto __relax_non_const_comp = oneapi::dpl::__internal::__get_relax_non_const_comp<
+        oneapi::dpl::__internal::__projected_value_t<_Proj, _Range>>(__comp);
 
     oneapi::dpl::__internal::__pattern_nth_element(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __nth, __last,
@@ -887,8 +899,8 @@ __pattern_is_partitioned(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 {
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
-    auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _Range>>(__pred);
+    auto __relax_non_const_pred = oneapi::dpl::__internal::__get_relax_non_const_pred<
+        oneapi::dpl::__internal::__projected_value_t<_Proj, _Range>>(__pred);
 
     return oneapi::dpl::__internal::__pattern_is_partitioned(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -930,7 +942,8 @@ std::ranges::borrowed_subrange_t<_R>
 __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
 {
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __pred);
     oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj> __pred_1{__relax_non_const_pred, __proj};
 
     auto __n = oneapi::dpl::__ranges::__size(__r);
@@ -952,7 +965,8 @@ bool
 __pattern_is_sorted(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __pred_2{
         __relax_non_const_comp, __proj, __proj};
 
@@ -1034,8 +1048,8 @@ __pattern_replace_copy_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __
 {
     assert(std::ranges::size(__r) <= std::ranges::size(__out_r));
 
-    auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _InRange>>(__pred);
+    auto __relax_non_const_pred = oneapi::dpl::__internal::__get_relax_non_const_pred<
+        oneapi::dpl::__internal::__projected_value_t<_Proj, _InRange>>(__pred);
     oneapi::dpl::__internal::__replace_copy_functor<
         const _T, oneapi::dpl::__internal::__unary_op<decltype(__relax_non_const_pred), _Proj>>
         __f{__new_value, {__relax_non_const_pred, __proj}};
@@ -1114,7 +1128,8 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&&
         return {std::ranges::begin(__r), std::ranges::begin(__out_r)};
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __pred_2{
         __relax_non_const_comp, __proj, __proj};
 
@@ -1166,7 +1181,8 @@ std::ranges::borrowed_subrange_t<_R>
 __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __pred_2{
         __relax_non_const_comp, __proj, __proj};
 
@@ -1190,7 +1206,8 @@ bool
 __pattern_is_heap(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __pred_2{
         __relax_non_const_comp, __proj, __proj};
 
@@ -1213,7 +1230,8 @@ __pattern_is_heap_until(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __ex
                         _Proj __proj)
 {
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __pred_2{
         __relax_non_const_comp, __proj, __proj};
 
@@ -1277,8 +1295,9 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range3>(__rng3)),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _Range1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _Range2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<
+            oneapi::dpl::__internal::__projected_value_t<_Proj1, _Range1>,
+            oneapi::dpl::__internal::__projected_value_t<_Proj2, _Range2>>(__comp),
         __proj1, __proj2);
 
     auto __val = __res.get();
@@ -1302,8 +1321,9 @@ __pattern_merge_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exe
     const std::pair __res = oneapi::dpl::__internal::__ranges::__pattern_merge(
         __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r1),
         oneapi::dpl::__ranges::views::all_read(__r2), oneapi::dpl::__ranges::views::all_write(__out_r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2);
 
     return {std::ranges::begin(__r1) + __res.first, std::ranges::begin(__r2) + __res.second,
@@ -1324,7 +1344,8 @@ __pattern_inplace_merge_ranges(__hetero_tag<_Tag> __tag, _ExecutionPolicy&& __ex
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     oneapi::dpl::__internal::__pattern_inplace_merge(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
@@ -1360,8 +1381,9 @@ __pattern_includes(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R1&& _
         return false;
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp);
 
     using __brick_include_type = unseq_backend::__brick_includes<decltype(__n1), decltype(__n2),
                                                                  decltype(__relax_non_const_comp), _Proj1, _Proj2>;
@@ -1428,8 +1450,9 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         _BackendTag{}, unseq_backend::_UnionTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2);
 
     return {__first1 + __stop1, __first2 + __stop2, __result + __stop3};
@@ -1454,8 +1477,9 @@ __pattern_set_intersection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
         _BackendTag{}, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2);
 
     return {__first1 + __stop1, __first2 + __stop2, __result + __stop3};
@@ -1497,8 +1521,9 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
         _BackendTag{}, unseq_backend::_DifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2);
 
     return oneapi::dpl::__utils::__create_set_difference_result(__first1 + __stop1, __first2 + __stop2,
@@ -1559,8 +1584,9 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
         _BackendTag{}, unseq_backend::_SymmetricDifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __comp),
         __proj1, __proj2);
 
     return {__first1 + __stop1, __first2 + __stop2, __result + __stop3};
@@ -1579,8 +1605,9 @@ __pattern_mismatch(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R1&& _
         return {std::ranges::begin(__r1), std::ranges::begin(__r2)};
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj1, _R1>,
-                                                            oneapi::dpl::__internal::__key_t<_Proj2, _R2>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__projected_value_t<_Proj1, _R1>,
+                                                            oneapi::dpl::__internal::__projected_value_t<_Proj2, _R2>>(
+            __pred);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj1, _Proj2> __bin_pred{
         __relax_non_const_pred, __proj1, __proj2};
 
@@ -1616,8 +1643,8 @@ __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
         __par_backend_hetero::__parallel_stable_sort(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)),
-            oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _Range>>(
-                __comp),
+            oneapi::dpl::__internal::__get_relax_non_const_comp<
+                oneapi::dpl::__internal::__projected_value_t<_Proj, _Range>>(__comp),
             __proj)
             .__checked_deferrable_wait();
     }
@@ -1632,7 +1659,8 @@ __pattern_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 {
     oneapi::dpl::__internal::__ranges::__pattern_stable_sort(
         __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp),
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp),
         __proj);
 
     return std::ranges::begin(__r) + oneapi::dpl::__ranges::__size(__r);
@@ -1648,7 +1676,8 @@ __pattern_partial_sort_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
     auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
 
     oneapi::dpl::__internal::__pattern_partial_sort(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
@@ -1669,8 +1698,8 @@ __pattern_partial_sort_copy_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPo
     auto [__first1, __last1] = oneapi::dpl::__ranges::__bounds(__r);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__out_r);
 
-    auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj2, _OutR>>(__comp);
+    auto __relax_non_const_comp = oneapi::dpl::__internal::__get_relax_non_const_comp<
+        oneapi::dpl::__internal::__projected_value_t<_Proj2, _OutR>>(__comp);
 
     // __pattern_partial_sort_copy sorts after copying, so _Proj1 is not used
     auto __out_finish = oneapi::dpl::__internal::__pattern_partial_sort_copy(
@@ -1738,7 +1767,8 @@ std::ranges::borrowed_iterator_t<_R>
 __pattern_min_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __comp_2{
         __relax_non_const_comp, __proj, __proj};
 
@@ -1753,7 +1783,8 @@ std::ranges::range_value_t<_R>
 __pattern_min(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __comp_2{
         __relax_non_const_comp, __proj, __proj};
 
@@ -1829,7 +1860,8 @@ __pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                          _Proj __proj)
 {
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __comp_2{
         __relax_non_const_comp, __proj, __proj};
 
@@ -1844,7 +1876,8 @@ std::pair<std::ranges::range_value_t<_R>, std::ranges::range_value_t<_R>>
 __pattern_minmax(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r, _Comp __comp, _Proj __proj)
 {
     auto __relax_non_const_comp =
-        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__comp);
+        oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
+            __comp);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_comp), _Proj, _Proj> __comp_2{
         __relax_non_const_comp, __proj, __proj};
 
