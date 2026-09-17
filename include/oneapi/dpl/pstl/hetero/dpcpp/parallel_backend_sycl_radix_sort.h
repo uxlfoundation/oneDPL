@@ -702,7 +702,7 @@ struct __parallel_multi_group_radix_sort
             __internal::__kernel_name_generator<__copy_back_phase, _CustomName, std::decay_t<_InRange>>;
 
         using _ValueT = oneapi::dpl::__internal::__value_t<_InRange>;
-        using _KeyT = oneapi::dpl::__internal::__key_t<_Proj, _InRange>;
+        using _KeyT = oneapi::dpl::__internal::__projected_value_t<_Proj, _InRange>;
 
         constexpr std::uint32_t __radix_iters = __get_buckets_in_type<_KeyT>(__radix_bits);
         const std::uint32_t __radix_states = 1 << __radix_bits;
