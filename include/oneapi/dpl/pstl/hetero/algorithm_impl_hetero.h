@@ -1912,7 +1912,7 @@ struct __shift_via_rotate;
 template <typename _Tp, typename _ExecutionPolicy, typename _DiffType>
 bool
 __should_shift_via_rotate(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _DiffType __n,
-                      _DiffType __size_res)
+                          _DiffType __size_res)
 {
     sycl::queue __q_local = __exec.queue();
     if (!__q_local.get_device().is_gpu())
@@ -1981,7 +1981,8 @@ __pattern_shift_left(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
     //2. A rotate by '__n' satisfies shift filling unspecified tail with moved elements, but it requires swappable types
     if constexpr (std::is_swappable_v<oneapi::dpl::__internal::__value_t<_Range>>)
     {
-        if (__should_shift_via_rotate<oneapi::dpl::__internal::__value_t<_Range>>(_BackendTag{}, __exec, __n, __size_res))
+        if (__should_shift_via_rotate<oneapi::dpl::__internal::__value_t<_Range>>(_BackendTag{}, __exec, __n,
+                                                                                  __size_res))
         {
             __pattern_rotate(__tag,
                              oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_via_rotate>(
