@@ -968,7 +968,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R>
 void
 __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r)
 {
-    const auto __n = oneapi::dpl::__ranges::__size(__r);
+    const std::size_t __n = oneapi::dpl::__ranges::__size(__r);
     if (__n <= 1)
         return;
 
