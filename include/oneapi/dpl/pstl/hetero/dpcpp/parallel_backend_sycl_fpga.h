@@ -126,8 +126,8 @@ __parallel_histogram(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPoli
 namespace __internal
 {
 
-// '__fpga_backend_tag' derives from '__device_backend_tag', so without this overload an FPGA policy would slice
-// into the device one. The FPGA backend runs a single task, so a rotate's wider parallelism buys nothing.
+// FPGA implementations should not use rotate to implement shift, as the parallel walk method aligns better with the
+// pipelined approach of FPGA, and using rotate would not provide any performance benefit.
 template <typename _Tp, typename _ExecutionPolicy, typename _DiffType>
 bool
 __should_shift_via_rotate(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPolicy&&, _DiffType, _DiffType)
