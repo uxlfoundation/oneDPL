@@ -110,11 +110,11 @@ void
 run_and_check(const std::vector<KeyT>& __hay, const std::vector<KeyT>& __keys, const std::vector<ResT>& __ref,
               Invoke __invoke, const std::string& __what)
 {
-    std::vector<ResT> __out(__keys.size(), ResT(0));
+    std::vector<ResT> __actual(__keys.size(), ResT(0));
     {
         sycl::buffer<KeyT> __hay_buf(const_cast<KeyT*>(__hay.data()), sycl::range<1>(__hay.size()));
         sycl::buffer<KeyT> __key_buf(const_cast<KeyT*>(__keys.data()), sycl::range<1>(__keys.size()));
-        sycl::buffer<ResT> __out_buf(__out.data(), sycl::range<1>(__out.size()));
+        sycl::buffer<ResT> __out_buf(__actual.data(), sycl::range<1>(__actual.size()));
 
         auto __out_begin = oneapi::dpl::begin(__out_buf);
         auto __ret = __invoke(oneapi::dpl::begin(__hay_buf), oneapi::dpl::end(__hay_buf),
@@ -126,11 +126,11 @@ run_and_check(const std::vector<KeyT>& __hay, const std::vector<KeyT>& __keys, c
     std::size_t __bad = 0;
     for (std::size_t __i = 0; __i != __keys.size(); ++__i)
     {
-        if (__out[__i] != __ref[__i])
+        if (__actual[__i] != __ref[__i])
         {
             if (__bad == 0)
                 std::cout << __what << ": first mismatch at " << __i << ", expected " << std::int64_t(__ref[__i])
-                          << ", got " << std::int64_t(__out[__i]) << std::endl;
+                          << ", got " << std::int64_t(__actual[__i]) << std::endl;
             ++__bad;
         }
     }
