@@ -267,7 +267,8 @@ __pattern_adjacent_find_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, 
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>,
+                                                            oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
 
     return oneapi::dpl::__internal::__pattern_adjacent_find(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
@@ -284,7 +285,8 @@ __pattern_adjacent_find_ranges(__serial_tag</*IsVector*/ std::false_type>, _Exec
 {
     return std::ranges::adjacent_find(
         std::forward<_R>(__r),
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>,
+                                                            oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred),
         __proj);
 }
 
@@ -343,7 +345,7 @@ __pattern_search_n(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::ranges:
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>, _T>(__pred);
 
     auto __res = oneapi::dpl::__internal::__pattern_search_n(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
@@ -361,7 +363,7 @@ __pattern_search_n(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&
 {
     return std::ranges::search_n(
         std::forward<_R>(__r), __count, __value,
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred),
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>, _T>(__pred),
         __proj);
 }
 

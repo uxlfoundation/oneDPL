@@ -587,7 +587,7 @@ __pattern_search_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
                    std::ranges::range_difference_t<_R> __count, const _T& __value, _Pred __pred, _Proj __proj)
 {
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>, _T>(__pred);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj, std::identity> __pred_2{
         __relax_non_const_pred, __proj, std::identity{}};
 
@@ -653,7 +653,8 @@ __pattern_adjacent_find_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy
                                _Proj __proj)
 {
     auto __relax_non_const_pred =
-        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
+        oneapi::dpl::__internal::__get_relax_non_const_pred<oneapi::dpl::__internal::__key_t<_Proj, _R>,
+                                                            oneapi::dpl::__internal::__key_t<_Proj, _R>>(__pred);
     oneapi::dpl::__internal::__binary_op<decltype(__relax_non_const_pred), _Proj, _Proj> __pred_2{
         __relax_non_const_pred, __proj, __proj};
 
