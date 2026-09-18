@@ -493,41 +493,6 @@ __as_mutable_lvalue(_T&& __x) noexcept
     return const_cast<__mutable_lvalue_t<_T>>(__x);
 }
 
-template <typename _Comp>
-class __relax_const_comp
-{
-    mutable _Comp _M_comp;
-
-  public:
-    explicit __relax_const_comp(_Comp __comp) : _M_comp(std::move(__comp)) {}
-
-    template <
-        typename _T, typename _U,
-        std::enable_if_t<std::is_invocable_r_v<bool, _Comp&, __mutable_lvalue_t<_T>, __mutable_lvalue_t<_U>>, int> = 0>
-    bool
-    operator()(_T&& __x, _U&& __y) const
-    {
-        return std::invoke(_M_comp, __as_mutable_lvalue(std::forward<_T>(__x)),
-                           __as_mutable_lvalue(std::forward<_U>(__y)));
-    }
-};
-
-template <typename _Comp, typename _T, typename _U = _T>
-inline constexpr bool __comp_wants_mutable_args_v =
-    !std::is_invocable_r_v<bool, _Comp&, const _T&, const _U&> && std::is_invocable_r_v<bool, _Comp&, _T&, _U&>;
-
-template <typename _T, typename _U = _T, typename _Comp>
-constexpr auto
-__get_relax_non_const_comp(_Comp&& __comp)
-{
-    using _CompType = std::remove_reference_t<_Comp>;
-
-    if constexpr (__comp_wants_mutable_args_v<_CompType, _T, _U>)
-        return __relax_const_comp<_CompType>{std::forward<_Comp>(__comp)};
-    else
-        return std::forward<_Comp>(__comp);
-}
-
 template <typename _Pred>
 class __relax_const_pred
 {
@@ -558,6 +523,15 @@ __get_relax_non_const_pred(_Pred&& __pred)
         return __relax_const_pred<_PredType>{std::forward<_Pred>(__pred)};
     else
         return std::forward<_Pred>(__pred);
+}
+
+// A comparator is just a binary predicate here; the only reason for a separate name is that a parameter pack
+// cannot have a default argument, so the homogeneous comparison comp(_T&, _T&) is spelled with one type.
+template <typename _T, typename _U = _T, typename _Comp>
+constexpr auto
+__get_relax_non_const_comp(_Comp&& __comp)
+{
+    return __get_relax_non_const_pred<_T, _U>(std::forward<_Comp>(__comp));
 }
 
 //! Like ::std::next, but with specialization for dpcpp case
