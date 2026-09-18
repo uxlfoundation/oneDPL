@@ -4876,7 +4876,7 @@ __brick_min_element(_RandomAccessIterator __first, _RandomAccessIterator __last,
                     /* __is_vector = */ ::std::true_type) noexcept
 {
 #if _ONEDPL_UDR_PRESENT // _PSTL_UDR_PRESENT
-    if constexpr (__unseq_backend::__is_value_storable_v<_RandomAccessIterator>)
+    if constexpr (__unseq_backend::__is_indirectly_storable_v<_RandomAccessIterator>)
         return __unseq_backend::__simd_min_element(__first, __last - __first, __comp);
     else
 #endif
@@ -4944,7 +4944,7 @@ __brick_minmax_element(_RandomAccessIterator __first, _RandomAccessIterator __la
                        /* __is_vector = */ ::std::true_type) noexcept
 {
 #if _ONEDPL_UDR_PRESENT // _PSTL_UDR_PRESENT
-    if constexpr (__unseq_backend::__is_value_storable_v<_RandomAccessIterator>)
+    if constexpr (__unseq_backend::__is_indirectly_storable_v<_RandomAccessIterator>)
         return __unseq_backend::__simd_minmax_element(__first, __last - __first, __comp);
     else
 #endif

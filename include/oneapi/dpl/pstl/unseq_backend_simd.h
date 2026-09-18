@@ -618,17 +618,17 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
 
 template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type,
           typename _ReferenceType = typename std::iterator_traits<_Iterator>::reference>
-inline constexpr bool __is_value_storable_v =
+inline constexpr bool __is_indirectly_storable_v =
     std::is_copy_constructible_v<_ValueType> && std::is_copy_assignable_v<_ValueType> &&
     std::is_convertible_v<_ReferenceType, _ValueType>;
 
-// [restriction] - the restrictions are formulated in the trait __is_value_storable_v
+// [restriction] - the restrictions are formulated in the trait __is_indirectly_storable_v
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 _ForwardIterator
 __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
-    static_assert(__is_value_storable_v<_ForwardIterator>,
+    static_assert(__is_indirectly_storable_v<_ForwardIterator>,
                   "The value type of the iterator must be copy-constructible, copy-assignable and copy-initializable "
                   "from the iterator's reference type");
 
@@ -677,13 +677,13 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     return __first + __init.__min_ind;
 }
 
-// [restriction] - the restrictions are formulated in the trait __is_value_storable_v
+// [restriction] - the restrictions are formulated in the trait __is_indirectly_storable_v
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 std::pair<_ForwardIterator, _ForwardIterator>
 __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
-    static_assert(__is_value_storable_v<_ForwardIterator>,
+    static_assert(__is_indirectly_storable_v<_ForwardIterator>,
                   "The value type of the iterator must be copy-constructible, copy-assignable and copy-initializable "
                   "from the iterator's reference type");
 
