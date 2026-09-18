@@ -203,12 +203,6 @@ main()
             },
             [](auto&&, auto&&, bool res) { return res; }, "ends_with, non-const callable");
 
-        // KSATODO: std::indirect_strict_weak_order only requires the comparator to be invocable with
-        // iter_reference_t of the two iterators, non-const lvalues here, but the device path compares two
-        // const lvalues, so the call does not compile:
-        //  - utils_hetero.h:138,141 - __pattern_lexicographical_compare_transform_fn::operator() binds both
-        //    elements to auto const& before passing them into std::invoke;
-        //  - utils.h:116 - __reorder_pred::operator() forwards the same two const lvalues in swapped order.
         run_algo2_all_policies<lhs_archetype, rhs_archetype, lhs_archetype_dc, rhs_archetype_dc, 19>(
             [](auto&& policy, auto&& view1, auto&& view2) {
                 return dpl_ranges::lexicographical_compare(std::forward<decltype(policy)>(policy), view1, view2,
@@ -221,11 +215,6 @@ main()
         // std::ranges::equal_to and std::ranges::less. There is no user callable left to relate the two
         // element types, so both ranges hold the very same archetype and the comparison comes from it:
         // equality_archetype has operator== only, ordered_archetype is std::totally_ordered.
-        //
-        // The two gaps guarded above do not apply here. std::ranges::equal_to is symmetric and accepts
-        // const lvalues, so neither the swapped arguments of the SIMD brick of find_first_of nor the const
-        // copies of its device path are visible to it, and the same holds for the const lvalues
-        // lexicographical_compare hands to its comparator on the device.
         //----------------------------------------------------------------------------------------------
         run_algo2_all_policies<equality_archetype, equality_archetype, equality_archetype_dc, equality_archetype_dc, 20>(
             [](auto&& policy, auto&& view1, auto&& view2) {
