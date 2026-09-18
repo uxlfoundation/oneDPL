@@ -556,9 +556,7 @@ __pattern_sort_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto __first = std::ranges::begin(__r);
-    auto __last = __first + std::ranges::size(__r);
-
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
     auto __relax_non_const_comp =
         oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
             __comp);
@@ -939,8 +937,7 @@ __pattern_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __valu
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    const auto __first = std::ranges::begin(__r);
-    const auto __last = __first + std::ranges::size(__r);
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
     oneapi::dpl::__internal::__pattern_fill(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __value);
 
     return __last;
@@ -1999,8 +1996,7 @@ __pattern_reverse(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto __first = std::ranges::begin(__r);
-    auto __last = __first + std::ranges::size(__r);
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
     oneapi::dpl::__internal::__pattern_reverse(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last);
 }
 
