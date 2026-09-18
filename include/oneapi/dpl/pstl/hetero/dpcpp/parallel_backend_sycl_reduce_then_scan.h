@@ -1874,61 +1874,104 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
 {
     using _InitValueType = typename _InitType::__value_type;
 
-    template <typename _InRng, typename _OutRng, typename _CommTag, typename _OnOOBReached, typename _FinalPosSaver>
+    template <typename _InRng, typename _OutRng, typename _CommTag, typename _StopPosAcc>
     void
     __scan_through_elements(const sycl::nd_item<1>& __ndi,
                             oneapi::dpl::__internal::__opt_lazy_ctor_storage<_InitValueType>& __sub_group_carry,
                             const _InRng& __in_rng, _OutRng& __out_rng, std::size_t __start_id,
                             std::uint32_t __iters_per_item, std::size_t __subgroup_start_id, _CommTag __comm_tag,
-                            _OnOOBReached __on_oob_reached, _FinalPosSaver __final_pos_saver) const
+                            _StopPosAcc __stop_pos_acc) const
     {
         using __temp_data_required_t = __temp_data_required<_GenScanInput>;
+        using _TempData = typename __temp_data_required_t::type;
         constexpr bool __is_temp_data_required = __temp_data_required_t::value;
 
-        using _TempData = typename __temp_data_required_t::type;
-        _TempData __temp_data{};
+        auto __call_scan_through_elements = [&](auto __on_oob_reached, auto __final_pos_saver) {
+            _TempData __temp_data{};
 
-        auto __gen_input_impl = [&](const _InRng& __rng, std::size_t __id) {
-            if constexpr (__is_temp_data_required)
-                return __gen_scan_input(__rng, __id, __temp_data, __final_pos_saver);
-            else
-                return __gen_scan_input(__rng, __id);
+            auto __gen_input_impl = [&](const _InRng& __rng, std::size_t __id) {
+                if constexpr (__is_temp_data_required)
+                    return __gen_scan_input(__rng, __id, __temp_data, __final_pos_saver);
+                else
+                    return __gen_scan_input(__rng, __id);
+            };
+
+            if constexpr (_Bounded)
+            {
+                const std::uint8_t __sg_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
+                // A single scanned element may emit up to _TempData::__max_outputs_per_input output elements:
+                // one for copy_if/unique, but up to __diagonal_spacing for set operations, where each scanned
+                // element is a diagonal written through __write_multiple_to_id. The estimate must account for
+                // this many writes per scanned element, otherwise the unchecked write path could be selected for
+                // set operations and overrun __out_rng (corrupting memory and skipping OOB position detection).
+                const std::size_t __max_write_offset =
+                    std::size_t{__is_unique_pattern_v} + __iters_per_item * __sg_size * _TempData::__max_outputs_per_input;
+                if (__write_op.__oob_write_possible(__max_write_offset, __subgroup_start_id, __sub_group_carry))
+                {
+                    auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
+                        if constexpr (__is_temp_data_required)
+                            __write_op(__out_rng, __id, __v, __temp_data, __on_oob_reached);
+                        else
+                            __write_op(__out_rng, __id, __v, __on_oob_reached);
+                    };
+                    __scan_through_elements_impl<__is_inclusive>(
+                        __ndi, __gen_input_impl, __scan_input_transform, __reduce_op, __bounded_write_op, __sub_group_carry,
+                        __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __comm_tag);
+                    return;
+                }
+            }
+
+            auto __unbounded_write_op = [&](std::size_t __id, const auto& __v) {
+                if constexpr (__is_temp_data_required)
+                    __write_op(__out_rng, __id, __v, __temp_data);
+                else
+                    __write_op(__out_rng, __id, __v);
+            };
+            __scan_through_elements_impl<__is_inclusive>(
+                __ndi, __gen_input_impl, __scan_input_transform, __reduce_op, __unbounded_write_op, __sub_group_carry,
+                __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __comm_tag);
         };
 
         if constexpr (_Bounded)
         {
-            const std::uint8_t __sg_size = __get_reduce_then_scan_actual_sub_group_size(__ndi.get_sub_group());
-            // A single scanned element may emit up to _TempData::__max_outputs_per_input output elements:
-            // one for copy_if/unique, but up to __diagonal_spacing for set operations, where each scanned
-            // element is a diagonal written through __write_multiple_to_id. The estimate must account for
-            // this many writes per scanned element, otherwise the unchecked write path could be selected for
-            // set operations and overrun __out_rng (corrupting memory and skipping OOB position detection).
-            const std::size_t __max_write_offset =
-                std::size_t{__is_unique_pattern_v} + __iters_per_item * __sg_size * _TempData::__max_outputs_per_input;
-            if (__write_op.__oob_write_possible(__max_write_offset, __subgroup_start_id, __sub_group_carry))
+            std::size_t __start_id_on_oob = __start_id;
+            typename _WriteOp::__position_type __oob_position{};
+            bool __oob_detected = false;
+            auto& __stop_pos_acc_data = __stop_pos_acc.__data()[0];
+
+            auto __on_oob_reached = [&](std::size_t __start_id, typename _WriteOp::__position_type __pos) {
+                __start_id_on_oob = __start_id;
+                __oob_position = __pos;
+                __oob_detected = true;
+            };
+
+            if constexpr (__is_temp_data_required)
             {
-                auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
-                    if constexpr (__is_temp_data_required)
-                        __write_op(__out_rng, __id, __v, __temp_data, __on_oob_reached);
-                    else
-                        __write_op(__out_rng, __id, __v, __on_oob_reached);
-                };
-                __scan_through_elements_impl<__is_inclusive>(
-                    __ndi, __gen_input_impl, __scan_input_transform, __reduce_op, __bounded_write_op, __sub_group_carry,
-                    __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __comm_tag);
-                return;
+                using __final_pos_t = typename _StopPosAcc::type::__final_pos_t;
+                __call_scan_through_elements(__on_oob_reached, [&](__final_pos_t __final_pos) {
+                    // Exactly one work-item reaches the edge crossing, so no synchronization is needed
+                    // to store the shared final position.
+                    __stop_pos_acc_data.__final_pos = __final_pos;
+                });
+                if (__oob_detected)
+                {
+                    // Exactly one work-item reaches the OOB position, so no synchronization is needed
+                    // to update __stop_pos_acc.
+                    __stop_pos_acc_data.__oob_pos = __internal::__finalize_oob_pos<__final_pos_t>(
+                        __in_rng, __oob_position, __start_id_on_oob, __gen_scan_input);
+                }
+            }
+            else
+            {
+                __call_scan_through_elements(__on_oob_reached, __internal::__no_callback_tag{});
+                if (__oob_detected)
+                    __stop_pos_acc_data = __oob_position;
             }
         }
-
-        auto __unbounded_write_op = [&](std::size_t __id, const auto& __v) {
-            if constexpr (__is_temp_data_required)
-                __write_op(__out_rng, __id, __v, __temp_data);
-            else
-                __write_op(__out_rng, __id, __v);
-        };
-        __scan_through_elements_impl<__is_inclusive>(
-            __ndi, __gen_input_impl, __scan_input_transform, __reduce_op, __unbounded_write_op, __sub_group_carry,
-            __in_rng, __start_id, __n, __iters_per_item, __subgroup_start_id, __comm_tag);
+        else
+        {
+            __call_scan_through_elements(__internal::__no_callback_tag{}, __internal::__no_callback_tag{});
+        }
     }
 
     template <typename _InRng, typename _OutRng, typename _TmpStorage, typename _StopPosStorage>
@@ -2167,53 +2210,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                         __group_start_id + (std::size_t{__get_sub_group_base(__ndi)} * __inputs_per_item);
                     std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                    auto __call_scan_through_elements = [&](auto __on_oob_reached, auto __final_pos_saver) {
-                        __scan_through_elements(__ndi, __sub_group_carry, __in_rng, __out_rng, __start_id,
-                                                __inputs_per_item, __subgroup_start_id, __comm_scan_tag,
-                                                __on_oob_reached, __final_pos_saver);
-                    };
-
-                    if constexpr (_Bounded)
-                    {
-                        std::size_t __start_id_on_oob = __start_id;
-                        typename _WriteOp::__position_type __oob_position{};
-                        bool __oob_detected = false;
-                        auto& __stop_pos_acc_data = __stop_pos_acc.__data()[0];
-
-                        auto __on_oob_reached = [&](std::size_t __start_id, typename _WriteOp::__position_type __pos) {
-                            __start_id_on_oob = __start_id;
-                            __oob_position = __pos;
-                            __oob_detected = true;
-                        };
-
-                        using __stop_pos_handler_type = typename _StopPosStorage::type;
-                        if constexpr (__internal::__has_final_pos<__stop_pos_handler_type>)
-                        {
-                            using __final_pos_t = typename __stop_pos_handler_type::__final_pos_t;
-                            __call_scan_through_elements(__on_oob_reached, [&](__final_pos_t __final_pos) {
-                                // Exactly one work-item reaches the edge crossing, so no synchronization is needed
-                                // to store the shared final position.
-                                __stop_pos_acc_data.__final_pos = __final_pos;
-                            });
-                            if (__oob_detected)
-                            {
-                                // Exactly one work-item reaches the OOB position, so no synchronization is needed
-                                // to update __stop_pos_acc.
-                                __stop_pos_acc_data.__oob_pos = __internal::__finalize_oob_pos<__final_pos_t>(
-                                    __in_rng, __oob_position, __start_id_on_oob, __gen_scan_input);
-                            }
-                        }
-                        else
-                        {
-                            __call_scan_through_elements(__on_oob_reached, __internal::__no_callback_tag{});
-                            if (__oob_detected)
-                                __stop_pos_acc_data = __oob_position;
-                        }
-                    }
-                    else
-                    {
-                        __call_scan_through_elements(__internal::__no_callback_tag{}, __internal::__no_callback_tag{});
-                    }
+                    __scan_through_elements(__ndi, __sub_group_carry, __in_rng, __out_rng, __start_id,
+                                            __inputs_per_item, __subgroup_start_id, __comm_scan_tag, __stop_pos_acc);
                 }
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block
