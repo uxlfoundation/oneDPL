@@ -1350,7 +1350,6 @@ struct __internal::__shift_left_fn
     {
         using __dispatch_tag_t = decltype(oneapi::dpl::__ranges::__select_backend(__exec));
         auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
-
         if constexpr (std::is_same_v<__dispatch_tag_t, oneapi::dpl::__internal::__serial_tag<std::false_type>>)
         {
             // std::ranges::shift_left is only available since C++23
