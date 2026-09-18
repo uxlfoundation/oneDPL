@@ -209,20 +209,12 @@ main()
         //  - utils_hetero.h:138,141 - __pattern_lexicographical_compare_transform_fn::operator() binds both
         //    elements to auto const& before passing them into std::invoke;
         //  - utils.h:116 - __reorder_pred::operator() forwards the same two const lvalues in swapped order.
-        {
-            auto call = [](auto&& policy, auto&& view1, auto&& view2) {
+        run_algo2_all_policies<lhs_archetype, rhs_archetype, lhs_archetype_dc, rhs_archetype_dc, 19>(
+            [](auto&& policy, auto&& view1, auto&& view2) {
                 return dpl_ranges::lexicographical_compare(std::forward<decltype(policy)>(policy), view1, view2,
                                                            cross_comp_mut{});
-            };
-            auto check = [](auto&&, auto&&, bool res) { return !res; };
-
-            run_algo2_host_policies<lhs_archetype, rhs_archetype>(call, check,
-                                                                 "lexicographical_compare, non-const comparator");
-#if TEST_DPCPP_BACKEND_PRESENT
-            run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 19>(
-                call, check, "lexicographical_compare, non-const comparator");
-#endif
-        }
+            },
+            [](auto&&, auto&&, bool res) { return !res; }, "lexicographical_compare, non-const comparator");
 
         //----------------------------------------------------------------------------------------------
         // The same algorithms called without a callable at all, i.e. with the default
