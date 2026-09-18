@@ -269,19 +269,6 @@
 #   define _PSTL_ICPX_TEST_RED_BY_SEG_OPTIMIZER_CRASH 0
 #endif
 
-// If the workaround macro for the 64-bit type bug is not defined by the user, then exclude 64-bit type testing
-// in reduce_by_segment.pass.cpp.
-// TODO: When a driver fix is provided to resolve this issue, consider altering this macro or checking the driver version at runtime
-// of the underlying sycl::device to determine whether to include or exclude 64-bit type tests.
-#if !PSTL_USE_DEBUG && defined(__INTEL_LLVM_COMPILER)
-#    define _PSTL_ICPX_TEST_RED_BY_SEG_BROKEN_64BIT_TYPES 1
-#endif
-
-// Group reduction produces wrong results with multiplication of 64-bit for certain driver versions
-// TODO: When a driver fix is provided to resolve this issue, consider altering this macro or checking the driver version at runtime
-// of the underlying sycl::device to determine whether to include or exclude 64-bit type tests.
-#define _PSTL_GROUP_REDUCTION_MULT_INT64_BROKEN 1
-
 // oneAPI DPC++ compiler 2022.2 an below show an internal compiler error during the backend code generation of
 // minmax_element.pass.cpp affecting min_element, max_element, and minmax_element calls.
 
