@@ -1206,7 +1206,7 @@ struct __internal::__replace_copy_if_fn
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::take_view(__r, __size),
             std::ranges::take_view(__result, __size),
             oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>(__pred),
-            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>{__new_value}, __proj);
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>(__new_value), __proj);
 
         return {std::ranges::begin(__r) + __size, std::ranges::begin(__result) + __size};
     }
