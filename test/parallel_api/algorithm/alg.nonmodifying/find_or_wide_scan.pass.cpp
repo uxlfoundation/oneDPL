@@ -29,6 +29,7 @@
 #include "support/utils.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
+#    include <cstdint>
 #    include <vector>
 
 // One name per call below: these algorithms share the find_or kernels, so under explicit kernel names a
@@ -94,6 +95,45 @@ test_at_size(Policy&& __exec, std::size_t __n)
     }
     sycl::free(__d, __q);
 }
+
+// The scan width is bounded by the bytes a work item holds in flight across all input ranges, so two
+// 8-byte ranges resolve to a narrower scan than anything above, and nothing else reaches that width:
+// the cases above are 4-byte and every other test stays below the size threshold.
+class __mismatch_8byte_name;
+class __equal_8byte_name;
+
+template <typename Policy>
+void
+test_two_8byte_ranges(Policy&& __exec, std::size_t __n)
+{
+    using _T = std::uint64_t;
+    sycl::queue __q = __exec.queue();
+    auto __exec_mismatch = TestUtils::make_new_policy<__mismatch_8byte_name>(__exec);
+    auto __exec_equal = TestUtils::make_new_policy<__equal_8byte_name>(__exec);
+    std::vector<_T> __host(__n, _T(1));
+    _T* __d1 = sycl::malloc_device<_T>(__n, __q);
+    _T* __d2 = sycl::malloc_device<_T>(__n, __q);
+    __q.memcpy(__d1, __host.data(), __n * sizeof(_T)).wait();
+
+    const std::size_t __step = __n <= 1024 ? 1 : 37;
+
+    for (std::size_t __pos = 0; __pos <= __n; __pos += __step)
+    {
+        std::fill(__host.begin(), __host.end(), _T(1));
+        const bool __differs = __pos < __n;
+        if (__differs)
+            __host[__pos] = _T(2);
+        __q.memcpy(__d2, __host.data(), __n * sizeof(_T)).wait();
+
+        EXPECT_TRUE(oneapi::dpl::mismatch(__exec_mismatch, __d1, __d1 + __n, __d2).first ==
+                        (__differs ? __d1 + __pos : __d1 + __n),
+                    "wrong index from mismatch of two 8-byte ranges");
+        EXPECT_TRUE(oneapi::dpl::equal(__exec_equal, __d1, __d1 + __n, __d2) == !__differs,
+                    "wrong result from equal of two 8-byte ranges");
+    }
+    sycl::free(__d1, __q);
+    sycl::free(__d2, __q);
+}
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
@@ -104,7 +144,10 @@ main()
     // Sizes that are and are not a multiple of the scan width, spanning the batch-growth thresholds.
     for (std::size_t __n : {std::size_t(1), std::size_t(3), std::size_t(4), std::size_t(31), std::size_t(1024),
                             std::size_t(4095), std::size_t(1) << 14})
+    {
         test_at_size(__policy, __n);
+        test_two_8byte_ranges(__policy, __n);
+    }
 #endif
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }
