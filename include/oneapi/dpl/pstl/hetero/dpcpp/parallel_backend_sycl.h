@@ -902,25 +902,27 @@ __is_backward_tag(_TagType)
 // early_exit (find_or)
 //------------------------------------------------------------------------
 
-// __wide selects the configuration below. It buys memory bandwidth by loading and voting less often,
-// and pays for it with a coarser early exit and a larger unrolled body; only a large input amortizes that.
-template <typename _Pred, bool __wide>
+// _ElemsPerIter selects the configuration below. Scanning more than one element per iteration buys memory
+// bandwidth by loading and voting less often, and pays for it with a coarser early exit and a larger
+// unrolled body; only a large input amortizes that. The caller picks the width (see __find_or_scan_width).
+template <typename _Pred, std::size_t _ElemsPerIter>
 struct __early_exit_find_or
 {
     _Pred __pred;
 
     // Consecutive elements one work item scans per iteration, which cuts the load messages and
-    // sub-group votes per element. How much it cuts them depends on the type width.
-    static constexpr std::size_t __elems_per_iter = __wide ? 4 : 1;
+    // sub-group votes per element.
+    static constexpr std::size_t __elems_per_iter = _ElemsPerIter;
     // Iterations between two sub-group votes: a vote between two loads makes the second wait on it.
-    // Both wide values empirical, on Battlemage and Ponte Vecchio at 4-byte types.
-    static constexpr std::size_t __max_iters_per_vote = __wide ? 8 : 1;
+    // Empirical, on Battlemage and Ponte Vecchio at 4-byte types.
+    static constexpr std::size_t __max_iters_per_vote = _ElemsPerIter > 1 ? 8 : 1;
     // The next batch length is adopted only after this many of it have already been scanned, which
     // bounds a batch's overshoot past a match to 1 / this of the iterations already spent.
     static constexpr std::size_t __batch_growth_ratio = 32;
 
     static_assert(__max_iters_per_vote > 0 && (__max_iters_per_vote & (__max_iters_per_vote - 1)) == 0,
                   "the batch length doubles up to __max_iters_per_vote, so it must be a power of 2");
+    static_assert(__elems_per_iter > 0, "a work item must scan at least one element per iteration");
 
     template <typename _NDItemId, typename _LocalFoundState, typename _BrickTag, typename... _Ranges>
     void
@@ -1053,6 +1055,32 @@ inline constexpr std::size_t __find_or_wide_scan_min_size = std::numeric_limits<
 #    endif
 inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE;
 #endif
+
+// Widest scan the wide configuration is known to pay for. Empirical, on Battlemage and Ponte Vecchio at
+// 2-, 4- and 8-byte types.
+inline constexpr std::size_t __find_or_max_elems_per_iter = 4;
+
+// A work item loads __elems_per_iter consecutive elements from every input range before it votes, so the
+// bytes it holds in flight scale with the element width and the number of ranges. Past this budget the
+// loads stop overlapping and the wide scan loses. Empirical, on Battlemage and Ponte Vecchio; the
+// outstanding-request limit it stands for is not queryable.
+inline constexpr std::size_t __find_or_max_bytes_in_flight = 32;
+
+// Widest scan that keeps a work item inside __find_or_max_bytes_in_flight. Doubling up from one keeps the
+// result a power of two, which the batch-growth recursion requires.
+template <typename... _Ranges>
+constexpr std::size_t
+__find_or_scan_width()
+{
+    constexpr std::size_t __bytes_per_elem =
+        (sizeof(oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>) + ... + 0);
+
+    std::size_t __width = 1;
+    while (2 * __width <= __find_or_max_elems_per_iter &&
+           2 * __width * __bytes_per_elem <= __find_or_max_bytes_in_flight)
+        __width *= 2;
+    return __width;
+}
 
 template <typename Tag>
 struct __parallel_find_or_nd_range_tuner
@@ -1379,7 +1407,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         // because we have a single work-group and we don't need to use atomics for inter-work-group communication.
 
         // This path is reached only well below __find_or_wide_scan_min_size, so it is always the narrow scan.
-        const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, false>{__f};
+        const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, 1>{__f};
 
         using __find_or_one_wg_kernel_name =
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_one_wg<_CustomName>>;
@@ -1395,9 +1423,9 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         assert("This device does not support 64-bit atomics" &&
                (sizeof(_AtomicType) < 8 || __q_local.get_device().has(sycl::aspect::atomic64)));
 
-        auto __launch = [&](auto __wide_c) {
+        auto __launch = [&](auto __width_c) {
             using _EarlyExit =
-                oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, decltype(__wide_c)::value>;
+                oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, decltype(__width_c)::value>;
             const auto __pred = _EarlyExit{__f};
 
             // Both kernel names carry the scan width: this lambda is instantiated once per width, so each
@@ -1416,12 +1444,16 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         };
 
         // Multiple WG implementation
-        if constexpr (__find_or_wide_scan_min_size == std::numeric_limits<std::size_t>::max())
-            __result = __launch(std::false_type{});
+        using __narrow_width = std::integral_constant<std::size_t, 1>;
+        using __wide_width = std::integral_constant<std::size_t, __find_or_scan_width<_Ranges...>()>;
+
+        if constexpr (__find_or_wide_scan_min_size == std::numeric_limits<std::size_t>::max() ||
+                      __wide_width::value == 1)
+            __result = __launch(__narrow_width{});
         else if (__rng_n < __find_or_wide_scan_min_size)
-            __result = __launch(std::false_type{});
+            __result = __launch(__narrow_width{});
         else
-            __result = __launch(std::true_type{});
+            __result = __launch(__wide_width{});
     }
 
     if constexpr (__or_tag_check)

@@ -472,7 +472,7 @@ struct __write_red_by_seg;
 template <bool __is_inclusive, typename _InitWrapper, typename _BinaryOp>
 struct __write_scan_by_seg;
 
-template <typename _Pred, bool __wide>
+template <typename _Pred, std::size_t _ElemsPerIter>
 struct __early_exit_find_or;
 
 template <typename _Range, typename _Compare>
@@ -589,9 +589,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <typename _Pred, bool __wide>
+template <typename _Pred, std::size_t _ElemsPerIter>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__early_exit_find_or, _Pred,
-                                                       __wide)>
+                                                       _ElemsPerIter)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
 };
