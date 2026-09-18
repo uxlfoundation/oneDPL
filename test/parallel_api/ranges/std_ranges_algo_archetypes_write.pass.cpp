@@ -291,22 +291,18 @@ main()
 
     // remove_copy is the copying family and the value family at once: it drops the elements equal to
     // the searched value and assigns the surviving ones to the output range.
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_all_policies<remove_copy_in_archetype, copy_out_archetype, remove_copy_in_archetype_dc,
+                           copy_out_archetype_dc, 16>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::remove_copy(std::forward<decltype(policy)>(policy), in_view, out_view, search_value{3});
-        };
-        auto check = [](auto&& in_view, auto&& out_view, auto res) {
+        },
+        [](auto&& in_view, auto&& out_view, auto res) {
             // The value 3 occurs exactly once, so the output holds 0, 1, 2, 4, 5, ...
             const auto n = std::ranges::size(in_view);
             return std::ranges::begin(out_view)[3].val == 4 &&
                    (std::size_t)(res.out - std::ranges::begin(out_view)) == n - 1;
-        };
-
-        run_algo2_host_policies<remove_copy_in_archetype, copy_out_archetype>(call, check, "remove_copy");
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo2_hetero_policies<remove_copy_in_archetype_dc, copy_out_archetype_dc, 16>(call, check, "remove_copy");
-#endif
-    }
+        },
+        "remove_copy");
 
     // replace_copy_if and replace_copy write either an input element or the new value into the output
     // range, so the output element is assignable from both and from nothing else. Both cases are checked:
@@ -521,63 +517,45 @@ main()
         "replace, non-const projection");
 
     // remove_copy with a projection taking the element by non-const reference, as replace above.
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_all_policies<remove_copy_in_archetype, copy_out_archetype, remove_copy_in_archetype_dc,
+                           copy_out_archetype_dc, 29>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::remove_copy(std::forward<decltype(policy)>(policy), in_view, out_view, search_value{3},
                                            replace_proj_mut{});
-        };
-        auto check = [](auto&& in_view, auto&& out_view, auto res) {
+        },
+        [](auto&& in_view, auto&& out_view, auto res) {
             const auto n = std::ranges::size(in_view);
             return std::ranges::begin(out_view)[3].val == 4 &&
                    (std::size_t)(res.out - std::ranges::begin(out_view)) == n - 1;
-        };
-
-        run_algo2_host_policies<remove_copy_in_archetype, copy_out_archetype>(call, check,
-                                                                              "remove_copy, non-const projection");
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo2_hetero_policies<remove_copy_in_archetype_dc, copy_out_archetype_dc, 29>(
-            call, check, "remove_copy, non-const projection");
-#endif
-    }
+        },
+        "remove_copy, non-const projection");
 
     // The two replacing copies are guarded here for the very same reason as above: the copy of the new
     // value breaks the call before the predicate, respectively the projection, is ever reached.
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_offset_all_policies<copy_in_archetype, copy_out_archetype, copy_in_archetype_dc, copy_out_archetype_dc,
+                                  30>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             using out_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(out_view)>>;
             return dpl_ranges::replace_copy_if(std::forward<decltype(policy)>(policy), in_view, out_view,
                                                copy_pred_mut{}, typename out_t::value_arg{42});
-        };
-        auto check = [](auto&&, auto&& out_view, auto) {
+        },
+        [](auto&&, auto&& out_view, auto) {
             return std::ranges::begin(out_view)[0].val == 42 && std::ranges::begin(out_view)[3].val == 42 &&
                    std::ranges::begin(out_view)[2].val == 2;
-        };
+        },
+        "replace_copy_if, non-const predicate");
 
-        run_algo2_offset_host_policies<copy_in_archetype, copy_out_archetype>(
-            call, check, "replace_copy_if, non-const predicate");
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo2_offset_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 30>(
-            call, check, "replace_copy_if, non-const predicate");
-#endif
-    }
-
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_offset_all_policies<remove_copy_in_archetype, copy_out_archetype, remove_copy_in_archetype_dc,
+                                  copy_out_archetype_dc, 31>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             using out_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(out_view)>>;
             return dpl_ranges::replace_copy(std::forward<decltype(policy)>(policy), in_view, out_view, search_value{3},
                                             typename out_t::value_arg{42}, replace_proj_mut{});
-        };
-        auto check = [](auto&&, auto&& out_view, auto) {
+        },
+        [](auto&&, auto&& out_view, auto) {
             return std::ranges::begin(out_view)[3].val == 42 && std::ranges::begin(out_view)[2].val == 2;
-        };
-
-        run_algo2_offset_host_policies<remove_copy_in_archetype, copy_out_archetype>(
-            call, check, "replace_copy, non-const projection");
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo2_offset_hetero_policies<remove_copy_in_archetype_dc, copy_out_archetype_dc, 31>(
-            call, check, "replace_copy, non-const projection");
-#endif
-    }
+        },
+        "replace_copy, non-const projection");
 
     // The writing pattern over plain_archetype_view, i.e. over ranges without the members
     // std::ranges::view_interface provides; see the plain range section of the read test for what this
