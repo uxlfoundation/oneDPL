@@ -3360,7 +3360,6 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
     _Tp* __b = __buf.get();
     _Index* __split = __split_buf.get();
 
-    // TODO: check if the affinity partitioner across the parallel loops improves the performance
     __internal::__except_handler([=, &__exec]() {
         // 1. Partition
         __split[0] = 0;
