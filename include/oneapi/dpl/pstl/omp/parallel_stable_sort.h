@@ -78,6 +78,40 @@ struct __move_range
         return oneapi::dpl::__omp_backend::__sort_details::__parallel_move_range(__first1, __last1, __d_first);
     }
 };
+
+//! Move construct the elements of [__first1, __last1) into the uninitialized memory at __d_first
+template <typename _RandomAccessIterator, typename _OutputIterator>
+_OutputIterator
+__parallel_uninitialized_move_range(_RandomAccessIterator __first1, _RandomAccessIterator __last1,
+                                    _OutputIterator __d_first)
+{
+    std::size_t __size = __last1 - __first1;
+
+    // Perform serial moving of small chunks
+
+    if (__size <= __default_chunk_size)
+    {
+        return std::uninitialized_move(__first1, __last1, __d_first);
+    }
+
+    // Perform parallel moving of larger chunks
+
+    auto __policy =
+        oneapi::dpl::__omp_backend::__chunk_partitioner(__first1, __last1, omp_get_num_threads(), __default_chunk_size);
+
+    _ONEDPL_PRAGMA(omp taskloop)
+    for (std::size_t __chunk = 0; __chunk < __policy.__n_chunks; ++__chunk)
+    {
+        oneapi::dpl::__omp_backend::__process_chunk(
+            __policy, __first1, __chunk, [&](auto __chunk_first, auto __chunk_last) {
+                auto __chunk_offset = __chunk_first - __first1;
+                auto __output_it = __d_first + __chunk_offset;
+                std::uninitialized_move(__chunk_first, __chunk_last, __output_it);
+            });
+    }
+
+    return __d_first + __size;
+}
 } // namespace __sort_details
 
 template <typename _RandomAccessIterator, typename _Compare, typename _LeafSort>
@@ -86,8 +120,6 @@ __parallel_stable_sort_body(_RandomAccessIterator __xs, _RandomAccessIterator __
                             _LeafSort __leaf_sort)
 {
     using _ValueType = typename std::iterator_traits<_RandomAccessIterator>::value_type;
-    using _VecType = typename std::vector<_ValueType>;
-    using _OutputIterator = typename _VecType::iterator;
     using _MoveValue = oneapi::dpl::__omp_backend::__sort_details::__move_value;
     using _MoveRange = oneapi::dpl::__omp_backend::__sort_details::__move_range;
 
@@ -103,22 +135,27 @@ __parallel_stable_sort_body(_RandomAccessIterator __xs, _RandomAccessIterator __
             [&]() { __parallel_stable_sort_body(__xs, __mid, __comp, __leaf_sort); },
             [&]() { __parallel_stable_sort_body(__mid, __xe, __comp, __leaf_sort); });
 
-        // Perform a parallel merge of the sorted ranges into __output_data.
-        _VecType __output_data(__size);
+        // Move the two sorted halves into a raw buffer. A buffer of uninitialized memory filled by move
+        // construction is used instead of a container of __size elements, because a sortable value type is
+        // not required to be default constructible.
+        oneapi::dpl::__omp_backend::__buffer<_ValueType> __buf(__size);
+        _ValueType* __input_data = __buf.get();
+        oneapi::dpl::__omp_backend::__sort_details::__parallel_uninitialized_move_range(__xs, __xe, __input_data);
+        _ValueType* __input_mid = __input_data + (__mid - __xs);
+
+        // Perform a parallel merge of the buffered ranges back into the original source range, whose elements
+        // are still alive, so that plain move assignment is all the merge needs.
         _MoveValue __move_value;
         _MoveRange __move_range;
         __utils::__serial_move_merge __merge(__size);
         oneapi::dpl::__omp_backend::__parallel_merge_body(
-            __mid - __xs, __xe - __mid, __xs, __mid, __mid, __xe, __output_data.begin(), __comp,
-            [&__merge, &__move_value, &__move_range](_RandomAccessIterator __as, _RandomAccessIterator __ae,
-                                                     _RandomAccessIterator __bs, _RandomAccessIterator __be,
-                                                     _OutputIterator __cs, _Compare __comp) {
+            __mid - __xs, __xe - __mid, __input_data, __input_mid, __input_mid, __input_data + __size, __xs, __comp,
+            [&__merge, &__move_value, &__move_range](_ValueType* __as, _ValueType* __ae, _ValueType* __bs,
+                                                     _ValueType* __be, _RandomAccessIterator __cs, _Compare __comp) {
                 __merge(__as, __ae, __bs, __be, __cs, __comp, __move_value, __move_value, __move_range, __move_range);
             });
 
-        // Move the values from __output_data back in the original source range.
-        oneapi::dpl::__omp_backend::__sort_details::__parallel_move_range(__output_data.begin(), __output_data.end(),
-                                                                          __xs);
+        __utils::__serial_destroy()(__input_data, __input_data + __size);
     }
 }
 
