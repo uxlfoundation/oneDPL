@@ -31,11 +31,24 @@
 #if TEST_DPCPP_BACKEND_PRESENT
 #    include <vector>
 
+// One name per call below: these algorithms share the find_or kernels, so under explicit kernel names a
+// single policy would give every call the same kernel name.
+class __find_if_name;
+class __find_end_name;
+class __any_of_name;
+class __none_of_name;
+class __mismatch_name;
+
 template <typename Policy>
 void
 test_at_size(Policy&& __exec, std::size_t __n)
 {
     sycl::queue __q = __exec.queue();
+    auto __exec_find_if = TestUtils::make_new_policy<__find_if_name>(__exec);
+    auto __exec_find_end = TestUtils::make_new_policy<__find_end_name>(__exec);
+    auto __exec_any_of = TestUtils::make_new_policy<__any_of_name>(__exec);
+    auto __exec_none_of = TestUtils::make_new_policy<__none_of_name>(__exec);
+    auto __exec_mismatch = TestUtils::make_new_policy<__mismatch_name>(__exec);
     std::vector<int> __host(__n, 0);
     int* __d = sycl::malloc_device<int>(__n, __q);
     auto __is_one = [](int __x) { return __x == 1; };
@@ -57,7 +70,8 @@ test_at_size(Policy&& __exec, std::size_t __n)
         __q.memcpy(__d, __host.data(), __n * sizeof(int)).wait();
 
         // Forward tag: the first match.
-        EXPECT_TRUE(oneapi::dpl::find_if(__exec, __d, __d + __n, __is_one) == __d + __pos, "wrong index from find_if");
+        EXPECT_TRUE(oneapi::dpl::find_if(__exec_find_if, __d, __d + __n, __is_one) == __d + __pos,
+                    "wrong index from find_if");
         // Backward tag: find_end over a one-element needle returns the last match.
         if (__n > 1)
         {
@@ -65,16 +79,17 @@ test_at_size(Policy&& __exec, std::size_t __n)
             int* __nd = sycl::malloc_device<int>(1, __q);
             __q.memcpy(__nd, &__needle, sizeof(int)).wait();
             auto __expected = __has_match ? __d + __decoy : __d + __n;
-            EXPECT_TRUE(oneapi::dpl::find_end(__exec, __d, __d + __n, __nd, __nd + 1) == __expected,
+            EXPECT_TRUE(oneapi::dpl::find_end(__exec_find_end, __d, __d + __n, __nd, __nd + 1) == __expected,
                         "wrong index from find_end");
             sycl::free(__nd, __q);
         }
         // Or tag: presence only.
-        EXPECT_TRUE(oneapi::dpl::any_of(__exec, __d, __d + __n, __is_one) == __has_match, "wrong result from any_of");
-        EXPECT_TRUE(oneapi::dpl::none_of(__exec, __d, __d + __n, __is_one) == !__has_match,
+        EXPECT_TRUE(oneapi::dpl::any_of(__exec_any_of, __d, __d + __n, __is_one) == __has_match,
+                    "wrong result from any_of");
+        EXPECT_TRUE(oneapi::dpl::none_of(__exec_none_of, __d, __d + __n, __is_one) == !__has_match,
                     "wrong result from none_of");
         // Two ranges, so the scan loads from two streams per element.
-        EXPECT_TRUE(oneapi::dpl::mismatch(__exec, __d, __d + __n, __d).first == __d + __n,
+        EXPECT_TRUE(oneapi::dpl::mismatch(__exec_mismatch, __d, __d + __n, __d).first == __d + __n,
                     "wrong result from mismatch of a range with itself");
     }
     sycl::free(__d, __q);
