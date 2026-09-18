@@ -269,7 +269,12 @@ template <typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_destroy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
 {
-    return std::ranges::destroy(std::forward<_R>(__r));
+    // The iterator and sentinel overload is called with one iterator type instead of passing the range as a
+    // whole: a sized random access range is not required to be a common range, and libc++ (checked up to
+    // version 18) rejects std::ranges::destroy of a range whose sentinel type differs from its iterator type.
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    return std::ranges::destroy(__first, __last);
 }
 
 } // namespace __ranges
