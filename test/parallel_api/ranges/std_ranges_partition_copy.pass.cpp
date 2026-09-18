@@ -48,18 +48,36 @@ struct
 std::int32_t
 main()
 {
+    try
+    {
 #if _ENABLE_STD_RANGES_TESTING
-    using namespace test_std_ranges;
-    namespace dpl_ranges = oneapi::dpl::ranges;
+        using namespace test_std_ranges;
+        namespace dpl_ranges = oneapi::dpl::ranges;
 
-    test_range_algo<0, int, data_in_out_out_lim>{217}(dpl_ranges::partition_copy, partition_copy_checker, pred);
-    test_range_algo<1, int, data_in_out_out_lim>{1234}(dpl_ranges::partition_copy, partition_copy_checker, even_odd);
-    test_range_algo<2, int, data_in_out_out_lim>{}(dpl_ranges::partition_copy, partition_copy_checker, select_many, proj);
-    test_range_algo<3, P2, data_in_out_out_lim>{}(dpl_ranges::partition_copy, partition_copy_checker, pred, &P2::x);
-    test_range_algo<4, P2, data_in_out_out_lim>{}(dpl_ranges::partition_copy, partition_copy_checker, even_odd, &P2::proj);
-    test_range_algo<5, int, data_in_out_out_lim>{get_scan_big_sz()}(dpl_ranges::partition_copy, partition_copy_checker, even_odd);
-    test_range_algo<6, int, data_in_out_out_lim>{get_scan_big_sz()}(dpl_ranges::partition_copy, partition_copy_checker, select_many);
+        test_range_algo<0, int, data_in_out_out_lim>{217}(dpl_ranges::partition_copy, partition_copy_checker, pred);
+        test_range_algo<1, int, data_in_out_out_lim>{1234}(dpl_ranges::partition_copy, partition_copy_checker, even_odd);
+        test_range_algo<2, int, data_in_out_out_lim>{}(dpl_ranges::partition_copy, partition_copy_checker, select_many, proj);
+        test_range_algo<3, P2, data_in_out_out_lim>{}(dpl_ranges::partition_copy, partition_copy_checker, pred, &P2::x);
+        test_range_algo<4, P2, data_in_out_out_lim>{}(dpl_ranges::partition_copy, partition_copy_checker, even_odd, &P2::proj);
+        test_range_algo<5, int, data_in_out_out_lim>{get_scan_big_sz()}(dpl_ranges::partition_copy, partition_copy_checker, even_odd);
+        test_range_algo<6, int, data_in_out_out_lim>{get_scan_big_sz()}(dpl_ranges::partition_copy, partition_copy_checker, select_many);
 #endif // _ENABLE_STD_RANGES_TESTING
+    }
+    catch (const std::exception& exc)
+    {
+        std::cerr << "Exception occurred in main() of " << __FILE__;
+        if (exc.what())
+            std::cerr << ": " << exc.what();
+        std::cerr << std::endl;
+
+        return EXIT_FAILURE;
+    }
+    catch (...)
+    {
+        std::cerr << "Unknown exception occurred in main() of " << __FILE__ << std::endl;
+
+        return EXIT_FAILURE;
+    }
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
