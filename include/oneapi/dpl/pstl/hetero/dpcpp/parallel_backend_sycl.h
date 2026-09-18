@@ -909,14 +909,14 @@ struct __early_exit_find_or
 {
     _Pred __pred;
 
-    // Consecutive elements one work item scans per iteration; they coalesce into one wide load per lane.
+    // Consecutive elements one work item scans per iteration, which cuts the load messages and
+    // sub-group votes per element. How much it cuts them depends on the type width.
     static constexpr std::size_t __elems_per_iter = __wide ? 4 : 1;
     // Iterations between two sub-group votes: a vote between two loads makes the second wait on it.
-    // Both wide values were found empirically on Battlemage and Ponte Vecchio.
-    // TODO: need to re-evaluate both, and whether they should depend on the device.
+    // Both wide values empirical, on Battlemage and Ponte Vecchio at 4-byte types.
     static constexpr std::size_t __max_iters_per_vote = __wide ? 8 : 1;
-    // A batch overshoots a match by up to its own length, so bound that at 1 / this of the iterations
-    // already spent by adopting a length only once this many times it has been scanned.
+    // The next batch length is adopted only after this many of it have already been scanned, which
+    // bounds a batch's overshoot past a match to 1 / this of the iterations already spent.
     static constexpr std::size_t __batch_growth_ratio = 32;
 
     static_assert(__max_iters_per_vote > 0 && (__max_iters_per_vote & (__max_iters_per_vote - 1)) == 0,
@@ -1038,16 +1038,16 @@ struct __find_or_nd_range_params
 // advertises 1024 but rejects it for the heavier find_or predicates.
 inline constexpr std::size_t __find_or_max_reliable_wgroup_size = 512;
 
-// A single work group is used only while it can cover the input within this many iterations: one group's
-// worth of items is little parallelism, so the bound belongs on iterations rather than on elements.
+// One work group is little parallelism, so bound its reach by iterations rather than by elements.
+// Empirical, on Battlemage and Ponte Vecchio at 4-byte types.
 inline constexpr std::size_t __find_or_max_iters_in_one_wg = 8;
 
 #if _ONEDPL_FPGA_DEVICE
 // No data for FPGA, and unrolling the predicate costs area, so never scan wide there.
 inline constexpr std::size_t __find_or_wide_scan_min_size = std::numeric_limits<std::size_t>::max();
 #else
-// Below this, a call is bound by its own launch overhead rather than by memory bandwidth, so the wide
-// scan has nothing to win and still pays its setup. Empirically found on Battlemage and Ponte Vecchio.
+// Below this a call is bound by its own launch overhead, not by memory bandwidth, so the wide scan has
+// nothing to win. Empirical, on Battlemage and Ponte Vecchio at 4-byte types.
 #    ifndef _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE
 #        define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE (std::size_t{1} << 20)
 #    endif
