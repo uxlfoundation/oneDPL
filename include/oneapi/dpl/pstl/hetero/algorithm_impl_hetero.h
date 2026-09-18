@@ -1984,10 +1984,11 @@ __pattern_shift_left(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
         if (__should_shift_via_rotate<oneapi::dpl::__internal::__value_t<_Range>>(_BackendTag{}, __exec, __n,
                                                                                   __size_res))
         {
-            __pattern_rotate(__tag,
-                             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_via_rotate>(
-                                 std::forward<_ExecutionPolicy>(__exec)),
-                             __rng, static_cast<std::size_t>(__n));
+            oneapi::dpl::__internal::__pattern_rotate(
+                __tag,
+                oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__shift_via_rotate>(
+                    std::forward<_ExecutionPolicy>(__exec)),
+                __rng, static_cast<std::size_t>(__n));
             return __size_res;
         }
     }
