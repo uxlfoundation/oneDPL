@@ -171,7 +171,7 @@ struct __subgroup_radix_sort
             assert(__n <= __block_size * __wg_size);
 
             using _ValT = oneapi::dpl::__internal::__value_t<_RangeIn>;
-            using _KeyT = oneapi::dpl::__internal::__key_t<_Proj, _RangeIn>;
+            using _KeyT = oneapi::dpl::__internal::__projected_value_t<_Proj, _RangeIn>;
 
             const auto __counter_buf_sz = __get_counter_buf_size(__wg_size);
             _TempBuf<_ValT, _SLM_tag_val> __buf_val(__block_size * __wg_size);
