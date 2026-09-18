@@ -272,7 +272,7 @@ struct __combi_accessor
 
   public:
     using type = _T;
-  
+
     __combi_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>& __sycl_buf, _T* __usm_buf,
                      const sycl::property_list& __prop_list)
         : __ptr(__usm_buf), __acc(__make_accessor<false>(__usm_buf != nullptr, __sycl_buf, __cgh, __prop_list))
