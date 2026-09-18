@@ -439,32 +439,50 @@ main()
 {
     bool bProcessed = false;
 
+    try
+    {
 #if _ENABLE_STD_RANGES_TESTING
 
-    // Check the correctness of the set_symmetric_difference_checker against the logic of std::ranges::set_symmetric_difference
-    test_set_symmetric_difference_checker();
+        // Check the correctness of the set_symmetric_difference_checker against the logic of std::ranges::set_symmetric_difference
+        test_set_symmetric_difference_checker();
 
-    using namespace test_std_ranges;
-    namespace dpl_ranges = oneapi::dpl::ranges;
+        using namespace test_std_ranges;
+        namespace dpl_ranges = oneapi::dpl::ranges;
 
-    test_range_algo<0, int, data_in_in_out_lim, div3_t, mul1_t>{get_scan_big_sz()}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker);
-    test_range_algo<1, int, data_in_in_out_lim, mul1_t, div3_t>{get_scan_big_sz()}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, proj);
+        test_range_algo<0, int, data_in_in_out_lim, div3_t, mul1_t>{get_scan_big_sz()}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker);
+        test_range_algo<1, int, data_in_in_out_lim, mul1_t, div3_t>{get_scan_big_sz()}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, proj);
 
-    // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
-    test_range_algo<2, int, data_in_in_out_lim, mul1_t, mul1_t>{100}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, proj, proj);
+        // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
+        test_range_algo<2, int, data_in_in_out_lim, mul1_t, mul1_t>{100}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, proj, proj);
 
-    test_range_algo<3,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, &P2::x, &P2::x);
-    test_range_algo<4,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, &P2::proj, &P2::proj);
+        test_range_algo<3,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, &P2::x, &P2::x);
+        test_range_algo<4,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_symmetric_difference, set_symmetric_difference_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
-    // Check if projections are applied to the right sequences and trigger a compile-time error if not
-    test_mixed_types_host();
+        // Check if projections are applied to the right sequences and trigger a compile-time error if not
+        test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
-    test_mixed_types_device();
+        test_mixed_types_device();
 #endif
 
-    bProcessed = true;
+        bProcessed = true;
 
 #endif //_ENABLE_STD_RANGES_TESTING
+    }
+    catch (const std::exception& exc)
+    {
+        std::cerr << "Exception occurred in main() of " << __FILE__;
+        if (exc.what())
+            std::cerr << ": " << exc.what();
+        std::cerr << std::endl;
+
+        return EXIT_FAILURE;
+    }
+    catch (...)
+    {
+        std::cerr << "Unknown exception occurred in main() of " << __FILE__ << std::endl;
+
+        return EXIT_FAILURE;
+    }
 
     return TestUtils::done(bProcessed);
 }
