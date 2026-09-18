@@ -121,10 +121,6 @@ struct __ref_or_copy_impl
     using type = _T&;
 };
 
-// Yields a reference to _T for the host policies and a copy of _T for the device ones, see the specializations
-// in execution_sycl_defs.h. An object of this type must be initialized with parentheses rather than braces: in
-// the host case the type is a reference, and list-initializing a reference generates a prvalue of the
-// referenced type to bind to, which requires _T to be copy-constructible.
 template <typename _ExecPolicy, typename _T>
 using __ref_or_copy = typename __ref_or_copy_impl<::std::decay_t<_ExecPolicy>, _T>::type;
 
