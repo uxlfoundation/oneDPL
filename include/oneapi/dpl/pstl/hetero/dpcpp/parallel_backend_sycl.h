@@ -1400,8 +1400,10 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
                 oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, decltype(__wide_c)::value>;
             const auto __pred = _EarlyExit{__f};
 
+            // Both kernel names carry the scan width: this lambda is instantiated once per width, so each
+            // width submits its own closure type and a shared name would be two definitions of one kernel.
             using __find_or_kernel_name_init = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-                __find_or_kernel_init<_CustomName>>;
+                __find_or_kernel_init<_CustomName, std::integral_constant<std::size_t, _EarlyExit::__elems_per_iter>>>;
 
             using __find_or_kernel_name = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __find_or_kernel<_CustomName, std::integral_constant<std::size_t, _EarlyExit::__elems_per_iter>>>;
