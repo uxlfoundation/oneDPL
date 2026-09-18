@@ -92,10 +92,10 @@ struct __custom_brick
     // searches, which issues _C probes per round without changing which probes are performed.
     static constexpr bool __batched = true;
 
-    // Widest batches that keep IGC out of large-GRF mode, from an AOT screen on PVC: a fourth 64-bit
-    // search flips GRF 128 -> 256 and halves resident threads. Both index widths compile into one kernel
-    // and the mode is chosen per kernel, so the 64-bit bound constrains the 32-bit path too.
+    // Searches interleaved per work item with 32-bit indices. Eight flips IGC into large-GRF mode on
+    // PVC and down to simd8 on dg2, halving occupancy either way; four does neither.
     static constexpr std::uint8_t max_in_flight_32 = 4;
+    // 64-bit indices need a haystack above 2^32 elements, which no benchmark reaches: untuned.
     static constexpr std::uint8_t max_in_flight_64 = 2;
 
     template <typename _Size, std::size_t _C, typename _IsFull, typename _Acc>
