@@ -734,8 +734,6 @@ __pattern_min_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Comp __c
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    //decltype(__comp)::dummy;
-
     auto __relax_non_const_comp =
         oneapi::dpl::__internal::__get_relax_non_const_comp<oneapi::dpl::__internal::__projected_value_t<_Proj, _R>>(
             __comp);
