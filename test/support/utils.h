@@ -1417,8 +1417,8 @@ struct NoDefaultCtorWrapper {
 // constructible from std::int32_t; the exceptions are noted on the types themselves.
 //
 // They are shared by test/parallel_api/algorithm/alg.sorting/alg.min.max/minmax_element.pass.cpp, which runs the
-// algorithms on them, and test/general/implementation_details/value_storable.pass.cpp, which checks the trait that
-// selects the vector code path for them. Keep them in lock-step: a type accepted by the trait has to be one the
+// algorithms on them, and test/general/implementation_details/indirectly_storable.pass.cpp, which checks the trait
+// that selects the vector code path for them. Keep them in lock-step: a type accepted by the trait has to be one the
 // algorithms actually compile for.
 
 // Nothing is restricted: this is the baseline the others are compared against.
