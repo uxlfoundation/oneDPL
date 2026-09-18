@@ -167,6 +167,130 @@ struct B
 auto proj_a = [](const A& a) { return a.a; };
 auto proj_b = [](const B& b) { return b.b; };
 
+// The checks below are the compile-time half of the projection testing: `A` and `B` are unrelated
+// types and `proj_a`/`proj_b` accept only their own type, so an algorithm that mixes its projections
+// up - applies the second one to the first sequence or vice versa - fails to compile instead of
+// silently returning a wrong result. The data-level half lives in the test_range_algo calls of each
+// test, where the projections differ in value rather than in type.
+//
+// An algorithm result is reduced to a vector of indices by one of the result_* helpers below, so that
+// results of any shape are compared the same way.
+auto result_as_is = [](auto&& res, auto&&...) { return std::vector<int>{int(res)}; };
+// An iterator in the first sequence, e.g. find_first_of
+auto result_index = [](auto&& res, auto&& r1, auto&&...)
+{
+    return std::vector<int>{int(res - std::ranges::begin(r1))};
+};
+// A subrange of the first sequence, e.g. search
+auto result_subrange = [](auto&& res, auto&& r1, auto&&...)
+{
+    auto __first = std::ranges::begin(r1);
+    return std::vector<int>{int(res.begin() - __first), int(res.end() - __first)};
+};
+// An iterator in each sequence, e.g. mismatch
+auto result_indices = [](auto&& res, auto&& r1, auto&& r2)
+{
+    return std::vector<int>{int(res.in1 - std::ranges::begin(r1)), int(res.in2 - std::ranges::begin(r2))};
+};
+
+template <typename Algo, typename Checker, typename GetResult, typename... Args>
+void
+check_mixed_types_in_in_host(Algo algo, Checker& checker, std::vector<A> r1, std::vector<B> r2,
+                             GetResult get_result, Args... args)
+{
+    auto expected = get_result(checker(r1, r2, args...), r1, r2);
+
+    EXPECT_EQ_RANGES(expected, get_result(algo(oneapi::dpl::execution::seq, r1, r2, args...), r1, r2),
+                     "wrong result with seq policy and mixed value types");
+    EXPECT_EQ_RANGES(expected, get_result(algo(oneapi::dpl::execution::unseq, r1, r2, args...), r1, r2),
+                     "wrong result with unseq policy and mixed value types");
+    EXPECT_EQ_RANGES(expected, get_result(algo(oneapi::dpl::execution::par, r1, r2, args...), r1, r2),
+                     "wrong result with par policy and mixed value types");
+    EXPECT_EQ_RANGES(expected, get_result(algo(oneapi::dpl::execution::par_unseq, r1, r2, args...), r1, r2),
+                     "wrong result with par_unseq policy and mixed value types");
+}
+
+// The output sequence keeps `int`, which both `A` and `B` are convertible to.
+template <typename Algo, typename Checker, typename... Args>
+void
+check_mixed_types_in_in_out_host(Algo algo, Checker& checker, std::vector<A> r1, std::vector<B> r2, int out_size,
+                                 Args... args)
+{
+    std::vector<int> expected(out_size, 0xCD);
+    checker(r1, r2, expected, args...);
+
+    auto check = [&](auto&& exec, const char* msg) {
+        std::vector<int> out(out_size, 0xCD);
+        algo(exec, r1, r2, out, args...);
+        EXPECT_EQ_RANGES(expected, out, msg);
+    };
+    check(oneapi::dpl::execution::seq, "wrong result with seq policy and mixed value types");
+    check(oneapi::dpl::execution::unseq, "wrong result with unseq policy and mixed value types");
+    check(oneapi::dpl::execution::par, "wrong result with par policy and mixed value types");
+    check(oneapi::dpl::execution::par_unseq, "wrong result with par_unseq policy and mixed value types");
+}
+
+#if TEST_DPCPP_BACKEND_PRESENT
+template <typename Algo, typename Checker, typename GetResult, typename... Args>
+void
+check_mixed_types_in_in_device(Algo algo, Checker& checker, std::vector<A> data1, std::vector<B> data2,
+                               GetResult get_result, Args... args)
+{
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    sycl::queue q = policy.queue();
+    if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+        return;
+
+    A* p1 = sycl::malloc_shared<A>(data1.size(), q);
+    B* p2 = sycl::malloc_shared<B>(data2.size(), q);
+    std::copy(data1.begin(), data1.end(), p1);
+    std::copy(data2.begin(), data2.end(), p2);
+
+    std::ranges::subrange r1(p1, p1 + data1.size());
+    std::ranges::subrange r2(p2, p2 + data2.size());
+
+    auto expected = get_result(checker(r1, r2, args...), r1, r2);
+    EXPECT_EQ_RANGES(expected, get_result(algo(policy, r1, r2, args...), r1, r2),
+                     "wrong result with device policy and mixed value types");
+
+    sycl::free(p1, q);
+    sycl::free(p2, q);
+}
+
+template <typename Algo, typename Checker, typename... Args>
+void
+check_mixed_types_in_in_out_device(Algo algo, Checker& checker, std::vector<A> data1, std::vector<B> data2,
+                                   int out_size, Args... args)
+{
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    sycl::queue q = policy.queue();
+    if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+        return;
+
+    A* p1 = sycl::malloc_shared<A>(data1.size(), q);
+    B* p2 = sycl::malloc_shared<B>(data2.size(), q);
+    int* p_out = sycl::malloc_shared<int>(out_size, q);
+    std::copy(data1.begin(), data1.end(), p1);
+    std::copy(data2.begin(), data2.end(), p2);
+    std::fill_n(p_out, out_size, 0xCD);
+
+    std::ranges::subrange r1(p1, p1 + data1.size());
+    std::ranges::subrange r2(p2, p2 + data2.size());
+    std::ranges::subrange r_out(p_out, p_out + out_size);
+
+    std::vector<int> expected(out_size, 0xCD);
+    checker(data1, data2, expected, args...);
+
+    algo(policy, r1, r2, r_out, args...);
+    std::vector<int> actual(p_out, p_out + out_size);
+    EXPECT_EQ_RANGES(expected, actual, "wrong result with device policy and mixed value types");
+
+    sycl::free(p1, q);
+    sycl::free(p2, q);
+    sycl::free(p_out, q);
+}
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
 // These are copies of __range_size and __range_size_t utilities from oneDPL
 // to get a size type of a range be it sized or not
 template <typename R>
@@ -376,7 +500,7 @@ private:
 
         typename Container::type& A = cont_in();
         decltype(auto) r_in = tr_in(A);
-        auto res = algo(CLONE_TEST_POLICY(exec), r_in, args...);
+        auto res = algo(CLONE_TEST_POLICY_IDX(exec, 0), r_in, args...);
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
@@ -414,7 +538,8 @@ private:
             // TransIn may modify the non-borrowed range to a borrowed one, so we need to check it.        
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()), args...));
+                using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 1),
+                                                tr_in(std::declval<rvalue_container_t&&>()), args...));
 
                 if constexpr(!std::is_fundamental_v<res_ret_t>)
                 {
@@ -454,7 +579,7 @@ private:
         typename Container::type& A = cont_in();
         typename Container::type& B = cont_out();
 
-        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
+        auto res = algo(CLONE_TEST_POLICY_IDX(exec, 0), tr_in(A), tr_out(B), args...);
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
@@ -507,8 +632,9 @@ private:
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
                         && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
-                                        tr_out(std::declval<rvalue_container_t&&>()), args...));
+                using res_ret_t =
+                    decltype(algo(CLONE_TEST_POLICY_IDX(exec, 1), tr_in(std::declval<rvalue_container_t&&>()),
+                                  tr_out(std::declval<rvalue_container_t&&>()), args...));
 
                 if constexpr(!std::is_fundamental_v<res_ret_t>)
                 {
@@ -593,7 +719,7 @@ private:
         typename Container::type& A = cont_in1();
         typename Container::type& B = cont_in2();
 
-        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), args...);
+        auto res = algo(CLONE_TEST_POLICY_IDX(exec, 0), tr_in(A), tr_in(B), args...);
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
@@ -632,8 +758,9 @@ private:
             // TransIn may modify the non-borrowed range to a borrowed one, so we need to check it.
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
-                                        tr_in(std::declval<rvalue_container_t&&>()), args...));
+                using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 1),
+                                           tr_in(std::declval<rvalue_container_t&&>()),
+                                           tr_in(std::declval<rvalue_container_t&&>()), args...));
 
                 if constexpr(!std::is_fundamental_v<res_ret_t>)
                 {
@@ -673,7 +800,7 @@ private:
         typename Container::type& B = cont_in2();
         typename Container::type& C = cont_out();
 
-        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+        auto res = algo(CLONE_TEST_POLICY_IDX(exec, 0), tr_in(A), tr_in(B), tr_out(C), args...);
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
@@ -715,9 +842,10 @@ private:
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
                         && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
-                                        tr_in(std::declval<rvalue_container_t&&>()),
-                                        tr_out(std::declval<rvalue_container_t&&>()), args...));
+                using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 1),
+                                           tr_in(std::declval<rvalue_container_t&&>()),
+                                           tr_in(std::declval<rvalue_container_t&&>()),
+                                           tr_out(std::declval<rvalue_container_t&&>()), args...));
 
                 if constexpr(!std::is_fundamental_v<res_ret_t>)
                 {
@@ -758,7 +886,7 @@ private:
         typename Container::type& B = cont_out1();
         typename Container::type& C = cont_out2();
 
-        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), tr_out(C), args...);
+        auto res = algo(CLONE_TEST_POLICY_IDX(exec, 0), tr_in(A), tr_out(B), tr_out(C), args...);
 
         // check result types
         static_assert(check_in_out_out_result<decltype(expected_res)>);
@@ -786,9 +914,10 @@ private:
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
                          && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
-                                                tr_out(std::declval<rvalue_container_t&&>()),
-                                                tr_out(std::declval<rvalue_container_t&&>()), args...));
+                using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 1),
+                                           tr_in(std::declval<rvalue_container_t&&>()),
+                                           tr_out(std::declval<rvalue_container_t&&>()),
+                                           tr_out(std::declval<rvalue_container_t&&>()), args...));
                 static_assert(all_dangling_in_result_v<res_ret_t>,
                               "res_ret_t is expected to be or consist of std::ranges::dangling");
             }

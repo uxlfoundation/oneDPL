@@ -73,34 +73,52 @@ void test_mixed_types_device()
 int
 main()
 {
+    try
+    {
 #if _ENABLE_STD_RANGES_TESTING
-    using namespace test_std_ranges;
-    namespace dpl_ranges = oneapi::dpl::ranges;
+        using namespace test_std_ranges;
+        namespace dpl_ranges = oneapi::dpl::ranges;
 
-    auto includes_checker = TEST_PREPARE_CALLABLE(std::ranges::includes);
+        auto includes_checker = TEST_PREPARE_CALLABLE(std::ranges::includes);
 
-    test_range_algo<0,  int, data_in_in>{big_sz}(dpl_ranges::includes, includes_checker);
-    test_range_algo<1,  int, data_in_in>{      }(dpl_ranges::includes, includes_checker, std::ranges::less{});
-    test_range_algo<2,  int, data_in_in>{      }(dpl_ranges::includes, includes_checker, std::ranges::less{}, proj);
-    test_range_algo<3 , int, data_in_in>{      }(dpl_ranges::includes, includes_checker, std::ranges::less{}, proj, proj);
+        test_range_algo<0,  int, data_in_in>{big_sz}(dpl_ranges::includes, includes_checker);
+        test_range_algo<1,  int, data_in_in>{      }(dpl_ranges::includes, includes_checker, std::ranges::less{});
+        test_range_algo<2,  int, data_in_in>{      }(dpl_ranges::includes, includes_checker, std::ranges::less{}, proj);
+        test_range_algo<3 , int, data_in_in>{      }(dpl_ranges::includes, includes_checker, std::ranges::less{}, proj, proj);
 
-    // Check with different projections,
-    // but when includes returns true - to make sure that the projections are applied correctly.
-    // The first sequence is [0, 3, 6, ...], the second is [0, 1, 2, ...],
-    // but the second is transformed to [0, 3, 6, ...] by its projection.
-    auto x1 = [](auto&& v) { return v; };
-    auto x3 = [](auto&& v) { return v * 3; };
-    test_range_algo<4, int, data_in_in, decltype(x3), decltype(x1)>{medium_size}(dpl_ranges::includes, includes_checker, std::ranges::less{}, x1, x3);
+        // Check with different projections,
+        // but when includes returns true - to make sure that the projections are applied correctly.
+        // The first sequence is [0, 3, 6, ...], the second is [0, 1, 2, ...],
+        // but the second is transformed to [0, 3, 6, ...] by its projection.
+        auto x1 = [](auto&& v) { return v; };
+        auto x3 = [](auto&& v) { return v * 3; };
+        test_range_algo<4, int, data_in_in, decltype(x3), decltype(x1)>{medium_size}(dpl_ranges::includes, includes_checker, std::ranges::less{}, x1, x3);
 
-    test_range_algo<5, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::x, &P2::x);
-    test_range_algo<6, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::proj, &P2::proj);
+        test_range_algo<5, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::x, &P2::x);
+        test_range_algo<6, P2, data_in_in>{}(dpl_ranges::includes, includes_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
-    // Check if projections are applied to the right sequences and trigger a compile-time error if not
-    test_mixed_types_host();
+        // Check if projections are applied to the right sequences and trigger a compile-time error if not
+        test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
-    test_mixed_types_device();
+        test_mixed_types_device();
 #endif
 #endif //_ENABLE_STD_RANGES_TESTING
+    }
+    catch (const std::exception& exc)
+    {
+        std::cerr << "Exception occurred in main() of " << __FILE__;
+        if (exc.what())
+            std::cerr << ": " << exc.what();
+        std::cerr << std::endl;
+
+        return EXIT_FAILURE;
+    }
+    catch (...)
+    {
+        std::cerr << "Unknown exception occurred in main() of " << __FILE__ << std::endl;
+
+        return EXIT_FAILURE;
+    }
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

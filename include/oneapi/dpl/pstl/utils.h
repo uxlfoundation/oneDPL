@@ -165,11 +165,13 @@ class __pstl_assign
   public:
     // rvalue reference used for output parameter to allow assignment of std::tuple of references.
     // The output is the second argument because the output range is passed to the algorithm as the second range.
+    // The input is forwarded rather than taken by a const reference, because std::indirectly_copyable only asks for
+    // an assignment from a non-const lvalue of the input element, which a const parameter would rule out.
     template <typename _Xp, typename _Yp>
     void
-    operator()(const _Xp& __x, _Yp&& __y) const
+    operator()(_Xp&& __x, _Yp&& __y) const
     {
-        ::std::forward<_Yp>(__y) = __x;
+        std::forward<_Yp>(__y) = std::forward<_Xp>(__x);
     }
 };
 
@@ -480,6 +482,57 @@ struct __replace_if_fun
     _Predicate __pred;
     const _T __new_value;
 };
+
+template <typename _T>
+using __mutable_lvalue_t = std::remove_const_t<std::remove_reference_t<_T>>&;
+
+template <typename _T>
+constexpr __mutable_lvalue_t<_T>
+__as_mutable_lvalue(_T&& __x) noexcept
+{
+    return const_cast<__mutable_lvalue_t<_T>>(__x);
+}
+
+template <typename _Pred>
+class __relax_const_pred
+{
+    mutable _Pred _M_pred;
+
+  public:
+    explicit __relax_const_pred(_Pred __pred) : _M_pred(std::move(__pred)) {}
+
+    template <typename... _Args, std::enable_if_t<std::is_invocable_v<_Pred&, __mutable_lvalue_t<_Args>...>, int> = 0>
+    std::invoke_result_t<_Pred&, __mutable_lvalue_t<_Args>...>
+    operator()(_Args&&... __args) const
+    {
+        return std::invoke(_M_pred, __as_mutable_lvalue(std::forward<_Args>(__args))...);
+    }
+};
+
+template <typename _Pred, typename... _T>
+inline constexpr bool __pred_wants_mutable_args_v =
+    sizeof...(_T) > 0 && !std::is_invocable_v<_Pred&, const _T&...> && std::is_invocable_v<_Pred&, _T&...>;
+
+template <typename... _T, typename _Pred>
+constexpr auto
+__get_relax_non_const_pred(_Pred&& __pred)
+{
+    using _PredType = std::remove_reference_t<_Pred>;
+
+    if constexpr (__pred_wants_mutable_args_v<_PredType, _T...>)
+        return __relax_const_pred<_PredType>{std::forward<_Pred>(__pred)};
+    else
+        return std::forward<_Pred>(__pred);
+}
+
+// A comparator is just a binary predicate here; the only reason for a separate name is that a parameter pack
+// cannot have a default argument, so the homogeneous comparison comp(_T&, _T&) is spelled with one type.
+template <typename _T, typename _U = _T, typename _Comp>
+constexpr auto
+__get_relax_non_const_comp(_Comp&& __comp)
+{
+    return __get_relax_non_const_pred<_T, _U>(std::forward<_Comp>(__comp));
+}
 
 //! Like ::std::next, but with specialization for dpcpp case
 template <typename _Iter>

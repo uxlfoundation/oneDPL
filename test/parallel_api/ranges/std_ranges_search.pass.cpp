@@ -24,21 +24,47 @@
 std::int32_t
 main()
 {
+    try
+    {
 #if _ENABLE_STD_RANGES_TESTING
-    using namespace test_std_ranges;
-    namespace dpl_ranges = oneapi::dpl::ranges;
+        using namespace test_std_ranges;
+        namespace dpl_ranges = oneapi::dpl::ranges;
 
-    auto search_checker = TEST_PREPARE_CALLABLE(std::ranges::search);
-    auto lam = [](auto i) { return i + 371; };
-    using data_gen_shifted = decltype(lam);
+        auto search_checker = TEST_PREPARE_CALLABLE(std::ranges::search);
+        auto lam = [](auto i) { return i + 371; };
+        using data_gen_shifted = decltype(lam);
 
-    launcher<0, int>{big_sz}(dpl_ranges::search, search_checker, binary_pred);
-    launcher<1, int>{}(dpl_ranges::search, search_checker);
-    launcher<2, int>{}(dpl_ranges::search, search_checker, binary_pred_const, proj);
-    launcher<3, int, data_gen_shifted>{big_sz}(dpl_ranges::search, search_checker, binary_pred_const, proj, proj);
-    launcher<4, P3, data_gen_shifted>{}(dpl_ranges::search, search_checker, binary_pred, &P3::x, &P3::proj);
-    launcher<5, P3>{}(dpl_ranges::search, search_checker, std::equal_to<>{}, &P3::proj, &P3::y);
+        launcher<0, int>{big_sz}(dpl_ranges::search, search_checker, binary_pred);
+        launcher<1, int>{}(dpl_ranges::search, search_checker);
+        launcher<2, int>{}(dpl_ranges::search, search_checker, binary_pred_const, proj);
+        launcher<3, int, data_gen_shifted>{big_sz}(dpl_ranges::search, search_checker, binary_pred_const, proj, proj);
+        launcher<4, P3, data_gen_shifted>{}(dpl_ranges::search, search_checker, binary_pred, &P3::x, &P3::proj);
+        launcher<5, P3>{}(dpl_ranges::search, search_checker, std::equal_to<>{}, &P3::proj, &P3::y);
+
+        // Check if projections are applied to the right sequences and trigger a compile-time error if not
+        check_mixed_types_in_in_host(dpl_ranges::search, search_checker, {{1}, {2}, {3}, {4}}, {{2}, {3}},
+                                     result_subrange, binary_pred, proj_a, proj_b);
+#if TEST_DPCPP_BACKEND_PRESENT
+        check_mixed_types_in_in_device(dpl_ranges::search, search_checker, {{1}, {2}, {3}, {4}}, {{2}, {3}},
+                                       result_subrange, binary_pred, proj_a, proj_b);
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
+    }
+    catch (const std::exception& exc)
+    {
+        std::cerr << "Exception occurred in main() of " << __FILE__;
+        if (exc.what())
+            std::cerr << ": " << exc.what();
+        std::cerr << std::endl;
+
+        return EXIT_FAILURE;
+    }
+    catch (...)
+    {
+        std::cerr << "Unknown exception occurred in main() of " << __FILE__ << std::endl;
+
+        return EXIT_FAILURE;
+    }
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

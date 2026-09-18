@@ -183,8 +183,7 @@ __pattern_uninitialized_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
 {
     using _ValueType = std::ranges::range_value_t<_R>;
 
-    auto __first = std::ranges::begin(__r);
-    auto __last = __first + std::ranges::size(__r);
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_fill<_ValueType, _T>)
     {

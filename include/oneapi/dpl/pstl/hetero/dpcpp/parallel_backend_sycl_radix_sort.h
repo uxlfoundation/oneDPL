@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <functional> // for std::invoke
+#include <memory>     // for std::addressof
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"

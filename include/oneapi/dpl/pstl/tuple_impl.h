@@ -687,6 +687,24 @@ struct __get_tuple_type<oneapi::dpl::__internal::tuple<_Ts...>, _Other>
     using __type = typename oneapi::dpl::__internal::tuple<_Ts...>::tuple_type;
 };
 
+// Casts __value to the tuple type an element of __dest_rng can be assigned from, which resolves conversion issues
+// between our internal tuple and std::tuple, as with zip_iterator. When no conversion is needed, __value is passed
+// through as is instead: an explicit cast would make a copy of it and would thereby require more of its type than
+// the algorithm does, since std::indirectly_copyable only asks for an assignment from a non-const lvalue of the
+// input element. __dest_rng is used for type deduction only and is never accessed.
+// The pass-through returns a reference to __value, so the result has to be consumed within the same full expression.
+template <typename _ValueType, typename _Rng>
+constexpr decltype(auto)
+__tuple_type_cast(_ValueType&& __value, _Rng&& __dest_rng)
+{
+    using _ConvertedType =
+        typename __get_tuple_type<std::decay_t<_ValueType>, std::decay_t<decltype(__dest_rng[0])>>::__type;
+    if constexpr (std::is_same_v<_ConvertedType, std::decay_t<_ValueType>>)
+        return std::forward<_ValueType>(__value);
+    else
+        return static_cast<_ConvertedType>(std::forward<_ValueType>(__value));
+}
+
 // Converts std::tuple to the internal tuple
 template <typename T>
 struct __repacked_tuple

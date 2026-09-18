@@ -364,4 +364,66 @@
 // std::input_iterator and std::output_iterator on the same pre-P2325R3 implementations.
 #define _ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 
+// Known gaps between the requires-clause of a range algorithm and what its implementation actually
+// asks of a user type. The archetype tests of test/parallel_api/ranges close the affected calls with
+// an #if on these macros, and the KSATODO note at the call site names the place in the implementation
+// to fix. The suffix says which side of the implementation is broken:
+//   _HOST   - the host policies, i.e. seq, unseq, par and par_unseq
+//   _HETERO - the device policy
+// A gap which in fact affects one host dispatch only, e.g. the parallel patterns or the vectorized
+// bricks, still switches every host policy off; the note at the call site names the branch which is
+// the broken one.
+// Every macro is hard-coded to 1, i.e. it states a defect of the current implementation; setting
+// one to 0 re-enables the calls, which is how a fix is verified.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_DIFFERENCE_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_DIFFERENCE_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_UNION_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_UNION_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_INTERSECTION_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_INTERSECTION_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_SYMMETRIC_DIFFERENCE_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_SYMMETRIC_DIFFERENCE_HETERO 1
+
+// partial_sort_copy inherits that defect through the very same parallel merge sort, and its parallel
+// host pattern additionally copy constructs the output element from the input one. Its device path
+// assigns the output element from a const lvalue of the input one, like rotate_copy below. See the
+// notes at the call sites.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY_HETERO 1
+
+// The device paths of the conditionally copying algorithms assign a const copy of the input element to
+// the output one, while std::indirectly_copyable only asks for an assignment from iter_reference_t of
+// the input iterator, i.e. from a non-const lvalue. See the notes at the call sites. The host paths
+// are fine.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_COPY_IF_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_IF_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_UNIQUE_COPY_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTITION_COPY_HETERO 1
+
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_IF 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_IF_NOT 1
+
+// The vectorized brick of lexicographical_compare compares a pair of elements in both directions, but
+// it swaps the elements themselves instead of the values the projections make of them, so it applies
+// the first projection to an element of the second sequence. See the note at the call site.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE_HOST 1
+
+// Known wrong results of a range algorithm, i.e. a defect which is not about what the implementation
+// asks of a user type but about what it computes. The suffixes and the hard-coded 1 mean the same as
+// for the _BROKEN_REQUIRES_ macros above, and the KSATODO note at the call site names the place in the
+// implementation to fix.
+//
+// The parallel host pattern and the device pattern of partial_sort_copy project the input sequence with
+// the projection of the output sequence, so the elements they select are the ones the first projection
+// does not order.
+#define _TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1_HETERO 1
+
+// The same swap in the vectorized brick of lexicographical_compare, see
+// _TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE_HOST above, makes the brick take a pair of
+// elements for equal ones although the projections make different values of them, so with two
+// projections which are not interchangeable the answer comes from a later pair of elements.
+#define _TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_LEXICOGRAPHICAL_COMPARE_PROJ1_HOST 1
+
 #endif // _TEST_CONFIG_H

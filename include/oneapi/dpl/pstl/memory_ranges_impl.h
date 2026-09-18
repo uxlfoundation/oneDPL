@@ -49,8 +49,7 @@ __pattern_uninitialized_default_construct(_Tag __tag, _ExecutionPolicy&& __exec,
 
     using _ValueType = std::ranges::range_value_t<_R>;
 
-    auto __first = std::ranges::begin(__r);
-    auto __last = __first + std::ranges::size(__r);
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     if constexpr (!std::is_trivially_default_constructible_v<_ValueType>)
     {
@@ -81,8 +80,8 @@ __pattern_uninitialized_value_construct(_Tag __tag, _ExecutionPolicy&& __exec, _
 
     using _ValueType = std::ranges::range_value_t<_R>;
 
-    auto __first = std::ranges::begin(__r);
-    auto __last = __first + std::ranges::size(__r);
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
     if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_value_construct<_ValueType>)
     {
         oneapi::dpl::__internal::__pattern_fill(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -215,8 +214,7 @@ __pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, co
 
     using _ValueType = std::ranges::range_value_t<_R>;
 
-    auto __first = std::ranges::begin(__r);
-    auto __last = __first + std::ranges::size(__r);
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_fill<_ValueType, _T>)
     {
@@ -253,8 +251,7 @@ __pattern_destroy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r)
 
     using _ValueType = std::ranges::range_value_t<_R>;
 
-    auto __first = std::ranges::begin(__r);
-    auto __last = __first + std::ranges::size(__r);
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
 
     if constexpr (!std::is_trivially_destructible_v<_ValueType>)
     {
@@ -269,7 +266,12 @@ template <typename _ExecutionPolicy, typename _R>
 std::ranges::borrowed_iterator_t<_R>
 __pattern_destroy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r)
 {
-    return std::ranges::destroy(std::forward<_R>(__r));
+    // The iterator and sentinel overload is called with one iterator type instead of passing the range as a
+    // whole: a sized random access range is not required to be a common range, and libc++ (checked up to
+    // version 18) rejects std::ranges::destroy of a range whose sentinel type differs from its iterator type.
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    return std::ranges::destroy(__first, __last);
 }
 
 } // namespace __ranges
