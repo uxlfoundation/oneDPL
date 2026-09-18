@@ -21,8 +21,6 @@
 #include "support/utils.h"
 
 #include <set>
-#include <cassert>
-#include <cmath>
 
 #if  !defined(_PSTL_TEST_MIN_ELEMENT) && !defined(_PSTL_TEST_MAX_ELEMENT) &&\
      !defined(_PSTL_TEST_MINMAX_ELEMENT) && !_PSTL_ICPX_TEST_MINMAX_ELEMENT_PASS_BROKEN
@@ -112,6 +110,60 @@ struct check_minmaxelement_predicate
         const ::std::pair<Iterator, Iterator> expect = ::std::minmax_element(begin, end);
         const std::pair<Iterator, Iterator> got_pred = std::minmax_element(std::forward<Policy>(exec), begin, end, std::less<T>());
         EXPECT_EQ(expect, got_pred, "wrong return result from minmax_element with predicate");
+    }
+};
+
+// Unary operator& is deleted, so the address of the comparator may only be taken with std::addressof.
+struct OverloadedAddressOfLess
+{
+    void
+    operator&() = delete;
+    void
+    operator&() const = delete;
+
+    bool
+    operator()(const std::int32_t& lhs, const std::int32_t& rhs) const
+    {
+        return lhs < rhs;
+    }
+};
+
+template <typename Type>
+struct check_minelement_overloaded_address_of
+{
+    template <typename Policy, typename Iterator>
+    void
+    operator()(Policy&& exec, Iterator begin, Iterator end)
+    {
+        const Iterator expect = std::min_element(begin, end);
+        const Iterator result = oneapi::dpl::min_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        EXPECT_EQ(expect, result, "wrong return result from min_element with a comparator overloading operator&");
+    }
+};
+
+template <typename Type>
+struct check_maxelement_overloaded_address_of
+{
+    template <typename Policy, typename Iterator>
+    void
+    operator()(Policy&& exec, Iterator begin, Iterator end)
+    {
+        const Iterator expect = std::max_element(begin, end);
+        const Iterator result = oneapi::dpl::max_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        EXPECT_EQ(expect, result, "wrong return result from max_element with a comparator overloading operator&");
+    }
+};
+
+template <typename Type>
+struct check_minmaxelement_overloaded_address_of
+{
+    template <typename Policy, typename Iterator>
+    void
+    operator()(Policy&& exec, Iterator begin, Iterator end)
+    {
+        const std::pair<Iterator, Iterator> expect = std::minmax_element(begin, end);
+        const std::pair<Iterator, Iterator> got = oneapi::dpl::minmax_element(std::forward<Policy>(exec), begin, end, OverloadedAddressOfLess());
+        EXPECT_EQ(expect, got, "wrong return result from minmax_element with a comparator overloading operator&");
     }
 };
 
@@ -218,18 +270,86 @@ test_by_type(::std::size_t n)
     }
 }
 
-// should provide minimal requirements only
-struct OnlyLessCompare
+// The value types with restricted operations that the test runs the algorithms on are defined in test/support/utils.h.
+
+template <typename T, typename Iterator>
+static void
+check_by_type_host_policies(Iterator first, Iterator last)
 {
-    std::int32_t val;
-    OnlyLessCompare() : val(0) {}
-    OnlyLessCompare(std::int32_t val_) : val(val_) {}
-    bool
-    operator<(const OnlyLessCompare& other) const
+#ifdef _PSTL_TEST_MIN_ELEMENT
+    invoke_on_all_host_policies()(check_minelement<T>(), first, last);
+    invoke_on_all_host_policies()(check_minelement_predicate<T>(), first, last);
+#endif
+#ifdef _PSTL_TEST_MAX_ELEMENT
+    invoke_on_all_host_policies()(check_maxelement<T>(), first, last);
+    invoke_on_all_host_policies()(check_maxelement_predicate<T>(), first, last);
+#endif
+#ifdef _PSTL_TEST_MINMAX_ELEMENT
+    invoke_on_all_host_policies()(check_minmaxelement<T>(), first, last);
+    invoke_on_all_host_policies()(check_minmaxelement_predicate<T>(), first, last);
+#endif
+}
+
+// The value types checked here do not satisfy the requirements of TestUtils::Sequence, so the data is built in place.
+template <typename T, bool UseConstIterators = false>
+static void
+test_by_type_host_policies(std::size_t n)
+{
+    std::vector<T> data;
+    data.reserve(n);
+    for (std::size_t i = 0; i < n; ++i)
+        data.emplace_back(std::int32_t(TestUtils::HashBits(i, 30)));
+
+    using Iterator = std::conditional_t<UseConstIterators, typename std::vector<T>::const_iterator,
+                                        typename std::vector<T>::iterator>;
+    check_by_type_host_policies<T>(Iterator(data.begin()), Iterator(data.end()));
+}
+
+// An aggregate cannot be constructed with parentheses before C++20, so elements are brace-initialized, not emplaced.
+template <typename T>
+static void
+test_by_type_host_policies_brace_init(std::size_t n)
+{
+    std::vector<T> data;
+    data.reserve(n);
+    for (std::size_t i = 0; i < n; ++i)
+        data.push_back(T{std::int32_t(TestUtils::HashBits(i, 30))});
+
+    check_by_type_host_policies<T>(data.begin(), data.end());
+}
+
+// A type with deleted move operations cannot be pushed into a std::vector, so the vector is sized up front and its
+// elements are assigned. A plain array is not used on purpose: with the bounds known at compile time, GCC reports a
+// false out-of-bounds subscript in the parallel reduction.
+template <typename T>
+static void
+test_by_type_host_policies_no_move(std::size_t n)
+{
+    std::vector<T> data(n);
+    for (std::size_t i = 0; i < n; ++i)
     {
-        return val < other.val;
+        const T value(std::int32_t(TestUtils::HashBits(i, 30)));
+        data[i] = value;
     }
-};
+
+    check_by_type_host_policies<T>(data.begin(), data.end());
+}
+
+static void
+test_comparator_with_overloaded_address_of(std::size_t n)
+{
+    Sequence<std::int32_t> in(n, [](std::size_t i) { return std::int32_t(TestUtils::HashBits(i, 30)); });
+
+#ifdef _PSTL_TEST_MIN_ELEMENT
+    invoke_on_all_host_policies()(check_minelement_overloaded_address_of<std::int32_t>(), in.begin(), in.end());
+#endif
+#ifdef _PSTL_TEST_MAX_ELEMENT
+    invoke_on_all_host_policies()(check_maxelement_overloaded_address_of<std::int32_t>(), in.begin(), in.end());
+#endif
+#ifdef _PSTL_TEST_MINMAX_ELEMENT
+    invoke_on_all_host_policies()(check_minmaxelement_overloaded_address_of<std::int32_t>(), in.begin(), in.end());
+#endif
+}
 
 template <typename T>
 struct test_non_const_max_element
@@ -238,7 +358,7 @@ struct test_non_const_max_element
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        max_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
+        std::max_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
     }
 };
 
@@ -249,7 +369,7 @@ struct test_non_const_min_element
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        min_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
+        std::min_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
     }
 };
 
@@ -260,7 +380,7 @@ struct test_non_const_minmax_element
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        minmax_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
+        std::minmax_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
     }
 };
 
@@ -268,9 +388,13 @@ int
 main()
 {
     using TestUtils::float64_t;
-    const ::std::size_t N = 100000;
+    const std::size_t N = 100000;
+    const std::size_t NSmall = 10;
+    // Large enough for the parallel backend to split the sequence into several chunks and to combine their results, and
+    // for the vector loop to reduce over several lanes rather than to fall entirely into its remainder.
+    const std::size_t NMultiChunk = 1000;
 
-    for (::std::size_t n = 0; n < N; n = n < 16 ? n + 1 : size_t(3.14159 * n))
+    for (std::size_t n = 0; n < N; n = n < 16 ? n + 1 : size_t(3.14159 * n))
     {
 #if !ONEDPL_FPGA_DEVICE
         test_by_type<std::int32_t>(n);
@@ -278,6 +402,23 @@ main()
         test_by_type<float64_t>(n);
         test_by_type<OnlyLessCompare>(n);
     }
+
+    // These value types are accepted by the vector code path: it must be instantiated for them. Compiling it does not
+    // depend on the sequence size, so a single small size is enough for all the checks below.
+    test_by_type<ExplicitDefaultCtorCompare>(NSmall);
+    test_by_type_host_policies_brace_init<AggregateOfExplicitDefaultCtorCompare>(NSmall);
+    test_by_type_host_policies_no_move<CopyOnlyNoMoveCompare>(NSmall);
+    test_by_type_host_policies<VoidAssignCompare>(NSmall);
+    test_by_type_host_policies<ConstCopyOnlyCompare, /*UseConstIterators*/ true>(NSmall);
+    // Default construction is not required, so these two are accepted as well.
+    test_by_type_host_policies<TestUtils::NoDefaultCtorWrapper<std::int32_t>>(NSmall);
+    test_by_type_host_policies<BraceInitOnlyCompare>(NSmall);
+
+    // These value types are rejected by the vector code path: the call must compile and fall back to the serial one.
+    test_by_type_host_policies<NoCopyAssignCompare>(NSmall);
+    test_by_type_host_policies<MoveOnlyCompare>(NSmall);
+
+    test_comparator_with_overloaded_address_of(NMultiChunk);
 
 #ifdef _PSTL_TEST_MIN_ELEMENT
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const_min_element<std::int32_t>>());
