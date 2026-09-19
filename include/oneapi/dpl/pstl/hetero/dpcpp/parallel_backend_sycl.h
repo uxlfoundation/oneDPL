@@ -610,7 +610,7 @@ __parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size _
 
     // Each work-item iteration reads a single input element to evaluate the mask.
     // While the value might be stored in a buffer and read from there, counting for that does not improve performance.
-    constexpr std::uint32_t __bytes_per_iter = sizeof(_ElementT);
+    constexpr std::uint32_t __bytes_per_iter = sizeof(_ElementT) * 4; // as an experiment, request more cache than required
     __transform_scan_storage_holder_simple<_Size> __holder(__q);
 
     sycl::event __event = __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_iter, _CustomName,
