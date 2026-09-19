@@ -96,9 +96,8 @@ test_at_size(Policy&& __exec, std::size_t __n)
     sycl::free(__d, __q);
 }
 
-// The scan width is bounded by the bytes a work item holds in flight across all input ranges, so two
-// 8-byte ranges resolve to a narrower scan than anything above, and nothing else reaches that width:
-// the cases above are 4-byte and every other test stays below the size threshold.
+// Two 8-byte input ranges over the wide scan. No other test reaches this: the cases above are 4-byte,
+// and upstream equal/mismatch never pass an 8-byte pair above the size threshold.
 class __mismatch_8byte_name;
 class __equal_8byte_name;
 
