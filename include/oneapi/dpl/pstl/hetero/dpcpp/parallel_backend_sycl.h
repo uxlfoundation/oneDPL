@@ -1054,6 +1054,25 @@ inline constexpr std::size_t __find_or_wide_scan_min_size = std::numeric_limits<
 inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE;
 #endif
 
+// Narrower elements than this leave the wide iteration too little memory traffic to pay for its coarser
+// early exit. Empirical, on Battlemage and Ponte Vecchio at 2- and 4-byte types.
+inline constexpr std::size_t __find_or_wide_scan_min_elem_size = 4;
+
+// Whether the wide scan is worth taking for this tag and these ranges. Element width alone does not decide
+// it: at 2 bytes a presence check over a single range still reaches memory bandwidth, while every other
+// configuration measured slower than the narrow scan on at least one device.
+template <typename _BrickTag, typename... _Ranges>
+constexpr bool
+__find_or_wide_scan_profitable()
+{
+    constexpr bool __elems_wide_enough =
+        ((sizeof(oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>) >=
+          __find_or_wide_scan_min_elem_size) &&
+         ...);
+    constexpr bool __or_tag = std::is_same_v<_BrickTag, __parallel_or_tag>;
+    return __elems_wide_enough || (__or_tag && sizeof...(_Ranges) == 1);
+}
+
 template <typename Tag>
 struct __parallel_find_or_nd_range_tuner
 {
@@ -1416,7 +1435,8 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         };
 
         // Multiple WG implementation
-        if constexpr (__find_or_wide_scan_min_size == std::numeric_limits<std::size_t>::max())
+        if constexpr (__find_or_wide_scan_min_size == std::numeric_limits<std::size_t>::max() ||
+                      !__find_or_wide_scan_profitable<_BrickTag, _Ranges...>())
             __result = __launch(std::false_type{});
         else if (__rng_n < __find_or_wide_scan_min_size)
             __result = __launch(std::false_type{});

@@ -133,6 +133,61 @@ test_two_8byte_ranges(Policy&& __exec, std::size_t __n)
     sycl::free(__d1, __q);
     sycl::free(__d2, __q);
 }
+
+// A 2-byte element type over the wide scan. The element width sets how many bytes one unrolled iteration
+// loads per work item, and the cases above reach only 4 and 8 bytes.
+class __find_if_2byte_name;
+class __any_of_2byte_name;
+class __none_of_2byte_name;
+class __mismatch_2byte_name;
+class __equal_2byte_name;
+
+template <typename Policy>
+void
+test_2byte_ranges(Policy&& __exec, std::size_t __n)
+{
+    using _T = std::uint16_t;
+    sycl::queue __q = __exec.queue();
+    auto __exec_find_if = TestUtils::make_new_policy<__find_if_2byte_name>(__exec);
+    auto __exec_any_of = TestUtils::make_new_policy<__any_of_2byte_name>(__exec);
+    auto __exec_none_of = TestUtils::make_new_policy<__none_of_2byte_name>(__exec);
+    auto __exec_mismatch = TestUtils::make_new_policy<__mismatch_2byte_name>(__exec);
+    auto __exec_equal = TestUtils::make_new_policy<__equal_2byte_name>(__exec);
+    auto __is_one = [](_T __x) { return __x == _T(1); };
+    std::vector<_T> __host(__n, _T(0));
+    _T* __d1 = sycl::malloc_device<_T>(__n, __q);
+    _T* __d2 = sycl::malloc_device<_T>(__n, __q);
+    // The second range stays all-zero, so one match in the first serves every tag below.
+    __q.memcpy(__d2, __host.data(), __n * sizeof(_T)).wait();
+
+    const std::size_t __step = __n <= 1024 ? 1 : 37;
+
+    for (std::size_t __pos = 0; __pos <= __n; __pos += __step)
+    {
+        std::fill(__host.begin(), __host.end(), _T(0));
+        const bool __has_match = __pos < __n;
+        if (__has_match)
+            __host[__pos] = _T(1);
+        __q.memcpy(__d1, __host.data(), __n * sizeof(_T)).wait();
+
+        // Forward tag: the first match.
+        EXPECT_TRUE(oneapi::dpl::find_if(__exec_find_if, __d1, __d1 + __n, __is_one) == __d1 + __pos,
+                    "wrong index from find_if over 2-byte elements");
+        // Or tag: presence only.
+        EXPECT_TRUE(oneapi::dpl::any_of(__exec_any_of, __d1, __d1 + __n, __is_one) == __has_match,
+                    "wrong result from any_of over 2-byte elements");
+        EXPECT_TRUE(oneapi::dpl::none_of(__exec_none_of, __d1, __d1 + __n, __is_one) == !__has_match,
+                    "wrong result from none_of over 2-byte elements");
+        // Two ranges, so one iteration loads from two streams at 2 bytes each.
+        EXPECT_TRUE(oneapi::dpl::mismatch(__exec_mismatch, __d1, __d1 + __n, __d2).first ==
+                        (__has_match ? __d1 + __pos : __d1 + __n),
+                    "wrong index from mismatch of two 2-byte ranges");
+        EXPECT_TRUE(oneapi::dpl::equal(__exec_equal, __d1, __d1 + __n, __d2) == !__has_match,
+                    "wrong result from equal of two 2-byte ranges");
+    }
+    sycl::free(__d1, __q);
+    sycl::free(__d2, __q);
+}
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
@@ -146,6 +201,7 @@ main()
     {
         test_at_size(__policy, __n);
         test_two_8byte_ranges(__policy, __n);
+        test_2byte_ranges(__policy, __n);
     }
 #endif
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
