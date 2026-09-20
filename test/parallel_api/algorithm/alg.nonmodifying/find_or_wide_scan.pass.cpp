@@ -13,12 +13,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-// The find_or backend scans several contiguous elements per work item and votes once per batch of
-// iterations, but only above a size threshold that every other test stays below, so nothing otherwise
-// exercises that path. Force the threshold to zero and vary the match position: each position makes a
-// different element of an iteration, and a different length of the growing batch, hold the match. A second
-// match on the far side of the first distinguishes the forward tag from the backward one, which is what the
-// shared early-exit vote has to get right.
+// The find_or backend scans several contiguous elements per work item, but only above a size threshold that
+// every other test stays below, so nothing otherwise exercises that path. Force the threshold to zero and
+// vary the match position, which puts the match at every element of an iteration and at every alignment
+// against the work-group size. A second match on the far side of the first distinguishes the forward tag
+// from the backward one, which is what the shared early-exit vote has to get right.
+//
+// Not covered here: batches longer than one iteration. The batch length only grows past 1 above roughly 64M
+// elements per launch, which no test can afford, so the multi-iteration vote is covered by benchmark runs
+// and not by this test.
 #define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE 0
 
 #include "support/test_config.h"
@@ -96,8 +99,7 @@ test_at_size(Policy&& __exec, std::size_t __n)
     sycl::free(__d, __q);
 }
 
-// Two 8-byte input ranges over the wide scan. No other test reaches this: the cases above are 4-byte,
-// and upstream equal/mismatch never pass an 8-byte pair above the size threshold.
+// Two 8-byte ranges over the wide scan; no other test reaches this width above the size threshold.
 class __mismatch_8byte_name;
 class __equal_8byte_name;
 
@@ -134,8 +136,8 @@ test_two_8byte_ranges(Policy&& __exec, std::size_t __n)
     sycl::free(__d2, __q);
 }
 
-// A 2-byte element type over the wide scan. The element width sets how many bytes one unrolled iteration
-// loads per work item, and the cases above reach only 4 and 8 bytes.
+// A 2-byte element type; the cases above cover only 4 and 8 bytes. Only any_of and none_of take the wide
+// scan at this width -- find_if, mismatch and equal are gated to the narrow one, and cover it here.
 class __find_if_2byte_name;
 class __any_of_2byte_name;
 class __none_of_2byte_name;
