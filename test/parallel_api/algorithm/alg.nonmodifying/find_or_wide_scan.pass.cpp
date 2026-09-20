@@ -33,7 +33,42 @@
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #    include <cstdint>
+#    include <functional>
 #    include <vector>
+
+// A range stand-in for the routing checks below: __value_t needs only a value_type.
+template <typename _T>
+struct __rng_of
+{
+    using value_type = _T;
+};
+
+template <typename _Brick, typename _Tag, typename... _Ranges>
+inline constexpr bool __scans_wide =
+    oneapi::dpl::__par_backend_hetero::__find_or_wide_scan_profitable<_Brick, _Tag, _Ranges...>();
+
+using __or_tag = oneapi::dpl::__par_backend_hetero::__parallel_or_tag;
+using __fwd_tag = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<std::size_t>;
+using __bwd_tag = oneapi::dpl::__par_backend_hetero::__parallel_find_backward_tag<std::size_t>;
+using __rng = __rng_of<int>;
+using __cmp = std::less<int>;
+
+// The wide scan is opted into per brick, so pin the routing of every brick that reaches __parallel_find_or.
+// any_of / all_of / none_of, find / find_if / find_if_not, equal, mismatch, is_sorted, is_sorted_until:
+static_assert(__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng>);
+static_assert(__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng, __rng>);
+// is_heap, is_heap_until: the predicate gathers a parent index.
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred_by_idx<__cmp>, __or_tag, __rng>);
+// find_end, search: the predicate loops over the needle.
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::multiple_match_pred<__cmp>, __bwd_tag, __rng, __rng>);
+// find_first_of:
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::first_match_pred<__cmp>, __fwd_tag, __rng, __rng>);
+// search_n:
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::n_elem_match_pred<__cmp, int, std::size_t>, __fwd_tag, __rng>);
+// includes:
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::__brick_includes<std::size_t, std::size_t, __cmp,
+                                                                         oneapi::dpl::identity, oneapi::dpl::identity>,
+                            __or_tag, __rng, __rng>);
 
 // One name per call below: these algorithms share the find_or kernels, so under explicit kernel names a
 // single policy would give every call the same kernel name.
@@ -76,7 +111,8 @@ test_at_size(Policy&& __exec, std::size_t __n)
         // Forward tag: the first match.
         EXPECT_TRUE(oneapi::dpl::find_if(__exec_find_if, __d, __d + __n, __is_one) == __d + __pos,
                     "wrong index from find_if");
-        // Backward tag: find_end over a one-element needle returns the last match.
+        // Backward tag: find_end over a one-element needle returns the last match. Its brick declines the
+        // wide scan, so this covers the narrow path, which is the one find_end ships.
         if (__n > 1)
         {
             const int __needle = 1;

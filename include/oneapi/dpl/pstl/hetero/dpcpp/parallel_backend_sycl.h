@@ -1058,10 +1058,23 @@ inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE
 // except the one __find_or_wide_scan_profitable keeps. Battlemage and Ponte Vecchio, 2- and 4-byte types.
 inline constexpr std::size_t __find_or_wide_scan_min_elem_size = 4;
 
-// Whether the wide scan is worth taking for this tag and these ranges. Narrow elements qualify only for a
-// presence check over a single range, which was the one 2-byte configuration measured faster wide on both
-// devices.
-template <typename _BrickTag, typename... _Ranges>
+// Whether the brick's predicate reads one element of each range at the scanned index -- the loads the wide
+// scan makes fewer and wider. A gather, or a loop over a second sequence, gains nothing from being unrolled.
+template <typename _Brick>
+struct __brick_reads_one_elem_per_range : std::false_type
+{
+};
+
+// single_match_pred applies its predicate through walk_n, i.e. to element __idx of each range.
+template <typename _Pred>
+struct __brick_reads_one_elem_per_range<oneapi::dpl::unseq_backend::single_match_pred<_Pred>> : std::true_type
+{
+};
+
+// Whether the wide scan is worth taking for this brick, tag and these ranges. Narrow elements qualify only
+// for a presence check over a single range, which was the one 2-byte configuration measured faster wide on
+// both devices.
+template <typename _Brick, typename _BrickTag, typename... _Ranges>
 constexpr bool
 __find_or_wide_scan_profitable()
 {
@@ -1069,7 +1082,8 @@ __find_or_wide_scan_profitable()
     constexpr bool __elems_wide_enough =
         oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value >= __find_or_wide_scan_min_elem_size;
     constexpr bool __or_tag = std::is_same_v<_BrickTag, __parallel_or_tag>;
-    return __elems_wide_enough || (__or_tag && sizeof...(_Ranges) == 1);
+    return __brick_reads_one_elem_per_range<_Brick>::value &&
+           (__elems_wide_enough || (__or_tag && sizeof...(_Ranges) == 1));
 }
 
 template <typename Tag>
@@ -1433,7 +1447,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
         // Multiple WG implementation
         if constexpr (__find_or_wide_scan_min_size == std::numeric_limits<std::size_t>::max() ||
-                      !__find_or_wide_scan_profitable<_BrickTag, _Ranges...>())
+                      !__find_or_wide_scan_profitable<_Brick, _BrickTag, _Ranges...>())
             __result = __launch(std::false_type{});
         else if (__rng_n < __find_or_wide_scan_min_size)
             __result = __launch(std::false_type{});
