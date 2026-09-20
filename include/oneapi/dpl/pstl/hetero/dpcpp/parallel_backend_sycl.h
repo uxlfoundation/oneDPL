@@ -1046,16 +1046,17 @@ inline constexpr std::size_t __find_or_max_iters_in_one_wg = 8;
 // No data for FPGA, and unrolling the predicate costs area, so never scan wide there.
 inline constexpr std::size_t __find_or_wide_scan_min_size = std::numeric_limits<std::size_t>::max();
 #else
-// Below this a call is bound by its own launch overhead, not by memory bandwidth, so the wide scan has
-// nothing to win. Empirical, on Battlemage and Ponte Vecchio at 4-byte types.
+// Below this the wide scan measured no faster than the narrow one on either device.
+// Empirical, on Battlemage and Ponte Vecchio at 4-byte types.
+// The test defines this to 0 to reach the wide path without allocating a million elements.
 #    ifndef _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE
 #        define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE (std::size_t{1} << 20)
 #    endif
 inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE;
 #endif
 
-// Narrower elements than this leave the wide iteration too little memory traffic to pay for its coarser
-// early exit. Empirical, on Battlemage and Ponte Vecchio at 2- and 4-byte types.
+// Below this width the wide scan measured slower than the narrow one in every configuration except the one
+// kept below. Empirical, on Battlemage and Ponte Vecchio at 2- and 4-byte types.
 inline constexpr std::size_t __find_or_wide_scan_min_elem_size = 4;
 
 // Whether the wide scan is worth taking for this tag and these ranges. Element width alone does not decide
