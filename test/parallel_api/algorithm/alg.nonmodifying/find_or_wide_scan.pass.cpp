@@ -19,9 +19,9 @@
 // against the work-group size. A second match on the far side of the first distinguishes the forward tag
 // from the backward one, which is what the shared early-exit vote has to get right.
 //
-// Not covered here: batches longer than one iteration. The batch length only grows past 1 above roughly 64M
-// elements per launch, which no test can afford, so the multi-iteration vote is covered by benchmark runs
-// and not by this test.
+// Not covered here: batches longer than one iteration. The batch length grows only once tens of iterations
+// are behind a work item, which needs an input far larger than a test can afford -- how much larger depends
+// on the launch geometry. The multi-iteration vote is covered by benchmark runs, not by this test.
 #define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE 0
 
 #include "support/test_config.h"
@@ -233,7 +233,8 @@ main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
     auto __policy = TestUtils::get_dpcpp_test_policy();
-    // Sizes that are and are not a multiple of the scan width, spanning the batch-growth thresholds.
+    // Sizes that are and are not a multiple of the scan width. Only the largest exceeds the single
+    // work-group path's reach, so only it takes the wide scan; the rest cover the narrow one.
     for (std::size_t __n : {std::size_t(1), std::size_t(3), std::size_t(4), std::size_t(31), std::size_t(1024),
                             std::size_t(4095), std::size_t(1) << 14})
     {
