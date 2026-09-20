@@ -902,18 +902,18 @@ __is_backward_tag(_TagType)
 // early_exit (find_or)
 //------------------------------------------------------------------------
 
-// __wide selects the configuration below. It buys memory bandwidth by loading and voting less often,
-// and pays for it with a coarser early exit and a larger unrolled body; only a large input amortizes that.
+// __wide trades a coarser early exit and a larger unrolled body for fewer loads and votes per element.
 template <typename _Pred, bool __wide>
 struct __early_exit_find_or
 {
     _Pred __pred;
 
-    // Consecutive elements one work item scans per iteration, which cuts the load messages and
-    // sub-group votes per element. How much it cuts them depends on the type width.
+    // Consecutive elements one work item scans per iteration, which cuts the load messages per element.
     static constexpr std::size_t __elems_per_iter = __wide ? 4 : 1;
-    // Iterations between two sub-group votes: a vote between two loads makes the second wait on it.
-    // Both wide values empirical, on Battlemage and Ponte Vecchio at 4-byte types.
+    // Iterations between two sub-group votes.
+    // empirical: the values the wide configuration was measured at, on Battlemage and Ponte Vecchio,
+    // 2- and 4-byte types. Alternatives were not swept for performance. Batches longer than one are
+    // reached only above roughly 64M elements per launch.
     static constexpr std::size_t __max_iters_per_vote = __wide ? 8 : 1;
     // The next batch length is adopted only after this many of it have already been scanned, which
     // bounds a batch's overshoot past a match to 1 / this of the iterations already spent.
@@ -978,7 +978,6 @@ struct __early_exit_find_or
         // exactly the band [__i * __stride, (__i + 1) * __stride), so every index not yet reached lies
         // beyond every index already scanned: exiting on the shared vote, and overshooting within an
         // iteration or a batch, can only skip indices past the match in the tag's direction.
-        // A bool in the loop header rather than a break: break showed poor performance in some cases.
         auto __scan_batches = [&](auto __len_c, std::size_t __until) {
             constexpr std::size_t __len = decltype(__len_c)::value;
             const std::size_t __end = std::min<std::size_t>(__until, __iters);
@@ -1033,35 +1032,35 @@ struct __find_or_nd_range_params
     std::size_t __wgroup_size;
 };
 
-// The largest work-group size every tested device accepts for these kernels. A kernel's register demand
-// can put the device's own maximum out of reach, and the runtime reports that only at launch: Xe3
-// advertises 1024 but rejects it for the heavier find_or predicates.
+// A kernel's register demand can put a device's advertised maximum work-group size out of reach, and the
+// runtime reports that only at launch. This is the next power of two below the lowest kernel limit measured
+// (768, on Xe3); __launch_with_wg_size_fallback handles a device that rejects even this.
 inline constexpr std::size_t __find_or_max_reliable_wgroup_size = 512;
 
 // One work group is little parallelism, so bound its reach by iterations rather than by elements.
-// Empirical, on Battlemage and Ponte Vecchio at 4-byte types.
+// empirical: Battlemage and Ponte Vecchio, 4-byte types. A reach bound, not a tuned optimum -- the sizes
+// it governs sit below the size at which this harness resolves a few percent.
 inline constexpr std::size_t __find_or_max_iters_in_one_wg = 8;
 
 #if _ONEDPL_FPGA_DEVICE
-// No data for FPGA, and unrolling the predicate costs area, so never scan wide there.
+// Never scan wide on FPGA: unrolling the predicate costs area.
 inline constexpr std::size_t __find_or_wide_scan_min_size = std::numeric_limits<std::size_t>::max();
 #else
-// Below this the wide scan measured no faster than the narrow one on either device.
-// Empirical, on Battlemage and Ponte Vecchio at 4-byte types.
-// The test defines this to 0 to reach the wide path without allocating a million elements.
+// empirical: below this the wide scan was no faster, on Battlemage and Ponte Vecchio at 4-byte types.
+// Overridable so a test can reach the wide path without allocating a million elements.
 #    ifndef _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE
 #        define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE (std::size_t{1} << 20)
 #    endif
 inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE;
 #endif
 
-// Below this width the wide scan measured slower than the narrow one in every configuration except the one
-// kept below. Empirical, on Battlemage and Ponte Vecchio at 2- and 4-byte types.
+// empirical: below this width the wide scan was slower on at least one device in every configuration
+// except the one __find_or_wide_scan_profitable keeps. Battlemage and Ponte Vecchio, 2- and 4-byte types.
 inline constexpr std::size_t __find_or_wide_scan_min_elem_size = 4;
 
-// Whether the wide scan is worth taking for this tag and these ranges. Element width alone does not decide
-// it: at 2 bytes a presence check over a single range still reaches memory bandwidth, while every other
-// configuration measured slower than the narrow scan on at least one device.
+// Whether the wide scan is worth taking for this tag and these ranges. Narrow elements qualify only for a
+// presence check over a single range, which was the one 2-byte configuration measured faster wide on both
+// devices.
 template <typename _BrickTag, typename... _Ranges>
 constexpr bool
 __find_or_wide_scan_profitable()
@@ -1082,12 +1081,11 @@ struct __parallel_find_or_nd_range_tuner
     operator()(const sycl::queue& __q, const std::size_t __rng_n, const bool __one_wg_required) const
     {
         // TODO: find a way to generalize getting of reliable work-group size
-        // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
-        // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
+        // Bounds the total work per compute unit below, and on CPUs stands in for a device maximum that is
+        // impractically large. Empirically found value.
         const std::size_t __wgroup_size_limit = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
-        // Stay within a size every tested device accepts, and place proportionally more groups on each
-        // compute unit so that the number of resident work-items, which is what bounds the loads in
-        // flight, does not change.
+        // Cap the group size, and place proportionally more groups per compute unit so the grid still holds
+        // max_work_group_size items per compute unit, as it did before the cap.
         const std::size_t __wgroup_size = std::min(__wgroup_size_limit, __find_or_max_reliable_wgroup_size);
         const std::size_t __groups_per_compute_unit =
             oneapi::dpl::__internal::__dpl_ceiling_div(__wgroup_size_limit, __wgroup_size);
@@ -1131,8 +1129,7 @@ struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backe
             const float __rng_x = (float)__rng_n / 4096.f;
             const float __desired_iters_per_work_item = std::max(std::sqrt(__rng_x), 1.f);
 
-            // This applies at one element per work item as well, which is where it matters most: such an
-            // item has nothing to amortize its launch and voting overhead over, and cannot fill a wide load.
+            // Applied at every iteration count, including one element per work item.
             if (__iters_per_work_item < __desired_iters_per_work_item)
             {
                 // Multiply work per item by a power of 2 to reach the desired number of iterations.
@@ -1339,10 +1336,9 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     }
 };
 
-// A launch is rejected with errc::nd_range if a kernel's register demand puts even the capped work-group
-// size out of reach. Halve and retry: each submitter derives the work per item from the size it is handed,
-// so a smaller group still covers the whole input. The launch may therefore run more than once, which is
-// only sound because every find_or brick is read-only.
+// A launch can be rejected with errc::nd_range even at the capped work-group size; halve and retry. Each
+// submitter derives the work per item from the size it is handed, so a smaller group still covers the whole
+// input; re-running the launch is sound only because every find_or brick is read-only.
 template <typename _Launch>
 auto
 __launch_with_wg_size_fallback(const sycl::queue& __q, std::size_t __wgroup_size, _Launch __launch)
@@ -1383,8 +1379,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
 
-    // Only a tag whose found-state needs a 64-bit atomic depends on the multiple work-group path, so
-    // only that tag must stay in one work group where the device cannot provide them.
+    // Without atomic64 a 64-bit found-state cannot use the multiple work-group path.
     const bool __one_wg_required = sizeof(_AtomicType) >= 8 && !__q_local.get_device().has(sycl::aspect::atomic64);
 
     // Evaluate the amount of work-groups and work-group size
