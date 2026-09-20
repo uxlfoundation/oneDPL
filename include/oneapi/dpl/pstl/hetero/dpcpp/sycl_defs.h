@@ -106,6 +106,13 @@
 #define _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN                                                           \
     (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60100) || _ONEDPL_LIBSYCL_VERSION == 60200)
 
+// Smallest input for which the find_or backend scans several elements per work item. Overridable so a
+// test can reach that path without allocating a million elements; define it for the whole translation
+// unit, since it initializes an inline constexpr variable.
+#ifndef _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE // Check if overridden for testing
+#    define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE (std::size_t{1} << 20)
+#endif // _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE
+
 // Macro to check if we are compiling for SPIR-V devices. This macro must only be used within
 // SYCL kernels for determining SPIR-V compilation. Using this macro on the host may lead to incorrect behavior.
 #ifndef _ONEDPL_DETECT_SPIRV_COMPILATION // Check if overridden for testing

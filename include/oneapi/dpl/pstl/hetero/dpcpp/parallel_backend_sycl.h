@@ -1035,7 +1035,11 @@ struct __find_or_nd_range_params
 // A kernel's register demand can put a device's advertised maximum work-group size out of reach, and the
 // runtime reports that only at launch. This is the next power of two below the lowest kernel limit measured
 // (768, on Xe3); __launch_with_wg_size_fallback handles a device that rejects even this.
-inline constexpr std::size_t __find_or_max_reliable_wgroup_size = 512;
+inline constexpr std::size_t __find_or_wgroup_size_cap = 512;
+
+// Elements per work item the single work-group path reached before it was bounded by iterations. Kept for
+// the case where the multiple work-group path is unavailable, so that path loses no reach.
+inline constexpr std::size_t __find_or_one_wg_elems_per_item_no_atomic64 = 32;
 
 // One work group is little parallelism, so bound its reach by iterations rather than by elements.
 // empirical: Battlemage and Ponte Vecchio, 4-byte types. A reach bound, not a tuned optimum -- the sizes
@@ -1047,10 +1051,6 @@ inline constexpr std::size_t __find_or_max_iters_in_one_wg = 8;
 inline constexpr std::size_t __find_or_wide_scan_min_size = std::numeric_limits<std::size_t>::max();
 #else
 // empirical: below this the wide scan was no faster, on Battlemage and Ponte Vecchio at 4-byte types.
-// Overridable so a test can reach the wide path without allocating a million elements.
-#    ifndef _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE
-#        define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE (std::size_t{1} << 20)
-#    endif
 inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE;
 #endif
 
@@ -1065,10 +1065,9 @@ template <typename _BrickTag, typename... _Ranges>
 constexpr bool
 __find_or_wide_scan_profitable()
 {
+    using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
     constexpr bool __elems_wide_enough =
-        ((sizeof(oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>) >=
-          __find_or_wide_scan_min_elem_size) &&
-         ...);
+        oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value >= __find_or_wide_scan_min_elem_size;
     constexpr bool __or_tag = std::is_same_v<_BrickTag, __parallel_or_tag>;
     return __elems_wide_enough || (__or_tag && sizeof...(_Ranges) == 1);
 }
@@ -1086,14 +1085,16 @@ struct __parallel_find_or_nd_range_tuner
         const std::size_t __wgroup_size_limit = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
         // Cap the group size, and place proportionally more groups per compute unit so the grid still holds
         // max_work_group_size items per compute unit, as it did before the cap.
-        const std::size_t __wgroup_size = std::min(__wgroup_size_limit, __find_or_max_reliable_wgroup_size);
+        const std::size_t __wgroup_size = std::min(__wgroup_size_limit, __find_or_wgroup_size_cap);
         const std::size_t __groups_per_compute_unit =
             oneapi::dpl::__internal::__dpl_ceiling_div(__wgroup_size_limit, __wgroup_size);
         const std::size_t __one_wg_max_n = __wgroup_size * __find_or_max_iters_in_one_wg;
         // Only the single work-group path needs no global atomics, so where the multi-group path's atomics
         // are unavailable this path must keep its reach even though one group is poor parallelism.
         const std::size_t __one_wg_limit =
-            __one_wg_required ? std::max(__one_wg_max_n, __wgroup_size_limit * 32) : __one_wg_max_n;
+            __one_wg_required ? std::max(__one_wg_max_n,
+                                         __wgroup_size_limit * __find_or_one_wg_elems_per_item_no_atomic64)
+                              : __one_wg_max_n;
         std::size_t __n_groups = 1;
         if (__rng_n > __one_wg_limit)
         {
