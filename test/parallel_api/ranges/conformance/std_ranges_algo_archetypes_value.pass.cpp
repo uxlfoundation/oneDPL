@@ -17,6 +17,8 @@
 #if _ENABLE_STD_RANGES_TESTING
 #include "std_ranges_archetypes.h"
 #include "std_ranges_algo_archetypes_test.h"
+
+constexpr int searched = 3;
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int
@@ -26,8 +28,6 @@ main()
     using namespace test_std_ranges;
     using namespace test_std_ranges::archetypes;
     namespace dpl_ranges = oneapi::dpl::ranges;
-
-    constexpr int searched = 3;
 
     run_algo_all_policies<searchable_archetype, searchable_archetype_dc, 0>(
         [](auto&& policy, auto&& view) {

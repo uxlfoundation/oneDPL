@@ -45,6 +45,7 @@ main()
         },
         [](auto&&, auto&& res) { return res.min.val == 0 && res.max.val == (int)archetype_test_size - 1; }, "minmax");
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MIN_HOST || TEST_DPCPP_BACKEND_PRESENT
     {
         auto call = [](auto&& policy, auto&& view) {
             return dpl_ranges::min(std::forward<decltype(policy)>(policy), view, storable_comp_mut{});
@@ -58,7 +59,9 @@ main()
         run_algo_hetero_policies<storable_archetype_dc, 3>(call, check, "min, non-const comparator");
 #endif
     }
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MIN_HOST || TEST_DPCPP_BACKEND_PRESENT
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MAX_HOST || TEST_DPCPP_BACKEND_PRESENT
     {
         auto call = [](auto&& policy, auto&& view) {
             return dpl_ranges::max(std::forward<decltype(policy)>(policy), view, storable_comp_mut{});
@@ -72,12 +75,16 @@ main()
         run_algo_hetero_policies<storable_archetype_dc, 4>(call, check, "max, non-const comparator");
 #endif
     }
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MAX_HOST || TEST_DPCPP_BACKEND_PRESENT
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MINMAX_HOST || TEST_DPCPP_BACKEND_PRESENT
     {
         auto call = [](auto&& policy, auto&& view) {
             return dpl_ranges::minmax(std::forward<decltype(policy)>(policy), view, storable_comp_mut{});
         };
-        auto check = [](auto&&, auto&& res) { return res.min.val == 0 && res.max.val == (int)archetype_test_size - 1; };
+        auto check = [](auto&&, auto&& res) {
+            return res.min.val == 0 && res.max.val == (int)archetype_test_size - 1;
+        };
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MINMAX_HOST
         run_algo_host_policies<storable_archetype>(call, check, "minmax, non-const comparator");
@@ -86,6 +93,7 @@ main()
         run_algo_hetero_policies<storable_archetype_dc, 5>(call, check, "minmax, non-const comparator");
 #endif
     }
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_MINMAX_HOST || TEST_DPCPP_BACKEND_PRESENT
 
     run_algo_all_policies<storable_ordered_archetype, storable_ordered_archetype_dc, 6>(
         [](auto&& policy, auto&& view) { return dpl_ranges::min(std::forward<decltype(policy)>(policy), view); },

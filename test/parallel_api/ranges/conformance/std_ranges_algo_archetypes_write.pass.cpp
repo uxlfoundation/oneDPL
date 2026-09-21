@@ -243,6 +243,7 @@ main()
 #endif
     }
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_IF_HOST || TEST_DPCPP_BACKEND_PRESENT
     {
         auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
             using out_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(out_view)>>;
@@ -262,7 +263,9 @@ main()
                                                                                          "replace_copy_if");
 #endif
     }
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_IF_HOST || TEST_DPCPP_BACKEND_PRESENT
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_HOST || TEST_DPCPP_BACKEND_PRESENT
     {
         auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
             using out_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(out_view)>>;
@@ -281,6 +284,7 @@ main()
                                                                                                 "replace_copy");
 #endif
     }
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_HOST || TEST_DPCPP_BACKEND_PRESENT
 
     run_algo2_all_policies<transform_in_archetype, transform_out_archetype, transform_in_archetype_dc,
                            transform_out_archetype_dc, 19>(
@@ -443,6 +447,7 @@ main()
 #endif
     }
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_IF_HOST || TEST_DPCPP_BACKEND_PRESENT
     {
         auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
             using out_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(out_view)>>;
@@ -463,7 +468,9 @@ main()
             call, check, "replace_copy_if, non-const predicate");
 #endif
     }
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_IF_HOST || TEST_DPCPP_BACKEND_PRESENT
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_HOST || TEST_DPCPP_BACKEND_PRESENT
     {
         auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
             using out_t = std::ranges::range_value_t<std::remove_cvref_t<decltype(out_view)>>;
@@ -483,6 +490,7 @@ main()
             call, check, "replace_copy, non-const projection");
 #endif
     }
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_HOST || TEST_DPCPP_BACKEND_PRESENT
 
     run_algo2_plain_all_policies<copy_in_archetype, copy_out_archetype, copy_in_archetype_dc, copy_out_archetype_dc,
                                  32>(
