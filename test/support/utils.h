@@ -1515,10 +1515,14 @@ struct ConstCopyOnlyCompare
     std::int32_t val;
     ConstCopyOnlyCompare() : val(0) {}
     ConstCopyOnlyCompare(std::int32_t val_) : val(val_) {}
-    ConstCopyOnlyCompare(const ConstCopyOnlyCompare&) = default;
+    ConstCopyOnlyCompare(const ConstCopyOnlyCompare& other) noexcept : val(other.val) {}
     ConstCopyOnlyCompare(ConstCopyOnlyCompare&) = delete;
     ConstCopyOnlyCompare&
-    operator=(const ConstCopyOnlyCompare&) = default;
+    operator=(const ConstCopyOnlyCompare& other) noexcept
+    {
+        val = other.val;
+        return *this;
+    }
     ConstCopyOnlyCompare&
     operator=(ConstCopyOnlyCompare&) = delete;
     bool
