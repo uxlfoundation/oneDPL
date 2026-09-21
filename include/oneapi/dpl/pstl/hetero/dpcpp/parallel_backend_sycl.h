@@ -655,7 +655,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     else
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
-        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
+        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign, /*__unique_copy=*/true>;
 
         __ret = __parallel_copy_if_reduce_then_scan<_Bounded, _CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
@@ -792,6 +792,37 @@ __parallel_remove_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
             __par_backend_hetero::__gen_mask<oneapi::dpl::__internal::__not_pred<_Pred>>{__keep_pred},
             __par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>{std::size_t(__n)},
             /*_IsUniquePattern=*/std::false_type{});
+    }
+}
+
+template <typename _ExecutionPolicy, typename _InRng, typename _Size, typename _BinaryPred>
+_Size
+__parallel_unique(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _InRng&& __in_rng,
+                  _Size __n, _BinaryPred __pred)
+{
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    sycl::queue __q_local = __exec.queue();
+
+    constexpr std::size_t __max_elem_per_item = 5;
+    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+
+    if (__n <= __max_wg_size * __max_elem_per_item &&
+        __parallel_filter_single_group_base::__enough_local_memory</*__is_in_place=*/true>(
+            __q_local, __n, /*__element_size=*/sizeof(__in_rng[0])))
+    {
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+            __scan_compact_single_wg_kernel<_CustomName>>;
+        return __parallel_compact_single_group_functor<_KernelName>()(
+            __q_local, std::forward<_InRng>(__in_rng), __n,
+            oneapi::dpl::__internal::__unique_at_index<_BinaryPred, true>{__pred}, __max_wg_size);
+    }
+    else
+    {
+        return __parallel_compact_reduce_then_scan<_CustomName>(
+            __q_local, std::forward<_InRng>(__in_rng), __n,
+            __par_backend_hetero::__gen_unique_mask<_BinaryPred>{__pred},
+            __par_backend_hetero::__write_to_id_if<1, oneapi::dpl::__internal::__pstl_assign>{std::size_t(__n)},
+            /*_IsUniquePattern=*/std::true_type{});
     }
 }
 
