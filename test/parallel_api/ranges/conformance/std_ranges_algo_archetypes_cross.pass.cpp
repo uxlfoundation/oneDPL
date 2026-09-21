@@ -172,20 +172,14 @@ main()
         },
         [](auto&&, auto&&, bool res) { return res; }, "ends_with, non-const callable");
 
-    {
-        auto call = [](auto&& policy, auto&& view1, auto&& view2) {
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE
+    run_algo2_all_policies<lhs_archetype, rhs_archetype, lhs_archetype_dc, rhs_archetype_dc, 19>(
+        [](auto&& policy, auto&& view1, auto&& view2) {
             return dpl_ranges::lexicographical_compare(std::forward<decltype(policy)>(policy), view1, view2,
                                                         cross_comp_mut{});
-        };
-        auto check = [](auto&&, auto&&, bool res) { return !res; };
-
-        run_algo2_host_policies<lhs_archetype, rhs_archetype>(call, check,
-                                                                "lexicographical_compare, non-const comparator");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE_HETERO
-        run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 19>(
-            call, check, "lexicographical_compare, non-const comparator");
+        },
+        [](auto&&, auto&&, bool res) { return !res; }, "lexicographical_compare, non-const comparator");
 #endif
-    }
 
     run_algo2_all_policies<equality_archetype, equality_archetype, equality_archetype_dc, equality_archetype_dc, 20>(
         [](auto&& policy, auto&& view1, auto&& view2) {

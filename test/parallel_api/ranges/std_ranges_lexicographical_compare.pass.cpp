@@ -40,16 +40,16 @@ main()
     auto gen_hidden_pair_2 = [](auto i) { return (i == 0)? 4 : ((i == 1)? 9 : 0); };
     test_range_algo<7, int, data_in_in, decltype(gen_hidden_pair_1), decltype(gen_hidden_pair_2)>{}(
         dpl_ranges::lexicographical_compare, checker, std::ranges::less{}, proj);
-#endif
+#endif // !_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_LEXICOGRAPHICAL_COMPARE_PROJ1_HOST
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE_HOST
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE
     check_mixed_types_in_in_host(dpl_ranges::lexicographical_compare, checker, {{1}, {2}, {3}}, {{1}, {2}, {4}},
                                  result_as_is, std::ranges::less{}, proj_a, proj_b);
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
     check_mixed_types_in_in_device(dpl_ranges::lexicographical_compare, checker, {{1}, {2}, {3}}, {{1}, {2}, {4}},
                                    result_as_is, std::ranges::less{}, proj_a, proj_b);
 #endif
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
