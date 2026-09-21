@@ -149,23 +149,19 @@ main()
         },
         [](auto&& view, auto) { return std::ranges::begin(view)[10].val == 10; }, "nth_element");
 
-    {
-        auto call = [](auto&& policy, auto&& view) {
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 14>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::inplace_merge(std::forward<decltype(policy)>(policy), view,
-                                                std::ranges::begin(view) + std::ranges::size(view) / 2, permutable_comp{});
-        };
-        auto check = [](auto&& view, auto) {
+                                                std::ranges::begin(view) + std::ranges::size(view) / 2,
+                                                permutable_comp{});
+        },
+        [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 &&
                     std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
-        };
-
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE_HOST
-        run_algo_host_policies<permutable_archetype>(call, check, "inplace_merge");
+        },
+        "inplace_merge");
 #endif
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo_hetero_policies<permutable_archetype_dc, 14>(call, check, "inplace_merge");
-#endif
-    }
 
     run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 15>(
         [](auto&& policy, auto&& view) {
@@ -346,24 +342,18 @@ main()
         [](auto&& view, auto) { return std::ranges::begin(view)[10].val == 10; },
         "nth_element, default comparator");
 
-    {
-        auto call = [](auto&& policy, auto&& view) {
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE
+    run_algo_all_policies<permutable_ordered_archetype, permutable_ordered_archetype_dc, 30>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::inplace_merge(std::forward<decltype(policy)>(policy), view,
                                                 std::ranges::begin(view) + std::ranges::size(view) / 2);
-        };
-        auto check = [](auto&& view, auto) {
+        },
+        [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 &&
                     std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
-        };
-
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE_HOST
-        run_algo_host_policies<permutable_ordered_archetype>(call, check, "inplace_merge, default comparator");
+        },
+        "inplace_merge, default comparator");
 #endif
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo_hetero_policies<permutable_ordered_archetype_dc, 30>(call, check,
-                                                                        "inplace_merge, default comparator");
-#endif
-    }
 
     run_algo_all_policies<permutable_equality_archetype, permutable_equality_archetype_dc, 31>(
         [](auto&& policy, auto&& view) { return dpl_ranges::unique(std::forward<decltype(policy)>(policy), view); },
