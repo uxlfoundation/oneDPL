@@ -28,6 +28,21 @@ main()
     test_range_algo<1, int, data_in_in>{}(dpl_ranges::equal, equal_checker, binary_pred, proj);
     test_range_algo<2, P2, data_in_in>{}(dpl_ranges::equal, equal_checker, binary_pred, &P2::x, &P2::x);
     test_range_algo<3, P2, data_in_in>{}(dpl_ranges::equal, equal_checker, binary_pred, &P2::proj, &P2::proj);
+
+    // Check with different projections, but when equal returns true - to make sure that the projections
+    // are applied to the right sequences. The first sequence is [0, 1, 2, ...], the second one is
+    // [0, 2, 4, ...], so the sequences are equal only if `proj` (v * 2) is applied to the first one.
+    auto gen_x2 = [](auto i) { return 2 * i; };
+    test_range_algo<4, int, data_in_in, std::identity, decltype(gen_x2)>{}(dpl_ranges::equal, equal_checker,
+                                                                          binary_pred, proj);
+
+    // Check if projections are applied to the right sequences and trigger a compile-time error if not
+    check_mixed_types_in_in_host(dpl_ranges::equal, equal_checker, {{1}, {2}, {3}}, {{1}, {2}, {3}}, result_as_is,
+                                 binary_pred, proj_a, proj_b);
+#if TEST_DPCPP_BACKEND_PRESENT
+    check_mixed_types_in_in_device(dpl_ranges::equal, equal_checker, {{1}, {2}, {3}}, {{1}, {2}, {3}}, result_as_is,
+                                   binary_pred, proj_a, proj_b);
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
