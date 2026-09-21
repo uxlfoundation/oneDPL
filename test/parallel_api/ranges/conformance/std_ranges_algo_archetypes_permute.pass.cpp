@@ -91,6 +91,7 @@ main()
         },
         "stable_partition");
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT
     run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 8>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});
@@ -100,7 +101,9 @@ main()
                     std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
         },
         "sort");
+#endif
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT
     run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 9>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::stable_sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});
@@ -110,6 +113,7 @@ main()
                     std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
         },
         "stable_sort");
+#endif
 
     run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 10>(
         [](auto&& policy, auto&& view) {
@@ -117,15 +121,24 @@ main()
         },
         [](auto&&, auto res) { return res; }, "is_sorted");
 
-    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 11>(
-        [](auto&& policy, auto&& view) {
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST || TEST_DPCPP_BACKEND_PRESENT
+    {
+        auto call = [](auto&& policy, auto&& view) {
             return dpl_ranges::partial_sort(std::forward<decltype(policy)>(policy), view, std::ranges::begin(view) + 10,
                                             permutable_comp{});
-        },
-        [](auto&& view, auto) {
+        };
+        auto check = [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 && std::ranges::begin(view)[9].val == 9;
-        },
-        "partial_sort");
+        };
+
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST
+        run_algo_host_policies<permutable_archetype>(call, check, "partial_sort");
+#endif
+#if TEST_DPCPP_BACKEND_PRESENT
+        run_algo_hetero_policies<permutable_archetype_dc, 11>(call, check, "partial_sort");
+#endif
+    }
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST || TEST_DPCPP_BACKEND_PRESENT
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY
     run_algo_all_policies<psort_copy_in_archetype, psort_copy_in_archetype_dc, 12>(
@@ -210,39 +223,29 @@ main()
         },
         [](auto&&, bool res) { return res; }, "is_sorted of a permutable range, non-const comparator");
 
-    {
-        auto call = [](auto&& policy, auto&& view) {
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 20>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view, permutable_comp_mut{});
-        };
-        auto check = [](auto&& view, auto) {
+        },
+        [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 &&
                     std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
-        };
-
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT_HOST
-        run_algo_host_policies<permutable_archetype>(call, check, "sort, non-const comparator");
+        },
+        "sort, non-const comparator");
 #endif
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo_hetero_policies<permutable_archetype_dc, 20>(call, check, "sort, non-const comparator");
-#endif
-    }
 
-    {
-        auto call = [](auto&& policy, auto&& view) {
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 21>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::stable_sort(std::forward<decltype(policy)>(policy), view, permutable_comp_mut{});
-        };
-        auto check = [](auto&& view, auto) {
+        },
+        [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 &&
                     std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
-        };
-
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HOST
-        run_algo_host_policies<permutable_archetype>(call, check, "stable_sort, non-const comparator");
+        },
+        "stable_sort, non-const comparator");
 #endif
-#if TEST_DPCPP_BACKEND_PRESENT
-        run_algo_hetero_policies<permutable_archetype_dc, 21>(call, check, "stable_sort, non-const comparator");
-#endif
-    }
 
     {
         auto call = [](auto&& policy, auto&& view) {
@@ -306,6 +309,7 @@ main()
         "inplace_merge, non-const comparator");
 #endif
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT
     run_algo_all_policies<permutable_ordered_archetype, permutable_ordered_archetype_dc, 26>(
         [](auto&& policy, auto&& view) { return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view); },
         [](auto&& view, auto) {
@@ -313,7 +317,9 @@ main()
                     std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
         },
         "sort, default comparator");
+#endif
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT
     run_algo_all_policies<permutable_ordered_archetype, permutable_ordered_archetype_dc, 27>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::stable_sort(std::forward<decltype(policy)>(policy), view);
@@ -323,16 +329,26 @@ main()
                     std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
         },
         "stable_sort, default comparator");
+#endif
 
-    run_algo_all_policies<permutable_ordered_archetype, permutable_ordered_archetype_dc, 28>(
-        [](auto&& policy, auto&& view) {
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST || TEST_DPCPP_BACKEND_PRESENT
+    {
+        auto call = [](auto&& policy, auto&& view) {
             return dpl_ranges::partial_sort(std::forward<decltype(policy)>(policy), view,
                                             std::ranges::begin(view) + 10);
-        },
-        [](auto&& view, auto) {
+        };
+        auto check = [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 && std::ranges::begin(view)[9].val == 9;
-        },
-        "partial_sort, default comparator");
+        };
+
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST
+        run_algo_host_policies<permutable_ordered_archetype>(call, check, "partial_sort, default comparator");
+#endif
+#if TEST_DPCPP_BACKEND_PRESENT
+        run_algo_hetero_policies<permutable_ordered_archetype_dc, 28>(call, check, "partial_sort, default comparator");
+#endif
+    }
+#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST || TEST_DPCPP_BACKEND_PRESENT
 
     run_algo_all_policies<permutable_ordered_archetype, permutable_ordered_archetype_dc, 29>(
         [](auto&& policy, auto&& view) {
@@ -359,38 +375,33 @@ main()
         [](auto&& policy, auto&& view) { return dpl_ranges::unique(std::forward<decltype(policy)>(policy), view); },
         [](auto&& view, auto res) { return std::ranges::size(res) == 0; }, "unique, default predicate");
 
-    {
-        auto call = [](auto&& policy, auto&& view) {
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 32>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view, std::ranges::less{},
                                     permutable_proj_key{});
-        };
-        auto check = [](auto&& view, auto) {
+        },
+        [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 &&
                     std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
-        };
-
-        run_algo_host_policies<permutable_archetype>(call, check, "sort, projected key");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT_HETERO
-        run_algo_hetero_policies<permutable_archetype_dc, 32>(call, check, "sort, projected key");
+        },
+        "sort, projected key");
 #endif
-    }
 
-    {
-        auto call = [](auto&& policy, auto&& view) {
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT
+    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 33>(
+        [](auto&& policy, auto&& view) {
             return dpl_ranges::stable_sort(std::forward<decltype(policy)>(policy), view, std::ranges::less{},
                                             permutable_proj_key{});
-        };
-        auto check = [](auto&& view, auto) {
+        },
+        [](auto&& view, auto) {
             return std::ranges::begin(view)[0].val == 0 &&
                     std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
-        };
-
-        run_algo_host_policies<permutable_archetype>(call, check, "stable_sort, projected key");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HETERO
-        run_algo_hetero_policies<permutable_archetype_dc, 33>(call, check, "stable_sort, projected key");
+        },
+        "stable_sort, projected key");
 #endif
-    }
 
+#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT
     run_algo_plain_all_policies<permutable_archetype, permutable_archetype_dc, 34>(
         [](auto&& policy, auto&& view) {
             return dpl_ranges::sort(std::forward<decltype(policy)>(policy), view, permutable_comp{});
@@ -400,6 +411,7 @@ main()
                     std::ranges::begin(view)[std::ranges::size(view) - 1].val == (int)std::ranges::size(view) - 1;
         },
         "sort, plain range");
+#endif
 
 #endif //_ENABLE_STD_RANGES_TESTING
 
