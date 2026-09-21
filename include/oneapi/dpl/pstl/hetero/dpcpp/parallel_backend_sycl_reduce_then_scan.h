@@ -120,7 +120,7 @@ struct __block_storage : public __device_storage<_T>
         __acc_t __acc;
         
         // Element access is only valid in device code
-        _T& operator[](std::size_t __gidx)
+        _T& operator[](std::size_t __gidx) const
         {
             _T* __ptr = __data ? __data : &__acc[0];
             return __ptr[__gidx % __block_sz];
@@ -194,10 +194,11 @@ struct __simple_write_to_id
 
 // Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1 + __offset`, but only if the
 // condition `get<1>(__v)` is `true`. Used in __parallel_copy_if, __parallel_unique_copy
-template <std::int32_t __offset, typename _Assign>
+template <std::int32_t __offset, typename _Assign, bool __unique_copy = false>
 struct __write_to_id_if
 {
     using __position_type = std::size_t;
+    static constexpr bool __unique_copy_first = __unique_copy;
 
     template <typename _ValueType>
     friend _ValueType
@@ -1472,6 +1473,33 @@ struct __temp_data_required<_T, std::void_t<typename _T::TempData>>
     using type = typename _T::TempData;
 };
 
+// Detecting if an input generator uses block carry values
+template <typename, typename = void>
+struct __block_carry_opt
+{
+    static constexpr bool __is_required = false;
+
+    static __internal::__no_result_needed_tag
+    __transform_block_carry(void*, std::size_t, std::size_t)
+    {
+        return {};
+    }
+};
+
+template <typename _T>
+struct __block_carry_opt<_T, std::void_t<decltype(_T::__block_carry_required)>>
+{
+    static constexpr bool __is_required = _T::__block_carry_required;
+
+    template <typename _ValueType>
+    static auto
+    __transform_block_carry(_ValueType* __carry_ptr, std::size_t __block_num, std::size_t __block_size)
+    {
+        // if __block_num == 0, *__carry_ptr must not be read as the value is not initialized
+        return _T::__transform_block_carry(__carry_ptr, __block_num, __block_size);
+    }
+};
+
 // *** Main reduce then scan infrastructure ***
 
 // Sub-group communication wrappers with SLM fallback.
@@ -1766,33 +1794,6 @@ __scan_through_elements_impl(const sycl::nd_item<1>& __ndi, _GenInput __gen_inpu
     });
 }
 
-// Detecting if an input generator uses block carry values
-template <typename, typename = void>
-struct __block_carry_opt
-{
-    static constexpr bool __is_required = false;
-
-    static __internal::__no_result_needed_tag
-    __transform_block_carry(void*, std::size_t, std::size_t)
-    {
-        return {};
-    }
-};
-
-template <typename _T>
-struct __block_carry_opt<_T, std::void_t<decltype(_T::__block_carry_required)>>
-{
-    static constexpr bool __is_required = _T::__block_carry_required;
-
-    template <typename _ValueType>
-    static auto
-    __transform_block_carry(_ValueType* __carry_ptr, std::size_t __block_num, std::size_t __block_size)
-    {
-        // if __block_num == 0, *__carry_ptr must not be read as the value is not initialized
-        return _T::__transform_block_carry(__carry_ptr, __block_num, __block_size);
-    }
-};
-
 template <typename _ScanOpsTag, typename _InitValueType>
 struct __comm_slm_handler
 {
@@ -1881,10 +1882,10 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
 {
     using _InitValueType = typename _InitType::__value_type;
 
-    template <typename _ValueType, typename _InRng, typename _CommTag>
+    template <typename _InRng, typename _CommTag>
     void
     __scan_through_elements(const sycl::nd_item<1>& __ndi,
-                            oneapi::dpl::__internal::__opt_lazy_ctor_storage<_ValueType>& __sub_group_carry,
+                            oneapi::dpl::__internal::__opt_lazy_ctor_storage<_InitValueType>& __sub_group_carry,
                             const _InRng& __in_rng, std::size_t __start_id, std::uint32_t __iters_per_item,
                             std::size_t __subgroup_start_id, std::size_t __block_num, _InitValueType* __block_carry_ptr,
                             _CommTag __comm_tag) const
@@ -2343,12 +2344,13 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     }
                     else // zeroth block, group and subgroup
                     {
+                        // For unique-copy patterns, copy the 0th element to the output
                         if constexpr (__is_unique_pattern_v)
                         {
-                            if (__sub_group_local_id == 0)
+                            if constexpr (_WriteOp::__unique_copy_first)
                             {
-                                // For unique patterns, always copy the 0th element to the output
-                                __write_op.__assign(__in_rng[0], __out_rng[0]);
+                                if (__sub_group_local_id == 0)
+                                    __write_op.__assign(__in_rng[0], __out_rng[0]);
                             }
                         }
 
