@@ -364,4 +364,137 @@
 // std::input_iterator and std::output_iterator on the same pre-P2325R3 implementations.
 #define _ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 
+// Known gaps between the requires-clause of a range algorithm and what its implementation actually
+// asks of a user type. The archetype tests of test/parallel_api/ranges/conformance close the affected calls with
+// an #if on these macros, and the KSATODO note at the call site names the place in the implementation
+// to fix. The suffix says which side of the implementation is broken:
+//   _HOST   - the host policies only, i.e. seq, unseq, par and par_unseq
+//   _HETERO - the device policy only
+//   no suffix - both sides, i.e. the call is off for every policy
+// A test case is split into a host call and a device call only when one of the two sides still runs;
+// a case which is broken on both sides stays a single call gated by a single macro without a suffix.
+// A gap which in fact affects one host dispatch only, e.g. the parallel patterns or the vectorized
+// bricks, still switches every host policy off; the note at the call site names the branch which is
+// the broken one.
+// Every macro is hard-coded to 1, i.e. it states a defect of the current implementation; setting
+// one to 0 re-enables the calls, which is how a fix is verified.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_DIFFERENCE 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_UNION 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_INTERSECTION 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SET_SYMMETRIC_DIFFERENCE 1
+
+// partial_sort_copy inherits that defect through the very same parallel merge sort, and its parallel
+// host pattern additionally copy constructs the output element from the input one. Its device path
+// assigns the output element from a const lvalue of the input one, like rotate_copy below. See the
+// notes at the call sites.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_COPY 1
+
+// The permuting algorithms which hand a const lvalue of the element, or a const copy of it, to the user
+// comparator or predicate, while std::sortable and std::permutable only ever expose the non-const lvalue
+// iter_reference_t of a mutable range. inplace_merge additionally returns the sentinel of the range where
+// its declared return type is borrowed_iterator_t, which breaks it for any range with a distinct sentinel
+// type whatever the comparator is: that half of the gap is why every host policy is off for any call of
+// it (..._INPLACE_MERGE_HOST), while a non-const comparator breaks its device path as well and thus
+// switches that one case off everywhere (..._INPLACE_MERGE). The device radix sort of sort is a gap of a
+// different kind: it takes the address of the element with the built-in &, which no concept of the
+// algorithm asks for. stable_partition shares the mask generator of the scan with partition, stable_sort
+// shares both the merge of the parallel host sort and the device radix sort with sort, and partial_sort
+// shares that merge as well, so they are broken the same way; each has its own macro because the patterns
+// do not have to be fixed at once. See the notes at the call sites.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_INPLACE_MERGE 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_SORT_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_SORT_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTIAL_SORT_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_NTH_ELEMENT_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTITION_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_STABLE_PARTITION_HETERO 1
+
+// The device paths of the conditionally copying algorithms assign a const copy of the input element to
+// the output one, while std::indirectly_copyable only asks for an assignment from iter_reference_t of
+// the input iterator, i.e. from a non-const lvalue. See the notes at the call sites. The host paths
+// are fine.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_COPY_IF_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_IF_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_UNIQUE_COPY_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_PARTITION_COPY_HETERO 1
+
+// rotate_copy assigns from a const lvalue of the input element on the device as well, but through the
+// vectorized walk and not through the scan, so it is a gap of its own. See the note at the call site.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_ROTATE_COPY_HETERO 1
+
+// Every host path of replace_copy_if and replace_copy but the serial scalar one stores the new value by
+// value and therefore copy constructs it, which std::indirectly_writable<O, const _T&> never asks for.
+// See the notes at the call sites. Their device paths legitimately copy the value into the kernel.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_IF_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_HOST 1
+
+// The device patterns of is_partitioned and is_heap read the element through an access_mode::read
+// accessor and hand the resulting const lvalue to the user callable, while std::indirect_unary_predicate
+// and std::indirect_strict_weak_order only ask it to accept iter_reference_t, i.e. a non-const lvalue.
+// The neighbouring algorithms of the very same test (none_of, count_if, is_sorted) request read_write
+// access and are conforming, so this is a property of these two patterns and not of the dispatch.
+// is_heap_until shares __is_heap_check with is_heap and therefore the very same gap; it needs its own
+// macro only because a fix of the one accessor does not have to reach both patterns at once.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_IS_PARTITIONED_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_IS_HEAP_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_IS_HEAP_UNTIL_HETERO 1
+
+// The vectorized bricks of min_element and minmax_element keep the current extremum in a local copy of
+// the element and compare that copy, taken as a const lvalue, with the next one, while
+// std::indirect_strict_weak_order only asks the comparator to accept iter_reference_t, i.e. a non-const
+// lvalue. max and minmax run through the same two bricks, the former with the comparator wrapped in
+// __reorder_pred. See the notes at the call sites.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_MIN_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_MAX_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_MINMAX_HOST 1
+
+// The vectorized brick of find_first_of runs the shorter of the two sequences in the outer loop, and
+// when that is the first one it hands the element of the second sequence to the predicate first, so a
+// predicate which accepts the two element types in one order only does not compile. Its device brick
+// reads the element of the first sequence into a const copy, while std::indirect_binary_predicate asks
+// the predicate to accept iter_reference_t, i.e. a non-const lvalue. Both sides are broken, so one macro
+// covers them both. See the notes at the call sites.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF 1
+
+// find_last_if reverses the range with std::ranges::reverse_view and hands that view to find_if. The
+// device pattern indexes the range it is given with operator[] through a const lvalue, and
+// std::ranges::reverse_view has no const begin() unless the range under it is a common_range, so a
+// const reverse_view of a range with a distinct sentinel type is not a random_access_range and
+// std::ranges::view_interface gives it no operator[]. The requires-clause of the algorithm asks for
+// random_access_range and sized_range only, never for common_range. find_last and find_last_if_not are
+// both built on find_last_if and inherit the gap; each has its own macro only because the fix does not
+// have to reach the three of them at once. The host patterns walk the view with its iterators and are
+// conforming. See the notes at the call sites.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_IF_HETERO 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_LAST_IF_NOT_HETERO 1
+
+// The vectorized brick of lexicographical_compare compares a pair of elements in both directions, but
+// it swaps the elements themselves instead of the values the projections make of them, so it applies
+// the first projection to an element of the second sequence. Its device pattern binds both elements to
+// a const lvalue, while std::indirect_strict_weak_order asks the comparator to accept iter_reference_t,
+// i.e. a non-const lvalue. See the notes at the call sites.
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE_HOST 1
+#define _TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE_HETERO 1
+
+// Known wrong results of a range algorithm, i.e. a defect which is not about what the implementation
+// asks of a user type but about what it computes. The suffixes and the hard-coded 1 mean the same as
+// for the _BROKEN_REQUIRES_ macros above, and the KSATODO note at the call site names the place in the
+// implementation to fix.
+//
+// The parallel host pattern and the device pattern of partial_sort_copy project the input sequence with
+// the projection of the output sequence, so the elements they select are the ones the first projection
+// does not order. Both sides compute that wrong result, so one macro covers them both.
+#define _TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1 1
+
+// The same swap in the vectorized brick of lexicographical_compare, see
+// _TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE_HOST above, makes the brick take a pair of
+// elements for equal ones although the projections make different values of them, so with two
+// projections which are not interchangeable the answer comes from a later pair of elements.
+#define _TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_LEXICOGRAPHICAL_COMPARE_PROJ1_HOST 1
+
 #endif // _TEST_CONFIG_H
