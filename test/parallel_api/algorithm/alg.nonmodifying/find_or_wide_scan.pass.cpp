@@ -70,16 +70,28 @@ static_assert(!__scans_wide<oneapi::dpl::unseq_backend::__brick_includes<std::si
                                                                          oneapi::dpl::identity, oneapi::dpl::identity>,
                             __or_tag, __rng, __rng>);
 
-// The wide scan is also gated on element width, so pin both ends of that window. 8 bytes is outside it, and
-// the widest element of any scanned range decides.
+// The wide scan is also gated on element width and on how many elements the predicate reads per index, so pin
+// both ends of the width window against both element counts. The widest element of any scanned range decides.
 using __rng16 = __rng_of<std::uint16_t>;
 using __rng64 = __rng_of<std::uint64_t>;
-static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng64>);
+using __rng_zip_2_2 = __rng_of<oneapi::dpl::__internal::tuple<std::uint16_t, std::uint16_t>>;
+using __rng_zip_4_8 = __rng_of<oneapi::dpl::__internal::tuple<std::uint32_t, std::uint64_t>>;
+struct __elem16
+{
+    std::uint64_t __a, __b;
+};
+// 8 bytes is the top of the window, and only one element per index reaches it.
+static_assert(__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng64>);
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng64, __rng64>);
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng, __rng64>);
-// 2 bytes is below the window, so only a presence check over a single range qualifies.
+// A zip range reads one element per component, so it is held to the same width as two ranges.
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_zip_4_8>);
+// Nothing wider than the window was measured, at any element count.
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_of<__elem16>>);
+// 2 bytes is below the window, so only a presence check reading one element per index qualifies.
 static_assert(__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng16>);
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng16, __rng16>);
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_zip_2_2>);
 
 // One name per call below: these algorithms share the find_or kernels, so under explicit kernel names a
 // single policy would give every call the same kernel name.
