@@ -376,7 +376,7 @@ private:
 
         typename Container::type& A = cont_in();
         decltype(auto) r_in = tr_in(A);
-        auto res = algo(CLONE_TEST_POLICY(exec), r_in, args...);
+        auto res = algo(CLONE_TEST_POLICY_IDX(exec, 0), r_in, args...);
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
@@ -414,7 +414,8 @@ private:
             // TransIn may modify the non-borrowed range to a borrowed one, so we need to check it.        
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()), args...));
+                using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 1),
+                                                tr_in(std::declval<rvalue_container_t&&>()), args...));
 
                 if constexpr(!std::is_fundamental_v<res_ret_t>)
                 {
@@ -454,7 +455,7 @@ private:
         typename Container::type& A = cont_in();
         typename Container::type& B = cont_out();
 
-        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
+        auto res = algo(CLONE_TEST_POLICY_IDX(exec, 0), tr_in(A), tr_out(B), args...);
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
@@ -507,8 +508,9 @@ private:
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
                         && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
-                                        tr_out(std::declval<rvalue_container_t&&>()), args...));
+                using res_ret_t =
+                    decltype(algo(CLONE_TEST_POLICY_IDX(exec, 1), tr_in(std::declval<rvalue_container_t&&>()),
+                                  tr_out(std::declval<rvalue_container_t&&>()), args...));
 
                 if constexpr(!std::is_fundamental_v<res_ret_t>)
                 {
@@ -593,7 +595,7 @@ private:
         typename Container::type& A = cont_in1();
         typename Container::type& B = cont_in2();
 
-        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), args...);
+        auto res = algo(CLONE_TEST_POLICY_IDX(exec, 0), tr_in(A), tr_in(B), args...);
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
@@ -632,8 +634,9 @@ private:
             // TransIn may modify the non-borrowed range to a borrowed one, so we need to check it.
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
-                                        tr_in(std::declval<rvalue_container_t&&>()), args...));
+                using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 1),
+                                           tr_in(std::declval<rvalue_container_t&&>()),
+                                           tr_in(std::declval<rvalue_container_t&&>()), args...));
 
                 if constexpr(!std::is_fundamental_v<res_ret_t>)
                 {
@@ -673,7 +676,7 @@ private:
         typename Container::type& B = cont_in2();
         typename Container::type& C = cont_out();
 
-        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+        auto res = algo(CLONE_TEST_POLICY_IDX(exec, 0), tr_in(A), tr_in(B), tr_out(C), args...);
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
@@ -715,9 +718,10 @@ private:
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
                         && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
-                                        tr_in(std::declval<rvalue_container_t&&>()),
-                                        tr_out(std::declval<rvalue_container_t&&>()), args...));
+                using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 1),
+                                           tr_in(std::declval<rvalue_container_t&&>()),
+                                           tr_in(std::declval<rvalue_container_t&&>()),
+                                           tr_out(std::declval<rvalue_container_t&&>()), args...));
 
                 if constexpr(!std::is_fundamental_v<res_ret_t>)
                 {
@@ -758,7 +762,7 @@ private:
         typename Container::type& B = cont_out1();
         typename Container::type& C = cont_out2();
 
-        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), tr_out(C), args...);
+        auto res = algo(CLONE_TEST_POLICY_IDX(exec, 0), tr_in(A), tr_out(B), tr_out(C), args...);
 
         // check result types
         static_assert(check_in_out_out_result<decltype(expected_res)>);
@@ -786,9 +790,10 @@ private:
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
                          && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
-                                                tr_out(std::declval<rvalue_container_t&&>()),
-                                                tr_out(std::declval<rvalue_container_t&&>()), args...));
+                using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, 1),
+                                           tr_in(std::declval<rvalue_container_t&&>()),
+                                           tr_out(std::declval<rvalue_container_t&&>()),
+                                           tr_out(std::declval<rvalue_container_t&&>()), args...));
                 static_assert(all_dangling_in_result_v<res_ret_t>,
                               "res_ret_t is expected to be or consist of std::ranges::dangling");
             }
