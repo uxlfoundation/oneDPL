@@ -70,6 +70,17 @@ static_assert(!__scans_wide<oneapi::dpl::unseq_backend::__brick_includes<std::si
                                                                          oneapi::dpl::identity, oneapi::dpl::identity>,
                             __or_tag, __rng, __rng>);
 
+// The wide scan is also gated on element width, so pin both ends of that window. 8 bytes is outside it, and
+// the widest element of any scanned range decides.
+using __rng16 = __rng_of<std::uint16_t>;
+using __rng64 = __rng_of<std::uint64_t>;
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng64>);
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng64, __rng64>);
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng, __rng64>);
+// 2 bytes is below the window, so only a presence check over a single range qualifies.
+static_assert(__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng16>);
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng16, __rng16>);
+
 // One name per call below: these algorithms share the find_or kernels, so under explicit kernel names a
 // single policy would give every call the same kernel name.
 class __find_if_name;
@@ -135,7 +146,8 @@ test_at_size(Policy&& __exec, std::size_t __n)
     sycl::free(__d, __q);
 }
 
-// Two 8-byte ranges over the wide scan; no other test reaches this width above the size threshold.
+// Two 8-byte ranges. The width gate routes them to the narrow scan, which no other test reaches at this
+// width above the size threshold.
 class __mismatch_8byte_name;
 class __equal_8byte_name;
 

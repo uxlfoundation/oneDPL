@@ -1058,6 +1058,9 @@ inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE
 // except the one __find_or_wide_scan_profitable keeps. Battlemage and Ponte Vecchio, 2- and 4-byte types.
 inline constexpr std::size_t __find_or_wide_scan_min_elem_size = 4;
 
+// empirical: above this width the wide scan was slower on Battlemage, on equal and mismatch at 8 bytes.
+inline constexpr std::size_t __find_or_wide_scan_max_elem_size = 4;
+
 // Whether the brick's predicate reads one element of each range at the scanned index -- the loads the wide
 // scan makes fewer and wider. A gather, or a loop over a second sequence, gains nothing from being unrolled.
 template <typename _Brick>
@@ -1071,9 +1074,9 @@ struct __brick_reads_one_elem_per_range<oneapi::dpl::unseq_backend::single_match
 {
 };
 
-// Whether the wide scan is worth taking for this brick, tag and these ranges. Narrow elements qualify only
-// for a presence check over a single range, which was the one 2-byte configuration measured faster wide on
-// both devices.
+// Whether the wide scan is worth taking for this brick, tag and these ranges. No scanned element may be wider
+// than the measured window. Below it, only a presence check over a single range qualifies -- the one narrow
+// configuration measured faster wide on both devices, measured there at 2 bytes.
 template <typename _Brick, typename _BrickTag, typename... _Ranges>
 constexpr bool
 __find_or_wide_scan_profitable()
@@ -1081,8 +1084,10 @@ __find_or_wide_scan_profitable()
     using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
     constexpr bool __elems_wide_enough =
         oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value >= __find_or_wide_scan_min_elem_size;
+    constexpr bool __elems_narrow_enough =
+        oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value <= __find_or_wide_scan_max_elem_size;
     constexpr bool __or_tag = std::is_same_v<_BrickTag, __parallel_or_tag>;
-    return __brick_reads_one_elem_per_range<_Brick>::value &&
+    return __brick_reads_one_elem_per_range<_Brick>::value && __elems_narrow_enough &&
            (__elems_wide_enough || (__or_tag && sizeof...(_Ranges) == 1));
 }
 
