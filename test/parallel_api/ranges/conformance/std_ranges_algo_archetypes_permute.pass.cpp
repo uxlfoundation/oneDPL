@@ -27,13 +27,20 @@ main()
     using namespace test_std_ranges::archetypes;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 0>(
-        [](auto&& policy, auto&& view) { return dpl_ranges::reverse(std::forward<decltype(policy)>(policy), view); },
-        [](auto&& view, auto) {
+    {
+        auto call = [](auto&& policy, auto&& view) {
+            return dpl_ranges::reverse(std::forward<decltype(policy)>(policy), view);
+        };
+        auto check = [](auto&& view, auto) {
             const auto n = std::ranges::size(view);
             return std::ranges::begin(view)[0].val == (int)n - 1 && std::ranges::begin(view)[n - 1].val == 0;
-        },
-        "reverse");
+        };
+
+        run_algo_host_policies<permutable_archetype>(call, check, "reverse");
+#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REVERSE_HETERO
+        run_algo_hetero_policies<permutable_archetype_dc, 0>(call, check, "reverse");
+#endif
+    }
 
     run_algo_all_policies<permutable_archetype, permutable_archetype_dc, 1>(
         [](auto&& policy, auto&& view) {
