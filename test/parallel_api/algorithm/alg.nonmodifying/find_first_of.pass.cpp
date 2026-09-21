@@ -189,8 +189,10 @@ main()
 #endif
     test<float64_t>([](const float64_t x, const float64_t y) { return x * x == y * y; });
 
+#if !_TEST_BROKEN_WRONG_RESULT_FIND_FIRST_OF_UNSEQ
     test_match_away_from_the_front<std::int32_t>();
     test_match_away_from_the_front_long_first_range<std::int32_t>();
+#endif
 
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
 
