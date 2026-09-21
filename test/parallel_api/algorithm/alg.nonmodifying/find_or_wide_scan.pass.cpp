@@ -19,9 +19,7 @@
 // against the work-group size. A second match on the far side of the first distinguishes the forward tag
 // from the backward one, which is what the shared early-exit vote has to get right.
 //
-// Not covered here: batches longer than one iteration. The batch length grows only once tens of iterations
-// are behind a work item, which needs an input far larger than a test can afford -- how much larger depends
-// on the launch geometry. The multi-iteration vote is covered by benchmark runs, not by this test.
+// Not covered here: batches longer than one iteration, which need an input far larger than a test can afford.
 #define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE 0
 
 #include "support/test_config.h"
@@ -86,7 +84,7 @@ static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng, __rng64>);
 // A zip range reads one element per component, so it is held to the same width as two ranges.
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_zip_4_8>);
-// Nothing wider than the window was measured, at any element count.
+// Elements wider than the window are declined at every element count.
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_of<__elem16>>);
 // 2 bytes is below the window, so only a presence check reading one element per index qualifies.
 static_assert(__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng16>);
@@ -135,7 +133,7 @@ test_at_size(Policy&& __exec, std::size_t __n)
         EXPECT_TRUE(oneapi::dpl::find_if(__exec_find_if, __d, __d + __n, __is_one) == __d + __pos,
                     "wrong index from find_if");
         // Backward tag: find_end over a one-element needle returns the last match. Its brick declines the
-        // wide scan, so this covers the narrow path, which is the one find_end ships.
+        // wide scan, so this covers the narrow path.
         if (__n > 1)
         {
             const int __needle = 1;
