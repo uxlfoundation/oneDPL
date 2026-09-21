@@ -35,8 +35,6 @@ main()
     using namespace test_std_ranges::archetypes;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    // The single required operation is std::default_initializable. The default constructor is
-    // user-provided, so only val1 is written and val2 must keep the no-initialization pattern.
     auto default_construct_checker =
         [](const auto& res, const auto& r) {
             using R = std::remove_cvref_t<decltype(r)>;
@@ -48,8 +46,6 @@ main()
 
     test_memory_algo<default_construct_archetype, -1, 0>{}.run(dpl_ranges::uninitialized_default_construct, default_construct_checker);
 
-    // The default constructor is defaulted on its first declaration, so value-initialization
-    // zero-initializes the whole object, including val2.
     auto value_construct_checker =
         [](const auto& res, const auto& r) {
             using R = std::remove_cvref_t<decltype(r)>;
@@ -61,8 +57,6 @@ main()
 
     test_memory_algo<value_construct_archetype, -1, 1>{}.run(dpl_ranges::uninitialized_value_construct, value_construct_checker);
 
-    // The filler type differs from the range value type, so the only required operation is
-    // std::constructible_from<fill_archetype, const fill_source&>.
     auto fill_checker =
         [](const auto& res, const auto& r, const auto& value) {
             using R = std::remove_cvref_t<decltype(r)>;
@@ -75,9 +69,6 @@ main()
 
     test_memory_algo<fill_archetype, -1, 2>{}.run(dpl_ranges::uninitialized_fill, fill_checker, fill_source{2});
 
-    // Input and output element types are different, which the requires-clause of uninitialized_copy
-    // and uninitialized_move explicitly allows. copy_archetype is constructible only from
-    // transfer_source&, move_archetype only from transfer_source&&.
     auto transfer_checker =
         [](const auto& res, auto&& r_in, auto&& r_out) {
             using InRange = std::remove_cvref_t<decltype(r_in)>;
@@ -100,7 +91,6 @@ main()
     test_memory_algo<transfer_source, -1, 3, copy_archetype>{}.run(dpl_ranges::uninitialized_copy, transfer_checker);
     test_memory_algo<transfer_source, -1, 4, move_archetype>{}.run(dpl_ranges::uninitialized_move, transfer_checker);
 
-    // The single required operation is std::destructible.
     auto destroy_checker =
         [](const auto& res, const auto& r) {
             using R = std::remove_cvref_t<decltype(r)>;
@@ -112,8 +102,6 @@ main()
 
     test_memory_algo<destroy_archetype, -1, 5>{}.run(dpl_ranges::destroy, destroy_checker);
 
-    // The same algorithms over a range which is random access and sized, but neither contiguous nor
-    // common.
     run_archetype_view_all_policies<default_construct_archetype, 6>(
         dpl_ranges::uninitialized_default_construct,
         [](const auto& v) { return v.val1 == 1 && v.val2 == -1; }, "uninitialized_default_construct");

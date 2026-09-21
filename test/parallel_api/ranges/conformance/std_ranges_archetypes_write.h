@@ -13,8 +13,6 @@
 #if _ENABLE_STD_RANGES_TESTING
 
 #include "std_ranges_archetypes_base.h"
-// replace and remove_copy are constrained by the write family and the value family at once, so the
-// searched value archetypes of family 2 are needed here as well.
 #include "std_ranges_archetypes_value.h"
 
 namespace test_std_ranges
@@ -22,11 +20,6 @@ namespace test_std_ranges
 namespace archetypes
 {
 
-// Family 4: algorithms writing a value into the range itself.
-// The constraint is std::indirectly_writable<iterator_t<_R>, const _T&>, which needs `*it = value`
-// for a const lvalue value and nothing else: the element still does not have to be copyable,
-// movable or default constructible, and _T stays an unrelated type.
-// Used by: fill, replace_if, replace (new value), replace_copy_if / replace_copy (new value).
 struct write_value
 {
     int val;
@@ -36,8 +29,6 @@ struct write_value
     TEST_ARCHETYPE_DELETED_OPERATIONS(write_value)
 };
 
-// The device copyable counterpart of write_value: a value argument is passed to a device kernel by
-// copy, so the hetero policies need a trivially copyable one.
 struct write_value_dc
 {
     int val;
@@ -53,8 +44,6 @@ struct writable_archetype
 {
     int val;
 
-    // The value type the algorithm has to be called with, so that a generic test body may pick the
-    // right one for the element type it works on.
     using value_arg = write_value;
 
     explicit writable_archetype(int __v) : val(__v) {}
@@ -91,8 +80,6 @@ struct writable_archetype_dc
 
 TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(writable_archetype_dc)
 
-// The predicate of replace_if, which is spelled over the projected iterator of the very range being
-// written into, so it sees a non-const lvalue of the element itself and nothing else.
 struct write_pred
 {
     bool operator()(const writable_archetype& __v) const { return __v.val % 3 == 0; }
@@ -112,22 +99,10 @@ static_assert(!std::copyable<writable_archetype>);
 static_assert(!std::movable<writable_archetype>);
 static_assert(!std::default_initializable<writable_archetype>);
 
-// Family 4c: replace, which is the write family and the value family at once. The constraint is
-//   std::indirectly_writable<iterator_t<_R>, const _T2&> &&
-//   std::indirect_binary_predicate<std::ranges::equal_to, projected<iterator_t<_R>, _Proj>,
-//                                  const _T1*>
-// so the element is assignable from the new value (write_value, family 4) and equality comparable
-// with the old value (search_value, family 2), while the two value types are deliberately unrelated
-// to each other and to the element. The element itself is still neither copyable, movable nor
-// default constructible.
-// The old value is not additionally tested in a non-copyable form: replace wraps it in exactly the
-// same __ranges_equal_value<__ref_or_copy<policy, const _T1>, identity> as remove does, which the
-// value family already covers with nocopy_search_value.
 struct replaceable_archetype
 {
     int val;
 
-    // The new value type the algorithm has to be called with, see writable_archetype::value_arg.
     using value_arg = write_value;
 
     explicit replaceable_archetype(int __v) : val(__v) {}
@@ -179,21 +154,12 @@ struct replaceable_archetype_dc
 
 TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(replaceable_archetype_dc)
 
-// Family 5: copying algorithms.
-// std::indirectly_copyable<In, Out> == indirectly_readable<In> && indirectly_writable<Out,
-// iter_reference_t<In>>, so the output element only has to be assignable from a non-const lvalue of
-// the input element type. Neither element type has to be copyable, movable or default
-// constructible, and the two types are deliberately different.
-// Used by: copy, copy_if, reverse_copy, rotate_copy, remove_copy, remove_copy_if, unique_copy,
-// replace_copy, replace_copy_if, partition_copy, partial_sort_copy.
 struct copy_out_archetype;
 
 struct copy_in_archetype
 {
     int val;
 
-    // The output element type the algorithm has to be called with, so that a generic test body may
-    // allocate a second output range of its own, as partition_copy needs.
     using out_type = copy_out_archetype;
 
     explicit copy_in_archetype(int __v) : val(__v) {}
@@ -201,19 +167,10 @@ struct copy_in_archetype
     TEST_ARCHETYPE_DELETED_OPERATIONS(copy_in_archetype)
 };
 
-// Family 5c: remove_copy, which is the copying family and the value family at once. On top of
-// std::indirectly_copyable it requires
-//   std::indirect_binary_predicate<std::ranges::equal_to, projected<iterator_t<_R>, _Proj>,
-//                                  const _T*>
-// so the input element is compared with the searched value (search_value, family 2) and assigned to
-// the very output element of family 5, which gains one more assignment operator for it. As with
-// replace above, a non-copyable searched value is not tested again here: remove_copy builds the same
-// __ranges_equal_value<__ref_or_copy<policy, const _T>, identity> as remove does.
 struct remove_copy_in_archetype
 {
     int val;
 
-    // See copy_in_archetype::out_type.
     using out_type = copy_out_archetype;
 
     explicit remove_copy_in_archetype(int __v) : val(__v) {}
@@ -235,8 +192,6 @@ struct copy_out_archetype
 {
     int val;
 
-    // The new value type replace_copy_if and replace_copy have to be called with, see family 5d below
-    // and writable_archetype::value_arg.
     using value_arg = write_value;
 
     explicit copy_out_archetype(int __v) : val(__v) {}
@@ -253,7 +208,6 @@ struct copy_out_archetype
         return *this;
     }
 
-    // See family 5c above: remove_copy writes into the very same output element.
     copy_out_archetype&
     operator=(remove_copy_in_archetype& __v)
     {
@@ -261,9 +215,6 @@ struct copy_out_archetype
         return *this;
     }
 
-    // Family 5d: replace_copy_if and replace_copy additionally require
-    // std::indirectly_writable<iterator_t<_OutR>, const _T&> for the new value, so the output element
-    // is assignable from the value type of family 4 as well as from an input element.
     copy_out_archetype&
     operator=(const write_value& __v)
     {
@@ -272,15 +223,12 @@ struct copy_out_archetype
     }
 };
 
-// The device copyable counterparts of the two archetypes above, used with the hetero policies.
 struct copy_out_archetype_dc;
 
 struct copy_in_archetype_dc
 {
     int val;
 
-    // The matching output element type, see copy_in_archetype::out_type: one and the same generic test
-    // body serves the host and the hetero policies, so it derives the output type from the input one.
     using out_type = copy_out_archetype_dc;
 
     explicit copy_in_archetype_dc(int __v) : val(__v) {}
@@ -288,7 +236,6 @@ struct copy_in_archetype_dc
     TEST_ARCHETYPE_DEFAULTED_OPERATIONS(copy_in_archetype_dc)
 };
 
-// The device copyable counterpart of remove_copy_in_archetype, see family 5c above.
 struct remove_copy_in_archetype_dc
 {
     int val;
@@ -316,7 +263,6 @@ struct copy_out_archetype_dc
 {
     int val;
 
-    // See copy_out_archetype::value_arg.
     using value_arg = write_value_dc;
 
     explicit copy_out_archetype_dc(int __v) : val(__v) {}
@@ -329,7 +275,6 @@ struct copy_out_archetype_dc
         return *this;
     }
 
-    // See family 5c above: remove_copy writes into the very same output element.
     copy_out_archetype_dc&
     operator=(remove_copy_in_archetype_dc& __v)
     {
@@ -337,7 +282,6 @@ struct copy_out_archetype_dc
         return *this;
     }
 
-    // See family 5d above: the new value of replace_copy_if and replace_copy.
     copy_out_archetype_dc&
     operator=(const write_value_dc& __v)
     {
@@ -363,19 +307,12 @@ static_assert(!std::copyable<copy_in_archetype>);
 static_assert(!std::copyable<copy_out_archetype>);
 static_assert(!std::default_initializable<copy_out_archetype>);
 
-// The callables of the conditionally copying algorithms. They are spelled over the projected input
-// iterator only, so they never see the output element: the predicate is constrained exactly like the
-// one of the read-only family, and the equivalence relation of unique_copy is its binary form.
-// Used by: copy_if, remove_copy_if, partition_copy (predicate) and unique_copy (relation).
 struct copy_pred
 {
     bool operator()(const copy_in_archetype& __v) const { return __v.val % 3 == 0; }
     bool operator()(const copy_in_archetype_dc& __v) const { return __v.val % 3 == 0; }
 };
 
-// The relation groups the input 0, 1, 2, ... into buckets of three, so that unique_copy really has
-// something to drop: the output then holds 0, 3, 6, ..., which no pre-filled output position already
-// contains except the very first one.
 struct copy_equiv
 {
     bool operator()(const copy_in_archetype& __v1, const copy_in_archetype& __v2) const
@@ -394,10 +331,6 @@ static_assert(std::indirect_unary_predicate<copy_pred, std::ranges::iterator_t<a
 static_assert(
     std::indirect_equivalence_relation<copy_equiv, std::ranges::iterator_t<archetype_view<copy_in_archetype_dc>>>);
 
-// Family 6: the move algorithm.
-// std::indirectly_movable<In, Out> asks for indirectly_writable<Out, iter_rvalue_reference_t<In>>,
-// so the output element is only assignable from an rvalue of the input element type: an
-// implementation which copies instead of moving does not compile.
 struct move_in_archetype
 {
     int val;
@@ -426,9 +359,6 @@ struct move_out_archetype
     }
 };
 
-// The device copyable counterparts of the two archetypes above, used with the hetero policies. The
-// assignment from a non-const lvalue of the input type is still missing, so an implementation which
-// copies instead of moving does not compile either.
 struct move_in_archetype_dc
 {
     int val;
@@ -464,14 +394,9 @@ using move_in_iterator_t = std::ranges::iterator_t<archetype_view<move_in_archet
 using move_out_iterator_t = std::ranges::iterator_t<archetype_view<move_out_archetype>>;
 
 static_assert(std::indirectly_movable<move_in_iterator_t, move_out_iterator_t>);
-// An lvalue is explicitly rejected, so copying instead of moving is a compilation error.
 static_assert(!std::indirectly_copyable<move_in_iterator_t, move_out_iterator_t>);
 static_assert(!std::movable<move_out_archetype>);
 
-// Family 7: swap_ranges.
-// std::indirectly_swappable<It1, It2> needs std::ranges::swap on the two references, both ways. A
-// dedicated hidden-friend swap is provided, so the element does not have to be move constructible
-// or move assignable, which is what the fallback std::swap would require.
 struct swap_archetype
 {
     int val;
@@ -488,8 +413,6 @@ struct swap_archetype
     }
 };
 
-// The device copyable counterpart of the archetype above, used with the hetero policies. The
-// dedicated swap is kept, so the algorithm still has to go through std::ranges::swap.
 struct swap_archetype_dc
 {
     int val;
@@ -515,19 +438,12 @@ static_assert(!std::movable<swap_archetype>);
 static_assert(!std::move_constructible<swap_archetype>);
 static_assert(!std::default_initializable<swap_archetype>);
 
-// Family 8: transform.
-// The output constraint is
-//   std::indirectly_writable<iterator_t<_OutRange>, std::indirect_result_t<_F&, projected...>>
-// so the output element is only assignable from the result of the functor, which is a third,
-// unrelated type. _F itself is only required to be std::copy_constructible.
 struct transform_out_archetype;
 
 struct transform_in_archetype
 {
     int val;
 
-    // The output element type the algorithm has to be called with, so that a generic test body which
-    // allocates the output range itself may pick the right one for the input element type it works on.
     using out_type = transform_out_archetype;
 
     explicit transform_in_archetype(int __v) : val(__v) {}
@@ -535,9 +451,6 @@ struct transform_in_archetype
     TEST_ARCHETYPE_DELETED_OPERATIONS(transform_in_archetype)
 };
 
-// The result of the functor. indirectly_writable requires the assignment to work for the prvalue,
-// the const lvalue and the const rvalue forms of the result type, which a prvalue-returning functor
-// naturally provides.
 struct transform_result
 {
     int val;
@@ -562,7 +475,6 @@ struct transform_out_archetype
     }
 };
 
-// The device copyable counterparts of the two archetypes above, used with the hetero policies.
 struct transform_out_archetype_dc;
 
 struct transform_in_archetype_dc
@@ -626,10 +538,6 @@ static_assert(std::indirectly_writable<
 static_assert(!std::copyable<transform_out_archetype>);
 static_assert(!std::default_initializable<transform_out_archetype>);
 
-// Both transform overloads project their input before invoking the functor, and the requires-clause
-// spells the functor over std::projected, so the functor never sees the element itself. The
-// projection returns yet another unrelated type: an implementation which applies the functor to the
-// element, or writes the projected value into the output, does not compile.
 struct transform_proj_result
 {
     int val;
@@ -671,13 +579,10 @@ static_assert(std::indirectly_writable<transform_out_iterator_t,
                                        std::indirect_result_t<transform_projected_binary_op&,
                                                               transform_projected_iterator_t,
                                                               transform_projected_iterator_t>>);
-// The projected functors reject the element type, and the output element rejects the projected
-// value, so neither the projection nor the functor can be skipped by the implementation.
 static_assert(!std::invocable<transform_projected_unary_op&, transform_in_archetype&>);
 static_assert(!std::invocable<transform_projected_binary_op&, transform_in_archetype&, transform_in_archetype&>);
 static_assert(!std::indirectly_writable<transform_out_iterator_t, transform_proj_result>);
 
-// Family 4: replace_if, with a predicate taking the element by non-const reference.
 struct write_pred_mut
 {
     bool operator()(writable_archetype& __v) const { return __v.val % 3 == 0; }
@@ -687,9 +592,6 @@ struct write_pred_mut
 static_assert(std::indirect_unary_predicate<write_pred_mut, writable_iterator_t>);
 static_assert(!std::invocable<const write_pred_mut&, const writable_archetype&>);
 
-// Family 5: the conditionally copying algorithms, with callables taking their arguments by non-const
-// reference. The projected reference is a non-const lvalue, so std::indirect_unary_predicate and
-// std::indirect_equivalence_relation are both satisfied by these forms as well.
 struct copy_pred_mut
 {
     bool operator()(copy_in_archetype& __v) const { return __v.val % 3 == 0; }
@@ -710,8 +612,6 @@ static_assert(std::indirect_equivalence_relation<copy_equiv_mut, copy_in_iterato
 static_assert(!std::invocable<const copy_pred_mut&, const copy_in_archetype&>);
 static_assert(!std::invocable<const copy_equiv_mut&, const copy_in_archetype&, const copy_in_archetype&>);
 
-// Family 8: transform. The functor is only required to be std::copy_constructible and invocable with
-// the projected reference, which is a non-const lvalue.
 struct transform_unary_op_mut
 {
     transform_result operator()(transform_in_archetype& __v) const { return transform_result{__v.val * 2}; }
@@ -730,9 +630,6 @@ struct transform_binary_op_mut
     }
 };
 
-// A projection taking its argument by non-const reference. The functor invoked with the projected
-// value cannot do the same: the projection returns a prvalue, which does not bind to a non-const
-// lvalue reference, so the projected functors of the const section are reused with this projection.
 struct transform_proj_mut
 {
     transform_proj_result operator()(transform_in_archetype& __v) const { return transform_proj_result{__v.val + 1}; }
@@ -757,8 +654,6 @@ static_assert(std::indirectly_writable<
               std::indirect_result_t<transform_projected_unary_op&,
                                      std::projected<transform_in_iterator_t, transform_proj_mut>>>);
 
-// The common reference std::equality_comparable_with asks for between the elements of families 4c
-// and 5c and the searched value, see search_common for the same construct in family 2.
 struct replace_common
 {
     int val;
@@ -846,8 +741,6 @@ static_assert(std::indirectly_copyable<remove_copy_in_dc_iterator_t,
                                        std::ranges::iterator_t<archetype_view<copy_out_archetype_dc>>>);
 static_assert(
     std::indirect_binary_predicate<std::ranges::equal_to, remove_copy_in_dc_iterator_t, const search_value*>);
-// The new value of replace is of a type of its own: the element rejects both the searched value and
-// an element of its own type as the source of an assignment.
 static_assert(!std::indirectly_writable<replaceable_iterator_t, const search_value&>);
 static_assert(!std::copyable<replaceable_archetype>);
 static_assert(!std::movable<replaceable_archetype>);
@@ -861,9 +754,6 @@ static_assert(!std::totally_ordered<replaceable_archetype_dc>);
 static_assert(!std::default_initializable<remove_copy_in_archetype_dc>);
 static_assert(!std::totally_ordered<remove_copy_in_archetype_dc>);
 
-// Families 4c and 5c: the projection of replace and remove_copy taking the element by non-const
-// reference. It returns the element itself, which keeps the equality with the searched value as it is
-// above, see search_proj_mut for the same construct in family 2.
 struct replace_proj_mut
 {
     replaceable_archetype& operator()(replaceable_archetype& __v) const { return __v; }

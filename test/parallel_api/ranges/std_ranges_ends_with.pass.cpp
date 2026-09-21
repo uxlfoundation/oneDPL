@@ -47,7 +47,6 @@ main()
     launcher<5, int, data_gen_shift_med>{}(dpl_ranges::ends_with, checker);
     launcher<6, int, data_gen_shift_big>{big_sz}(dpl_ranges::ends_with, checker);
 
-    // Check if projections are applied to the right sequences and trigger a compile-time error if not
     check_mixed_types_in_in_host(dpl_ranges::ends_with, checker, {{1}, {2}, {3}}, {{2}, {3}}, result_as_is,
                                  binary_pred, proj_a, proj_b);
 #if TEST_DPCPP_BACKEND_PRESENT

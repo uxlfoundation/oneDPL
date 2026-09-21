@@ -19,18 +19,12 @@ namespace test_std_ranges
 namespace archetypes
 {
 
-// The merge family additionally needs std::indirectly_copyable from both inputs into the output.
-// The output element is therefore assignable from a non-const lvalue of either input element type,
-// while remaining non-copyable itself.
-// Used by: merge, set_union, set_intersection, set_difference, set_symmetric_difference.
 struct merge_out_archetype;
 
 struct merge_in_archetype
 {
     int val;
 
-    // The output element type the algorithm has to be called with, so that a generic test body may
-    // pick the right one for the input element type it works on.
     using out_type = merge_out_archetype;
 
     explicit merge_in_archetype(int __v) : val(__v) {}
@@ -73,15 +67,12 @@ struct merge_out_archetype
     }
 };
 
-// The device copyable counterparts of the two archetypes above, used with the hetero policies.
 struct merge_out_archetype_dc;
 
 struct merge_in_archetype_dc
 {
     int val;
 
-    // The matching output element type, see merge_in_archetype::out_type: one and the same generic test
-    // body serves the host and the hetero policies, so it derives the output type from the input one.
     using out_type = merge_out_archetype_dc;
 
     explicit merge_in_archetype_dc(int __v) : val(__v) {}
@@ -131,21 +122,12 @@ static_assert(!std::copy_constructible<merge_in_archetype>);
 static_assert(!std::copy_constructible<merge_out_archetype>);
 static_assert(!std::default_initializable<merge_out_archetype>);
 
-// merge called without a comparator, i.e. with the default std::ranges::less: std::mergeable then
-// asks the input element type itself for std::totally_ordered, on top of the assignment into the
-// output element. The two archetypes below are merge_in_archetype and merge_out_archetype plus
-// exactly the two comparison operators that concept needs; the output element stays uncomparable,
-// because nothing ever compares it.
-// The set operations share the requires-clause of merge, but their calls are disabled for every
-// policy anyway, see the notes in std_ranges_algo_archetypes_merge.pass.cpp, so a default comparator
-// would not add any compiled branch there.
 struct merge_ordered_out_archetype;
 
 struct merge_ordered_in_archetype
 {
     int val;
 
-    // The output element type the algorithm has to be called with, see merge_in_archetype::out_type.
     using out_type = merge_ordered_out_archetype;
 
     explicit merge_ordered_in_archetype(int __v) : val(__v) {}
@@ -195,14 +177,12 @@ struct merge_ordered_out_archetype
     }
 };
 
-// The device copyable counterparts of the two archetypes above, used with the hetero policies.
 struct merge_ordered_out_archetype_dc;
 
 struct merge_ordered_in_archetype_dc
 {
     int val;
 
-    // The matching output element type, see merge_in_archetype_dc::out_type.
     using out_type = merge_ordered_out_archetype_dc;
 
     explicit merge_ordered_in_archetype_dc(int __v) : val(__v) {}
@@ -250,7 +230,6 @@ static_assert(!std::copy_constructible<merge_ordered_in_archetype>);
 static_assert(!std::copy_constructible<merge_ordered_out_archetype>);
 static_assert(!std::default_initializable<merge_ordered_out_archetype>);
 
-// The merge family and min / max / minmax, whose comparators are constrained the very same way.
 struct merge_comp_mut
 {
     bool operator()(merge_in_archetype& __v1, merge_in_archetype& __v2) const { return __v1.val < __v2.val; }

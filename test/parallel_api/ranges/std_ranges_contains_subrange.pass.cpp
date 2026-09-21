@@ -48,7 +48,6 @@ main()
     launcher<4, P3, data_gen_shifted>{}(dpl_ranges::contains_subrange, checker, binary_pred_const, &P3::x, &P3::proj);
     launcher<5, P3>{}(dpl_ranges::contains_subrange, checker, std::equal_to<>{}, &P3::proj, &P3::y);
 
-    // Check if projections are applied to the right sequences and trigger a compile-time error if not
     check_mixed_types_in_in_host(dpl_ranges::contains_subrange, checker, {{1}, {2}, {3}, {4}}, {{2}, {3}},
                                     result_as_is, binary_pred, proj_a, proj_b);
 #if TEST_DPCPP_BACKEND_PRESENT

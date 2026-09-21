@@ -45,7 +45,6 @@ main()
     launcher<4, P2>{}(dpl_ranges::starts_with, checker, binary_pred, &P2::proj, &P2::x);
     launcher<5, int, data_gen_needle>{}(dpl_ranges::starts_with, checker);
 
-    // Check if projections are applied to the right sequences and trigger a compile-time error if not
     check_mixed_types_in_in_host(dpl_ranges::starts_with, checker, {{1}, {2}, {3}}, {{1}, {2}}, result_as_is,
                                  binary_pred, proj_a, proj_b);
 #if TEST_DPCPP_BACKEND_PRESENT

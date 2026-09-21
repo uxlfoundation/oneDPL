@@ -12,11 +12,6 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-// The harness of the memory algorithms over the archetypes. It is kept apart from
-// std_ranges_memory_test.h so that the pre-existing memory tests do not have to parse the archetypes,
-// and apart from std_ranges_algo_archetypes_test.h because the memory algorithms work over raw
-// uninitialized storage: the elements are not constructed yet, so archetype_storage, which constructs
-// every element in its constructor, cannot be used here.
 #include "../std_ranges_memory_test.h"
 #include "std_ranges_archetypes.h"
 
@@ -30,15 +25,13 @@
 namespace test_std_ranges
 {
 
-// Runs a one-range algorithm over archetype_view, which is random access and sized but neither
-// contiguous nor common, so the implementation cannot fall back to raw pointer arithmetic.
 template <typename Elem, typename Alloc, typename Policy, typename Algo, typename Checker>
 void
 run_over_archetype_view(Alloc& alloc, Policy&& policy, Algo algo, Checker checker, const char* algo_name)
 {
     const std::size_t n = medium_size;
     Elem* data = alloc.allocate(n);
-    std::memset(reinterpret_cast<void*>(data), -1, n * sizeof(Elem)); // -1 means no initialization
+    std::memset(reinterpret_cast<void*>(data), -1, n * sizeof(Elem));
 
     archetypes::archetype_view<Elem> view(data, n);
 
@@ -52,8 +45,6 @@ run_over_archetype_view(Alloc& alloc, Policy&& policy, Algo algo, Checker checke
     alloc.deallocate(data, n);
 }
 
-// call_id makes the SYCL kernel name of the device call unique within a translation unit, see
-// test_memory_algo in std_ranges_memory_test.h.
 template <typename Elem, int call_id, typename Algo, typename Checker>
 void
 run_archetype_view_all_policies(Algo algo, Checker checker, const char* algo_name)

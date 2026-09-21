@@ -13,7 +13,6 @@
 #if _ENABLE_STD_RANGES_TESTING
 
 #include "std_ranges_archetypes_base.h"
-// storable_comp_mut is constrained over merge_in_iterator_t as well, see the assert below.
 #include "std_ranges_archetypes_merge.h"
 
 namespace test_std_ranges
@@ -21,9 +20,6 @@ namespace test_std_ranges
 namespace archetypes
 {
 
-// min / max / minmax additionally require
-// std::indirectly_copyable_storable<iterator_t<_R>, range_value_t<_R>*>, which does need a copy
-// constructor and copy assignment, but still no default constructor and no ordering operator.
 struct storable_archetype
 {
     int val;
@@ -41,7 +37,6 @@ struct storable_archetype
     TEST_ARCHETYPE_DELETED_ADDRESSOF
 };
 
-// The device copyable counterpart of the archetype above, used with the hetero policies.
 struct storable_archetype_dc
 {
     int val;
@@ -79,10 +74,6 @@ static_assert(!std::totally_ordered<storable_archetype>);
 static_assert(std::indirectly_copyable_storable<std::ranges::iterator_t<archetype_view<storable_archetype_dc>>,
                                                 storable_archetype_dc*>);
 
-// min / max / minmax called without a comparator, i.e. with the default std::ranges::less: the
-// element type has to be std::totally_ordered itself then, so this archetype is storable_archetype
-// plus exactly the two comparison operators that concept asks for. It stays non default
-// constructible, and the copy operations are the ones std::indirectly_copyable_storable needs.
 struct storable_ordered_archetype
 {
     int val;
@@ -107,7 +98,6 @@ struct storable_ordered_archetype
     TEST_ARCHETYPE_DELETED_ADDRESSOF
 };
 
-// The device copyable counterpart of the archetype above, used with the hetero policies.
 struct storable_ordered_archetype_dc
 {
     int val;

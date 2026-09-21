@@ -30,7 +30,6 @@ main()
     test_range_algo<3, P2, data_in_in>{}(dpl_ranges::mismatch, mismatch_checker, binary_pred, &P2::x, &P2::x);
     test_range_algo<4, P2, data_in_in>{}(dpl_ranges::mismatch, mismatch_checker, binary_pred, &P2::proj, &P2::proj);
 
-    // Check if projections are applied to the right sequences and trigger a compile-time error if not
     check_mixed_types_in_in_host(dpl_ranges::mismatch, mismatch_checker, {{1}, {2}, {3}}, {{1}, {2}, {9}},
                                  result_indices, binary_pred, proj_a, proj_b);
 #if TEST_DPCPP_BACKEND_PRESENT

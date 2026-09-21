@@ -10,8 +10,6 @@
 #ifndef _STD_RANGES_ARCHETYPES_BASE_H
 #define _STD_RANGES_ARCHETYPES_BASE_H
 
-// test_config.h defines both _ENABLE_STD_RANGES_TESTING and TEST_DPCPP_BACKEND_PRESENT, so it has to
-// come before the checks below: without it the whole header would silently compile to nothing.
 #include "support/test_config.h"
 
 #if _ENABLE_STD_RANGES_TESTING
@@ -29,18 +27,6 @@
 #    include "support/utils_sycl_defs.h"
 #endif
 
-// The types below are "archetypes": each of them satisfies exactly the constraints written in the
-// requires-clause of the corresponding oneapi::dpl::ranges algorithm and nothing more. Every
-// operation which is not implied by those constraints is explicitly deleted. If an algorithm
-// compiles and works with an archetype, the implementation does not silently require more from a
-// user type than it declares; otherwise the extra requirement shows up as a compilation error.
-//
-// Each archetype keeps one observable field, val, so that a test can check what has been written into
-// the raw memory it owns, exactly as the pre-existing Elem/Elem_0 types do.
-
-// Unary operator& is not required by any constraint, so a conforming implementation has to use
-// std::addressof instead of taking the address directly. Define this macro to 0 to relax the
-// archetypes if the deleted operator& hides other findings.
 #ifndef TEST_ARCHETYPE_DELETE_ADDRESSOF
 #    define TEST_ARCHETYPE_DELETE_ADDRESSOF 1
 #endif
@@ -51,8 +37,6 @@
 #    define TEST_ARCHETYPE_DELETED_ADDRESSOF
 #endif
 
-// Deletes everything a "regular" type would provide but no constraint of the tested algorithms asks
-// for: copying, moving, assignment and taking the address.
 #define TEST_ARCHETYPE_DELETED_OPERATIONS(_Name)                                                                       \
     _Name(const _Name&) = delete;                                                                                      \
     _Name(_Name&&) = delete;                                                                                           \
@@ -60,9 +44,6 @@
     _Name& operator=(_Name&&) = delete;                                                                                \
     TEST_ARCHETYPE_DELETED_ADDRESSOF
 
-// The device copyable counterpart of TEST_ARCHETYPE_DELETED_OPERATIONS: the copy and the move
-// operations are trivial, which makes the type trivially copyable and thus device copyable by
-// default, while everything else stays exactly as restricted as in the host only archetype.
 #define TEST_ARCHETYPE_DEFAULTED_OPERATIONS(_Name)                                                                     \
     _Name(const _Name&) = default;                                                                                     \
     _Name(_Name&&) = default;                                                                                          \
@@ -70,8 +51,6 @@
     _Name& operator=(_Name&&) = default;                                                                               \
     TEST_ARCHETYPE_DELETED_ADDRESSOF
 
-// Checks that a device copyable archetype really is accepted by SYCL without an explicit
-// sycl::is_device_copyable specialization.
 #if TEST_DPCPP_BACKEND_PRESENT
 #    define TEST_ARCHETYPE_CHECK_DEVICE_COPYABLE(_Name)                                                                \
         static_assert(std::is_trivially_copyable_v<_Name>);                                                            \
@@ -85,9 +64,6 @@ namespace test_std_ranges
 namespace archetypes
 {
 
-// A random access iterator which is deliberately not a contiguous one. Unlike a pointer, a span
-// iterator or a subrange over pointers, it gives the implementation no way to fall back to raw
-// pointer arithmetic on the underlying storage.
 template <typename T>
 class archetype_iterator
 {
@@ -99,9 +75,6 @@ class archetype_iterator
     using value_type = T;
     using difference_type = std::ptrdiff_t;
     using reference = T&;
-    // No pointer typedef and no operator-> on purpose: std::random_access_iterator asks for neither,
-    // and both of them would hand the implementation the address of an element whose operator& the
-    // archetypes deliberately delete.
 
     archetype_iterator() = default;
     explicit archetype_iterator(T* p) : ptr(p) {}
@@ -128,8 +101,6 @@ class archetype_iterator
     friend auto operator<=>(archetype_iterator i, archetype_iterator j) { return i.ptr <=> j.ptr; }
 };
 
-// A sentinel type distinct from the iterator, which makes the range non-common while keeping it
-// sized via the sized_sentinel_for requirement.
 template <typename T>
 class archetype_sentinel
 {
@@ -146,9 +117,6 @@ class archetype_sentinel
     friend std::ptrdiff_t operator-(archetype_sentinel s, archetype_iterator<T> i) { return s.ptr - i.base(); }
 };
 
-// A view over raw storage which satisfies __nothrow_random_access_range and sized_range, but is
-// neither contiguous nor common. It is marked as a borrowed range so that the algorithms keep
-// returning a real iterator rather than std::ranges::dangling.
 template <typename T>
 class archetype_view : public std::ranges::view_interface<archetype_view<T>>
 {
@@ -163,11 +131,6 @@ class archetype_view : public std::ranges::view_interface<archetype_view<T>>
     archetype_sentinel<T> end() const { return archetype_sentinel<T>(last); }
 };
 
-// The very same range without std::ranges::view_interface. It satisfies exactly the same concepts,
-// all of them through its iterator and its sentinel alone, but it has no size(), no operator[], no
-// empty(), no front() and no back(). No requires-clause of any algorithm asks for those members, so
-// an implementation which reads the user range through anything but std::ranges::begin / end / size
-// does not compile with it.
 template <typename T>
 class plain_archetype_view
 {
@@ -188,7 +151,6 @@ class plain_archetype_view
 template <typename T>
 inline constexpr bool std::ranges::enable_borrowed_range<test_std_ranges::archetypes::archetype_view<T>> = true;
 
-// view_interface is what marks archetype_view as a view, so the plain range has to say so itself.
 template <typename T>
 inline constexpr bool std::ranges::enable_borrowed_range<test_std_ranges::archetypes::plain_archetype_view<T>> = true;
 template <typename T>
@@ -217,10 +179,6 @@ static_assert(!std::ranges::contiguous_range<plain_archetype_view<int>>);
 static_assert(!std::ranges::common_range<plain_archetype_view<int>>);
 static_assert(std::same_as<std::ranges::range_reference_t<plain_archetype_view<int>>, int&>);
 
-// The members std::ranges::view_interface provides for a sized random access range. They are a concept
-// and not a requires-expression on the type itself, because a requirement whose expression is
-// non-dependent is diagnosed right away instead of being a substitution failure. back() is not in the
-// list: view_interface constrains it to a common_range, which neither of the two views is.
 template <typename _R>
 concept has_view_interface_members = requires(_R& __r) {
     __r.size();
@@ -229,20 +187,13 @@ concept has_view_interface_members = requires(_R& __r) {
     __r.front();
 };
 
-// All of them are deliberately missing from the plain range: its size is only reachable through the
-// difference of its sentinel and its iterator, and its elements only through its iterator.
 static_assert(has_view_interface_members<archetype_view<int>>);
 static_assert(!has_view_interface_members<plain_archetype_view<int>>);
 
-// The two extra requirements of __nothrow_random_access_range beyond random_access_range.
 static_assert(std::is_lvalue_reference_v<std::ranges::range_reference_t<archetype_view<int>>>);
 static_assert(std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<archetype_view<int>>>,
                            std::ranges::range_value_t<archetype_view<int>>>);
 
-// Owns raw storage and constructs the elements in place. The archetypes are neither copyable nor
-// movable, so they cannot be kept in a standard container; the allocator is a template parameter so
-// that the very same storage works with std::allocator on the host and with sycl::usm_allocator on
-// a device.
 template <typename T, typename Alloc>
 class archetype_storage
 {
@@ -251,8 +202,6 @@ class archetype_storage
     T* data = nullptr;
 
   public:
-    // _Factory is called as __factory(i) for every index and has to return the arguments of the
-    // element constructor.
     template <typename _Factory>
     archetype_storage(Alloc __alloc, std::size_t __n, _Factory __factory) : alloc(__alloc), count(__n)
     {
@@ -274,8 +223,6 @@ class archetype_storage
     std::size_t size() const { return count; }
     T* begin_ptr() const { return data; }
 
-    // The range handed to the algorithms. The view template is a parameter so that one and the same
-    // storage can also be presented as plain_archetype_view, see run_algo_plain.
     template <template <typename> class _View = archetype_view>
     _View<T> view() const
     {
@@ -283,21 +230,6 @@ class archetype_storage
     }
 };
 
-
-//------------------------------------------------------------------------------------------------
-// Callables taking their arguments by non-const reference.
-//
-// std::indirectly_unary_invocable, std::indirect_unary_predicate, std::indirect_binary_predicate,
-// std::indirect_strict_weak_order and std::projected are all spelled in terms of iter_value_t<_It>&,
-// iter_reference_t<_It> and iter_common_reference_t<_It>. For archetype_view<_T> all three of them
-// are _T&, i.e. a non-const lvalue reference, so a callable which accepts nothing but _T& satisfies
-// those concepts. The requires-clauses of the algorithms therefore allow such a callable, and an
-// implementation which hands a const lvalue, an rvalue or a copy of the element to the user callable
-// does not compile with the types below.
-//
-// The _mut counterparts only add the non-const parameter list; the element archetypes and the
-// expected results stay exactly the ones of the corresponding family above.
-//------------------------------------------------------------------------------------------------
 
 } // namespace archetypes
 } // namespace test_std_ranges

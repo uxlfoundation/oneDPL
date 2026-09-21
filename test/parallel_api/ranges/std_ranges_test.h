@@ -167,27 +167,16 @@ struct B
 auto proj_a = [](const A& a) { return a.a; };
 auto proj_b = [](const B& b) { return b.b; };
 
-// The checks below are the compile-time half of the projection testing: `A` and `B` are unrelated
-// types and `proj_a`/`proj_b` accept only their own type, so an algorithm that mixes its projections
-// up - applies the second one to the first sequence or vice versa - fails to compile instead of
-// silently returning a wrong result. The data-level half lives in the test_range_algo calls of each
-// test, where the projections differ in value rather than in type.
-//
-// An algorithm result is reduced to a vector of indices by one of the result_* helpers below, so that
-// results of any shape are compared the same way.
 auto result_as_is = [](auto&& res, auto&&...) { return std::vector<int>{int(res)}; };
-// An iterator in the first sequence, e.g. find_first_of
 auto result_index = [](auto&& res, auto&& r1, auto&&...)
 {
     return std::vector<int>{int(res - std::ranges::begin(r1))};
 };
-// A subrange of the first sequence, e.g. search
 auto result_subrange = [](auto&& res, auto&& r1, auto&&...)
 {
     auto __first = std::ranges::begin(r1);
     return std::vector<int>{int(res.begin() - __first), int(res.end() - __first)};
 };
-// An iterator in each sequence, e.g. mismatch
 auto result_indices = [](auto&& res, auto&& r1, auto&& r2)
 {
     return std::vector<int>{int(res.in1 - std::ranges::begin(r1)), int(res.in2 - std::ranges::begin(r2))};
@@ -210,7 +199,6 @@ check_mixed_types_in_in_host(Algo algo, Checker& checker, std::vector<A> r1, std
                      "wrong result with par_unseq policy and mixed value types");
 }
 
-// The output sequence keeps `int`, which both `A` and `B` are convertible to.
 template <typename Algo, typename Checker, typename... Args>
 void
 check_mixed_types_in_in_out_host(Algo algo, Checker& checker, std::vector<A> r1, std::vector<B> r2, int out_size,
