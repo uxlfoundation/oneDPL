@@ -35,21 +35,19 @@ main()
     launcher<5, int, data_gen_needle>{}(dpl_ranges::lexicographical_compare, checker);
     launcher<6, int, data_gen_needle>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::greater{});
 
-#if !_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_LEXICOGRAPHICAL_COMPARE_PROJ1_HOST
+    //the projection of the first sequence must not be applied to the second one: the first elements are
+    //equivalent only under the swapped projections, which hides the real first mismatch at that position
     auto gen_hidden_pair_1 = [](auto i) { return (i == 0)? 5 : ((i == 1)? 1 : 0); };
     auto gen_hidden_pair_2 = [](auto i) { return (i == 0)? 4 : ((i == 1)? 9 : 0); };
     test_range_algo<7, int, data_in_in, decltype(gen_hidden_pair_1), decltype(gen_hidden_pair_2)>{}(
         dpl_ranges::lexicographical_compare, checker, std::ranges::less{}, proj);
-#endif // !_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_LEXICOGRAPHICAL_COMPARE_PROJ1_HOST
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE
-    check_mixed_types_in_in_host(dpl_ranges::lexicographical_compare, checker, {{1}, {2}, {3}}, {{1}, {2}, {4}},
-                                 result_as_is, std::ranges::less{}, proj_a, proj_b);
-#if TEST_DPCPP_BACKEND_PRESENT
-    check_mixed_types_in_in_device(dpl_ranges::lexicographical_compare, checker, {{1}, {2}, {3}}, {{1}, {2}, {4}},
-                                   result_as_is, std::ranges::less{}, proj_a, proj_b);
-#endif
-#endif // !_TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE
+    //the projected sequences are equal element-wise, so the result is defined by the sizes only:
+    //it covers the tie-break of the case when the first sequence is the shorter one
+    auto gen_equal_projected_1 = [](auto) { return -1; };
+    auto gen_equal_projected_2 = [](auto) { return -2; };
+    test_range_algo<8, int, data_in_in, decltype(gen_equal_projected_1), decltype(gen_equal_projected_2)>{}(
+        dpl_ranges::lexicographical_compare, checker, std::ranges::less{}, proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
