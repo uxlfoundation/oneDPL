@@ -816,9 +816,8 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     }
     else
     {
-        // The result is the leftmost element of the first sequence which matches any element of the second
-        // one, so the search cannot stop at the first match found: the best position found so far is the
-        // bound of the remaining searches, which also reduces the work monotonically.
+        // Any element in the second sequence can match the earliest element in the first.
+        // Iterate over the entire second sequence, monotonically reducing the search window in the first.
         _DifferenceType __min_i = __n1;
         for (; __s_first != __s_last && __min_i > 0; ++__s_first)
         {
