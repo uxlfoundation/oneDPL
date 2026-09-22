@@ -818,18 +818,25 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     {
         // Any element in the second sequence can match the earliest element in the first.
         // Iterate over the entire second sequence, monotonically reducing the search window in the first.
-        _DifferenceType __min_i = __n1;
-        for (; __s_first != __s_last && __min_i > 0; ++__s_first)
+        constexpr _DifferenceType __min_block_size = 2048;
+        const _DifferenceType __block_size = __n2 > __min_block_size ? __n2 : __min_block_size;
+        for (_DifferenceType __block_begin = 0; __block_begin < __n1; __block_begin += __block_size)
         {
-            auto __simd_pred = [__s_first, &__pred](_ForwardIterator1 __it, _DifferenceType __i) {
-                return __pred(__it[__i], *__s_first);
-            };
+            const _DifferenceType __block_end =
+                __n1 - __block_begin > __block_size ? __block_begin + __block_size : __n1;
+            _DifferenceType __min_i = __block_end;
+            for (_ForwardIterator2 __s_it = __s_first; __s_it != __s_last && __min_i > __block_begin; ++__s_it)
+            {
+                auto __simd_pred = [__s_it, &__pred](_ForwardIterator1 __it, _DifferenceType __i) {
+                    return __pred(__it[__i], *__s_it);
+                };
 
-            __min_i = __unseq_backend::__simd_first(__first, _DifferenceType(0), __min_i, __simd_pred) - __first;
+                __min_i = __unseq_backend::__simd_first(__first, __block_begin, __min_i, __simd_pred) - __first;
+            }
+
+            if (__min_i != __block_end)
+                return __first + __min_i;
         }
-
-        if (__min_i != __n1)
-            return __first + __min_i;
     }
 
     return __last;
