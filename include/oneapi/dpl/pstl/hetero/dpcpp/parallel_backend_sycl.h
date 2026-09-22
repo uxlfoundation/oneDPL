@@ -1028,10 +1028,14 @@ struct __find_or_nd_range_params
     std::size_t __wgroup_size;
 };
 
-// A kernel's register demand can put a device's advertised maximum work-group size out of reach, and the
-// runtime reports that only at launch. Kernel limits as low as 768 have been measured, on Xe3;
-// __launch_with_wg_size_fallback handles a device that rejects even this.
+// Caps the multiple work-group path, whose kernel may scan several elements per item: register demand can put
+// a device's advertised maximum work-group size out of reach, and the runtime reports that only at launch.
+// Kernel limits as low as 768 have been measured, on Xe3.
 inline constexpr std::size_t __find_or_wgroup_size_cap = 512;
+
+// Where __launch_with_wg_size_fallback stops halving: each attempt costs a full submission, and below one
+// sub-group a work group cannot use the vote the scan exits on.
+inline constexpr std::size_t __find_or_wgroup_size_retry_floor = 32;
 
 // Elements per work item the single work-group path reaches when the multiple work-group path is unavailable.
 inline constexpr std::size_t __find_or_one_wg_elems_per_item_no_atomic64 = 32;
@@ -1103,26 +1107,23 @@ struct __parallel_find_or_nd_range_tuner
         // Bounds the total work per compute unit below, and on CPUs stands in for a device maximum that is
         // impractically large. Empirically found value.
         const std::size_t __wgroup_size_limit = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
+        // Elements per item on the single work-group path: it scans narrow, so an iteration is an element. That
+        // path needs no global atomics, so where the multi-group path's are unavailable it must reach further.
+        const std::size_t __one_wg_elems_per_item =
+            __one_wg_required ? __find_or_one_wg_elems_per_item_no_atomic64 : __find_or_max_iters_in_one_wg;
+        // It never launches the kernel the cap below exists for, so it takes the device limit whole.
+        if (__rng_n <= __wgroup_size_limit * __one_wg_elems_per_item)
+            return {/*__n_groups=*/1, __wgroup_size_limit};
+
         // Cap the group size, and place proportionally more groups per compute unit so the grid still holds
         // max_work_group_size items per compute unit.
         const std::size_t __wgroup_size = std::min(__wgroup_size_limit, __find_or_wgroup_size_cap);
         const std::size_t __groups_per_compute_unit =
             oneapi::dpl::__internal::__dpl_ceiling_div(__wgroup_size_limit, __wgroup_size);
-        const std::size_t __one_wg_max_n = __wgroup_size * __find_or_max_iters_in_one_wg;
-        // Only the single work-group path needs no global atomics, so where the multi-group path's atomics
-        // are unavailable this path must keep its reach even though one group is poor parallelism.
-        const std::size_t __one_wg_limit =
-            __one_wg_required ? std::max(__one_wg_max_n,
-                                         __wgroup_size_limit * __find_or_one_wg_elems_per_item_no_atomic64)
-                              : __one_wg_max_n;
-        std::size_t __n_groups = 1;
-        if (__rng_n > __one_wg_limit)
-        {
-            // Compute the number of groups and limit by the work capacity of the compute units
-            __n_groups =
-                std::min<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size),
-                                      oneapi::dpl::__internal::__max_compute_units(__q) * __groups_per_compute_unit);
-        }
+        // Compute the number of groups and limit by the work capacity of the compute units
+        const std::size_t __n_groups =
+            std::min<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size),
+                                  oneapi::dpl::__internal::__max_compute_units(__q) * __groups_per_compute_unit);
 
         return {__n_groups, __wgroup_size};
     }
@@ -1248,6 +1249,32 @@ struct __wait_event_on_unwind
     }
 };
 
+template <typename KernelName>
+struct __find_or_init_scratch;
+
+// Seeds the two scratch elements the multiple work-group kernel combines into. Separate from that kernel's
+// submitter, which is instantiated once per scan width: this kernel does not depend on the width, so one
+// definition serves every width.
+template <typename... KernelName>
+struct __find_or_init_scratch<__internal::__optional_kernel_name<KernelName...>>
+{
+    template <typename _AtomicType>
+    sycl::event
+    operator()(sycl::queue& __q, __device_storage<_AtomicType>& __scratch, const _AtomicType __init_value) const
+    {
+        return __q.submit([&](sycl::handler& __cgh) {
+            auto __scratch_acc_w = __get_accessor(sycl::write_only, __scratch, __cgh, __dpl_sycl::__no_init{});
+
+            __cgh.single_task<KernelName...>([__scratch_acc_w, __init_value]() {
+                _AtomicType* __scratch_ptr = __scratch_acc_w.__data();
+                // The found state the work-groups combine into, then the group counter that elects the writeback.
+                __scratch_ptr[0] = __init_value;
+                __scratch_ptr[1] = 0;
+            });
+        });
+    }
+};
+
 template <bool __or_tag_check, typename KernelNameInit, typename KernelName>
 struct __parallel_find_or_impl_multiple_wgs;
 
@@ -1274,19 +1301,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         const auto __iters_per_work_item =
             oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __n_groups * __wgroup_size);
 
-        // Initialization of the result storage
-        sycl::event __event_init = __q.submit([&](sycl::handler& __cgh) {
-            auto __scratch_acc_w =
-                __get_accessor(sycl::write_only, __scratch_atomic_storage, __cgh, __dpl_sycl::__no_init{});
-
-            __cgh.single_task<KernelNameInit...>([__scratch_acc_w, __init_value]() {
-                // Initialize the scratch storage with the initial value
-                _AtomicType* __scratch_ptr = __scratch_acc_w.__data();
-                __scratch_ptr[0] = __init_value;
-                // Initialize the scratch storage for group counter with zero value
-                __scratch_ptr[1] = 0;
-            });
-        });
+        sycl::event __event_init = __find_or_init_scratch<__internal::__optional_kernel_name<KernelNameInit...>>{}(
+            __q, __scratch_atomic_storage, __init_value);
         __wait_event_on_unwind __init_guard{__event_init};
 
         // main parallel_for
@@ -1374,7 +1390,7 @@ __launch_with_wg_size_fallback(const sycl::queue& __q, std::size_t __wgroup_size
         {
             // Only an implementation that reports this synchronously with this code can be retried;
             // elsewhere the rejection propagates.
-            if (__e.code() != sycl::errc::nd_range || __wgroup_size <= 1)
+            if (__e.code() != sycl::errc::nd_range || __wgroup_size <= __find_or_wgroup_size_retry_floor)
                 throw;
         }
     }
@@ -1429,16 +1445,16 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         assert("This device does not support 64-bit atomics" &&
                (sizeof(_AtomicType) < 8 || __q_local.get_device().has(sycl::aspect::atomic64)));
 
+        using __find_or_kernel_name_init =
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_init<_CustomName>>;
+
         auto __launch = [&](auto __wide_c) {
             using _EarlyExit =
                 oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, decltype(__wide_c)::value>;
             const auto __pred = _EarlyExit{__f};
 
-            // Both kernel names carry the scan width: this lambda is instantiated once per width, so each
-            // width submits its own closure type and a shared name would be two definitions of one kernel.
-            using __find_or_kernel_name_init = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-                __find_or_kernel_init<_CustomName, std::integral_constant<std::size_t, _EarlyExit::__elems_per_iter>>>;
-
+            // The scan kernel's name carries the scan width: this lambda is instantiated once per width, so
+            // each width submits its own closure type and a shared name would be two definitions of one kernel.
             using __find_or_kernel_name = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __find_or_kernel<_CustomName, std::integral_constant<std::size_t, _EarlyExit::__elems_per_iter>>>;
 
