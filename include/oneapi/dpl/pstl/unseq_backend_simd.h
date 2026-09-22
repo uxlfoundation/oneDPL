@@ -817,7 +817,8 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     else
     {
         // Any element in the second sequence can match the earliest element in the first.
-        // Iterate over the entire second sequence, monotonically reducing the search window in the first.
+        // Iterate over the entire second sequence, monotonically narrowing the search window in the first.
+        // Split the search window into blocks for better performance in degenerate cases (e.g. a[0] matches b[n-1]).
         constexpr _DifferenceType __min_block_size = 2048;
         const _DifferenceType __block_size = __n2 > __min_block_size ? __n2 : __min_block_size;
         for (_DifferenceType __block_begin = 0; __block_begin < __n1; __block_begin += __block_size)
