@@ -806,8 +806,9 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     {
         for (; __first != __last; ++__first)
         {
+            // The element of the first sequence is the first argument of the predicate
             if (__unseq_backend::__simd_or(__s_first, __n2, [&__pred, __first](auto&& __val) {
-                    return __pred(std::forward<decltype(__val)>(__val), *__first);
+                    return __pred(*__first, std::forward<decltype(__val)>(__val));
                 }))
             {
                 return __first;
