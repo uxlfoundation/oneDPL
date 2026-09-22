@@ -790,10 +790,10 @@ _ForwardIterator1
 __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
                      _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
 {
-    using _DifferencType = typename std::iterator_traits<_ForwardIterator1>::difference_type;
+    using _DifferenceType = typename std::iterator_traits<_ForwardIterator1>::difference_type;
 
-    const _DifferencType __n1 = __last - __first;
-    const _DifferencType __n2 = __s_last - __s_first;
+    const _DifferenceType __n1 = __last - __first;
+    const _DifferenceType __n2 = __s_last - __s_first;
     if (__n1 == 0 || __n2 == 0)
     {
         return __last; // according to the standard
@@ -804,11 +804,12 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     // Otherwise, vice versa.
     if (__n1 < __n2)
     {
-        auto __u_pred =
-            [__pred, __first](auto&& __val) mutable { return __pred(std::forward<decltype(__val)>(__val), *__first); };
         for (; __first != __last; ++__first)
         {
-            if (__unseq_backend::__simd_or(__s_first, __n2, __u_pred))
+            // The element of the first sequence is the first argument of the predicate
+            if (__unseq_backend::__simd_or(__s_first, __n2, [&__pred, __first](auto&& __val) {
+                    return __pred(*__first, std::forward<decltype(__val)>(__val));
+                }))
             {
                 return __first;
             }
@@ -816,16 +817,21 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     }
     else
     {
-        for (; __s_first != __s_last; ++__s_first)
+        // The result is the leftmost element of the first sequence which matches any element of the second
+        // one, so the search cannot stop at the first match found: the best position found so far is the
+        // bound of the remaining searches, which also reduces the work monotonically.
+        _DifferenceType __min_i = __n1;
+        for (; __s_first != __s_last && __min_i > 0; ++__s_first)
         {
-            const auto __result = __unseq_backend::__simd_first(
-                __first, _DifferencType(0), __n1, [__s_first, &__pred](_ForwardIterator1 __it, _DifferencType __i) {
-                    return __pred(__it[__i], *__s_first);
-                });
-            if (__result != __last)
-            {
-                return __result;
-            }
+            __min_i = __unseq_backend::__simd_first(__first, _DifferenceType(0), __min_i,
+                                                    [__s_first, &__pred](_ForwardIterator1 __it, _DifferenceType __i) {
+                                                        return __pred(__it[__i], *__s_first);
+                                                    }) -
+                      __first;
+        }
+        if (__min_i != __n1)
+        {
+            return __first + __min_i;
         }
     }
     return __last;

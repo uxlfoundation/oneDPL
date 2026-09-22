@@ -101,29 +101,11 @@ test(Predicate pred)
                                 in1.begin() + max_n1 / 10, pred);
 }
 
-#if _TEST_BROKEN_WRONG_RESULT_FIND_FIRST_OF_UNSEQ
-// __simd_find_first_of (unseq_backend_simd.h:790) reports a wrong position: it compares only the
-// first element of the searched range when that range is the shorter one, and captures the first element of
-// the other range before the loop otherwise. Only the calls dispatched to that brick are skipped below, so
-// the position checks still run for every other policy and iterator type.
-template <typename ExecutionPolicy, typename... Iterators>
-constexpr bool
-vectorized_brick_used()
-{
-    if constexpr (oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<ExecutionPolicy>>::value)
-    {
-        using tag_type = decltype(oneapi::dpl::__internal::__select_backend(
-            std::declval<std::decay_t<ExecutionPolicy>>(), std::declval<Iterators>()...));
-
-        return tag_type::__is_vector::value;
-    }
-    else
-    {
-        return false;
-    }
-}
-#endif // _TEST_BROKEN_WRONG_RESULT_FIND_FIRST_OF_UNSEQ
-
+// The tests above only ever put the match at the very beginning of the first sequence, so a brick
+// returning any match instead of the leftmost one, or comparing only the first element of the first
+// sequence, still passes them. The tests below check the returned position for a match which is not
+// at the front, in both cases of __simd_find_first_of(): the second sequence longer than the first
+// one and vice versa, with a symmetric and with an asymmetric predicate.
 template <typename T>
 struct test_find_first_of_position
 {
@@ -131,15 +113,10 @@ struct test_find_first_of_position
     void
     operator()(ExecutionPolicy&& exec, Iterator1 b, Iterator1 e, Iterator2 bsub, Iterator2 esub)
     {
-#if _TEST_BROKEN_WRONG_RESULT_FIND_FIRST_OF_UNSEQ
-        if constexpr (!vectorized_brick_used<ExecutionPolicy, Iterator1, Iterator2>())
-#endif
-        {
-            using namespace std;
-            const auto expected = distance(b, find_first_of(b, e, bsub, esub));
-            const auto actual = distance(b, find_first_of(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub));
-            EXPECT_EQ(expected, actual, "wrong position from find_first_of");
-        }
+        using namespace std;
+        const auto expected = distance(b, find_first_of(b, e, bsub, esub));
+        const auto actual = distance(b, find_first_of(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub));
+        EXPECT_EQ(expected, actual, "wrong position from find_first_of");
     }
 };
 
@@ -150,18 +127,16 @@ struct test_find_first_of_position_predicate
     void
     operator()(ExecutionPolicy&& exec, Iterator1 b, Iterator1 e, Iterator2 bsub, Iterator2 esub, Predicate pred)
     {
-#if _TEST_BROKEN_WRONG_RESULT_FIND_FIRST_OF_UNSEQ
-        if constexpr (!vectorized_brick_used<ExecutionPolicy, Iterator1, Iterator2>())
-#endif
-        {
-            using namespace std;
-            const auto expected = distance(b, find_first_of(b, e, bsub, esub, pred));
-            const auto actual = distance(b, find_first_of(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub, pred));
-            EXPECT_EQ(expected, actual, "wrong position from find_first_of with a predicate");
-        }
+        using namespace std;
+        const auto expected = distance(b, find_first_of(b, e, bsub, esub, pred));
+        const auto actual = distance(b, find_first_of(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub, pred));
+        EXPECT_EQ(expected, actual, "wrong position from find_first_of with a predicate");
     }
 };
 
+// The second sequence is the longer one. The first sequence has all the elements distinct, the second
+// one matches its last element and an element in the middle, so the result is the one in the middle.
+// The predicate is asymmetric, and true only when its first argument comes from the first sequence.
 template <typename T>
 void
 test_match_away_from_the_front()
@@ -185,10 +160,13 @@ test_match_away_from_the_front()
     }
 }
 
+// The same, with the first sequence being the longer one: that is the other branch of the brick.
 template <typename T>
 void
 test_match_away_from_the_front_long_first_range()
 {
+    auto is_successor = [](const T x, const T y) { return x == T(y + 1); };
+
     const ::std::size_t sizes[] = {2, 3, 7, 16, 41, 130};
     for (const auto n1 : sizes)
     {
@@ -199,6 +177,8 @@ test_match_away_from_the_front_long_first_range()
         if (in2.size() > 1)
             in2[1] = T(10 + n1 / 2);
         invoke_on_all_policies<10>()(test_find_first_of_position<T>(), in1.begin(), in1.end(), in2.begin(), in2.end());
+        invoke_on_all_policies<11>()(test_find_first_of_position_predicate<T>(), in1.begin(), in1.end(), in2.begin(),
+                                     in2.end(), is_successor);
     }
 }
 
