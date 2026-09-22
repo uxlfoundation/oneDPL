@@ -39,10 +39,8 @@ main()
     test_range_algo<6, int, data_in_in, std::identity, decltype(gen_4i_2)>{}(dpl_ranges::find_first_of,
                                                                             find_first_of_checker, binary_pred, proj);
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF
     check_mixed_types_in_in_host(dpl_ranges::find_first_of, find_first_of_checker, {{1}, {2}, {3}}, {{3}, {2}},
                                     result_index, binary_pred, proj_a, proj_b);
-#endif
 #if TEST_DPCPP_BACKEND_PRESENT
     check_mixed_types_in_in_device(dpl_ranges::find_first_of, find_first_of_checker, {{1}, {2}, {3}}, {{3}, {2}},
                                     result_index, binary_pred, proj_a, proj_b);

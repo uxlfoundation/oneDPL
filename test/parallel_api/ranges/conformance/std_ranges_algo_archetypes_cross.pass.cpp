@@ -63,13 +63,11 @@ main()
         },
         "find_end");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF
     run_algo2_all_policies<lhs_archetype, rhs_archetype, lhs_archetype_dc, rhs_archetype_dc, 4>(
         [](auto&& policy, auto&& view1, auto&& view2) {
             return dpl_ranges::find_first_of(std::forward<decltype(policy)>(policy), view1, view2, cross_pred{});
         },
         [](auto&& view1, auto&&, auto res) { return res == std::ranges::begin(view1); }, "find_first_of");
-#endif
 
     run_algo2_all_policies<lhs_archetype, rhs_archetype, lhs_archetype_dc, rhs_archetype_dc, 5>(
         [](auto&& policy, auto&& view1, auto&& view2) {
@@ -138,14 +136,18 @@ main()
         },
         "find_end, non-const callable");
 
-#if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF
-    run_algo2_all_policies<lhs_archetype, rhs_archetype, lhs_archetype_dc, rhs_archetype_dc, 14>(
-        [](auto&& policy, auto&& view1, auto&& view2) {
+    {
+        auto call = [](auto&& policy, auto&& view1, auto&& view2) {
             return dpl_ranges::find_first_of(std::forward<decltype(policy)>(policy), view1, view2, cross_pred_mut{});
-        },
-        [](auto&& view1, auto&&, auto res) { return res == std::ranges::begin(view1); },
-        "find_first_of, non-const callable");
+        };
+        auto check = [](auto&& view1, auto&&, auto res) { return res == std::ranges::begin(view1); };
+
+        run_algo2_host_policies<lhs_archetype, rhs_archetype>(call, check, "find_first_of, non-const callable");
+#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HETERO
+        run_algo2_hetero_policies<lhs_archetype_dc, rhs_archetype_dc, 14>(call, check,
+                                                                          "find_first_of, non-const callable");
 #endif
+    }
 
     run_algo2_all_policies<lhs_archetype, rhs_archetype, lhs_archetype_dc, rhs_archetype_dc, 15>(
         [](auto&& policy, auto&& view1, auto&& view2) {
