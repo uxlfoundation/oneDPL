@@ -50,136 +50,55 @@ struct test_find_first_of_predicate
     }
 };
 
-template <typename T, typename Predicate>
+template <std::size_t CallId, typename T, typename Predicate>
 void
-test(Predicate pred)
+test(Predicate pred, std::size_t max_n1 = 1000)
 {
-
-    const ::std::size_t max_n1 = 1000;
-    const ::std::size_t max_n2 = (max_n1 * 10) / 8;
-    Sequence<T> in1(max_n1, [](::std::size_t) { return T(1); });
-    Sequence<T> in2(max_n2, [](::std::size_t) { return T(0); });
-    for (::std::size_t n1 = 0; n1 <= max_n1; n1 = n1 <= 16 ? n1 + 1 : size_t(3.1415 * n1))
+    const std::size_t max_n2 = (max_n1 * 10) / 8;
+    Sequence<T> in1(max_n1, [](std::size_t i) { return T(i + 2); });
+    Sequence<T> in2(max_n2, [](std::size_t) { return T(0); });
+    std::size_t iteration = 0;
+    for (std::size_t n1 = 0; n1 <= max_n1; n1 = n1 <= 16 ? n1 + 1 : size_t(3.1415 * n1))
     {
-        ::std::size_t sub_n[] = {0, 1, n1 / 3, n1, (n1 * 10) / 8};
+        std::size_t sub_n[] = {0, 1, n1 / 3, n1, (n1 * 10) / 8};
         for (const auto n2 : sub_n)
         {
-            invoke_on_all_policies<0>()(test_find_first_of<T>(), in1.begin(), in1.begin() + n1, in2.begin(),
-                                        in2.begin() + n2);
-            invoke_on_all_policies<1>()(test_find_first_of_predicate<T>(), in1.begin(), in1.begin() + n1, in2.begin(),
-                                        in2.begin() + n2, pred);
+            invoke_on_all_policies<CallId + 0>()(test_find_first_of<T>(), in1.begin(), in1.begin() + n1, in2.begin(),
+                                                 in2.begin() + n2);
+            invoke_on_all_policies<CallId + 1>()(test_find_first_of_predicate<T>(), in1.begin(), in1.begin() + n1,
+                                                 in2.begin(), in2.begin() + n2, pred);
 
-            in2[n2 / 2] = T(1);
+            const std::size_t pos = (n1 * (iteration++ % 4)) / 4;
+            in2[n2 / 2] = T(pos + 2);
 #if !TEST_DPCPP_BACKEND_PRESENT
-            invoke_on_all_policies<2>()(test_find_first_of<T>(), in1.cbegin(), in1.cbegin() + n1, in2.data(),
-                                        in2.data() + n2);
-            invoke_on_all_policies<3>()(test_find_first_of_predicate<T>(), in1.cbegin(), in1.cbegin() + n1, in2.data(),
-                                        in2.data() + n2, pred);
+            invoke_on_all_policies<CallId + 2>()(test_find_first_of<T>(), in1.cbegin(), in1.cbegin() + n1, in2.data(),
+                                                 in2.data() + n2);
+            invoke_on_all_policies<CallId + 3>()(test_find_first_of_predicate<T>(), in1.cbegin(), in1.cbegin() + n1,
+                                                 in2.data(), in2.data() + n2, pred);
 #else
 #if !ONEDPL_FPGA_DEVICE
-            invoke_on_all_policies<2>()(test_find_first_of<T>(), in1.cbegin(), in1.cbegin() + n1, in2.begin(),
-                                        in2.begin() + n2);
-            invoke_on_all_policies<3>()(test_find_first_of_predicate<T>(), in1.cbegin(), in1.cbegin() + n1, in2.begin(),
-                                        in2.begin() + n2, pred);
+            invoke_on_all_policies<CallId + 2>()(test_find_first_of<T>(), in1.cbegin(), in1.cbegin() + n1, in2.begin(),
+                                                 in2.begin() + n2);
+            invoke_on_all_policies<CallId + 3>()(test_find_first_of_predicate<T>(), in1.cbegin(), in1.cbegin() + n1,
+                                                 in2.begin(), in2.begin() + n2, pred);
 #endif
 #endif
             if (n2 >= 3)
             {
-                in2[2 * n2 / 3] = T(1);
-                invoke_on_all_policies<4>()(test_find_first_of<T>(), in1.cbegin(), in1.cbegin() + n1, in2.begin(),
-                                            in2.begin() + n2);
-                invoke_on_all_policies<5>()(test_find_first_of_predicate<T>(), in1.cbegin(), in1.cbegin() + n1,
-                                            in2.begin(), in2.begin() + n2, pred);
+                in2[2 * n2 / 3] = T(pos / 2 + 2);
+                invoke_on_all_policies<CallId + 4>()(test_find_first_of<T>(), in1.cbegin(), in1.cbegin() + n1,
+                                                     in2.begin(), in2.begin() + n2);
+                invoke_on_all_policies<CallId + 5>()(test_find_first_of_predicate<T>(), in1.cbegin(), in1.cbegin() + n1,
+                                                     in2.begin(), in2.begin() + n2, pred);
                 in2[2 * n2 / 3] = T(0);
             }
             in2[n2 / 2] = T(0);
         }
     }
-    invoke_on_all_policies<6>()(test_find_first_of<T>(), in1.begin(), in1.begin() + max_n1 / 10, in1.begin(),
-                                in1.begin() + max_n1 / 10);
-    invoke_on_all_policies<7>()(test_find_first_of_predicate<T>(), in1.begin(), in1.begin() + max_n1 / 10, in1.begin(),
-                                in1.begin() + max_n1 / 10, pred);
-}
-
-// The tests above only ever put the match at the very beginning of the first sequence, so a brick
-// returning any match instead of the leftmost one, or comparing only the first element of the first
-// sequence, still passes them. The tests below check the returned position for a match which is not
-// at the front, in both cases of __simd_find_first_of(): the second sequence longer than the first
-// one and vice versa, with a symmetric and with an asymmetric predicate.
-template <typename T>
-struct test_find_first_of_position
-{
-    template <typename ExecutionPolicy, typename Iterator1, typename Iterator2>
-    void
-    operator()(ExecutionPolicy&& exec, Iterator1 b, Iterator1 e, Iterator2 bsub, Iterator2 esub)
-    {
-        using namespace std;
-        const auto expected = distance(b, find_first_of(b, e, bsub, esub));
-        const auto actual = distance(b, find_first_of(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub));
-        EXPECT_EQ(expected, actual, "wrong position from find_first_of");
-    }
-};
-
-template <typename T>
-struct test_find_first_of_position_predicate
-{
-    template <typename ExecutionPolicy, typename Iterator1, typename Iterator2, typename Predicate>
-    void
-    operator()(ExecutionPolicy&& exec, Iterator1 b, Iterator1 e, Iterator2 bsub, Iterator2 esub, Predicate pred)
-    {
-        using namespace std;
-        const auto expected = distance(b, find_first_of(b, e, bsub, esub, pred));
-        const auto actual = distance(b, find_first_of(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub, pred));
-        EXPECT_EQ(expected, actual, "wrong position from find_first_of with a predicate");
-    }
-};
-
-// The second sequence is the longer one. The first sequence has all the elements distinct, the second
-// one matches its last element and an element in the middle, so the result is the one in the middle.
-// The predicate is asymmetric, and true only when its first argument comes from the first sequence.
-template <typename T>
-void
-test_match_away_from_the_front()
-{
-    auto is_successor = [](const T x, const T y) { return x == T(y + 1); };
-
-    const ::std::size_t sizes[] = {2, 3, 7, 16, 41, 130};
-    for (const auto n1 : sizes)
-    {
-        Sequence<T> in1(n1, [](::std::size_t i) { return T(10 + i); });
-
-        Sequence<T> in2(n1 + 3, [](::std::size_t) { return T(0); });
-        in2[0] = T(10 + n1 - 1);
-        in2[1] = T(10 + n1 / 2);
-        invoke_on_all_policies<8>()(test_find_first_of_position<T>(), in1.begin(), in1.end(), in2.begin(), in2.end());
-
-        in2[0] = T(0);
-        in2[1] = T(10 + n1 - 2);
-        invoke_on_all_policies<9>()(test_find_first_of_position_predicate<T>(), in1.begin(), in1.end(), in2.begin(),
-                                    in2.end(), is_successor);
-    }
-}
-
-// The same, with the first sequence being the longer one: that is the other branch of the brick.
-template <typename T>
-void
-test_match_away_from_the_front_long_first_range()
-{
-    auto is_successor = [](const T x, const T y) { return x == T(y + 1); };
-
-    const ::std::size_t sizes[] = {2, 3, 7, 16, 41, 130};
-    for (const auto n1 : sizes)
-    {
-        Sequence<T> in1(n1, [](::std::size_t i) { return T(10 + i); });
-
-        Sequence<T> in2(n1 / 2 + 1, [](::std::size_t) { return T(0); });
-        in2[0] = T(10 + n1 - 1);
-        if (in2.size() > 1)
-            in2[1] = T(10 + n1 / 2);
-        invoke_on_all_policies<10>()(test_find_first_of_position<T>(), in1.begin(), in1.end(), in2.begin(), in2.end());
-        invoke_on_all_policies<11>()(test_find_first_of_position_predicate<T>(), in1.begin(), in1.end(), in2.begin(),
-                                     in2.end(), is_successor);
-    }
+    invoke_on_all_policies<CallId + 6>()(test_find_first_of<T>(), in1.begin(), in1.begin() + max_n1 / 10, in1.begin(),
+                                         in1.begin() + max_n1 / 10);
+    invoke_on_all_policies<CallId + 7>()(test_find_first_of_predicate<T>(), in1.begin(), in1.begin() + max_n1 / 10,
+                                         in1.begin(), in1.begin() + max_n1 / 10, pred);
 }
 
 template <typename T>
@@ -196,14 +115,12 @@ struct test_non_const
 int
 main()
 {
-    test<std::int32_t>(::std::equal_to<std::int32_t>());
+    test<0, std::int32_t>(std::equal_to<std::int32_t>());
 #if !ONEDPL_FPGA_DEVICE
-    test<std::uint16_t>(::std::not_equal_to<std::uint16_t>());
+    test<10, std::uint16_t>(std::not_equal_to<std::uint16_t>());
 #endif
-    test<float64_t>([](const float64_t x, const float64_t y) { return x * x == y * y; });
-
-    test_match_away_from_the_front<std::int32_t>();
-    test_match_away_from_the_front_long_first_range<std::int32_t>();
+    test<20, float64_t>([](const float64_t x, const float64_t y) { return x * x == y * y; });
+    test<30, std::int32_t>([](const std::int32_t x, const std::int32_t y) { return x == y + 1; }, 130);
 
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
 
