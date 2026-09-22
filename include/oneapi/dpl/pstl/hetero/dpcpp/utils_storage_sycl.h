@@ -182,8 +182,8 @@ __copy_n(_T* __dst, std::size_t __n, const __result_raw_state<_T>& __raw_st, syc
     }
 }
 
-// Sentinel type used as a compile-time conditional stand-in for result storage or accessor
-struct __no_result_needed_tag
+// Sentinel type used as a compile-time conditional stand-in for a storage or accessor
+struct __no_storage_tag
 {
     using type = std::size_t; // a safe default
 };
@@ -394,9 +394,9 @@ __get_accessor(_ModeTagT, __device_storage<_T>& __st, sycl::handler& __cgh, cons
 
 template <typename _ModeTagT>
 auto
-__get_accessor(_ModeTagT, __internal::__no_result_needed_tag&, sycl::handler&, const sycl::property_list& = {})
+__get_accessor(_ModeTagT, __internal::__no_storage_tag&, sycl::handler&, const sycl::property_list& = {})
 {
-    return __internal::__no_result_needed_tag{};
+    return __internal::__no_storage_tag{};
 }
 
 template <typename _T>
@@ -450,7 +450,7 @@ __create_result_storage_opt(sycl::queue& __q, std::size_t __n)
     if constexpr (_Condition)
         return __result_storage<_T>(__q, __n);
     else
-        return __internal::__no_result_needed_tag{};
+        return __internal::__no_storage_tag{};
 }
 
 template <typename _T>
