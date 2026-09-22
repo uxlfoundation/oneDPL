@@ -823,11 +823,10 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
         _DifferenceType __min_i = __n1;
         for (; __s_first != __s_last && __min_i > 0; ++__s_first)
         {
-            __min_i = __unseq_backend::__simd_first(
-                          __first, _DifferenceType(0), __min_i,
-                          [__s_first, &__pred](_ForwardIterator1 __it, _DifferenceType __i) {
-                              return __pred(__it[__i], *__s_first);
-                          }) -
+            __min_i = __unseq_backend::__simd_first(__first, _DifferenceType(0), __min_i,
+                                                    [__s_first, &__pred](_ForwardIterator1 __it, _DifferenceType __i) {
+                                                        return __pred(__it[__i], *__s_first);
+                                                    }) -
                       __first;
         }
         if (__min_i != __n1)
