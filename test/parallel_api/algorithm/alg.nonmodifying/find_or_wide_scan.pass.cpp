@@ -30,6 +30,7 @@
 #include "support/utils.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
+#    include <algorithm>
 #    include <cstdint>
 #    include <functional>
 #    include <vector>
@@ -91,6 +92,15 @@ static_assert(__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>,
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng16, __rng16>);
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_zip_2_2>);
 
+// Every match position for a size a test can enumerate; above that an odd stride -- coprime with the scan
+// width and the work-group size -- growing as the square of the size, so a device that needs a larger size to
+// reach the wide scan does not multiply what this sweeps.
+std::size_t
+match_position_step(std::size_t __n)
+{
+    return __n <= 1024 ? 1 : std::max(std::size_t(37), (__n * __n) >> 23) | 1;
+}
+
 // One name per call below: these algorithms share the find_or kernels, so under explicit kernel names a
 // single policy would give every call the same kernel name.
 class __find_if_name;
@@ -113,9 +123,7 @@ test_at_size(Policy&& __exec, std::size_t __n)
     int* __d = sycl::malloc_device<int>(__n, __q);
     auto __is_one = [](int __x) { return __x == 1; };
 
-    // Every position for a size a test can enumerate; a stride coprime with the scan width and the
-    // work-group size above that, so slots and batch lengths are still hit at every alignment.
-    const std::size_t __step = __n <= 1024 ? 1 : 37;
+    const std::size_t __step = match_position_step(__n);
 
     for (std::size_t __pos = 0; __pos <= __n; __pos += __step)
     {
@@ -174,7 +182,7 @@ test_two_8byte_ranges(Policy&& __exec, std::size_t __n)
     _T* __d2 = sycl::malloc_device<_T>(__n, __q);
     __q.memcpy(__d1, __host.data(), __n * sizeof(_T)).wait();
 
-    const std::size_t __step = __n <= 1024 ? 1 : 37;
+    const std::size_t __step = match_position_step(__n);
 
     for (std::size_t __pos = 0; __pos <= __n; __pos += __step)
     {
@@ -220,7 +228,7 @@ test_2byte_ranges(Policy&& __exec, std::size_t __n)
     // The second range stays all-zero, so one match in the first serves every tag below.
     __q.memcpy(__d2, __host.data(), __n * sizeof(_T)).wait();
 
-    const std::size_t __step = __n <= 1024 ? 1 : 37;
+    const std::size_t __step = match_position_step(__n);
 
     for (std::size_t __pos = 0; __pos <= __n; __pos += __step)
     {
@@ -255,10 +263,17 @@ main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
     auto __policy = TestUtils::get_dpcpp_test_policy();
-    // Sizes that are and are not a multiple of the scan width. Only the largest exceeds the single
-    // work-group path's reach, so only it takes the wide scan; the rest cover the narrow one.
+    // The wide scan lives on the multiple work-group path, which a size reaches only past the single
+    // work-group path's reach -- and that reach scales with the device's maximum work-group size, so a literal
+    // size would reach the wide scan on some devices and not others. Twice the reach is past it and is still a
+    // multiple of the scan width.
+    const std::size_t __beyond_one_wg =
+        2 * oneapi::dpl::__internal::__max_work_group_size(__policy.queue(), std::size_t(4096)) *
+        oneapi::dpl::__par_backend_hetero::__find_or_max_iters_in_one_wg;
+    // Sizes that are and are not a multiple of the scan width. Only the largest takes the wide scan; the
+    // rest cover the narrow one.
     for (std::size_t __n : {std::size_t(1), std::size_t(3), std::size_t(4), std::size_t(31), std::size_t(1024),
-                            std::size_t(4095), std::size_t(1) << 14})
+                            std::size_t(4095), __beyond_one_wg})
     {
         test_at_size(__policy, __n);
         test_two_8byte_ranges(__policy, __n);
