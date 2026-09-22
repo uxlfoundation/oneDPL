@@ -101,6 +101,87 @@ test(Predicate pred)
                                 in1.begin() + max_n1 / 10, pred);
 }
 
+// The tests above only ever put the match at the very beginning of the first sequence, so a brick
+// returning any match instead of the leftmost one, or comparing only the first element of the first
+// sequence, still passes them. The tests below check the returned position for a match which is not
+// at the front, in both cases of __simd_find_first_of(): the second sequence longer than the first
+// one and vice versa, with a symmetric and with an asymmetric predicate.
+template <typename T>
+struct test_find_first_of_position
+{
+    template <typename ExecutionPolicy, typename Iterator1, typename Iterator2>
+    void
+    operator()(ExecutionPolicy&& exec, Iterator1 b, Iterator1 e, Iterator2 bsub, Iterator2 esub)
+    {
+        using namespace std;
+        const auto expected = distance(b, find_first_of(b, e, bsub, esub));
+        const auto actual = distance(b, find_first_of(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub));
+        EXPECT_EQ(expected, actual, "wrong position from find_first_of");
+    }
+};
+
+template <typename T>
+struct test_find_first_of_position_predicate
+{
+    template <typename ExecutionPolicy, typename Iterator1, typename Iterator2, typename Predicate>
+    void
+    operator()(ExecutionPolicy&& exec, Iterator1 b, Iterator1 e, Iterator2 bsub, Iterator2 esub, Predicate pred)
+    {
+        using namespace std;
+        const auto expected = distance(b, find_first_of(b, e, bsub, esub, pred));
+        const auto actual = distance(b, find_first_of(std::forward<ExecutionPolicy>(exec), b, e, bsub, esub, pred));
+        EXPECT_EQ(expected, actual, "wrong position from find_first_of with a predicate");
+    }
+};
+
+// The second sequence is the longer one. The first sequence has all the elements distinct, the second
+// one matches its last element and an element in the middle, so the result is the one in the middle.
+// The predicate is asymmetric, and true only when its first argument comes from the first sequence.
+template <typename T>
+void
+test_match_away_from_the_front()
+{
+    auto is_successor = [](const T x, const T y) { return x == T(y + 1); };
+
+    const ::std::size_t sizes[] = {2, 3, 7, 16, 41, 130};
+    for (const auto n1 : sizes)
+    {
+        Sequence<T> in1(n1, [](::std::size_t i) { return T(10 + i); });
+
+        Sequence<T> in2(n1 + 3, [](::std::size_t) { return T(0); });
+        in2[0] = T(10 + n1 - 1);
+        in2[1] = T(10 + n1 / 2);
+        invoke_on_all_policies<8>()(test_find_first_of_position<T>(), in1.begin(), in1.end(), in2.begin(), in2.end());
+
+        in2[0] = T(0);
+        in2[1] = T(10 + n1 - 2);
+        invoke_on_all_policies<9>()(test_find_first_of_position_predicate<T>(), in1.begin(), in1.end(), in2.begin(),
+                                    in2.end(), is_successor);
+    }
+}
+
+// The same, with the first sequence being the longer one: that is the other branch of the brick.
+template <typename T>
+void
+test_match_away_from_the_front_long_first_range()
+{
+    auto is_successor = [](const T x, const T y) { return x == T(y + 1); };
+
+    const ::std::size_t sizes[] = {2, 3, 7, 16, 41, 130};
+    for (const auto n1 : sizes)
+    {
+        Sequence<T> in1(n1, [](::std::size_t i) { return T(10 + i); });
+
+        Sequence<T> in2(n1 / 2 + 1, [](::std::size_t) { return T(0); });
+        in2[0] = T(10 + n1 - 1);
+        if (in2.size() > 1)
+            in2[1] = T(10 + n1 / 2);
+        invoke_on_all_policies<10>()(test_find_first_of_position<T>(), in1.begin(), in1.end(), in2.begin(), in2.end());
+        invoke_on_all_policies<11>()(test_find_first_of_position_predicate<T>(), in1.begin(), in1.end(), in2.begin(),
+                                     in2.end(), is_successor);
+    }
+}
+
 template <typename T>
 struct test_non_const
 {
@@ -120,6 +201,9 @@ main()
     test<std::uint16_t>(::std::not_equal_to<std::uint16_t>());
 #endif
     test<float64_t>([](const float64_t x, const float64_t y) { return x * x == y * y; });
+
+    test_match_away_from_the_front<std::int32_t>();
+    test_match_away_from_the_front_long_first_range<std::int32_t>();
 
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
 
