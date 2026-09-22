@@ -608,11 +608,9 @@ __parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size _
     using _GenScanInput = __par_backend_hetero::__gen_expand_count_mask_from_copy<_GenMask, _Size>;
     using _ScanInputTransform = __par_backend_hetero::__get_zeroth_element;
 
-    // Reduce reads one input element and stores it in the buffer, then scan reads the element from the buffer.
-    // To ensure the buffer is in cache, all input reads need to be in cache as well; but that will double
-    // kernel launches.
-    // TODO: check if performance difference between 1 and 2 element sizes warrants additional tuning
-    constexpr std::uint32_t __bytes_per_iter = sizeof(_ElementT) * 2;
+    // In the worst case, each iteration reads one input element, stores it into a buffer,
+    // re-reads from there and writes to a new place in the range, touching in total 3 locations.
+    constexpr std::uint32_t __bytes_per_iter = sizeof(_ElementT) * 3;
     __transform_scan_storage_holder_simple<_Size> __holder(__q);
 
     sycl::event __event = __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_iter, _CustomName,
