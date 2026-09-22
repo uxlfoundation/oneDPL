@@ -1477,9 +1477,10 @@ struct __temp_data_required<_T, std::void_t<typename _T::TempData>>
 template <typename, typename = void>
 struct __block_carry_opt
 {
+    struct __noop {};
     static constexpr bool __is_required = false;
 
-    static __internal::__no_result_needed_tag
+    static __noop
     __transform_block_carry(void*, std::size_t, std::size_t)
     {
         return {};
