@@ -790,10 +790,10 @@ _ForwardIterator1
 __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
                      _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
 {
-    using _DifferencType = typename std::iterator_traits<_ForwardIterator1>::difference_type;
+    using _DifferenceType = typename std::iterator_traits<_ForwardIterator1>::difference_type;
 
-    const _DifferencType __n1 = __last - __first;
-    const _DifferencType __n2 = __s_last - __s_first;
+    const _DifferenceType __n1 = __last - __first;
+    const _DifferenceType __n2 = __s_last - __s_first;
     if (__n1 == 0 || __n2 == 0)
     {
         return __last; // according to the standard
@@ -819,7 +819,7 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
         for (; __s_first != __s_last; ++__s_first)
         {
             const auto __result = __unseq_backend::__simd_first(
-                __first, _DifferencType(0), __n1, [__s_first, &__pred](_ForwardIterator1 __it, _DifferencType __i) {
+                __first, _DifferenceType(0), __n1, [__s_first, &__pred](_ForwardIterator1 __it, _DifferenceType __i) {
                     return __pred(__it[__i], *__s_first);
                 });
             if (__result != __last)
