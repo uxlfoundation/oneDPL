@@ -10,7 +10,7 @@ sphinxcontrib_htmlhelp==2.1.0
 sphinxcontrib_qthelp==2.0.0
 sphinxcontrib-serializinghtml==2.0.0
 
-sphinx_book_theme==1.0.1
+sphinx_book_theme==1.4.0
 sphinx-intl==2.0.0
 sphinx-tabs==3.5.0
 sphinx-prompt==1.10.2
