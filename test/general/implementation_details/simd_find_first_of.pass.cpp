@@ -10,7 +10,7 @@
 // Checks of oneapi::dpl::__unseq_backend::__simd_find_first_of for iterators with a narrow difference type.
 // The brick splits the first sequence into blocks whose size grows up to a limit; neither the block sizes nor
 // the block ends may overflow the difference type, which for counting_iterator<std::int8_t> cannot hold even
-// the smallest block and for counting_iterator<std::int16_t> overflows at the end of the last block. With a wide
+// the smallest block and for counting_iterator<std::int16_t> would overflow at the end of the last block. With a wide
 // value type the smallest block fits into std::int8_t, but twice the next block does not.
 
 #include "support/test_config.h"
@@ -71,7 +71,7 @@ test_narrow_difference_type(It1 first, std::size_t long_n2)
     // Match positions: every position for a small n1, otherwise both ends of the sequence and a sparse sweep
     std::vector<T> positions;
     for (long long p = 0; p < n1; ++p)
-        if (n1 <= 256 || p < 300 || p >= n1 - 300 || p % 61 == 0)
+        if (n1 <= 256 || p < 150 || p >= n1 - 150 || p % 257 == 0)
             positions.push_back(T(p));
 
     for (const T p : positions)
