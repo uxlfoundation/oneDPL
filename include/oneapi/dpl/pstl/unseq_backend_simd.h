@@ -785,23 +785,22 @@ __simd_partition_copy(_InputIterator __first, _DifferenceType __n, _OutputIterat
     return ::std::make_pair(__out_true + __cnt_true, __out_false + __cnt_false);
 }
 
+// Finds the first element of the block [__first, __last) that matches any element of the second sequence.
+// The block is not split any further, so its size is fully controlled by the caller.
 template <class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
 _ForwardIterator1
-__simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
-                     _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
+__simd_find_first_of_block(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
+                           _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
 {
-    using _DifferenceType = typename std::iterator_traits<_ForwardIterator1>::difference_type;
+    using _DifferenceType = std::common_type_t<typename std::iterator_traits<_ForwardIterator1>::difference_type,
+                                               typename std::iterator_traits<_ForwardIterator2>::difference_type>;
 
     const _DifferenceType __n1 = __last - __first;
     const _DifferenceType __n2 = __s_last - __s_first;
-    if (__n1 == 0 || __n2 == 0)
-    {
-        return __last; // according to the standard
-    }
 
-    // Common case
-    // If first sequence larger than second then we'll run simd_first with parameters of first sequence.
-    // Otherwise, vice versa.
+    // The block is shorter than the second sequence, so run simd_or with parameters of the second
+    // sequence: it stops at the first matching element of the block, wherever in the second sequence
+    // the matching element is.
     if (__n1 < __n2)
     {
         for (; __first != __last; ++__first)
@@ -813,31 +812,66 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
             if (__unseq_backend::__simd_or(__s_first, __n2, __simd_pred))
                 return __first;
         }
+
+        return __last;
     }
-    else
+
+    // The block is at least as long as the second sequence, so run simd_first with parameters of the
+    // block. Any element in the second sequence can match the earliest element of the block: iterate over
+    // the entire second sequence, monotonically reducing the search window in the block.
+    _DifferenceType __min_i = __n1;
+    for (; __s_first != __s_last && __min_i > 0; ++__s_first)
     {
-        // Any element in the second sequence can match the earliest element in the first.
-        // Iterate over the entire second sequence, monotonically narrowing the search window in the first.
-        // Split the search window into blocks for better performance in degenerate cases (e.g. a[0] matches b[n-1]).
-        constexpr _DifferenceType __min_block_size = 2048;
-        const _DifferenceType __block_size = __n2 > __min_block_size ? __n2 : __min_block_size;
-        for (_DifferenceType __block_begin = 0; __block_begin < __n1; __block_begin += __block_size)
-        {
-            const _DifferenceType __block_end =
-                __n1 - __block_begin > __block_size ? __block_begin + __block_size : __n1;
-            _DifferenceType __min_i = __block_end;
-            for (_ForwardIterator2 __s_it = __s_first; __s_it != __s_last && __min_i > __block_begin; ++__s_it)
-            {
-                auto __simd_pred = [__s_it, &__pred](_ForwardIterator1 __it, _DifferenceType __i) {
-                    return __pred(__it[__i], *__s_it);
-                };
+        auto __simd_pred = [__s_first, &__pred](_ForwardIterator1 __it, _DifferenceType __i) {
+            return __pred(__it[__i], *__s_first);
+        };
 
-                __min_i = __unseq_backend::__simd_first(__first, __block_begin, __min_i, __simd_pred) - __first;
-            }
+        __min_i = __unseq_backend::__simd_first(__first, _DifferenceType(0), __min_i, __simd_pred) - __first;
+    }
 
-            if (__min_i != __block_end)
-                return __first + __min_i;
-        }
+    return __min_i != __n1 ? __first + __min_i : __last;
+}
+
+template <class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
+_ForwardIterator1
+__simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
+                     _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
+{
+    using _ValueT1 = typename std::iterator_traits<_ForwardIterator1>::value_type;
+    using _DifferenceType = std::common_type_t<typename std::iterator_traits<_ForwardIterator1>::difference_type,
+                                               typename std::iterator_traits<_ForwardIterator2>::difference_type>;
+
+    // The first sequence is searched block by block, so that a match in an early block costs
+    // O(__n2 * __block_size) comparisons instead of O(__n2 * __n1). The first block is small, which keeps
+    // that cost low, and every next block is twice as large, up to a fixed maximum: the per-block overhead
+    // of the small leading blocks is amortized against the work done in the blocks that follow, the same
+    // way simd_or doubles its own block.
+    constexpr _DifferenceType __target_block_bytes_min = __lane_size * 4; // 256 bytes
+    constexpr _DifferenceType __target_block_bytes_max = 16 * 1024;       // 16KB fits into the L1 cache
+    constexpr _DifferenceType __block_size_min =
+        oneapi::dpl::__internal::__dpl_ceiling_div(__target_block_bytes_min, sizeof(_ValueT1));
+    constexpr _DifferenceType __block_size_max =
+        oneapi::dpl::__internal::__dpl_ceiling_div(__target_block_bytes_max, sizeof(_ValueT1));
+
+    const _DifferenceType __n1 = __last - __first;
+    const _DifferenceType __n2 = __s_last - __s_first;
+    if (__n1 == 0 || __n2 == 0)
+        return __last; // according to the standard
+
+    _DifferenceType __block_size = __block_size_min;
+    for (_DifferenceType __block_begin = 0; __block_begin < __n1;)
+    {
+        const _DifferenceType __block_end =
+            (__n1 - __block_begin) > __block_size ? (__block_begin + __block_size) : __n1;
+
+        const _ForwardIterator1 __it_block_end = __first + __block_end;
+        const _ForwardIterator1 __res =
+            __simd_find_first_of_block(__first + __block_begin, __it_block_end, __s_first, __s_last, __pred);
+        if (__res != __it_block_end)
+            return __res;
+
+        __block_begin = __block_end;
+        __block_size = __block_size < __block_size_max ? __block_size * 2 : __block_size;
     }
 
     return __last;
