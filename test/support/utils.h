@@ -643,6 +643,14 @@ operator==(const Matrix2x2<T>& left, const Matrix2x2<T>& right)
     return left.a00 == right.a00 && left.a01 == right.a01 && left.a10 == right.a10 && left.a11 == right.a11;
 }
 
+template <typename OStream, typename T>
+OStream&
+operator<<(OStream& out, const Matrix2x2<T>& data)
+{
+    out << "{{" << data.a00 << ", " << data.a01 << "}{" << data.a10 << ", " << data.a11 << "}}";
+    return out;
+}
+
 template <typename T>
 struct multiply_matrix
 {
