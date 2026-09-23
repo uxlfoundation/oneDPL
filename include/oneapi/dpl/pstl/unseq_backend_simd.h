@@ -799,9 +799,6 @@ __simd_find_first_of_block(_ForwardIterator1 __first, _ForwardIterator1 __last, 
     const _DifferenceType1 __n1 = __last - __first;
     const _DifferenceType2 __n2 = __s_last - __s_first;
 
-    // The block is shorter than the second sequence, so run simd_or with parameters of the second
-    // sequence: it stops at the first matching element of the block, wherever in the second sequence
-    // the matching element is.
     if (__n1 < __n2)
     {
         for (; __first != __last; ++__first)
@@ -817,9 +814,6 @@ __simd_find_first_of_block(_ForwardIterator1 __first, _ForwardIterator1 __last, 
         return __last;
     }
 
-    // The block is at least as long as the second sequence, so run simd_first with parameters of the
-    // block. Any element in the second sequence can match the earliest element of the block: iterate over
-    // the entire second sequence, monotonically reducing the search window in the block.
     _DifferenceType1 __min_i = __n1;
     for (; __s_first != __s_last && __min_i > 0; ++__s_first)
     {
