@@ -840,7 +840,7 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     // O(__n2 * __block_size) comparisons instead of O(__n2 * __n1). The first block is small, which keeps
     // that cost low, and every next block is twice as large, up to a fixed maximum: the per-block overhead
     // of the small leading blocks is amortized against the work done in the blocks that follow, the same
-    // way simd_or doubles its own block.
+    // way __simd_or_impl() doubles its own block when no early exit is available.
     constexpr std::size_t __target_block_bytes_min = __lane_size * 4; // 256 bytes
     // A block is scanned once per element of the second sequence, so it should stay in the L1 cache:
     // 16KB is half of the smallest common L1 data cache (32KB), which leaves room for the second sequence.
