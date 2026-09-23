@@ -151,10 +151,10 @@ Macro                                Description
                                      which might be incompatible with the earlier versions of |onedpl_short|.
 
                                      .. Warning:: This behavior is not yet supported for device execution policies. If such policy
-                                     is used with a ``ranges::set_*`` algorithm when the macro is set, you will get a compilation error.
+                                        is used with a ``ranges::set_*`` algorithm when the macro is set, you will get a compilation error.
 
                                      .. Note:: The standard conformant behavior for these algorithms will be fully enabled
-                                     in a future release, at which point any value of the macro will have no effect.
+                                        in a future release, at which point any value of the macro will have no effect.
 ------------------------------------ ------------------------------
 ``ONEDPL_FPGA_DEVICE``               Use this macro to build your code containing |onedpl_short| parallel
                                      algorithms for FPGA devices. (Disabled by default.)
