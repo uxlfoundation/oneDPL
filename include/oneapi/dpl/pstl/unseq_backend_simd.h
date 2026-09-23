@@ -16,6 +16,7 @@
 #ifndef _ONEDPL_UNSEQ_BACKEND_SIMD_H
 #define _ONEDPL_UNSEQ_BACKEND_SIMD_H
 
+#include <algorithm>   // for std::min
 #include <functional>  // for std::invoke
 #include <iterator>    // for std::iterator_traits
 #include <memory>      // for std::addressof
@@ -792,11 +793,11 @@ _ForwardIterator1
 __simd_find_first_of_block(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
                            _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
 {
-    using _DifferenceType = std::common_type_t<typename std::iterator_traits<_ForwardIterator1>::difference_type,
-                                               typename std::iterator_traits<_ForwardIterator2>::difference_type>;
+    using _DifferenceType1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_ForwardIterator2>::difference_type;
 
-    const _DifferenceType __n1 = __last - __first;
-    const _DifferenceType __n2 = __s_last - __s_first;
+    const _DifferenceType1 __n1 = __last - __first;
+    const _DifferenceType2 __n2 = __s_last - __s_first;
 
     // The block is shorter than the second sequence, so run simd_or with parameters of the second
     // sequence: it stops at the first matching element of the block, wherever in the second sequence
@@ -819,14 +820,14 @@ __simd_find_first_of_block(_ForwardIterator1 __first, _ForwardIterator1 __last, 
     // The block is at least as long as the second sequence, so run simd_first with parameters of the
     // block. Any element in the second sequence can match the earliest element of the block: iterate over
     // the entire second sequence, monotonically reducing the search window in the block.
-    _DifferenceType __min_i = __n1;
+    _DifferenceType1 __min_i = __n1;
     for (; __s_first != __s_last && __min_i > 0; ++__s_first)
     {
-        auto __simd_pred = [__s_first, &__pred](_ForwardIterator1 __it, _DifferenceType __i) {
+        auto __simd_pred = [__s_first, &__pred](_ForwardIterator1 __it, _DifferenceType1 __i) {
             return __pred(__it[__i], *__s_first);
         };
 
-        __min_i = __unseq_backend::__simd_first(__first, _DifferenceType(0), __min_i, __simd_pred) - __first;
+        __min_i = __unseq_backend::__simd_first(__first, _DifferenceType1(0), __min_i, __simd_pred) - __first;
     }
 
     return __min_i != __n1 ? __first + __min_i : __last;
@@ -838,32 +839,29 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
                      _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
 {
     using _ValueT1 = typename std::iterator_traits<_ForwardIterator1>::value_type;
-    using _DifferenceType = std::common_type_t<typename std::iterator_traits<_ForwardIterator1>::difference_type,
-                                               typename std::iterator_traits<_ForwardIterator2>::difference_type>;
+    using _DifferenceType1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
 
     // The first sequence is searched block by block, so that a match in an early block costs
     // O(__n2 * __block_size) comparisons instead of O(__n2 * __n1). The first block is small, which keeps
     // that cost low, and every next block is twice as large, up to a fixed maximum: the per-block overhead
     // of the small leading blocks is amortized against the work done in the blocks that follow, the same
     // way simd_or doubles its own block.
-    constexpr _DifferenceType __target_block_bytes_min = __lane_size * 4; // 256 bytes
-    constexpr _DifferenceType __target_block_bytes_max = 16 * 1024;       // 16KB fits into the L1 cache
-    constexpr _DifferenceType __block_size_min =
-        oneapi::dpl::__internal::__dpl_ceiling_div(__target_block_bytes_min, sizeof(_ValueT1));
-    constexpr _DifferenceType __block_size_max =
-        oneapi::dpl::__internal::__dpl_ceiling_div(__target_block_bytes_max, sizeof(_ValueT1));
+    constexpr std::size_t __target_block_bytes_min = __lane_size * 4; // 256 bytes
+    constexpr std::size_t __target_block_bytes_max = 16 * 1024;       // 16KB fits into the L1 cache
+    constexpr _DifferenceType1 __block_size_min =
+        _DifferenceType1(oneapi::dpl::__internal::__dpl_ceiling_div(__target_block_bytes_min, sizeof(_ValueT1)));
+    constexpr _DifferenceType1 __block_size_max =
+        _DifferenceType1(oneapi::dpl::__internal::__dpl_ceiling_div(__target_block_bytes_max, sizeof(_ValueT1)));
 
-    const _DifferenceType __n1 = __last - __first;
-    const _DifferenceType __n2 = __s_last - __s_first;
-    if (__n1 == 0 || __n2 == 0)
+    if (__first == __last || __s_first == __s_last)
         return __last; // according to the standard
 
-    _DifferenceType __block_size = __block_size_min;
-    for (_DifferenceType __block_begin = 0; __block_begin < __n1;)
+    // Only the first sequence is split into blocks, so all the block arithmetic is done in its difference type
+    const _DifferenceType1 __n1 = __last - __first;
+    _DifferenceType1 __block_size = __block_size_min;
+    for (_DifferenceType1 __block_begin = 0; __block_begin < __n1;)
     {
-        const _DifferenceType __block_end =
-            (__n1 - __block_begin) > __block_size ? (__block_begin + __block_size) : __n1;
-
+        const _DifferenceType1 __block_end = std::min(__block_begin + __block_size, __n1);
         const _ForwardIterator1 __it_block_end = __first + __block_end;
         const _ForwardIterator1 __res =
             __simd_find_first_of_block(__first + __block_begin, __it_block_end, __s_first, __s_last, __pred);
