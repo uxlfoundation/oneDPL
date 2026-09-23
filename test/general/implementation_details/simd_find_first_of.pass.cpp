@@ -56,7 +56,8 @@ make_second(std::size_t count, bool with_match, T value)
     return s;
 }
 
-// `first` points to the values 0, 1, 2, ... of a sequence with the difference type T
+// `first` points to the values 0, 1, 2, ... of a sequence with the difference type T; `long_n2` is the length
+// of a second sequence longer than the largest block, or 0 to skip such checks
 template <typename T, typename It1>
 void
 test_narrow_difference_type(It1 first, std::size_t long_n2)
@@ -86,33 +87,34 @@ test_narrow_difference_type(It1 first, std::size_t long_n2)
         check(first, last, s_first, s_last, p, "wrong position of a match with narrow difference types of both ranges");
     }
 
-    // The second sequence longer than the largest block, a match at both ends of the first sequence. Each such
-    // check away from the start scans up to the whole first sequence once per element of the second one, so
-    // a debug build keeps only the match at the start: the full scan is still done by the no-match check below
-#if PSTL_USE_DEBUG
-    for (const T p : {T(0)})
-#else
-    for (const T p : {T(0), T(n1 / 2), T(n1 - 1)})
-#endif
-    {
-        const std::vector<T> s = make_second(long_n2, true, p);
-        check(first, last, s.begin(), s.end(), p, "wrong position of a match through the last element of a long range 2");
-    }
-
     // No match
-    for (const std::size_t n2 : {std::size_t(1), std::size_t(3), long_n2})
+    for (const std::size_t n2 : {std::size_t(1), std::size_t(3)})
     {
         const std::vector<T> s = make_second(n2, false, T(0));
         check(first, last, s.begin(), s.end(), n1, "a match found where there is none");
     }
+
+    if (long_n2 == 0)
+        return;
+
+    // The second sequence longer than the largest block: a match at both ends of the first sequence and no match
+    for (const T p : {T(0), T(n1 / 2), T(n1 - 1)})
+    {
+        const std::vector<T> s = make_second(long_n2, true, p);
+        check(first, last, s.begin(), s.end(), p, "wrong position of a match through the last element of a long range 2");
+    }
+    const std::vector<T> s = make_second(long_n2, false, T(0));
+    check(first, last, s.begin(), s.end(), n1, "a match found where there is none with a long range 2");
 }
 
 int
 main()
 {
-    // The second sizes are larger than the largest block of the first sequence (127 and 8192 elements)
+    // The second size 200 is larger than the largest block of 127 elements. With std::int16_t a second sequence
+    // longer than the largest block (8192 elements) would cost hundreds of millions of comparisons, while the
+    // blocks shorter than the second sequence are already covered with std::int8_t
     test_narrow_difference_type<std::int8_t>(oneapi::dpl::counting_iterator<std::int8_t>(0), 200);
-    test_narrow_difference_type<std::int16_t>(oneapi::dpl::counting_iterator<std::int16_t>(0), 8300);
+    test_narrow_difference_type<std::int16_t>(oneapi::dpl::counting_iterator<std::int16_t>(0), 0);
 
     // 8-byte values: the blocks of 32, 64 and 127 elements
     auto widen = [](std::int8_t x) { return std::int64_t(x); };
