@@ -19,6 +19,7 @@
 #include <algorithm>   // for std::min
 #include <functional>  // for std::invoke
 #include <iterator>    // for std::iterator_traits
+#include <limits>      // for std::numeric_limits
 #include <memory>      // for std::addressof
 #include <type_traits> // for std::true_type, std::is_copy_constructible_v
 #include <utility>     // for std::pair, std::make_pair
@@ -841,21 +842,26 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     // of the small leading blocks is amortized against the work done in the blocks that follow, the same
     // way simd_or doubles its own block.
     constexpr std::size_t __target_block_bytes_min = __lane_size * 4; // 256 bytes
-    constexpr std::size_t __target_block_bytes_max = 16 * 1024;       // 16KB fits into the L1 cache
-    constexpr _DifferenceType1 __block_size_min =
-        _DifferenceType1(oneapi::dpl::__internal::__dpl_ceiling_div(__target_block_bytes_min, sizeof(_ValueT1)));
-    constexpr _DifferenceType1 __block_size_max =
-        _DifferenceType1(oneapi::dpl::__internal::__dpl_ceiling_div(__target_block_bytes_max, sizeof(_ValueT1)));
+    // A block is scanned once per element of the second sequence, so it should stay in the L1 cache:
+    // 16KB is half of the smallest common L1 data cache (32KB), which leaves room for the second sequence.
+    constexpr std::size_t __target_block_bytes_max = 16 * 1024; // 16KB
+
+    // A narrow difference type (e.g. of counting_iterator<std::int8_t>) cannot hold such a block: limit it
+    constexpr std::size_t __difference_max = std::size_t(std::numeric_limits<_DifferenceType1>::max());
+    constexpr _DifferenceType1 __block_size_min = _DifferenceType1(std::min(
+        oneapi::dpl::__internal::__dpl_ceiling_div(__target_block_bytes_min, sizeof(_ValueT1)), __difference_max));
+    constexpr _DifferenceType1 __block_size_max = _DifferenceType1(std::min(
+        oneapi::dpl::__internal::__dpl_ceiling_div(__target_block_bytes_max, sizeof(_ValueT1)), __difference_max));
 
     if (__first == __last || __s_first == __s_last)
         return __last; // according to the standard
 
-    // Only the first sequence is split into blocks, so all the block arithmetic is done in its difference type
     const _DifferenceType1 __n1 = __last - __first;
     _DifferenceType1 __block_size = __block_size_min;
     for (_DifferenceType1 __block_begin = 0; __block_begin < __n1;)
     {
-        const _DifferenceType1 __block_end = std::min(__block_begin + __block_size, __n1);
+        const _DifferenceType1 __block_end =
+            (__n1 - __block_begin) > __block_size ? (__block_begin + __block_size) : __n1;
         const _ForwardIterator1 __it_block_end = __first + __block_end;
         const _ForwardIterator1 __res =
             __simd_find_first_of_block(__first + __block_begin, __it_block_end, __s_first, __s_last, __pred);
@@ -863,7 +869,7 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
             return __res;
 
         __block_begin = __block_end;
-        __block_size = __block_size < __block_size_max ? __block_size * 2 : __block_size;
+        __block_size = __block_size < __block_size_max / 2 ? __block_size * 2 : __block_size_max;
     }
 
     return __last;
