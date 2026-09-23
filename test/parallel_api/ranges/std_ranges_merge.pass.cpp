@@ -69,6 +69,14 @@ main()
     test_range_algo<3, P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::merge, merge_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
     test_range_algo<7, int, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::merge, merge_checker);
+
+    // Check if projections are applied to the right sequences and trigger a compile-time error if not
+    check_mixed_types_in_in_out_host(dpl_ranges::merge, merge_checker, {{1}, {3}, {5}}, {{2}, {4}}, 5,
+                                     std::ranges::less{}, proj_a, proj_b);
+#if TEST_DPCPP_BACKEND_PRESENT
+    check_mixed_types_in_in_out_device(dpl_ranges::merge, merge_checker, {{1}, {3}, {5}}, {{2}, {4}}, 5,
+                                       std::ranges::less{}, proj_a, proj_b);
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

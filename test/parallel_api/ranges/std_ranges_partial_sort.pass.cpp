@@ -40,28 +40,46 @@ test_std_ranges::range_to_verify<partial_sort_fn>(int total_size, int /*result_s
 std::int32_t
 main()
 {
+    try
+    {
 #if _ENABLE_STD_RANGES_TESTING
-    using namespace test_std_ranges;
+        using namespace test_std_ranges;
 
-    auto partial_sort_algo = partial_sort_fn{};
+        auto partial_sort_algo = partial_sort_fn{};
 
-    auto partial_sort_checker = [](auto&& r, auto&&... args) {
-        auto middle = get_middle(r);
-        return std::ranges::partial_sort(std::forward<decltype(r)>(r), middle, std::forward<decltype(args)>(args)...);
-    };
+        auto partial_sort_checker = [](auto&& r, auto&&... args) {
+            auto middle = get_middle(r);
+            return std::ranges::partial_sort(std::forward<decltype(r)>(r), middle, std::forward<decltype(args)>(args)...);
+        };
 
-    test_range_algo<0>{big_sz}(partial_sort_algo, partial_sort_checker);
-    test_range_algo<1>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{});
+        test_range_algo<0>{big_sz}(partial_sort_algo, partial_sort_checker);
+        test_range_algo<1>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{});
 
-    test_range_algo<2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, proj);
-    test_range_algo<3>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, proj);
+        test_range_algo<2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, proj);
+        test_range_algo<3>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, proj);
 
-    test_range_algo<4, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::x);
-    test_range_algo<5, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::x);
+        test_range_algo<4, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::x);
+        test_range_algo<5, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::x);
 
-    test_range_algo<6, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::proj);
-    test_range_algo<7, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::proj);
+        test_range_algo<6, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::less{}, &P2::proj);
+        test_range_algo<7, P2>{}(partial_sort_algo, partial_sort_checker, std::ranges::greater{}, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
+    }
+    catch (const std::exception& exc)
+    {
+        std::cerr << "Exception occurred in main() of " << __FILE__;
+        if (exc.what())
+            std::cerr << ": " << exc.what();
+        std::cerr << std::endl;
+
+        return EXIT_FAILURE;
+    }
+    catch (...)
+    {
+        std::cerr << "Unknown exception occurred in main() of " << __FILE__ << std::endl;
+
+        return EXIT_FAILURE;
+    }
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }

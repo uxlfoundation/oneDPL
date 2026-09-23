@@ -278,25 +278,25 @@ __brick_walk2_n(_RandomAccessIterator1 __first1, _Size __n, _RandomAccessIterato
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Function>
 _ForwardIterator2
 __pattern_walk2(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                _ForwardIterator2 __first2, _Function __f) noexcept
+                _ForwardIterator2 __first2, _Function&& __f) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag>);
 
-    return __internal::__brick_walk2(__first1, __last1, __first2, __f, typename _Tag::__is_vector{});
+    return __internal::__brick_walk2(__first1, __last1, __first2, std::forward<_Function>(__f), typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _Function>
 _RandomAccessIterator2
 __pattern_walk2(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
-                _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _Function __f)
+                _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _Function&& __f)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-            [__f, __first1, __first2](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+            [&__f, __first1, __first2](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
                 __internal::__brick_walk2(__i, __j, __first2 + (__i - __first1), __f, _IsVector{});
             });
         return __first2 + (__last1 - __first1);
@@ -306,7 +306,7 @@ __pattern_walk2(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Function>
 _ForwardIterator2
 __pattern_walk2(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
-                _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function __f)
+                _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function&& __f)
 {
     using __backend_tag = typename __parallel_forward_tag::__backend_tag;
 
@@ -346,10 +346,10 @@ template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
           class _RandomAccessIterator2, class _Function>
 _RandomAccessIterator2
 __pattern_walk2_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
-                  _Size __n, _RandomAccessIterator2 __first2, _Function __f)
+                  _Size __n, _RandomAccessIterator2 __first2, _Function&& __f)
 {
-    return __internal::__pattern_walk2(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
-                                       __first2, __f);
+    return __internal::__pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
+                                       __first2, std::forward<_Function>(__f));
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Brick>

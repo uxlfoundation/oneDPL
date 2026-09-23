@@ -804,10 +804,11 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     // Otherwise, vice versa.
     if (__n1 < __n2)
     {
-        auto __u_pred =
-            [__pred, __first](auto&& __val) mutable { return __pred(std::forward<decltype(__val)>(__val), *__first); };
         for (; __first != __last; ++__first)
         {
+            auto __u_pred = [__first, &__pred](auto&& __val) {
+                return __pred(*__first, std::forward<decltype(__val)>(__val));
+            };
             if (__unseq_backend::__simd_or(__s_first, __n2, __u_pred))
             {
                 return __first;
@@ -816,17 +817,20 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     }
     else
     {
-        for (; __s_first != __s_last; ++__s_first)
+        // The result is the earliest element of the first range matching any element of the second one, so
+        // every element of the second range has to be tried and the earliest match kept. Only the part of
+        // the first range before the best match found so far can improve it, and __simd_first returns the
+        // end of the range it is given when it finds nothing, which is that same best match, so its
+        // result can be taken as is.
+        _ForwardIterator1 __res = __last;
+        for (; __s_first != __s_last && __res != __first; ++__s_first)
         {
-            const auto __result = __unseq_backend::__simd_first(
-                __first, _DifferencType(0), __n1, [__s_first, &__pred](_ForwardIterator1 __it, _DifferencType __i) {
-                    return __pred(__it[__i], *__s_first);
-                });
-            if (__result != __last)
-            {
-                return __result;
-            }
+            __res = __unseq_backend::__simd_first(__first, _DifferencType(0), __res - __first,
+                                                  [__s_first, &__pred](_ForwardIterator1 __it, _DifferencType __i) {
+                                                      return __pred(__it[__i], *__s_first);
+                                                  });
         }
+        return __res;
     }
     return __last;
 }

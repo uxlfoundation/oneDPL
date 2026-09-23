@@ -64,6 +64,9 @@ template <typename _Pred>
 class __reorder_pred;
 
 template <typename _Pred>
+class __relax_const_pred;
+
+template <typename _Pred>
 class __pred_at_index;
 
 template <typename _Pred, bool _Flag>
@@ -174,6 +177,12 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 
 template <typename _Pred>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__reorder_pred, _Pred)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
+{
+};
+
+template <typename _Pred>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__relax_const_pred, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
 };

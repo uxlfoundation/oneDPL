@@ -94,32 +94,50 @@ struct
 std::int32_t
 main()
 {
+    try
+    {
 #if _ENABLE_STD_RANGES_TESTING
-    using namespace test_std_ranges;
-    namespace dpl_ranges = oneapi::dpl::ranges;
+        using namespace test_std_ranges;
+        namespace dpl_ranges = oneapi::dpl::ranges;
 
-    // input generator with a fair chance of repeating the previous value
-    auto repeat_sometimes = [](auto i) {
-        static decltype(i) last = 0;
-        if (i == 0)
-            last = 0; // reset
-        else if (i%7 > 0 && (last + i - 1)%3 == 0)
-            last = i;
-        return last;
-    };
-    using repeating_gen = decltype(repeat_sometimes);
-    auto modulo_3_is_1 = [](int val) { return (val % 3) == 1; };
+        // input generator with a fair chance of repeating the previous value
+        auto repeat_sometimes = [](auto i) {
+            static decltype(i) last = 0;
+            if (i == 0)
+                last = 0; // reset
+            else if (i%7 > 0 && (last + i - 1)%3 == 0)
+                last = i;
+            return last;
+        };
+        using repeating_gen = decltype(repeat_sometimes);
+        auto modulo_3_is_1 = [](int val) { return (val % 3) == 1; };
 
-    remove_copy_if_checker.test_self();
+        remove_copy_if_checker.test_self();
 
-    test_range_algo<0, int, data_in_out_lim>{239}(dpl_ranges::remove_copy_if, remove_copy_if_checker, pred);
-    test_range_algo<1, int, data_in_out_lim>{1471}(dpl_ranges::remove_copy_if, remove_copy_if_checker, select_many);
-    test_range_algo<2, int, data_in_out_lim>{}(dpl_ranges::remove_copy_if, remove_copy_if_checker, select_many, proj);
-    test_range_algo<3, P2, data_in_out_lim, repeating_gen>{}(dpl_ranges::remove_copy_if, remove_copy_if_checker, modulo_3_is_1, &P2::x);
-    test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::remove_copy_if, remove_copy_if_checker, pred, &P2::proj);
-    test_range_algo<5, int, data_in_out_lim>{get_scan_big_sz()}(dpl_ranges::remove_copy_if, remove_copy_if_checker, pred);
-    test_range_algo<6, int, data_in_out_lim, repeating_gen>{get_scan_big_sz()}(dpl_ranges::remove_copy_if, remove_copy_if_checker, select_many);
+        test_range_algo<0, int, data_in_out_lim>{239}(dpl_ranges::remove_copy_if, remove_copy_if_checker, pred);
+        test_range_algo<1, int, data_in_out_lim>{1471}(dpl_ranges::remove_copy_if, remove_copy_if_checker, select_many);
+        test_range_algo<2, int, data_in_out_lim>{}(dpl_ranges::remove_copy_if, remove_copy_if_checker, select_many, proj);
+        test_range_algo<3, P2, data_in_out_lim, repeating_gen>{}(dpl_ranges::remove_copy_if, remove_copy_if_checker, modulo_3_is_1, &P2::x);
+        test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::remove_copy_if, remove_copy_if_checker, pred, &P2::proj);
+        test_range_algo<5, int, data_in_out_lim>{get_scan_big_sz()}(dpl_ranges::remove_copy_if, remove_copy_if_checker, pred);
+        test_range_algo<6, int, data_in_out_lim, repeating_gen>{get_scan_big_sz()}(dpl_ranges::remove_copy_if, remove_copy_if_checker, select_many);
 #endif // _ENABLE_STD_RANGES_TESTING
+    }
+    catch (const std::exception& exc)
+    {
+        std::cerr << "Exception occurred in main() of " << __FILE__;
+        if (exc.what())
+            std::cerr << ": " << exc.what();
+        std::cerr << std::endl;
+
+        return EXIT_FAILURE;
+    }
+    catch (...)
+    {
+        std::cerr << "Unknown exception occurred in main() of " << __FILE__ << std::endl;
+
+        return EXIT_FAILURE;
+    }
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
