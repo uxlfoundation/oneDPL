@@ -1894,6 +1894,14 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
         using __block_carry_t = __block_carry_opt<_GenReduceInput>;
         auto __carry = __block_carry_t::__transform_block_carry(__block_carry_ptr, __block_num, __max_block_size);
 
+        // Handle the first element for unique, indicated by the combination of two constexpr conditions.
+        if constexpr (__is_unique_pattern_v && __block_carry_t::__is_required)
+        {
+            // Done as a custom case workaround, arguably is not worth any encapsulation
+            if (__block_num == 0 && __ndi.get_global_linear_id() == 0)
+                std::get<1>(__in_rng[0]) = std::get<0>(__in_rng[0]);
+        }
+
         auto __gen_input = [&](const _InRng& __rng, std::size_t __id) {
             if constexpr (__block_carry_t::__is_required)
                 return __gen_reduce_input(__rng, __id, __carry);
