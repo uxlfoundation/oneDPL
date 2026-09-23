@@ -1,17 +1,16 @@
-breathe==4.9.1
-sphinx==4.4.0
+breathe==5.0.0
+sphinx==9.1.0
 jinja2==3.1.6
-# https://github.com/sphinx-doc/sphinx/issues/9923
-docutils==0.15
-# Pin versions to avoid a compatibility issue: "The sphinxcontrib.<extension_name> extension used by this project needs at least Sphinx v5.0"
-sphinxcontrib_applehelp<1.0.8
-sphinxcontrib_devhelp<1.0.5
-sphinxcontrib_htmlhelp<2.0.4
-sphinxcontrib_qthelp<1.0.6
-sphinxcontrib-serializinghtml<1.1.10
+docutils==0.22
+# Pin versions to avoid compatibility issues
+sphinxcontrib_applehelp==2.0.0
+sphinxcontrib_devhelp==2.0.0
+sphinxcontrib_htmlhelp==2.1.0
+sphinxcontrib_qthelp==2.0.0
+sphinxcontrib-serializinghtml==2.0.0
 
-sphinx_book_theme==1.0.1
+sphinx_book_theme==1.4.0
 sphinx-intl==2.0.0
-sphinx-tabs==3.4.5
-sphinx-prompt==1.5.0
-sphinx_substitution_extensions==2022.2.16
+sphinx-tabs==3.5.0
+sphinx-prompt==1.10.2
+sphinx_substitution_extensions==2026.8.13.1
