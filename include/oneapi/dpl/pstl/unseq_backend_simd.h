@@ -856,19 +856,19 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     if (__first == __last || __s_first == __s_last)
         return __last; // according to the standard
 
-    const _DifferenceType1 __n1 = __last - __first;
     _DifferenceType1 __block_size = __block_size_min;
-    for (_DifferenceType1 __block_begin = 0; __block_begin < __n1;)
+    _ForwardIterator1 __block_first = __first;
+    for (_DifferenceType1 __rest = __last - __first; __rest > 0;)
     {
-        const _DifferenceType1 __block_end =
-            (__n1 - __block_begin) > __block_size ? (__block_begin + __block_size) : __n1;
-        const _ForwardIterator1 __it_block_end = __first + __block_end;
+        const _DifferenceType1 __len = __rest > __block_size ? __block_size : __rest;
+        const _ForwardIterator1 __block_last = __block_first + __len;
         const _ForwardIterator1 __res =
-            __simd_find_first_of_block(__first + __block_begin, __it_block_end, __s_first, __s_last, __pred);
-        if (__res != __it_block_end)
+            __simd_find_first_of_block(__block_first, __block_last, __s_first, __s_last, __pred);
+        if (__res != __block_last)
             return __res;
 
-        __block_begin = __block_end;
+        __block_first = __block_last;
+        __rest -= __len;
         __block_size = __block_size < __block_size_max / 2 ? __block_size * 2 : __block_size_max;
     }
 
