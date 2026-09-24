@@ -886,7 +886,9 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
 
     // A longer second sequence does not stay in L1 while a block is walked over it, so it is walked in tiles.
     // The tiles give up the early exit inside a block, so the blocks then start from a single element: the doubling
-    // keeps each block no larger than the work already done before it.
+    // keeps each block no larger than the work already done before it. With a few tiles only, the lost early exit
+    // costs more than the cache misses save, so a second sequence is tiled only when it holds more than __tiles_min.
+    constexpr _DifferenceType2 __tiles_min = 4;
     constexpr _DifferenceType2 __tile_size =
         _DifferenceType2(std::min(__internal::__dpl_ceiling_div(__target_block_bytes_max, sizeof(_ValueT2)),
                                   std::size_t(std::numeric_limits<_DifferenceType2>::max())));
@@ -898,7 +900,7 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     const _DifferenceType2 __n2 = __s_last - __s_first;
 
     // start small if tiled, else start at a size that stays in L1
-    const bool __tiled = __n2 > __tile_size;
+    const bool __tiled = __n2 / __tiles_min > __tile_size;
     _DifferenceType1 __block_size = __tiled ? _DifferenceType1(1) : __block_size_min;
 
     for (_DifferenceType1 __block_begin = 0; __block_begin < __n1;)

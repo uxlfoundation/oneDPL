@@ -12,8 +12,8 @@
 // the block ends may overflow the difference type, which for counting_iterator<std::int8_t> cannot hold even
 // the smallest block and for counting_iterator<std::int16_t> would overflow at the end of the last block. With a wide
 // value type the smallest block fits into std::int8_t, but twice the next block does not.
-// A second sequence longer than 16 KB is walked in tiles, each tile against the elements of the first sequence that
-// can still improve the result; a match of a later tile must still win when it is at an earlier position.
+// A second sequence longer than 4 tiles of 16 KB is walked in tiles, each tile against the elements of the first
+// sequence that can still improve the result; a match of a later tile must still win when it is at an earlier position.
 
 #include "support/test_config.h"
 
@@ -109,7 +109,7 @@ test_narrow_difference_type(It1 first, std::size_t long_n2)
     check(first, last, s.begin(), s.end(), n1, "a match found where there is none with a long range 2");
 }
 
-// A match of a[p] with the element s[j] of a second sequence longer than one tile of 16 KB / sizeof(T): j at the tile
+// A match of a[p] with the element s[j] of a second sequence longer than 4 tiles of 16 KB / sizeof(T): j at the tile
 // boundaries, p across the blocks of the first sequence, which start from a single element for such a second sequence.
 // The predicate is asymmetric, so that swapped arguments are detected as well: a[i] matches s[j] when a[i] == s[j] + 1
 template <typename T>
@@ -118,7 +118,7 @@ test_tiled_second_sequence()
 {
     const std::size_t tile = 16 * 1024 / sizeof(T);
     const std::size_t n1 = 40;
-    const std::size_t n2 = 2 * tile + 3;
+    const std::size_t n2 = 5 * tile + 3;
     auto pred = [](T a, T s) { return a == T(s + 1); };
 
     // The first sequence holds 1000, 1001, ...; the filler of the second one (0) matches none of them
@@ -167,7 +167,7 @@ main()
     test_narrow_difference_type<std::int8_t>(
         oneapi::dpl::make_transform_iterator(oneapi::dpl::counting_iterator<std::int8_t>(0), widen), 200);
 
-    // The second sequence longer than one tile
+    // The second sequence longer than 4 tiles
     test_tiled_second_sequence<std::int32_t>();
     test_tiled_second_sequence<std::int64_t>();
 
