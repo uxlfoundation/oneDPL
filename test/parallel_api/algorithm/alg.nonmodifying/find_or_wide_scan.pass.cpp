@@ -20,7 +20,10 @@
 // from the backward one, which is what the shared early-exit vote has to get right.
 //
 // Not covered here: batches longer than one iteration, which need an input far larger than a test can afford.
+// Both size thresholds have to be lowered: equal and mismatch below read two ranges, and are held to the
+// second one, so leaving it alone would route them to the narrow scan and the test would pass vacuously.
 #define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE 0
+#define _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE 0
 
 #include "support/test_config.h"
 
@@ -52,6 +55,11 @@ using __bwd_tag = oneapi::dpl::__par_backend_hetero::__parallel_find_backward_ta
 using __rng = __rng_of<int>;
 using __cmp = std::less<int>;
 
+// Both size thresholds are lowered above; pin that, because a two-range case held to the higher one would
+// take the narrow scan and this test would pass without exercising what it exists to cover.
+static_assert(oneapi::dpl::__par_backend_hetero::__find_or_wide_scan_min_size_for<__rng>() == 0);
+static_assert(oneapi::dpl::__par_backend_hetero::__find_or_wide_scan_min_size_for<__rng, __rng>() == 0);
+
 // The wide scan is opted into per brick, so pin the routing of every brick that reaches __parallel_find_or.
 // any_of / all_of / none_of, find / find_if / find_if_not, equal, mismatch, is_sorted, is_sorted_until:
 static_assert(__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng>);
@@ -79,8 +87,8 @@ struct __elem16
 {
     std::uint64_t __a, __b;
 };
-// 8 bytes is the top of the window, and only one element per index reaches it.
-static_assert(__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng64>);
+// 8 bytes is above the window, at every element count and every tag.
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng64>);
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng64, __rng64>);
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng, __rng64>);
 // A zip range reads one element per component, so it is held to the same width as two ranges.

@@ -1052,13 +1052,17 @@ inline constexpr std::size_t __find_or_wide_scan_min_size = std::numeric_limits<
 inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE;
 #endif
 
+// A predicate reading several elements per index gains less per widened load, so it needs a larger input.
+// empirical: smallest size measured free of regressions; Battlemage and Ponte Vecchio, 2- and 4-byte types.
+inline constexpr std::size_t __find_or_wide_scan_multi_elem_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE;
+
 // empirical: below this width the wide scan was slower on at least one device in every configuration
 // except the one __find_or_wide_scan_profitable keeps. Battlemage and Ponte Vecchio, 2- and 4-byte types.
 inline constexpr std::size_t __find_or_wide_scan_min_elem_size = 4;
 
-// empirical: the widest element the wide scan was measured faster at, and only where it reads one element per
-// index. Battlemage and Ponte Vecchio, 8-byte types.
-inline constexpr std::size_t __find_or_wide_scan_max_elem_size = 8;
+// empirical: above this width the wide scan lost on incompressible 8-byte data everywhere below 256M.
+// Battlemage and Ponte Vecchio, 4- and 8-byte types.
+inline constexpr std::size_t __find_or_wide_scan_max_elem_size = 4;
 
 // Whether the brick's predicate reads one element of each range at the scanned index -- the loads the wide
 // scan makes fewer and wider. A gather, or a loop over a second sequence, gains nothing from being unrolled.
@@ -1073,27 +1077,41 @@ struct __brick_reads_one_elem_per_range<oneapi::dpl::unseq_backend::single_match
 {
 };
 
-// Whether the wide scan is worth taking for this brick, tag and these ranges. A scan reading one element per
-// index pays across the whole measured width range; below that range only a presence check does -- the one
-// narrow configuration measured faster wide on both devices, at 2 bytes.
+// The value types the wide scan would load per index. A zip range reads one element per component, so this
+// counts the scanned elements rather than the ranges.
+template <typename... _Ranges>
+using __find_or_scanned_value_types = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
+
+template <typename... _Ranges>
+inline constexpr bool __find_or_reads_one_elem_per_index =
+    oneapi::dpl::__internal::__nested_type_count<__find_or_scanned_value_types<_Ranges...>>::value == 1;
+
+// Whether the wide scan is worth taking for this brick, tag and these ranges: it needs one element read per
+// range at the scanned index, and elements inside the measured width window. Below that window only a presence
+// check qualifies -- the one narrow configuration measured faster wide on both devices, at 2 bytes.
 template <typename _Brick, typename _BrickTag, typename... _Ranges>
 constexpr bool
 __find_or_wide_scan_profitable()
 {
-    using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
-    // A zip range reads one element per component, so count the scanned elements, not the ranges.
-    constexpr bool __one_elem_per_index = oneapi::dpl::__internal::__nested_type_count<_ValueTypes>::value == 1;
-    // Reading several elements per index pays only at the narrowest width measured profitable for one: below it
-    // every such configuration measured slower, and above it some did.
-    constexpr std::size_t __max_elem_size =
-        __one_elem_per_index ? __find_or_wide_scan_max_elem_size : __find_or_wide_scan_min_elem_size;
+    using _ValueTypes = __find_or_scanned_value_types<_Ranges...>;
     constexpr bool __elems_wide_enough =
         oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value >= __find_or_wide_scan_min_elem_size;
     constexpr bool __elems_narrow_enough =
-        oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value <= __max_elem_size;
+        oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value <= __find_or_wide_scan_max_elem_size;
     constexpr bool __or_tag = std::is_same_v<_BrickTag, __parallel_or_tag>;
     return __brick_reads_one_elem_per_range<_Brick>::value && __elems_narrow_enough &&
-           (__elems_wide_enough || (__or_tag && __one_elem_per_index));
+           (__elems_wide_enough || (__or_tag && __find_or_reads_one_elem_per_index<_Ranges...>));
+}
+
+// The smallest input the wide scan pays for on these ranges: reading several elements per index needs more of
+// them. Never below the overall floor, which is how FPGA declines the wide scan outright.
+template <typename... _Ranges>
+constexpr std::size_t
+__find_or_wide_scan_min_size_for()
+{
+    return __find_or_reads_one_elem_per_index<_Ranges...>
+               ? __find_or_wide_scan_min_size
+               : std::max(__find_or_wide_scan_min_size, __find_or_wide_scan_multi_elem_min_size);
 }
 
 template <typename Tag>
@@ -1469,7 +1487,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         if constexpr (__find_or_wide_scan_min_size == std::numeric_limits<std::size_t>::max() ||
                       !__find_or_wide_scan_profitable<_Brick, _BrickTag, _Ranges...>())
             __result = __launch(std::false_type{});
-        else if (static_cast<std::size_t>(__rng_n) < __find_or_wide_scan_min_size)
+        else if (static_cast<std::size_t>(__rng_n) < __find_or_wide_scan_min_size_for<_Ranges...>())
             __result = __launch(std::false_type{});
         else
             __result = __launch(std::true_type{});

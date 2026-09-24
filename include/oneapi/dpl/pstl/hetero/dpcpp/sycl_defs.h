@@ -113,6 +113,12 @@
 #    define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE (std::size_t{1} << 20)
 #endif // _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE
 
+// The same, for a predicate that reads several elements per index. Overridable for the same reason: a test
+// that lowers only the other one would route every two-range case to the narrow scan and pass vacuously.
+#ifndef _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE
+#    define _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE (std::size_t{1} << 26)
+#endif // _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE
+
 // Macro to check if we are compiling for SPIR-V devices. This macro must only be used within
 // SYCL kernels for determining SPIR-V compilation. Using this macro on the host may lead to incorrect behavior.
 #ifndef _ONEDPL_DETECT_SPIRV_COMPILATION // Check if overridden for testing
