@@ -854,11 +854,10 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
         return __last; // according to the standard
 
     const _DifferenceType1 __n1 = __last - __first;
-    _DifferenceType1 __block_size = __block_size_min;
-    for (_DifferenceType1 __block_begin = 0; __block_begin < __n1;)
+    for (_DifferenceType1 __block_begin = 0, __block_size = __block_size_min; __block_begin < __n1;)
     {
         const _DifferenceType1 __block_end =
-            (__n1 - __block_begin) > __block_size ? (__block_begin + __block_size) : __n1;
+            __block_begin + std::min<_DifferenceType1>(__n1 - __block_begin, __block_size);
         const _ForwardIterator1 __it_block_end = __first + __block_end;
         const _ForwardIterator1 __res =
             __simd_find_first_of_block(__first + __block_begin, __it_block_end, __s_first, __s_last, __pred);
