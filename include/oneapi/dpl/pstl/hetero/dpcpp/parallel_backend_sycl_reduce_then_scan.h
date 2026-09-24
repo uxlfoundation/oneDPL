@@ -108,7 +108,8 @@ struct __get_zeroth_element
 
 // Storage for per-element temporary data, set at reduce and read at scan by "input generators".
 // To support block processing like in reduce-then-scan, elements are accessible via global index.
-template <typename _T>
+// The offset reserves extra space at the beginning of the buffer - it's needed for 'unique'.
+template <typename _T, std::size_t __offset>
 struct __block_storage : public __device_storage<_T>
 {
     struct __view
@@ -122,8 +123,10 @@ struct __block_storage : public __device_storage<_T>
         // Element access is only valid in device code
         _T& operator[](std::size_t __gidx) const
         {
+            // If __offset is non-zero, __gidx should not be less than __offset.
+            // In practice, __offset is 1 for __is_unique_pattern_v, which handles the index 0 specially.
             _T* __ptr = __data ? __data : &__acc[0];
-            return __ptr[__gidx % __block_sz];
+            return __ptr[(__gidx - __offset)% __block_sz + __offset];
         }
 
         // ADL-discoverable call used by __ranges::__require_access in utils_ranges_sycl.h
@@ -140,7 +143,7 @@ struct __block_storage : public __device_storage<_T>
 
     __block_storage(const sycl::queue& __q, std::size_t __n) : __block_sz(__n)
     {
-        this->__initialize(__q, __n);
+        this->__initialize(__q, __n + __offset);
     }
 
     __view __all_view()
@@ -154,20 +157,20 @@ struct __block_storage : public __device_storage<_T>
     }
 };
 
-template <typename _Range, typename _T>
-auto __zip_with_block_storage(_Range&& __rng, __block_storage<_T>& __blockbuf)
+template <typename _Range, typename _T, std::size_t __offset>
+auto __zip_with_block_storage(_Range&& __rng, __block_storage<_T, __offset>& __blockbuf)
 {
     return oneapi::dpl::__ranges::make_zip_view(std::forward<_Range>(__rng), __blockbuf.__all_view());
 }
 
-template <>
-struct __block_storage<void>
+template <std::size_t __offset>
+struct __block_storage<void, __offset>
 {
     __block_storage(const sycl::queue&, std::size_t) {}
 };
 
-template <typename _Range>
-auto __zip_with_block_storage(_Range&& __rng, __block_storage<void>&)
+template <typename _Range, std::size_t __offset>
+auto __zip_with_block_storage(_Range&& __rng, __block_storage<void, __offset>&)
 {
     return std::forward<_Range>(__rng);
 }
@@ -594,8 +597,9 @@ struct __optimized_input_buffering
     static bool
     __transform_block_carry(_RetType* __carry_ptr, std::size_t __block_num, std::size_t __block_size)
     {
-        // Even if all elements in an input block would have to be written, their new places are before the block.
-        // The result is passed to operator().
+        // The condition to check: if all elements in an input block would have to be written, would their new places
+        // intersect with the block? Weak inequality accommodates for 'unique' patterns that read the element
+        // preceding the block. The result is passed to operator().
         return __block_num == 0 || (*__carry_ptr) + __block_size >= __block_num * __block_size;
     }
 };
@@ -1496,7 +1500,7 @@ struct __block_carry_opt<_T, std::void_t<decltype(_T::__block_carry_required)>>
     static auto
     __transform_block_carry(_ValueType* __carry_ptr, std::size_t __block_num, std::size_t __block_size)
     {
-        // if __block_num == 0, *__carry_ptr must not be read as the value is not initialized
+        // Note: if __block_num == 0, *__carry_ptr must not be read as the value is not initialized
         return _T::__transform_block_carry(__carry_ptr, __block_num, __block_size);
     }
 };
@@ -1894,12 +1898,12 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
         using __block_carry_t = __block_carry_opt<_GenReduceInput>;
         auto __carry = __block_carry_t::__transform_block_carry(__block_carry_ptr, __block_num, __max_block_size);
 
-        // Handle the first element for unique, indicated by the combination of two constexpr conditions.
         if constexpr (__is_unique_pattern_v && __block_carry_t::__is_required)
         {
-            // Done as a custom case workaround, arguably is not worth any encapsulation
-            if (__block_num == 0 && __ndi.get_global_linear_id() == 0)
-                std::get<1>(__in_rng[0]) = std::get<0>(__in_rng[0]);
+            // Handle the pre-block element for 'unique' (indicated by the combination of two constexpr conditions).
+            // Done as a custom-case operation, arguably is not worth any encapsulation.
+            if (__ndi.get_global_linear_id() == 0 && bool(__carry))
+                std::get<1>(__in_rng[0]) = std::get<0>(__in_rng[__block_num * __max_block_size]);
         }
 
         auto __gen_input = [&](const _InRng& __rng, std::size_t __id) {
@@ -2585,7 +2589,8 @@ __parallel_transform_reduce_then_scan_impl(
     
     // An algorithm can request additional per-element storage to pass data from reduce to scan
     // The storage is zipped with input and is reused across the blocks.
-    __block_storage<_ExtraStorageT> __block_scratch(__q, __block_size);
+    // For unique, an extra element of storage is needed.
+    __block_storage<_ExtraStorageT, std::size_t(__is_unique_pattern_v)> __block_scratch(__q, __block_size);
     auto __input = __zip_with_block_storage(__in_rng, __block_scratch);
 
     // Allocate storage for stop and out-of-bounds position if needed
@@ -2689,9 +2694,7 @@ __parallel_transform_reduce_then_scan(
     using _ValueType = typename _InitType::__value_type;
 
     // This static assert clarifies a cryptic error for "no matching function" due to mismatched type
-    using _InputAndScratchRange =
-        decltype(__zip_with_block_storage(__in_rng, std::declval<__block_storage<_ExtraStorageT>&>()));
-    using _GenScanInputResult = typename _GenScanInput::template __result_t<std::decay_t<_InputAndScratchRange>>;
+    using _GenScanInputResult = typename _GenScanInput::template __result_t<std::decay_t<_InRng>>;
     using _ScannedValueType = std::decay_t<std::invoke_result_t<_ScanInputTransform, _GenScanInputResult&>>;
     static_assert(std::is_same_v<_ScannedValueType, _ValueType>,
                   "reduce-then-scan: the init value type must match the type produced by applying the scan input "
