@@ -901,7 +901,7 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     const _DifferenceType2 __n2 = __s_last - __s_first;
 
     // start small if tiled, else start at a size that stays in L1
-    const bool __tiled = __n2 / __tiles_min > __tile_size;
+    const bool __tiled = (__n2 - 1) / __tile_size >= __tiles_min;
     _DifferenceType1 __block_size = __tiled ? _DifferenceType1(1) : __block_size_min;
 
     for (_DifferenceType1 __block_begin = 0; __block_begin < __n1;)

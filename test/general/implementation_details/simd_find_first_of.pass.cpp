@@ -118,7 +118,7 @@ test_tiled_second_sequence()
 {
     const std::size_t tile = 16 * 1024 / sizeof(T);
     const std::size_t n1 = 40;
-    const std::size_t n2 = 65 * tile + 3;
+    const std::size_t n2 = 64 * tile + 1; // the shortest tiled one, its last tile holds a single element
     auto pred = [](T a, T s) { return a == T(s + 1); };
 
     // The first sequence holds 1000, 1001, ...; the filler of the second one (0) matches none of them
