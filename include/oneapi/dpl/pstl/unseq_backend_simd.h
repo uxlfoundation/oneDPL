@@ -843,11 +843,12 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     constexpr std::size_t __target_block_bytes_max = 16 * 1024;       // half of the smallest common L1d (32KB)
 
     // A narrow difference type (e.g. of counting_iterator<std::int8_t>) cannot hold such a block: limit it
-    constexpr std::size_t __difference_max = std::size_t(std::numeric_limits<_DifferenceType1>::max());
-    constexpr _DifferenceType1 __block_size_min = _DifferenceType1(std::min(
-        oneapi::dpl::__internal::__dpl_ceiling_div(__target_block_bytes_min, sizeof(_ValueT1)), __difference_max));
-    constexpr _DifferenceType1 __block_size_max = _DifferenceType1(std::min(
-        oneapi::dpl::__internal::__dpl_ceiling_div(__target_block_bytes_max, sizeof(_ValueT1)), __difference_max));
+    constexpr auto __bytes_to_block_size = [](std::size_t __bytes) {
+        return _DifferenceType1(std::min(__internal::__dpl_ceiling_div(__bytes, sizeof(_ValueT1)),
+                                         std::size_t(std::numeric_limits<_DifferenceType1>::max())));
+    };
+    constexpr _DifferenceType1 __block_size_min = __bytes_to_block_size(__target_block_bytes_min);
+    constexpr _DifferenceType1 __block_size_max = __bytes_to_block_size(__target_block_bytes_max);
 
     if (__first == __last || __s_first == __s_last)
         return __last; // according to the standard
