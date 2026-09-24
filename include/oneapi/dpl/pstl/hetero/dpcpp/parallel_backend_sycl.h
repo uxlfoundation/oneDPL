@@ -1046,13 +1046,8 @@ __find_or_wgroup_size_retry_floor([[maybe_unused]] const sycl::queue& __q)
 #endif
 }
 
-// Elements per work item the single work-group path reaches when the multiple work-group path is unavailable.
-// Not tuned: it is how far that path must reach when no global atomic is available to combine groups.
-inline constexpr std::size_t __find_or_one_wg_elems_per_item_no_atomic64 = 32;
-
-// One work group is little parallelism, so bound its reach by iterations.
-// empirical: Battlemage and Ponte Vecchio, 4-byte types.
-inline constexpr std::size_t __find_or_max_iters_in_one_wg = 8;
+// Up to this many elements per work item, a single work group scans the whole input.
+inline constexpr std::size_t __find_or_one_wg_max_elems_per_item = 32;
 
 // A floor of this is unreachable, which is how a configuration declines the wide scan outright.
 inline constexpr std::size_t __find_or_wide_scan_never = std::numeric_limits<std::size_t>::max();
@@ -1133,18 +1128,14 @@ struct __parallel_find_or_nd_range_tuner
 {
     // Tune the amount of work-groups and work-group size
     __find_or_nd_range_params
-    operator()(const sycl::queue& __q, const std::size_t __rng_n, const bool __one_wg_required) const
+    operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
         // TODO: find a way to generalize getting of reliable work-group size
         // Bounds the work per compute unit, and on CPUs stands in for a device maximum that is impractically
         // large. Empirically found value.
         const std::size_t __wgroup_size_limit = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
-        // Elements per item on the single work-group path: it scans narrow, so an iteration is an element. That
-        // path needs no global atomics, so where the multi-group path's are unavailable it must reach further.
-        const std::size_t __one_wg_elems_per_item =
-            __one_wg_required ? __find_or_one_wg_elems_per_item_no_atomic64 : __find_or_max_iters_in_one_wg;
         // It never launches the kernel the cap below exists for, so it takes the device limit whole.
-        if (__rng_n <= __wgroup_size_limit * __one_wg_elems_per_item)
+        if (__rng_n <= __wgroup_size_limit * __find_or_one_wg_max_elems_per_item)
             return {/*__n_groups=*/1, __wgroup_size_limit};
 
         // Cap the group size, and place proportionally more groups per compute unit so the grid still holds
@@ -1168,10 +1159,10 @@ struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backe
 {
     // Tune the amount of work-groups and work-group size
     __find_or_nd_range_params
-    operator()(const sycl::queue& __q, const std::size_t __rng_n, const bool __one_wg_required) const
+    operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
         // Call common tuning function to get the work-group size
-        auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<int>{}(__q, __rng_n, __one_wg_required);
+        auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<int>{}(__q, __rng_n);
 
         if (__n_groups > 1)
         {
@@ -1448,11 +1439,9 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
 
-    const bool __one_wg_required = sizeof(_AtomicType) >= 8 && !__q_local.get_device().has(sycl::aspect::atomic64);
-
     // Evaluate the amount of work-groups and work-group size
-    const auto __params = __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(
-        __q_local, __rng_n, __one_wg_required);
+    const auto __params =
+        __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(__q_local, __rng_n);
 
     // The ranges are passed as lvalues below: the fallback may invoke a launch more than once.
     _AtomicType __result;
