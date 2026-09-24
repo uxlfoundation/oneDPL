@@ -121,12 +121,19 @@ struct __block_storage : public __device_storage<_T>
         __acc_t __acc;
         
         // Element access is only valid in device code
-        _T& operator[](std::size_t __gidx) const
+        _T&
+        operator[](std::size_t __lidx) const
+        {
+            // __lidx must be within [0, __block_sz + __offset)
+            return __data ? __data[__lidx] : __acc[__lidx];
+        }
+
+        std::size_t
+        __local_index(std::size_t __gidx)
         {
             // If __offset is non-zero, __gidx should not be less than __offset.
             // In practice, __offset is 1 for __is_unique_pattern_v, which handles the index 0 specially.
-            _T* __ptr = __data ? __data : &__acc[0];
-            return __ptr[(__gidx - __offset)% __block_sz + __offset];
+            return (__gidx - __offset) % __block_sz + __offset;
         }
 
         // ADL-discoverable call used by __ranges::__require_access in utils_ranges_sycl.h
@@ -146,8 +153,9 @@ struct __block_storage : public __device_storage<_T>
         this->__initialize(__q, __n + __offset);
     }
 
-    __view __all_view()
-    {        
+    __view
+    __all_view()
+    {
         // checking the buffer size is the simplest way to cover both "no device USM"
         // and _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
         if (this->__sycl_buf.size() != 0)
@@ -614,12 +622,24 @@ struct __gen_count_mask_and_copy : public __optimized_input_buffering<_RetType>
     __gen_count_mask_and_copy(_GenMask __gen) : __optimized_input_buffering<_RetType>{}, __gen_mask{__gen} {}
 
     template <typename _InRng, typename _BufRng>
+    void
+    __handle_unique(const oneapi::dpl::__ranges::zip_view<_InRng, _BufRng>& __zip_rng, std::size_t __block_num,
+                    std::size_t __block_size, bool __copy) const
+    {
+        // Store the pre-block element at the beginning of the buffer
+        auto&& [__input, __buffer] = __zip_rng.base();
+        if (__copy)
+            __buffer[0] = __input[__block_num * __block_size];
+    }
+
+    template <typename _InRng, typename _BufRng>
     _RetType
     operator()(const oneapi::dpl::__ranges::zip_view<_InRng, _BufRng>& __zip_rng, _RetType __id, bool __copy) const
     {
-        bool __mask = __gen_mask(std::get<0>(__zip_rng.base()), __id);
+        auto&& [__input, __buffer] = __zip_rng.base();
+        bool __mask = __gen_mask(__input, __id);
         if (__copy)
-            std::get<1>(__zip_rng[__id]) = std::get<0>(__zip_rng[__id]);
+            __buffer[__buffer.__local_index(__id)] = __input[__id];
         return __mask ? _RetType{1} : _RetType{0};
     }
     _GenMask __gen_mask;
@@ -644,8 +664,9 @@ struct __gen_expand_count_mask_from_copy : public __optimized_input_buffering<_R
     operator()(const oneapi::dpl::__ranges::zip_view<_InRng, _BufRng>& __zip_rng, _RetType __id, bool __read_copy) const
     {
         auto&& [__input, __buffer] = __zip_rng.base();
-        __element_t<_InRng> __ele = __read_copy ? __buffer[__id] : __input[__id];
-        bool __mask = __read_copy ? __gen_mask(__buffer, __id) : __gen_mask(__input, __id);
+        std::size_t __lidx = __buffer.__local_index(__id);
+        __element_t<_InRng> __ele = __read_copy ? __buffer[__lidx] : __input[__id];
+        bool __mask = __read_copy ? __gen_mask(__buffer, __lidx) : __gen_mask(__input, __id);
         return __result_t<_InRng>(__mask ? _RetType{1} : _RetType{0}, __mask, __ele);
     }
     _GenMask __gen_mask;
@@ -1901,9 +1922,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
         if constexpr (__is_unique_pattern_v && __block_carry_t::__is_required)
         {
             // Handle the pre-block element for 'unique' (indicated by the combination of two constexpr conditions).
-            // Done as a custom-case operation, arguably is not worth any encapsulation.
-            if (__ndi.get_global_linear_id() == 0 && bool(__carry))
-                std::get<1>(__in_rng[0]) = std::get<0>(__in_rng[__block_num * __max_block_size]);
+            if (__ndi.get_global_linear_id() == 0)
+                __gen_reduce_input.__handle_unique(__in_rng, __block_num, __max_block_size, __carry);
         }
 
         auto __gen_input = [&](const _InRng& __rng, std::size_t __id) {
