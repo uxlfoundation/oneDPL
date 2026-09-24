@@ -825,7 +825,7 @@ __simd_find_first_of_block(_ForwardIterator1 __first, _ForwardIterator1 __last, 
         __min_i = __unseq_backend::__simd_first(__first, _DifferenceType1(0), __min_i, __simd_pred) - __first;
     }
 
-    return __min_i != __n1 ? __first + __min_i : __last;
+    return  __first + __min_i;
 }
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
