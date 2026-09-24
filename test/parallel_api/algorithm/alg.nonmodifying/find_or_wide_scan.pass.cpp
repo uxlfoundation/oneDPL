@@ -277,13 +277,10 @@ main()
 #if TEST_FIND_OR_WIDE_SCAN
     auto __policy = TestUtils::get_dpcpp_test_policy();
     // The wide scan lives on the multiple work-group path, which a size reaches only past the single work-group
-    // path's reach. That reach scales with the device's maximum work-group size and with whichever
-    // elements-per-item bound applies, so take the larger bound: the other one leaves every algorithm whose
-    // atomic is 64 bits on the single work-group path where the device lacks atomic64.
+    // path's reach, and that reach scales with the device's maximum work-group size.
     const std::size_t __beyond_one_wg =
         2 * oneapi::dpl::__internal::__max_work_group_size(__policy.queue(), std::size_t(4096)) *
-        std::max(oneapi::dpl::__par_backend_hetero::__find_or_max_iters_in_one_wg,
-                 oneapi::dpl::__par_backend_hetero::__find_or_one_wg_elems_per_item_no_atomic64);
+        oneapi::dpl::__par_backend_hetero::__find_or_one_wg_max_elems_per_item;
     // Sizes that are and are not a multiple of the scan width. Only the largest takes the wide scan; the
     // rest cover the narrow one.
     for (std::size_t __n : {std::size_t(1), std::size_t(3), std::size_t(4), std::size_t(31), std::size_t(1024),
