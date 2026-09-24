@@ -12,6 +12,8 @@
 // the block ends may overflow the difference type, which for counting_iterator<std::int8_t> cannot hold even
 // the smallest block and for counting_iterator<std::int16_t> would overflow at the end of the last block. With a wide
 // value type the smallest block fits into std::int8_t, but twice the next block does not.
+// A second sequence longer than 16 KB is walked in tiles, each tile against the elements of the first sequence that
+// can still improve the result; a match of a later tile must still win when it is at an earlier position.
 
 #include "support/test_config.h"
 
@@ -107,6 +109,50 @@ test_narrow_difference_type(It1 first, std::size_t long_n2)
     check(first, last, s.begin(), s.end(), n1, "a match found where there is none with a long range 2");
 }
 
+// A match of a[p] with the element s[j] of a second sequence longer than one tile of 16 KB / sizeof(T): j at the tile
+// boundaries, p across the blocks of the first sequence, which start from a single element for such a second sequence.
+// The predicate is asymmetric, so that swapped arguments are detected as well: a[i] matches s[j] when a[i] == s[j] + 1
+template <typename T>
+void
+test_tiled_second_sequence()
+{
+    const std::size_t tile = 16 * 1024 / sizeof(T);
+    const std::size_t n1 = 40;
+    const std::size_t n2 = 2 * tile + 3;
+    auto pred = [](T a, T s) { return a == T(s + 1); };
+
+    // The first sequence holds 1000, 1001, ...; the filler of the second one (0) matches none of them
+    std::vector<T> a(n1);
+    for (std::size_t i = 0; i < n1; ++i)
+        a[i] = T(1000 + i);
+    std::vector<T> s(n2, T(0));
+
+    auto run = [&](long long expected, const char* message) {
+        const auto result = dpl_unseq::__simd_find_first_of(a.begin(), a.end(), s.begin(), s.end(), pred);
+        EXPECT_EQ(expected, static_cast<long long>(result - a.begin()), message);
+    };
+
+    run(n1, "a match found where there is none with a tiled range 2");
+    for (const std::size_t j : {std::size_t(0), tile - 1, tile, 2 * tile - 1, 2 * tile, n2 - 1})
+    {
+        for (const std::size_t p : {std::size_t(0), std::size_t(1), std::size_t(2), std::size_t(7), std::size_t(8),
+                                    std::size_t(20), n1 - 1})
+        {
+            s[j] = T(a[p] - 1);
+            run(p, "wrong position of a match with a tiled range 2");
+
+            // An earlier tile refers to a later position: the match of the later tile must win
+            if (p > 0 && j >= tile)
+            {
+                s[j - tile] = T(a[p] - 1 + 1);
+                run(p, "the earlier tile of range 2 won over the earlier position of range 1");
+                s[j - tile] = T(0);
+            }
+            s[j] = T(0);
+        }
+    }
+}
+
 int
 main()
 {
@@ -120,6 +166,10 @@ main()
     auto widen = [](std::int8_t x) { return std::int64_t(x); };
     test_narrow_difference_type<std::int8_t>(
         oneapi::dpl::make_transform_iterator(oneapi::dpl::counting_iterator<std::int8_t>(0), widen), 200);
+
+    // The second sequence longer than one tile
+    test_tiled_second_sequence<std::int32_t>();
+    test_tiled_second_sequence<std::int64_t>();
 
     return TestUtils::done();
 }
