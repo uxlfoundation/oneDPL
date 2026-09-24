@@ -836,15 +836,11 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     using _ValueT1 = typename std::iterator_traits<_ForwardIterator1>::value_type;
     using _DifferenceType1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
 
-    // The first sequence is searched block by block, so that a match in an early block costs
-    // O(__n2 * __block_size) comparisons instead of O(__n2 * __n1). The first block is small, which keeps
-    // that cost low, and every next block is twice as large, up to a fixed maximum: the per-block overhead
-    // of the small leading blocks is amortized against the work done in the blocks that follow, the same
-    // way __simd_or_impl() doubles its own block when no early exit is available.
+    // The first sequence is searched in blocks, so that an early match costs O(__n2 * __block_size) comparisons
+    // instead of O(__n2 * __n1). The block starts small and doubles, which amortizes the overhead of the small
+    // leading blocks, up to a size that stays in the L1 cache together with the second sequence.
     constexpr std::size_t __target_block_bytes_min = __lane_size * 4; // 256 bytes
-    // A block is scanned once per element of the second sequence, so it should stay in the L1 cache:
-    // 16KB is half of the smallest common L1 data cache (32KB), which leaves room for the second sequence.
-    constexpr std::size_t __target_block_bytes_max = 16 * 1024; // 16KB
+    constexpr std::size_t __target_block_bytes_max = 16 * 1024;       // half of the smallest common L1d (32KB)
 
     // A narrow difference type (e.g. of counting_iterator<std::int8_t>) cannot hold such a block: limit it
     constexpr std::size_t __difference_max = std::size_t(std::numeric_limits<_DifferenceType1>::max());
