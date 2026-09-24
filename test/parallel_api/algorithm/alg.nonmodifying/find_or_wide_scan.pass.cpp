@@ -16,8 +16,7 @@
 // The find_or backend scans several contiguous elements per work item, but only above a size threshold that
 // every other test stays below, so nothing otherwise exercises that path. Force the threshold to zero and
 // vary the match position, which puts the match at every element of an iteration and at every alignment
-// against the work-group size. A second match on the far side of the first distinguishes the forward tag
-// from the backward one, which is what the shared early-exit vote has to get right.
+// against the work-group size.
 //
 // Not covered here: batches longer than one iteration, which need an input far larger than a test can afford.
 // Both size thresholds have to be lowered: equal and mismatch below read two ranges, and are held to the
@@ -32,7 +31,15 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
+// FPGA declines the wide scan outright, so its threshold ignores the overrides above and there is
+// nothing here to cover.
+#if TEST_DPCPP_BACKEND_PRESENT && !_ONEDPL_FPGA_DEVICE
+#    define TEST_FIND_OR_WIDE_SCAN 1
+#else
+#    define TEST_FIND_OR_WIDE_SCAN 0
+#endif
+
+#if TEST_FIND_OR_WIDE_SCAN
 #    include <algorithm>
 #    include <cstdint>
 #    include <functional>
@@ -55,8 +62,6 @@ using __bwd_tag = oneapi::dpl::__par_backend_hetero::__parallel_find_backward_ta
 using __rng = __rng_of<int>;
 using __cmp = std::less<int>;
 
-// Both size thresholds are lowered above; pin that, because a two-range case held to the higher one would
-// take the narrow scan and this test would pass without exercising what it exists to cover.
 static_assert(oneapi::dpl::__par_backend_hetero::__find_or_wide_scan_min_size_for<__rng>() == 0);
 static_assert(oneapi::dpl::__par_backend_hetero::__find_or_wide_scan_min_size_for<__rng, __rng>() == 0);
 
@@ -165,7 +170,7 @@ test_at_size(Policy&& __exec, std::size_t __n)
                     "wrong result from any_of");
         EXPECT_TRUE(oneapi::dpl::none_of(__exec_none_of, __d, __d + __n, __is_one) == !__has_match,
                     "wrong result from none_of");
-        // Two ranges, so the scan loads from two streams per element.
+        // Two ranges over one allocation, so the scan reads two elements per index.
         EXPECT_TRUE(oneapi::dpl::mismatch(__exec_mismatch, __d, __d + __n, __d).first == __d + __n,
                     "wrong result from mismatch of a range with itself");
     }
@@ -264,20 +269,21 @@ test_2byte_ranges(Policy&& __exec, std::size_t __n)
     sycl::free(__d1, __q);
     sycl::free(__d2, __q);
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
+#endif // TEST_FIND_OR_WIDE_SCAN
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_FIND_OR_WIDE_SCAN
     auto __policy = TestUtils::get_dpcpp_test_policy();
-    // The wide scan lives on the multiple work-group path, which a size reaches only past the single
-    // work-group path's reach -- and that reach scales with the device's maximum work-group size, so a literal
-    // size would reach the wide scan on some devices and not others. Twice the reach is past it and is still a
-    // multiple of the scan width.
+    // The wide scan lives on the multiple work-group path, which a size reaches only past the single work-group
+    // path's reach. That reach scales with the device's maximum work-group size and with whichever
+    // elements-per-item bound applies, so take the larger bound: the other one leaves every algorithm whose
+    // atomic is 64 bits on the single work-group path where the device lacks atomic64.
     const std::size_t __beyond_one_wg =
         2 * oneapi::dpl::__internal::__max_work_group_size(__policy.queue(), std::size_t(4096)) *
-        oneapi::dpl::__par_backend_hetero::__find_or_max_iters_in_one_wg;
+        std::max(oneapi::dpl::__par_backend_hetero::__find_or_max_iters_in_one_wg,
+                 oneapi::dpl::__par_backend_hetero::__find_or_one_wg_elems_per_item_no_atomic64);
     // Sizes that are and are not a multiple of the scan width. Only the largest takes the wide scan; the
     // rest cover the narrow one.
     for (std::size_t __n : {std::size_t(1), std::size_t(3), std::size_t(4), std::size_t(31), std::size_t(1024),
@@ -288,5 +294,5 @@ main()
         test_2byte_ranges(__policy, __n);
     }
 #endif
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(TEST_FIND_OR_WIDE_SCAN);
 }
