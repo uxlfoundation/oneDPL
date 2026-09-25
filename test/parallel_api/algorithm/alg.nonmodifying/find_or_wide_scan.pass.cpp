@@ -15,8 +15,7 @@
 
 // The find_or backend scans several contiguous elements per work item, but only above a size threshold that
 // every other test stays below, so nothing otherwise exercises that path. Force the threshold to zero and
-// vary the match position, which puts the match at every element of an iteration and at every alignment
-// against the work-group size.
+// vary the match position, which puts the match at every element of an iteration.
 //
 // Not covered here: batches longer than one iteration, which need an input far larger than a test can afford.
 // Both size thresholds have to be lowered: equal and mismatch below read two ranges, and are held to the
@@ -33,24 +32,19 @@
 
 // FPGA declines the wide scan outright, so its threshold ignores the overrides above and there is
 // nothing here to cover.
-#if TEST_DPCPP_BACKEND_PRESENT && !_ONEDPL_FPGA_DEVICE
+#if TEST_DPCPP_BACKEND_PRESENT && !_ONEDPL_FPGA_DEVICE && !_ONEDPL_FPGA_EMU
 #    define TEST_FIND_OR_WIDE_SCAN 1
 #else
 #    define TEST_FIND_OR_WIDE_SCAN 0
 #endif
 
 #if TEST_FIND_OR_WIDE_SCAN
+#    include "support/sycl_alloc_utils.h"
+
 #    include <algorithm>
 #    include <cstdint>
 #    include <functional>
 #    include <vector>
-
-// A range stand-in for the routing checks below: __value_t needs only a value_type.
-template <typename _T>
-struct __rng_of
-{
-    using value_type = _T;
-};
 
 template <typename _Brick, typename _Tag, typename... _Ranges>
 inline constexpr bool __scans_wide =
@@ -59,7 +53,8 @@ inline constexpr bool __scans_wide =
 using __or_tag = oneapi::dpl::__par_backend_hetero::__parallel_or_tag;
 using __fwd_tag = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<std::size_t>;
 using __bwd_tag = oneapi::dpl::__par_backend_hetero::__parallel_find_backward_tag<std::size_t>;
-using __rng = __rng_of<int>;
+// The routing checks below need only each range's value type, which oneDPL takes from the iterator.
+using __rng = int*;
 using __cmp = std::less<int>;
 
 static_assert(oneapi::dpl::__par_backend_hetero::__find_or_wide_scan_min_size_for<__rng>() == 0);
@@ -84,10 +79,14 @@ static_assert(!__scans_wide<oneapi::dpl::unseq_backend::__brick_includes<std::si
 
 // The wide scan is also gated on element width and on how many elements the predicate reads per index, so pin
 // both ends of the width window against both element counts. The widest element of any scanned range decides.
-using __rng16 = __rng_of<std::uint16_t>;
-using __rng64 = __rng_of<std::uint64_t>;
-using __rng_zip_2_2 = __rng_of<oneapi::dpl::__internal::tuple<std::uint16_t, std::uint16_t>>;
-using __rng_zip_4_8 = __rng_of<oneapi::dpl::__internal::tuple<std::uint32_t, std::uint64_t>>;
+using __rng8 = std::uint8_t*;
+using __rng16 = std::uint16_t*;
+using __rng64 = std::uint64_t*;
+// A zip range holds views, not iterators; guard_view is what a pair of passed-directly iterators becomes.
+template <typename... _Ts>
+using __zip_of = oneapi::dpl::__ranges::zip_view<oneapi::dpl::__ranges::guard_view<_Ts*>...>;
+using __rng_zip_2_2 = __zip_of<std::uint16_t, std::uint16_t>;
+using __rng_zip_4_8 = __zip_of<std::uint32_t, std::uint64_t>;
 struct __elem16
 {
     std::uint64_t __a, __b;
@@ -99,11 +98,13 @@ static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>
 // A zip range reads one element per component, so it is held to the same width as two ranges.
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_zip_4_8>);
 // Elements wider than the window are declined at every element count.
-static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_of<__elem16>>);
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __elem16*>);
 // 2 bytes is below the window, so only a presence check reading one element per index qualifies.
 static_assert(__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng16>);
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng16, __rng16>);
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_zip_2_2>);
+// 1 byte is below the presence check's own floor, so nothing admits it.
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng8>);
 
 // Every match position for a size a test can enumerate; above that an odd stride -- coprime with the scan
 // width and the work-group size -- growing as the square of the size, so a device that needs a larger size to
@@ -120,7 +121,9 @@ class __find_if_name;
 class __find_end_name;
 class __any_of_name;
 class __none_of_name;
+class __mismatch_self_name;
 class __mismatch_name;
+class __equal_name;
 
 template <typename Policy>
 void
@@ -131,9 +134,18 @@ test_at_size(Policy&& __exec, std::size_t __n)
     auto __exec_find_end = TestUtils::make_new_policy<__find_end_name>(__exec);
     auto __exec_any_of = TestUtils::make_new_policy<__any_of_name>(__exec);
     auto __exec_none_of = TestUtils::make_new_policy<__none_of_name>(__exec);
+    auto __exec_mismatch_self = TestUtils::make_new_policy<__mismatch_self_name>(__exec);
     auto __exec_mismatch = TestUtils::make_new_policy<__mismatch_name>(__exec);
+    auto __exec_equal = TestUtils::make_new_policy<__equal_name>(__exec);
     std::vector<int> __host(__n, 0);
-    int* __d = sycl::malloc_device<int>(__n, __q);
+    std::vector<int> __host2(__n, 0);
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, int> __dt(__q, __n);
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, int> __dt2(__q, __n);
+    int __needle = 1;
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, int> __needle_dt(__q, &__needle, std::size_t(1));
+    int* __d = __dt.get_data();
+    int* __d2 = __dt2.get_data();
+    int* __nd = __needle_dt.get_data();
     auto __is_one = [](int __x) { return __x == 1; };
 
     const std::size_t __step = match_position_step(__n);
@@ -148,7 +160,13 @@ test_at_size(Policy&& __exec, std::size_t __n)
         const std::size_t __decoy = __has_match && __pos + 1 < __n ? __n - 1 : __pos;
         if (__has_match)
             __host[__decoy] = 1;
-        __q.memcpy(__d, __host.data(), __n * sizeof(int)).wait();
+        // The second range differs from the first at __pos alone, so the two-range scans below must report
+        // exactly that index.
+        __host2 = __host;
+        if (__has_match)
+            __host2[__pos] = 0;
+        __dt.update_data(__host.data());
+        __dt2.update_data(__host2.data());
 
         // Forward tag: the first match.
         EXPECT_TRUE(oneapi::dpl::find_if(__exec_find_if, __d, __d + __n, __is_one) == __d + __pos,
@@ -157,28 +175,28 @@ test_at_size(Policy&& __exec, std::size_t __n)
         // wide scan, so this covers the narrow path.
         if (__n > 1)
         {
-            const int __needle = 1;
-            int* __nd = sycl::malloc_device<int>(1, __q);
-            __q.memcpy(__nd, &__needle, sizeof(int)).wait();
             auto __expected = __has_match ? __d + __decoy : __d + __n;
             EXPECT_TRUE(oneapi::dpl::find_end(__exec_find_end, __d, __d + __n, __nd, __nd + 1) == __expected,
                         "wrong index from find_end");
-            sycl::free(__nd, __q);
         }
         // Or tag: presence only.
         EXPECT_TRUE(oneapi::dpl::any_of(__exec_any_of, __d, __d + __n, __is_one) == __has_match,
                     "wrong result from any_of");
         EXPECT_TRUE(oneapi::dpl::none_of(__exec_none_of, __d, __d + __n, __is_one) == !__has_match,
                     "wrong result from none_of");
-        // Two ranges over one allocation, so the scan reads two elements per index.
-        EXPECT_TRUE(oneapi::dpl::mismatch(__exec_mismatch, __d, __d + __n, __d).first == __d + __n,
+        // Two ranges over one allocation, so the scan reads two elements per index from aliased views.
+        EXPECT_TRUE(oneapi::dpl::mismatch(__exec_mismatch_self, __d, __d + __n, __d).first == __d + __n,
                     "wrong result from mismatch of a range with itself");
+        // Two distinct ranges, so the returned index is checked and not only the end sentinel.
+        EXPECT_TRUE(oneapi::dpl::mismatch(__exec_mismatch, __d, __d + __n, __d2).first ==
+                        (__has_match ? __d + __pos : __d + __n),
+                    "wrong index from mismatch of two 4-byte ranges");
+        EXPECT_TRUE(oneapi::dpl::equal(__exec_equal, __d, __d + __n, __d2) == !__has_match,
+                    "wrong result from equal of two 4-byte ranges");
     }
-    sycl::free(__d, __q);
 }
 
-// Two 8-byte ranges. The width gate routes them to the narrow scan, which no other test reaches at this
-// width above the size threshold.
+// Two 8-byte ranges. The width gate routes them to the narrow scan.
 class __mismatch_8byte_name;
 class __equal_8byte_name;
 
@@ -191,9 +209,10 @@ test_two_8byte_ranges(Policy&& __exec, std::size_t __n)
     auto __exec_mismatch = TestUtils::make_new_policy<__mismatch_8byte_name>(__exec);
     auto __exec_equal = TestUtils::make_new_policy<__equal_8byte_name>(__exec);
     std::vector<_T> __host(__n, _T(1));
-    _T* __d1 = sycl::malloc_device<_T>(__n, __q);
-    _T* __d2 = sycl::malloc_device<_T>(__n, __q);
-    __q.memcpy(__d1, __host.data(), __n * sizeof(_T)).wait();
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, _T> __dt1(__q, __host.begin(), __n);
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, _T> __dt2(__q, __n);
+    _T* __d1 = __dt1.get_data();
+    _T* __d2 = __dt2.get_data();
 
     const std::size_t __step = match_position_step(__n);
 
@@ -203,7 +222,7 @@ test_two_8byte_ranges(Policy&& __exec, std::size_t __n)
         const bool __differs = __pos < __n;
         if (__differs)
             __host[__pos] = _T(2);
-        __q.memcpy(__d2, __host.data(), __n * sizeof(_T)).wait();
+        __dt2.update_data(__host.data());
 
         EXPECT_TRUE(oneapi::dpl::mismatch(__exec_mismatch, __d1, __d1 + __n, __d2).first ==
                         (__differs ? __d1 + __pos : __d1 + __n),
@@ -211,8 +230,6 @@ test_two_8byte_ranges(Policy&& __exec, std::size_t __n)
         EXPECT_TRUE(oneapi::dpl::equal(__exec_equal, __d1, __d1 + __n, __d2) == !__differs,
                     "wrong result from equal of two 8-byte ranges");
     }
-    sycl::free(__d1, __q);
-    sycl::free(__d2, __q);
 }
 
 // A 2-byte element type; the cases above cover only 4 and 8 bytes. Only any_of and none_of take the wide
@@ -236,10 +253,11 @@ test_2byte_ranges(Policy&& __exec, std::size_t __n)
     auto __exec_equal = TestUtils::make_new_policy<__equal_2byte_name>(__exec);
     auto __is_one = [](_T __x) { return __x == _T(1); };
     std::vector<_T> __host(__n, _T(0));
-    _T* __d1 = sycl::malloc_device<_T>(__n, __q);
-    _T* __d2 = sycl::malloc_device<_T>(__n, __q);
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, _T> __dt1(__q, __n);
     // The second range stays all-zero, so one match in the first serves every tag below.
-    __q.memcpy(__d2, __host.data(), __n * sizeof(_T)).wait();
+    TestUtils::usm_data_transfer<sycl::usm::alloc::device, _T> __dt2(__q, __host.begin(), __n);
+    _T* __d1 = __dt1.get_data();
+    _T* __d2 = __dt2.get_data();
 
     const std::size_t __step = match_position_step(__n);
 
@@ -249,7 +267,7 @@ test_2byte_ranges(Policy&& __exec, std::size_t __n)
         const bool __has_match = __pos < __n;
         if (__has_match)
             __host[__pos] = _T(1);
-        __q.memcpy(__d1, __host.data(), __n * sizeof(_T)).wait();
+        __dt1.update_data(__host.data());
 
         // Forward tag: the first match.
         EXPECT_TRUE(oneapi::dpl::find_if(__exec_find_if, __d1, __d1 + __n, __is_one) == __d1 + __pos,
@@ -259,15 +277,12 @@ test_2byte_ranges(Policy&& __exec, std::size_t __n)
                     "wrong result from any_of over 2-byte elements");
         EXPECT_TRUE(oneapi::dpl::none_of(__exec_none_of, __d1, __d1 + __n, __is_one) == !__has_match,
                     "wrong result from none_of over 2-byte elements");
-        // Two ranges, so one iteration loads from two streams at 2 bytes each.
         EXPECT_TRUE(oneapi::dpl::mismatch(__exec_mismatch, __d1, __d1 + __n, __d2).first ==
                         (__has_match ? __d1 + __pos : __d1 + __n),
                     "wrong index from mismatch of two 2-byte ranges");
         EXPECT_TRUE(oneapi::dpl::equal(__exec_equal, __d1, __d1 + __n, __d2) == !__has_match,
                     "wrong result from equal of two 2-byte ranges");
     }
-    sycl::free(__d1, __q);
-    sycl::free(__d2, __q);
 }
 #endif // TEST_FIND_OR_WIDE_SCAN
 
