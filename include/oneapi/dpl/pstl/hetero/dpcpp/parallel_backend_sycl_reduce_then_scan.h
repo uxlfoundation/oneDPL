@@ -2585,10 +2585,17 @@ __parallel_transform_reduce_then_scan_impl(
     }
     if constexpr (__max_block_size > 0)
     {
-        if (__inputs_remaining > __max_block_size)
-            __max_inputs_per_item = std::max<std::uint32_t>(
-                1, std::min<std::size_t>(__max_inputs_per_item,
-                                         __max_block_size / (std::size_t{__num_work_groups} * __work_group_size)));
+        // provisional: the cap is dropped when it would add more blocks than this
+        constexpr std::size_t __max_blocks_added_by_cap = 16;
+        const std::size_t __work_items = std::size_t{__num_work_groups} * __work_group_size;
+        const std::uint32_t __capped_inputs_per_item =
+            std::max<std::uint32_t>(1, std::min<std::size_t>(__max_inputs_per_item, __max_block_size / __work_items));
+        const std::size_t __uncapped_blocks =
+            oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_remaining, __max_inputs_per_item * __work_items);
+        const std::size_t __capped_blocks =
+            oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_remaining, __capped_inputs_per_item * __work_items);
+        if (__inputs_remaining > __max_block_size && __capped_blocks - __uncapped_blocks <= __max_blocks_added_by_cap)
+            __max_inputs_per_item = __capped_inputs_per_item;
     }
 
     // Need to calculate actual number of blocks to avoid empty blocks due to floor calculations
@@ -2709,7 +2716,7 @@ __parallel_transform_reduce_then_scan_impl(
 //            for a single iteration of its serial loop over a block. It is used only as a block sizing heuristic: we
 //            try to make a block's total input footprint fit within the last level cache so that the scan kernel can
 //            re-read the input from LLC rather than paying for a second read from global memory.
-// __max_block_size - if non-zero, an upper bound on the number of inputs in a block (0 means no bound)
+// __max_block_size - if non-zero, a preferred upper bound on the number of inputs in a block (0 means no bound)
 template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _ExtraStorageT = void,
           std::size_t __max_block_size = 0, typename _InRng, typename _OutRng, typename _GenReduceInput,
           typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp,
