@@ -33,6 +33,17 @@ main()
     test_range_algo<2, int, data_in_in>{}(dpl_ranges::find_end, find_end_checker, binary_pred_const, proj);
     test_range_algo<3, P2, data_in_in>{}(dpl_ranges::find_end, find_end_checker, binary_pred, &P2::x, &P2::x);
     test_range_algo<4, P2, data_in_in>{}(dpl_ranges::find_end, find_end_checker, binary_pred, &P2::proj, &P2::proj);
+
+    auto gen_2i_2 = [](auto i) { return 2 * i + 2; };
+    test_range_algo<5, int, data_in_in, std::identity, decltype(gen_2i_2)>{}(dpl_ranges::find_end, find_end_checker,
+                                                                            binary_pred, proj);
+
+    check_mixed_types_in_in_host(dpl_ranges::find_end, find_end_checker, {{1}, {2}, {1}, {2}, {5}}, {{1}, {2}},
+                                 result_subrange, binary_pred, proj_a, proj_b);
+#if TEST_DPCPP_BACKEND_PRESENT
+    check_mixed_types_in_in_device(dpl_ranges::find_end, find_end_checker, {{1}, {2}, {1}, {2}, {5}}, {{1}, {2}},
+                                   result_subrange, binary_pred, proj_a, proj_b);
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
