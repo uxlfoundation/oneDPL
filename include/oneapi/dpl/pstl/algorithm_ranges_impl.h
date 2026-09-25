@@ -71,7 +71,7 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _O
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
     assert(std::ranges::size(__in_r) <= std::ranges::size(__out_r)); // for debug purposes only
 
-    oneapi::dpl::__internal::__transform_functor<oneapi::dpl::__internal::__unary_op<_F, _Proj>> __f{{__op, __proj}};
+    oneapi::dpl::__internal::__unary_op<_F, _Proj> __f{__op, __proj};
 
     oneapi::dpl::__internal::__pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r),
                                              std::ranges::begin(__in_r) + std::ranges::size(__in_r),
@@ -98,8 +98,7 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange1&& __in_r1, 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__transform_functor<oneapi::dpl::__internal::__binary_op<_F, _Proj1, _Proj2>>
-        __f{{__binary_op, __proj1, __proj2}};
+    oneapi::dpl::__internal::__binary_op<_F, _Proj1, _Proj2> __f{__binary_op, __proj1, __proj2};
 
     oneapi::dpl::__internal::__pattern_walk3(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r1),
                                              std::ranges::begin(__in_r1) + std::ranges::size(__in_r1),

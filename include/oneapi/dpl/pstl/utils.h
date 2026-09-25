@@ -186,6 +186,14 @@ struct __unary_op
     {
         return std::invoke(__f, std::invoke(__proj, std::forward<_TValue>(__val)));
     }
+
+    // Transformation
+    template <typename _TValue, typename _OutputType>
+    void
+    operator()(_TValue&& __val, _OutputType&& __output) const
+    {
+        std::forward<_OutputType>(__output) = std::invoke(__f, std::invoke(__proj, std::forward<_TValue>(__val)));
+    }
 };
 
 template <typename _F, typename _Proj1, typename _Proj2>
@@ -202,6 +210,15 @@ struct __binary_op
     {
         return std::invoke(__f, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
                            std::invoke(__proj2, std::forward<_TValue2>(__val2)));
+    }
+
+    // Transformation
+    template <typename _TValue1, typename _TValue2, typename _OutputType>
+    void
+    operator()(_TValue1&& __val1, _TValue2&& __val2, _OutputType&& __output) const
+    {
+        std::forward<_OutputType>(__output) = std::invoke(__f, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
+                                                          std::invoke(__proj2, std::forward<_TValue2>(__val2)));
     }
 };
 

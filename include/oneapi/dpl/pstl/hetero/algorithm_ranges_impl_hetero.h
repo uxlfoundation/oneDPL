@@ -96,10 +96,10 @@ __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     assert(std::ranges::size(__in_r) <= std::ranges::size(__out_r)); // for debug purposes only
     oneapi::dpl::__internal::__unary_op<_F, _Proj> __unary_op{__op, __proj};
 
-    oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__internal::__transform_functor<decltype(__unary_op)>{std::move(__unary_op)},
-            oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
-            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+    oneapi::dpl::__internal::__ranges::__pattern_walk_n(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __unary_op,
+        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 }
 
 template<typename _BackendTag, typename _ExecutionPolicy, typename _InRange1, typename _InRange2, typename _OutRange, typename _F,
@@ -110,11 +110,11 @@ __pattern_transform(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 {
     oneapi::dpl::__internal::__binary_op<_F, _Proj1, _Proj2> __f{__binary_op, __proj1, __proj2};
 
-    oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__internal::__transform_functor<decltype(__f)>{std::move(__f)},
-            oneapi::dpl::__ranges::views::all_read(std::forward<_InRange1>(__in_r1)),
-            oneapi::dpl::__ranges::views::all_read(std::forward<_InRange2>(__in_r2)),
-            oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+    oneapi::dpl::__internal::__ranges::__pattern_walk_n(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __f,
+        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange1>(__in_r1)),
+        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange2>(__in_r2)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
 }
 
 //---------------------------------------------------------------------------------------------------------------------
