@@ -2565,6 +2565,13 @@ __parallel_transform_reduce_then_scan_impl(
         const std::size_t __last_level_cache_max_inputs =
             __last_level_cache_size_bytes / (2 * __bytes_per_work_item_iter); // use only half of the cache
         std::uint32_t __inputs_per_item_limit = __last_level_cache_max_inputs / (__num_work_groups * __work_group_size);
+        if constexpr (!std::is_same_v<_ExtraStorageT, void>)
+        {
+            // For better performance the extra block storage should not exceed 4MB
+            const std::uint32_t __max_extra_elements = (4*1024*1024) / sizeof(_ExtraStorageT) - __is_unique_pattern_v;
+            __inputs_per_item_limit =
+                std::min(__inputs_per_item_limit, __max_extra_elements / (__num_work_groups * __work_group_size));
+        }
         __max_inputs_per_item = std::max<std::uint32_t>(__inputs_per_item_limit, 1);
     }
     else // target is cpu
