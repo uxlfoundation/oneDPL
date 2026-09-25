@@ -56,6 +56,14 @@ main()
     test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::proj);
     test_range_algo<5, int, data_in_out_lim>{get_scan_big_sz()}(dpl_ranges::copy_if, copy_if_checker, pred);
     test_range_algo<6, int, data_in_out_lim>{get_scan_big_sz()}(dpl_ranges::copy_if, copy_if_checker, select_many);
+
+    // The predicate returns a reference into the temporary created by a by-value projection.
+    // lifetime_checked is host only; the device-friendly case below uses a trivially copyable projected value.
+    test_range_algo<7, int, data_in_out_lim>{}.test_range_algo_impl_host(dpl_ranges::copy_if, copy_if_checker, &proj_result::flag, proj_to_result);
+    // The predicate returns a by-value result referring into the temporary created by a by-value projection.
+    test_range_algo<7, int, data_in_out_lim>{}.test_range_algo_impl_host(dpl_ranges::copy_if, copy_if_checker, flag_ref, proj_to_result);
+    test_range_algo<7, int, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred_ref, proj_to_p2);
+    check_no_dead_reads("copy_if read a projected value after its destruction");
 #endif // _ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
