@@ -385,10 +385,12 @@ struct __parallel_filter_single_group_base
     __store_predicate_values(_Rng&& __rng, _IndexPred __pred, std::uint16_t* __lm_ptr, std::uint16_t __start,
                              std::uint16_t __stop, std::uint16_t __stride, _Func __temp_store_if)
     {
+        using __element_type = oneapi::dpl::__internal::__value_t<_Rng>;
         for (std::uint16_t __idx = __start; __idx < __stop; __idx += __stride)
         {
             __lm_ptr[__idx] = static_cast<std::uint16_t>(__pred(__rng, __idx));
-            __temp_store_if(__idx, __rng[__idx], __lm_ptr[__idx]);
+            // "Materialize" the element to deal with tuples of references for zip_iterator etc.
+            __temp_store_if(__idx, __element_type(__rng[__idx]), __lm_ptr[__idx]);
         }
     }
 
@@ -537,7 +539,7 @@ struct __parallel_compact_single_group_functor<__internal::__optional_kernel_nam
 
                 // Build a mask in local memory; move elements to keep into temporary storage
                 __store_predicate_values(__rng, __pred, __lm_ptr, __item_id, std::uint16_t(__n), __wg_size,
-                    [__temp_storage](std::uint16_t __idx, __element_type& __elem, std::uint16_t __mask)
+                    [__temp_storage](std::uint16_t __idx, __element_type&& __elem, std::uint16_t __mask)
                     {
                         if (__mask)
                             new (&__temp_storage[__idx]) __element_type(std::move(__elem));
