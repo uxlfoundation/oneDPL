@@ -828,6 +828,38 @@ __simd_find_first_of_block(_ForwardIterator1 __first, _ForwardIterator1 __last, 
     return __first + __min_i;
 }
 
+// Finds the first element of [__first, __last) that matches any element of a second sequence too long to stay
+// in the L1 cache: the second sequence is walked tile by tile, each tile against the elements of the first one
+// that can still improve the result.
+template <class _ForwardIterator1, class _ForwardIterator2, class _DifferenceType2, class _BinaryPredicate>
+_ForwardIterator1
+__simd_find_first_of_tiled(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
+                           _DifferenceType2 __n2, _DifferenceType2 __tile_size, _BinaryPredicate __pred) noexcept
+{
+    using _DifferenceType1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
+
+    _DifferenceType1 __min_i = __last - __first;
+    for (_DifferenceType2 __tile_offset = 0; __tile_offset < __n2 && __min_i > 0;)
+    {
+        const _DifferenceType2 __tile_len = std::min<_DifferenceType2>(__n2 - __tile_offset, __tile_size);
+        for (_DifferenceType1 __i = 0; __i < __min_i; ++__i)
+        {
+            auto __simd_pred = [&__pred, __it = __first + __i](auto&& __val) {
+                return __pred(*__it, std::forward<decltype(__val)>(__val));
+            };
+
+            if (__unseq_backend::__simd_or(__s_first + __tile_offset, __tile_len, __simd_pred))
+            {
+                __min_i = __i;
+                break;
+            }
+        }
+        __tile_offset += __tile_len;
+    }
+
+    return __first + __min_i;
+}
+
 template <class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
 _ForwardIterator1
 __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
@@ -835,6 +867,8 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
 {
     using _ValueT1 = typename std::iterator_traits<_ForwardIterator1>::value_type;
     using _DifferenceType1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
+    using _ValueT2 = typename std::iterator_traits<_ForwardIterator2>::value_type;
+    using _DifferenceType2 = typename std::iterator_traits<_ForwardIterator2>::difference_type;
 
     // The first sequence is searched in blocks, so that an early match costs O(__n2 * __block_size) comparisons
     // instead of O(__n2 * __n1). The block starts small and doubles, which amortizes the overhead of the small
@@ -850,17 +884,35 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     constexpr _DifferenceType1 __block_size_min = __bytes_to_block_size(__target_block_bytes_min);
     constexpr _DifferenceType1 __block_size_max = __bytes_to_block_size(__target_block_bytes_max);
 
+    // A longer second sequence does not stay in L1 while a block is walked over it, so it is walked in tiles.
+    // The tiles give up the early exit inside a block, so the blocks then start from a single element: the doubling
+    // keeps each block no larger than the work already done before it. A second sequence that still fits in L2 costs
+    // few cache misses, and the lost early exit costs more than they save, so a second sequence is tiled only when
+    // it holds more than __tiles_min tiles (1 MB).
+    constexpr _DifferenceType2 __tiles_min = 64;
+    constexpr _DifferenceType2 __tile_size =
+        _DifferenceType2(std::min(__internal::__dpl_ceiling_div(__target_block_bytes_max, sizeof(_ValueT2)),
+                                  std::size_t(std::numeric_limits<_DifferenceType2>::max())));
+
     if (__first == __last || __s_first == __s_last)
         return __last; // according to the standard
 
     const _DifferenceType1 __n1 = __last - __first;
-    for (_DifferenceType1 __block_begin = 0, __block_size = __block_size_min; __block_begin < __n1;)
+    const _DifferenceType2 __n2 = __s_last - __s_first;
+
+    // start small if tiled, else start at a size that stays in L1
+    const bool __tiled = (__n2 - 1) / __tile_size >= __tiles_min;
+    _DifferenceType1 __block_size = __tiled ? _DifferenceType1(1) : __block_size_min;
+
+    for (_DifferenceType1 __block_begin = 0; __block_begin < __n1;)
     {
         const _DifferenceType1 __block_end =
             __block_begin + std::min<_DifferenceType1>(__n1 - __block_begin, __block_size);
         const _ForwardIterator1 __it_block_end = __first + __block_end;
         const _ForwardIterator1 __res =
-            __simd_find_first_of_block(__first + __block_begin, __it_block_end, __s_first, __s_last, __pred);
+            __tiled ? __simd_find_first_of_tiled(__first + __block_begin, __it_block_end, __s_first, __n2, __tile_size,
+                                                 __pred)
+                    : __simd_find_first_of_block(__first + __block_begin, __it_block_end, __s_first, __s_last, __pred);
         if (__res != __it_block_end)
             return __res;
 
