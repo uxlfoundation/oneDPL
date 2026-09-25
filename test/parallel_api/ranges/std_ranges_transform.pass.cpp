@@ -77,6 +77,18 @@ main()
     test_range_algo<5, int, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f, proj);
     test_range_algo<6, P2, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f, &P2::x, &P2::x);
     test_range_algo<7, P2, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f, &P2::proj, &P2::proj);
+
+    // The op returns a reference into the temporary created by a by-value projection.
+    // lifetime_checked is host only; the device-friendly cases below use a trivially copyable projected value.
+    test_range_algo<8, int, data_in_out_lim>{}.test_range_algo_impl_host(dpl_ranges::transform, transform_unary_checker, std::identity{}, proj_to_checked);
+    test_range_algo<8, int, data_in_out_lim>{}.test_range_algo_impl_host(dpl_ranges::transform, transform_unary_checker, &proj_result::val, proj_to_result);
+    test_range_algo<8, int, data_in_out_lim>{}(dpl_ranges::transform, transform_unary_checker, ref_to_x, proj_to_p2);
+    // The op returns a by-value result referring into the temporary created by a by-value projection.
+    test_range_algo<8, int, data_in_out_lim>{}.test_range_algo_impl_host(dpl_ranges::transform, transform_unary_checker, val_ref, proj_to_result);
+    test_range_algo<9, int, data_in_in_out_lim>{}.test_range_algo_impl_host(dpl_ranges::transform, transform_binary_checker, forward_first, proj_to_checked, proj_to_checked);
+    test_range_algo<9, int, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, ref_to_first_x, proj_to_p2, proj_to_p2);
+    test_range_algo<9, int, data_in_in_out_lim>{}.test_range_algo_impl_host(dpl_ranges::transform, transform_binary_checker, first_ref, proj_to_checked, proj_to_checked);
+    check_no_dead_reads("transform read a projected value after its destruction");
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
