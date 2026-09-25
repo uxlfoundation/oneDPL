@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <array>
 #include <tuple>
+#include <memory> // std::align
 
 #include "../../iterator_impl.h"
 #include "../../execution_impl.h"
@@ -363,9 +364,9 @@ struct __parallel_filter_single_group_base
             oneapi::dpl::__internal::__dpl_bit_ceil(static_cast<std::make_unsigned_t<_Size>>(__n));
         // The kernels use local memory for N predicate evaluations and N output offsets
         std::size_t __lm_items = __n_uniform * 2;
-        // The in-place kernel also stores all inputs, while the copy kernel records the input stop position
+        // The in-place kernel also stores all inputs + padding, while the copy kernel records the input stop position
         if constexpr (__is_in_place)
-            __lm_items += oneapi::dpl::__internal::__dpl_ceiling_div(__n * __element_size, sizeof(std::uint16_t));
+            __lm_items += oneapi::dpl::__internal::__dpl_ceiling_div(64 + __n * __element_size, sizeof(std::uint16_t));
         else
             __lm_items += 1;
         return {__lm_items, __n_uniform};
@@ -397,7 +398,7 @@ struct __parallel_filter_single_group_base
     template <typename _Func>
     static void
     __gather_output(std::uint16_t* __lm_ptr, std::uint16_t __start, std::uint16_t __stop, std::uint16_t __stride,
-                    std::uint16_t __n_uniform, _Func __write_from_to)
+                    std::uint32_t __n_uniform, _Func __write_from_to)
     {
         for (std::uint16_t __idx = __start; __idx < __stop; __idx += __stride)
         {
@@ -464,7 +465,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
 
         return __execute</*__is_in_place=*/false, /*_NResults=*/2, _Size, _ScanKernelName...>(
             __q, __n, __max_wg_size, /*__element_size=*/0,
-            [=](sycl::nd_item<1> __self_item, std::uint16_t __wg_size, std::uint16_t __n_uniform,
+            [=](sycl::nd_item<1> __self_item, std::uint16_t __wg_size, std::uint32_t __n_uniform,
                 std::uint16_t* __lm_ptr, _Size* __res_ptr)
             {
                 sycl::group __group = __self_item.get_group();
@@ -521,21 +522,22 @@ struct __parallel_compact_single_group_functor<__internal::__optional_kernel_nam
     {
         using __element_type = oneapi::dpl::__internal::__value_t<_Rng>;
         constexpr std::size_t __element_size = sizeof(__element_type);
+        constexpr std::size_t __alignment = alignof(__element_type);
+        static_assert(__alignment <= 64); // due to padding in __local_memory_needed
 
         return __execute</*__is_in_place=*/true, /*_NResults=*/1, _Size, _ScanKernelName...>(
             __q, __n, __max_wg_size, __element_size,
-            [=](sycl::nd_item<1> __self_item, std::uint16_t __wg_size, std::uint16_t __n_uniform,
+            [=](sycl::nd_item<1> __self_item, std::uint16_t __wg_size, std::uint32_t __n_uniform,
                 std::uint16_t* __lm_ptr, _Size* __res_ptr)
             {
                 sycl::group __group = __self_item.get_group();
                 // This kernel is only launched for sizes less than 2^16
                 const std::uint16_t __item_id = __self_item.get_local_linear_id();
 
-                // The part of local memory to move filtered data through.
-                // Since __n_uniform is a power of 2, alignment of __temp_storage is not less
-                // than the memory base address alignment on the device
-                __element_type* __temp_storage =
-                    reinterpret_cast<__element_type*>(__lm_ptr + 2 * __n_uniform);
+                // The part of local memory to move filtered data through, properly aligned.
+                std::uintptr_t __addr = reinterpret_cast<std::uintptr_t>(__lm_ptr + 2 * __n_uniform);
+                __addr = (__addr + __alignment - 1) & ~(__alignment - 1);
+                __element_type* __temp_storage = reinterpret_cast<__element_type*>(__addr);
 
                 // Build a mask in local memory; move elements to keep into temporary storage
                 __store_predicate_values(__rng, __pred, __lm_ptr, __item_id, std::uint16_t(__n), __wg_size,
@@ -777,7 +779,7 @@ __parallel_remove_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
 
     if (__n <= __max_wg_size * __max_elem_per_item &&
         __parallel_filter_single_group_base::__enough_local_memory</*__is_in_place=*/true>(
-            __q_local, __n, /*__element_size=*/sizeof(__in_rng[0])))
+            __q_local, __n, /*__element_size=*/sizeof(oneapi::dpl::__internal::__value_t<_InRng>)))
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_compact_single_wg_kernel<_CustomName>>;
@@ -808,7 +810,7 @@ __parallel_unique(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolic
 
     if (__n <= __max_wg_size * __max_elem_per_item &&
         __parallel_filter_single_group_base::__enough_local_memory</*__is_in_place=*/true>(
-            __q_local, __n, /*__element_size=*/sizeof(__in_rng[0])))
+            __q_local, __n, /*__element_size=*/sizeof(oneapi::dpl::__internal::__value_t<_InRng>)))
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_compact_single_wg_kernel<_CustomName>>;
