@@ -115,8 +115,12 @@
 
 // The same, for a predicate that reads several elements per index. Overridable for the same reason: a test
 // that lowers only the other one would route every two-range case to the narrow scan and pass vacuously.
+//
+// NOT FOR MERGE -- diagnostic branch find_or_floor_probe only. The shipping value is 1 << 26; it is lowered
+// to the overall floor here so the benchmark suite can price the sizes the shipping floor declines. A gated
+// arm cannot price its own gate, so this arm removes the gate instead. Do not merge this branch.
 #ifndef _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE
-#    define _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE (std::size_t{1} << 26)
+#    define _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE (std::size_t{1} << 20)
 #endif // _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE
 
 // Macro to check if we are compiling for SPIR-V devices. This macro must only be used within
