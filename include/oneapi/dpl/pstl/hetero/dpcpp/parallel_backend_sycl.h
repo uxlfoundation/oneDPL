@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <array>
 #include <tuple>
+#include <memory> // std::align
 
 #include "../../iterator_impl.h"
 #include "../../execution_impl.h"
@@ -87,6 +88,9 @@ class __scan_single_wg_dynamic_kernel;
 
 template <typename... Name>
 class __scan_copy_single_wg_kernel;
+
+template <typename... Name>
+class __scan_compact_single_wg_kernel;
 
 template <typename _CustomName, typename _Index, typename _Range1, typename _Range2>
 __future<sycl::event>
@@ -345,32 +349,100 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     return __future(std::move(__event), std::move(__holder).__extract());
 }
 
-//------------------------------------------------------------------------
-// Filtering patterns: copy_if, unique_copy, etc.; also partition_copy
-//------------------------------------------------------------------------
+//-------------------------------------------------------------------------------
+// Filtering patterns: copy_if, unique_copy, remove_if, etc.; also partition_copy
+//-------------------------------------------------------------------------------
 
-struct __parallel_copy_if_single_group_base
+struct __parallel_filter_single_group_base
 {
-    using _ValueType = std::uint16_t;
-
-    template <typename _Size>
-    static std::pair<std::make_unsigned_t<_Size>, std::make_unsigned_t<_Size>>
-    __local_memory_needed(_Size __n)
+    template <bool __is_in_place = false, typename _Size>
+    static std::pair<std::size_t, std::make_unsigned_t<_Size>>
+    __local_memory_needed(_Size __n, std::size_t __element_size = 0)
     {
         // Next power of 2 greater than or equal to __n
         std::make_unsigned_t<_Size> __n_uniform =
             oneapi::dpl::__internal::__dpl_bit_ceil(static_cast<std::make_unsigned_t<_Size>>(__n));
-        // The kernel needs memory for: N predicate evaluations, N output offsets, and the input stop position
-        return {__n_uniform * 2 + 1, __n_uniform};
+        // The kernels use local memory for N predicate evaluations and N output offsets
+        std::size_t __lm_items = __n_uniform * 2;
+        // The in-place kernel also stores all inputs + padding, while the copy kernel records the input stop position
+        if constexpr (__is_in_place)
+            __lm_items += oneapi::dpl::__internal::__dpl_ceiling_div(64 + __n * __element_size, sizeof(std::uint16_t));
+        else
+            __lm_items += 1;
+        return {__lm_items, __n_uniform};
     }
 
-    template <typename _Size>
+    template <bool __is_in_place = false, typename _Size>
     static bool
-    __enough_local_memory(sycl::queue __q, _Size __n)
+    __enough_local_memory(sycl::queue __q, _Size __n, std::size_t __element_size = 0)
     {
         // Pessimistically expect only half of local memory to account for possible memory use by the compiled code
-        std::size_t __available_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
-        return __available_size >= __local_memory_needed(__n).first * sizeof(_ValueType);
+        std::size_t __available = __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+        return __available >= __local_memory_needed<__is_in_place>(__n, __element_size).first * sizeof(std::uint16_t);
+    }
+
+    template <typename _Rng, typename _IndexPred, typename _Func>
+    static void
+    __store_predicate_values(_Rng&& __rng, _IndexPred __pred, std::uint16_t* __lm_ptr, std::uint16_t __start,
+                             std::uint16_t __stop, std::uint16_t __stride, _Func __temp_store_if)
+    {
+        using __element_type = oneapi::dpl::__internal::__value_t<_Rng>;
+        for (std::uint16_t __idx = __start; __idx < __stop; __idx += __stride)
+        {
+            __lm_ptr[__idx] = static_cast<std::uint16_t>(__pred(__rng, __idx));
+            // "Materialize" the element to deal with tuples of references for zip_iterator etc.
+            __temp_store_if(__idx, __element_type(__rng[__idx]), __lm_ptr[__idx]);
+        }
+    }
+
+    template <typename _Func>
+    static void
+    __gather_output(std::uint16_t* __lm_ptr, std::uint16_t __start, std::uint16_t __stop, std::uint16_t __stride,
+                    std::uint32_t __n_uniform, _Func __write_from_to)
+    {
+        for (std::uint16_t __idx = __start; __idx < __stop; __idx += __stride)
+        {
+            if (__lm_ptr[__idx])
+            {
+                const std::uint16_t __out_pos = __lm_ptr[__idx + __n_uniform];
+                __write_from_to(__idx, __out_pos);
+            }
+        }
+    }
+
+    // Shared operator() structure: handles result storage, queue submission, __require_access,
+    // WG size computation, SLM allocation, result retrieval.
+    template <bool __is_in_place, std::size_t _NResults, typename _Size, typename... _KernelName,
+              typename _KernelBody, typename... _Ranges>
+    static std::array<_Size, _NResults>
+    __execute(sycl::queue& __q, _Size __n, std::size_t __max_wg_size, std::size_t __element_size,
+              _KernelBody&& __kernel_body, _Ranges&&... __rngs)
+    {
+        assert(__max_wg_size <= std::numeric_limits<std::uint16_t>::max());
+
+        __result_storage<_Size> __result{__q, _NResults};
+        __q.submit([&](sycl::handler& __hdl) {
+            oneapi::dpl::__ranges::__require_access(__hdl, __rngs...);
+
+            std::make_unsigned_t<_Size> __n_uniform;
+            std::size_t __lsize;
+            // Since __n_uniform is captured into a lambda, structured binding cannot be used here till C++20
+            std::tie(__lsize, __n_uniform) = __local_memory_needed<__is_in_place>(__n, __element_size);
+            auto __lacc = __dpl_sycl::__local_accessor<std::uint16_t>(sycl::range<1>(__lsize), __hdl);
+            auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
+            const auto __wg_size = static_cast<std::uint16_t>(std::min<std::size_t>(__n_uniform, __max_wg_size));
+
+            __hdl.parallel_for<_KernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
+                [=](sycl::nd_item<1> __self_item) {
+                    std::uint16_t* __lm_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
+                    _Size* __res_ptr = __res_acc.__data();
+                    __kernel_body(__self_item, __wg_size, __n_uniform, __lm_ptr, __res_ptr);
+                });
+        }).wait_and_throw();
+
+        std::array<_Size, _NResults> __ret;
+        __result.__copy_result(__ret.data(), _NResults);
+        return __ret;
     }
 };
 
@@ -379,88 +451,129 @@ struct __parallel_copy_if_single_group_functor;
 
 template <typename... _ScanKernelName>
 struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_name<_ScanKernelName...>>
-    : __parallel_copy_if_single_group_base
+    : __parallel_filter_single_group_base
 {
     template <typename _InRng, typename _OutRng, typename _Size, typename _IndexPred, typename _Assign>
     std::array<_Size, 2>
     operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __n_out, _IndexPred __pred,
                _Assign __assign, std::size_t __max_wg_size)
     {
-        assert(__max_wg_size <= std::numeric_limits<std::uint16_t>::max());
         // This type is used as a workaround for when an internal tuple is assigned to std::tuple, such as
         // with zip_iterator
         using __tuple_type = typename oneapi::dpl::__internal::__get_tuple_type<
             std::decay_t<decltype(__in_rng[0])>, std::decay_t<decltype(__out_rng[0])>>::__type;
 
-        __result_storage<_Size> __result{__q, 2};
+        return __execute</*__is_in_place=*/false, /*_NResults=*/2, _Size, _ScanKernelName...>(
+            __q, __n, __max_wg_size, /*__element_size=*/0,
+            [=](sycl::nd_item<1> __self_item, std::uint16_t __wg_size, std::uint32_t __n_uniform,
+                std::uint16_t* __lm_ptr, _Size* __res_ptr)
+            {
+                sycl::group __group = __self_item.get_group();
+                // This kernel is only launched for sizes less than 2^16
+                const std::uint16_t __item_id = __self_item.get_local_linear_id();
 
-        __q.submit([&](sycl::handler& __hdl) {
-            oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
+                // Build a predicate mask in local memory
+                __store_predicate_values(__in_rng, __pred, __lm_ptr, __item_id, std::uint16_t(__n), __wg_size,
+                                         oneapi::dpl::__internal::__ignore_call_op{});
+                if (__item_id == 0)
+                {
+                    // Store the input size as the expected stop position
+                    __lm_ptr[2 * __n_uniform] = std::uint16_t(__n);
+                }
 
-            std::make_unsigned_t<_Size> __lsize, __n_uniform;
-            // Since __n_uniform is captured into a lambda, structured binding cannot be used here till C++20
-            std::tie(__lsize, __n_uniform) = __local_memory_needed(__n);
-            auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>(__lsize), __hdl);
-            auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
-            const auto __wg_size = static_cast<std::uint16_t>(std::min<std::size_t>(__n_uniform, __max_wg_size));
+                // Scan the mask
+                __dpl_sycl::__joint_exclusive_scan(__group, __lm_ptr, __lm_ptr + __n, __lm_ptr + __n_uniform,
+                                                   sycl::plus<std::uint16_t>{});
 
-            __hdl.parallel_for<_ScanKernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
-                [=](sycl::nd_item<1> __self_item) {
-                    sycl::group __group = __self_item.get_group();
-                    // This kernel is only launched for sizes less than 2^16
-                    const std::uint16_t __item_id = __self_item.get_local_linear_id();
-                    _ValueType* __lacc_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
-                    for (std::uint16_t __idx = __item_id; __idx < __n; __idx += __wg_size)
+                // Gather matching elements into consecutive output positions;
+                __gather_output(__lm_ptr, __item_id, std::uint16_t(__n), __wg_size, __n_uniform,
+                                [=](std::uint16_t __idx, std::uint16_t __out_idx) { // writing a single element
+                                    if (__out_idx < __n_out)
+                                        __assign(static_cast<__tuple_type>(__in_rng[__idx]), __out_rng[__out_idx]);
+                                    // record input stop position if output capacity is reached
+                                    if (__out_idx == __n_out)
+                                        __lm_ptr[2 * __n_uniform] = __idx; 
+                                });
+                sycl::group_barrier(__group);
+
+                // Calculate stop positions
+                if (__item_id == 0)
+                {
+                    _Size __stop_in = __lm_ptr[2 * __n_uniform];
+                    __res_ptr[1] = __stop_in;
+                    // For output stop, add predicate of last element to account for the scan's exclusivity
+                    __res_ptr[0] = (__stop_in == __n) ? __lm_ptr[__n_uniform + __n - 1] + __lm_ptr[__n - 1] : __n_out;
+                }
+            }, __in_rng, __out_rng); // __execute
+    }
+};
+
+template <typename _KernelName>
+struct __parallel_compact_single_group_functor;
+
+template <typename... _ScanKernelName>
+struct __parallel_compact_single_group_functor<__internal::__optional_kernel_name<_ScanKernelName...>>
+    : __parallel_filter_single_group_base
+{
+    template <typename _Rng, typename _Size, typename _IndexPred>
+    _Size
+    operator()(sycl::queue& __q, _Rng&& __rng, _Size __n, _IndexPred __pred, std::size_t __max_wg_size)
+    {
+        using __element_type = oneapi::dpl::__internal::__value_t<_Rng>;
+        constexpr std::size_t __element_size = sizeof(__element_type);
+        constexpr std::size_t __alignment = alignof(__element_type);
+        static_assert(__alignment <= 64); // due to padding in __local_memory_needed
+
+        return __execute</*__is_in_place=*/true, /*_NResults=*/1, _Size, _ScanKernelName...>(
+            __q, __n, __max_wg_size, __element_size,
+            [=](sycl::nd_item<1> __self_item, std::uint16_t __wg_size, std::uint32_t __n_uniform,
+                std::uint16_t* __lm_ptr, _Size* __res_ptr)
+            {
+                sycl::group __group = __self_item.get_group();
+                // This kernel is only launched for sizes less than 2^16
+                const std::uint16_t __item_id = __self_item.get_local_linear_id();
+
+                // The part of local memory to move filtered data through, properly aligned.
+                std::uintptr_t __addr = reinterpret_cast<std::uintptr_t>(__lm_ptr + 2 * __n_uniform);
+                __addr = (__addr + __alignment - 1) & ~(__alignment - 1);
+                __element_type* __temp_storage = reinterpret_cast<__element_type*>(__addr);
+
+                // Build a mask in local memory; move elements to keep into temporary storage
+                __store_predicate_values(__rng, __pred, __lm_ptr, __item_id, std::uint16_t(__n), __wg_size,
+                    [__temp_storage](std::uint16_t __idx, __element_type&& __elem, std::uint16_t __mask)
                     {
-                        __lacc[__idx] = __pred(__in_rng, __idx);
-                    }
-                    if (__item_id == 0)
-                    {
-                        // Store the input size as the expected stop position
-                        __lacc[2 * __n_uniform] = __n;
-                    }
+                        if (__mask)
+                            new (&__temp_storage[__idx]) __element_type(std::move(__elem));
+                    });
 
-                    __scan_work_group<_ValueType, /* _Inclusive */ false>(
-                        __group, __lacc_ptr, __lacc_ptr + __n, __lacc_ptr + __n_uniform, sycl::plus<_ValueType>{});
+                // Exclusive scan over the mask
+                __dpl_sycl::__joint_exclusive_scan(
+                    __group, __lm_ptr, __lm_ptr + __n, __lm_ptr + __n_uniform, sycl::plus<std::uint16_t>{});
 
-                    for (std::uint16_t __idx = __item_id; __idx < __n; __idx += __wg_size)
-                    {
-                        if (__lacc[__idx]) {
-                            _ValueType __out_idx = __lacc[__idx + __n_uniform];
-                            if (__out_idx < __n_out)
-                                __assign(static_cast<__tuple_type>(__in_rng[__idx]), __out_rng[__out_idx]);
-                            if (__out_idx == __n_out)
-                                __lacc[2 * __n_uniform] = __idx; // the actual stop position in the input
-                        }
-                    }
-                    sycl::group_barrier(__group);
+                // Gather kept elements into consecutive compacted positions
+                __gather_output(__lm_ptr, __item_id, std::uint16_t(__n), __wg_size, __n_uniform,
+                                [=](std::uint16_t __idx, std::uint16_t __out_pos)
+                                {
+                                    __rng[__out_pos] = std::move(__temp_storage[__idx]);
+                                    __temp_storage[__idx].~__element_type();
+                                });
 
-                    if (__item_id == 0)
-                    {
-                        _Size* __res_ptr = __res_acc.__data();
-                        _ValueType __stop_in = __lacc[2 * __n_uniform];
-                        __res_ptr[1] = __stop_in;
-                        // Add predicate of last element to account for the scan's exclusivity
-                        __res_ptr[0] = (__stop_in == __n) ? __lacc[__n_uniform + __n - 1] + __lacc[__n - 1] : __n_out;
-                    }
-                });
-        }).wait_and_throw();
-
-        std::array<_Size, 2> __ret;
-        __result.__copy_result(__ret.data(), __ret.size());
-        return __ret;
+                // Write new size; synchronization barrier is set by the group scan
+                if (__item_id == 0)
+                    __res_ptr[0] = static_cast<_Size>(__lm_ptr[__n_uniform + __n - 1] + __lm_ptr[__n - 1]);
+            },
+            __rng)[0]; // return the only array value
     }
 };
 
 template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
           typename _WriteOp, typename _IsUniquePattern>
 std::array<_Size, 2>
-__parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n,
-                                 _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
+__parallel_copy_if_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n,
+                                    _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
     assert(oneapi::dpl::__ranges::__size(__in_rng) == __n);
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask, _Size>;
-    using _ReduceOp = std::plus<_Size>;
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask, _Size>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
@@ -472,7 +585,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
 
     sycl::event __event = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
         __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask},
-        _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
+        std::plus<_Size>{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, __holder, /*_Inclusive=*/std::true_type{},
         __is_unique_pattern, /*__stop_pos_initial_state=*/__n);
     __event.wait_and_throw();
@@ -483,6 +596,36 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
     else
         __ret[1] = __n;
     return __ret;
+}
+
+template <typename _CustomName, typename _InRng, typename _Size, typename _GenMask, typename _WriteOp,
+          typename _IsUniquePattern>
+_Size
+__parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size __n, _GenMask __generate_mask,
+                                    _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
+{
+    assert(oneapi::dpl::__ranges::__size(__in_rng) == __n);
+
+    using _ElementT = oneapi::dpl::__internal::__value_t<_InRng>;
+    using _GenReduceInput = __par_backend_hetero::__gen_count_mask_and_copy<_GenMask, _Size>;
+    using _GenScanInput = __par_backend_hetero::__gen_expand_count_mask_from_copy<_GenMask, _Size>;
+    using _ScanInputTransform = __par_backend_hetero::__get_zeroth_element;
+
+    // An iteration reads one input element, stores it into a buffer, and then re-reads from the buffer.
+    constexpr std::uint32_t __bytes_per_iter = sizeof(_ElementT) * 2;
+    __transform_scan_storage_holder_simple<_Size> __holder(__q);
+
+    sycl::event __event = __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_iter, _CustomName,
+                                                                /*the type of extra storage*/_ElementT>(
+        __q, __n, __in_rng, __in_rng, _GenReduceInput{__generate_mask}, std::plus<_Size>{},
+        _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
+        oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, __holder, /*_Inclusive=*/std::true_type{},
+        __is_unique_pattern);
+    __event.wait_and_throw();
+
+    _Size __new_size;
+    __holder.template __copy_result<0>(&__new_size, 1);
+    return __new_size;
 }
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size,
@@ -501,7 +644,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
 
     if (__n <= __max_wg_size * __max_elem_per_item &&
-        __parallel_copy_if_single_group_base::__enough_local_memory(__q_local, __n))
+        __parallel_filter_single_group_base::__enough_local_memory(__q_local, __n))
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_copy_single_wg_kernel<_CustomName>>;
@@ -512,9 +655,9 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     else
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
-        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
+        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign, /*__unique_copy=*/true>;
 
-        __ret = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
+        __ret = __parallel_copy_if_reduce_then_scan<_Bounded, _CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
             _WriteOp{std::size_t(__n_out)}, /*_IsUniquePattern=*/std::true_type{});
     }
@@ -595,7 +738,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     // Note: earlier the data size for the single group kernel was capped by 2048
     // The change might impact platforms with __max_wg_size > 1024
     if (__n <= __max_wg_size * __max_elem_per_item &&
-        __parallel_copy_if_single_group_base::__enough_local_memory(__q_local, __n))
+        __parallel_filter_single_group_base::__enough_local_memory(__q_local, __n))
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_copy_single_wg_kernel<_CustomName>>;
@@ -608,7 +751,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
 
-        __ret = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
+        __ret = __parallel_copy_if_reduce_then_scan<_Bounded, _CustomName>(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
             _WriteOp{std::size_t(__n_out), __assign}, /*_IsUniquePattern=*/std::false_type{});
     }
@@ -618,6 +761,69 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     assert(__ret[1] >= __ret[0]);
     assert(__ret[0] == __n_out || __ret[1] == __n);
     return __ret;
+}
+
+template <typename _ExecutionPolicy, typename _InRng, typename _Size, typename _Pred>
+_Size
+__parallel_remove_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _InRng&& __in_rng,
+                     _Size __n, _Pred __pred)
+{
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    sycl::queue __q_local = __exec.queue();
+    oneapi::dpl::__internal::__not_pred<_Pred> __keep_pred{__pred};
+
+    constexpr std::size_t __max_elem_per_item = 5;
+    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+
+    if (__n <= __max_wg_size * __max_elem_per_item &&
+        __parallel_filter_single_group_base::__enough_local_memory</*__is_in_place=*/true>(
+            __q_local, __n, /*__element_size=*/sizeof(oneapi::dpl::__internal::__value_t<_InRng>)))
+    {
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+            __scan_compact_single_wg_kernel<_CustomName>>;
+        return __parallel_compact_single_group_functor<_KernelName>()(
+            __q_local, std::forward<_InRng>(__in_rng), __n, oneapi::dpl::__internal::__pred_at_index{__keep_pred},
+            __max_wg_size);
+    }
+    else
+    {
+        return __parallel_compact_reduce_then_scan<_CustomName>(
+            __q_local, std::forward<_InRng>(__in_rng), __n,
+            __par_backend_hetero::__gen_mask<oneapi::dpl::__internal::__not_pred<_Pred>>{__keep_pred},
+            __par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>{std::size_t(__n)},
+            /*_IsUniquePattern=*/std::false_type{});
+    }
+}
+
+template <typename _ExecutionPolicy, typename _InRng, typename _Size, typename _BinaryPred>
+_Size
+__parallel_unique(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _InRng&& __in_rng,
+                  _Size __n, _BinaryPred __pred)
+{
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    sycl::queue __q_local = __exec.queue();
+
+    constexpr std::size_t __max_elem_per_item = 5;
+    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+
+    if (__n <= __max_wg_size * __max_elem_per_item &&
+        __parallel_filter_single_group_base::__enough_local_memory</*__is_in_place=*/true>(
+            __q_local, __n, /*__element_size=*/sizeof(oneapi::dpl::__internal::__value_t<_InRng>)))
+    {
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+            __scan_compact_single_wg_kernel<_CustomName>>;
+        return __parallel_compact_single_group_functor<_KernelName>()(
+            __q_local, std::forward<_InRng>(__in_rng), __n,
+            oneapi::dpl::__internal::__unique_at_index<_BinaryPred, true>{__pred}, __max_wg_size);
+    }
+    else
+    {
+        return __parallel_compact_reduce_then_scan<_CustomName>(
+            __q_local, std::forward<_InRng>(__in_rng), __n,
+            __par_backend_hetero::__gen_unique_mask<_BinaryPred>{__pred},
+            __par_backend_hetero::__write_to_id_if<1, oneapi::dpl::__internal::__pstl_assign>{std::size_t(__n)},
+            /*_IsUniquePattern=*/std::true_type{});
+    }
 }
 
 //------------------------------------------------------------------------
