@@ -665,7 +665,8 @@ struct __gen_expand_count_mask_from_copy : public __optimized_input_buffering<_R
     {
         auto&& [__input, __buffer] = __zip_rng.base();
         std::size_t __lidx = __buffer.__local_index(__id);
-        __element_t<_InRng> __ele = __read_copy ? __buffer[__lidx] : __input[__id];
+        // Explicit conversions cover different reference types for zip_iterators etc.
+        auto __ele = __read_copy ? __element_t<_InRng>(__buffer[__lidx]) : __element_t<_InRng>(__input[__id]);
         bool __mask = __read_copy ? __gen_mask(__buffer, __lidx) : __gen_mask(__input, __id);
         return __result_t<_InRng>(__mask ? _RetType{1} : _RetType{0}, __mask, __ele);
     }
