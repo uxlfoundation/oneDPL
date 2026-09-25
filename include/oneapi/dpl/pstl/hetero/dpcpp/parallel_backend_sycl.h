@@ -908,15 +908,15 @@ struct __early_exit_find_or
 {
     _Pred __pred;
 
-    // Consecutive elements one work item scans per iteration.
+    // Consecutive elements one work item scans per iteration. Every wide-scan measurement was taken at this
+    // value on Battlemage and Ponte Vecchio at 2- and 4-byte types; it was not swept.
     static constexpr std::size_t __elems_per_iter = __wide ? 4 : 1;
-    // Iterations scanned between votes, trading early-exit latency against vote count. Together with
-    // __elems_per_iter this is the wide configuration as measured on Battlemage and Ponte Vecchio at 2- and
-    // 4-byte types; neither value was swept on its own.
+    // Longest batch of iterations scanned between votes, trading early-exit latency against vote count. Not
+    // tuned, and __batch_growth_ratio keeps the batch at 1 until an item has scanned far more iterations
+    // than the measured sizes produce, so batches longer than 1 are nearly unexercised.
     static constexpr std::size_t __max_iters_per_vote = __wide ? 8 : 1;
-    // The next batch length is adopted only after this many of it have already been scanned, which
-    // bounds a batch's overshoot past a match to 1 / this of the iterations already spent. Any sufficiently
-    // large value bounds the overshoot; this one is not tuned.
+    // The next batch length is adopted only after this many of it have already been scanned, which bounds a
+    // batch's overshoot past a match to 1 / this of the iterations already spent. Not tuned.
     static constexpr std::size_t __batch_growth_ratio = 32;
 
     static_assert(__max_iters_per_vote > 0 && (__max_iters_per_vote & (__max_iters_per_vote - 1)) == 0,
@@ -935,8 +935,8 @@ struct __early_exit_find_or
 
         if constexpr (!__wide)
         {
-            // One element and one vote per iteration. The loop condition carries the early exit; a break here
-            // measures worse.
+            // One element and one vote per iteration. Iterations advance in the tag's direction, so an index
+            // the shared vote skips cannot match ahead of the index already found.
             bool __something_was_found = false;
             for (std::size_t __i = 0; !__something_was_found && __i < __iters_per_work_item; ++__i)
             {
@@ -955,92 +955,94 @@ struct __early_exit_find_or
                 //  - the update of __found_local state isn't required here because it updates later on the caller side
                 __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
             }
-            return;
         }
+        else
+        {
+            const std::size_t __iters =
+                oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item, __elems_per_iter);
+            const std::size_t __stride = __iteration_data_size * __elems_per_iter;
 
-        const std::size_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item, __elems_per_iter);
-        const std::size_t __stride = __iteration_data_size * __elems_per_iter;
-
-        // Lowest source index of the __elems_per_iter consecutive elements this item scans on
-        // iteration __i, descending for a backward tag.
-        auto __iter_base = [=](std::size_t __i) {
-            const std::size_t __band = __backward ? __iters - 1 - __i : __i;
-            return __global_id * __elems_per_iter + __band * __stride;
-        };
-        auto __scan = [&](std::size_t __idx) {
-            if (__pred(__idx, __rngs...))
-            {
-                _BrickTag::__save_state_to(__found_local, __idx);
-                return true;
-            }
-            return false;
-        };
-        auto __scan_iter = [&](std::size_t __i) {
-            const std::size_t __base = __iter_base(__i);
-            bool __found = false;
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::size_t __j = 0; __j < __elems_per_iter; ++__j)
-                __found |= __scan(__base + (__backward ? __elems_per_iter - 1 - __j : __j));
-            return __found;
-        };
-        auto __scan_iter_guarded = [&](std::size_t __i) {
-            const std::size_t __base = __iter_base(__i);
-            bool __found = false;
-            for (std::size_t __j = 0; __j < __elems_per_iter; ++__j)
-            {
-                const std::size_t __idx = __base + (__backward ? __elems_per_iter - 1 - __j : __j);
-                __found |= __idx < __source_data_size && __scan(__idx);
-            }
-            return __found;
-        };
-
-        bool __something_was_found = false;
-        std::size_t __iter = 0;
-
-        // Each iteration covers one band of __stride consecutive indices, and bands are visited in the tag's
-        // direction, so every index not yet reached lies beyond every index already scanned: exiting on the
-        // shared vote, and overshooting within an iteration or a batch, can only skip indices past the match.
-        auto __scan_batches = [&](auto __len_c, std::size_t __until) {
-            constexpr std::size_t __len = decltype(__len_c)::value;
-            const std::size_t __end = std::min<std::size_t>(__until, __iters);
-            for (; !__something_was_found && __iter + __len <= __end; __iter += __len)
-            {
-                // A batch scans in one direction, so its highest index bounds all of the others and
-                // one check covers the whole batch, leaving the loads unconditional.
-                if (__iter_base(__backward ? __iter : __iter + __len - 1) + __elems_per_iter - 1 <
-                    __source_data_size)
+            // Lowest source index of the __elems_per_iter consecutive elements this item scans on
+            // iteration __i, descending for a backward tag.
+            auto __iter_base = [=](std::size_t __i) {
+                const std::size_t __band = __backward ? __iters - 1 - __i : __i;
+                return __global_id * __elems_per_iter + __band * __stride;
+            };
+            auto __scan = [&](std::size_t __idx) {
+                if (__pred(__idx, __rngs...))
                 {
-                    _ONEDPL_PRAGMA_UNROLL
-                    for (std::size_t __j = 0; __j < __len; ++__j)
-                        __something_was_found |= __scan_iter(__iter + __j);
+                    _BrickTag::__save_state_to(__found_local, __idx);
+                    return true;
+                }
+                return false;
+            };
+            auto __scan_iter = [&](std::size_t __i) {
+                const std::size_t __base = __iter_base(__i);
+                bool __found = false;
+                _ONEDPL_PRAGMA_UNROLL
+                for (std::size_t __j = 0; __j < __elems_per_iter; ++__j)
+                    __found |= __scan(__base + (__backward ? __elems_per_iter - 1 - __j : __j));
+                return __found;
+            };
+            auto __scan_iter_guarded = [&](std::size_t __i) {
+                const std::size_t __base = __iter_base(__i);
+                bool __found = false;
+                for (std::size_t __j = 0; __j < __elems_per_iter; ++__j)
+                {
+                    const std::size_t __idx = __base + (__backward ? __elems_per_iter - 1 - __j : __j);
+                    __found |= __idx < __source_data_size && __scan(__idx);
+                }
+                return __found;
+            };
+
+            bool __something_was_found = false;
+            std::size_t __iter = 0;
+
+            // Each iteration covers one band of __stride consecutive indices, and bands are visited in the tag's
+            // direction, so every index not yet reached lies beyond every index already scanned: exiting on the
+            // shared vote, and overshooting within an iteration or a batch, can only skip indices past the match.
+            auto __scan_batches = [&](auto __len_c, std::size_t __until) {
+                constexpr std::size_t __len = decltype(__len_c)::value;
+                const std::size_t __end = std::min<std::size_t>(__until, __iters);
+                for (; !__something_was_found && __iter + __len <= __end; __iter += __len)
+                {
+                    // A batch scans in one direction, so its highest index bounds all of the others and
+                    // one check covers the whole batch, leaving the loads unconditional.
+                    if (__iter_base(__backward ? __iter : __iter + __len - 1) + __elems_per_iter - 1 <
+                        __source_data_size)
+                    {
+                        _ONEDPL_PRAGMA_UNROLL
+                        for (std::size_t __j = 0; __j < __len; ++__j)
+                            __something_was_found |= __scan_iter(__iter + __j);
+                    }
+                    else
+                    {
+                        for (std::size_t __j = 0; __j < __len; ++__j)
+                            __something_was_found |= __scan_iter_guarded(__iter + __j);
+                    }
+
+                    // Share the found state across the sub-group to exit early; the caller combines
+                    // __found_local.
+                    __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
+                }
+            };
+
+            // Double the batch length once __batch_growth_ratio times the next length is behind the item.
+            // An item that exits early enough never leaves length 1.
+            auto __scan_growing = [&](auto __self, auto __len_c) {
+                constexpr std::size_t __len = decltype(__len_c)::value;
+                if constexpr (__len < __max_iters_per_vote)
+                {
+                    __scan_batches(__len_c, __batch_growth_ratio * 2 * __len);
+                    __self(__self, std::integral_constant<std::size_t, 2 * __len>{});
                 }
                 else
-                {
-                    for (std::size_t __j = 0; __j < __len; ++__j)
-                        __something_was_found |= __scan_iter_guarded(__iter + __j);
-                }
-
-                // Share found into state between items in our sub-group to early exit if something was found
-                //  - the update of __found_local state isn't required here because it updates later on the caller side
-                __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
-            }
-        };
-
-        // Double the batch length once __batch_growth_ratio times the next length is behind the item.
-        // An item that exits early enough never leaves length 1.
-        auto __scan_growing = [&](auto __self, auto __len_c) {
-            constexpr std::size_t __len = decltype(__len_c)::value;
-            if constexpr (__len < __max_iters_per_vote)
-            {
-                __scan_batches(__len_c, __batch_growth_ratio * 2 * __len);
-                __self(__self, std::integral_constant<std::size_t, 2 * __len>{});
-            }
-            else
-                __scan_batches(__len_c, __iters);
-        };
-        __scan_growing(__scan_growing, std::integral_constant<std::size_t, 1>{});
-        // An incomplete final batch, and indices past the end of the source.
-        __scan_batches(std::integral_constant<std::size_t, 1>{}, __iters);
+                    __scan_batches(__len_c, __iters);
+            };
+            __scan_growing(__scan_growing, std::integral_constant<std::size_t, 1>{});
+            // The incomplete final batch.
+            __scan_batches(std::integral_constant<std::size_t, 1>{}, __iters);
+        }
     }
 };
 
@@ -1059,8 +1061,8 @@ struct __find_or_nd_range_params
 // empirical: the power of two below the 768-item limit this kernel reported on an Xe3 device.
 inline constexpr std::size_t __find_or_wgroup_size_cap = 512;
 
-// Where __launch_with_wg_size_fallback stops halving: below one sub-group a work group cannot use the vote
-// the scan exits on.
+// Where __launch_with_wg_size_fallback stops halving: a work group below one sub-group gains nothing from
+// the vote the scan exits on, so there is no point retrying smaller.
 inline std::size_t
 __find_or_wgroup_size_retry_floor([[maybe_unused]] const sycl::queue& __q)
 {
@@ -1077,29 +1079,30 @@ inline constexpr std::size_t __find_or_one_wg_max_elems_per_item = 32;
 // A floor of this is unreachable, which is how a configuration declines the wide scan outright.
 inline constexpr std::size_t __find_or_wide_scan_never = std::numeric_limits<std::size_t>::max();
 
-#if _ONEDPL_FPGA_DEVICE
-// Never scan wide on FPGA: unrolling the predicate costs area.
+#if _ONEDPL_FPGA_DEVICE || _ONEDPL_FPGA_EMU
+// Never scan wide on FPGA: unrolling the predicate costs area. The emulator declines it too, because the
+// tuner below that sizes the wide grid is not compiled for FPGA emulation.
 inline constexpr std::size_t __find_or_wide_scan_min_size = __find_or_wide_scan_never;
 #else
-// Gates every brick that scans wide. Below the width window only a presence check over one element per
-// index reaches it at all.
-// empirical: below this the wide scan was no faster; Battlemage and Ponte Vecchio, 2- and 4-byte types.
+// empirical: below this the wide scan was no faster; Battlemage and Ponte Vecchio, 4-byte types.
 inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE;
 #endif
 
-// A predicate reading several elements per index gains less per widened load, so it needs a larger input.
-// empirical: a quarter of this size lost 25 %; Battlemage and Ponte Vecchio, 4-byte types.
+// The smallest input a scan reading several elements per index pays for.
+// empirical: a quarter of this lost up to 27 % on Battlemage at 4-byte float; Ponte Vecchio gained there,
+// and the floor follows Battlemage. A caller that passes n - 1 routes narrow at exactly this size.
 inline constexpr std::size_t __find_or_wide_scan_multi_elem_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE;
 
 // Narrower elements scan wide only as a presence check over a single range.
-// empirical: below this width the wide scan was slower; Battlemage and Ponte Vecchio, 2- and 4-byte types.
+// empirical: below this width the wide scan lost on at least one of Battlemage and Ponte Vecchio in every
+// configuration except that one; 4-byte types measured, 2-byte only for the presence check.
 inline constexpr std::size_t __find_or_wide_scan_min_elem_size = 4;
 
 // The narrowest element that presence check admits: no element narrower than this has been measured.
 inline constexpr std::size_t __find_or_wide_scan_or_tag_min_elem_size = 2;
 
-// empirical: above this width the wide scan lost on incompressible data below 256M; the win above that is
-// deliberately forgone. Battlemage and Ponte Vecchio, 4- and 8-byte types.
+// empirical: above this width the wide scan lost below 256M and won above it, so the ceiling forgoes the
+// largest inputs. Battlemage and Ponte Vecchio, 4- and 8-byte types.
 inline constexpr std::size_t __find_or_wide_scan_max_elem_size = 4;
 
 // Whether the brick's predicate reads one element of each range at the scanned index -- the loads the wide
@@ -1164,10 +1167,12 @@ struct __parallel_find_or_nd_range_tuner
     operator()(const sycl::queue& __q, const std::size_t __rng_n, const bool __wide_scan) const
     {
         // TODO: find a way to generalize getting of reliable work-group size
-        // Bounds the work per compute unit, and on CPUs stands in for a device maximum that is impractically
-        // large. Empirically found value.
+        // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
+        // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the
+        // future. It is also the per-compute-unit item budget the grid below holds to.
         const std::size_t __wgroup_size_limit = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
-        // It never launches the kernel the cap below exists for, so it takes the device limit whole.
+        // The single work-group path never launches the wide kernel, so the cap below does not apply to it
+        // and it takes the device limit whole.
         if (__rng_n <= __wgroup_size_limit * __find_or_one_wg_max_elems_per_item)
             return {/*__n_groups=*/1, __wgroup_size_limit};
 
@@ -1204,8 +1209,9 @@ struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backe
             auto __iters_per_work_item =
                 oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __n_groups * __wgroup_size);
 
-            // The wide scan reads several elements per iteration, so one iteration per item is already worth
-            // growing; the narrow scan is left as it is at one.
+            // If our work capacity is not enough to process all data in one iteration, tune the number of
+            // work-groups. The wide scan reads several elements per iteration, so one iteration per item is
+            // already few enough to be worth growing.
             if (__wide_scan || __iters_per_work_item > 1)
             {
                 // Empirically found formula for GPU devices.
@@ -1296,7 +1302,8 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
 // than testing for any in-flight exception, keeps this correct if a caller unwinds through here.
 struct __wait_event_on_unwind
 {
-    sycl::event& __event;
+    [[maybe_unused]] sycl::event& __event;
+#if __cpp_exceptions
     int __exceptions_on_entry = std::uncaught_exceptions();
     ~__wait_event_on_unwind()
     {
@@ -1310,6 +1317,7 @@ struct __wait_event_on_unwind
             {
             }
     }
+#endif
 };
 
 template <typename KernelName>
@@ -1366,7 +1374,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 
         sycl::event __event_init = __find_or_init_scratch<__internal::__optional_kernel_name<KernelNameInit...>>{}(
             __q, __scratch_atomic_storage, __init_value);
-        __wait_event_on_unwind __init_guard{__event_init};
+        [[maybe_unused]] __wait_event_on_unwind __init_guard{__event_init};
 
         // main parallel_for
         __q.submit([&](sycl::handler& __cgh) {
@@ -1440,8 +1448,13 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 // input; re-running the launch is sound only because every find_or brick is read-only.
 template <typename _Launch>
 auto
-__launch_with_wg_size_fallback(const sycl::queue& __q, std::size_t __wgroup_size, _Launch __launch)
+__launch_with_wg_size_fallback([[maybe_unused]] const sycl::queue& __q, std::size_t __wgroup_size,
+                               _Launch __launch)
 {
+#if !__cpp_exceptions
+    _PRINT_INFO_IN_DEBUG_MODE(__q, __wgroup_size);
+    return __launch(__wgroup_size);
+#else
     const std::size_t __retry_floor = __find_or_wgroup_size_retry_floor(__q);
     for (;; __wgroup_size /= 2)
     {
@@ -1452,12 +1465,11 @@ __launch_with_wg_size_fallback(const sycl::queue& __q, std::size_t __wgroup_size
         }
         catch (const sycl::exception& __e)
         {
-            // Only an implementation that reports this synchronously with this code can be retried;
-            // elsewhere the rejection propagates.
-            if (__e.code() != sycl::errc::nd_range || __wgroup_size <= __retry_floor)
+            if (__e.code() != sycl::errc::nd_range || __wgroup_size / 2 < __retry_floor)
                 throw;
         }
     }
+#endif
 }
 
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
@@ -1497,7 +1509,8 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         // We shouldn't have any restrictions for _AtomicType type here
         // because we have a single work-group and we don't need to use atomics for inter-work-group communication.
 
-        // This path is reached only well below __find_or_wide_scan_min_size, so it is always the narrow scan.
+        // This path is always the narrow scan by construction, which is why the work-group size cap does not
+        // apply to it.
         const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, false>{__f};
 
         using __find_or_one_wg_kernel_name =
