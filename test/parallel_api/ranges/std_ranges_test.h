@@ -39,6 +39,8 @@ static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202608L);
 #include <algorithm>
 #include <memory>
 #include <array>
+#include <atomic>
+#include <unordered_set>
 
 // Controls how many range/view permutations each test builds. When set to 1
 // (the default), every view-type permutation is built and run, giving full
@@ -166,6 +168,99 @@ struct B
 
 auto proj_a = [](const A& a) { return a.a; };
 auto proj_b = [](const B& b) { return b.b; };
+
+// Projections returning by value create a temporary for each element. An algorithm must not read the result of
+// a functor invoked over that temporary after the temporary is destroyed, e.g. when the functor returns
+// a reference into its argument (std::identity, a pointer to data member, a user functor).
+// lifetime_checked (host only) makes such a read observable without sanitizers: every alive object is registered
+// by its address, and reading the value of a destroyed object is counted in dead_reads and yields V{}.
+// The registry is thread-local: a projected temporary is created, read and destroyed by the same thread.
+inline std::unordered_set<const void*>&
+alive_objects()
+{
+    thread_local std::unordered_set<const void*> objects;
+    return objects;
+}
+inline std::atomic<int> dead_reads{0};
+
+template <typename V>
+struct lifetime_checked
+{
+    V value;
+
+    lifetime_checked(V v): value(v) { alive_objects().insert(this); }
+    lifetime_checked(const lifetime_checked& other): value(other.get()) { alive_objects().insert(this); }
+    lifetime_checked& operator=(const lifetime_checked& other) { value = other.get(); return *this; }
+    ~lifetime_checked() { alive_objects().erase(this); }
+
+    V get() const
+    {
+        if (alive_objects().count(this) == 0)
+        {
+            ++dead_reads;
+            return V{};
+        }
+        return value;
+    }
+    operator V() const { return get(); }
+};
+
+struct proj_result
+{
+    lifetime_checked<int> val;
+    lifetime_checked<bool> flag;
+};
+
+// By-value projections returning objects with non-trivial state
+auto proj_to_checked = [](int v) { return lifetime_checked<int>{v * 2}; };
+auto proj_to_result = [](int v) { return proj_result{{v * 3}, {v % 97 == 96}}; };
+// Returns a forwarded reference to its first argument
+auto forward_first = [](auto&& val1, auto&&) -> decltype(auto) { return std::forward<decltype(val1)>(val1); };
+
+// By-value results referring into the arguments of the functor, like std::string_view or std::reference_wrapper
+template <typename V>
+struct checked_ref
+{
+    const lifetime_checked<V>* obj;
+    operator V() const { return obj->get(); }
+};
+struct checked_equal_ref
+{
+    const lifetime_checked<int>* obj1;
+    const lifetime_checked<int>* obj2;
+    operator bool() const { return obj1->get() == obj2->get(); }
+};
+auto val_ref = [](const proj_result& r) { return checked_ref<int>{&r.val}; };
+auto flag_ref = [](const proj_result& r) { return checked_ref<bool>{&r.flag}; };
+auto first_ref = [](const lifetime_checked<int>& v1, const lifetime_checked<int>&) { return checked_ref<int>{&v1}; };
+auto equal_ref = [](const lifetime_checked<int>& v1, const lifetime_checked<int>& v2) { return checked_equal_ref{&v1, &v2}; };
+
+// A non-copyable accumulator, like std::ostream, and functors returning a reference to it.
+// The tested call adds and the reference call subtracts, so the sum returns to zero
+// if the tested call visits every element exactly once.
+struct non_copyable_acc
+{
+    std::atomic<long long> sum{0};
+    non_copyable_acc& operator+=(int v) { sum += v; return *this; }
+    non_copyable_acc& operator-=(int v) { sum -= v; return *this; }
+};
+inline non_copyable_acc for_each_acc;
+auto add_to_acc = [](const lifetime_checked<int>& v) -> non_copyable_acc& { return for_each_acc += v; };
+auto sub_from_acc = [](const lifetime_checked<int>& v) -> non_copyable_acc& { return for_each_acc -= v; };
+
+inline void
+check_no_dead_reads(const char* message)
+{
+    EXPECT_EQ(0, dead_reads.load(), message);
+}
+
+// Device-friendly counterparts: a trivially copyable projected value and functors returning an lvalue reference
+// into it. Reading a destroyed temporary is undefined behavior, so the failure is not guaranteed with them,
+// but in practice the optimizer drops the dead value (e.g. icpx -O2, host and device).
+auto proj_to_p2 = [](auto&& v) { return P2(v * 2, v % 97 == 96); };
+auto ref_to_x = [](const P2& p) -> const int& { return p.x; };
+auto ref_to_first_x = [](const P2& p1, const P2&) -> const int& { return p1.x; };
+auto pred_ref = [](const P2& p) -> const int& { return p.y; };
 
 // These are copies of __range_size and __range_size_t utilities from oneDPL
 // to get a size type of a range be it sized or not
