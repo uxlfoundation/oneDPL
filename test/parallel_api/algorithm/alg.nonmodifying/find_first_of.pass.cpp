@@ -68,7 +68,10 @@ test(Predicate pred, std::size_t max_n1 = 1000)
             invoke_on_all_policies<CallId + 1>()(test_find_first_of_predicate<T>(), in1.begin(), in1.begin() + n1,
                                                  in2.begin(), in2.begin() + n2, pred);
 
-            const std::size_t pos = (n1 * (iteration++ % 4)) / 4;
+            // Match position in the first sequence: the start, near the end (the last block of the blocked scan),
+            // a quarter and the middle
+            const std::size_t positions[] = {0, n1 >= 2 ? n1 - 2 : 0, n1 / 4, n1 / 2};
+            const std::size_t pos = positions[iteration++ % 4];
             in2[n2 / 2] = T(pos + 2);
 #if !TEST_DPCPP_BACKEND_PRESENT
             invoke_on_all_policies<CallId + 2>()(test_find_first_of<T>(), in1.cbegin(), in1.cbegin() + n1, in2.data(),
@@ -120,7 +123,7 @@ main()
     test<10, std::uint16_t>(std::not_equal_to<std::uint16_t>());
 #endif
     test<20, float64_t>([](const float64_t x, const float64_t y) { return x * x == y * y; });
-    test<30, std::int32_t>([](const std::int32_t x, const std::int32_t y) { return x == y + 1; }, 130);
+    test<30, std::int32_t>([](const std::int32_t x, const std::int32_t y) { return x == y + 1; }, 166);
 
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
 
