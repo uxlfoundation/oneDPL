@@ -78,7 +78,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename
 void
 __pattern_for_each(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _Fun __f, _Proj __proj)
 {
-    oneapi::dpl::__internal::__unary_op<_Fun, _Proj> __f_1{__f, __proj};
+    oneapi::dpl::__internal::__unary_op<_Fun, _Proj, void> __f_1{__f, __proj};
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), __f_1,
                                                             oneapi::dpl::__ranges::views::all(std::forward<_R>(__r)));

@@ -78,7 +78,7 @@ class __not_equal_value;
 template <typename _Tp>
 class __set_value;
 
-template <typename _F, typename _Proj>
+template <typename _F, typename _Proj, typename _Res>
 struct __unary_op;
 
 template <typename _F, typename _Proj1, typename _Proj2>
@@ -208,8 +208,8 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 {
 };
 
-template <typename _F, typename _Proj>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__unary_op, _F, _Proj)>
+template <typename _F, typename _Proj, typename _Res>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__unary_op, _F, _Proj, _Res)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_F, _Proj>
 {
 };

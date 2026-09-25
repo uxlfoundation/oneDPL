@@ -173,7 +173,12 @@ class __pstl_assign
     }
 };
 
-template <typename _F, typename _Proj>
+//! Wrappers invoking a callable over projected values.
+//! A projection may return a prvalue, a temporary destroyed at the end of the full-expression, and the callable may
+//! return a reference into it or an object referring to it (e.g. std::string_view). So the result never leaves
+//! the wrapper: it is converted to bool (predicates and comparators), discarded (_Res = void, e.g. for_each)
+//! or assigned to the output (the transformation overloads).
+template <typename _F, typename _Proj, typename _Res = bool>
 struct __unary_op
 {
     //'mutable' is to relax the requirements for a user functor or/and projection type operator() may be non-const
@@ -181,10 +186,10 @@ struct __unary_op
     mutable _Proj __proj;
 
     template <typename _TValue>
-    decltype(auto)
+    _Res
     operator()(_TValue&& __val) const
     {
-        return std::invoke(__f, std::invoke(__proj, std::forward<_TValue>(__val)));
+        return static_cast<_Res>(std::invoke(__f, std::invoke(__proj, std::forward<_TValue>(__val))));
     }
 
     // Transformation
@@ -205,11 +210,11 @@ struct __binary_op
     mutable _Proj2 __proj2;
 
     template <typename _TValue1, typename _TValue2>
-    decltype(auto)
+    bool
     operator()(_TValue1&& __val1, _TValue2&& __val2) const
     {
-        return std::invoke(__f, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
-                           std::invoke(__proj2, std::forward<_TValue2>(__val2)));
+        return static_cast<bool>(std::invoke(__f, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
+                                             std::invoke(__proj2, std::forward<_TValue2>(__val2))));
     }
 
     // Transformation

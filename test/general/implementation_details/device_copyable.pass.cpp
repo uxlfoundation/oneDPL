@@ -335,6 +335,8 @@ test_device_copyable()
     //__unary_op
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__unary_op<noop_device_copyable,
                   noop_device_copyable>>, "__unary_op is not device copyable with device copyable types");
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__unary_op<noop_device_copyable,
+                  noop_device_copyable, void>>, "__unary_op is not device copyable with device copyable types");
 
     //__binary_op
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__binary_op<noop_device_copyable,
@@ -651,6 +653,8 @@ test_non_device_copyable()
     //__unary_op
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__unary_op<noop_non_device_copyable,
                   noop_non_device_copyable>>, "__unary_op is device copyable with non device copyable types");
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__unary_op<noop_non_device_copyable,
+                  noop_non_device_copyable, void>>, "__unary_op is device copyable with non device copyable types");
 
     //__binary_op
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__binary_op<noop_non_device_copyable,
