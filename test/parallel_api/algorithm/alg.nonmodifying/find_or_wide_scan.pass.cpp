@@ -42,6 +42,7 @@
 #    include "support/sycl_alloc_utils.h"
 
 #    include <algorithm>
+#    include <cstddef>
 #    include <cstdint>
 #    include <functional>
 #    include <vector>
@@ -53,8 +54,11 @@ inline constexpr bool __scans_wide =
 using __or_tag = oneapi::dpl::__par_backend_hetero::__parallel_or_tag;
 using __fwd_tag = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<std::size_t>;
 using __bwd_tag = oneapi::dpl::__par_backend_hetero::__parallel_find_backward_tag<std::size_t>;
-// The routing checks below need only each range's value type, which oneDPL takes from the iterator.
-using __rng = int*;
+// The routing checks below need each range's value type and how the range is read, so they use the types the
+// entry paths build: a passed-directly iterator becomes guard_view.
+template <typename _T>
+using __rng_of = oneapi::dpl::__ranges::guard_view<_T*>;
+using __rng = __rng_of<int>;
 using __cmp = std::less<int>;
 
 static_assert(oneapi::dpl::__par_backend_hetero::__find_or_wide_scan_min_size_for<__rng>() == 0);
@@ -79,12 +83,12 @@ static_assert(!__scans_wide<oneapi::dpl::unseq_backend::__brick_includes<std::si
 
 // The wide scan is also gated on element width and on how many elements the predicate reads per index, so pin
 // both ends of the width window against both element counts. The widest element of any scanned range decides.
-using __rng8 = std::uint8_t*;
-using __rng16 = std::uint16_t*;
-using __rng64 = std::uint64_t*;
-// A zip range holds views, not iterators; guard_view is what a pair of passed-directly iterators becomes.
+using __rng8 = __rng_of<std::uint8_t>;
+using __rng16 = __rng_of<std::uint16_t>;
+using __rng64 = __rng_of<std::uint64_t>;
+// A zip range holds views, not iterators.
 template <typename... _Ts>
-using __zip_of = oneapi::dpl::__ranges::zip_view<oneapi::dpl::__ranges::guard_view<_Ts*>...>;
+using __zip_of = oneapi::dpl::__ranges::zip_view<__rng_of<_Ts>...>;
 using __rng_zip_2_2 = __zip_of<std::uint16_t, std::uint16_t>;
 using __rng_zip_4_8 = __zip_of<std::uint32_t, std::uint64_t>;
 struct __elem16
@@ -98,13 +102,42 @@ static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>
 // A zip range reads one element per component, so it is held to the same width as two ranges.
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_zip_4_8>);
 // Elements wider than the window are declined at every element count.
-static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __elem16*>);
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_of<__elem16>>);
 // 2 bytes is below the window, so only a presence check reading one element per index qualifies.
 static_assert(__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng16>);
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng16, __rng16>);
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_zip_2_2>);
 // 1 byte is below the presence check's own floor, so nothing admits it.
 static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng8>);
+
+// The width above is the value type's, which a view can report without loading it: both ranges below say 4
+// bytes while one loads 8 and the other gathers, so both are declined whatever the width says.
+struct __narrowing
+{
+    int
+    operator()(std::uint64_t __x) const
+    {
+        return int(__x);
+    }
+};
+struct __pair_swap
+{
+    std::size_t
+    operator()(std::size_t __i) const
+    {
+        return __i ^ 1;
+    }
+};
+using __rng_transform = oneapi::dpl::__ranges::transform_view_simple<__rng64, __narrowing>;
+using __rng_permutation = oneapi::dpl::__ranges::permutation_view_simple<__rng, __pair_swap>;
+static_assert(sizeof(oneapi::dpl::__internal::__value_t<__rng_transform>) == 4);
+static_assert(sizeof(oneapi::dpl::__internal::__value_t<__rng_permutation>) == 4);
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_transform>);
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_permutation>);
+// take and drop only move the ends, and is_sorted reaches the wide scan through them, so they stay admitted.
+using __rng_take = oneapi::dpl::__ranges::take_view_simple<__rng, std::ptrdiff_t>;
+using __rng_drop = oneapi::dpl::__ranges::drop_view_simple<__rng, std::ptrdiff_t>;
+static_assert(__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng_take, __rng_drop>);
 
 // Every match position for a size a test can enumerate; above that an odd stride -- coprime with the scan
 // width and the work-group size -- growing as the square of the size, so a device that needs a larger size to
