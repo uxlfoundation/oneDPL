@@ -611,17 +611,19 @@ __parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size _
     using _GenScanInput = __par_backend_hetero::__gen_expand_count_mask_from_copy<_GenMask, _Size>;
     using _ScanInputTransform = __par_backend_hetero::__get_zeroth_element;
 
-    // In the worst case, each iteration reads one input element, stores it into a buffer,
-    // re-reads from there and writes to a new place in the range, touching in total 3 locations.
-    constexpr std::uint32_t __bytes_per_iter = sizeof(_ElementT) * 3;
+    constexpr std::uint32_t __bytes_per_iter = sizeof(_ElementT);
+    // provisional: keeps the per-block scratch within the Level Zero runtime's default 4 MiB device USM pool limit;
+    // larger allocations are made resident and freed on every call. 'unique' needs one extra scratch element.
+    constexpr std::size_t __max_block_size = std::size_t{4} * 1024 * 1024 / sizeof(_ElementT) - _IsUniquePattern::value;
     __transform_scan_storage_holder_simple<_Size> __holder(__q);
 
-    sycl::event __event = __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_iter, _CustomName,
-                                                                /*the type of extra storage*/_ElementT>(
-        __q, __n, __in_rng, __in_rng, _GenReduceInput{__generate_mask}, std::plus<_Size>{},
-        _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
-        oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, __holder, /*_Inclusive=*/std::true_type{},
-        __is_unique_pattern);
+    sycl::event __event =
+        __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_iter, _CustomName,
+                                              /*the type of extra storage*/ _ElementT, __max_block_size>(
+            __q, __n, __in_rng, __in_rng, _GenReduceInput{__generate_mask}, std::plus<_Size>{},
+            _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
+            oneapi::dpl::unseq_backend::__no_init_value<_Size>{}, __holder, /*_Inclusive=*/std::true_type{},
+            __is_unique_pattern);
     __event.wait_and_throw();
 
     _Size __new_size;
