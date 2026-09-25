@@ -1056,7 +1056,7 @@ struct __find_or_nd_range_params
 
 // Caps the multiple work-group path: its kernel's register demand can put a device's advertised maximum
 // work-group size out of reach, and no kernel object exists to query without _ONEDPL_COMPILE_KERNEL.
-// empirical: a power of two below the smallest per-kernel limit observed, on Xe3.
+// empirical: the power of two below the 768-item limit this kernel reported on an Xe3 device.
 inline constexpr std::size_t __find_or_wgroup_size_cap = 512;
 
 // Where __launch_with_wg_size_fallback stops halving: below one sub-group a work group cannot use the vote
