@@ -2568,6 +2568,12 @@ __parallel_transform_reduce_then_scan_impl(
             }
         }
         std::uint32_t __inputs_per_item_limit = std::numeric_limits<std::uint32_t>::max() / (__work_group_size * 2);
+        if constexpr (!std::is_same_v<_ExtraStorageT, void>)
+        {
+            // For better performance the extra block storage should not exceed 4MB
+            const std::uint32_t __max_extra_items = (4*1024*1024) / sizeof(_ExtraStorageT) - __is_unique_pattern_v;
+            __inputs_per_item_limit = __max_extra_items / (__num_work_groups * __work_group_size);
+        }
 
         __max_inputs_per_item = std::max<std::uint32_t>(
             1, std::min<std::uint32_t>(
