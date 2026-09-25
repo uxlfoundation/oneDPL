@@ -150,7 +150,8 @@ struct __block_storage : public __device_storage<_T>
 
     __block_storage(const sycl::queue& __q, std::size_t __n) : __block_sz(__n)
     {
-        this->__initialize(__q, __n + __offset);
+        // probe: pad the allocation past the 4 MiB USM pool limit without changing the block
+        this->__initialize(__q, std::max<std::size_t>(__n + __offset, (std::size_t{8} << 20) / sizeof(_T)));
     }
 
     __view
