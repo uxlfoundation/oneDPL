@@ -933,6 +933,31 @@ struct __early_exit_find_or
 
         constexpr bool __backward = __is_backward_tag(__brick_tag);
 
+        if constexpr (!__wide)
+        {
+            // One element and one vote per iteration. The loop condition carries the early exit; a break here
+            // measures worse.
+            bool __something_was_found = false;
+            for (std::size_t __i = 0; !__something_was_found && __i < __iters_per_work_item; ++__i)
+            {
+                std::size_t __local_src_data_idx = __i;
+                if constexpr (__backward)
+                    __local_src_data_idx = __iters_per_work_item - 1 - __i;
+
+                const std::size_t __src_data_idx_current = __global_id + __local_src_data_idx * __iteration_data_size;
+                if (__src_data_idx_current < __source_data_size && __pred(__src_data_idx_current, __rngs...))
+                {
+                    _BrickTag::__save_state_to(__found_local, __src_data_idx_current);
+                    __something_was_found = true;
+                }
+
+                // Share found into state between items in our sub-group to early exit if something was found
+                //  - the update of __found_local state isn't required here because it updates later on the caller side
+                __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
+            }
+            return;
+        }
+
         const std::size_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item, __elems_per_iter);
         const std::size_t __stride = __iteration_data_size * __elems_per_iter;
 
@@ -1056,7 +1081,8 @@ inline constexpr std::size_t __find_or_wide_scan_never = std::numeric_limits<std
 // Never scan wide on FPGA: unrolling the predicate costs area.
 inline constexpr std::size_t __find_or_wide_scan_min_size = __find_or_wide_scan_never;
 #else
-// Gates the one-element-per-index bricks, which at 2 bytes are the only ones that scan wide at all.
+// Gates every brick that scans wide. Below the width window only a presence check over one element per
+// index reaches it at all.
 // empirical: below this the wide scan was no faster; Battlemage and Ponte Vecchio, 2- and 4-byte types.
 inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE;
 #endif
@@ -1068,6 +1094,9 @@ inline constexpr std::size_t __find_or_wide_scan_multi_elem_min_size = _ONEDPL_F
 // Narrower elements scan wide only as a presence check over a single range.
 // empirical: below this width the wide scan was slower; Battlemage and Ponte Vecchio, 2- and 4-byte types.
 inline constexpr std::size_t __find_or_wide_scan_min_elem_size = 4;
+
+// The narrowest element that presence check admits: no element narrower than this has been measured.
+inline constexpr std::size_t __find_or_wide_scan_or_tag_min_elem_size = 2;
 
 // empirical: above this width the wide scan lost on incompressible data below 256M; the win above that is
 // deliberately forgone. Battlemage and Ponte Vecchio, 4- and 8-byte types.
@@ -1107,9 +1136,13 @@ __find_or_wide_scan_profitable()
         oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value >= __find_or_wide_scan_min_elem_size;
     constexpr bool __elems_narrow_enough =
         oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value <= __find_or_wide_scan_max_elem_size;
+    constexpr bool __elems_above_or_tag_floor =
+        oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value >=
+        __find_or_wide_scan_or_tag_min_elem_size;
     constexpr bool __or_tag = std::is_same_v<_BrickTag, __parallel_or_tag>;
     return __brick_reads_one_elem_per_range<_Brick>::value && __elems_narrow_enough &&
-           (__elems_wide_enough || (__or_tag && __find_or_reads_one_elem_per_index<_Ranges...>));
+           (__elems_wide_enough ||
+            (__or_tag && __find_or_reads_one_elem_per_index<_Ranges...> && __elems_above_or_tag_floor));
 }
 
 // The smallest input the wide scan pays for on these ranges: reading several elements per index needs more of
@@ -1128,7 +1161,7 @@ struct __parallel_find_or_nd_range_tuner
 {
     // Tune the amount of work-groups and work-group size
     __find_or_nd_range_params
-    operator()(const sycl::queue& __q, const std::size_t __rng_n) const
+    operator()(const sycl::queue& __q, const std::size_t __rng_n, const bool __wide_scan) const
     {
         // TODO: find a way to generalize getting of reliable work-group size
         // Bounds the work per compute unit, and on CPUs stands in for a device maximum that is impractically
@@ -1138,9 +1171,11 @@ struct __parallel_find_or_nd_range_tuner
         if (__rng_n <= __wgroup_size_limit * __find_or_one_wg_max_elems_per_item)
             return {/*__n_groups=*/1, __wgroup_size_limit};
 
-        // Cap the group size, and place proportionally more groups per compute unit so the grid still holds
-        // __wgroup_size_limit items per compute unit.
-        const std::size_t __wgroup_size = std::min(__wgroup_size_limit, __find_or_wgroup_size_cap);
+        // Only the wide scan's kernel carries the register demand the cap exists for. Where it applies, place
+        // proportionally more groups per compute unit so the grid still holds __wgroup_size_limit items per
+        // compute unit.
+        const std::size_t __wgroup_size =
+            __wide_scan ? std::min(__wgroup_size_limit, __find_or_wgroup_size_cap) : __wgroup_size_limit;
         const std::size_t __groups_per_compute_unit =
             oneapi::dpl::__internal::__dpl_ceiling_div(__wgroup_size_limit, __wgroup_size);
         // Compute the number of groups and limit by the work capacity of the compute units
@@ -1159,30 +1194,35 @@ struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backe
 {
     // Tune the amount of work-groups and work-group size
     __find_or_nd_range_params
-    operator()(const sycl::queue& __q, const std::size_t __rng_n) const
+    operator()(const sycl::queue& __q, const std::size_t __rng_n, const bool __wide_scan) const
     {
         // Call common tuning function to get the work-group size
-        auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<int>{}(__q, __rng_n);
+        auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<int>{}(__q, __rng_n, __wide_scan);
 
         if (__n_groups > 1)
         {
             auto __iters_per_work_item =
                 oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __n_groups * __wgroup_size);
 
-            // Empirically found formula for GPU devices.
-            // TODO : need to re-evaluate this formula.
-            const float __rng_x = (float)__rng_n / 4096.f;
-            const float __desired_iters_per_work_item = std::max(std::sqrt(__rng_x), 1.f);
-
-            if (__iters_per_work_item < __desired_iters_per_work_item)
+            // The wide scan reads several elements per iteration, so one iteration per item is already worth
+            // growing; the narrow scan is left as it is at one.
+            if (__wide_scan || __iters_per_work_item > 1)
             {
-                // Multiply work per item by a power of 2 to reach the desired number of iterations.
-                // __dpl_bit_ceil rounds the ratio up to the next power of 2.
-                const std::size_t __k = oneapi::dpl::__internal::__dpl_bit_ceil(
-                    (std::size_t)std::ceil(__desired_iters_per_work_item / __iters_per_work_item));
-                // Proportionally reduce the number of work groups.
-                __n_groups =
-                    oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size * __iters_per_work_item * __k);
+                // Empirically found formula for GPU devices.
+                // TODO : need to re-evaluate this formula.
+                const float __rng_x = (float)__rng_n / 4096.f;
+                const float __desired_iters_per_work_item = std::max(std::sqrt(__rng_x), 1.f);
+
+                if (__iters_per_work_item < __desired_iters_per_work_item)
+                {
+                    // Multiply work per item by a power of 2 to reach the desired number of iterations.
+                    // __dpl_bit_ceil rounds the ratio up to the next power of 2.
+                    const std::size_t __k = oneapi::dpl::__internal::__dpl_bit_ceil(
+                        (std::size_t)std::ceil(__desired_iters_per_work_item / __iters_per_work_item));
+                    // Proportionally reduce the number of work groups.
+                    __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(
+                        __rng_n, __wgroup_size * __iters_per_work_item * __k);
+                }
             }
         }
 
@@ -1439,9 +1479,16 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
 
+    // Whether the multiple work-group path scans wide here. The single work-group path never does, and its
+    // geometry does not depend on this.
+    constexpr bool __wide_scan_possible = __find_or_wide_scan_min_size != __find_or_wide_scan_never &&
+                                          __find_or_wide_scan_profitable<_Brick, _BrickTag, _Ranges...>();
+    constexpr std::size_t __wide_scan_min_size = __find_or_wide_scan_min_size_for<_Ranges...>();
+    const bool __wide_scan = __wide_scan_possible && static_cast<std::size_t>(__rng_n) >= __wide_scan_min_size;
+
     // Evaluate the amount of work-groups and work-group size
-    const auto __params =
-        __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(__q_local, __rng_n);
+    const auto __params = __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(
+        __q_local, __rng_n, __wide_scan);
 
     // The ranges are passed as lvalues below: the fallback may invoke a launch more than once.
     _AtomicType __result;
@@ -1488,13 +1535,10 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         };
 
         // Multiple WG implementation
-        if constexpr (__find_or_wide_scan_min_size == __find_or_wide_scan_never ||
-                      !__find_or_wide_scan_profitable<_Brick, _BrickTag, _Ranges...>())
-            __result = __launch(std::false_type{});
-        else if (static_cast<std::size_t>(__rng_n) < __find_or_wide_scan_min_size_for<_Ranges...>())
-            __result = __launch(std::false_type{});
+        if constexpr (__wide_scan_possible)
+            __result = __wide_scan ? __launch(std::true_type{}) : __launch(std::false_type{});
         else
-            __result = __launch(std::true_type{});
+            __result = __launch(std::false_type{});
     }
 
     if constexpr (__or_tag_check)
