@@ -141,10 +141,10 @@ test_tiled_second_sequence()
             s[j] = T(a[p] - 1);
             run(p, "wrong position of a match with a tiled range 2");
 
-            // An earlier tile refers to a later position: the match of the later tile must win
-            if (p > 0 && j >= tile)
+            // An earlier tile matches the next position a[p + 1]: the match of the later tile with a[p] must win
+            if (p + 1 < n1 && j >= tile)
             {
-                s[j - tile] = T(a[p] - 1 + 1);
+                s[j - tile] = T(a[p + 1] - 1);
                 run(p, "the earlier tile of range 2 won over the earlier position of range 1");
                 s[j - tile] = T(0);
             }
