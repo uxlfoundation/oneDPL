@@ -119,7 +119,7 @@ struct __block_storage : public __device_storage<_T>
         std::size_t __block_sz = 0;
         _T* __data = nullptr;
         __acc_t __acc;
-        
+
         // Element access is only valid in device code
         _T&
         operator[](std::size_t __lidx) const
@@ -166,7 +166,8 @@ struct __block_storage : public __device_storage<_T>
 };
 
 template <typename _Range, typename _T, std::size_t __offset>
-auto __zip_with_block_storage(_Range&& __rng, __block_storage<_T, __offset>& __blockbuf)
+auto
+__zip_with_block_storage(_Range&& __rng, __block_storage<_T, __offset>& __blockbuf)
 {
     return oneapi::dpl::__ranges::make_zip_view(std::forward<_Range>(__rng), __blockbuf.__all_view());
 }
@@ -178,7 +179,8 @@ struct __block_storage<void, __offset>
 };
 
 template <typename _Range, std::size_t __offset>
-auto __zip_with_block_storage(_Range&& __rng, __block_storage<void, __offset>&)
+auto
+__zip_with_block_storage(_Range&& __rng, __block_storage<void, __offset>&)
 {
     return std::forward<_Range>(__rng);
 }
@@ -1933,7 +1935,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
             auto __comm_acc_or_placeholder = __comm_handler.__get_accessor_or_placeholder(__work_group_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
-            auto __temp_acc = __get_accessor(sycl::write_only, __scratch_storage, __cgh, __dpl_sycl::__no_init{});
+            auto __temp_acc = __get_accessor(sycl::read_write, __scratch_storage, __cgh); // read for carry-in
             auto __stop_pos_acc = __get_accessor(sycl::write_only, __stop_pos_storage, __cgh);
             __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi)
                     [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__get_reduce_then_scan_req_sg_sz_device())]] {
@@ -2572,7 +2574,7 @@ __parallel_transform_reduce_then_scan_impl(
     // Additionally, we need two elements for the block carry-out to prevent a race condition
     // between reading and writing the block carry-out within a single kernel.
     __combined_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2, 1};
-    
+
     // An algorithm can request additional per-element storage to pass data from reduce to scan
     // The storage is zipped with input and is reused across the blocks.
     // For unique, an extra element of storage is needed.
