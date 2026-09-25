@@ -150,7 +150,8 @@ struct __block_storage : public __device_storage<_T>
 
     __block_storage(const sycl::queue& __q, std::size_t __n) : __block_sz(__n)
     {
-        this->__initialize(__q, __n + __offset);
+        // probe: sycl::buffer instead of per-call malloc_device
+        this->__sycl_buf = sycl::buffer<_T, 1>(__n + __offset);
     }
 
     __view
