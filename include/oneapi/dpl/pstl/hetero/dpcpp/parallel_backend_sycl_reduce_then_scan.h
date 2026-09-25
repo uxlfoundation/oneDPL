@@ -2476,9 +2476,10 @@ using __transform_scan_storage_holder_simple = __storage_holder<2, _ValueType>;
 // strategy via _ScanOpsTag, which selects which communication path(s) are compiled into the kernel. The
 // runtime __use_subgroup_ops flag then chooses between them when both are available.
 template <bool _Bounded, typename _ScanOpsTag, std::uint32_t __bytes_per_work_item_iter, typename _CustomName,
-          typename _ExtraStorageT, typename _InRng, typename _OutRng, typename _GenReduceInput, typename _ReduceOp,
-          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename _Inclusive, typename _IsUniquePattern, typename _StopPosInitState>
+          typename _ExtraStorageT, std::size_t __max_block_size, typename _InRng, typename _OutRng,
+          typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
+          typename _WriteOp, typename _InitType, typename _Inclusive, typename _IsUniquePattern,
+          typename _StopPosInitState>
 sycl::event
 __parallel_transform_reduce_then_scan_impl(
     sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
@@ -2578,6 +2579,13 @@ __parallel_transform_reduce_then_scan_impl(
         __num_work_groups = oneapi::dpl::__internal::__dpl_bit_ceil(__max_compute_units * 64);
         // use a large number of inputs per item to amortize the overhead
         __max_inputs_per_item = std::max<std::uint32_t>(1, 2048u / __bytes_per_work_item_iter);
+    }
+    if constexpr (__max_block_size > 0)
+    {
+        if (__inputs_remaining > __max_block_size)
+            __max_inputs_per_item = std::max<std::uint32_t>(
+                1, std::min<std::size_t>(__max_inputs_per_item,
+                                         __max_block_size / (std::size_t{__num_work_groups} * __work_group_size)));
     }
 
     // Need to calculate actual number of blocks to avoid empty blocks due to floor calculations
@@ -2698,10 +2706,12 @@ __parallel_transform_reduce_then_scan_impl(
 //            for a single iteration of its serial loop over a block. It is used only as a block sizing heuristic: we
 //            try to make a block's total input footprint fit within the last level cache so that the scan kernel can
 //            re-read the input from LLC rather than paying for a second read from global memory.
+// __max_block_size - if non-zero, an upper bound on the number of inputs in a block (0 means no bound)
 template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _ExtraStorageT = void,
-          typename _InRng, typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
-          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
-          typename _IsUniquePattern, typename _StopPosInitState = oneapi::dpl::__internal::__difference_t<_InRng>>
+          std::size_t __max_block_size = 0, typename _InRng, typename _OutRng, typename _GenReduceInput,
+          typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp,
+          typename _InitType, typename _Inclusive, typename _IsUniquePattern,
+          typename _StopPosInitState = oneapi::dpl::__internal::__difference_t<_InRng>>
 sycl::event
 __parallel_transform_reduce_then_scan(
     sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng, _GenReduceInput __gen_reduce_input,
@@ -2725,7 +2735,8 @@ __parallel_transform_reduce_then_scan(
     {
         bool __use_subgroup_ops = __q.get_device().is_gpu();
         return __parallel_transform_reduce_then_scan_impl<_Bounded, __slm_or_subgroup_tag<_ValueType>,
-                                                          __bytes_per_work_item_iter, _CustomName, _ExtraStorageT>(
+                                                          __bytes_per_work_item_iter, _CustomName, _ExtraStorageT,
+                                                          __max_block_size>(
             __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
             __gen_scan_input, __scan_input_transform, __write_op, __init, __holder, __inclusive, __is_unique_pattern,
             __use_subgroup_ops, __stop_pos_initial_state, std::move(__prior_event));
@@ -2733,7 +2744,8 @@ __parallel_transform_reduce_then_scan(
     else
     {
         return __parallel_transform_reduce_then_scan_impl<_Bounded, __slm_only_tag<_ValueType>,
-                                                          __bytes_per_work_item_iter, _CustomName, _ExtraStorageT>(
+                                                          __bytes_per_work_item_iter, _CustomName, _ExtraStorageT,
+                                                          __max_block_size>(
             __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __gen_reduce_input, __reduce_op,
             __gen_scan_input, __scan_input_transform, __write_op, __init, __holder, __inclusive, __is_unique_pattern,
             /*__use_subgroup_ops=*/false, __stop_pos_initial_state, std::move(__prior_event));
