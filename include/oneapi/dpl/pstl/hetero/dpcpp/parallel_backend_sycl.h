@@ -1088,7 +1088,7 @@ inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE
 #endif
 
 // A predicate reading several elements per index gains less per widened load, so it needs a larger input.
-// empirical: smallest size measured free of regressions; Battlemage, 4-byte types.
+// empirical: a quarter of this size lost 25 %; Battlemage and Ponte Vecchio, 4-byte types.
 inline constexpr std::size_t __find_or_wide_scan_multi_elem_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE;
 
 // Narrower elements scan wide only as a presence check over a single range.
