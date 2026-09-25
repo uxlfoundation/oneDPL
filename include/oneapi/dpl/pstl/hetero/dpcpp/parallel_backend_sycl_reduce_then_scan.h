@@ -2585,8 +2585,8 @@ __parallel_transform_reduce_then_scan_impl(
     }
     if constexpr (__max_block_size > 0)
     {
-        // provisional: the cap is dropped when it would add more blocks than this
-        constexpr std::size_t __max_blocks_added_by_cap = 16;
+        // provisional: the cap is dropped when it would add this many blocks or more
+        constexpr std::size_t __blocks_added_to_drop_cap = 50;
         const std::size_t __work_items = std::size_t{__num_work_groups} * __work_group_size;
         const std::uint32_t __capped_inputs_per_item =
             std::max<std::uint32_t>(1, std::min<std::size_t>(__max_inputs_per_item, __max_block_size / __work_items));
@@ -2594,7 +2594,7 @@ __parallel_transform_reduce_then_scan_impl(
             oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_remaining, __max_inputs_per_item * __work_items);
         const std::size_t __capped_blocks =
             oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_remaining, __capped_inputs_per_item * __work_items);
-        if (__inputs_remaining > __max_block_size && __capped_blocks - __uncapped_blocks <= __max_blocks_added_by_cap)
+        if (__inputs_remaining > __max_block_size && __capped_blocks - __uncapped_blocks < __blocks_added_to_drop_cap)
             __max_inputs_per_item = __capped_inputs_per_item;
     }
 

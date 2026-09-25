@@ -611,7 +611,8 @@ __parallel_compact_reduce_then_scan(sycl::queue& __q, _InRng&& __in_rng, _Size _
     using _GenScanInput = __par_backend_hetero::__gen_expand_count_mask_from_copy<_GenMask, _Size>;
     using _ScanInputTransform = __par_backend_hetero::__get_zeroth_element;
 
-    constexpr std::uint32_t __bytes_per_iter = sizeof(_ElementT);
+    // A block that stages its input keeps both the input and the scratch cached between the two kernels.
+    constexpr std::uint32_t __bytes_per_iter = sizeof(_ElementT) * 2;
     // provisional: keeps the per-block scratch within the Level Zero runtime's default 4 MiB device USM pool limit;
     // larger allocations are made resident and freed on every call. 'unique' needs one extra scratch element.
     constexpr std::size_t __max_block_size = std::size_t{4} * 1024 * 1024 / sizeof(_ElementT) - _IsUniquePattern::value;
