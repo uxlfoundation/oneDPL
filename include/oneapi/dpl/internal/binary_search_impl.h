@@ -87,15 +87,15 @@ struct __custom_brick
             search_impl<std::uint64_t>(idx, acc);
     }
 
-    // Each search is a chain of dependent probes, so running a work item's searches one after another
-    // leaves one load outstanding at a time. Take the indices as a batch instead and interleave the
-    // searches, which issues _C probes per round without changing which probes are performed.
+    // Opt into the batched dispatch: interleaving independent searches issues _C probes per round
+    // without changing which probes are performed.
     static constexpr bool __batched = true;
 
-    // Searches interleaved per work item with 32-bit indices. Eight flips IGC into large-GRF mode on
-    // PVC and down to simd8 on dg2, halving occupancy either way; four does neither.
+    // Searches kept in flight per work item, 32-bit index path. Empirical, 2-8 byte keys on BMG and PVC;
+    // 8 costs register budget (PVC) or SIMD width (dg2) at 2-byte keys. Not swept below 4.
     static constexpr std::uint8_t max_in_flight_32 = 4;
-    // 64-bit indices need a haystack above 2^32 elements, which no benchmark reaches: untuned.
+    // provisional: half the 32-bit width -- each in-flight search holds twice the index state. Both widths
+    // compile into one kernel, so this also bounds the 32-bit path's register budget.
     static constexpr std::uint8_t max_in_flight_64 = 2;
 
     template <typename _Size, std::size_t _C, typename _IsFull, typename _Acc>
@@ -134,10 +134,8 @@ struct __custom_brick
 
         if constexpr (func == search_algorithm::binary_search)
         {
-            // The confirming probe is one more dependent load, so batch it as well. A lane that found
-            // nothing has result == end_orig, which is out of range; substitute index 0, which exists
-            // because an empty haystack returns before the kernel is submitted. Such a lane compares
-            // unequal either way, since its key is greater than every element.
+            // An out-of-range result substitutes index 0, which is always a valid load because an empty
+            // haystack returns before the kernel is submitted.
             _HaystackType probe[_C];
             _ONEDPL_PRAGMA_UNROLL
             for (std::size_t j = 0; j < _C; ++j)

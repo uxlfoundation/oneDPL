@@ -1022,11 +1022,9 @@ __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
                                    oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
-// __C independent Shar's lower bound searches run in lock step, each round issuing __C probes.
-// A single search is a serial chain of dependent loads whose length is fixed by __last - __first and
-// is therefore the same for every value, which is what lets the searches share the loop. Interleaving
-// them performs exactly the probes __shars_lower_bound would, in an order that leaves __C loads
-// outstanding per work item instead of one.
+// __C independent Shar's lower bound searches in lock step, performing exactly the probes
+// __shars_lower_bound would. The chain length is fixed by __last - __first and is the same for every
+// value, which is what lets the searches share the loop. Correct only for __first == 0, as is the scalar form.
 template <std::size_t __C, typename _Acc, typename _Size, typename _Value, typename _Compare>
 void
 __shars_lower_bound_batched(_Acc __acc, _Size __first, _Size __last, const _Value (&__value)[__C],
@@ -1043,6 +1041,8 @@ __shars_lower_bound_batched(_Acc __acc, _Size __first, _Size __last, const _Valu
     }
     const _Size __pow2_top = __dpl_bit_floor(__n);
     const _Size __midpoint = __n / 2;
+    // __n + 1 below is exact only as unsigned modular arithmetic: at __n == max it wraps to 0 and the
+    // subtraction wraps back. Widening the intermediate would break it.
     _Size __shifted_first[__C];
     _Size __search_offset[__C];
     _ONEDPL_PRAGMA_UNROLL

@@ -13,11 +13,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-// lower_bound / upper_bound / binary_search take a batched code path once the key count is large
-// enough for __parallel_for's large submitter, which no other test reaches: the gate scales with the
-// device's compute unit count, so on a large GPU it sits above a million keys. This test derives the
-// gate from the device and sizes itself to cross it, over the value type sizes that select each
-// distinct batch geometry, and over two key distributions.
+// lower_bound / upper_bound / binary_search take a batched code path once the key count is large enough
+// for __parallel_for's large submitter. The gate scales with the device's compute unit count, so on a
+// large GPU it sits above a million keys, which no other test in this directory reaches there. This test
+// derives the gate from the device and sizes itself to cross it.
 
 #include "support/test_config.h"
 
@@ -84,10 +83,8 @@ struct key_traits<Key3>
 template <typename KeyT, typename ResT, int Idx>
 class policy_name;
 
-// How the keys are drawn. A uniform draw over the haystack's range leaves the classes that only a
-// key outside that range produces -- a search that runs off either end of the haystack -- to a
-// handful of lanes, so absent_heavy draws a quarter of the lanes past the last element and a quarter
-// below the first, per lane, so that the classes mix within a work item's batch whatever its stride.
+// How the keys are drawn. A uniform draw over the haystack's range almost never lands outside it, so the
+// searches that run off either end would reach only a handful of lanes; absent_heavy forces them.
 enum class key_mix
 {
     uniform,
@@ -237,7 +234,7 @@ void
 run_type(sycl::queue __q, const std::string& __type_label)
 {
     const std::size_t __min_keys = batched_path_min_keys(__q, std::min(sizeof(KeyT), sizeof(ResT)));
-    // Keep the test bounded on a device whose compute unit count puts the gate out of reach.
+    // Safety valve on the allocation, not a device bound: 2^25 8-byte keys is already ~800 MB.
     if (__min_keys > (std::size_t(1) << 25))
     {
         std::cout << "Skipping " << __type_label << ": batched path needs " << __min_keys << " keys" << std::endl;
@@ -260,8 +257,9 @@ main()
 #if TEST_DPCPP_BACKEND_PRESENT
     sycl::queue __q = TestUtils::get_test_queue();
 
-    // The value type sizes below select iterations-per-item 2, 4, 8 and 5, which is every distinct
-    // batch geometry: one short batch, one full batch, two full batches, and a batch plus a tail.
+    // The value type sizes below select iterations-per-item 2, 4, 8 and 5: one short batch, one full
+    // batch, two full batches, and a batch plus a tail. A 1-byte value type would select 16 (four full
+    // batches) and is not covered here.
     run_type<std::uint64_t, std::uint64_t>(__q, "uint64");
     run_type<std::uint32_t, std::uint32_t>(__q, "uint32");
     // A 16-bit result would take the expected and actual indices mod 65536 and compare them blind.

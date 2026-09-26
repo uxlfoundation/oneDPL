@@ -106,8 +106,7 @@ class __iterations_per_item
 template <typename _Brick, typename... _Ranges>
 inline constexpr std::uint8_t __iterations_per_item_v = __iterations_per_item<_Brick, _Ranges...>::value;
 
-// A brick may set __batched to opt out of the strided loop and receive all of its indices at once,
-// which lets it overlap work that would otherwise be serialized between successive iterations.
+// A brick may set __batched to opt out of the strided loop and receive all of its indices at once.
 template <typename _Brick>
 class __brick_is_batched
 {
