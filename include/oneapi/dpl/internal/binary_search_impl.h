@@ -117,34 +117,40 @@ struct __custom_brick
                 return std::min(i, bound - 1);
         };
 
-        _KeyType value[_C];
+        // Neither value type is required to be default constructible, so the batch constructs and
+        // destroys the copies it holds in registers.
+        oneapi::dpl::__internal::__lazy_ctor_storage<_KeyType> value[_C];
         _Size result[_C];
         _ONEDPL_PRAGMA_UNROLL
         for (std::size_t j = 0; j < _C; ++j)
-            value[j] = get<1>(acc[key_index(j)]);
+            value[j].__setup(get<1>(acc[key_index(j)]));
+        auto value_of = [&value](std::size_t j) -> const _KeyType& { return value[j].__v; };
 
         const _Size start_orig = 0;
         const _Size end_orig = size;
         if constexpr (func == search_algorithm::upper_bound)
-            oneapi::dpl::__internal::__shars_upper_bound_batched<_C>(haystack, start_orig, end_orig, value, result,
+            oneapi::dpl::__internal::__shars_upper_bound_batched<_C>(haystack, start_orig, end_orig, value_of, result,
                                                                      comp);
         else
-            oneapi::dpl::__internal::__shars_lower_bound_batched<_C>(haystack, start_orig, end_orig, value, result,
+            oneapi::dpl::__internal::__shars_lower_bound_batched<_C>(haystack, start_orig, end_orig, value_of, result,
                                                                      comp);
 
         if constexpr (func == search_algorithm::binary_search)
         {
             // An out-of-range result substitutes index 0, which is always a valid load because an empty
             // haystack returns before the kernel is submitted.
-            _HaystackType probe[_C];
+            oneapi::dpl::__internal::__lazy_ctor_storage<_HaystackType> probe[_C];
             _ONEDPL_PRAGMA_UNROLL
             for (std::size_t j = 0; j < _C; ++j)
-                probe[j] = haystack[result[j] != end_orig ? result[j] : _Size{0}];
+                probe[j].__setup(haystack[result[j] != end_orig ? result[j] : _Size{0}]);
 
             _ONEDPL_PRAGMA_UNROLL
             for (std::size_t j = 0; j < _C; ++j)
+            {
                 if (_IsFull::value || idx + j * stride < bound)
-                    get<2>(acc[key_index(j)]) = (result[j] != end_orig) && (value[j] == probe[j]);
+                    get<2>(acc[key_index(j)]) = (result[j] != end_orig) && (value[j].__v == probe[j].__v);
+                probe[j].__destroy();
+            }
         }
         else
         {
@@ -153,6 +159,10 @@ struct __custom_brick
                 if (_IsFull::value || idx + j * stride < bound)
                     get<2>(acc[key_index(j)]) = result[j];
         }
+
+        _ONEDPL_PRAGMA_UNROLL
+        for (std::size_t j = 0; j < _C; ++j)
+            value[j].__destroy();
     }
 
     template <typename _Size, std::uint8_t _NumStrides, std::uint8_t _MaxInFlight, typename _IsFull, typename _Acc>

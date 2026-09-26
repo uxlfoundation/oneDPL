@@ -33,13 +33,18 @@
 #    include <limits>
 #    include <random>
 #    include <string>
+#    include <type_traits>
 #    include <vector>
 
 // A three-byte key, to select an iterations-per-item count that is not a multiple of the number of
-// searches kept in flight, so that a batch and a shorter trailing batch both run.
+// searches kept in flight, so that a batch and a shorter trailing batch both run. It is also not
+// default constructible, which none of these algorithms requires of a key or haystack value type.
 struct Key3
 {
     std::uint8_t __b[3];
+
+    Key3() = delete;
+    explicit Key3(std::uint32_t __v) : __b{std::uint8_t(__v), std::uint8_t(__v >> 8), std::uint8_t(__v >> 16)} {}
 
     std::uint32_t
     value() const
@@ -57,6 +62,7 @@ struct Key3
         return value() == __o.value();
     }
 };
+static_assert(!std::is_default_constructible_v<Key3>);
 
 template <typename KeyT>
 struct key_traits
@@ -76,7 +82,7 @@ struct key_traits<Key3>
     static Key3
     make(std::uint32_t __v)
     {
-        return Key3{{std::uint8_t(__v), std::uint8_t(__v >> 8), std::uint8_t(__v >> 16)}};
+        return Key3(__v);
     }
 };
 
@@ -144,7 +150,8 @@ run_case(sycl::queue __q, std::size_t __n_keys, key_mix __mix, const std::string
     // Lifting the haystack off zero makes keys below its first element representable.
     const std::uint32_t __base = (__mix == key_mix::absent_heavy) ? 8 : 0;
 
-    std::vector<KeyT> __hay(__n_hay), __keys(__n_keys);
+    const KeyT __fill = key_traits<KeyT>::make(0);
+    std::vector<KeyT> __hay(__n_hay, __fill), __keys(__n_keys, __fill);
     for (std::size_t __i = 0; __i != __n_hay; ++__i)
         __hay[__i] = key_traits<KeyT>::make(__base + std::uint32_t(std::uint64_t(__i) * (__span - __base) / __n_hay));
 
