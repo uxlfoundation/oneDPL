@@ -1047,39 +1047,24 @@ __shars_upper_bound_batched(_Acc __acc, _Size __first, _Size __last, _GetValue _
             oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
 }
 
-// Lower bound implementation based on Shar's algorithm for binary search.
 template <typename _Acc, typename _Size, typename _Value, typename _Compare>
 _Size
 __shars_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp)
 {
-    static_assert(::std::is_unsigned_v<_Size>, "__shars_lower_bound requires an unsigned size type");
-    const _Size __n = __last - __first;
-    if (__n == 0)
-        return __first;
-    _Size __cur_pow2 = __dpl_bit_floor(__n);
-    const _Size __midpoint = __n / 2;
-    // Check the middle element to determine if we should search the first or last
-    // 2^(bit_floor(__n)) - 1 elements.
-    const _Size __shifted_first = std::invoke(__comp, __acc[__midpoint], __value) ? __n + 1 - __cur_pow2 : __first;
-    // Check descending powers of two. If __comp(__acc[__search_idx], __pow) holds for a __cur_pow2, then its
-    // bit must be set in the result.
-    _Size __search_offset{0};
-    for (__cur_pow2 >>= 1; __cur_pow2 > 0; __cur_pow2 >>= 1)
-    {
-        const _Size __search_idx = __shifted_first + (__search_offset | __cur_pow2) - 1;
-        if (std::invoke(__comp, __acc[__search_idx], __value))
-            __search_offset |= __cur_pow2;
-    }
-    return __shifted_first + __search_offset;
+    _Size __result;
+    __shars_lower_bound_batched<1>(__acc, __first, __last,
+                                   [&__value](std::size_t) -> const _Value& { return __value; }, &__result, __comp);
+    return __result;
 }
 
 template <typename _Acc, typename _Size, typename _Value, typename _Compare>
 _Size
 __shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp)
 {
-    return __shars_lower_bound(__acc, __first, __last, __value,
-                               oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__reorder_pred<_Compare>>{
-                                   oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
+    _Size __result;
+    __shars_upper_bound_batched<1>(__acc, __first, __last,
+                                   [&__value](std::size_t) -> const _Value& { return __value; }, &__result, __comp);
+    return __result;
 }
 
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
