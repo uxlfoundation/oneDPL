@@ -106,9 +106,8 @@
 #define _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN                                                           \
     (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60100) || _ONEDPL_LIBSYCL_VERSION == 60200)
 
-// Smallest input for which the find_or backend scans several elements per work item. Overridable so a
-// test can reach that path without allocating a million elements; it initializes an inline constexpr
-// variable, so every translation unit of a program must agree on the value.
+// Smallest input for which the find_or backend scans several elements per work item. It initializes an
+// inline constexpr variable, so every translation unit of a program must agree on the value.
 #ifndef _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE // Check if overridden for testing
 #    define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE (std::size_t{1} << 20)
 #endif // _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE

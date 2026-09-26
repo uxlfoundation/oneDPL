@@ -908,19 +908,19 @@ struct __early_exit_find_or
 {
     _Pred __pred;
 
-    // Consecutive elements one work item scans per iteration. Every wide-scan measurement was taken at this
-    // value on Battlemage and Ponte Vecchio at 2- and 4-byte types; it was not swept.
+    // empirical: consecutive elements one work item scans per iteration, i.e. 8 to 32 bytes per item per
+    // iteration across the admitted widths. Battlemage and Ponte Vecchio, 2- and 4-byte types; never swept.
     static constexpr std::size_t __elems_per_iter = __wide ? 4 : 1;
     // Longest batch of iterations scanned between votes, trading early-exit latency against vote count. Not
-    // tuned, and __batch_growth_ratio keeps the batch at 1 until an item has scanned far more iterations
-    // than the measured sizes produce, so batches longer than 1 are nearly unexercised.
+    // tuned; __batch_growth_delay defers growth, so a batch longer than 1 is first entered near 2^26 elements.
     static constexpr std::size_t __max_iters_per_vote = __wide ? 8 : 1;
+    static constexpr std::size_t __batch_growth_factor = 2;
     // The next batch length is adopted only after this many of it have already been scanned, which bounds a
     // batch's overshoot past a match to 1 / this of the iterations already spent. Not tuned.
-    static constexpr std::size_t __batch_growth_ratio = 32;
+    static constexpr std::size_t __batch_growth_delay = 32;
 
     static_assert(__max_iters_per_vote > 0 && (__max_iters_per_vote & (__max_iters_per_vote - 1)) == 0,
-                  "the batch length doubles up to __max_iters_per_vote, so it must be a power of 2");
+                  "the batch length grows by __batch_growth_factor up to __max_iters_per_vote");
 
     template <typename _NDItemId, typename _LocalFoundState, typename _BrickTag, typename... _Ranges>
     void
@@ -935,8 +935,8 @@ struct __early_exit_find_or
 
         if constexpr (!__wide)
         {
-            // One element and one vote per iteration. Iterations advance in the tag's direction, so an index
-            // the shared vote skips cannot match ahead of the index already found.
+            // Iterations advance in the tag's direction, so an index the shared vote skips cannot match ahead
+            // of the index already found. A break here measures worse, so the state check sits in the header.
             bool __something_was_found = false;
             for (std::size_t __i = 0; !__something_was_found && __i < __iters_per_work_item; ++__i)
             {
@@ -1021,20 +1021,18 @@ struct __early_exit_find_or
                             __something_was_found |= __scan_iter_guarded(__iter + __j);
                     }
 
-                    // Share the found state across the sub-group to exit early; the caller combines
-                    // __found_local.
                     __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
                 }
             };
 
-            // Double the batch length once __batch_growth_ratio times the next length is behind the item.
+            // Grow the batch length once __batch_growth_delay times the next length is behind the item.
             // An item that exits early enough never leaves length 1.
             auto __scan_growing = [&](auto __self, auto __len_c) {
                 constexpr std::size_t __len = decltype(__len_c)::value;
                 if constexpr (__len < __max_iters_per_vote)
                 {
-                    __scan_batches(__len_c, __batch_growth_ratio * 2 * __len);
-                    __self(__self, std::integral_constant<std::size_t, 2 * __len>{});
+                    __scan_batches(__len_c, __batch_growth_delay * __batch_growth_factor * __len);
+                    __self(__self, std::integral_constant<std::size_t, __batch_growth_factor * __len>{});
                 }
                 else
                     __scan_batches(__len_c, __iters);
@@ -1056,9 +1054,9 @@ struct __find_or_nd_range_params
     std::size_t __wgroup_size;
 };
 
-// Caps the multiple work-group path: its kernel's register demand can put a device's advertised maximum
-// work-group size out of reach, and no kernel object exists to query without _ONEDPL_COMPILE_KERNEL.
-// empirical: the power of two below the 768-item limit this kernel reported on an Xe3 device.
+// Caps the wide kernel: its register demand can put a device's advertised maximum work-group size out of
+// reach. empirical: the power of two below the 768-item limit this kernel reported on an Xe3 device when it
+// scanned 4 elements of each of two 8-byte ranges; the gate below admits at most 4-byte elements.
 inline constexpr std::size_t __find_or_wgroup_size_cap = 512;
 
 // Where __launch_with_wg_size_fallback stops halving: a work group below one sub-group gains nothing from
@@ -1080,29 +1078,28 @@ inline constexpr std::size_t __find_or_one_wg_max_elems_per_item = 32;
 inline constexpr std::size_t __find_or_wide_scan_never = std::numeric_limits<std::size_t>::max();
 
 #if _ONEDPL_FPGA_DEVICE || _ONEDPL_FPGA_EMU
-// Never scan wide on FPGA: unrolling the predicate costs area. The emulator declines it too, because the
-// tuner below that sizes the wide grid is not compiled for FPGA emulation.
+// Never scan wide on FPGA: unrolling the predicate costs area. The emulator declines it too.
 inline constexpr std::size_t __find_or_wide_scan_min_size = __find_or_wide_scan_never;
 #else
-// empirical: below this the wide scan was no faster; Battlemage and Ponte Vecchio, 4-byte types.
+// provisional: the smallest input the wide scan pays for. No measurement brackets this value.
 inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE;
 #endif
 
 // The smallest input a scan reading several elements per index pays for.
-// empirical: a quarter of this lost up to 27 % on Battlemage at 4-byte float; Ponte Vecchio gained there,
-// and the floor follows Battlemage. A caller that passes n - 1 routes narrow at exactly this size.
+// empirical: a quarter of this lost up to 27 % on Battlemage at 4-byte float reading two distinct buffers;
+// Ponte Vecchio was mixed there. Callers that read adjacent pairs of one buffer gained, and are also bound.
 inline constexpr std::size_t __find_or_wide_scan_multi_elem_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE;
 
 // Narrower elements scan wide only as a presence check over a single range.
-// empirical: below this width the wide scan lost on at least one of Battlemage and Ponte Vecchio in every
-// configuration except that one; 4-byte types measured, 2-byte only for the presence check.
+// empirical: 4-byte types won above this floor on Battlemage and Ponte Vecchio. Below it, only the presence
+// check was measured, and only at 2 bytes.
 inline constexpr std::size_t __find_or_wide_scan_min_elem_size = 4;
 
 // The narrowest element that presence check admits: no element narrower than this has been measured.
 inline constexpr std::size_t __find_or_wide_scan_or_tag_min_elem_size = 2;
 
-// empirical: above this width the wide scan lost below 256M and won above it, so the ceiling forgoes the
-// largest inputs. Battlemage and Ponte Vecchio, 4- and 8-byte types.
+// empirical: above this width the wide scan lost below 256M and won at 256M, the largest size measured, so
+// the ceiling forgoes that one point. Battlemage and Ponte Vecchio, 4- and 8-byte types.
 inline constexpr std::size_t __find_or_wide_scan_max_elem_size = 4;
 
 // Whether the brick's predicate reads one element of each range at the scanned index -- the loads the wide
@@ -1131,9 +1128,8 @@ __find_or_range_is_contiguous_std_range()
 #endif
 }
 
-// Whether the range loads one contiguous element of its own value type at the scanned index -- the loads the
-// width window below is measured against. A view that maps the index gathers instead, and one that transforms
-// the element reports a width its loads do not have.
+// Whether the range loads one contiguous element of its own value type at the scanned index. A view that maps
+// the index gathers instead, and one that transforms the element reports a width its loads do not have.
 template <typename _Range>
 struct __find_or_range_loads_contiguously : std::bool_constant<__find_or_range_is_contiguous_std_range<_Range>()>
 {
@@ -1171,7 +1167,6 @@ struct __find_or_range_loads_contiguously<oneapi::dpl::__ranges::reverse_view_si
 {
 };
 
-// A zip range reads one element per component.
 template <typename... _Ranges>
 struct __find_or_range_loads_contiguously<oneapi::dpl::__ranges::zip_view<_Ranges...>>
     : std::conjunction<__find_or_range_loads_contiguously<_Ranges>...>
@@ -1211,7 +1206,7 @@ __find_or_wide_scan_profitable()
 }
 
 // The smallest input the wide scan pays for on these ranges: reading several elements per index needs more of
-// them. Never below the overall floor, which is how FPGA declines the wide scan outright.
+// them. A caller that passes n - 1 routes narrow at exactly this size.
 template <typename... _Ranges>
 constexpr std::size_t
 __find_or_wide_scan_min_size_for()
@@ -1231,16 +1226,15 @@ struct __parallel_find_or_nd_range_tuner
         // TODO: find a way to generalize getting of reliable work-group size
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the
-        // future. It is also the per-compute-unit item budget the grid below holds to.
+        // future.
         const std::size_t __wgroup_size_limit = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
-        // The single work-group path never launches the wide kernel, so the cap below does not apply to it
-        // and it takes the device limit whole.
+        // The single work-group path never launches the wide kernel, so the cap below does not apply to it.
         if (__rng_n <= __wgroup_size_limit * __find_or_one_wg_max_elems_per_item)
             return {/*__n_groups=*/1, __wgroup_size_limit};
 
         // Only the wide scan's kernel carries the register demand the cap exists for. Where it applies, place
-        // proportionally more groups per compute unit so the grid still holds __wgroup_size_limit items per
-        // compute unit.
+        // proportionally more groups per compute unit, to within one group of the resident items an uncapped
+        // group would have had.
         const std::size_t __wgroup_size =
             __wide_scan ? std::min(__wgroup_size_limit, __find_or_wgroup_size_cap) : __wgroup_size_limit;
         const std::size_t __groups_per_compute_unit =
@@ -1360,8 +1354,7 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
 };
 
 // The work-group-size fallback unwinds this scope and re-enters it, so an enqueued event can still be
-// writing scratch storage that unwinding is about to free. Comparing against the count on entry, rather
-// than testing for any in-flight exception, keeps this correct if a caller unwinds through here.
+// writing scratch storage that unwinding is about to free.
 struct __wait_event_on_unwind
 {
     [[maybe_unused]] sycl::event& __event;
@@ -1385,9 +1378,8 @@ struct __wait_event_on_unwind
 template <typename KernelName>
 struct __find_or_init_scratch;
 
-// Seeds the two scratch elements the multiple work-group kernel combines into. Separate from that kernel's
-// submitter, which is instantiated once per scan width: this kernel does not depend on the width, so one
-// definition serves every width.
+// Seeds the two scratch elements the multiple work-group kernel combines into. Independent of the scan width,
+// so one definition serves both widths and its kernel name does not collide between them.
 template <typename... KernelName>
 struct __find_or_init_scratch<__internal::__optional_kernel_name<KernelName...>>
 {
@@ -1553,8 +1545,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
 
-    // Whether the multiple work-group path scans wide here. The single work-group path never does, and its
-    // geometry does not depend on this.
+    // Whether the multiple work-group path scans wide here.
     constexpr bool __wide_scan_possible = __find_or_wide_scan_min_size != __find_or_wide_scan_never &&
                                           __find_or_wide_scan_profitable<_Brick, _BrickTag, _Ranges...>();
     constexpr std::size_t __wide_scan_min_size = __find_or_wide_scan_min_size_for<_Ranges...>();
@@ -1571,8 +1562,6 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         // We shouldn't have any restrictions for _AtomicType type here
         // because we have a single work-group and we don't need to use atomics for inter-work-group communication.
 
-        // This path is always the narrow scan by construction, which is why the work-group size cap does not
-        // apply to it.
         const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, false>{__f};
 
         using __find_or_one_wg_kernel_name =
