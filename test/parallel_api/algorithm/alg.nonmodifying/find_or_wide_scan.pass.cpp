@@ -15,11 +15,8 @@
 
 // The find_or backend scans several contiguous elements per work item, but only above a size threshold that
 // every other test stays below, so nothing otherwise exercises that path. Force the threshold to zero and
-// vary the match position, which puts the match at every element of an iteration.
-//
-// Not covered here: batches longer than one iteration, which need an input far larger than a test can afford.
-// Both size thresholds have to be lowered: equal and mismatch below read two ranges, and are held to the
-// second one, so leaving it alone would route them to the narrow scan and the test would pass vacuously.
+// vary the match position, which puts the match at every element of an iteration. Both thresholds have to be
+// zeroed: equal and mismatch read two ranges, and are held to the second one.
 #define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE 0
 #define _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE 0
 
