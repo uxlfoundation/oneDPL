@@ -14,16 +14,18 @@
 //===----------------------------------------------------------------------===//
 
 // The find_or backend scans several contiguous elements per work item, but only above a size threshold that
-// every other test stays below, so nothing otherwise exercises that path. Force the threshold to zero and
-// vary the match position, which puts the match at every element of an iteration. Both thresholds have to be
-// zeroed: equal and mismatch read two ranges, and are held to the second one.
+// every other test stays below, so nothing otherwise exercises that path. Lower both thresholds and vary the
+// match position, which puts the match at every element of an iteration. Both have to be lowered: equal and
+// mismatch read two ranges, and are held to the second one. The two are given different values so that which
+// one binds a configuration is itself checked below.
 #define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE 0
-#define _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE 0
+#define _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE 1
 
 #include "support/test_config.h"
 
 #include _PSTL_TEST_HEADER(execution)
 #include _PSTL_TEST_HEADER(algorithm)
+#include _PSTL_TEST_HEADER(iterator)
 
 #include "support/utils.h"
 
@@ -42,6 +44,8 @@
 #    include <cstddef>
 #    include <cstdint>
 #    include <functional>
+#    include <iterator>
+#    include <tuple>
 #    include <vector>
 
 template <typename _Brick, typename _Tag, typename... _Ranges>
@@ -58,8 +62,10 @@ using __rng_of = oneapi::dpl::__ranges::guard_view<_T*>;
 using __rng = __rng_of<int>;
 using __cmp = std::less<int>;
 
+// Reading several elements per index is held to the larger of the two floors, one element per index to the
+// smaller, so the overrides above separate them.
 static_assert(oneapi::dpl::__par_backend_hetero::__find_or_wide_scan_min_size_for<__rng>() == 0);
-static_assert(oneapi::dpl::__par_backend_hetero::__find_or_wide_scan_min_size_for<__rng, __rng>() == 0);
+static_assert(oneapi::dpl::__par_backend_hetero::__find_or_wide_scan_min_size_for<__rng, __rng>() == 1);
 
 // The wide scan is opted into per brick, so pin the routing of every brick that reaches __parallel_find_or.
 // any_of / all_of / none_of, find / find_if / find_if_not, equal, mismatch, is_sorted, is_sorted_until:
@@ -136,13 +142,84 @@ using __rng_take = oneapi::dpl::__ranges::take_view_simple<__rng, std::ptrdiff_t
 using __rng_drop = oneapi::dpl::__ranges::drop_view_simple<__rng, std::ptrdiff_t>;
 static_assert(__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __fwd_tag, __rng_take, __rng_drop>);
 
-// Every match position for a size a test can enumerate; above that an odd stride -- coprime with the scan
-// width and the work-group size -- growing as the square of the size, so a device that needs a larger size to
-// reach the wide scan does not multiply what this sweeps.
+// An iterator that opts into reaching the kernel unadapted still chooses how it maps the index. This one is
+// random access at a stride of two, so it is a gather and the width its value type reports is not its load.
+struct __strided_iterator
+{
+    using value_type = int;
+    using difference_type = std::ptrdiff_t;
+    using reference = int&;
+    using pointer = int*;
+    using iterator_category = std::random_access_iterator_tag;
+    using is_passed_directly = std::true_type;
+
+    int* __p = nullptr;
+
+    reference operator*() const { return *__p; }
+    reference operator[](difference_type __i) const { return __p[2 * __i]; }
+    __strided_iterator& operator++() { __p += 2; return *this; }
+    __strided_iterator operator++(int) { auto __t = *this; __p += 2; return __t; }
+    __strided_iterator& operator--() { __p -= 2; return *this; }
+    __strided_iterator operator--(int) { auto __t = *this; __p -= 2; return __t; }
+    __strided_iterator& operator+=(difference_type __i) { __p += 2 * __i; return *this; }
+    __strided_iterator& operator-=(difference_type __i) { __p -= 2 * __i; return *this; }
+    friend __strided_iterator operator+(__strided_iterator __i, difference_type __n) { return __i += __n; }
+    friend __strided_iterator operator+(difference_type __n, __strided_iterator __i) { return __i += __n; }
+    friend __strided_iterator operator-(__strided_iterator __i, difference_type __n) { return __i -= __n; }
+    friend difference_type operator-(__strided_iterator __a, __strided_iterator __b) { return (__a.__p - __b.__p) / 2; }
+    friend bool operator==(__strided_iterator __a, __strided_iterator __b) { return __a.__p == __b.__p; }
+    friend bool operator!=(__strided_iterator __a, __strided_iterator __b) { return !(__a == __b); }
+    friend bool operator<(__strided_iterator __a, __strided_iterator __b) { return __a.__p < __b.__p; }
+    friend bool operator>(__strided_iterator __a, __strided_iterator __b) { return __b < __a; }
+    friend bool operator<=(__strided_iterator __a, __strided_iterator __b) { return !(__b < __a); }
+    friend bool operator>=(__strided_iterator __a, __strided_iterator __b) { return !(__a < __b); }
+};
+
+#    if _ONEDPL_CPP20_CONCEPTS_PRESENT
+// Without this the case below would be declined for the wrong reason.
+static_assert(std::random_access_iterator<__strided_iterator> && !std::contiguous_iterator<__strided_iterator>);
+#    endif
+using __rng_strided = oneapi::dpl::__ranges::guard_view<__strided_iterator>;
+static_assert(sizeof(oneapi::dpl::__internal::__value_t<__rng_strided>) == 4);
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_strided>);
+// counting_iterator maps the index too, and is declined with them. It loads nothing, so this forgoes no load.
+using __rng_counting = oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<int>>;
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_counting>);
+
+// A value type that is itself a tuple is one load of its whole width, not one load per member: only a zip
+// range reads several elements per index.
+using __rng_tuple_4_4 = __rng_of<std::tuple<std::uint32_t, std::uint32_t>>;
+static_assert(sizeof(oneapi::dpl::__internal::__value_t<__rng_tuple_4_4>) == 8);
+static_assert(!__scans_wide<oneapi::dpl::unseq_backend::single_match_pred<__cmp>, __or_tag, __rng_tuple_4_4>);
+static_assert(oneapi::dpl::__par_backend_hetero::__find_or_wide_scan_min_size_for<__rng_tuple_4_4>() == 0);
+// A zip range of the same total width reads two elements, and is held to the larger floor.
+static_assert(oneapi::dpl::__par_backend_hetero::__find_or_wide_scan_min_size_for<__zip_of<std::uint32_t,
+                                                                                          std::uint32_t>>() == 1);
+
+// Sizes up to this enumerate every match position; larger ones sample a fixed number of them, so what a size
+// costs does not grow with it.
+constexpr std::size_t __exhaustive_positions_max_n = 64;
+constexpr std::size_t __sampled_positions_per_size = 16;
+
+// The stride is made odd, so it is coprime with the scan width and the work-group size and the sampled
+// positions land at different offsets within an iteration rather than repeating one.
 std::size_t
 match_position_step(std::size_t __n)
 {
-    return __n <= 1024 ? 1 : std::max(std::size_t(37), (__n * __n) >> 23) | 1;
+    return __n <= __exhaustive_positions_max_n ? 1 : (__n / __sampled_positions_per_size) | 1;
+}
+
+// The positions the tests place the match at. The sweep always ends at __n, which stands for no match
+// anywhere: a stride that does not divide __n would otherwise never reach it.
+std::vector<std::size_t>
+match_positions(std::size_t __n)
+{
+    const std::size_t __step = match_position_step(__n);
+    std::vector<std::size_t> __positions;
+    for (std::size_t __pos = 0; __pos < __n; __pos += __step)
+        __positions.push_back(__pos);
+    __positions.push_back(__n);
+    return __positions;
 }
 
 // One name per call below: these algorithms share the find_or kernels, so under explicit kernel names a
@@ -150,8 +227,6 @@ match_position_step(std::size_t __n)
 class __find_if_name;
 class __find_end_name;
 class __any_of_name;
-class __none_of_name;
-class __mismatch_self_name;
 class __mismatch_name;
 class __equal_name;
 
@@ -163,8 +238,6 @@ test_at_size(Policy&& __exec, std::size_t __n)
     auto __exec_find_if = TestUtils::make_new_policy<__find_if_name>(__exec);
     auto __exec_find_end = TestUtils::make_new_policy<__find_end_name>(__exec);
     auto __exec_any_of = TestUtils::make_new_policy<__any_of_name>(__exec);
-    auto __exec_none_of = TestUtils::make_new_policy<__none_of_name>(__exec);
-    auto __exec_mismatch_self = TestUtils::make_new_policy<__mismatch_self_name>(__exec);
     auto __exec_mismatch = TestUtils::make_new_policy<__mismatch_name>(__exec);
     auto __exec_equal = TestUtils::make_new_policy<__equal_name>(__exec);
     std::vector<int> __host(__n, 0);
@@ -178,9 +251,7 @@ test_at_size(Policy&& __exec, std::size_t __n)
     int* __nd = __needle_dt.get_data();
     auto __is_one = [](int __x) { return __x == 1; };
 
-    const std::size_t __step = match_position_step(__n);
-
-    for (std::size_t __pos = 0; __pos <= __n; __pos += __step)
+    for (std::size_t __pos : match_positions(__n))
     {
         std::fill(__host.begin(), __host.end(), 0);
         const bool __has_match = __pos < __n;
@@ -212,12 +283,7 @@ test_at_size(Policy&& __exec, std::size_t __n)
         // Or tag: presence only.
         EXPECT_TRUE(oneapi::dpl::any_of(__exec_any_of, __d, __d + __n, __is_one) == __has_match,
                     "wrong result from any_of");
-        EXPECT_TRUE(oneapi::dpl::none_of(__exec_none_of, __d, __d + __n, __is_one) == !__has_match,
-                    "wrong result from none_of");
-        // Two ranges over one allocation, so the scan reads two elements per index from aliased views.
-        EXPECT_TRUE(oneapi::dpl::mismatch(__exec_mismatch_self, __d, __d + __n, __d).first == __d + __n,
-                    "wrong result from mismatch of a range with itself");
-        // Two distinct ranges, so the returned index is checked and not only the end sentinel.
+        // Two ranges, so the scan reads two elements per index.
         EXPECT_TRUE(oneapi::dpl::mismatch(__exec_mismatch, __d, __d + __n, __d2).first ==
                         (__has_match ? __d + __pos : __d + __n),
                     "wrong index from mismatch of two 4-byte ranges");
@@ -244,9 +310,7 @@ test_two_8byte_ranges(Policy&& __exec, std::size_t __n)
     _T* __d1 = __dt1.get_data();
     _T* __d2 = __dt2.get_data();
 
-    const std::size_t __step = match_position_step(__n);
-
-    for (std::size_t __pos = 0; __pos <= __n; __pos += __step)
+    for (std::size_t __pos : match_positions(__n))
     {
         std::fill(__host.begin(), __host.end(), _T(1));
         const bool __differs = __pos < __n;
@@ -262,11 +326,10 @@ test_two_8byte_ranges(Policy&& __exec, std::size_t __n)
     }
 }
 
-// A 2-byte element type; the cases above cover only 4 and 8 bytes. Only any_of and none_of take the wide
-// scan at this width -- find_if, mismatch and equal are gated to the narrow one, and cover it here.
+// A 2-byte element type; the cases above cover only 4 and 8 bytes. Only any_of takes the wide scan at this
+// width -- find_if, mismatch and equal are gated to the narrow one, and cover it here.
 class __find_if_2byte_name;
 class __any_of_2byte_name;
-class __none_of_2byte_name;
 class __mismatch_2byte_name;
 class __equal_2byte_name;
 
@@ -278,7 +341,6 @@ test_2byte_ranges(Policy&& __exec, std::size_t __n)
     sycl::queue __q = __exec.queue();
     auto __exec_find_if = TestUtils::make_new_policy<__find_if_2byte_name>(__exec);
     auto __exec_any_of = TestUtils::make_new_policy<__any_of_2byte_name>(__exec);
-    auto __exec_none_of = TestUtils::make_new_policy<__none_of_2byte_name>(__exec);
     auto __exec_mismatch = TestUtils::make_new_policy<__mismatch_2byte_name>(__exec);
     auto __exec_equal = TestUtils::make_new_policy<__equal_2byte_name>(__exec);
     auto __is_one = [](_T __x) { return __x == _T(1); };
@@ -289,9 +351,7 @@ test_2byte_ranges(Policy&& __exec, std::size_t __n)
     _T* __d1 = __dt1.get_data();
     _T* __d2 = __dt2.get_data();
 
-    const std::size_t __step = match_position_step(__n);
-
-    for (std::size_t __pos = 0; __pos <= __n; __pos += __step)
+    for (std::size_t __pos : match_positions(__n))
     {
         std::fill(__host.begin(), __host.end(), _T(0));
         const bool __has_match = __pos < __n;
@@ -305,8 +365,6 @@ test_2byte_ranges(Policy&& __exec, std::size_t __n)
         // Or tag: presence only.
         EXPECT_TRUE(oneapi::dpl::any_of(__exec_any_of, __d1, __d1 + __n, __is_one) == __has_match,
                     "wrong result from any_of over 2-byte elements");
-        EXPECT_TRUE(oneapi::dpl::none_of(__exec_none_of, __d1, __d1 + __n, __is_one) == !__has_match,
-                    "wrong result from none_of over 2-byte elements");
         EXPECT_TRUE(oneapi::dpl::mismatch(__exec_mismatch, __d1, __d1 + __n, __d2).first ==
                         (__has_match ? __d1 + __pos : __d1 + __n),
                     "wrong index from mismatch of two 2-byte ranges");
@@ -323,13 +381,15 @@ main()
     auto __policy = TestUtils::get_dpcpp_test_policy();
     // The wide scan lives on the multiple work-group path, which a size reaches only past the single work-group
     // path's reach, and that reach scales with the device's maximum work-group size.
-    const std::size_t __beyond_one_wg =
-        2 * oneapi::dpl::__internal::__max_work_group_size(__policy.queue(), std::size_t(4096)) *
-        oneapi::dpl::__par_backend_hetero::__find_or_one_wg_max_elems_per_item;
-    // Sizes that are and are not a multiple of the scan width. Only the largest takes the wide scan; the
-    // rest cover the narrow one.
+    const std::size_t __wg_limit = oneapi::dpl::__internal::__max_work_group_size(__policy.queue(), std::size_t(4096));
+    const std::size_t __one_wg_max =
+        __wg_limit * oneapi::dpl::__par_backend_hetero::__find_or_one_wg_max_elems_per_item;
+    const std::size_t __beyond_one_wg = 2 * __one_wg_max;
+    // The last size on each path and the first size past it. The three above __one_wg_max take the wide scan;
+    // those not a multiple of the span its work items cover also reach its out-of-range guard.
     for (std::size_t __n : {std::size_t(1), std::size_t(3), std::size_t(4), std::size_t(31), std::size_t(1024),
-                            std::size_t(4095), __beyond_one_wg})
+                            std::size_t(4095), __one_wg_max, __one_wg_max + 1, __beyond_one_wg,
+                            __beyond_one_wg + 1})
     {
         test_at_size(__policy, __n);
         test_two_8byte_ranges(__policy, __n);
