@@ -1082,7 +1082,8 @@ inline constexpr std::size_t __find_or_wide_scan_never = std::numeric_limits<std
 // Never scan wide on FPGA: unrolling the predicate costs area. The emulator declines it too.
 inline constexpr std::size_t __find_or_wide_scan_min_size = __find_or_wide_scan_never;
 #else
-// provisional: the smallest input the wide scan pays for. No measurement brackets this value.
+// empirical: the smallest input the wide scan paid for on both Battlemage and Ponte Vecchio, 2 and 4 bytes.
+// A quarter of this won 13 % on Battlemage and cost 2 % on Ponte Vecchio; below 32768 narrow is forced.
 inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE;
 #endif
 

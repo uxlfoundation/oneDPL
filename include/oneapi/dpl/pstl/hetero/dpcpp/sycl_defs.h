@@ -109,7 +109,7 @@
 // Smallest input for which the find_or backend scans several elements per work item. It initializes an
 // inline constexpr variable, so every translation unit of a program must agree on the value.
 #ifndef _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE // Check if overridden for testing
-#    define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE (std::size_t{1} << 20)
+#    define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE (std::size_t{1} << 18)
 #endif // _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE
 
 // The same, for a predicate that reads several elements per index. Overridable for the same reason.
