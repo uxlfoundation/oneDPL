@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <array>
 #include <tuple>
+#include <iterator>
 #include <exception>
 
 #include "../../iterator_impl.h"
@@ -1135,12 +1136,27 @@ struct __find_or_range_loads_contiguously : std::bool_constant<__find_or_range_i
 {
 };
 
-// Both wrap device memory that the scanned index addresses directly.
+// Whether the iterator addresses its elements at a unit stride. The is_passed_directly extension point does
+// not promise that: an iterator may reach the kernel unadapted and still map the index, and then the load is a
+// gather. std::contiguous_iterator covers pointers as well.
 template <typename _Iterator>
-struct __find_or_range_loads_contiguously<oneapi::dpl::__ranges::guard_view<_Iterator>> : std::true_type
+constexpr bool
+__find_or_iterator_is_contiguous()
+{
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+    return std::contiguous_iterator<_Iterator>;
+#else
+    return std::is_pointer_v<_Iterator>;
+#endif
+}
+
+template <typename _Iterator>
+struct __find_or_range_loads_contiguously<oneapi::dpl::__ranges::guard_view<_Iterator>>
+    : std::bool_constant<__find_or_iterator_is_contiguous<_Iterator>()>
 {
 };
 
+// An accessor addresses device memory that the scanned index reaches directly.
 template <typename _T, sycl::access::mode _AccMode, bool _NoInit, __dpl_sycl::__target _Target,
           sycl::access::placeholder _Placeholder>
 struct __find_or_range_loads_contiguously<
@@ -1173,14 +1189,42 @@ struct __find_or_range_loads_contiguously<oneapi::dpl::__ranges::zip_view<_Range
 {
 };
 
-// The value types the wide scan would load per index. A zip range reads one element per component, so this
-// counts the scanned elements rather than the ranges.
+// How many elements the wide scan loads per index from one range, and their widths. A zip range reads one
+// element per component; any other range reads its own value type whole, however that type is composed.
+template <typename _Range>
+struct __find_or_scanned_elems
+{
+    static constexpr std::size_t __count = 1;
+    static constexpr std::size_t __min_size = sizeof(oneapi::dpl::__internal::__value_t<_Range>);
+    static constexpr std::size_t __max_size = __min_size;
+};
+
 template <typename... _Ranges>
-using __find_or_scanned_value_types = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
+struct __find_or_scanned_elems<oneapi::dpl::__ranges::zip_view<_Ranges...>>
+{
+    static constexpr std::size_t __count = (__find_or_scanned_elems<_Ranges>::__count + ...);
+    static constexpr std::size_t __min_size = std::min({__find_or_scanned_elems<_Ranges>::__min_size...});
+    static constexpr std::size_t __max_size = std::max({__find_or_scanned_elems<_Ranges>::__max_size...});
+};
+
+template <typename _R, typename _Size>
+struct __find_or_scanned_elems<oneapi::dpl::__ranges::take_view_simple<_R, _Size>> : __find_or_scanned_elems<_R>
+{
+};
+
+template <typename _R, typename _Size>
+struct __find_or_scanned_elems<oneapi::dpl::__ranges::drop_view_simple<_R, _Size>> : __find_or_scanned_elems<_R>
+{
+};
+
+template <typename _R>
+struct __find_or_scanned_elems<oneapi::dpl::__ranges::reverse_view_simple<_R>> : __find_or_scanned_elems<_R>
+{
+};
 
 template <typename... _Ranges>
 inline constexpr bool __find_or_reads_one_elem_per_index =
-    oneapi::dpl::__internal::__nested_type_count<__find_or_scanned_value_types<_Ranges...>>::value == 1;
+    (__find_or_scanned_elems<std::decay_t<_Ranges>>::__count + ...) == 1;
 
 // Whether the wide scan is worth taking for this brick, tag and these ranges: it needs one element read per
 // range at the scanned index, read contiguously, and elements inside the measured width window. Below that
@@ -1189,14 +1233,11 @@ template <typename _Brick, typename _BrickTag, typename... _Ranges>
 constexpr bool
 __find_or_wide_scan_profitable()
 {
-    using _ValueTypes = __find_or_scanned_value_types<_Ranges...>;
-    constexpr bool __elems_wide_enough =
-        oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value >= __find_or_wide_scan_min_elem_size;
-    constexpr bool __elems_narrow_enough =
-        oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value <= __find_or_wide_scan_max_elem_size;
-    constexpr bool __elems_above_or_tag_floor =
-        oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value >=
-        __find_or_wide_scan_or_tag_min_elem_size;
+    constexpr std::size_t __min_elem_size = std::min({__find_or_scanned_elems<std::decay_t<_Ranges>>::__min_size...});
+    constexpr std::size_t __max_elem_size = std::max({__find_or_scanned_elems<std::decay_t<_Ranges>>::__max_size...});
+    constexpr bool __elems_wide_enough = __min_elem_size >= __find_or_wide_scan_min_elem_size;
+    constexpr bool __elems_narrow_enough = __max_elem_size <= __find_or_wide_scan_max_elem_size;
+    constexpr bool __elems_above_or_tag_floor = __min_elem_size >= __find_or_wide_scan_or_tag_min_elem_size;
     constexpr bool __or_tag = std::is_same_v<_BrickTag, __parallel_or_tag>;
     constexpr bool __loads_contiguously =
         std::conjunction_v<__find_or_range_loads_contiguously<std::decay_t<_Ranges>>...>;
