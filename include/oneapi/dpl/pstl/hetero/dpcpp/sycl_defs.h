@@ -108,11 +108,13 @@
 
 // Smallest input for which the find_or backend scans several elements per work item. It initializes an
 // inline constexpr variable, so every translation unit of a program must agree on the value.
+// empirical: Battlemage and Ponte Vecchio, 2- and 4-byte types; see __find_or_wide_scan_min_size.
 #ifndef _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE // Check if overridden for testing
 #    define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE (std::size_t{1} << 18)
 #endif // _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE
 
-// The same, for a predicate that reads several elements per index. Overridable for the same reason.
+// The same, for a predicate that reads several elements per index.
+// empirical: Battlemage and Ponte Vecchio, 4-byte types; see __find_or_wide_scan_multi_elem_min_size.
 #ifndef _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE // Check if overridden for testing
 #    define _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE (std::size_t{1} << 26)
 #endif // _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE

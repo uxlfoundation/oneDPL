@@ -15,9 +15,7 @@
 
 // The find_or backend scans several contiguous elements per work item, but only above a size threshold that
 // every other test stays below, so nothing otherwise exercises that path. Lower both thresholds and vary the
-// match position, which puts the match at every element of an iteration. Both have to be lowered: equal and
-// mismatch read two ranges, and are held to the second one. The two are given different values so that which
-// one binds a configuration is itself checked below.
+// match position, which puts the match at every element of an iteration.
 #define _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE 0
 #define _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE 1
 
@@ -385,12 +383,22 @@ main()
     const std::size_t __one_wg_max =
         __wg_limit * oneapi::dpl::__par_backend_hetero::__find_or_one_wg_max_elems_per_item;
     const std::size_t __beyond_one_wg = 2 * __one_wg_max;
-    // The last size on each path and the first size past it. The three above __one_wg_max take the wide scan;
-    // those not a multiple of the span its work items cover also reach its out-of-range guard.
+    // The wide scan runs only where the tuner asks for more than one work group, so ask it rather than assume:
+    // a device with few compute units routes these sizes back to the single work-group path, which is always
+    // narrow, and the cases below would then pass without exercising the wide scan at all.
+    auto __reaches_wide_scan = [&](std::size_t __n) {
+        return oneapi::dpl::__par_backend_hetero::__parallel_find_or_nd_range_tuner<
+                   oneapi::dpl::__internal::__device_backend_tag>{}(__policy.queue(), __n, /*__wide_scan=*/true)
+                   .__n_groups > 1;
+    };
+    // The last size on each path and the first size past it. Those not a multiple of the span the wide scan's
+    // work items cover also reach its out-of-range guard.
     for (std::size_t __n : {std::size_t(1), std::size_t(3), std::size_t(4), std::size_t(31), std::size_t(1024),
                             std::size_t(4095), __one_wg_max, __one_wg_max + 1, __beyond_one_wg,
                             __beyond_one_wg + 1})
     {
+        if (__n > __one_wg_max)
+            EXPECT_TRUE(__reaches_wide_scan(__n), "the wide scan is unreachable at a size meant to reach it");
         test_at_size(__policy, __n);
         test_two_8byte_ranges(__policy, __n);
         test_2byte_ranges(__policy, __n);
