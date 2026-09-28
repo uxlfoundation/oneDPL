@@ -132,7 +132,7 @@ void check_scan_block_parameters(const sycl::device& dvc)
         const std::size_t num_blocks = (input_size + max_inputs_per_block - 1) / max_inputs_per_block;
         const std::size_t max_work_items = num_blocks * final_wi_per_block;
         const std::size_t inputs_per_wi = (input_size + max_work_items - 1) / max_work_items;
-        const std::size_t block_size = inputs_per_wi * final_wi_per_block;
+        const std::size_t block_size = std::min(input_size, inputs_per_wi * final_wi_per_block);
         const std::size_t input_tail = input_size % block_size;
         const std::size_t inputs_per_wi_tail = (input_tail + final_wi_per_block - 1) / final_wi_per_block;
 #endif
