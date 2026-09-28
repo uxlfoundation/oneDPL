@@ -53,8 +53,8 @@ auto get_block_limits(const sycl::device& dvc, std::size_t llc_bytes_per_iterati
               << "Device compute units: " << max_compute_units << std::endl
               << "Device XE cores: " << num_xe_cores << std::endl
               << "Device biggest WG size: " << max_wg_size << std::endl
-              << "Device smallest SG size: " << min_sg_size << std::endl
-              << "Device biggest SG size: " << max_sg_size << std::endl;
+              << "Device smallest SG size: " << int(min_sg_size) << std::endl
+              << "Device biggest SG size: " << int(max_sg_size) << std::endl;
 
     if (llc_size == 0)
         llc_size = llc_per_cu_fallback_size * max_compute_units;
