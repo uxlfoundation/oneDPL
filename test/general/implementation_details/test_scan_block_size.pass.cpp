@@ -140,5 +140,6 @@ int main()
     if (dvc.is_gpu())
         check_scan_block_parameters(dvc);
 #endif
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return EXIT_FAILURE; // make it fail for the output to be seen in the logs
+    // return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }
