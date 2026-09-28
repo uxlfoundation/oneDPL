@@ -38,7 +38,7 @@ struct inspectable_holder : public hetero::__storage_holder<NScratch, ResultType
 
     static constexpr std::size_t result_count() { return sizeof...(ResultTypes); }
     auto scratch_count() const { return this->__scratch_count; }
-    
+
     auto scratch_slot(std::size_t i) const { return this->__scratch_slots[i]; }
     template <std::size_t I>
     auto result_slot() const { return std::get<I>(this->__result_slots); }
@@ -64,11 +64,11 @@ store_and_check(hetero::__device_storage<T>& storage, inspectable_holder<NScratc
 
     EXPECT_TRUE(storage.__usm_buf == nullptr, "error in __store_scratch: the moved-from storage is not cleared");
     EXPECT_EQ(count_before + 1, holder.scratch_count(), "error in __store_scratch: scratch count change is not equal to 1");
-    
+
     const auto& scratch_slot = holder.scratch_slot(count_before);
     EXPECT_EQ(raw_ptr, scratch_slot.__usm_ptr, // also holds for nullptr
               "error in __store_scratch: scratch slot does not hold the original USM pointer");
-    EXPECT_EQ(raw_ptr == nullptr, scratch_slot.__sycl_buf.has_value(), 
+    EXPECT_EQ(raw_ptr == nullptr, scratch_slot.__sycl_buf.has_value(),
               "error in __store_scratch: sycl::buffer was handled incorrectly");
 }
 
@@ -81,7 +81,7 @@ store_and_check(hetero::__result_storage<T>& storage, inspectable_holder<NScratc
     const std::size_t count_before = holder.scratch_count();
 
     holder.template __store<I>(std::move(storage));
-    
+
     EXPECT_TRUE(storage.__usm_buf == nullptr, "error in __store: the moved-from storage is not cleared");
     EXPECT_EQ(count_before, holder.scratch_count(), "error in __store: scratch count changed by result deposit");
 
@@ -179,7 +179,7 @@ bool operator==(const internal::__result_raw_state<_T>& rst, const internal::__c
 bool operator==(const internal::__scratch_raw_state& rst, const internal::__copyable_storage_state<std::byte>& state)
 {
     return rst.__usm_ptr == state.__scratch_buf.get() && rst.__sycl_buf.has_value() == state.__sycl_buf.has_value() &&
-           state.__result_buf == nullptr;;
+           state.__result_buf == nullptr;
 }
 
 // Test struct
@@ -188,7 +188,7 @@ struct StorageHolderTest
     sycl::queue q;
     sycl::usm::alloc scratch_kind;
     sycl::usm::alloc result_kind;
-    
+
     StorageHolderTest(sycl::queue queue) : q(queue)
     {
         // determine which USM type will be used for storage
@@ -253,7 +253,7 @@ struct StorageHolderTest
             for (std::size_t s = 0; s < NScratch; ++s)
                 EXPECT_EQ(raw_ptrs[s], holder.scratch_slot(s).__usm_ptr, "scratch deposits: a USM pointer lost or corrupt");
         }
-        
+
         test_move(std::move(holder));
     }
 
@@ -272,7 +272,7 @@ struct StorageHolderTest
         Test::store_and_check<0>(rs0, holder);
         Test::store_and_check<1>(rs1, holder);
         Test::store_and_check<2>(rs2, holder);
-        
+
         if (result_kind != sycl::usm::alloc::unknown)
         {
             std::array<void*, NResults> stored_ptrs = holder.get_result_ptrs();
@@ -365,8 +365,8 @@ struct StorageHolderTest
             Test::init_result_slot(holder.template result_slot_ref<0>(), q, n, result_kind, gen_tuple);
             Test::init_result_slot(holder.template result_slot_ref<1>(), q, n, scratch_kind, gen_float);
             Test::init_result_slot(holder.template result_slot_ref<2>(), q, n, sycl::usm::alloc::unknown, gen_int);
-            
-            if (n == 3) 
+
+            if (n == 3)
             {
                 HolderT other(std::move(holder));
                 verify_copy_result(n, other);
@@ -377,7 +377,7 @@ struct StorageHolderTest
                 other = std::move(holder);
                 verify_copy_result(n, other);
             }
-            else 
+            else
                 verify_copy_result(n, holder);
         }
 
