@@ -30,8 +30,13 @@ auto get_device_parameters(const sycl::device& dvc)
     const std::uint32_t max_wg_size = dvc.get_info<sycl::info::device::max_work_group_size>();
     const auto sg_sizes = dvc.get_info<sycl::info::device::sub_group_sizes>();
 
-    const auto [min_it, max_it] = std::minmax_element(sg_sizes.begin(), sg_sizes.end());
-    const std::uint8_t min_sg_size = *min_it, max_sg_size = *max_it;
+    std::uint8_t min_sg_size = 0, max_sg_size = 0;
+    if (!sg_sizes.empty())
+    {
+        const auto [min_it, max_it] = std::minmax_element(sg_sizes.begin(), sg_sizes.end());
+        min_sg_size = *min_it;
+        max_sg_size = *max_it;
+    }
    
     return std::tuple{llc_size, max_compute_units, num_xe_cores, max_wg_size, min_sg_size, max_sg_size};
 }
