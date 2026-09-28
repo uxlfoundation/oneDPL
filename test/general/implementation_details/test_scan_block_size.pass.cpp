@@ -90,7 +90,7 @@ void check_scan_block_parameters(const sycl::device& dvc)
     using DataType = float;
     // Parameters for in-place remove_if
     constexpr std::size_t llc_bytes_per_iter = 2 * sizeof(DataType);
-    constexpr std::size_t storage_bytes_per_iter = 0; // sizeof(DataType);
+    constexpr std::size_t storage_bytes_per_iter = sizeof(DataType);
 
     auto [llc_min_size_required, llc_target_size, llc_too_small, final_wg_size, final_work_groups, final_wi_per_block,
           inputs_per_wi_limit, max_sgroups_local, max_sgroups_global]
@@ -126,8 +126,8 @@ void check_scan_block_parameters(const sycl::device& dvc)
         const std::size_t inputs_per_wi_tail =
             input_tail >= max_inputs_per_block ? max_inputs_per_wi : (input_tail + final_wi_per_block - 1) / final_wi_per_block;
 #else
-        const std::uint32_t max_inputs_per_wi = 
-            std::min<std::uint32_t>(inputs_per_wi_limit, llc_target_size / (llc_bytes_per_iter * final_wi_per_block));
+        const std::uint32_t max_inputs_per_wi = std::max<std::uint32_t>(1,
+            std::min<std::uint32_t>(inputs_per_wi_limit, llc_target_size / (llc_bytes_per_iter * final_wi_per_block)));
         const std::size_t max_inputs_per_block = final_wi_per_block * max_inputs_per_wi;
         const std::size_t num_blocks = (input_size + max_inputs_per_block - 1) / max_inputs_per_block;
         const std::size_t max_work_items = num_blocks * final_wi_per_block;
