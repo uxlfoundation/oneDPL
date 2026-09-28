@@ -283,6 +283,10 @@ and if so, how to implement it correctly.
 Different approaches may be more effective when processing different number of elements.
 For example, a small number of elements can be processed by a single work-group.
 
+Segmented algorithms may also have different specializations depending on
+a segment size, for example, sub-group, work-group or even multi-work-group
+processing of a segment.
+
 Separating such cases would reduce compilation time.
 
 ### Benchmarking
