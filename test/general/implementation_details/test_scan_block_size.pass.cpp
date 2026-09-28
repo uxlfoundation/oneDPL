@@ -93,7 +93,7 @@ void check_scan_block_parameters(const sycl::device& dvc)
     using DataType = float;
     // Parameters for in-place remove_if
     constexpr std::size_t llc_bytes_per_iter = 2 * sizeof(DataType);
-    constexpr std::size_t storage_bytes_per_iter = sizeof(DataType);
+    constexpr std::size_t storage_bytes_per_iter = 0; // sizeof(DataType);
 
     auto [llc_min_size_required, llc_target_size, llc_too_small, final_wg_size, final_work_groups, wi_per_block,
           inputs_per_wi_limit, max_sgroups_local, max_sgroups_global]
