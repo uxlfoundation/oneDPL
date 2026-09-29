@@ -14,7 +14,7 @@
 #include <oneapi/dpl/pstl/hetero/dpcpp/utils_storage_sycl.h>
 
 #include <array>
-#include <algorithm> // std::find, std::fill
+#include <algorithm> // std::find, std::fill_n
 #include <cstddef>   // std::size_t
 #include <memory>    // std::unique_ptr
 #include <tuple>
@@ -148,9 +148,9 @@ init_result_slot(internal::__result_raw_state<T>& rst, sycl::queue& q,
     {
         rst.__offset = offset;
         auto host_buf = std::shared_ptr<T[]>(std::make_unique<T[]>(offset + n)); // make_shared<T[]> requires C++20
-        // poison data in [offset, offset + n)
+        // poison data in [0, offset)
         int* iptr = reinterpret_cast<int*>(host_buf.get());
-        std::fill(iptr, iptr + offset * sizeof(T) / sizeof(int), poison);
+        std::fill_n(iptr, offset * sizeof(T) / sizeof(int), poison);
         for (std::size_t i = 0; i < n; ++i)
             host_buf[offset + i] = gen(i);
 
