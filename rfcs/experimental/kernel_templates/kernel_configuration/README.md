@@ -33,6 +33,44 @@ but their optimal values may depend on the number of elements to process, which 
 It should be investigated whether dynamic, run-time configurable parameters can be supported
 without compromising efficiency.
 
+### Dynamic Kernel Parameter Selection
+
+A selector function can be provided
+to avoid repeating the algorithm call for different kernel configurations.
+
+```c++
+namespace kt = oneapi::dpl::experimental::kt;
+
+// Example of launching an algorithm with the current design
+auto name = device.get_info<sycl::info::device::name>();
+bool is_bmg = (name.find("B580") != std::string::npos);
+bool is_nvidia = (name.find("NVIDIA") != std::string::npos);
+if (is_bmg && N <= (1 << 18))
+    kt::gpu::reduce(..., kt::kernel_param<3, 512>{});
+else if (is_bmg && N <= (1 << 22))
+    kt::gpu::reduce(..., kt::kernel_param<5, 512>{});
+else if (is_nvidia)
+    kt::gpu::reduce(..., kt::kernel_param<8, 256>{});
+else
+    kt::gpu::reduce(..., kt::kernel_param<7, 512>{});
+
+// Example with a proposed dynamic selector
+// The selector returns arguments needed to construct a kernel_param instance
+auto selector = [](std::size_t N, sycl::device device) -> std::pair<std::uint16_t, std::uint16_t> {
+    auto name = device.get_info<sycl::info::device::name>();
+    bool is_bmg = (name.find("B580") != std::string::npos);
+    bool is_nvidia = (name.find("NVIDIA") != std::string::npos);
+    if (is_bmg && N <= (1 << 18))
+        return {3, 512};
+    else if (is_bmg && N <= (1 << 22))
+        return {5, 512};
+    else if (is_nvidia)
+        return {8, 256};
+    return {7, 512};
+};
+kt::gpu::reduce(..., kt::select_kernel_param(selector));
+```
+
 ### Sub-group Size as a Parameter
 
 For some devices configuring a sub-group size might be important for performance,
