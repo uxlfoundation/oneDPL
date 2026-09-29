@@ -72,17 +72,20 @@ auto get_block_limits(const sycl::device& dvc, std::size_t llc_bytes_per_iterati
     else
         final_num_work_groups = num_xe_cores * 2;
 
-    const std::size_t final_work_items_per_block = final_num_work_groups * final_wg_size;
+    const std::size_t work_items_per_block = final_num_work_groups * final_wg_size;
 
-    std::uint32_t inputs_per_item_limit = std::numeric_limits<std::uint32_t>::max() / (final_wg_size * 2);
+    std::uint32_t inputs_per_item_limit = llc_target_size / (llc_bytes_per_iteration * work_items_per_block);
     if (storage_bytes_per_iteration > 0)
-        inputs_per_item_limit = storage_size_cap / (storage_bytes_per_iteration * final_work_items_per_block);
+    {
+        inputs_per_item_limit = std::min<std::uint32_t>(
+            inputs_per_item_limit, (storage_size_cap / storage_bytes_per_iteration) / work_items_per_block);
+    }
 
     const std::uint32_t max_sub_groups_local = (final_wg_size + min_sg_size - 1) / min_sg_size;
     const std::uint32_t max_sub_groups_global = max_sub_groups_local * final_num_work_groups;
 
     return std::tuple{llc_min_size_required, llc_target_size, llc_too_small, final_wg_size, final_num_work_groups,
-                      final_work_items_per_block, inputs_per_item_limit, max_sub_groups_local, max_sub_groups_global};
+                      work_items_per_block, inputs_per_item_limit, max_sub_groups_local, max_sub_groups_global};
 }
 
 void check_scan_block_parameters(const sycl::device& dvc)
@@ -92,7 +95,7 @@ void check_scan_block_parameters(const sycl::device& dvc)
     constexpr std::size_t llc_bytes_per_iter = 2 * sizeof(DataType);
     constexpr std::size_t storage_bytes_per_iter = sizeof(DataType);
 
-    auto [llc_min_size_required, llc_target_size, llc_too_small, final_wg_size, final_work_groups, final_wi_per_block,
+    auto [llc_min_size_required, llc_target_size, llc_too_small, final_wg_size, final_work_groups, wi_per_block,
           inputs_per_wi_limit, max_sgroups_local, max_sgroups_global]
          = get_block_limits(dvc, llc_bytes_per_iter, storage_bytes_per_iter);
     std::cout << "LLC demand per iteration: " << llc_bytes_per_iter << std::endl
@@ -101,47 +104,34 @@ void check_scan_block_parameters(const sycl::device& dvc)
               << "Targeted LLC size: " << llc_target_size << std::endl
               << "Selected work group size: " << final_wg_size << std::endl
               << "Selected work group number: " << final_work_groups << std::endl
-              << "Work items per block: " << final_wi_per_block << std::endl
               << "Iteration limit per WI: " << inputs_per_wi_limit << std::endl
               << "Global max number of subgroups: " << max_sgroups_global << std::endl
               << "Max number of subgroups per WG: " << max_sgroups_local << std::endl;
 
-    std::cout << std::endl << "Input size,Block number,Block size,Inputs per WI,Tail size,Tail inputs per WI" << std::endl;
+    std::cout << std::endl << "Input size,Block number,Block size,WIs per block,Inputs per WI,Tail size,Tail WIs per block,Tail inputs per WI" << std::endl;
     
     auto compute_block_params = [=](std::size_t input_size)
     {
-        assert((input_size & (input_size - 1)) == 0); // a power of two
-#if 0
-        const std::size_t target_num_blocks =
-            llc_too_small ? 1 : (input_size * llc_bytes_per_iter + llc_target_size - 1) / llc_target_size;
-        const std::size_t max_target_work_items = target_num_blocks * final_wi_per_block;
-        const std::uint32_t max_inputs_per_wi = std::min<std::uint32_t>(inputs_per_wi_limit,
-            std::max<std::uint32_t>(1, (input_size + max_target_work_items - 1) / max_target_work_items));
-        const std::size_t max_inputs_per_block = final_wi_per_block * max_inputs_per_wi;
+        const std::uint32_t max_inputs_per_wi = std::max<std::uint32_t>(1, inputs_per_wi_limit);
+        std::size_t max_inputs_per_block = wi_per_block * max_inputs_per_wi;
         const std::size_t num_blocks = (input_size + max_inputs_per_block - 1) / max_inputs_per_block;
+        const std::size_t max_work_items = num_blocks * wi_per_block;
+        const std::uint32_t inputs_per_wi = (input_size + max_work_items - 1) / max_work_items;
+        max_inputs_per_block = wi_per_block * inputs_per_wi;
         const std::size_t block_size = std::min(input_size, max_inputs_per_block);
-        const std::size_t inputs_per_wi =
-            input_size >= max_inputs_per_block ? max_inputs_per_wi : (input_size + final_wi_per_block - 1) / final_wi_per_block;
-        const std::size_t input_tail = input_size % block_size;
-        const std::size_t inputs_per_wi_tail =
-            input_tail >= max_inputs_per_block ? max_inputs_per_wi : (input_tail + final_wi_per_block - 1) / final_wi_per_block;
-#else
-        const std::uint32_t max_inputs_per_wi = std::max<std::uint32_t>(1,
-            std::min<std::uint32_t>(inputs_per_wi_limit, llc_target_size / (llc_bytes_per_iter * final_wi_per_block)));
-        const std::size_t max_inputs_per_block = final_wi_per_block * max_inputs_per_wi;
-        const std::size_t num_blocks = (input_size + max_inputs_per_block - 1) / max_inputs_per_block;
-        const std::size_t max_work_items = num_blocks * final_wi_per_block;
-        const std::size_t inputs_per_wi = (input_size + max_work_items - 1) / max_work_items;
-        const std::size_t block_size = std::min(input_size, inputs_per_wi * final_wi_per_block);
-        const std::size_t input_tail = input_size % block_size;
-        const std::size_t inputs_per_wi_tail = (input_tail + final_wi_per_block - 1) / final_wi_per_block;
-#endif
+        const std::size_t input_tail = (input_size > max_inputs_per_block) ? input_size % block_size : input_size;
+        const std::uint32_t inputs_per_wi_tail = (input_tail + wi_per_block - 1) / wi_per_block;
+        const std::size_t inputs_per_wg_tail = inputs_per_wi_tail * final_wg_size;
+        const std::size_t wi_per_block_tail = input_tail == 0 ? 0 :
+            ((input_tail + inputs_per_wg_tail  - 1) / inputs_per_wg_tail) * final_wg_size;
 
         std::cout << input_size << ","
                   << num_blocks << ","
                   << block_size << ","
+                  << wi_per_block << ","
                   << inputs_per_wi << ","
                   << input_tail << ","
+                  << wi_per_block_tail << ","
                   << inputs_per_wi_tail << std::endl;
     };
 
