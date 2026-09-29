@@ -225,7 +225,10 @@ __move_state(__result_raw_state<_T>&& __raw_st, const sycl::queue& __q)
                                          __raw_st.__result_sz, __raw_st.__offset, __raw_st.__kind};
     if (__raw_st.__usm_ptr)
     {
-        __state.__result_buf = std::shared_ptr<_T>(__raw_st.__usm_ptr, __sycl_usm_free{__q});
+        if (__raw_st.__kind == sycl::usm::alloc::host)
+            __state.__result_buf = std::shared_ptr<_T>(__raw_st.__usm_ptr, __sycl_usm_free{__q});
+        else
+            __state.__scratch_buf = std::shared_ptr<_T>(__raw_st.__usm_ptr, __sycl_usm_free{__q});
         __raw_st.__usm_ptr = nullptr;
     }
     __raw_st.__sycl_buf.reset();

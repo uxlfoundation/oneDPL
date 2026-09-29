@@ -171,9 +171,11 @@ init_result_slot(internal::__result_raw_state<T>& rst, sycl::queue& q,
 template <typename _T>
 bool operator==(const internal::__result_raw_state<_T>& rst, const internal::__copyable_storage_state<_T>& state)
 {
-    return rst.__usm_ptr   == state.__result_buf.get() && rst.__kind      == state.__kind   &&
-           rst.__result_sz == state.__result_sz        && rst.__offset    == state.__offset &&
-           rst.__sycl_buf.has_value() == state.__sycl_buf.has_value() && state.__scratch_buf == nullptr;
+    _T* result_ptr = state.__result_buf.get();
+    _T* scratch_ptr = state.__scratch_buf.get();
+    return rst.__kind == state.__kind && rst.__result_sz == state.__result_sz && rst.__offset == state.__offset &&
+           ((rst.__usm_ptr == result_ptr && scratch_ptr == nullptr) || (rst.__usm_ptr == scratch_ptr && result_ptr == nullptr)) &&
+           rst.__sycl_buf.has_value() == state.__sycl_buf.has_value();
 }
 
 bool operator==(const internal::__scratch_raw_state& rst, const internal::__copyable_storage_state<std::byte>& state)
