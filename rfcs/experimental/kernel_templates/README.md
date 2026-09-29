@@ -270,6 +270,17 @@ Additionally, it reduces the number of interfaces that need to be supported.
 This should be done in conjunction with the
 [Global and Local Memory Requirements](#reporting-global-and-local-memory-requirements) interface.
 
+The extension proposed in
+[sycl_ext_oneapi_async_memory_alloc](<https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/proposed/sycl_ext_oneapi_async_memory_alloc.asciidoc>)
+introduces asynchronous memory management and device USM memory pools.
+Asynchronous memory operations avoid host-side waits and associated overheads.
+A memory pool object may be passed to an algorithm instead of preallocated memory
+for the algorithm to manage its own temporary memory.
+With this approach, a caller will not need to query the memory requirements,
+and allocation failures will be reported as SYCL exceptions.
+It simplifies the interface, although it is not a replacement of the preallocated memory
+because the asynchronous memory may not be supported across all targeted devices.
+
 ### Asynchronous Execution and Dependency Chaining
 
 The algorithms return a `sycl::event` but do not accept any input events.
