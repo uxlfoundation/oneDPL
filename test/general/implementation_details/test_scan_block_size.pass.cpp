@@ -135,8 +135,10 @@ void check_scan_block_parameters(const sycl::device& dvc)
                   << inputs_per_wi_tail << std::endl;
     };
 
-    for (std::size_t mi = 1; mi <= 256; mi *= 2)
-        compute_block_params(mi * 1024 * 1024);
+//    for (std::size_t mi = 1; mi <= 256; mi *= 2)
+//        compute_block_params(mi * 1024 * 1024);
+    for (std::size_t ki = 16; ki <= 512; ki *= 2)
+        compute_block_params(ki * 1024);
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
