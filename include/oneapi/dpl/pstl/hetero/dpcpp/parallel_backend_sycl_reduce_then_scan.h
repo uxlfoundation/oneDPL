@@ -2531,6 +2531,7 @@ __parallel_transform_reduce_then_scan_impl(
 
     std::uint32_t __num_work_groups = 0;
     std::uint32_t __max_inputs_per_item = 0;
+    std::uint32_t __work_items_per_block = 0;
 
     std::size_t __last_level_cache_size_bytes =
         __q.get_device().template get_info<sycl::info::device::global_mem_cache_size>();
@@ -2561,16 +2562,30 @@ __parallel_transform_reduce_then_scan_impl(
             // the block sizes, and maximize the number of inputs per work item while fitting in a ratio of the cache
             __num_work_groups = __num_xe_cores * 2;
         }
+        __work_items_per_block = __num_work_groups * __work_group_size;
 
         const std::size_t __last_level_cache_max_inputs =
             __last_level_cache_size_bytes / (2 * __bytes_per_work_item_iter); // use only half of the cache
-        std::uint32_t __inputs_per_item_limit = __last_level_cache_max_inputs / (__num_work_groups * __work_group_size);
+        std::uint32_t __inputs_per_item_limit = __last_level_cache_max_inputs / __work_items_per_block;
         if constexpr (!std::is_same_v<_ExtraStorageT, void>)
         {
-            // For better performance the extra block storage should not exceed 4MB
+            // For better performance with oneAPI DPC++, the extra block storage should not exceed 4MB
             const std::uint32_t __max_extra_elements = (4*1024*1024) / sizeof(_ExtraStorageT) - __is_unique_pattern_v;
-            __inputs_per_item_limit =
-                std::min(__inputs_per_item_limit, __max_extra_elements / (__num_work_groups * __work_group_size));
+            std::uint32_t __inputs_per_item_limit_st = __max_extra_elements / __work_items_per_block;
+            if (__inputs_per_item_limit_st < __inputs_per_item_limit)
+            {
+                // Positive impact of the storage limit varies by platform and diminishes with input size.
+                // This limit is usually smaller than the LLC limit, increasing the number of blocks and
+                // associated overheads. An empirically found threshold of 30 on that increase works best on average.
+                constexpr std::size_t __extra_blocks_threshold = 30;
+                // Multiplied to the threshold, __threshold_size_factor gives the input size at which the impact of
+                // storage limit is considered negligible. It is derived from the formula for __num_blocks below.
+                const std::size_t __threshold_size_factor =
+                    std::size_t{__work_items_per_block} * __inputs_per_item_limit_st * __inputs_per_item_limit /
+                    (__inputs_per_item_limit - __inputs_per_item_limit_st);
+                if (__inputs_remaining < __extra_blocks_threshold * __threshold_size_factor)
+                    __inputs_per_item_limit = __inputs_per_item_limit_st;
+            }
         }
         __max_inputs_per_item = std::max<std::uint32_t>(__inputs_per_item_limit, 1);
     }
@@ -2580,13 +2595,12 @@ __parallel_transform_reduce_then_scan_impl(
         __num_work_groups = oneapi::dpl::__internal::__dpl_bit_ceil(__max_compute_units * 64);
         // use a large number of inputs per item to amortize the overhead
         __max_inputs_per_item = std::max<std::uint32_t>(1, 2048u / __bytes_per_work_item_iter);
+        __work_items_per_block = __num_work_groups * __work_group_size;
     }
-
-    std::size_t __work_items_per_block = std::size_t{__num_work_groups} * __work_group_size;
 
     // Determine the fewest blocks so that each is within the hardware limits, then balance the inputs evenly
     // across them to avoid the last block being much smaller than the others, resulting in a loss of performance.
-    std::size_t __max_inputs_per_block = __work_items_per_block * __max_inputs_per_item;
+    std::size_t __max_inputs_per_block = std::size_t{__work_items_per_block} * __max_inputs_per_item;
     const std::size_t __num_blocks = __dpl_ceiling_div(__inputs_remaining, __max_inputs_per_block);
     std::uint32_t __inputs_per_item = __dpl_ceiling_div(__inputs_remaining, __num_blocks * __work_items_per_block);
     assert(__inputs_per_item <= __max_inputs_per_item);
