@@ -17,10 +17,18 @@ top k elements of each chunk and sorting those, this is an implementation of
 partial sort / top-k which fits any general size and value of k.
 
 Sorting many individual segments separately with separate kernel launches is far
-slower than launching many segments as a batch. CUB handles this case with
-DeviceSegmentedRadixSort, which handles arbitrary segment sizes. We have seen
-demand however for fixed segment sized sort, which can take advantage of shared
-structure known at compile time for a fast algorithm.
+slower than launching many segments as a batch. We have seen demand for fixed
+segment sized sort, which can take advantage of shared structure for a fast
+algorithm.
+
+Existing solutions:
+* CUB `DeviceSegmentedRadixSort`: one workgroup radix sorts each segment;
+  arbitrary segment offsets, key-only and key/value.
+* CUB `DeviceSegmentedSort`: stable and unstable variants; buckets segments by
+  size, using merge sort for small and medium segments and radix sort for large.
+* SYCLomatic `dpct::segmented_sort_[keys/pairs]`: a naive implementation for
+  correctness (serial sort per work item, or a host loop of parallel sorts);
+  not necessarily stable, and blocking.
 
 ### Requirements
 
@@ -85,28 +93,33 @@ Runtime Parameters:
 ### Implementation Details
 
 #### Segment size impact on algorithm
-The current best stable sort depends on the size of the sort. For sequences
-larger than can fit in one workgroup, onesweep radix sort is the fastest.
+The best stable sort depends on segment size. Candidates considered:
 
-For sequences which can fit one or more into a single workgroup, the current
-best stable sort is the esimd single workgroup radix sort. Proof of concept work
-has shown that merge sort or possibly bitonic sort may be our best option for
-small segment sizes.
-
-At small segment sizes bitonic sort is the fastest option. However, it has a few 
-downsides.
-1) It is not inherently stable.
-2) It is a fixed power of two segment size, so segments must be padded.
-
-You can augment bitonic sort to make it stable, but you may lose most or all
-performance gains vs merge sort via merge path.
+| algorithm               | applicable scope         | notes                                                     |
+|-------------------------|--------------------------|-----------------------------------------------------------|
+| OneSweep per segment    | all                      | current workaround; baseline                              |
+| Composite OneSweep      | all                      | segment index prepended to key; easy worst case improvement |
+| One workgroup radix     | segment fits in wg       | existing ESIMD and mainline kernels                       |
+| Modified OneSweep       | all                      | proposed; best when segments exceed one wg                |
+| Workgroup merge path    | segment fits in wg       | proposed; packs multiple segments per wg                  |
+| Subgroup merge path     | segment fits in sg       | deferred; capped near 1024 by SLM                         |
+| Bitonic                 | small (< ~1024)          | deferred; unstable without augmentation, pads to pow2     |
 
 #### Plan
 Implement two kernels:
-1) workgroup merge path sort which can handle multiple
-segments at a time which fit into a single workgroup (wgsize * dpwi)
-2) Modified oneSweep radix sort which will handle size segment, but is best for
-segments which do not fit into a single workgroup (wgsize * dpwi).
+1) Workgroup merge path sort, for segments which fit into a single workgroup
+   (wgsize * dpwi). Multiple segments may be packed into one workgroup.
+   * Load into registers and stable sort each work item's dpwi keys (leaf sort).
+   * log2(n / dpwi) merge rounds: registers → SLM, barrier, each work item
+     binary-searches its diagonal (co-rank) for its merge path start, then
+     merges dpwi keys from SLM back into registers.
+2) Modified OneSweep radix sort, which handles any segment size, but is best for
+   segments which do not fit into a single workgroup.
+   * Global histogram and bin offset scan per (segment, radix stage).
+   * Sweep tiles are aligned to segments, with one decoupled lookback chain per
+     segment; tile 0 of each segment seeds from that segment's offsets.
+   * The last tile of each segment is partial: pad keys in registers and mask
+     writes at the segment end.
 
 It is the user's responsibility to invoke the correct algorithm. We can provide
 a quick and easy dispatch layer by checking if segments are smaller or larger
@@ -118,18 +131,18 @@ will be deferred to later.
 
 #### Expectations from proof of concept work
 
-Expected BMG speedup @ 4M total elements vs individual sequential calls:
+Expected speedup @ 64M total elements vs individual sequential calls:
 
-| segment_size | algorithm         | speedup        |
-|--------------|-------------------|----------------|
-|   smaller    | wg-merge (sg?)    | very large     |
-|     256      | wg-merge (sg?)    |   ~1500x       |
-|    1024      | wg-merge          |   ~160x        |
-|    2048      | wg-merge          |   ~80x         |
-|    4096      | wg-merge          |   ~75x         |
-|     16K      | wg-merge          |   ~14x         |
-|     32k      | wg-merge          |   ~7x          |
-|    larger    | modified onesweep | size dependent |
+| segment_size | algorithm         | BMG speedup    | PVC speedup    |
+|--------------|-------------------|----------------|----------------|
+|   smaller    | wg-merge (sg?)    | very large     | very large     |
+|     256      | wg-merge (sg?)    |   ~1500x       |   ~6400x       |
+|    1024      | wg-merge          |   ~160x        |   ~1200x       |
+|    2048      | wg-merge          |   ~80x         |   ~550x        |
+|    4096      | wg-merge          |   ~75x         |   ~225x        |
+|     16K      | wg-merge          |   ~14x         |   ~38x         |
+|     32k      | wg-merge          |   ~7x          |   ~15x         |
+|    larger    | modified onesweep | size dependent | size dependent |
 
 It seems like 1.5-4x could be possible for segments up to 256k on PVC.
 BMG seems like a less clear win.  We always have the option to merely launch
