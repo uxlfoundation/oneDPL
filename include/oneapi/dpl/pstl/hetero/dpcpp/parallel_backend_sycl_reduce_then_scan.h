@@ -2548,9 +2548,19 @@ __parallel_transform_reduce_then_scan_impl(
 
         if constexpr (!std::is_same_v<_ExtraStorageT, void>)
         {
-            // For better performance the extra block storage should not exceed 4MB
+            // For better performance with oneAPI DPC++, the extra block storage should not exceed 4MB
             const std::uint32_t __max_extra_elements = (4*1024*1024) / sizeof(_ExtraStorageT) - __is_unique_pattern_v;
-            __max_inputs_per_block = std::min(__max_inputs_per_block, __max_extra_elements);
+            if (__max_extra_elements < __max_inputs_per_block)
+            {
+                // Positive impact of the storage limit varies by platform and diminishes with input size.
+                // This limit is usually smaller than the LLC limit, increasing the number of blocks and
+                // associated overheads. An empirically found threshold of 30 on that increase works best on average.
+                constexpr std::size_t __extra_blocks_threshold = 30;
+                const std::size_t __num_blocks_cache = __inputs_remaining / __max_inputs_per_block;
+                const std::size_t __num_blocks_st = __inputs_remaining / __max_extra_elements;
+                if (__num_blocks_st < __num_blocks_cache + __extra_blocks_threshold)
+                    __max_inputs_per_block = __max_extra_elements;
+            }
         }
     }
     else // target is cpu
