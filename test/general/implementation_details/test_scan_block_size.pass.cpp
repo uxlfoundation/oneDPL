@@ -77,15 +77,18 @@ auto get_block_limits(const sycl::device& dvc, std::size_t llc_bytes_per_iterati
     std::uint32_t inputs_per_item_limit = llc_target_size / (llc_bytes_per_iteration * work_items_per_block);
     if (storage_bytes_per_iteration > 0)
     {
-        inputs_per_item_limit = std::min<std::uint32_t>(
-            inputs_per_item_limit, (storage_size_cap / storage_bytes_per_iteration) / work_items_per_block);
+        std::uint32_t inputs_per_item_limit_st = (storage_size_cap / storage_bytes_per_iteration) / work_items_per_block;
+        std::size_t threshold_factor = work_items_per_block * inputs_per_item_limit_st * inputs_per_item_limit /
+                                      (inputs_per_item_limit - inputs_per_item_limit_st);
+        inputs_per_item_limit = std::min<std::uint32_t>(inputs_per_item_limit, inputs_per_item_limit_st);
     }
 
     const std::uint32_t max_sub_groups_local = (final_wg_size + min_sg_size - 1) / min_sg_size;
     const std::uint32_t max_sub_groups_global = max_sub_groups_local * final_num_work_groups;
 
     return std::tuple{llc_min_size_required, llc_target_size, llc_too_small, final_wg_size, final_num_work_groups,
-                      work_items_per_block, inputs_per_item_limit, max_sub_groups_local, max_sub_groups_global};
+                      work_items_per_block, threshold_factor, inputs_per_item_limit,
+                      max_sub_groups_local, max_sub_groups_global};
 }
 
 void check_scan_block_parameters(const sycl::device& dvc)
@@ -93,10 +96,10 @@ void check_scan_block_parameters(const sycl::device& dvc)
     using DataType = float;
     // Parameters for in-place remove_if
     constexpr std::size_t llc_bytes_per_iter = 2 * sizeof(DataType);
-    constexpr std::size_t storage_bytes_per_iter = 0; // sizeof(DataType);
+    constexpr std::size_t storage_bytes_per_iter = sizeof(DataType);
 
     auto [llc_min_size_required, llc_target_size, llc_too_small, final_wg_size, final_work_groups, wi_per_block,
-          inputs_per_wi_limit, max_sgroups_local, max_sgroups_global]
+          threshold_factor, inputs_per_wi_limit, max_sgroups_local, max_sgroups_global]
          = get_block_limits(dvc, llc_bytes_per_iter, storage_bytes_per_iter);
     std::cout << "LLC demand per iteration: " << llc_bytes_per_iter << std::endl
               << "Storage demand per iteration: " << storage_bytes_per_iter << std::endl
@@ -104,6 +107,8 @@ void check_scan_block_parameters(const sycl::device& dvc)
               << "Targeted LLC size: " << llc_target_size << std::endl
               << "Selected work group size: " << final_wg_size << std::endl
               << "Selected work group number: " << final_work_groups << std::endl
+              << "Limit threshold factor: " << threshold_factor << std::endl
+              << "30 extra blocks threshold size: " << threshold_factor * 30 << std::endl
               << "Iteration limit per WI: " << inputs_per_wi_limit << std::endl
               << "Global max number of subgroups: " << max_sgroups_global << std::endl
               << "Max number of subgroups per WG: " << max_sgroups_local << std::endl;
@@ -135,10 +140,10 @@ void check_scan_block_parameters(const sycl::device& dvc)
                   << inputs_per_wi_tail << std::endl;
     };
 
-//    for (std::size_t mi = 1; mi <= 256; mi *= 2)
-//        compute_block_params(mi * 1024 * 1024);
-    for (std::size_t ki = 16; ki <= 512; ki *= 2)
-        compute_block_params(ki * 1024);
+    for (std::size_t mi = 1; mi <= 256; mi *= 2)
+        compute_block_params(mi * 1024 * 1024);
+//     for (std::size_t ki = 16; ki <= 512; ki *= 2)
+//         compute_block_params(ki * 1024);
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
