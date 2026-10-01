@@ -136,9 +136,9 @@ Expected speedup @ 64M total elements vs individual sequential calls:
 | segment_size | algorithm         | BMG speedup    | PVC speedup    |
 |--------------|-------------------|----------------|----------------|
 |   smaller    | wg-merge (sg?)    | very large     | very large     |
-|     256      | wg-merge (sg?)    |   ~1500x       |   ~6400x       |
-|    1024      | wg-merge          |   ~160x        |   ~1200x       |
-|    2048      | wg-merge          |   ~80x         |   ~550x        |
+|     256      | wg-merge (sg?)    |   ~1700x       |   ~6400x       |
+|    1024      | wg-merge          |   ~340x        |   ~1200x       |
+|    2048      | wg-merge          |   ~161x        |   ~550x        |
 |    4096      | wg-merge          |   ~75x         |   ~225x        |
 |     16K      | wg-merge          |   ~14x         |   ~38x         |
 |     32k      | wg-merge          |   ~7x          |   ~15x         |
