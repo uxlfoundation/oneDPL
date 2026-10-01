@@ -25,10 +25,12 @@ structure known at compile time for a fast algorithm.
 ### Requirements
 
 Required:
-Stable sort
-Important total sizes: 32K - ~256M
-Important segment sizes: 2k - 128K
-runtime specified segment size
+* Stable sort - required for top-p and top-k for reproducibility and tie breaking
+* runtime specified segment size
+* Out-of-place
+* key/value pair sort and key only sort
+* Important total sizes: 32K - ~256M (should support up to size 2^30)
+* Important segment sizes: 2k - 128K (should support arbitrary segment size for correctness)
 
 Preferred:
 Temporary data preallocated and supplied
@@ -40,18 +42,35 @@ custom comparator
 
 ### API
 
-`oneapi::dpl::experimental::kt::gpu::batched_merge_sort<ascending>(queue, key_in, key_out, segment_size, kt_kernel_param<dpwi, wgsize>)`
+namespace:
+`oneapi::dpl::experimental::kt::gpu`
 
-and
+```
+template <bool __is_ascending = true, std::uint8_t __radix_bits = 8, typename _KernelParam, typename _KeysIterator1,_ValsIterator1, typename _KeysIterator2, typename _ValsIterator2>
+sycl::event
+batched_radix_sort_by_key(sycl::queue __q,
+                          _KeysIterator1 __keys_first, _KeysIterator1 __keys_last
+                          _ValsIterator1 __vals_first,
+                          _KeysIterator2 __keys_out_first, _ValsIterator2 __vals_out_first,
+                          std::size_t segment_size, _KernelParam __param = {} )
+```
 
-`oneapi::dpl::experimental::kt::gpu::batched_radix_sort<ascending, radix>(queue, key_in, key_out, segment_size, kt_kernel_param<dpwi, wgsize>)`
+Replicates for permutations of:
+* iterators and ranges 
+  Replace __keys_first, __keys_last with a single keys range, replace output
+  begin iterator with range, same with value begin iterators.
+* In-place (no out keys or ranges)
+* key value pairs or just key only
+  Key only sorts remove "_by_key" and any value sequence arguments.
+* merge sort and radix sort
+  Replace "radix" with "merge" and remove radix template parameter
 
 We chose the term `batched`, because it helps indicate that we are launching a
 batch of fixed size independent sorts. CUB already has segmented radix sort
 which allows arbitrary and varied sizes in a single launch. If we decide to
-provide a similar API, we reserve `segmented` for that. We chose `stable` sort
-rather than `radix` because it describes the important semantics, and we may
-prefer to use another sort under the hood depending on batch size.
+provide a similar API, we reserve `segmented` for that. Kernel templates are
+meant to be a thin layer around an algorithm / kernel, so we provide the
+individual APIs for each stable sort approach, merge and radix.
 
 Compile time parameters:
 * ascending / decending - direction of the sort
@@ -118,4 +137,15 @@ individual radix sorts, so we should do no worse than that.
 
 ## Open Questions
 
- - How (if at all) should we allow users to size and provide their own temporary allocation to the algorithm?
+* How (if at all) should we allow users to size and provide their own temporary allocation to the algorithm?
+ * CUB-style two-call: call once with null to get the size, then call again with the buffer
+ * SYCL async memory pool, passing a memory_pool
+ * An env object holding the queue and pool, like newer CUB (possibly with defaults)
+ * A separately named query function, like batched_stable_sort_alloc_size
+  My recommendataion is to use an async memory pool, and if none specified, create
+   one with the provided queue.
+
+* What are the exact type support requirements?
+  * sycl::half?
+  * fp16?
+  * fp8?
