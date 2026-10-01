@@ -492,7 +492,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
                                         __assign(static_cast<__tuple_type>(__in_rng[__idx]), __out_rng[__out_idx]);
                                     // record input stop position if output capacity is reached
                                     if (__out_idx == __n_out)
-                                        __lm_ptr[2 * __n_uniform] = __idx; 
+                                        __lm_ptr[2 * __n_uniform] = __idx;
                                 });
                 sycl::group_barrier(__group);
 
@@ -504,7 +504,8 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
                     // For output stop, add predicate of last element to account for the scan's exclusivity
                     __res_ptr[0] = (__stop_in == __n) ? __lm_ptr[__n_uniform + __n - 1] + __lm_ptr[__n - 1] : __n_out;
                 }
-            }, __in_rng, __out_rng); // __execute
+            },
+            __in_rng, __out_rng); // __execute
     }
 };
 
@@ -539,21 +540,20 @@ struct __parallel_compact_single_group_functor<__internal::__optional_kernel_nam
                 __element_type* __temp_storage = reinterpret_cast<__element_type*>(__addr);
 
                 // Build a mask in local memory; move elements to keep into temporary storage
-                __store_predicate_values(__rng, __pred, __lm_ptr, __item_id, std::uint16_t(__n), __wg_size,
-                    [__temp_storage](std::uint16_t __idx, __element_type&& __elem, std::uint16_t __mask)
-                    {
+                __store_predicate_values(
+                    __rng, __pred, __lm_ptr, __item_id, std::uint16_t(__n), __wg_size,
+                    [__temp_storage](std::uint16_t __idx, __element_type&& __elem, std::uint16_t __mask) {
                         if (__mask)
                             new (&__temp_storage[__idx]) __element_type(std::move(__elem));
                     });
 
                 // Exclusive scan over the mask
-                __dpl_sycl::__joint_exclusive_scan(
-                    __group, __lm_ptr, __lm_ptr + __n, __lm_ptr + __n_uniform, sycl::plus<std::uint16_t>{});
+                __dpl_sycl::__joint_exclusive_scan(__group, __lm_ptr, __lm_ptr + __n, __lm_ptr + __n_uniform,
+                                                   sycl::plus<std::uint16_t>{});
 
                 // Gather kept elements into consecutive compacted positions
                 __gather_output(__lm_ptr, __item_id, std::uint16_t(__n), __wg_size, __n_uniform,
-                                [=](std::uint16_t __idx, std::uint16_t __out_pos)
-                                {
+                                [=](std::uint16_t __idx, std::uint16_t __out_pos) {
                                     __rng[__out_pos] = std::move(__temp_storage[__idx]);
                                     __temp_storage[__idx].~__element_type();
                                 });
