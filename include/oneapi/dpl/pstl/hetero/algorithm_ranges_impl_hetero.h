@@ -1035,8 +1035,8 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ra
     if (__n < 2)
         return __n;
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_unique(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), __n, __pred);
+    return oneapi::dpl::__par_backend_hetero::__parallel_unique(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                                std::forward<_Range>(__rng), __n, __pred);
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
