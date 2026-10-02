@@ -282,9 +282,7 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& 
                          _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
                          unseq_backend::__no_init_value{},
                          __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R1>(__r1)), __shared_size),
-                         __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R2>(__r2)), __shared_size))
-                     .get(); // blocking
-
+                         __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R2>(__r2)), __shared_size));
     return __ret_idx ? __ret_idx == 1 : __n1 < __n2;
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
