@@ -567,30 +567,8 @@ class __storage_holder
 
     __storage_holder(const __storage_holder&) = delete;
     __storage_holder& operator=(const __storage_holder&) = delete;
-
-    __storage_holder(__storage_holder&& __other)
-        : __q(std::move(__other.__q)), __result_slots(std::move(__other.__result_slots)),
-          __scratch_slots(std::move(__other.__scratch_slots)), __scratch_count(__other.__scratch_count)
-    {
-        __other.__scratch_count = 0;
-        for (auto& __slot : __other.__scratch_slots)
-            __slot.__usm_ptr = nullptr;
-        std::apply([](auto&... __slot) {
-            ((__slot.__usm_ptr = nullptr), ...);
-        }, __other.__result_slots);
-    }
-
-    __storage_holder&
-    operator=(__storage_holder&& __other)
-    {
-        assert(this != &__other);
-        using std::swap;
-        swap(__q, __other.__q);
-        swap(__scratch_count, __other.__scratch_count);
-        swap(__scratch_slots, __other.__scratch_slots);
-        swap(__result_slots, __other.__result_slots);
-        return *this;
-    }
+    __storage_holder(__storage_holder&& __other) = delete;
+    __storage_holder& operator=(__storage_holder&& __other) = delete;
 
     ~__storage_holder()
     {
