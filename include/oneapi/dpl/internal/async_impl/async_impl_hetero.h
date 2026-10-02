@@ -150,10 +150,13 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& _
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce_async<_RepackedTp,
-                                                                                std::true_type /*is_commutative*/>(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __binary_op1, _Functor{__binary_op2},
-        unseq_backend::__init_value<_RepackedTp>{__init}, __buf1.all_view(), __buf2.all_view());
+    oneapi::dpl::__par_backend_hetero::__transform_reduce_storage_holder<_Tp> __holder(__exec.queue());
+    sycl::event __event;
+    __event = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce_async<_RepackedTp,
+                                                                                   std::true_type /*is_commutative*/>(
+                  _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __holder, __binary_op1, _Functor{__binary_op2},
+                  unseq_backend::__init_value<_RepackedTp>{__init}, __buf1.all_view(), __buf2.all_view());
+    return oneapi::dpl::__par_backend_hetero::__future{std::move(__event), std::move(__holder).__extract()};
 }
 
 //------------------------------------------------------------------------
@@ -175,10 +178,13 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& _
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce_async<_RepackedTp,
-                                                                                std::true_type /*is_commutative*/>(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __binary_op, _Functor{__unary_op},
-        unseq_backend::__init_value<_RepackedTp>{__init}, __buf.all_view());
+    oneapi::dpl::__par_backend_hetero::__transform_reduce_storage_holder<_Tp> __holder(__exec.queue());
+    sycl::event __event;
+    __event = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce_async<_RepackedTp,
+                                                                                   std::true_type /*is_commutative*/>(
+                  _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __holder, __binary_op, _Functor{__unary_op},
+                  unseq_backend::__init_value<_RepackedTp>{__init}, __buf.all_view());
+    return oneapi::dpl::__par_backend_hetero::__future{std::move(__event), std::move(__holder).__extract()};
 }
 
 //------------------------------------------------------------------------
