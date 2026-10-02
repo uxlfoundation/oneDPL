@@ -16,7 +16,7 @@
 // lower_bound / upper_bound / binary_search take a batched code path once the key count is large enough
 // for __parallel_for's large submitter. The gate scales with the device's compute unit count, so on a
 // large GPU it sits above a million keys, which no other test in this directory reaches there. This test
-// derives the gate from the device and sizes itself to cross it.
+// derives the gate from the device and sizes itself at twice it, so that it still crosses a gate that moves up.
 
 #include "support/test_config.h"
 
@@ -31,6 +31,7 @@
 #    include <cstdint>
 #    include <iostream>
 #    include <limits>
+#    include <memory>
 #    include <random>
 #    include <string>
 #    include <type_traits>
@@ -64,6 +65,39 @@ struct Key3
 };
 static_assert(!std::is_default_constructible_v<Key3>);
 
+// A ten-byte key. The cap on the bytes a work item keeps in flight allows three such searches, which
+// divides none of the iterations-per-item counts its result types select, so a trailing batch runs.
+struct Key10
+{
+    std::uint16_t __w[5];
+
+    explicit Key10(std::uint32_t __v)
+        : __w{std::uint16_t(__v >> 16), std::uint16_t(__v), std::uint16_t(~__v >> 16), std::uint16_t(~__v), 0x5a5a}
+    {
+    }
+
+    std::uint32_t
+    value() const
+    {
+        return (std::uint32_t(__w[0]) << 16) | __w[1];
+    }
+    bool
+    operator<(const Key10& __o) const
+    {
+        return value() < __o.value();
+    }
+    // All five words, so that a key copied short does not compare equal.
+    bool
+    operator==(const Key10& __o) const
+    {
+        bool __eq = true;
+        for (int __i = 0; __i != 5; ++__i)
+            __eq = __eq && __w[__i] == __o.__w[__i];
+        return __eq;
+    }
+};
+static_assert(sizeof(Key10) == 10);
+
 template <typename KeyT>
 struct key_traits
 {
@@ -86,8 +120,22 @@ struct key_traits<Key3>
     }
 };
 
-template <typename KeyT, typename ResT, int Idx>
+template <>
+struct key_traits<Key10>
+{
+    static constexpr std::uint32_t max_value = std::numeric_limits<std::uint32_t>::max();
+    static Key10
+    make(std::uint32_t __v)
+    {
+        return Key10(__v);
+    }
+};
+
+template <typename KeyT, typename ResT, typename Comp, int Idx>
 class policy_name;
+
+template <int Idx>
+class mixed_policy_name;
 
 // How the keys are drawn. A uniform draw over the haystack's range almost never lands outside it, so the
 // searches that run off either end would reach only a handful of lanes; absent_heavy forces them.
@@ -108,23 +156,48 @@ batched_path_min_keys(sycl::queue __q, std::size_t __min_type_size)
     return __wg * __iters_per_item * __cu;
 }
 
-template <typename KeyT, typename ResT, typename Invoke>
+// Twice the gate, so that the inputs still cross it if the gate they mirror moves up; 0 to skip.
+std::size_t
+test_key_count(sycl::queue __q, std::size_t __min_type_size, const std::string& __label)
+{
+    const std::size_t __min_keys = batched_path_min_keys(__q, __min_type_size);
+    const std::size_t __n = 2 * __min_keys;
+    // Safety valve on the allocation, not a device bound: 2^25 8-byte keys is already ~800 MB.
+    if (__n > (std::size_t(1) << 25))
+    {
+        std::cout << "Skipping " << __label << ": batched path needs " << __min_keys << " keys" << std::endl;
+        return 0;
+    }
+    std::cout << __label << ": batched path from " << __min_keys << " keys, testing " << __n << std::endl;
+    return __n;
+}
+
+template <typename HayT, typename KeyT, typename ResT, typename Invoke>
 void
-run_and_check(const std::vector<KeyT>& __hay, const std::vector<KeyT>& __keys, const std::vector<ResT>& __ref,
+run_and_check(const std::vector<HayT>& __hay, const std::vector<KeyT>& __keys, const std::vector<ResT>& __ref,
               Invoke __invoke, const std::string& __what)
 {
-    std::vector<ResT> __actual(__keys.size(), ResT(0));
+    // The key and result ranges stop one element short of their buffers. A lane past the end that
+    // stores anyway overwrites the sentinel with the result for the last key, which differs from it.
+    std::vector<KeyT> __keys_ext(__keys);
+    __keys_ext.push_back(__keys.back());
+    const ResT __sentinel = ResT(__ref.back() == ResT(0));
+    std::unique_ptr<ResT[]> __actual(new ResT[__keys.size() + 1]);
+    std::fill_n(__actual.get(), __keys.size(), ResT(0));
+    __actual[__keys.size()] = __sentinel;
     {
-        sycl::buffer<KeyT> __hay_buf(const_cast<KeyT*>(__hay.data()), sycl::range<1>(__hay.size()));
-        sycl::buffer<KeyT> __key_buf(const_cast<KeyT*>(__keys.data()), sycl::range<1>(__keys.size()));
-        sycl::buffer<ResT> __out_buf(__actual.data(), sycl::range<1>(__actual.size()));
+        sycl::buffer<HayT> __hay_buf(const_cast<HayT*>(__hay.data()), sycl::range<1>(__hay.size()));
+        sycl::buffer<KeyT> __key_buf(__keys_ext.data(), sycl::range<1>(__keys_ext.size()));
+        sycl::buffer<ResT> __out_buf(__actual.get(), sycl::range<1>(__keys.size() + 1));
 
+        auto __key_begin = oneapi::dpl::begin(__key_buf);
         auto __out_begin = oneapi::dpl::begin(__out_buf);
-        auto __ret = __invoke(oneapi::dpl::begin(__hay_buf), oneapi::dpl::end(__hay_buf),
-                             oneapi::dpl::begin(__key_buf), oneapi::dpl::end(__key_buf), __out_begin);
+        auto __ret = __invoke(oneapi::dpl::begin(__hay_buf), oneapi::dpl::end(__hay_buf), __key_begin,
+                              __key_begin + __keys.size(), __out_begin);
         EXPECT_EQ(std::ptrdiff_t(__keys.size()), std::distance(__out_begin, __ret),
                   (__what + ": wrong return value").c_str());
     }
+    EXPECT_TRUE(__actual[__keys.size()] == __sentinel, (__what + ": stored past the end").c_str());
 
     std::size_t __bad = 0;
     for (std::size_t __i = 0; __i != __keys.size(); ++__i)
@@ -140,9 +213,10 @@ run_and_check(const std::vector<KeyT>& __hay, const std::vector<KeyT>& __keys, c
     EXPECT_EQ(std::size_t(0), __bad, (__what + ": wrong effect").c_str());
 }
 
-template <typename KeyT, typename ResT>
+// binary_search writes BsResT, which may select a different iterations-per-item count from ResT.
+template <typename KeyT, typename ResT, typename BsResT, typename Comp>
 void
-run_case(sycl::queue __q, std::size_t __n_keys, key_mix __mix, const std::string& __label)
+run_case(sycl::queue __q, std::size_t __n_keys, key_mix __mix, Comp __comp, const std::string& __label)
 {
     // An odd haystack length keeps the search range off a power of two.
     const std::size_t __n_hay = __n_keys | 1;
@@ -187,74 +261,127 @@ run_case(sycl::queue __q, std::size_t __n_keys, key_mix __mix, const std::string
     // Pin the ends: a key below every element and one above every element.
     __keys[0] = key_traits<KeyT>::make(0);
     __keys[__n_keys - 1] = key_traits<KeyT>::make(__span);
+    std::sort(__hay.begin(), __hay.end(), __comp);
 
-    std::vector<ResT> __ref_lb(__n_keys), __ref_ub(__n_keys), __ref_bs(__n_keys);
+    std::vector<ResT> __ref_lb(__n_keys), __ref_ub(__n_keys);
+    std::vector<BsResT> __ref_bs(__n_keys);
+    for (std::size_t __i = 0; __i != __n_keys; ++__i)
+    {
+        const std::size_t __lb = std::lower_bound(__hay.begin(), __hay.end(), __keys[__i], __comp) - __hay.begin();
+        __ref_lb[__i] = ResT(__lb);
+        __ref_ub[__i] = ResT(std::upper_bound(__hay.begin(), __hay.end(), __keys[__i], __comp) - __hay.begin());
+        __ref_bs[__i] = BsResT(__lb != __n_hay && __hay[__lb] == __keys[__i]);
+    }
+
+    using namespace oneapi::dpl::execution;
+    if constexpr (std::is_same_v<Comp, TestUtils::IsLess<KeyT>>)
+    {
+        run_and_check(__hay, __keys, __ref_lb,
+                      [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
+                          return oneapi::dpl::lower_bound(make_device_policy<policy_name<KeyT, ResT, Comp, 0>>(__q),
+                                                          __f, __l, __vf, __vl, __r);
+                      },
+                      __label + " lower_bound");
+        run_and_check(__hay, __keys, __ref_ub,
+                      [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
+                          return oneapi::dpl::upper_bound(make_device_policy<policy_name<KeyT, ResT, Comp, 1>>(__q),
+                                                          __f, __l, __vf, __vl, __r);
+                      },
+                      __label + " upper_bound");
+        run_and_check(__hay, __keys, __ref_bs,
+                      [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
+                          return oneapi::dpl::binary_search(
+                              make_device_policy<policy_name<KeyT, BsResT, Comp, 2>>(__q), __f, __l, __vf, __vl, __r);
+                      },
+                      __label + " binary_search");
+    }
+    run_and_check(__hay, __keys, __ref_lb,
+                  [__q, __comp](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
+                      return oneapi::dpl::lower_bound(make_device_policy<policy_name<KeyT, ResT, Comp, 3>>(__q), __f,
+                                                      __l, __vf, __vl, __r, __comp);
+                  },
+                  __label + " lower_bound with comparator");
+    run_and_check(__hay, __keys, __ref_ub,
+                  [__q, __comp](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
+                      return oneapi::dpl::upper_bound(make_device_policy<policy_name<KeyT, ResT, Comp, 4>>(__q), __f,
+                                                      __l, __vf, __vl, __r, __comp);
+                  },
+                  __label + " upper_bound with comparator");
+    run_and_check(__hay, __keys, __ref_bs,
+                  [__q, __comp](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
+                      return oneapi::dpl::binary_search(make_device_policy<policy_name<KeyT, BsResT, Comp, 5>>(__q),
+                                                        __f, __l, __vf, __vl, __r, __comp);
+                  },
+                  __label + " binary_search with comparator");
+}
+
+template <typename KeyT, typename ResT, typename BsResT = ResT, typename Comp = TestUtils::IsLess<KeyT>>
+void
+run_type(sycl::queue __q, const std::string& __type_label)
+{
+    const std::size_t __n = test_key_count(__q, std::min({sizeof(KeyT), sizeof(ResT), sizeof(BsResT)}), __type_label);
+    if (__n == 0)
+        return;
+
+    // __n keys give every work item its full complement. One fewer leaves the last lane of the last
+    // work group one key short, so that one batch mixes in-range and out-of-range keys; three more
+    // leave a trailing work group with three keys.
+    run_case<KeyT, ResT, BsResT>(__q, __n, key_mix::uniform, Comp{}, __type_label + " full");
+    run_case<KeyT, ResT, BsResT>(__q, __n - 1, key_mix::uniform, Comp{}, __type_label + " partial lane");
+    run_case<KeyT, ResT, BsResT>(__q, __n, key_mix::absent_heavy, Comp{}, __type_label + " full, absent heavy");
+    run_case<KeyT, ResT, BsResT>(__q, __n + 3, key_mix::absent_heavy, Comp{},
+                                 __type_label + " partial group, absent heavy");
+}
+
+// The haystack type differs from the key type: every other float element lies half way between two
+// integers, so an int32_t key equals no such element, but would if the element were converted to int.
+void
+run_mixed_types(sycl::queue __q)
+{
+    const std::size_t __n = test_key_count(__q, sizeof(bool), "float haystack, int32 keys");
+    if (__n == 0)
+        return;
+
+    const std::size_t __n_keys = __n - 1;
+    const std::size_t __n_hay = __n_keys | 1;
+    std::vector<float> __hay(__n_hay);
+    for (std::size_t __i = 0; __i != __n_hay; ++__i)
+        __hay[__i] = float(__i) + ((__i & 1) ? 0.5f : 0.f);
+    std::mt19937 __gen(777);
+    std::uniform_int_distribution<std::int32_t> __dist(-2, std::int32_t(__n_hay) + 2);
+    std::vector<std::int32_t> __keys(__n_keys);
+    for (auto& __k : __keys)
+        __k = __dist(__gen);
+
+    std::vector<std::uint32_t> __ref_lb(__n_keys), __ref_ub(__n_keys);
+    std::vector<bool> __ref_bs(__n_keys);
     for (std::size_t __i = 0; __i != __n_keys; ++__i)
     {
         const std::size_t __lb = std::lower_bound(__hay.begin(), __hay.end(), __keys[__i]) - __hay.begin();
-        __ref_lb[__i] = ResT(__lb);
-        __ref_ub[__i] = ResT(std::upper_bound(__hay.begin(), __hay.end(), __keys[__i]) - __hay.begin());
-        __ref_bs[__i] = ResT(__lb != __n_hay && __hay[__lb] == __keys[__i]);
+        __ref_lb[__i] = __lb;
+        __ref_ub[__i] = std::upper_bound(__hay.begin(), __hay.end(), __keys[__i]) - __hay.begin();
+        __ref_bs[__i] = __lb != __n_hay && __hay[__lb] == __keys[__i];
     }
 
     using namespace oneapi::dpl::execution;
     run_and_check(__hay, __keys, __ref_lb,
                   [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
-                      return oneapi::dpl::lower_bound(make_device_policy<policy_name<KeyT, ResT, 0>>(__q), __f, __l,
-                                                      __vf, __vl, __r);
+                      return oneapi::dpl::lower_bound(make_device_policy<mixed_policy_name<0>>(__q), __f, __l, __vf,
+                                                      __vl, __r);
                   },
-                  __label + " lower_bound");
-    run_and_check(__hay, __keys, __ref_lb,
-                  [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
-                      return oneapi::dpl::lower_bound(make_device_policy<policy_name<KeyT, ResT, 1>>(__q), __f, __l,
-                                                      __vf, __vl, __r, TestUtils::IsLess<KeyT>{});
-                  },
-                  __label + " lower_bound with comparator");
+                  "float haystack, int32 keys lower_bound");
     run_and_check(__hay, __keys, __ref_ub,
                   [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
-                      return oneapi::dpl::upper_bound(make_device_policy<policy_name<KeyT, ResT, 2>>(__q), __f, __l,
-                                                      __vf, __vl, __r);
+                      return oneapi::dpl::upper_bound(make_device_policy<mixed_policy_name<1>>(__q), __f, __l, __vf,
+                                                      __vl, __r);
                   },
-                  __label + " upper_bound");
-    run_and_check(__hay, __keys, __ref_ub,
-                  [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
-                      return oneapi::dpl::upper_bound(make_device_policy<policy_name<KeyT, ResT, 3>>(__q), __f, __l,
-                                                      __vf, __vl, __r, TestUtils::IsLess<KeyT>{});
-                  },
-                  __label + " upper_bound with comparator");
+                  "float haystack, int32 keys upper_bound");
     run_and_check(__hay, __keys, __ref_bs,
                   [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
-                      return oneapi::dpl::binary_search(make_device_policy<policy_name<KeyT, ResT, 4>>(__q), __f, __l,
-                                                        __vf, __vl, __r);
+                      return oneapi::dpl::binary_search(make_device_policy<mixed_policy_name<2>>(__q), __f, __l, __vf,
+                                                        __vl, __r);
                   },
-                  __label + " binary_search");
-    run_and_check(__hay, __keys, __ref_bs,
-                  [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
-                      return oneapi::dpl::binary_search(make_device_policy<policy_name<KeyT, ResT, 5>>(__q), __f, __l,
-                                                        __vf, __vl, __r, TestUtils::IsLess<KeyT>{});
-                  },
-                  __label + " binary_search with comparator");
-}
-
-template <typename KeyT, typename ResT>
-void
-run_type(sycl::queue __q, const std::string& __type_label)
-{
-    const std::size_t __min_keys = batched_path_min_keys(__q, std::min(sizeof(KeyT), sizeof(ResT)));
-    // Safety valve on the allocation, not a device bound: 2^25 8-byte keys is already ~800 MB.
-    if (__min_keys > (std::size_t(1) << 25))
-    {
-        std::cout << "Skipping " << __type_label << ": batched path needs " << __min_keys << " keys" << std::endl;
-        return;
-    }
-    std::cout << __type_label << ": batched path from " << __min_keys << " keys" << std::endl;
-
-    // At the gate every work item has its full complement of keys; three keys past it the trailing
-    // item is partial, which is a separate code path in the batched brick.
-    run_case<KeyT, ResT>(__q, __min_keys, key_mix::uniform, __type_label + " full");
-    run_case<KeyT, ResT>(__q, __min_keys + 3, key_mix::uniform, __type_label + " partial");
-    run_case<KeyT, ResT>(__q, __min_keys, key_mix::absent_heavy, __type_label + " full, absent heavy");
-    run_case<KeyT, ResT>(__q, __min_keys + 3, key_mix::absent_heavy, __type_label + " partial, absent heavy");
+                  "float haystack, int32 keys binary_search");
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
@@ -265,13 +392,16 @@ main()
     sycl::queue __q = TestUtils::get_test_queue();
 
     // The value type sizes below select iterations-per-item 2, 4, 8 and 5: one short batch, one full
-    // batch, two full batches, and a batch plus a tail. A 1-byte value type would select 16 (four full
-    // batches) and is not covered here.
+    // batch, two full batches, and a batch plus a tail. A bool result selects 16.
     run_type<std::uint64_t, std::uint64_t>(__q, "uint64");
     run_type<std::uint32_t, std::uint32_t>(__q, "uint32");
     // A 16-bit result would take the expected and actual indices mod 65536 and compare them blind.
     run_type<std::uint16_t, std::uint32_t>(__q, "uint16");
     run_type<Key3, std::int32_t>(__q, "key3");
+    run_type<Key10, std::uint32_t, bool>(__q, "key10");
+    // A comparator that reverses the order, and 8-byte keys with a bool binary_search result.
+    run_type<std::uint64_t, std::uint64_t, bool, TestUtils::IsGreat<std::uint64_t>>(__q, "uint64 descending");
+    run_mixed_types(__q);
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
