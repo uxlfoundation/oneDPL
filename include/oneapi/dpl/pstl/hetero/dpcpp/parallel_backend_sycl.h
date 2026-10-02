@@ -1082,12 +1082,12 @@ inline constexpr std::size_t __find_or_wide_scan_min_size = __find_or_wide_scan_
 #else
 // empirical: the smallest input the wide scan paid for on Ponte Vecchio, ~9 % at 2 and 4 bytes. Battlemage is
 // indistinguishable at this size. Measured on Battlemage and Ponte Vecchio, 2- and 4-byte types.
-inline constexpr std::size_t __find_or_wide_scan_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MIN_SIZE;
+inline constexpr std::size_t __find_or_wide_scan_min_size = std::size_t{1} << 18;
 #endif
 
 // The smallest input a scan reading several elements per index pays for.
 // empirical: Battlemage and Ponte Vecchio, 4-byte types reading two distinct buffers.
-inline constexpr std::size_t __find_or_wide_scan_multi_elem_min_size = _ONEDPL_FIND_OR_WIDE_SCAN_MULTI_ELEM_MIN_SIZE;
+inline constexpr std::size_t __find_or_wide_scan_multi_elem_min_size = std::size_t{1} << 26;
 
 // Narrower elements scan wide only as a presence check over a single range.
 // empirical: 4-byte types won above this floor on Battlemage and Ponte Vecchio. Below it, only the presence
