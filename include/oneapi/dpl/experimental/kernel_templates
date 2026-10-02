@@ -20,5 +20,6 @@
 
 #include "kt/sycl_radix_sort.h"
 #include "kt/single_pass_scan.h"
+#include "kt/batched_merge_sort.h"
 
 #endif // _ONEDPL_KERNEL_TEMPLATES
