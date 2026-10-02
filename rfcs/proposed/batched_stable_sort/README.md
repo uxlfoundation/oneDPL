@@ -179,8 +179,8 @@ subgroup level merge path sort or bitonic sort, but this will be deferred to lat
 #### Expectations from proof of concept work
 
 Expected speedup vs individual sequential `kt::gpu::radix_sort` (OneSweep) calls per segment.
-64M total elements, out-of-place, key only, out-of-order queue. Merge path numbers are measured
-from a proof of concept; modified OneSweep numbers are projected estimates.
+64M `std::uint32_t` keys, out-of-place, key only, out-of-order queue. Merge path numbers are
+measured from a proof of concept; modified OneSweep numbers are projected estimates.
 
 | segment_size | algorithm         | BMG speedup    | PVC speedup    |
 |--------------|-------------------|----------------|----------------|
@@ -229,7 +229,7 @@ Following the [Kernel Templates testing guidance][kt-testing]:
 
 * What are the exact type support requirements?
   * sycl::half?
-  * fp16?
+  * bfloat16?
   * fp8?
 
 * Do we need to support input sycl::events for ordering previous events with in ooo queue?
