@@ -38,7 +38,6 @@ enum class search_algorithm
 };
 
 #if _ONEDPL_BACKEND_SYCL
-
 template <typename Comp, typename T, search_algorithm func>
 struct __custom_brick
 {
@@ -97,6 +96,9 @@ struct __custom_brick
     // provisional: half the 32-bit width -- each in-flight search holds twice the index state. Both widths
     // compile into one kernel, so this also bounds the 32-bit path's register budget.
     static constexpr std::uint8_t max_in_flight_64 = 2;
+    // Bytes of key and haystack element held across the in-flight searches. empirical: 4 searches of
+    // 8-byte keys and 8-byte haystack elements compile without spills on PVC and dg2
+    static constexpr std::size_t max_bytes_in_flight = 64;
 
     template <typename _Size, std::size_t _C, typename _IsFull, typename _Acc>
     void
@@ -170,7 +172,11 @@ struct __custom_brick
     search_rounds(_IsFull, std::size_t bound, std::size_t idx, std::uint16_t stride, _Acc acc) const
     {
         static_assert(_MaxInFlight > 0);
-        constexpr std::size_t batch = std::min<std::size_t>(_NumStrides, _MaxInFlight);
+        using std::get;
+        constexpr std::size_t bytes_per_search =
+            sizeof(std::decay_t<decltype(get<1>(acc[idx]))>) + sizeof(std::decay_t<decltype(get<0>(acc[idx]))>);
+        constexpr std::size_t batch = std::min<std::size_t>(
+            {_NumStrides, _MaxInFlight, std::max<std::size_t>(1, max_bytes_in_flight / bytes_per_search)});
         constexpr std::size_t full_batches = _NumStrides / batch;
         constexpr std::size_t tail = _NumStrides % batch;
         _ONEDPL_PRAGMA_UNROLL
