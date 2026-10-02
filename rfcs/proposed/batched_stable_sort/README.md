@@ -151,7 +151,7 @@ Implement two kernels:
 1) Work-group merge path sort, for segments which fit into a single work-group
    (`workgroup_size * data_per_workitem`). Multiple segments may be packed into one work-group.
    * Load into registers and stable sort each work-item's `data_per_workitem` keys (leaf sort).
-   * `log2(segment_n / data_per_workitem)` merge rounds: registers → SLM, barrier, each work-item
+   * `log2(__segment_size / data_per_workitem)` merge rounds: registers → SLM, barrier, each work-item
      binary-searches its diagonal (co-rank) for its merge path start, then merges
      `data_per_workitem` keys from SLM back into registers.
 2) Modified OneSweep radix sort, which handles any segment size, but is best for segments which do
