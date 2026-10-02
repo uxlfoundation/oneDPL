@@ -15,7 +15,7 @@
 
 #include <array>
 #include <algorithm> // std::find, std::fill_n
-#include <cstddef>   // std::size_t
+#include <cstddef>   // std::size_t, std::byte
 #include <memory>    // std::unique_ptr
 #include <tuple>
 #include <utility>   // std::move, std::index_sequence
@@ -130,9 +130,6 @@ void
 init_result_slot(internal::__result_raw_state<T>& rst, sycl::queue& q,
                  std::size_t n, sycl::usm::alloc kind, Generator gen)
 {
-    constexpr std::size_t offset = 42 * sizeof(int); // offset is divisible by sizeof(int)
-    constexpr int poison = 0xDEADBEEF;
-
     rst.__result_sz = n;
     rst.__kind      = kind;
 
@@ -146,11 +143,13 @@ init_result_slot(internal::__result_raw_state<T>& rst, sycl::queue& q,
     }
     else
     {
+        constexpr std::size_t offset = 42;
         rst.__offset = offset;
         auto host_buf = std::shared_ptr<T[]>(std::make_unique<T[]>(offset + n)); // make_shared<T[]> requires C++20
-        // poison data in [0, offset)
-        int* iptr = reinterpret_cast<int*>(host_buf.get());
-        std::fill_n(iptr, offset * sizeof(T) / sizeof(int), poison);
+        // fill scratch data with zeros (which generators do not use)
+        std::byte* bptr = reinterpret_cast<std::byte*>(host_buf.get());
+        std::fill_n(bptr, offset * sizeof(T) / sizeof(std::byte), std::byte{0});
+        // generate data for the result part
         for (std::size_t i = 0; i < n; ++i)
             host_buf[offset + i] = gen(i);
 
@@ -299,7 +298,7 @@ struct StorageHolderTest
     {
         using TupleT = std::tuple<int, long>;
         using HolderT = Test::inspectable_holder<0, TupleT, float, int>;
-        auto gen_tuple = [](std::size_t i){ return TupleT{int(i * 37) % 5, long(i * 19 - 32)}; };
+        auto gen_tuple = [](std::size_t i){ return TupleT{int(i * 37) % 5 + 11, long(i * 19 - 32)}; };
         auto gen_float = [](std::size_t i){ return float(i) * 2.17f - 3.1415f; };
         auto gen_int = [](std::size_t i){ return int(i * 3 + 313); };
 
