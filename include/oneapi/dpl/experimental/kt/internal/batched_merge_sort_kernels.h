@@ -24,11 +24,6 @@
 
 #include "radix_sort_utils.h"
 
-// TODO: temporary benchmarking hook to compare the leaf sort networks; remove before upstreaming
-#ifndef _ONEDPL_KT_BATCHED_MERGE_SORT_FORCE_TRANSPOSITION_LEAF
-#    define _ONEDPL_KT_BATCHED_MERGE_SORT_FORCE_TRANSPOSITION_LEAF 0
-#endif
-
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
 
@@ -75,62 +70,25 @@ struct __no_values
 //-----------------------------------------------------------------------------
 // In-register stable sort of one work-item's elements
 //-----------------------------------------------------------------------------
+// Odd-even transposition sort: only adjacent elements which are strictly out of order are swapped, so it is stable
+// without a tie-break, and all indices are static after unrolling. It needs more compare-exchanges than a bitonic
+// network, but each is cheaper than a bitonic one with the index tie-break required for stability, and it has no
+// index array adding register pressure. It was measured to be as fast or faster for data_per_workitem 4 to 16.
 template <bool __has_values, std::uint16_t _N, typename _KeyT, typename _ValT, typename _Less>
 inline void
 __work_item_stable_sort(_KeyT (&__keys)[_N], _ValT (&__vals)[_N], _Less __less)
 {
-    auto __swap = [&](std::uint16_t __i, std::uint16_t __j) {
-        std::swap(__keys[__i], __keys[__j]);
-        if constexpr (__has_values)
-            std::swap(__vals[__i], __vals[__j]);
-    };
-
-    if constexpr ((_N & (_N - 1)) == 0 && !_ONEDPL_KT_BATCHED_MERGE_SORT_FORCE_TRANSPOSITION_LEAF)
+    _ONEDPL_PRAGMA_UNROLL
+    for (std::uint16_t __round = 0; __round < _N; ++__round)
     {
-        // Bitonic network with a slot index tie-break, which makes it stable: indices are unique, so no two
-        // elements compare equal. All indices are static after unrolling.
-        std::uint16_t __idx[_N];
         _ONEDPL_PRAGMA_UNROLL
-        for (std::uint16_t __i = 0; __i < _N; ++__i)
-            __idx[__i] = __i;
-
-        _ONEDPL_PRAGMA_UNROLL
-        for (std::uint16_t __k = 2; __k <= _N; __k <<= 1)
+        for (std::uint16_t __i = __round % 2; __i + 1 < _N; __i += 2)
         {
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint16_t __j = __k >> 1; __j > 0; __j >>= 1)
+            if (__less(__keys[__i + 1], __keys[__i]))
             {
-                _ONEDPL_PRAGMA_UNROLL
-                for (std::uint16_t __s = 0; __s < _N; ++__s)
-                {
-                    const std::uint16_t __t = __s ^ __j;
-                    if (__t > __s)
-                    {
-                        const bool __ascending = (__s & __k) == 0;
-                        const bool __t_before_s = __less(__keys[__t], __keys[__s]) ||
-                                                  (!__less(__keys[__s], __keys[__t]) && __idx[__t] < __idx[__s]);
-                        if (__ascending == __t_before_s)
-                        {
-                            __swap(__s, __t);
-                            std::swap(__idx[__s], __idx[__t]);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    else
-    {
-        // Odd-even transposition sort: only adjacent elements which are strictly out of order are swapped,
-        // so it is stable without a tie-break.
-        _ONEDPL_PRAGMA_UNROLL
-        for (std::uint16_t __round = 0; __round < _N; ++__round)
-        {
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint16_t __i = __round % 2; __i + 1 < _N; __i += 2)
-            {
-                if (__less(__keys[__i + 1], __keys[__i]))
-                    __swap(__i, __i + 1);
+                std::swap(__keys[__i], __keys[__i + 1]);
+                if constexpr (__has_values)
+                    std::swap(__vals[__i], __vals[__i + 1]);
             }
         }
     }
