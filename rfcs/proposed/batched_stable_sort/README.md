@@ -21,7 +21,7 @@ launching many segments as a batch. We have seen demand for fixed segment sized 
 take advantage of shared structure for a fast algorithm.
 
 Existing solutions:
-* CUB `DeviceSegmentedRadixSort`: one workgroup radix sorts each segment; arbitrary segment
+* CUB `DeviceSegmentedRadixSort`: one work-group radix sorts each segment; arbitrary segment
   offsets, key-only and key/value.
 * CUB `DeviceSegmentedSort`: stable and unstable variants; buckets segments by size, using merge
   sort for small and medium segments and radix sort for large.
@@ -36,7 +36,7 @@ Required:
 * Out-of-place (in-place is also supported, as a secondary priority)
 * key/value pair sort and key only sort
 * Important total sizes: 32K - ~256M (should support up to size 2^30)
-* Important segment sizes: 2k - 128K (should support arbitrary segment size for correctness)
+* Important segment sizes: 2K - 128K (should support arbitrary segment size for correctness)
 
 Preferred:
 Temporary data preallocated and supplied
@@ -60,7 +60,7 @@ batched_radix_sort_by_key(sycl::queue __q,
                           _KeysIterator1 __keys_first, _KeysIterator1 __keys_last,
                           _ValsIterator1 __vals_first,
                           _KeysIterator2 __keys_out_first, _ValsIterator2 __vals_out_first,
-                          std::size_t segment_size, _KernelParam __param = {});
+                          std::size_t __segment_size, _KernelParam __param = {});
 ```
 
 Replicates for permutations of:
@@ -82,18 +82,18 @@ APIs for each stable sort approach, merge and radix.
 Compile time parameters:
 * ascending / descending - direction of the sort
 * radix - the radix of the sort, only applicable to radix sort
-* KT Params: dpwi, wgsize - data per work item and wgsize
+* KT Params: data_per_work_item, workgroup_size
 
 Runtime Parameters:
 * queue - sycl queue
 * data params: iterator and range parameters for in-place and out-of-place
-* segment_size: size of individual segments
+* __segment_size: size of individual segments
 
 ### Semantic Edge Cases
 
 * `n == 0` is a no-op.
-* `segment_size == 0` or `n % segment_size != 0` is rejected with an assertion.
-* `batched_merge_sort*` rejects `segment_size > dpwi * wgsize` with an assertion.
+* `__segment_size == 0` or `n % __segment_size != 0` is rejected with an assertion.
+* `batched_merge_sort*` rejects `__segment_size > data_per_work_item * workgroup_size` with an assertion.
 * Input and output must not overlap. Full aliasing is served by the in-place overloads; partial
   overlap is not supported.
 * Supported key types, data passing mechanisms (USM pointers, `oneapi::dpl::begin` / `end`,
@@ -138,22 +138,22 @@ The best stable sort depends on segment size. Candidates considered:
 |----------------------|--------------------|------------------------------------------------------|
 | OneSweep per segment | all                | current workaround; baseline                         |
 | Composite OneSweep   | all                | segment id prepended to key; easy worst case speedup |
-| One workgroup radix  | segment fits in wg | existing ESIMD and mainline kernels                  |
+| One work-group radix  | segment fits in wg | existing ESIMD and oneDPL kernels                  |
 | Modified OneSweep    | all                | proposed; best when segments exceed one wg           |
-| Workgroup merge path | segment fits in wg | proposed; packs multiple segments per wg             |
-| Subgroup merge path  | segment fits in sg | deferred; capped near 1024 by SLM                    |
+| Work-group merge path | segment fits in wg | proposed; packs multiple segments per wg             |
+| Sub-group merge path  | segment fits in sg | deferred; capped near 1024 by SLM                    |
 | Bitonic              | small (< ~1024)    | deferred; unstable unless augmented, pads to pow2    |
 
 #### Plan
 Implement two kernels:
-1) Workgroup merge path sort, for segments which fit into a single workgroup (wgsize * dpwi).
-   Multiple segments may be packed into one workgroup.
-   * Load into registers and stable sort each work item's dpwi keys (leaf sort).
-   * log2(n / dpwi) merge rounds: registers → SLM, barrier, each work item binary-searches its
-     diagonal (co-rank) for its merge path start, then merges dpwi keys from SLM back into
+1) Work-group merge path sort, for segments which fit into a single work-group (workgroup_size * data_per_work_item).
+   Multiple segments may be packed into one work-group.
+   * Load into registers and stable sort each work item's data_per_work_item keys (leaf sort).
+   * log2(segment_n / data_per_work_item) merge rounds: registers → SLM, barrier, each work item binary-searches
+     its diagonal (co-rank) for its merge path start, then merges data_per_work_item keys from SLM back into
      registers.
 2) Modified OneSweep radix sort, which handles any segment size, but is best for segments which do
-   not fit into a single workgroup.
+   not fit into a single work-group.
    * Global histogram and bin offset scan per (segment, radix stage).
    * Sweep tiles are aligned to segments, with one decoupled lookback chain per segment; tile 0 of
      each segment seeds from that segment's offsets.
@@ -162,15 +162,15 @@ Implement two kernels:
    * Shares implementation with the existing `kt::gpu::radix_sort` where possible, which may
      require refactoring its kernels to be segment-aware.
 
-Both kernels are SYCL (not ESIMD) implementations in the `gpu` namespace. Workgroup merge path has
-no cross-workgroup communication. Modified OneSweep relies on decoupled lookback, so like
-`kt::gpu::radix_sort` it requires parallel forward progress between workgroups, and initially
+Both kernels are SYCL (not ESIMD) implementations in the `gpu` namespace. Work-group merge path has
+no cross-work-group communication. Modified OneSweep relies on decoupled lookback, so like
+`kt::gpu::radix_sort` it requires parallel forward progress between work-groups, and initially
 carries the same device and runtime restrictions.
 
 #### Dispatch
 It is the user's responsibility to invoke the correct algorithm. The documentation will describe a
 thin dispatch rule:
-* `segment_size <= dpwi * wgsize`: `batched_merge_sort`
+* `__segment_size <= data_per_work_item * workgroup_size`: `batched_merge_sort`
 * Otherwise: `batched_radix_sort`
 
 There is opportunity to achieve better performance at the smallest segment sizes in the future via
@@ -182,7 +182,7 @@ Expected speedup vs individual sequential `kt::gpu::radix_sort` (OneSweep) calls
 64M `std::uint32_t` keys, out-of-place, key only, out-of-order queue. Merge path numbers are
 measured from a proof of concept; modified OneSweep numbers are projected estimates.
 
-| segment_size | algorithm         | BMG speedup    | PVC speedup    |
+| __segment_size | algorithm         | BMG speedup    | PVC speedup    |
 |--------------|-------------------|----------------|----------------|
 |   smaller    | wg-merge (sg?)    | very large     | very large     |
 |     256      | wg-merge (sg?)    |   ~1700x       |   ~6400x       |
@@ -191,27 +191,25 @@ measured from a proof of concept; modified OneSweep numbers are projected estima
 |    4096      | wg-merge          |   ~75x         |   ~225x        |
 |     16K      | wg-merge          |   ~14x         |   ~38x         |
 |     32K      | wg-merge          |   ~7x          |   ~15x         |
-|    larger    | modified onesweep | size dependent | size dependent |
+|    larger    | modified OneSweep | size dependent | size dependent |
 
-1.5-4x looks possible for segments up to 256K on PVC. BMG is a less clear win; the
-[dispatch](#dispatch) rule falls back to individual radix sorts where they are faster, so we should
-do no worse than that.
+1.5-4x looks possible for segments up to 256K on PVC. BMG is a less clear win. As segments get very large, its possible that individual kernel per segment could be faster.
 
 ## Testing
 
 Following the [Kernel Templates testing guidance][kt-testing]:
 * Verify each segment against a per-segment `std::stable_sort` reference. Use values holding the
   original index to check stability.
-* Segment sizes: 1, small non-power-of-two, around `dpwi * wgsize` (-1, ==, +1 for radix), large
-  segments, and a single segment (`segment_size == n`).
+* Segment sizes: 1, small non-power-of-two, around `data_per_work_item * workgroup_size` (-1, ==, +1 for radix), large
+  segments, and a single segment (`__segment_size == n`).
 * All supported key types, including floating point edge cases (-0.0, +0.0, infinities), and key
   and value types of different widths.
 * Ascending and descending; key only and by key; out-of-place and in-place; iterators and ranges;
   USM and `sycl::buffer`.
-* `n == 0` is a no-op; assertions fire for `segment_size == 0`, `n % segment_size != 0`, and merge
-  sort with `segment_size > dpwi * wgsize`.
-* Utilize similar system to existing onesweep sort to cover representative sample of kernel params
-* 
+* `n == 0` is a no-op; assertions fire for `__segment_size == 0`, `n % __segment_size != 0`, and merge
+  sort with `__segment_size > data_per_work_item * workgroup_size`.
+* Utilize similar system to existing OneSweep sort to cover representative sample of kernel params
+
 ## Open Questions
 
 * How (if at all) should we allow users to size and provide their own temporary allocation to the
