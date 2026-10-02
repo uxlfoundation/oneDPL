@@ -93,8 +93,8 @@ struct __custom_brick
     // Searches kept in flight per work item, 32-bit index path. empirical: 4 beat 2 by 9-15% at 4M-256M floats
     // on BMG and PVC; 8 costs register budget (PVC) or SIMD width (dg2) at 2-byte keys.
     static constexpr std::uint8_t max_in_flight_32 = 4;
-    // provisional: half the 32-bit width -- each in-flight search holds twice the index state. Both widths
-    // compile into one kernel, so this also bounds the 32-bit path's register budget.
+    // Searches kept in flight per work item, 64-bit index path. empirical: 4 compiles the shared kernel to
+    // large GRF on PVC (1-4 byte types) and SIMD8 on dg2 (some 1-2 byte types), for the 32-bit path too.
     static constexpr std::uint8_t max_in_flight_64 = 2;
     // Bytes of key and haystack element held across the in-flight searches. empirical: 4 searches of
     // 8-byte keys and 8-byte haystack elements compile without spills on PVC and dg2
