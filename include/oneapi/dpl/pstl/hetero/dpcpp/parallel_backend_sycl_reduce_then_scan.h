@@ -666,11 +666,16 @@ struct __gen_expand_count_mask_from_copy : public __optimized_input_buffering<_R
     operator()(const oneapi::dpl::__ranges::zip_view<_InRng, _BufRng>& __zip_rng, _RetType __id, bool __read_copy) const
     {
         auto&& [__input, __buffer] = __zip_rng.base();
-        std::size_t __lidx = __buffer.__local_index(__id);
         // Explicit conversions cover different reference types for zip_iterators etc.
-        auto __ele = __read_copy ? __element_t<_InRng>(__buffer[__lidx]) : __element_t<_InRng>(__input[__id]);
-        bool __mask = __read_copy ? __gen_mask(__buffer, __lidx) : __gen_mask(__input, __id);
-        return __result_t<_InRng>(__mask ? _RetType{1} : _RetType{0}, __mask, __ele);
+        if (__read_copy)
+        {
+            std::size_t __lidx = __buffer.__local_index(__id);
+            bool __mask = __gen_mask(__buffer, __lidx);
+            return __result_t<_InRng>(__mask ? _RetType{1} : _RetType{0}, __mask,
+                                      __element_t<_InRng>(__buffer[__lidx]));
+        }
+        bool __mask = __gen_mask(__input, __id);
+        return __result_t<_InRng>(__mask ? _RetType{1} : _RetType{0}, __mask, __element_t<_InRng>(__input[__id]));
     }
     _GenMask __gen_mask;
 };
