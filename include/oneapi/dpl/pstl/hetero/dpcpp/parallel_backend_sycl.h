@@ -31,7 +31,6 @@
 #include <array>
 #include <tuple>
 #include <iterator>
-#include <exception>
 
 #include "../../iterator_impl.h"
 #include "../../execution_impl.h"
@@ -1054,20 +1053,8 @@ struct __find_or_nd_range_params
 };
 
 // Work-group size cap for the wide kernel. Its higher register use lowers the work-group size a device accepts
-// for it below the advertised maximum (768 on Xe3); __launch_with_wg_size_fallback covers a device that accepts less.
+// for it below the advertised maximum (768 on Xe3).
 inline constexpr std::size_t __find_or_wgroup_size_cap = 512;
-
-// Smallest work-group size __launch_with_wg_size_fallback retries: one sub-group, the unit the early-exit vote
-// spans.
-inline std::size_t
-__find_or_wgroup_size_retry_floor([[maybe_unused]] const sycl::queue& __q)
-{
-#if _ONEDPL_USE_SUB_GROUPS
-    return oneapi::dpl::__internal::__min_sub_group_size(__q);
-#else
-    return 1;
-#endif
-}
 
 // Inputs of up to this many elements per work item of one full-size work group are scanned by a single work
 // group, which needs no atomics across work groups.
@@ -1387,28 +1374,6 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
     }
 };
 
-// On an exception, waits for the event before the USM it writes is freed: __launch_with_wg_size_fallback
-// catches the exception and continues while the kernel may still be running.
-struct __wait_event_on_unwind
-{
-    [[maybe_unused]] sycl::event& __event;
-#if __cpp_exceptions
-    int __exceptions_on_entry = std::uncaught_exceptions();
-    ~__wait_event_on_unwind()
-    {
-        if (std::uncaught_exceptions() > __exceptions_on_entry)
-            // wait() is not noexcept.
-            try
-            {
-                __event.wait();
-            }
-            catch (...)
-            {
-            }
-    }
-#endif
-};
-
 template <typename KernelName>
 struct __find_or_init_scratch;
 
@@ -1462,7 +1427,6 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 
         sycl::event __event_init = __find_or_init_scratch<__internal::__optional_kernel_name<KernelNameInit...>>{}(
             __q, __scratch_atomic_storage, __init_value);
-        [[maybe_unused]] __wait_event_on_unwind __init_guard{__event_init};
 
         // main parallel_for
         __q.submit([&](sycl::handler& __cgh) {
@@ -1531,35 +1495,6 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     }
 };
 
-// A launch can be rejected with errc::nd_range even at the capped work-group size; halve and retry. Each
-// submitter derives the work per item from the size it is handed, so a smaller group still covers the whole
-// input; re-running the launch is sound only because every find_or brick is read-only.
-template <typename _Launch>
-auto
-__launch_with_wg_size_fallback([[maybe_unused]] const sycl::queue& __q, std::size_t __wgroup_size,
-                               _Launch __launch)
-{
-#if !__cpp_exceptions
-    _PRINT_INFO_IN_DEBUG_MODE(__q, __wgroup_size);
-    return __launch(__wgroup_size);
-#else
-    for (;; __wgroup_size /= 2)
-    {
-        _PRINT_INFO_IN_DEBUG_MODE(__q, __wgroup_size);
-        try
-        {
-            return __launch(__wgroup_size);
-        }
-        catch (const sycl::exception& __e)
-        {
-            // Queried only on failure: every find_or call reaches this function, and the query allocates.
-            if (__e.code() != sycl::errc::nd_range || __wgroup_size / 2 < __find_or_wgroup_size_retry_floor(__q))
-                throw;
-        }
-    }
-#endif
-}
-
 // Base pattern for __parallel_or and __parallel_find. The execution depends on tag type _BrickTag.
 template <typename _ExecutionPolicy, typename _Brick, typename _BrickTag, typename _SizeCalc, typename... _Ranges>
 auto
@@ -1589,7 +1524,8 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     const auto __params = __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(
         __q_local, __rng_n, __wide_scan);
 
-    // The ranges are passed as lvalues below: the fallback may invoke a launch more than once.
+    _PRINT_INFO_IN_DEBUG_MODE(__q_local, __params.__wgroup_size);
+
     _AtomicType __result;
     if (__params.__n_groups == 1)
     {
@@ -1602,10 +1538,9 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_one_wg<_CustomName>>;
 
         // Single WG implementation
-        __result = __launch_with_wg_size_fallback(__q_local, __params.__wgroup_size, [&](std::size_t __wg_size) {
-            return __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
-                __q_local, __brick_tag, __rng_n, __wg_size, __init_value, __pred, __rngs...);
-        });
+        __result = __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
+            __q_local, __brick_tag, __rng_n, __params.__wgroup_size, __init_value, __pred,
+            std::forward<_Ranges>(__rngs)...);
     }
     else
     {
@@ -1625,11 +1560,10 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             using __find_or_kernel_name = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
                 __find_or_kernel<_CustomName, std::integral_constant<std::size_t, _EarlyExit::__elems_per_iter>>>;
 
-            return __launch_with_wg_size_fallback(__q_local, __params.__wgroup_size, [&](std::size_t __wg_size) {
-                return __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name_init,
-                                                            __find_or_kernel_name>()(
-                    __q_local, __brick_tag, __rng_n, __params.__n_groups, __wg_size, __init_value, __pred, __rngs...);
-            });
+            return __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name_init,
+                                                        __find_or_kernel_name>()(
+                __q_local, __brick_tag, __rng_n, __params.__n_groups, __params.__wgroup_size, __init_value, __pred,
+                std::forward<_Ranges>(__rngs)...);
         };
 
         // Multiple WG implementation
