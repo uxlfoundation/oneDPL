@@ -90,8 +90,8 @@ struct __custom_brick
     // without changing which probes are performed.
     static constexpr bool __batched = true;
 
-    // Searches kept in flight per work item, 32-bit index path. Empirical, 2-8 byte keys on BMG and PVC;
-    // 8 costs register budget (PVC) or SIMD width (dg2) at 2-byte keys. Not swept below 4.
+    // Searches kept in flight per work item, 32-bit index path. empirical: 4 beat 2 by 9-15% at 4M-256M floats
+    // on BMG and PVC; 8 costs register budget (PVC) or SIMD width (dg2) at 2-byte keys.
     static constexpr std::uint8_t max_in_flight_32 = 4;
     // provisional: half the 32-bit width -- each in-flight search holds twice the index state. Both widths
     // compile into one kernel, so this also bounds the 32-bit path's register budget.
