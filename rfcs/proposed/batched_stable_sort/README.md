@@ -2,15 +2,15 @@
 
 ## Introduction
 
-The sort API in oneDPL's main APIs and in the kernel templates sort one sequence of data at a time,
-there is no API to launch a coordinated launch for a batch of multiple segments at once.
+oneDPL's sort APIs, including the kernel templates, sort one sequence at a time. There is no API to
+sort a batch of segments in a single launch.
 
 This RFC proposes new algorithms for [Kernel Templates][kt].
 
 A few mentioned use cases:
 * LLM token sampling (component of sorts prior to top-p). Batches are simultaneous inferences going
   on at once which are selecting tokens, token probabilities are sorted with one segment per
-  inference of equal size, and then the top p probabilities are kept and chosen from
+  inference of equal size, and then the top-p probabilities are kept and chosen from.
 * Top-k general purpose fallback - batched sort as a component of partial sort. By chunking a large
   sequence into segments, and sorting each, then taking the top k elements of each chunk and
   sorting those, this is an implementation of partial sort / top-k which fits any general size and
@@ -65,7 +65,7 @@ batched_radix_sort_by_key(sycl::queue __q,
 
 Replicates for permutations of:
 * iterators and ranges
-  Replace __keys_first, __keys_last with a single keys range, replace output begin iterator with
+  Replace `__keys_first`, `__keys_last` with a single keys range, replace output begin iterator with
   range, same with value begin iterators.
 * In-place (no out keys or ranges)
 * key value pairs or just key only
@@ -82,18 +82,19 @@ APIs for each stable sort approach, merge and radix.
 Compile time parameters:
 * ascending / descending - direction of the sort
 * radix - the radix of the sort, only applicable to radix sort
-* KT Params: data_per_work_item, workgroup_size
+* `kernel_param`: `data_per_workitem`, `workgroup_size`
 
 Runtime Parameters:
 * queue - sycl queue
 * data params: iterator and range parameters for in-place and out-of-place
-* __segment_size: size of individual segments
+* `__segment_size`: size of individual segments
 
-### Semantic Edge Cases
+### Semantics
 
 * `n == 0` is a no-op.
 * `__segment_size == 0` or `n % __segment_size != 0` is rejected with an assertion.
-* `batched_merge_sort*` rejects `__segment_size > data_per_work_item * workgroup_size` with an assertion.
+* `batched_merge_sort*` rejects `__segment_size > data_per_workitem * workgroup_size` with an
+  assertion.
 * Input and output must not overlap. Full aliasing is served by the in-place overloads; partial
   overlap is not supported.
 * Supported key types, data passing mechanisms (USM pointers, `oneapi::dpl::begin` / `end`,
@@ -110,6 +111,7 @@ ids, with the documented dispatch rule.
 ```c++
 namespace kt = oneapi::dpl::experimental::kt;
 
+sycl::queue q{sycl::gpu_selector_v};
 constexpr std::size_t B = 64, V = 32768, n = B * V;
 float* probs = sycl::malloc_device<float>(n, q);               // B rows of V probabilities
 std::uint32_t* ids = sycl::malloc_device<std::uint32_t>(n, q); // ids[i] = i % V
@@ -131,27 +133,27 @@ e.wait();
 
 ### Implementation Details
 
-#### Segment size impact on algorithm
+#### Segment Size Impact on Algorithm
 The best stable sort depends on segment size. Candidates considered:
 
-| algorithm            | applicable scope   | notes                                                |
-|----------------------|--------------------|------------------------------------------------------|
-| OneSweep per segment | all                | current workaround; baseline                         |
-| Composite OneSweep   | all                | segment id prepended to key; easy worst case speedup |
-| One work-group radix  | segment fits in wg | existing ESIMD and oneDPL kernels                  |
-| Modified OneSweep    | all                | proposed; best when segments exceed one wg           |
-| Work-group merge path | segment fits in wg | proposed; packs multiple segments per wg             |
-| Sub-group merge path  | segment fits in sg | deferred; capped near 1024 by SLM                    |
-| Bitonic              | small (< ~1024)    | deferred; unstable unless augmented, pads to pow2    |
+| algorithm             | scope              | notes                                             |
+|-----------------------|--------------------|---------------------------------------------------|
+| OneSweep per segment  | all                | current workaround; baseline                      |
+| Composite OneSweep    | all                | segment id prepended to key; easy worst-case gain |
+| One work-group radix  | segment fits in wg | existing ESIMD and oneDPL kernels                 |
+| Modified OneSweep     | all                | proposed; best when segments exceed one wg        |
+| Work-group merge path | segment fits in wg | proposed; packs multiple segments per wg          |
+| Sub-group merge path  | segment fits in sg | deferred; capped near 1024 by SLM                 |
+| Bitonic               | small (< ~1024)    | deferred; unstable unless augmented, pads to pow2 |
 
 #### Plan
 Implement two kernels:
-1) Work-group merge path sort, for segments which fit into a single work-group (workgroup_size * data_per_work_item).
-   Multiple segments may be packed into one work-group.
-   * Load into registers and stable sort each work item's data_per_work_item keys (leaf sort).
-   * log2(segment_n / data_per_work_item) merge rounds: registers → SLM, barrier, each work item binary-searches
-     its diagonal (co-rank) for its merge path start, then merges data_per_work_item keys from SLM back into
-     registers.
+1) Work-group merge path sort, for segments which fit into a single work-group
+   (`workgroup_size * data_per_workitem`). Multiple segments may be packed into one work-group.
+   * Load into registers and stable sort each work-item's `data_per_workitem` keys (leaf sort).
+   * `log2(segment_n / data_per_workitem)` merge rounds: registers → SLM, barrier, each work-item
+     binary-searches its diagonal (co-rank) for its merge path start, then merges
+     `data_per_workitem` keys from SLM back into registers.
 2) Modified OneSweep radix sort, which handles any segment size, but is best for segments which do
    not fit into a single work-group.
    * Global histogram and bin offset scan per (segment, radix stage).
@@ -170,45 +172,43 @@ carries the same device and runtime restrictions.
 #### Dispatch
 It is the user's responsibility to invoke the correct algorithm. The documentation will describe a
 thin dispatch rule:
-* `__segment_size <= data_per_work_item * workgroup_size`: `batched_merge_sort`
+* `__segment_size <= data_per_workitem * workgroup_size`: `batched_merge_sort`
 * Otherwise: `batched_radix_sort`
 
-There is opportunity to achieve better performance at the smallest segment sizes in the future via
-subgroup level merge path sort or bitonic sort, but this will be deferred to later.
-
-#### Expectations from proof of concept work
+#### Expectations from Proof of Concept Work
 
 Expected speedup vs individual sequential `kt::gpu::radix_sort` (OneSweep) calls per segment.
 64M `std::uint32_t` keys, out-of-place, key only, out-of-order queue. Merge path numbers are
 measured from a proof of concept; modified OneSweep numbers are projected estimates.
 
-| __segment_size | algorithm         | BMG speedup    | PVC speedup    |
+| segment size | algorithm         | BMG speedup    | PVC speedup    |
 |--------------|-------------------|----------------|----------------|
-|   smaller    | wg-merge (sg?)    | very large     | very large     |
-|     256      | wg-merge (sg?)    |   ~1700x       |   ~6400x       |
+|     256      | wg-merge          |   ~1700x       |   ~6400x       |
 |    1024      | wg-merge          |   ~340x        |   ~1200x       |
-|    2048      | wg-merge          |   ~161x        |   ~550x        |
+|    2048      | wg-merge          |   ~160x        |   ~550x        |
 |    4096      | wg-merge          |   ~75x         |   ~225x        |
 |     16K      | wg-merge          |   ~14x         |   ~38x         |
 |     32K      | wg-merge          |   ~7x          |   ~15x         |
 |    larger    | modified OneSweep | size dependent | size dependent |
 
-1.5-4x looks possible for segments up to 256K on PVC. BMG is a less clear win. As segments get very large, its possible that individual kernel per segment could be faster.
+1.5-4x looks possible for segments up to 256K on PVC. BMG is a less clear win. As segments get very
+large, it is possible that a separate kernel launch per segment could be faster.
 
 ## Testing
 
 Following the [Kernel Templates testing guidance][kt-testing]:
 * Verify each segment against a per-segment `std::stable_sort` reference. Use values holding the
   original index to check stability.
-* Segment sizes: 1, small non-power-of-two, around `data_per_work_item * workgroup_size` (-1, ==, +1 for radix), large
-  segments, and a single segment (`__segment_size == n`).
+* Segment sizes: 1, small non-power-of-two, around `data_per_workitem * workgroup_size` (-1, ==, +1
+  for radix), large segments, and a single segment (`__segment_size == n`).
 * All supported key types, including floating point edge cases (-0.0, +0.0, infinities), and key
   and value types of different widths.
 * Ascending and descending; key only and by key; out-of-place and in-place; iterators and ranges;
   USM and `sycl::buffer`.
-* `n == 0` is a no-op; assertions fire for `__segment_size == 0`, `n % __segment_size != 0`, and merge
-  sort with `__segment_size > data_per_work_item * workgroup_size`.
-* Utilize similar system to existing OneSweep sort to cover representative sample of kernel params
+* `n == 0` is a no-op; assertions fire for `__segment_size == 0`, `n % __segment_size != 0`, and
+  merge sort with `__segment_size > data_per_workitem * workgroup_size`.
+* Reuse the existing `kt::gpu::radix_sort` test setup to cover a representative sample of kernel
+  parameters.
 
 ## Open Questions
 
@@ -226,13 +226,16 @@ Following the [Kernel Templates testing guidance][kt-testing]:
   provided queue.
 
 * What are the exact type support requirements?
-  * sycl::half?
-  * bfloat16?
+  * `sycl::half`?
+  * `sycl::ext::oneapi::bfloat16`?
   * fp8?
 
-* Do we need to support input sycl::events for ordering previous events with in ooo queue?
+* Do we need to accept input `sycl::event`s to order against previous work in an out-of-order
+  queue? See the Kernel Templates question
+  [Asynchronous Execution and Dependency Chaining][kt-async].
 
 [kt]: ../../experimental/kernel_templates/README.md
 [kt-testing]: ../../experimental/kernel_templates/README.md#testing
 [kt-mem-req]: ../../experimental/kernel_templates/README.md#reporting-global-and-local-memory-requirements
 [kt-ext-alloc]: ../../experimental/kernel_templates/README.md#external-allocation-of-global-memory
+[kt-async]: ../../experimental/kernel_templates/README.md#asynchronous-execution-and-dependency-chaining
