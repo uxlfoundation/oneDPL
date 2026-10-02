@@ -32,10 +32,12 @@ main()
 #if _ENABLE_STD_RANGES_TESTING
     using namespace test_std_ranges;
 
+    auto modulo_3_is_1 = [](int val) { return (val % 3) == 1; };
+
     auto remove_if_checker = TEST_PREPARE_CALLABLE(std::ranges::remove_if);
 
-    test_range_algo<5>{1234}(dpl_ranges::remove_if, remove_if_checker, pred, proj);
-    test_range_algo<0>{get_scan_big_sz()}(dpl_ranges::remove_if, remove_if_checker, pred);
+    test_range_algo<5>{1234}(dpl_ranges::remove_if, remove_if_checker, modulo_3_is_1, proj);
+    test_range_algo<0>{get_scan_big_sz()}(dpl_ranges::remove_if, remove_if_checker, select_many);
     test_range_algo<1>{}(dpl_ranges::remove_if, remove_if_checker, pred, proj);
     test_range_algo<2, P2>{}(dpl_ranges::remove_if, remove_if_checker, pred, &P2::x);
     test_range_algo<3, P2>{}(dpl_ranges::remove_if, remove_if_checker, pred, &P2::proj);
