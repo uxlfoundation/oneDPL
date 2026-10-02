@@ -1100,128 +1100,27 @@ struct __brick_reads_one_elem_per_range<oneapi::dpl::unseq_backend::single_match
 {
 };
 
-// A range the standard calls contiguous stores its own value type contiguously. Reachable only in a C++20
-// build, where a user's own range reaches the kernel unadapted.
-template <typename _Range>
-constexpr bool
-__find_or_range_is_contiguous_std_range()
-{
-#if _ONEDPL_CPP20_RANGES_PRESENT
-    return std::ranges::contiguous_range<_Range>;
-#else
-    return false;
-#endif
-}
-
-// Whether the range loads one contiguous element of its own value type at the scanned index. A view that maps
-// the index gathers instead, and one that transforms the element reports a width its loads do not have.
-template <typename _Range>
-struct __find_or_range_loads_contiguously : std::bool_constant<__find_or_range_is_contiguous_std_range<_Range>()>
-{
-};
-
-// Whether the iterator addresses its elements at a unit stride. The is_passed_directly extension point does
-// not promise that: an iterator may reach the kernel unadapted and still map the index, and then the load is a
-// gather.
-template <typename _Iterator>
-constexpr bool
-__find_or_iterator_is_contiguous()
-{
-#if _ONEDPL_CPP20_CONCEPTS_PRESENT
-    return std::contiguous_iterator<_Iterator>;
-#else
-    return std::is_pointer_v<_Iterator>;
-#endif
-}
-
-template <typename _Iterator>
-struct __find_or_range_loads_contiguously<oneapi::dpl::__ranges::guard_view<_Iterator>>
-    : std::bool_constant<__find_or_iterator_is_contiguous<_Iterator>()>
-{
-};
-
-// An accessor addresses device memory that the scanned index reaches directly.
-template <typename _T, sycl::access::mode _AccMode, bool _NoInit, __dpl_sycl::__target _Target,
-          sycl::access::placeholder _Placeholder>
-struct __find_or_range_loads_contiguously<
-    oneapi::dpl::__ranges::all_view<_T, _AccMode, _NoInit, _Target, _Placeholder>> : std::true_type
-{
-};
-
-// take, drop and reverse change which elements a scan reads, not how wide each read is.
-template <typename _R, typename _Size>
-struct __find_or_range_loads_contiguously<oneapi::dpl::__ranges::take_view_simple<_R, _Size>>
-    : __find_or_range_loads_contiguously<_R>
-{
-};
-
-template <typename _R, typename _Size>
-struct __find_or_range_loads_contiguously<oneapi::dpl::__ranges::drop_view_simple<_R, _Size>>
-    : __find_or_range_loads_contiguously<_R>
-{
-};
-
-template <typename _R>
-struct __find_or_range_loads_contiguously<oneapi::dpl::__ranges::reverse_view_simple<_R>>
-    : __find_or_range_loads_contiguously<_R>
-{
-};
-
 template <typename... _Ranges>
-struct __find_or_range_loads_contiguously<oneapi::dpl::__ranges::zip_view<_Ranges...>>
-    : std::conjunction<__find_or_range_loads_contiguously<_Ranges>...>
-{
-};
+using __find_or_value_types = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
 
-// How many elements the wide scan loads per index from one range, and their widths. A zip range reads one
-// element per component; any other range reads its own value type whole, however that type is composed.
-template <typename _Range>
-struct __find_or_scanned_elems
-{
-    static constexpr std::size_t __count = 1;
-    static constexpr std::size_t __min_size = sizeof(oneapi::dpl::__internal::__value_t<_Range>);
-    static constexpr std::size_t __max_size = __min_size;
-};
-
-template <typename... _Ranges>
-struct __find_or_scanned_elems<oneapi::dpl::__ranges::zip_view<_Ranges...>>
-{
-    static constexpr std::size_t __count = (__find_or_scanned_elems<_Ranges>::__count + ...);
-    static constexpr std::size_t __min_size = std::min({__find_or_scanned_elems<_Ranges>::__min_size...});
-    static constexpr std::size_t __max_size = std::max({__find_or_scanned_elems<_Ranges>::__max_size...});
-};
-
-template <typename _R, typename _Size>
-struct __find_or_scanned_elems<oneapi::dpl::__ranges::take_view_simple<_R, _Size>> : __find_or_scanned_elems<_R>
-{
-};
-
-template <typename _R, typename _Size>
-struct __find_or_scanned_elems<oneapi::dpl::__ranges::drop_view_simple<_R, _Size>> : __find_or_scanned_elems<_R>
-{
-};
-
-template <typename _R>
-struct __find_or_scanned_elems<oneapi::dpl::__ranges::reverse_view_simple<_R>> : __find_or_scanned_elems<_R>
-{
-};
-
+// A zip range, or a value type that is itself a tuple, reads one element per member.
 template <typename... _Ranges>
 inline constexpr bool __find_or_reads_one_elem_per_index =
-    (__find_or_scanned_elems<std::decay_t<_Ranges>>::__count + ...) == 1;
+    oneapi::dpl::__internal::__nested_type_count<__find_or_value_types<_Ranges...>>::value == 1;
 
 template <typename _Brick, typename _BrickTag, typename... _Ranges>
 constexpr bool
 __find_or_wide_scan_profitable()
 {
-    constexpr std::size_t __min_elem_size = std::min({__find_or_scanned_elems<std::decay_t<_Ranges>>::__min_size...});
-    constexpr std::size_t __max_elem_size = std::max({__find_or_scanned_elems<std::decay_t<_Ranges>>::__max_size...});
+    using _ValueTypes = __find_or_value_types<_Ranges...>;
+    constexpr std::size_t __min_elem_size = oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value;
+    constexpr std::size_t __max_elem_size = oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value;
     constexpr bool __elems_wide_enough = __min_elem_size >= __find_or_wide_scan_min_elem_size;
     constexpr bool __elems_narrow_enough = __max_elem_size <= __find_or_wide_scan_max_elem_size;
     constexpr bool __elems_above_or_tag_floor = __min_elem_size >= __find_or_wide_scan_or_tag_min_elem_size;
     constexpr bool __or_tag = std::is_same_v<_BrickTag, __parallel_or_tag>;
     constexpr bool __loads_contiguously =
-        std::conjunction_v<__find_or_range_loads_contiguously<std::decay_t<_Ranges>>...>;
+        std::conjunction_v<oneapi::dpl::__ranges::__range_loads_contiguously<std::decay_t<_Ranges>>...>;
     return __brick_reads_one_elem_per_range<_Brick>::value && __loads_contiguously && __elems_narrow_enough &&
            (__elems_wide_enough ||
             (__or_tag && __find_or_reads_one_elem_per_index<_Ranges...> && __elems_above_or_tag_floor));

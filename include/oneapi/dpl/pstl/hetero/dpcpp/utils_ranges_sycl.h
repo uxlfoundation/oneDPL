@@ -804,6 +804,73 @@ __select_backend(const execution::device_policy<_KernelName>&, _Ranges&&...)
     return {};
 }
 
+// Whether the iterator addresses its elements at a unit stride. The is_passed_directly extension point does
+// not promise that: an iterator may reach the kernel unadapted and still map the index, and then a load is a
+// gather.
+template <typename _Iterator>
+constexpr bool
+__iterator_is_contiguous()
+{
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+    return std::contiguous_iterator<_Iterator>;
+#else
+    return std::is_pointer_v<_Iterator>;
+#endif
+}
+
+// A range the standard calls contiguous stores its own value type contiguously. Reachable only in a C++20
+// build, where a user's own range reaches the kernel unadapted.
+template <typename _Range>
+constexpr bool
+__is_contiguous_std_range()
+{
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    return std::ranges::contiguous_range<_Range>;
+#else
+    return false;
+#endif
+}
+
+// Whether reading index i of the range loads one contiguous element of its own value type. A view that maps the
+// index gathers instead, and one that transforms the element reports a width its loads do not have.
+template <typename _Range>
+struct __range_loads_contiguously : std::bool_constant<__is_contiguous_std_range<_Range>()>
+{
+};
+
+template <typename _Iterator>
+struct __range_loads_contiguously<guard_view<_Iterator>> : std::bool_constant<__iterator_is_contiguous<_Iterator>()>
+{
+};
+
+// An accessor addresses device memory that the index reaches directly.
+template <typename _T, sycl::access::mode _AccMode, bool _NoInit, __dpl_sycl::__target _Target,
+          sycl::access::placeholder _Placeholder>
+struct __range_loads_contiguously<all_view<_T, _AccMode, _NoInit, _Target, _Placeholder>> : std::true_type
+{
+};
+
+// take, drop and reverse change which elements are read, not how each is loaded.
+template <typename _R, typename _Size>
+struct __range_loads_contiguously<take_view_simple<_R, _Size>> : __range_loads_contiguously<_R>
+{
+};
+
+template <typename _R, typename _Size>
+struct __range_loads_contiguously<drop_view_simple<_R, _Size>> : __range_loads_contiguously<_R>
+{
+};
+
+template <typename _R>
+struct __range_loads_contiguously<reverse_view_simple<_R>> : __range_loads_contiguously<_R>
+{
+};
+
+template <typename... _Ranges>
+struct __range_loads_contiguously<zip_view<_Ranges...>> : std::conjunction<__range_loads_contiguously<_Ranges>...>
+{
+};
+
 #if _ONEDPL_FPGA_DEVICE
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
