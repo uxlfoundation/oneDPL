@@ -35,7 +35,7 @@ Required:
 * runtime specified segment size
 * Out-of-place (in-place is also supported, as a secondary priority)
 * key/value pair sort and key only sort
-* Important total sizes: 32K - ~256M (should support up to size 2^30)
+* Important total sizes: 32K - ~256M (should support sizes below 2^30, matching `kt::gpu::radix_sort`)
 * Important segment sizes: 2K - 128K (should support arbitrary segment size for correctness)
 
 Preferred:
@@ -95,6 +95,10 @@ Runtime Parameters:
 * `__segment_size == 0` or `n % __segment_size != 0` is rejected with an assertion.
 * `batched_merge_sort*` rejects `__segment_size > data_per_workitem * workgroup_size` with an
   assertion.
+* `batched_merge_sort*` stages a full work-group tile of keys (and values) in local memory, so
+  `data_per_workitem * workgroup_size * (sizeof(key) + sizeof(value))` must not exceed the device's
+  local memory (`sycl::info::device::local_mem_size`). Choosing a `kernel_param` which satisfies
+  this is the user's responsibility, as for other kernel templates.
 * Input and output must not overlap. Full aliasing is served by the in-place overloads; partial
   overlap is not supported.
 * Supported key types, data passing mechanisms (USM pointers, `oneapi::dpl::begin` / `end`,
@@ -112,14 +116,14 @@ ids, with the documented dispatch rule.
 namespace kt = oneapi::dpl::experimental::kt;
 
 sycl::queue q{sycl::gpu_selector_v};
-constexpr std::size_t B = 64, V = 32768, n = B * V;
+constexpr std::size_t B = 1024, V = 4096, n = B * V;
 float* probs = sycl::malloc_device<float>(n, q);               // B rows of V probabilities
 std::uint32_t* ids = sycl::malloc_device<std::uint32_t>(n, q); // ids[i] = i % V
 float* probs_out = sycl::malloc_device<float>(n, q);
 std::uint32_t* ids_out = sycl::malloc_device<std::uint32_t>(n, q);
 // ... fill probs and ids ...
 
-using param_t = kt::kernel_param<32, 1024>;
+using param_t = kt::kernel_param<16, 256>; // 4096 keys + ids per wg: 32 KB of SLM
 sycl::event e;
 if (V <= param_t::data_per_workitem * param_t::workgroup_size)
     e = kt::gpu::batched_merge_sort_by_key<false>(q, probs, probs + n, ids, probs_out, ids_out,
@@ -172,8 +176,14 @@ carries the same device and runtime restrictions.
 #### Dispatch
 It is the user's responsibility to invoke the correct algorithm. The documentation will describe a
 thin dispatch rule:
-* `__segment_size <= data_per_workitem * workgroup_size`: `batched_merge_sort`
+* `__segment_size <= data_per_workitem * workgroup_size`, with a `kernel_param` whose tile of keys
+  (and values) fits in local memory: `batched_merge_sort`
 * Otherwise: `batched_radix_sort`
+
+The local memory bound depends on key and value size, so larger types reduce the largest segment
+size served by `batched_merge_sort`. For example, at 64 KB of local memory, the tile is limited to
+16K `std::uint32_t` keys, 8K `std::uint32_t` key-value pairs, or 4K `std::uint64_t` key-value
+pairs.
 
 #### Expectations from Proof of Concept Work
 
