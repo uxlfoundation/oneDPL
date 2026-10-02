@@ -25,6 +25,7 @@
 #include <oneapi/dpl/iterator>
 
 #include "support/utils.h"
+#include "support/sycl_alloc_utils.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #    include <algorithm>
@@ -174,29 +175,31 @@ test_key_count(sycl::queue __q, std::size_t __min_type_size, const std::string& 
 
 template <typename HayT, typename KeyT, typename ResT, typename Invoke>
 void
-run_and_check(const std::vector<HayT>& __hay, const std::vector<KeyT>& __keys, const std::vector<ResT>& __ref,
-              Invoke __invoke, const std::string& __what)
+run_and_check(sycl::queue __q, const std::vector<HayT>& __hay, const std::vector<KeyT>& __keys,
+              const std::vector<ResT>& __ref, Invoke __invoke, const std::string& __what)
 {
-    // The key and result ranges stop one element short of their buffers. A lane past the end that
+    // The key and result ranges stop one element short of their allocations. A lane past the end that
     // stores anyway overwrites the sentinel with the result for the last key, which differs from it.
+    // Device USM, because a buffer opened no_init leaves the elements past the accessed range undefined.
     std::vector<KeyT> __keys_ext(__keys);
     __keys_ext.push_back(__keys.back());
     const ResT __sentinel = ResT(__ref.back() == ResT(0));
     std::unique_ptr<ResT[]> __actual(new ResT[__keys.size() + 1]);
     std::fill_n(__actual.get(), __keys.size(), ResT(0));
     __actual[__keys.size()] = __sentinel;
-    {
-        sycl::buffer<HayT> __hay_buf(const_cast<HayT*>(__hay.data()), sycl::range<1>(__hay.size()));
-        sycl::buffer<KeyT> __key_buf(__keys_ext.data(), sycl::range<1>(__keys_ext.size()));
-        sycl::buffer<ResT> __out_buf(__actual.get(), sycl::range<1>(__keys.size() + 1));
 
-        auto __key_begin = oneapi::dpl::begin(__key_buf);
-        auto __out_begin = oneapi::dpl::begin(__out_buf);
-        auto __ret = __invoke(oneapi::dpl::begin(__hay_buf), oneapi::dpl::end(__hay_buf), __key_begin,
-                              __key_begin + __keys.size(), __out_begin);
-        EXPECT_EQ(std::ptrdiff_t(__keys.size()), std::distance(__out_begin, __ret),
-                  (__what + ": wrong return value").c_str());
-    }
+    using TestUtils::usm_data_transfer;
+    usm_data_transfer<sycl::usm::alloc::device, HayT> __hay_dev(__q, const_cast<HayT*>(__hay.data()), __hay.size());
+    usm_data_transfer<sycl::usm::alloc::device, KeyT> __key_dev(__q, __keys_ext.data(), __keys_ext.size());
+    usm_data_transfer<sycl::usm::alloc::device, ResT> __out_dev(__q, __actual.get(), __keys.size() + 1);
+    HayT* __hay_begin = __hay_dev.get_data();
+    KeyT* __key_begin = __key_dev.get_data();
+    ResT* __out_begin = __out_dev.get_data();
+
+    ResT* __ret =
+        __invoke(__hay_begin, __hay_begin + __hay.size(), __key_begin, __key_begin + __keys.size(), __out_begin);
+    EXPECT_EQ(std::ptrdiff_t(__keys.size()), __ret - __out_begin, (__what + ": wrong return value").c_str());
+    __out_dev.retrieve_data(__actual.get());
     EXPECT_TRUE(__actual[__keys.size()] == __sentinel, (__what + ": stored past the end").c_str());
 
     std::size_t __bad = 0;
@@ -276,38 +279,38 @@ run_case(sycl::queue __q, std::size_t __n_keys, key_mix __mix, Comp __comp, cons
     using namespace oneapi::dpl::execution;
     if constexpr (std::is_same_v<Comp, TestUtils::IsLess<KeyT>>)
     {
-        run_and_check(__hay, __keys, __ref_lb,
+        run_and_check(__q, __hay, __keys, __ref_lb,
                       [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
                           return oneapi::dpl::lower_bound(make_device_policy<policy_name<KeyT, ResT, Comp, 0>>(__q),
                                                           __f, __l, __vf, __vl, __r);
                       },
                       __label + " lower_bound");
-        run_and_check(__hay, __keys, __ref_ub,
+        run_and_check(__q, __hay, __keys, __ref_ub,
                       [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
                           return oneapi::dpl::upper_bound(make_device_policy<policy_name<KeyT, ResT, Comp, 1>>(__q),
                                                           __f, __l, __vf, __vl, __r);
                       },
                       __label + " upper_bound");
-        run_and_check(__hay, __keys, __ref_bs,
+        run_and_check(__q, __hay, __keys, __ref_bs,
                       [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
                           return oneapi::dpl::binary_search(
                               make_device_policy<policy_name<KeyT, BsResT, Comp, 2>>(__q), __f, __l, __vf, __vl, __r);
                       },
                       __label + " binary_search");
     }
-    run_and_check(__hay, __keys, __ref_lb,
+    run_and_check(__q, __hay, __keys, __ref_lb,
                   [__q, __comp](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
                       return oneapi::dpl::lower_bound(make_device_policy<policy_name<KeyT, ResT, Comp, 3>>(__q), __f,
                                                       __l, __vf, __vl, __r, __comp);
                   },
                   __label + " lower_bound with comparator");
-    run_and_check(__hay, __keys, __ref_ub,
+    run_and_check(__q, __hay, __keys, __ref_ub,
                   [__q, __comp](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
                       return oneapi::dpl::upper_bound(make_device_policy<policy_name<KeyT, ResT, Comp, 4>>(__q), __f,
                                                       __l, __vf, __vl, __r, __comp);
                   },
                   __label + " upper_bound with comparator");
-    run_and_check(__hay, __keys, __ref_bs,
+    run_and_check(__q, __hay, __keys, __ref_bs,
                   [__q, __comp](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
                       return oneapi::dpl::binary_search(make_device_policy<policy_name<KeyT, BsResT, Comp, 5>>(__q),
                                                         __f, __l, __vf, __vl, __r, __comp);
@@ -364,19 +367,19 @@ run_mixed_types(sycl::queue __q)
     }
 
     using namespace oneapi::dpl::execution;
-    run_and_check(__hay, __keys, __ref_lb,
+    run_and_check(__q, __hay, __keys, __ref_lb,
                   [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
                       return oneapi::dpl::lower_bound(make_device_policy<mixed_policy_name<0>>(__q), __f, __l, __vf,
                                                       __vl, __r);
                   },
                   "float haystack, int32 keys lower_bound");
-    run_and_check(__hay, __keys, __ref_ub,
+    run_and_check(__q, __hay, __keys, __ref_ub,
                   [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
                       return oneapi::dpl::upper_bound(make_device_policy<mixed_policy_name<1>>(__q), __f, __l, __vf,
                                                       __vl, __r);
                   },
                   "float haystack, int32 keys upper_bound");
-    run_and_check(__hay, __keys, __ref_bs,
+    run_and_check(__q, __hay, __keys, __ref_bs,
                   [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
                       return oneapi::dpl::binary_search(make_device_policy<mixed_policy_name<2>>(__q), __f, __l, __vf,
                                                         __vl, __r);
