@@ -26,7 +26,7 @@ Existing solutions:
 * CUB `DeviceSegmentedSort`: stable and unstable variants; buckets segments by size, using merge
   sort for small and medium segments and radix sort for large.
 * SYCLomatic `dpct::segmented_sort_[keys/pairs]`: a naive implementation for correctness (serial
-  sort per work item, or a host loop of parallel sorts); not necessarily stable, and blocking.
+  sort per work-item, or a host loop of parallel sorts); not necessarily stable, and blocking.
 
 ### Requirements
 
@@ -151,10 +151,10 @@ Implement two kernels:
 1) Work-group merge path sort, for segments which fit into a single work-group
    (`workgroup_size * data_per_workitem`). Multiple segments may be packed into one work-group.
    * Load into registers and stable sort each work-item's `data_per_workitem` keys (leaf sort).
-   * `log2(__segment_size / data_per_workitem)` merge rounds: registers → SLM, barrier, each work-item
-     binary-searches its diagonal (co-rank) for its merge path start, then merges
+   * `log2(__segment_size / data_per_workitem)` merge rounds: registers → SLM, barrier, each
+     work-item binary-searches its diagonal (co-rank) for its merge path start, then merges
      `data_per_workitem` keys from SLM back into registers.
-2) Modified OneSweep radix sort, which handles any segment size, but is best for segments which do
+1) Modified OneSweep radix sort, which handles any segment size, but is best for segments which do
    not fit into a single work-group.
    * Global histogram and bin offset scan per (segment, radix stage).
    * Sweep tiles are aligned to segments, with one decoupled lookback chain per segment; tile 0 of
