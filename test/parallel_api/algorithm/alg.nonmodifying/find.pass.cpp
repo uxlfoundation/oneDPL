@@ -41,7 +41,7 @@ void
 test(Value value, Hit hit, Miss miss)
 {
     // Try sequences of various lengths.
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : get_find_test_sizes())
     {
         Sequence<T> in(n, [&](size_t k) -> T { return miss(n ^ k); });
         // Try different find positions, including not found.
