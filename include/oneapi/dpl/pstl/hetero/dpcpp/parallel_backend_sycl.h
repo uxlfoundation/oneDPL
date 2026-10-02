@@ -903,20 +903,20 @@ __is_backward_tag(_TagType)
 // early_exit (find_or)
 //------------------------------------------------------------------------
 
-// __wide trades a coarser early exit and a larger unrolled body for fewer loads and votes per element.
+// With __wide, each work item reads several contiguous elements per iteration and votes less often: fewer,
+// wider loads per element, at the cost of more registers and of scanning a little past a match.
 template <typename _Pred, bool __wide>
 struct __early_exit_find_or
 {
     _Pred __pred;
 
-    // Consecutive elements one work item scans per iteration: 8 to 16 bytes per range across the admitted
-    // widths. Not swept; the size gates below were measured at this value.
+    // Contiguous elements a work item reads per iteration: 16 bytes per lane at 4-byte types. Not swept.
     static constexpr std::size_t __elems_per_iter = __wide ? 4 : 1;
-    // Longest batch of iterations scanned between votes, trading early-exit latency against vote count. Not
-    // tuned; __batch_growth_delay defers growth, so only the largest inputs reach a batch longer than 1.
+    // Most iterations a work item scans between sub-group votes on whether a match was found. Fewer votes
+    // cost less, but a batch runs to its end after a match. Not tuned.
     static constexpr std::size_t __max_iters_per_vote = __wide ? 8 : 1;
-    // The next batch length is adopted only after this many of it have already been scanned, which bounds a
-    // batch's overshoot past a match to 1 / this of the iterations already spent. Not tuned.
+    // A batch doubles only once this many batches of the new length have been scanned, so the work done past a
+    // match stays under 1 / this of the work before it. Not tuned.
     static constexpr std::size_t __batch_growth_delay = 32;
 
     static_assert(__max_iters_per_vote > 0 && (__max_iters_per_vote & (__max_iters_per_vote - 1)) == 0,
@@ -1053,13 +1053,12 @@ struct __find_or_nd_range_params
     std::size_t __wgroup_size;
 };
 
-// Caps the wide kernel: its register demand can put a device's advertised maximum work-group size out of
-// reach. Conservative headroom rather than a measured limit; __launch_with_wg_size_fallback is the backstop.
-// The same cap and value serve __parallel_for_large_submitter.
+// Work-group size cap for the wide kernel. Its higher register use lowers the work-group size a device accepts
+// for it below the advertised maximum (768 on Xe3); __launch_with_wg_size_fallback covers a device that accepts less.
 inline constexpr std::size_t __find_or_wgroup_size_cap = 512;
 
-// Where __launch_with_wg_size_fallback stops halving: a work group below one sub-group gains nothing from
-// the vote the scan exits on, so there is no point retrying smaller.
+// Smallest work-group size __launch_with_wg_size_fallback retries: one sub-group, the unit the early-exit vote
+// spans.
 inline std::size_t
 __find_or_wgroup_size_retry_floor([[maybe_unused]] const sycl::queue& __q)
 {
@@ -1070,7 +1069,8 @@ __find_or_wgroup_size_retry_floor([[maybe_unused]] const sycl::queue& __q)
 #endif
 }
 
-// Up to this many elements per work item, a single work group scans the whole input.
+// Inputs of up to this many elements per work item of one full-size work group are scanned by a single work
+// group, which needs no atomics across work groups.
 inline constexpr std::size_t __find_or_one_wg_max_elems_per_item = 32;
 
 // A floor of this is unreachable, which is how a configuration declines the wide scan outright.
@@ -1080,25 +1080,24 @@ inline constexpr std::size_t __find_or_wide_scan_never = std::numeric_limits<std
 // Never scan wide on FPGA: unrolling the predicate costs area. The emulator declines it too.
 inline constexpr std::size_t __find_or_wide_scan_min_size = __find_or_wide_scan_never;
 #else
-// empirical: the smallest input the wide scan paid for on Ponte Vecchio, ~9 % at 2 and 4 bytes. Battlemage is
-// indistinguishable at this size. Measured on Battlemage and Ponte Vecchio, 2- and 4-byte types.
+// Smallest input that takes the wide scan.
+// empirical: below it the wide scan was not faster on both BMG and PVC, 2-4 byte types
 inline constexpr std::size_t __find_or_wide_scan_min_size = std::size_t{1} << 18;
 #endif
 
-// The smallest input a scan reading several elements per index pays for.
-// empirical: Battlemage and Ponte Vecchio, 4-byte types reading two distinct buffers.
+// The same, when each index reads several elements, e.g. equal or mismatch reading two sequences.
+// empirical: crossover measured on BMG and PVC, 4-byte types
 inline constexpr std::size_t __find_or_wide_scan_multi_elem_min_size = std::size_t{1} << 26;
 
-// Narrower elements scan wide only as a presence check over a single range.
-// empirical: 4-byte types won above this floor on Battlemage and Ponte Vecchio. Below it, only the presence
-// check was measured, and only at 2 bytes.
+// Narrowest element type the wide scan accepts, except in a presence check (__parallel_or_tag) over one range.
+// empirical: 2-byte searches for a match position were slower on BMG
 inline constexpr std::size_t __find_or_wide_scan_min_elem_size = 4;
 
-// The narrowest element that presence check admits: no element narrower than this has been measured.
+// Narrowest element type that presence check accepts; 1-byte types were not measured.
 inline constexpr std::size_t __find_or_wide_scan_or_tag_min_elem_size = 2;
 
-// empirical: above this width the wide scan lost below the largest size measured. Battlemage and Ponte
-// Vecchio, 4- and 8-byte types.
+// Widest element type the wide scan accepts.
+// empirical: 8-byte types were slower at all but the largest inputs on BMG and PVC
 inline constexpr std::size_t __find_or_wide_scan_max_elem_size = 4;
 
 // Whether the brick's predicate reads one element of each range at the scanned index -- the loads the wide
@@ -1388,8 +1387,8 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
     }
 };
 
-// The work-group-size fallback unwinds this scope and re-enters it, so an enqueued event can still be
-// writing scratch storage that unwinding is about to free.
+// On an exception, waits for the event before the USM it writes is freed: __launch_with_wg_size_fallback
+// catches the exception and continues while the kernel may still be running.
 struct __wait_event_on_unwind
 {
     [[maybe_unused]] sycl::event& __event;
