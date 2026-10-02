@@ -91,8 +91,8 @@ Runtime Parameters:
 
 ### Semantics
 
-* `n == 0` is a no-op.
-* `__segment_size == 0` or `n % __segment_size != 0` is rejected with an assertion.
+* `__segment_size == 0` is rejected with an assertion.
+* For `__segment_size > 0`, `n == 0` is a no-op; otherwise, `n % __segment_size != 0` is rejected with an assertion.
 * `batched_merge_sort*` rejects `__segment_size > data_per_workitem * workgroup_size` with an
   assertion.
 * `batched_merge_sort*` stages a full work-group tile of keys (and values) in local memory, so
@@ -122,6 +122,7 @@ std::uint32_t* ids = sycl::malloc_device<std::uint32_t>(n, q); // ids[i] = i % V
 float* probs_out = sycl::malloc_device<float>(n, q);
 std::uint32_t* ids_out = sycl::malloc_device<std::uint32_t>(n, q);
 // ... fill probs and ids ...
+q.wait(); // The current API has no dependency-event parameter.
 
 using param_t = kt::kernel_param<16, 256>; // 4096 keys + ids per wg: 32 KB of SLM
 sycl::event e;
