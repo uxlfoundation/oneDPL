@@ -24,6 +24,11 @@
 
 #include "radix_sort_utils.h"
 
+// TODO: temporary benchmarking hook to compare the leaf sort networks; remove before upstreaming
+#ifndef _ONEDPL_KT_BATCHED_MERGE_SORT_FORCE_TRANSPOSITION_LEAF
+#    define _ONEDPL_KT_BATCHED_MERGE_SORT_FORCE_TRANSPOSITION_LEAF 0
+#endif
+
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
 
@@ -80,7 +85,7 @@ __work_item_stable_sort(_KeyT (&__keys)[_N], _ValT (&__vals)[_N], _Less __less)
             std::swap(__vals[__i], __vals[__j]);
     };
 
-    if constexpr ((_N & (_N - 1)) == 0)
+    if constexpr ((_N & (_N - 1)) == 0 && !_ONEDPL_KT_BATCHED_MERGE_SORT_FORCE_TRANSPOSITION_LEAF)
     {
         // Bitonic network with a slot index tie-break, which makes it stable: indices are unique, so no two
         // elements compare equal. All indices are static after unrolling.
