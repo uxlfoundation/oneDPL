@@ -91,7 +91,7 @@ struct __custom_brick
 
     // Searches kept in flight per work item, 32-bit index path. empirical: 4 ran 1.09-1.15x faster than 2
     // on BMG and PVC, float, 2^22-2^28 elements.
-    static constexpr std::uint8_t max_in_flight_32 = 4;
+    static constexpr std::uint8_t max_in_flight_32 = 2;
     // Searches kept in flight per work item, 64-bit index path, which shares a kernel with the 32-bit path.
     // empirical, AOT screen only: above 2 that kernel takes large GRF on PVC or SIMD8 on dg2, 1-4 byte types.
     static constexpr std::uint8_t max_in_flight_64 = 2;
