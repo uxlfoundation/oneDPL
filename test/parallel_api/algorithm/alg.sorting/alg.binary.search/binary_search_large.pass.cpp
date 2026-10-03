@@ -13,10 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-// lower_bound / upper_bound / binary_search take a batched code path once the key count is large enough
-// for __parallel_for's large submitter. The gate scales with the device's compute unit count, so on a
-// large GPU it sits above a million keys, which no other test in this directory reaches there. This test
-// derives the gate from the device and sizes itself at twice it, so that it still crosses a gate that moves up.
+// Covers the batched lower_bound / upper_bound / binary_search path, taken above __parallel_for's
+// large-submitter gate, which scales with the device.
 
 #include "support/test_config.h"
 
@@ -38,9 +36,7 @@
 #    include <type_traits>
 #    include <vector>
 
-// A three-byte key, to select an iterations-per-item count that is not a multiple of the number of
-// searches kept in flight, so that a batch and a shorter trailing batch both run. It is also not
-// default constructible, which none of these algorithms requires of a key or haystack value type.
+// 5 iterations per item: a full batch plus a tail. Not default constructible.
 struct Key3
 {
     std::uint8_t __b[3];
@@ -66,8 +62,7 @@ struct Key3
 };
 static_assert(!std::is_default_constructible_v<Key3>);
 
-// A ten-byte key. The cap on the bytes a work item keeps in flight allows three such searches, which
-// divides none of the iterations-per-item counts its result types select, so a trailing batch runs.
+// The byte cap allows 3 searches of this size, which divides none of its iteration counts, so a tail runs.
 struct Key10
 {
     std::uint16_t __w[5];
@@ -138,8 +133,7 @@ class policy_name;
 template <int Idx>
 class mixed_policy_name;
 
-// How the keys are drawn. A uniform draw over the haystack's range almost never lands outside it, so the
-// searches that run off either end would reach only a handful of lanes; absent_heavy forces them.
+// A uniform draw rarely leaves the haystack range; absent_heavy forces searches off either end.
 enum class key_mix
 {
     uniform,
@@ -150,9 +144,8 @@ enum class key_mix
 std::size_t
 batched_path_min_keys(sycl::queue __q, std::size_t __min_type_size)
 {
-    const std::size_t __wg =
-        std::min<std::size_t>(512, __q.get_device().get_info<sycl::info::device::max_work_group_size>());
-    const std::size_t __cu = __q.get_device().get_info<sycl::info::device::max_compute_units>();
+    const std::size_t __wg = oneapi::dpl::__internal::__max_work_group_size(__q, 512);
+    const std::size_t __cu = oneapi::dpl::__internal::__max_compute_units(__q);
     const std::size_t __iters_per_item = std::max<std::size_t>(1, 16 / __min_type_size);
     return __wg * __iters_per_item * __cu;
 }
@@ -163,7 +156,7 @@ test_key_count(sycl::queue __q, std::size_t __min_type_size, const std::string& 
 {
     const std::size_t __min_keys = batched_path_min_keys(__q, __min_type_size);
     const std::size_t __n = 2 * __min_keys;
-    // Safety valve on the allocation, not a device bound: 2^25 8-byte keys is already ~800 MB.
+    // Caps the allocation; not a device bound.
     if (__n > (std::size_t(1) << 25))
     {
         std::cout << "Skipping " << __label << ": batched path needs " << __min_keys << " keys" << std::endl;
@@ -178,9 +171,8 @@ void
 run_and_check(sycl::queue __q, const std::vector<HayT>& __hay, const std::vector<KeyT>& __keys,
               const std::vector<ResT>& __ref, Invoke __invoke, const std::string& __what)
 {
-    // The key and result ranges stop one element short of their allocations. A lane past the end that
-    // stores anyway overwrites the sentinel with the result for the last key, which differs from it.
-    // Device USM, because a buffer opened no_init leaves the elements past the accessed range undefined.
+    // The key and result ranges stop one element short of their allocations, so a store past the end
+    // overwrites the sentinel.
     std::vector<KeyT> __keys_ext(__keys);
     __keys_ext.push_back(__keys.back());
     const ResT __sentinel = ResT(__ref.back() == ResT(0));
@@ -261,7 +253,7 @@ run_case(sycl::queue __q, std::size_t __n_keys, key_mix __mix, Comp __comp, cons
             }
         }
     }
-    // Pin the ends: a key below every element and one above every element.
+    // Pin keys at both ends of the range.
     __keys[0] = key_traits<KeyT>::make(0);
     __keys[__n_keys - 1] = key_traits<KeyT>::make(__span);
     std::sort(__hay.begin(), __hay.end(), __comp);
@@ -326,9 +318,7 @@ run_type(sycl::queue __q, const std::string& __type_label)
     if (__n == 0)
         return;
 
-    // __n keys give every work item its full complement. One fewer leaves the last lane of the last
-    // work group one key short, so that one batch mixes in-range and out-of-range keys; three more
-    // leave a trailing work group with three keys.
+    // __n fills every work item; __n - 1 leaves one batch partly out of range; __n + 3 adds a trailing group.
     run_case<KeyT, ResT, BsResT>(__q, __n, key_mix::uniform, Comp{}, __type_label + " full");
     run_case<KeyT, ResT, BsResT>(__q, __n - 1, key_mix::uniform, Comp{}, __type_label + " partial lane");
     run_case<KeyT, ResT, BsResT>(__q, __n, key_mix::absent_heavy, Comp{}, __type_label + " full, absent heavy");
@@ -346,7 +336,8 @@ run_mixed_types(sycl::queue __q)
         return;
 
     const std::size_t __n_keys = __n - 1;
-    const std::size_t __n_hay = __n_keys | 1;
+    // Below 2^23, where a float still holds every half-integer.
+    const std::size_t __n_hay = std::min<std::size_t>(__n_keys, std::size_t(1) << 22) | 1;
     std::vector<float> __hay(__n_hay);
     for (std::size_t __i = 0; __i != __n_hay; ++__i)
         __hay[__i] = float(__i) + ((__i & 1) ? 0.5f : 0.f);
