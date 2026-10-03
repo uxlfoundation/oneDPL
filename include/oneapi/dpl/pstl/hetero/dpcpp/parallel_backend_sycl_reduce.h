@@ -531,6 +531,8 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __tag,
 
     oneapi::dpl::__internal::__lazy_ctor_storage<_Tp> __result;
     __holder.template __copy_result<0>(&__result.__v, 1);
+    oneapi::dpl::__internal::__scoped_destroyer<_Tp> __destroy_when_leaving_scope{__result};
+
     return __result.__v;
 }
 } // namespace __par_backend_hetero
