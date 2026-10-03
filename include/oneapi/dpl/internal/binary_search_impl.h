@@ -89,8 +89,8 @@ struct __custom_brick
     // The batched search copies keys and haystack elements.
     static constexpr bool __batched = std::is_copy_constructible_v<_KeyT> && std::is_copy_constructible_v<_HaystackT>;
 
-    // Searches kept in flight per work item, 32-bit index path. empirical: 4 ran 1.09-1.15x faster than 2
-    // on BMG and PVC, float, 2^22-2^28 elements.
+    // Searches kept in flight per work item, 32-bit index path. empirical: 4 ran faster than 2 on BMG and PVC
+    // at 2^24-2^28 elements, 1.10-1.15x for float and 1.03-1.08x for uint16_t.
     static constexpr std::uint8_t max_in_flight_32 = 4;
     // Searches kept in flight per work item, 64-bit index path, which shares a kernel with the 32-bit path.
     // empirical, AOT screen only: above 2 that kernel takes large GRF on PVC or SIMD8 on dg2, 1-4 byte types.
