@@ -38,7 +38,7 @@ enum class search_algorithm
 };
 
 #if _ONEDPL_BACKEND_SYCL
-template <typename Comp, typename T, search_algorithm func>
+template <typename Comp, typename T, search_algorithm func, typename _KeyT, typename _HaystackT>
 struct __custom_brick
 {
     Comp comp;
@@ -86,7 +86,8 @@ struct __custom_brick
             search_impl<std::uint64_t>(idx, acc);
     }
 
-    static constexpr bool __batched = true;
+    // The batched search copies keys and haystack elements.
+    static constexpr bool __batched = std::is_copy_constructible_v<_KeyT> && std::is_copy_constructible_v<_HaystackT>;
 
     // Searches kept in flight per work item, 32-bit index path. empirical: 4 ran 1.09-1.15x faster than 2
     // on BMG and PVC, float, 2^22-2^28 elements.
@@ -312,10 +313,11 @@ lower_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
+    using _KeyT = typename std::iterator_traits<InputIterator2>::value_type;
+    using _HaystackT = typename std::iterator_traits<InputIterator1>::value_type;
+    using _Brick = __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::lower_bound, _KeyT, _HaystackT>;
     __bknd::__parallel_for(_BackendTag{}, std::forward<decltype(policy)>(policy),
-                           __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::lower_bound>{
-                               comp, size, use_32bit_indexing},
-                           value_size, zip_vw)
+                           _Brick{comp, size, use_32bit_indexing}, value_size, zip_vw)
         .__checked_deferrable_wait();
     return result + value_size;
 }
@@ -345,10 +347,11 @@ upper_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
+    using _KeyT = typename std::iterator_traits<InputIterator2>::value_type;
+    using _HaystackT = typename std::iterator_traits<InputIterator1>::value_type;
+    using _Brick = __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::upper_bound, _KeyT, _HaystackT>;
     __bknd::__parallel_for(_BackendTag{}, std::forward<decltype(policy)>(policy),
-                           __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::upper_bound>{
-                               comp, size, use_32bit_indexing},
-                           value_size, zip_vw)
+                           _Brick{comp, size, use_32bit_indexing}, value_size, zip_vw)
         .__checked_deferrable_wait();
     return result + value_size;
 }
@@ -378,10 +381,12 @@ binary_search_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, Input
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
+    using _KeyT = typename std::iterator_traits<InputIterator2>::value_type;
+    using _HaystackT = typename std::iterator_traits<InputIterator1>::value_type;
+    using _Brick =
+        __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::binary_search, _KeyT, _HaystackT>;
     __bknd::__parallel_for(_BackendTag{}, std::forward<decltype(policy)>(policy),
-                           __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::binary_search>{
-                               comp, size, use_32bit_indexing},
-                           value_size, zip_vw)
+                           _Brick{comp, size, use_32bit_indexing}, value_size, zip_vw)
         .__checked_deferrable_wait();
     return result + value_size;
 }
