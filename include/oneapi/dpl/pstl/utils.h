@@ -987,11 +987,8 @@ __pstl_left_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng
     return __pstl_lower_bound_idx(__rng1, __beg, __end, __rng2, __rng2_idx, __negation_comp, __proj1, __proj2);
 }
 
-// Lower bound implementation based on Shar's algorithm for binary search: __C independent searches run
-// in lock step, so that the __C probes of a round are in flight together. The chain length is fixed by
-// __last - __first and is the same for every value, which is what lets the searches share the loop.
-// __value(__j) supplies the __j-th key, leaving the caller to say where the keys live.
-// Correct only for __first == 0.
+// Lower bound implementation based on Shar's algorithm for binary search, for __C keys in lock step so that
+// the __C probes of a round are in flight together. Correct only for __first == 0.
 template <std::size_t __C, typename _Acc, typename _Size, typename _GetValue, typename _Compare>
 void
 __shars_lower_bound_batched(_Acc __acc, _Size __first, _Size __last, _GetValue __value, _Size* __result,
@@ -1009,8 +1006,7 @@ __shars_lower_bound_batched(_Acc __acc, _Size __first, _Size __last, _GetValue _
     const _Size __pow2_top = __dpl_bit_floor(__n);
     const _Size __midpoint = __n / 2;
     // Check the middle element to determine whether to search the first or last 2^(bit_floor(__n)) - 1
-    // elements. __n + 1 is exact only as unsigned modular arithmetic: at __n == max it wraps to 0 and the
-    // subtraction wraps back. Widening the intermediate would break it.
+    // elements.
     _Size __shifted_first[__C];
     _Size __search_offset[__C];
     _ONEDPL_PRAGMA_UNROLL

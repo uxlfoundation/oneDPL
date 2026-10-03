@@ -86,18 +86,16 @@ struct __custom_brick
             search_impl<std::uint64_t>(idx, acc);
     }
 
-    // Opt into the batched dispatch: interleaving independent searches issues _C probes per round
-    // without changing which probes are performed.
     static constexpr bool __batched = true;
 
-    // Searches kept in flight per work item, 32-bit index path. empirical: 4 beat 2 by 9-15% at 4M-256M floats
-    // on BMG and PVC; 8 costs register budget (PVC) or SIMD width (dg2) at 2-byte keys.
+    // Searches kept in flight per work item, 32-bit index path. empirical: 4 ran 1.09-1.15x faster than 2
+    // on BMG and PVC, float, 2^22-2^28 elements.
     static constexpr std::uint8_t max_in_flight_32 = 4;
-    // Searches kept in flight per work item, 64-bit index path. empirical: 4 compiles the shared kernel to
-    // large GRF on PVC (1-4 byte types) and SIMD8 on dg2 (some 1-2 byte types), for the 32-bit path too.
+    // Searches kept in flight per work item, 64-bit index path, which shares a kernel with the 32-bit path.
+    // empirical, AOT screen only: above 2 that kernel takes large GRF on PVC or SIMD8 on dg2, 1-4 byte types.
     static constexpr std::uint8_t max_in_flight_64 = 2;
-    // Bytes of key and haystack element held across the in-flight searches. empirical: 4 searches of
-    // 8-byte keys and 8-byte haystack elements compile without spills on PVC and dg2
+    // Bytes of key and haystack element held across the in-flight searches. empirical, AOT screen only:
+    // without it, 4 searches of 32-byte keys and elements take large GRF on PVC and SIMD8 on dg2.
     static constexpr std::size_t max_bytes_in_flight = 64;
 
     template <typename _Size, std::size_t _C, typename _IsFull, typename _Acc>
@@ -109,8 +107,7 @@ struct __custom_brick
         using _KeyType = std::decay_t<decltype(get<1>(acc[idx]))>;
         using _HaystackType = std::decay_t<decltype(get<0>(acc[idx]))>;
 
-        // A lane whose index is past the end of the key range repeats the last in-range search rather
-        // than branching around it; only in-range lanes store a result.
+        // Out-of-range lanes repeat the last in-range search; only in-range lanes store.
         auto key_index = [=](std::size_t j) {
             const std::size_t i = idx + j * stride;
             if constexpr (_IsFull::value)
@@ -119,8 +116,7 @@ struct __custom_brick
                 return std::min(i, bound - 1);
         };
 
-        // Neither value type is required to be default constructible, so the batch constructs and
-        // destroys the copies it holds in registers.
+        // Value types need not be default constructible.
         oneapi::dpl::__internal::__lazy_ctor_storage<_KeyType> value[_C];
         _Size result[_C];
         _ONEDPL_PRAGMA_UNROLL
@@ -139,8 +135,7 @@ struct __custom_brick
 
         if constexpr (func == search_algorithm::binary_search)
         {
-            // An out-of-range result substitutes index 0, which is always a valid load because an empty
-            // haystack returns before the kernel is submitted.
+            // Index 0 is a safe load: an empty haystack returns before submission.
             oneapi::dpl::__internal::__lazy_ctor_storage<_HaystackType> probe[_C];
             _ONEDPL_PRAGMA_UNROLL
             for (std::size_t j = 0; j < _C; ++j)
@@ -175,6 +170,7 @@ struct __custom_brick
         using std::get;
         constexpr std::size_t bytes_per_search =
             sizeof(std::decay_t<decltype(get<1>(acc[idx]))>) + sizeof(std::decay_t<decltype(get<0>(acc[idx]))>);
+        // _NumStrides is __parallel_for's per-item count, so it bounds the batch as well.
         constexpr std::size_t batch = std::min<std::size_t>(
             {_NumStrides, _MaxInFlight, std::max<std::size_t>(1, max_bytes_in_flight / bytes_per_search)});
         constexpr std::size_t full_batches = _NumStrides / batch;
