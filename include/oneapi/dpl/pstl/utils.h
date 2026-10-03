@@ -19,6 +19,7 @@
 #include "onedpl_config.h"
 #include "tuple_impl.h" // __internal::tuple
 
+#include <memory> // for std::addressof
 #include <new>
 #include <tuple>
 #include <utility>
@@ -1175,7 +1176,7 @@ union __lazy_ctor_storage
     void
     __setup(_U&& init)
     {
-        new (&__v) _Tp(std::forward<_U>(init));
+        ::new (static_cast<void*>(std::addressof(__v))) _Tp(std::forward<_U>(init));
     }
     void
     __destroy()
