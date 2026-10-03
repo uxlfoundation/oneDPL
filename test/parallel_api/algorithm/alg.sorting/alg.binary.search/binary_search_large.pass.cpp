@@ -28,6 +28,7 @@
 #if TEST_DPCPP_BACKEND_PRESENT
 #    include <algorithm>
 #    include <cstdint>
+#    include <functional>
 #    include <iostream>
 #    include <limits>
 #    include <memory>
@@ -94,6 +95,99 @@ struct Key10
 };
 static_assert(sizeof(Key10) == 10);
 
+// Overloads unary operator&, so the batch must take the address of its copies with std::addressof.
+struct KeyAddr
+{
+    std::uint32_t __v;
+
+    explicit KeyAddr(std::uint32_t __x) : __v(__x) {}
+
+    KeyAddr*
+    operator&()
+    {
+        return this + 1;
+    }
+    const KeyAddr*
+    operator&() const
+    {
+        return this + 1;
+    }
+    bool
+    operator<(const KeyAddr& __o) const
+    {
+        return __v < __o.__v;
+    }
+    bool
+    operator==(const KeyAddr& __o) const
+    {
+        return __v == __o.__v;
+    }
+};
+
+// A class-specific operator new hides the global placement form.
+struct KeyNew
+{
+    std::uint32_t __v;
+
+    explicit KeyNew(std::uint32_t __x) : __v(__x) {}
+
+    static void*
+    operator new(std::size_t __n)
+    {
+        return ::operator new(__n);
+    }
+    static void
+    operator delete(void* __p)
+    {
+        ::operator delete(__p);
+    }
+    bool
+    operator<(const KeyNew& __o) const
+    {
+        return __v < __o.__v;
+    }
+    bool
+    operator==(const KeyNew& __o) const
+    {
+        return __v == __o.__v;
+    }
+};
+
+struct KeyDtor
+{
+    std::uint32_t __v;
+
+    explicit KeyDtor(std::uint32_t __x) : __v(__x) {}
+    KeyDtor(const KeyDtor&) = default;
+    KeyDtor&
+    operator=(const KeyDtor&) = default;
+    ~KeyDtor() {}
+
+    bool
+    operator<(const KeyDtor& __o) const
+    {
+        return __v < __o.__v;
+    }
+    bool
+    operator==(const KeyDtor& __o) const
+    {
+        return __v == __o.__v;
+    }
+};
+
+static_assert(!std::is_trivially_destructible_v<KeyDtor>);
+
+using KeyMoveOnly = TestUtils::MoveOnlyWrapper<std::uint32_t>;
+
+template <typename KeyT>
+constexpr bool takes_batched_path = oneapi::dpl::__par_backend_hetero::__brick_is_batched_v<
+    oneapi::dpl::internal::__custom_brick<std::less<KeyT>, std::ptrdiff_t,
+                                          oneapi::dpl::internal::search_algorithm::lower_bound, KeyT, KeyT>>;
+static_assert(takes_batched_path<KeyAddr>);
+static_assert(takes_batched_path<KeyNew>);
+static_assert(takes_batched_path<KeyDtor>);
+static_assert(!takes_batched_path<KeyMoveOnly>);
+
 template <typename KeyT>
 struct key_traits
 {
@@ -125,6 +219,38 @@ struct key_traits<Key10>
     {
         return Key10(__v);
     }
+};
+
+// Keys that hold a full std::uint32_t.
+template <typename KeyT>
+struct key_traits_u32
+{
+    static constexpr std::uint32_t max_value = std::numeric_limits<std::uint32_t>::max();
+    static KeyT
+    make(std::uint32_t __v)
+    {
+        return KeyT(__v);
+    }
+};
+
+template <>
+struct key_traits<KeyAddr> : key_traits_u32<KeyAddr>
+{
+};
+
+template <>
+struct key_traits<KeyNew> : key_traits_u32<KeyNew>
+{
+};
+
+template <>
+struct key_traits<KeyDtor> : key_traits_u32<KeyDtor>
+{
+};
+
+template <>
+struct key_traits<KeyMoveOnly> : key_traits_u32<KeyMoveOnly>
+{
 };
 
 template <typename KeyT, typename ResT, typename Comp, int Idx>
@@ -173,8 +299,6 @@ run_and_check(sycl::queue __q, const std::vector<HayT>& __hay, const std::vector
 {
     // The key and result ranges stop one element short of their allocations, so a store past the end
     // overwrites the sentinel.
-    std::vector<KeyT> __keys_ext(__keys);
-    __keys_ext.push_back(__keys.back());
     const ResT __sentinel = ResT(__ref.back() == ResT(0));
     std::unique_ptr<ResT[]> __actual(new ResT[__keys.size() + 1]);
     std::fill_n(__actual.get(), __keys.size(), ResT(0));
@@ -182,7 +306,10 @@ run_and_check(sycl::queue __q, const std::vector<HayT>& __hay, const std::vector
 
     using TestUtils::usm_data_transfer;
     usm_data_transfer<sycl::usm::alloc::device, HayT> __hay_dev(__q, const_cast<HayT*>(__hay.data()), __hay.size());
-    usm_data_transfer<sycl::usm::alloc::device, KeyT> __key_dev(__q, __keys_ext.data(), __keys_ext.size());
+    usm_data_transfer<sycl::usm::alloc::device, KeyT> __key_dev(__q, __keys.size() + 1);
+    KeyT* __keys_host = const_cast<KeyT*>(__keys.data());
+    __key_dev.update_data(__keys_host, 0, __keys.size());
+    __key_dev.update_data(__keys_host + __keys.size() - 1, __keys.size(), 1);
     usm_data_transfer<sycl::usm::alloc::device, ResT> __out_dev(__q, __actual.get(), __keys.size() + 1);
     HayT* __hay_begin = __hay_dev.get_data();
     KeyT* __key_begin = __key_dev.get_data();
@@ -219,19 +346,24 @@ run_case(sycl::queue __q, std::size_t __n_keys, key_mix __mix, Comp __comp, cons
     // Lifting the haystack off zero makes keys below its first element representable.
     const std::uint32_t __base = (__mix == key_mix::absent_heavy) ? 8 : 0;
 
-    const KeyT __fill = key_traits<KeyT>::make(0);
-    std::vector<KeyT> __hay(__n_hay, __fill), __keys(__n_keys, __fill);
+    auto __hay_value = [=](std::size_t __i) {
+        return __base + std::uint32_t(std::uint64_t(__i) * (__span - __base) / __n_hay);
+    };
+
+    // Built without copies, so that move-only types run too.
+    std::vector<KeyT> __hay, __keys;
+    __hay.reserve(__n_hay);
+    __keys.reserve(__n_keys);
     for (std::size_t __i = 0; __i != __n_hay; ++__i)
-        __hay[__i] = key_traits<KeyT>::make(__base + std::uint32_t(std::uint64_t(__i) * (__span - __base) / __n_hay));
+        __hay.push_back(key_traits<KeyT>::make(__hay_value(__i)));
 
     std::mt19937 __gen(777);
     std::uniform_int_distribution<std::uint32_t> __dist(0, __span);
     for (std::size_t __i = 0; __i != __n_keys; ++__i)
-        __keys[__i] = key_traits<KeyT>::make(__dist(__gen));
+        __keys.push_back(key_traits<KeyT>::make(__dist(__gen)));
     if (__mix == key_mix::absent_heavy)
     {
-        const std::uint32_t __hay_max =
-            __base + std::uint32_t(std::uint64_t(__n_hay - 1) * (__span - __base) / __n_hay);
+        const std::uint32_t __hay_max = __hay_value(__n_hay - 1);
         std::uniform_int_distribution<std::uint32_t> __past(__hay_max + 1, __span);
         std::uniform_int_distribution<std::uint32_t> __below(0, __base - 1);
         std::uniform_int_distribution<std::size_t> __element(0, __n_hay - 1);
@@ -240,7 +372,7 @@ run_case(sycl::queue __q, std::size_t __n_keys, key_mix __mix, Comp __comp, cons
             switch (__gen() & 3u)
             {
             case 0:
-                __keys[__i] = __hay[__element(__gen)];
+                __keys[__i] = key_traits<KeyT>::make(__hay_value(__element(__gen)));
                 break;
             case 1:
                 __keys[__i] = key_traits<KeyT>::make(__past(__gen));
@@ -269,7 +401,7 @@ run_case(sycl::queue __q, std::size_t __n_keys, key_mix __mix, Comp __comp, cons
     }
 
     using namespace oneapi::dpl::execution;
-    if constexpr (std::is_same_v<Comp, TestUtils::IsLess<KeyT>>)
+    if constexpr (std::is_same_v<Comp, TestUtils::IsLess<KeyT>> || std::is_same_v<Comp, std::less<KeyT>>)
     {
         run_and_check(__q, __hay, __keys, __ref_lb,
                       [__q](auto __f, auto __l, auto __vf, auto __vl, auto __r) {
@@ -396,6 +528,11 @@ main()
     // A comparator that reverses the order, and 8-byte keys with a bool binary_search result.
     run_type<std::uint64_t, std::uint64_t, bool, TestUtils::IsGreat<std::uint64_t>>(__q, "uint64 descending");
     run_mixed_types(__q);
+    run_type<KeyAddr, std::uint32_t>(__q, "overloaded operator&");
+    run_type<KeyNew, std::uint32_t>(__q, "class operator new");
+    run_type<KeyDtor, std::uint32_t>(__q, "non-trivial destructor");
+    // IsLess takes its arguments by value.
+    run_type<KeyMoveOnly, std::uint32_t, std::uint32_t, std::less<KeyMoveOnly>>(__q, "move-only");
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
