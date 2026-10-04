@@ -106,12 +106,12 @@ class __iterations_per_item
 template <typename _Brick, typename... _Ranges>
 inline constexpr std::uint8_t __iterations_per_item_v = __iterations_per_item<_Brick, _Ranges...>::value;
 
-// A brick may set __batched<__num_strides> to opt out of the strided loop and receive all of its indices at once.
-template <typename _Brick, std::uint8_t __num_strides>
+// A brick may set __batched<__num_strides, _Args...> to skip the strided loop and receive all its indices at once.
+template <typename _Brick, std::uint8_t __num_strides, typename... _Args>
 class __brick_is_batched
 {
     template <typename _F>
-    static std::bool_constant<_F::template __batched<__num_strides>>
+    static std::bool_constant<_F::template __batched<__num_strides, _Args...>>
     test(int);
 
     template <typename>
@@ -121,8 +121,8 @@ class __brick_is_batched
   public:
     constexpr static bool value = decltype(test<_Brick>(0))::value;
 };
-template <typename _Brick, std::uint8_t __num_strides>
-inline constexpr bool __brick_is_batched_v = __brick_is_batched<_Brick, __num_strides>::value;
+template <typename _Brick, std::uint8_t __num_strides, typename... _Args>
+inline constexpr bool __brick_is_batched_v = __brick_is_batched<_Brick, __num_strides, _Args...>::value;
 
 template <typename... Name>
 class __parallel_for_small_kernel;
@@ -249,7 +249,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     __execute(std::size_t __bound, bool __is_full, std::size_t __idx, std::uint16_t __stride, const _Fp& __brick,
               bool /*hint*/, _Args&&... __args)
     {
-        if constexpr (__brick_is_batched_v<_Fp, __num_strides>)
+        if constexpr (__brick_is_batched_v<_Fp, __num_strides, std::decay_t<_Args>...>)
         {
             if (__is_full)
                 __brick.template __execute_batch<__num_strides>(std::true_type{}, __bound, __idx, __stride, __args...);

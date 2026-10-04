@@ -38,7 +38,7 @@ enum class search_algorithm
 };
 
 #if _ONEDPL_BACKEND_SYCL
-template <typename Comp, typename T, search_algorithm func, typename _KeyT, typename _HaystackT>
+template <typename Comp, typename T, search_algorithm func>
 struct __custom_brick
 {
     Comp comp;
@@ -90,10 +90,16 @@ struct __custom_brick
     // keep the strided loop.
     static constexpr std::uint8_t max_batched_strides = 8;
 
-    // The batched search copies keys and haystack elements.
-    template <std::uint8_t _NumStrides>
-    static constexpr bool __batched = _NumStrides <= max_batched_strides && std::is_copy_constructible_v<_KeyT> &&
-                                      std::is_copy_constructible_v<_HaystackT>;
+    template <typename _Rng>
+    using __key_t = std::decay_t<decltype(std::get<1>(std::declval<_Rng&>()[0]))>;
+    template <typename _Rng>
+    using __haystack_t = std::decay_t<decltype(std::get<0>(std::declval<_Rng&>()[0]))>;
+
+    // The batch copies each key, and for binary_search the haystack element it lands on.
+    template <std::uint8_t _NumStrides, typename _Params, typename _Rng>
+    static constexpr bool __batched =
+        _NumStrides <= max_batched_strides && std::is_copy_constructible_v<__key_t<_Rng>> &&
+        (func != search_algorithm::binary_search || std::is_copy_constructible_v<__haystack_t<_Rng>>);
 
     // Searches kept in flight per work item, 32-bit index path. empirical: 4 ran faster than 2 on BMG and PVC
     // at 2^24-2^28 elements, 1.10-1.15x for float and 1.03-1.08x for uint16_t.
@@ -111,8 +117,8 @@ struct __custom_brick
     {
         using std::get;
         auto haystack = get<0>(acc.base());
-        using _KeyType = std::decay_t<decltype(get<1>(acc[idx]))>;
-        using _HaystackType = std::decay_t<decltype(get<0>(acc[idx]))>;
+        using _KeyType = __key_t<_Acc>;
+        using _HaystackType = __haystack_t<_Acc>;
 
         // Out-of-range lanes repeat the last in-range search; only in-range lanes store.
         auto key_index = [=](std::size_t j) {
@@ -174,9 +180,7 @@ struct __custom_brick
     search_rounds(_IsFull, std::size_t bound, std::size_t idx, std::uint16_t stride, _Acc acc) const
     {
         static_assert(_MaxInFlight > 0);
-        using std::get;
-        constexpr std::size_t bytes_per_search =
-            sizeof(std::decay_t<decltype(get<1>(acc[idx]))>) + sizeof(std::decay_t<decltype(get<0>(acc[idx]))>);
+        constexpr std::size_t bytes_per_search = sizeof(__key_t<_Acc>) + sizeof(__haystack_t<_Acc>);
         // _NumStrides is __parallel_for's per-item count, so it bounds the batch as well.
         constexpr std::size_t batch = std::min<std::size_t>(
             {_NumStrides, _MaxInFlight, std::max<std::size_t>(1, max_bytes_in_flight / bytes_per_search)});
@@ -319,11 +323,10 @@ lower_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
-    using _KeyT = typename std::iterator_traits<InputIterator2>::value_type;
-    using _HaystackT = typename std::iterator_traits<InputIterator1>::value_type;
-    using _Brick = __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::lower_bound, _KeyT, _HaystackT>;
     __bknd::__parallel_for(_BackendTag{}, std::forward<decltype(policy)>(policy),
-                           _Brick{comp, size, use_32bit_indexing}, value_size, zip_vw)
+                           __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::lower_bound>{
+                               comp, size, use_32bit_indexing},
+                           value_size, zip_vw)
         .__checked_deferrable_wait();
     return result + value_size;
 }
@@ -353,11 +356,10 @@ upper_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
-    using _KeyT = typename std::iterator_traits<InputIterator2>::value_type;
-    using _HaystackT = typename std::iterator_traits<InputIterator1>::value_type;
-    using _Brick = __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::upper_bound, _KeyT, _HaystackT>;
     __bknd::__parallel_for(_BackendTag{}, std::forward<decltype(policy)>(policy),
-                           _Brick{comp, size, use_32bit_indexing}, value_size, zip_vw)
+                           __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::upper_bound>{
+                               comp, size, use_32bit_indexing},
+                           value_size, zip_vw)
         .__checked_deferrable_wait();
     return result + value_size;
 }
@@ -387,12 +389,10 @@ binary_search_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, Input
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
-    using _KeyT = typename std::iterator_traits<InputIterator2>::value_type;
-    using _HaystackT = typename std::iterator_traits<InputIterator1>::value_type;
-    using _Brick =
-        __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::binary_search, _KeyT, _HaystackT>;
     __bknd::__parallel_for(_BackendTag{}, std::forward<decltype(policy)>(policy),
-                           _Brick{comp, size, use_32bit_indexing}, value_size, zip_vw)
+                           __custom_brick<StrictWeakOrdering, decltype(size), search_algorithm::binary_search>{
+                               comp, size, use_32bit_indexing},
+                           value_size, zip_vw)
         .__checked_deferrable_wait();
     return result + value_size;
 }

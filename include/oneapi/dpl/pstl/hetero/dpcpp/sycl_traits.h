@@ -811,14 +811,13 @@ namespace oneapi::dpl::internal
 
 enum class search_algorithm;
 
-template <typename Comp, typename T, search_algorithm func, typename _KeyT, typename _HaystackT>
+template <typename Comp, typename T, search_algorithm func>
 struct __custom_brick;
 
 } // namespace oneapi::dpl::internal
 
-template <typename Comp, typename T, oneapi::dpl::internal::search_algorithm func, typename _KeyT, typename _HaystackT>
-struct sycl::is_device_copyable<
-    _ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::__custom_brick, Comp, T, func, _KeyT, _HaystackT)>
+template <typename Comp, typename T, oneapi::dpl::internal::search_algorithm func>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::__custom_brick, Comp, T, func)>
     : oneapi::dpl::__internal::__are_all_device_copyable<Comp, T>
 {
 };

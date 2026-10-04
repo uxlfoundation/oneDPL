@@ -48,8 +48,7 @@ test_device_copyable()
 
     //__custom_brick
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::internal::__custom_brick<
-                      noop_device_copyable, int_device_copyable, oneapi::dpl::internal::search_algorithm::lower_bound,
-                      int, int>>,
+                      noop_device_copyable, int_device_copyable, oneapi::dpl::internal::search_algorithm::lower_bound>>,
                   "__custom_brick is not device copyable with device copyable types");
     //__replace_if_fun
     static_assert(
@@ -361,8 +360,7 @@ test_non_device_copyable()
     //__custom_brick
     static_assert(
         !sycl::is_device_copyable_v<oneapi::dpl::internal::__custom_brick<
-            noop_device_copyable, int_non_device_copyable, oneapi::dpl::internal::search_algorithm::lower_bound, int,
-            int>>,
+            noop_device_copyable, int_non_device_copyable, oneapi::dpl::internal::search_algorithm::lower_bound>>,
         "__custom_brick is device copyable with non device copyable types");
     //__replace_if_fun
     static_assert(!sycl::is_device_copyable_v<

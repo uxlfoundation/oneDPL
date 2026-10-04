@@ -34,6 +34,7 @@
 #    include <memory>
 #    include <random>
 #    include <string>
+#    include <tuple>
 #    include <type_traits>
 #    include <vector>
 
@@ -179,17 +180,23 @@ static_assert(!std::is_trivially_destructible_v<KeyDtor>);
 
 using KeyMoveOnly = TestUtils::MoveOnlyWrapper<std::uint32_t>;
 
-template <typename KeyT, std::uint8_t NumStrides = 4>
+using oneapi::dpl::internal::search_algorithm;
+
+// A pointer to (haystack, key, result) tuples stands in for the zip view the brick receives.
+template <typename KeyT, std::uint8_t NumStrides = 4, typename HaystackT = KeyT,
+          search_algorithm Func = search_algorithm::lower_bound>
 constexpr bool takes_batched_path = oneapi::dpl::__par_backend_hetero::__brick_is_batched_v<
-    oneapi::dpl::internal::__custom_brick<std::less<KeyT>, std::ptrdiff_t,
-                                          oneapi::dpl::internal::search_algorithm::lower_bound, KeyT, KeyT>,
-    NumStrides>;
+    oneapi::dpl::internal::__custom_brick<std::less<KeyT>, std::ptrdiff_t, Func>, NumStrides,
+    oneapi::dpl::__par_backend_hetero::__pfor_params_simple, std::tuple<HaystackT, KeyT, std::uint32_t>*>;
 static_assert(takes_batched_path<KeyAddr>);
 static_assert(takes_batched_path<KeyNew>);
 static_assert(takes_batched_path<KeyDtor>);
 static_assert(!takes_batched_path<KeyMoveOnly>);
 static_assert(takes_batched_path<std::uint16_t, 8>);
 static_assert(!takes_batched_path<std::uint8_t, 16>);
+// Only binary_search copies a haystack element.
+static_assert(takes_batched_path<std::uint32_t, 4, KeyMoveOnly>);
+static_assert(!takes_batched_path<std::uint32_t, 4, KeyMoveOnly, search_algorithm::binary_search>);
 
 template <typename KeyT>
 struct key_traits
