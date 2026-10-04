@@ -179,14 +179,17 @@ static_assert(!std::is_trivially_destructible_v<KeyDtor>);
 
 using KeyMoveOnly = TestUtils::MoveOnlyWrapper<std::uint32_t>;
 
-template <typename KeyT>
+template <typename KeyT, std::uint8_t NumStrides = 4>
 constexpr bool takes_batched_path = oneapi::dpl::__par_backend_hetero::__brick_is_batched_v<
     oneapi::dpl::internal::__custom_brick<std::less<KeyT>, std::ptrdiff_t,
-                                          oneapi::dpl::internal::search_algorithm::lower_bound, KeyT, KeyT>>;
+                                          oneapi::dpl::internal::search_algorithm::lower_bound, KeyT, KeyT>,
+    NumStrides>;
 static_assert(takes_batched_path<KeyAddr>);
 static_assert(takes_batched_path<KeyNew>);
 static_assert(takes_batched_path<KeyDtor>);
 static_assert(!takes_batched_path<KeyMoveOnly>);
+static_assert(takes_batched_path<std::uint16_t, 8>);
+static_assert(!takes_batched_path<std::uint8_t, 16>);
 
 template <typename KeyT>
 struct key_traits
@@ -268,7 +271,7 @@ enum class key_mix
 
 // Mirrors __parallel_for_large_submitter's dispatch gate.
 std::size_t
-batched_path_min_keys(sycl::queue __q, std::size_t __min_type_size)
+large_submitter_min_keys(sycl::queue __q, std::size_t __min_type_size)
 {
     const std::size_t __wg = oneapi::dpl::__internal::__max_work_group_size(__q, 512);
     const std::size_t __cu = oneapi::dpl::__internal::__max_compute_units(__q);
@@ -280,15 +283,15 @@ batched_path_min_keys(sycl::queue __q, std::size_t __min_type_size)
 std::size_t
 test_key_count(sycl::queue __q, std::size_t __min_type_size, const std::string& __label)
 {
-    const std::size_t __min_keys = batched_path_min_keys(__q, __min_type_size);
+    const std::size_t __min_keys = large_submitter_min_keys(__q, __min_type_size);
     const std::size_t __n = 2 * __min_keys;
     // Caps the allocation; not a device bound.
     if (__n > (std::size_t(1) << 25))
     {
-        std::cout << "Skipping " << __label << ": batched path needs " << __min_keys << " keys" << std::endl;
+        std::cout << "Skipping " << __label << ": large submitter needs " << __min_keys << " keys" << std::endl;
         return 0;
     }
-    std::cout << __label << ": batched path from " << __min_keys << " keys, testing " << __n << std::endl;
+    std::cout << __label << ": large submitter from " << __min_keys << " keys, testing " << __n << std::endl;
     return __n;
 }
 
@@ -518,7 +521,7 @@ main()
     sycl::queue __q = TestUtils::get_test_queue();
 
     // The value type sizes below select iterations-per-item 2, 4, 8 and 5: one short batch, one full
-    // batch, two full batches, and a batch plus a tail. A bool result selects 16.
+    // batch, two full batches, and a batch plus a tail. A bool result selects 16, which keeps the strided loop.
     run_type<std::uint64_t, std::uint64_t>(__q, "uint64");
     run_type<std::uint32_t, std::uint32_t>(__q, "uint32");
     // A 16-bit result would take the expected and actual indices mod 65536 and compare them blind.

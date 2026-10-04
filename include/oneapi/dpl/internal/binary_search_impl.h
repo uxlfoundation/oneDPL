@@ -86,8 +86,14 @@ struct __custom_brick
             search_impl<std::uint64_t>(idx, acc);
     }
 
+    // Most searches per work item the batch was timed at (uint16_t on BMG and PVC). 1-byte types, at 16 per item,
+    // keep the strided loop.
+    static constexpr std::uint8_t max_batched_strides = 8;
+
     // The batched search copies keys and haystack elements.
-    static constexpr bool __batched = std::is_copy_constructible_v<_KeyT> && std::is_copy_constructible_v<_HaystackT>;
+    template <std::uint8_t _NumStrides>
+    static constexpr bool __batched = _NumStrides <= max_batched_strides && std::is_copy_constructible_v<_KeyT> &&
+                                      std::is_copy_constructible_v<_HaystackT>;
 
     // Searches kept in flight per work item, 32-bit index path. empirical: 4 ran faster than 2 on BMG and PVC
     // at 2^24-2^28 elements, 1.10-1.15x for float and 1.03-1.08x for uint16_t.
