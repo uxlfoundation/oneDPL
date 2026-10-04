@@ -64,7 +64,7 @@ struct Key3
 };
 static_assert(!std::is_default_constructible_v<Key3>);
 
-// The byte cap allows 3 searches of this size, which divides none of its iteration counts, so a tail runs.
+// The byte cap allows 3 searches of this size, so 4 per item run a batch plus a tail.
 struct Key10
 {
     std::uint16_t __w[5];
@@ -198,6 +198,17 @@ static_assert(!takes_batched_path<std::uint8_t, 16>);
 static_assert(takes_batched_path<std::uint32_t, 4, KeyMoveOnly>);
 static_assert(!takes_batched_path<std::uint32_t, 4, KeyMoveOnly, search_algorithm::binary_search>);
 
+// Whether NumStrides per item run a full batch plus a tail, on the 32-bit index path.
+template <typename KeyT, std::uint8_t NumStrides>
+constexpr bool batch_plus_tail = [] {
+    using Brick = oneapi::dpl::internal::__custom_brick<std::less<KeyT>, std::ptrdiff_t, search_algorithm::lower_bound>;
+    const std::size_t byte_cap = std::max<std::size_t>(1, Brick::max_bytes_in_flight / (2 * sizeof(KeyT)));
+    const std::size_t batch = std::min<std::size_t>({NumStrides, Brick::max_in_flight_32, byte_cap});
+    return takes_batched_path<KeyT, NumStrides> && NumStrides > batch && NumStrides % batch != 0;
+}();
+static_assert(batch_plus_tail<Key3, 5>);
+static_assert(batch_plus_tail<Key10, 4>);
+
 template <typename KeyT>
 struct key_traits
 {
@@ -231,7 +242,6 @@ struct key_traits<Key10>
     }
 };
 
-// Keys that hold a full std::uint32_t.
 template <typename KeyT>
 struct key_traits_u32
 {
@@ -395,7 +405,6 @@ run_case(sycl::queue __q, std::size_t __n_keys, key_mix __mix, Comp __comp, cons
             }
         }
     }
-    // Pin keys at both ends of the range.
     __keys[0] = key_traits<KeyT>::make(0);
     __keys[__n_keys - 1] = key_traits<KeyT>::make(__span);
     std::sort(__hay.begin(), __hay.end(), __comp);
@@ -535,7 +544,6 @@ main()
     run_type<std::uint16_t, std::uint32_t>(__q, "uint16");
     run_type<Key3, std::int32_t>(__q, "key3");
     run_type<Key10, std::uint32_t, bool>(__q, "key10");
-    // A comparator that reverses the order, and 8-byte keys with a bool binary_search result.
     run_type<std::uint64_t, std::uint64_t, bool, TestUtils::IsGreat<std::uint64_t>>(__q, "uint64 descending");
     run_mixed_types(__q);
     run_type<KeyAddr, std::uint32_t>(__q, "overloaded operator&");

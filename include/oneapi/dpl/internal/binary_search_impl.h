@@ -86,8 +86,8 @@ struct __custom_brick
             search_impl<std::uint64_t>(idx, acc);
     }
 
-    // Most searches per work item the batch was timed at (uint16_t on BMG and PVC). 1-byte types, at 16 per item,
-    // keep the strided loop.
+    // empirical: the most searches per work item timed, uint16_t on BMG and PVC. 16 per item, from any 1-byte
+    // type or bool result, is untimed and keeps the strided loop.
     static constexpr std::uint8_t max_batched_strides = 8;
 
     template <typename _Rng>
@@ -101,11 +101,11 @@ struct __custom_brick
         _NumStrides <= max_batched_strides && std::is_copy_constructible_v<__key_t<_Rng>> &&
         (func != search_algorithm::binary_search || std::is_copy_constructible_v<__haystack_t<_Rng>>);
 
-    // Searches kept in flight per work item, 32-bit index path. empirical: 4 ran faster than 2 on BMG and PVC
-    // at 2^24-2^28 elements, 1.10-1.15x for float and 1.03-1.08x for uint16_t.
+    // Searches kept in flight per work item, 32-bit index path. empirical: timed against 2 on BMG and PVC,
+    // float and uint16_t, 2^24-2^28 elements.
     static constexpr std::uint8_t max_in_flight_32 = 4;
     // Searches kept in flight per work item, 64-bit index path, which shares a kernel with the 32-bit path.
-    // empirical, AOT screen only: above 2 that kernel takes large GRF on PVC or SIMD8 on dg2, 1-4 byte types.
+    // empirical, AOT screen only: above 2 that kernel takes large GRF on PVC or SIMD8 on dg2, 2-4 byte types.
     static constexpr std::uint8_t max_in_flight_64 = 2;
     // Bytes of key and haystack element held across the in-flight searches. empirical, AOT screen only:
     // without it, 4 searches of 32-byte keys and elements take large GRF on PVC and SIMD8 on dg2.
@@ -120,7 +120,7 @@ struct __custom_brick
         using _KeyType = __key_t<_Acc>;
         using _HaystackType = __haystack_t<_Acc>;
 
-        // Out-of-range lanes repeat the last in-range search; only in-range lanes store.
+        // Out-of-range lanes search the last key; only in-range lanes store.
         auto key_index = [=](std::size_t j) {
             const std::size_t i = idx + j * stride;
             if constexpr (_IsFull::value)
@@ -181,7 +181,6 @@ struct __custom_brick
     {
         static_assert(_MaxInFlight > 0);
         constexpr std::size_t bytes_per_search = sizeof(__key_t<_Acc>) + sizeof(__haystack_t<_Acc>);
-        // _NumStrides is __parallel_for's per-item count, so it bounds the batch as well.
         constexpr std::size_t batch = std::min<std::size_t>(
             {_NumStrides, _MaxInFlight, std::max<std::size_t>(1, max_bytes_in_flight / bytes_per_search)});
         constexpr std::size_t full_batches = _NumStrides / batch;

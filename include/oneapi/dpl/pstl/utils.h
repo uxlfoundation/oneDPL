@@ -1006,8 +1006,8 @@ __shars_lower_bound_batched(_Acc __acc, _Size __first, _Size __last, _GetValue _
     }
     const _Size __pow2_top = __dpl_bit_floor(__n);
     const _Size __midpoint = __n / 2;
-    // Check the middle element to determine whether to search the first or last 2^(bit_floor(__n)) - 1
-    // elements.
+    // Check the middle element to determine if we should search the first or last
+    // 2^(bit_floor(__n)) - 1 elements.
     _Size __shifted_first[__C];
     _Size __search_offset[__C];
     _ONEDPL_PRAGMA_UNROLL
