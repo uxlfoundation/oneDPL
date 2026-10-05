@@ -341,7 +341,7 @@ struct __parallel_merge_submitter_large<_Bounded, _IdType, _CustomName,
     run_parallel_merge(const sycl::event& __event, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2,
                        _Range3&& __rng3, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
                        const nd_range_params& __nd_range_params,
-                       const __diag_storage_t& __base_diagonals_sp_global_storage, ResultStorageOpt& __result) const
+                       __diag_storage_t& __base_diagonals_sp_global_storage, _ResultStorageOpt& __result) const
     {
         const _IdType __n1 = oneapi::dpl::__ranges::__size(__rng1);
         const _IdType __n2 = oneapi::dpl::__ranges::__size(__rng2);
