@@ -38,7 +38,7 @@
 #    include <type_traits>
 #    include <vector>
 
-// 5 iterations per item: a full batch plus a tail. Not default constructible.
+// 5 iterations per item: a full batch plus a tail.
 struct Key3
 {
     std::uint8_t __b[3];
@@ -178,6 +178,42 @@ struct KeyDtor
 
 static_assert(!std::is_trivially_destructible_v<KeyDtor>);
 
+// Copyable only from a const lvalue.
+struct KeyConstCopy
+{
+    std::uint32_t __v;
+
+    explicit KeyConstCopy(std::uint32_t __x) : __v(__x) {}
+    KeyConstCopy(const KeyConstCopy&) = default;
+    KeyConstCopy(KeyConstCopy&) = delete;
+    KeyConstCopy&
+    operator=(const KeyConstCopy&) = default;
+
+    bool
+    operator<(const KeyConstCopy& __o) const
+    {
+        return __v < __o.__v;
+    }
+    bool
+    operator==(const KeyConstCopy& __o) const
+    {
+        return __v == __o.__v;
+    }
+};
+
+static_assert(std::is_copy_constructible_v<KeyConstCopy>);
+static_assert(!std::is_constructible_v<KeyConstCopy, KeyConstCopy&>);
+
+struct Key16
+{
+    std::uint64_t __w[2];
+};
+
+struct Key24
+{
+    std::uint64_t __w[3];
+};
+
 using KeyMoveOnly = TestUtils::MoveOnlyWrapper<std::uint32_t>;
 
 using oneapi::dpl::internal::search_algorithm;
@@ -191,19 +227,23 @@ constexpr bool takes_batched_path = oneapi::dpl::__par_backend_hetero::__brick_i
 static_assert(takes_batched_path<KeyAddr>);
 static_assert(takes_batched_path<KeyNew>);
 static_assert(takes_batched_path<KeyDtor>);
+static_assert(takes_batched_path<KeyConstCopy>);
 static_assert(!takes_batched_path<KeyMoveOnly>);
 static_assert(takes_batched_path<std::uint16_t, 8>);
 static_assert(!takes_batched_path<std::uint8_t, 16>);
 // Only binary_search copies a haystack element.
 static_assert(takes_batched_path<std::uint32_t, 4, KeyMoveOnly>);
 static_assert(!takes_batched_path<std::uint32_t, 4, KeyMoveOnly, search_algorithm::binary_search>);
+// The byte cap must leave at least 2 searches in flight on both index paths: 32 bytes per search does, 48 does not.
+static_assert(takes_batched_path<Key16>);
+static_assert(!takes_batched_path<Key24>);
 
 // Whether NumStrides per item run a full batch plus a tail, on the 32-bit index path.
 template <typename KeyT, std::uint8_t NumStrides>
 constexpr bool batch_plus_tail = [] {
     using Brick = oneapi::dpl::internal::__custom_brick<std::less<KeyT>, std::ptrdiff_t, search_algorithm::lower_bound>;
-    const std::size_t byte_cap = std::max<std::size_t>(1, Brick::max_bytes_in_flight / (2 * sizeof(KeyT)));
-    const std::size_t batch = std::min<std::size_t>({NumStrides, Brick::max_in_flight_32, byte_cap});
+    constexpr std::size_t batch =
+        Brick::template __batch_size<NumStrides, Brick::max_in_flight_32, std::tuple<KeyT, KeyT, std::uint32_t>*>;
     return takes_batched_path<KeyT, NumStrides> && NumStrides > batch && NumStrides % batch != 0;
 }();
 static_assert(batch_plus_tail<Key3, 5>);
@@ -269,6 +309,11 @@ struct key_traits<KeyDtor> : key_traits_u32<KeyDtor>
 };
 
 template <>
+struct key_traits<KeyConstCopy> : key_traits_u32<KeyConstCopy>
+{
+};
+
+template <>
 struct key_traits<KeyMoveOnly> : key_traits_u32<KeyMoveOnly>
 {
 };
@@ -286,21 +331,21 @@ enum class key_mix
     absent_heavy
 };
 
-// Mirrors __parallel_for_large_submitter's dispatch gate.
+// The key count from which __parallel_for takes the large submitter for these value types.
+template <typename HayT, typename KeyT, typename ResT>
 std::size_t
-large_submitter_min_keys(sycl::queue __q, std::size_t __min_type_size)
+large_submitter_min_keys(sycl::queue __q)
 {
-    const std::size_t __wg = oneapi::dpl::__internal::__max_work_group_size(__q, 512);
-    const std::size_t __cu = oneapi::dpl::__internal::__max_compute_units(__q);
-    const std::size_t __iters_per_item = std::max<std::size_t>(1, 16 / __min_type_size);
-    return __wg * __iters_per_item * __cu;
+    namespace __bknd = oneapi::dpl::__par_backend_hetero;
+    using __submitter = __bknd::__parallel_for_large_submitter<__bknd::__internal::__optional_kernel_name<>>;
+    using __params = __bknd::__pfor_params<std::tuple<HayT, KeyT, ResT>*>;
+    return __submitter::__minimal_useful_size(__q, __params::__iters_per_item);
 }
 
-// Twice the gate, so that the inputs still cross it if the gate they mirror moves up; 0 to skip.
+// Twice the gate; 0 to skip.
 std::size_t
-test_key_count(sycl::queue __q, std::size_t __min_type_size, const std::string& __label)
+test_key_count(std::size_t __min_keys, const std::string& __label)
 {
-    const std::size_t __min_keys = large_submitter_min_keys(__q, __min_type_size);
     const std::size_t __n = 2 * __min_keys;
     // Caps the allocation; not a device bound.
     if (__n > (std::size_t(1) << 25))
@@ -341,18 +386,7 @@ run_and_check(sycl::queue __q, const std::vector<HayT>& __hay, const std::vector
     __out_dev.retrieve_data(__actual.get());
     EXPECT_TRUE(__actual[__keys.size()] == __sentinel, (__what + ": stored past the end").c_str());
 
-    std::size_t __bad = 0;
-    for (std::size_t __i = 0; __i != __keys.size(); ++__i)
-    {
-        if (__actual[__i] != __ref[__i])
-        {
-            if (__bad == 0)
-                std::cout << __what << ": first mismatch at " << __i << ", expected " << std::int64_t(__ref[__i])
-                          << ", got " << std::int64_t(__actual[__i]) << std::endl;
-            ++__bad;
-        }
-    }
-    EXPECT_EQ(std::size_t(0), __bad, (__what + ": wrong effect").c_str());
+    EXPECT_EQ_N(__ref.begin(), __actual.get(), __keys.size(), (__what + ": wrong effect").c_str());
 }
 
 // binary_search writes BsResT, which may select a different iterations-per-item count from ResT.
@@ -465,7 +499,9 @@ template <typename KeyT, typename ResT, typename BsResT = ResT, typename Comp = 
 void
 run_type(sycl::queue __q, const std::string& __type_label)
 {
-    const std::size_t __n = test_key_count(__q, std::min({sizeof(KeyT), sizeof(ResT), sizeof(BsResT)}), __type_label);
+    const std::size_t __n = test_key_count(
+        std::max(large_submitter_min_keys<KeyT, KeyT, ResT>(__q), large_submitter_min_keys<KeyT, KeyT, BsResT>(__q)),
+        __type_label);
     if (__n == 0)
         return;
 
@@ -482,7 +518,8 @@ run_type(sycl::queue __q, const std::string& __type_label)
 void
 run_mixed_types(sycl::queue __q)
 {
-    const std::size_t __n = test_key_count(__q, sizeof(bool), "float haystack, int32 keys");
+    const std::size_t __n =
+        test_key_count(large_submitter_min_keys<float, std::int32_t, std::uint32_t>(__q), "float haystack, int32 keys");
     if (__n == 0)
         return;
 
@@ -499,7 +536,7 @@ run_mixed_types(sycl::queue __q)
         __k = __dist(__gen);
 
     std::vector<std::uint32_t> __ref_lb(__n_keys), __ref_ub(__n_keys);
-    std::vector<bool> __ref_bs(__n_keys);
+    std::vector<std::uint32_t> __ref_bs(__n_keys);
     for (std::size_t __i = 0; __i != __n_keys; ++__i)
     {
         const std::size_t __lb = std::lower_bound(__hay.begin(), __hay.end(), __keys[__i]) - __hay.begin();
@@ -540,15 +577,17 @@ main()
     // batch, two full batches, and a batch plus a tail. A bool result selects 16, which keeps the strided loop.
     run_type<std::uint64_t, std::uint64_t>(__q, "uint64");
     run_type<std::uint32_t, std::uint32_t>(__q, "uint32");
+    run_type<std::uint32_t, std::uint32_t, bool>(__q, "uint32, bool result");
     // A 16-bit result would take the expected and actual indices mod 65536 and compare them blind.
     run_type<std::uint16_t, std::uint32_t>(__q, "uint16");
     run_type<Key3, std::int32_t>(__q, "key3");
-    run_type<Key10, std::uint32_t, bool>(__q, "key10");
-    run_type<std::uint64_t, std::uint64_t, bool, TestUtils::IsGreat<std::uint64_t>>(__q, "uint64 descending");
+    run_type<Key10, std::uint32_t>(__q, "key10");
+    run_type<std::uint64_t, std::uint64_t, std::uint64_t, TestUtils::IsGreat<std::uint64_t>>(__q, "uint64 descending");
     run_mixed_types(__q);
     run_type<KeyAddr, std::uint32_t>(__q, "overloaded operator&");
     run_type<KeyNew, std::uint32_t>(__q, "class operator new");
     run_type<KeyDtor, std::uint32_t>(__q, "non-trivial destructor");
+    run_type<KeyConstCopy, std::uint32_t, std::uint32_t, std::less<KeyConstCopy>>(__q, "copy from const only");
     // IsLess takes its arguments by value.
     run_type<KeyMoveOnly, std::uint32_t, std::uint32_t, std::less<KeyMoveOnly>>(__q, "move-only");
 #endif // TEST_DPCPP_BACKEND_PRESENT

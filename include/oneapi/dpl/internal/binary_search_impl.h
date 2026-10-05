@@ -95,21 +95,27 @@ struct __custom_brick
     template <typename _Rng>
     using __haystack_t = std::decay_t<decltype(std::get<0>(std::declval<_Rng&>()[0]))>;
 
-    // The batch copies each key, and for binary_search the haystack element it lands on.
-    template <std::uint8_t _NumStrides, typename _Params, typename _Rng>
-    static constexpr bool __batched =
-        _NumStrides <= max_batched_strides && std::is_copy_constructible_v<__key_t<_Rng>> &&
-        (func != search_algorithm::binary_search || std::is_copy_constructible_v<__haystack_t<_Rng>>);
-
     // Searches kept in flight per work item, 32-bit index path. empirical: timed against 2 on BMG and PVC,
-    // float and uint16_t, 2^24-2^28 elements.
+    // float and uint16_t, 2^23-2^27 keys and haystack elements.
     static constexpr std::uint8_t max_in_flight_32 = 4;
     // Searches kept in flight per work item, 64-bit index path, which shares a kernel with the 32-bit path.
-    // empirical, AOT screen only: above 2 that kernel takes large GRF on PVC or SIMD8 on dg2, 2-4 byte types.
+    // empirical, AOT screen only: at 4, PVC takes large GRF (2-4 byte types), dg2 SIMD8 (uint16_t binary_search).
     static constexpr std::uint8_t max_in_flight_64 = 2;
-    // Bytes of key and haystack element held across the in-flight searches. empirical, AOT screen only:
-    // without it, 4 searches of 32-byte keys and elements take large GRF on PVC and SIMD8 on dg2.
+    // Bytes of key and haystack element held across the in-flight searches. empirical, AOT screen of 32-byte keys:
+    // 256 takes large GRF on PVC and SIMD8 on dg2, 128 SIMD16 on dg2; 64, the conservative choice, keeps SIMD32.
     static constexpr std::size_t max_bytes_in_flight = 64;
+
+    template <std::uint8_t _NumStrides, std::uint8_t _MaxInFlight, typename _Rng>
+    static constexpr std::size_t __batch_size = std::min<std::size_t>(
+        {_NumStrides, _MaxInFlight, max_bytes_in_flight / (sizeof(__key_t<_Rng>) + sizeof(__haystack_t<_Rng>))});
+
+    // The batch holds each key, and for binary_search the haystack element it lands on. Both index paths keep
+    // at least 2 searches in flight.
+    template <std::uint8_t _NumStrides, typename _Params, typename _Rng>
+    static constexpr bool __batched =
+        _NumStrides <= max_batched_strides && (__batch_size<_NumStrides, max_in_flight_64, _Rng> > 1) &&
+        std::is_copy_constructible_v<__key_t<_Rng>> &&
+        (func != search_algorithm::binary_search || std::is_copy_constructible_v<__haystack_t<_Rng>>);
 
     template <typename _Size, std::size_t _C, typename _IsFull, typename _Acc>
     void
@@ -120,13 +126,18 @@ struct __custom_brick
         using _KeyType = __key_t<_Acc>;
         using _HaystackType = __haystack_t<_Acc>;
 
-        // Out-of-range lanes search the last key; only in-range lanes store.
+        if constexpr (!_IsFull::value)
+        {
+            if (idx >= bound)
+                return;
+        }
+        // Out-of-range lanes search the batch's first key, which this work item owns; only in-range lanes store.
         auto key_index = [=](std::size_t j) {
             const std::size_t i = idx + j * stride;
             if constexpr (_IsFull::value)
                 return i;
             else
-                return std::min(i, bound - 1);
+                return i < bound ? i : idx;
         };
 
         // Value types need not be default constructible.
@@ -134,7 +145,7 @@ struct __custom_brick
         _Size result[_C];
         _ONEDPL_PRAGMA_UNROLL
         for (std::size_t j = 0; j < _C; ++j)
-            value[j].__setup(get<1>(acc[key_index(j)]));
+            value[j].__setup(static_cast<const _KeyType&>(get<1>(acc[key_index(j)])));
         auto value_of = [&value](std::size_t j) -> const _KeyType& { return value[j].__v; };
 
         const _Size start_orig = 0;
@@ -152,7 +163,8 @@ struct __custom_brick
             oneapi::dpl::__internal::__lazy_ctor_storage<_HaystackType> probe[_C];
             _ONEDPL_PRAGMA_UNROLL
             for (std::size_t j = 0; j < _C; ++j)
-                probe[j].__setup(haystack[result[j] != end_orig ? result[j] : _Size{0}]);
+                probe[j].__setup(
+                    static_cast<const _HaystackType&>(haystack[result[j] != end_orig ? result[j] : _Size{0}]));
 
             _ONEDPL_PRAGMA_UNROLL
             for (std::size_t j = 0; j < _C; ++j)
@@ -179,10 +191,8 @@ struct __custom_brick
     void
     search_rounds(_IsFull, std::size_t bound, std::size_t idx, std::uint16_t stride, _Acc acc) const
     {
-        static_assert(_MaxInFlight > 0);
-        constexpr std::size_t bytes_per_search = sizeof(__key_t<_Acc>) + sizeof(__haystack_t<_Acc>);
-        constexpr std::size_t batch = std::min<std::size_t>(
-            {_NumStrides, _MaxInFlight, std::max<std::size_t>(1, max_bytes_in_flight / bytes_per_search)});
+        constexpr std::size_t batch = __batch_size<_NumStrides, _MaxInFlight, _Acc>;
+        static_assert(batch > 0);
         constexpr std::size_t full_batches = _NumStrides / batch;
         constexpr std::size_t tail = _NumStrides % batch;
         _ONEDPL_PRAGMA_UNROLL
