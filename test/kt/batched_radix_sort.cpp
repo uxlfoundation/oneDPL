@@ -44,6 +44,14 @@ using ValueT = TEST_VALUE_TYPE;
 #endif
 using KeyT = TEST_KEY_TYPE;
 
+#ifdef TEST_RADIX_BITS
+constexpr std::uint8_t BatchedRadixBits = TEST_RADIX_BITS;
+#else
+constexpr std::uint8_t BatchedRadixBits = TestRadixBits;
+#endif
+// Only onesweep (8 radix bits) sorts segments larger than a tile
+constexpr bool OneWorkGroupOnly = BatchedRadixBits != 8;
+
 enum class DataMode
 {
     usm_iterators,
@@ -234,15 +242,15 @@ device_sort(sycl::queue q, DataMode mode, const std::vector<KeyT>& keys_in, cons
         {
 #if TEST_KEYS_ONLY
             if constexpr (InPlace)
-                e = kt::gpu::batched_radix_sort<IsAscending, TestRadixBits>(q, kp, kp + n, segment_size, param);
+                e = kt::gpu::batched_radix_sort<IsAscending, BatchedRadixBits>(q, kp, kp + n, segment_size, param);
             else
-                e = kt::gpu::batched_radix_sort<IsAscending, TestRadixBits>(q, kp, kp + n, kop, segment_size, param);
+                e = kt::gpu::batched_radix_sort<IsAscending, BatchedRadixBits>(q, kp, kp + n, kop, segment_size, param);
 #else
             if constexpr (InPlace)
-                e = kt::gpu::batched_radix_sort_by_key<IsAscending, TestRadixBits>(q, kp, kp + n, vp, segment_size,
+                e = kt::gpu::batched_radix_sort_by_key<IsAscending, BatchedRadixBits>(q, kp, kp + n, vp, segment_size,
                                                                                    param);
             else
-                e = kt::gpu::batched_radix_sort_by_key<IsAscending, TestRadixBits>(q, kp, kp + n, vp, kop, vop,
+                e = kt::gpu::batched_radix_sort_by_key<IsAscending, BatchedRadixBits>(q, kp, kp + n, vp, kop, vop,
                                                                                    segment_size, param);
 #endif
         }
@@ -258,14 +266,14 @@ device_sort(sycl::queue q, DataMode mode, const std::vector<KeyT>& keys_in, cons
             (void)vov;
 #if TEST_KEYS_ONLY
             if constexpr (InPlace)
-                e = kt::gpu::batched_radix_sort<IsAscending, TestRadixBits>(q, kv, segment_size, param);
+                e = kt::gpu::batched_radix_sort<IsAscending, BatchedRadixBits>(q, kv, segment_size, param);
             else
-                e = kt::gpu::batched_radix_sort<IsAscending, TestRadixBits>(q, kv, kov, segment_size, param);
+                e = kt::gpu::batched_radix_sort<IsAscending, BatchedRadixBits>(q, kv, kov, segment_size, param);
 #else
             if constexpr (InPlace)
-                e = kt::gpu::batched_radix_sort_by_key<IsAscending, TestRadixBits>(q, kv, vv, segment_size, param);
+                e = kt::gpu::batched_radix_sort_by_key<IsAscending, BatchedRadixBits>(q, kv, vv, segment_size, param);
             else
-                e = kt::gpu::batched_radix_sort_by_key<IsAscending, TestRadixBits>(q, kv, vv, kov, vov, segment_size,
+                e = kt::gpu::batched_radix_sort_by_key<IsAscending, BatchedRadixBits>(q, kv, vv, kov, vov, segment_size,
                                                                                    param);
 #endif
         }
@@ -303,17 +311,18 @@ device_sort(sycl::queue q, DataMode mode, const std::vector<KeyT>& keys_in, cons
                 (void)vob;
 #if TEST_KEYS_ONLY
                 if constexpr (InPlace)
-                    kt::gpu::batched_radix_sort<IsAscending, TestRadixBits>(q, kb, kb + n, segment_size, param).wait();
+                    kt::gpu::batched_radix_sort<IsAscending, BatchedRadixBits>(q, kb, kb + n, segment_size, param)
+                        .wait();
                 else
-                    kt::gpu::batched_radix_sort<IsAscending, TestRadixBits>(q, kb, kb + n, kob, segment_size, param)
+                    kt::gpu::batched_radix_sort<IsAscending, BatchedRadixBits>(q, kb, kb + n, kob, segment_size, param)
                         .wait();
 #else
                 if constexpr (InPlace)
-                    kt::gpu::batched_radix_sort_by_key<IsAscending, TestRadixBits>(q, kb, kb + n, vb, segment_size,
+                    kt::gpu::batched_radix_sort_by_key<IsAscending, BatchedRadixBits>(q, kb, kb + n, vb, segment_size,
                                                                                    param)
                         .wait();
                 else
-                    kt::gpu::batched_radix_sort_by_key<IsAscending, TestRadixBits>(q, kb, kb + n, vb, kob, vob,
+                    kt::gpu::batched_radix_sort_by_key<IsAscending, BatchedRadixBits>(q, kb, kb + n, vb, kob, vob,
                                                                                    segment_size, param)
                         .wait();
 #endif
@@ -322,14 +331,16 @@ device_sort(sycl::queue q, DataMode mode, const std::vector<KeyT>& keys_in, cons
             {
 #if TEST_KEYS_ONLY
                 if constexpr (InPlace)
-                    kt::gpu::batched_radix_sort<IsAscending, TestRadixBits>(q, k, segment_size, param).wait();
+                    kt::gpu::batched_radix_sort<IsAscending, BatchedRadixBits>(q, k, segment_size, param).wait();
                 else
-                    kt::gpu::batched_radix_sort<IsAscending, TestRadixBits>(q, k, ko, segment_size, param).wait();
+                    kt::gpu::batched_radix_sort<IsAscending, BatchedRadixBits>(q, k, ko, segment_size, param).wait();
 #else
                 if constexpr (InPlace)
-                    kt::gpu::batched_radix_sort_by_key<IsAscending, TestRadixBits>(q, k, v, segment_size, param).wait();
+                    kt::gpu::batched_radix_sort_by_key<IsAscending, BatchedRadixBits>(q, k, v, segment_size, param)
+                        .wait();
                 else
-                    kt::gpu::batched_radix_sort_by_key<IsAscending, TestRadixBits>(q, k, v, ko, vo, segment_size, param)
+                    kt::gpu::batched_radix_sort_by_key<IsAscending, BatchedRadixBits>(q, k, v, ko, vo, segment_size,
+                                                                                      param)
                         .wait();
 #endif
             }
@@ -387,15 +398,21 @@ test_case(sycl::queue q, DataMode mode, std::size_t segment_size, std::size_t se
 }
 
 // Segment sizes around the tile size (data_per_workitem * workgroup_size) and the global histogram chunk (4096), plus
-// segments smaller than a tile, multi-tile segments and segments that are not multiples of the sub-group size
+// segments smaller than a tile, multi-tile segments and segments that are not multiples of the sub-group size.
+// Segments that fit in a tile are owned by whole sub-groups of 32 * data_per_workitem elements, several per
+// work-group, so sizes around multiples of a sub-group's elements are covered too.
 std::vector<std::size_t>
-segment_sizes(std::size_t tile)
+segment_sizes(std::size_t tile, std::size_t sub_group_tile)
 {
     std::vector<std::size_t> sizes = {
         1,        2,      7,        100,      317,          1000,           4095,         4097,
         tile - 1, tile,   tile + 1, 2 * tile, 2 * tile + 1, 3 * tile + 333, 7 * tile - 5, 50'000,
-        1 << 17,  300'007};
+        1 << 17,  300'007,
+        sub_group_tile - 1, sub_group_tile, sub_group_tile + 1, 2 * sub_group_tile + 3, tile / 2 + 1, tile / 3};
     sizes.erase(std::remove(sizes.begin(), sizes.end(), std::size_t(0)), sizes.end());
+    if (OneWorkGroupOnly)
+        sizes.erase(std::remove_if(sizes.begin(), sizes.end(), [tile](std::size_t s) { return s > tile; }),
+                    sizes.end());
     std::sort(sizes.begin(), sizes.end());
     sizes.erase(std::unique(sizes.begin(), sizes.end()), sizes.end());
     return sizes;
@@ -423,7 +440,7 @@ main()
             const DataMode modes[] = {DataMode::usm_iterators, DataMode::usm_ranges, DataMode::buffer_iterators,
                                       DataMode::buffer_ranges};
             std::size_t mode_idx = 0;
-            for (std::size_t segment_size : segment_sizes(tile))
+            for (std::size_t segment_size : segment_sizes(tile, std::size_t(Param::data_per_workitem) * 32))
             {
                 // A single segment (segment_size == n), a few segments, and many segments. The count of the
                 // smallest segments is capped: global scratch memory grows with the number of tiles and segments.
@@ -481,12 +498,15 @@ main()
 
             // More histogram chunks than histogram work-groups, with segments of 3 chunks: work-groups own several
             // chunks and switch segments in the middle of their range
-            test_case<Ascending, false>(q, DataMode::usm_iterators, 9000, 600,
-                                        TestUtils::create_new_kernel_param_idx<0>(params));
+            if (!OneWorkGroupOnly || 9000 <= tile)
+                test_case<Ascending, false>(q, DataMode::usm_iterators, 9000, 600,
+                                            TestUtils::create_new_kernel_param_idx<0>(params));
 
             // n == 0 is a no-op
             KeyT* empty = nullptr;
-            kt::gpu::batched_radix_sort(q, empty, empty, 4, TestUtils::create_new_kernel_param_idx<4>(params)).wait();
+            kt::gpu::batched_radix_sort<Ascending, BatchedRadixBits>(q, empty, empty, 4,
+                                                                     TestUtils::create_new_kernel_param_idx<4>(params))
+                .wait();
         }
         catch (const std::exception& exc)
         {
