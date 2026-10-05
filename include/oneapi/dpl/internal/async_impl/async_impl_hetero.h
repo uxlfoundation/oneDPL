@@ -118,6 +118,16 @@ __pattern_for_each_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
         __hetero_tag<_BackendTag>{}, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
 }
 
+template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _T>
+auto
+__pattern_fill_async(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
+                     _ForwardIterator __last, const _T& __value)
+{
+    return __pattern_walk1_async<__par_backend_hetero::access_mode::write, /*_IsNoInitRequested=*/true>(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+        oneapi::dpl::__internal::__brick_fill<__hetero_tag<_BackendTag>, _T>{__value});
+}
+
 //------------------------------------------------------------------------
 // transform_reduce (version with two binary functions)
 //------------------------------------------------------------------------
@@ -140,11 +150,13 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& _
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
-                                                                          ::std::true_type /*is_commutative*/>(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __binary_op1, _Functor{__binary_op2},
-        unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
-        __buf1.all_view(), __buf2.all_view());
+    oneapi::dpl::__par_backend_hetero::__transform_reduce_storage_holder<_Tp> __holder(__exec.queue());
+    sycl::event __event;
+    __event = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce_async<_RepackedTp,
+                                                                                   std::true_type /*is_commutative*/>(
+                  _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __holder, __binary_op1, _Functor{__binary_op2},
+                  unseq_backend::__init_value<_RepackedTp>{__init}, __buf1.all_view(), __buf2.all_view());
+    return oneapi::dpl::__par_backend_hetero::__future{std::move(__event), std::move(__holder).__extract()};
 }
 
 //------------------------------------------------------------------------
@@ -166,21 +178,13 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& _
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
-                                                                          ::std::true_type /*is_commutative*/>(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __binary_op, _Functor{__unary_op},
-        unseq_backend::__init_value<_RepackedTp>{__init}, // initial value
-        __buf.all_view());
-}
-
-template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _T>
-auto
-__pattern_fill_async(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
-                     _ForwardIterator __last, const _T& __value)
-{
-    return __pattern_walk1_async<__par_backend_hetero::access_mode::write, /*_IsNoInitRequested=*/true>(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
-        oneapi::dpl::__internal::__brick_fill<__hetero_tag<_BackendTag>, _T>{__value});
+    oneapi::dpl::__par_backend_hetero::__transform_reduce_storage_holder<_Tp> __holder(__exec.queue());
+    sycl::event __event;
+    __event = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce_async<_RepackedTp,
+                                                                                   std::true_type /*is_commutative*/>(
+                  _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __holder, __binary_op, _Functor{__unary_op},
+                  unseq_backend::__init_value<_RepackedTp>{__init}, __buf.all_view());
+    return oneapi::dpl::__par_backend_hetero::__future{std::move(__event), std::move(__holder).__extract()};
 }
 
 //------------------------------------------------------------------------
