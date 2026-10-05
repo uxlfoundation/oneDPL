@@ -99,10 +99,11 @@ struct __custom_brick
     // float and uint16_t, 2^23-2^27 keys and haystack elements.
     static constexpr std::uint8_t max_in_flight_32 = 4;
     // Searches kept in flight per work item, 64-bit index path, which shares a kernel with the 32-bit path.
-    // empirical, AOT screen only: at 4, PVC takes large GRF (2-4 byte types), dg2 SIMD8 (uint16_t binary_search).
+    // empirical, AOT screen only: at 4, PVC takes large GRF for uint16_t and spills for 4-byte binary_search.
     static constexpr std::uint8_t max_in_flight_64 = 2;
-    // Bytes of key and haystack element held across the in-flight searches. empirical, AOT screen of 32-byte keys:
-    // 256 takes large GRF on PVC and SIMD8 on dg2, 128 SIMD16 on dg2; 64, the conservative choice, keeps SIMD32.
+    static_assert(max_in_flight_32 >= max_in_flight_64);
+    // Bytes of key and haystack element held across the in-flight searches. empirical, AOT screen only: at 256,
+    // 32-byte binary_search takes large GRF on PVC and SIMD8 on dg2. 64 is conservative and untimed.
     static constexpr std::size_t max_bytes_in_flight = 64;
 
     template <std::uint8_t _NumStrides, std::uint8_t _MaxInFlight, typename _Rng>
