@@ -49,6 +49,51 @@ void test_mixed_types()
     }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 }
+
+void test_projections_consistency()
+{
+    using namespace test_std_ranges;
+
+    const int n = medium_size;
+    const int n_out = n / 8;
+
+    std::vector<P2> in(n);
+    for (int i = 0; i < n; ++i)
+        in[i] = P2{i, i};
+
+    auto in_proj = [](const P2& v) { return -v.x; };
+    auto out_proj = [](const P2& v) { return v.x; };
+
+    auto call = [&](auto&& exec)
+    {
+        std::vector<P2> out(n_out, P2{-1, -1});
+        dpl_ranges::partial_sort_copy(std::forward<decltype(exec)>(exec), in, out, std::ranges::less{}, in_proj,
+                                      out_proj);
+        return out;
+    };
+
+    std::vector<P2> out_seq = call(oneapi::dpl::execution::seq);
+    EXPECT_EQ_RANGES(out_seq, call(oneapi::dpl::execution::unseq), "unseq policy disagrees with seq policy");
+
+#if !_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1
+    EXPECT_EQ_RANGES(out_seq, call(oneapi::dpl::execution::par), "par policy disagrees with seq policy");
+    EXPECT_EQ_RANGES(out_seq, call(oneapi::dpl::execution::par_unseq), "par_unseq policy disagrees with seq policy");
+#    if TEST_DPCPP_BACKEND_PRESENT
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    sycl::queue q = policy.queue();
+    if (q.get_device().has(sycl::aspect::usm_shared_allocations))
+    {
+        using alloc_t = sycl::usm_allocator<P2, sycl::usm::alloc::shared>;
+        std::vector<P2, alloc_t> v_in(in.begin(), in.end(), alloc_t(q));
+        std::vector<P2, alloc_t> v_out(n_out, P2{-1, -1}, alloc_t(q));
+
+        dpl_ranges::partial_sort_copy(policy, std::ranges::subrange(v_in), std::ranges::subrange(v_out),
+                                      std::ranges::less{}, in_proj, out_proj);
+        EXPECT_EQ_RANGES(out_seq, v_out, "device policy disagrees with seq policy");
+    }
+#    endif
+#endif
+}
 #endif //_ENABLE_STD_RANGES_TESTING
 
 std::int32_t
@@ -66,6 +111,8 @@ main()
 
     // Check if projections are applied to the right sequences and trigger a compile-time error if not
     test_mixed_types();
+
+    test_projections_consistency();
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

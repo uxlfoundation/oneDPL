@@ -34,6 +34,17 @@ main()
     //false result test case; data generator is a 'gen(i)', so std::identity produces 0, 1, 2, ...
     auto gen_negative = [](auto i) { return -i; };
     test_range_algo<5, int, data_in_in, decltype(gen_negative)>{medium_size}(dpl_ranges::find_first_of, find_first_of_checker, binary_pred);
+
+    auto gen_4i_2 = [](auto i) { return 4 * i + 2; };
+    test_range_algo<6, int, data_in_in, std::identity, decltype(gen_4i_2)>{}(dpl_ranges::find_first_of,
+                                                                            find_first_of_checker, binary_pred, proj);
+
+    check_mixed_types_in_in_host(dpl_ranges::find_first_of, find_first_of_checker, {{1}, {2}, {3}}, {{3}, {2}},
+                                    result_index, binary_pred, proj_a, proj_b);
+#if TEST_DPCPP_BACKEND_PRESENT
+    check_mixed_types_in_in_device(dpl_ranges::find_first_of, find_first_of_checker, {{1}, {2}, {3}}, {{3}, {2}},
+                                    result_index, binary_pred, proj_a, proj_b);
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
