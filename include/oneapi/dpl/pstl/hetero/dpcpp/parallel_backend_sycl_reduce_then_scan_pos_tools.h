@@ -125,13 +125,6 @@ struct __no_callback_tag
 {
 };
 
-// Sentinel type used as a stand-in for the stop-position accessor when _Bounded=false.
-struct __no_stop_pos_acc_tag
-{
-    // No stop position is tracked when _Bounded=false, so std::size_t is just a harmless default.
-    using type = std::size_t;
-};
-
 // The second part of two-pass OOB processing: if the OOB position is reached in the first pass,
 // here we recover the source indexes for the diagonal where it happened and store the OOB position from them.
 template <typename _FinalPosT, typename _InRng, typename _OOBPositionT, typename _GenScanInput>
@@ -142,26 +135,6 @@ __finalize_oob_pos(_InRng&& __in_rng, _OOBPositionT __detected_oob_pos, const st
     __src_pos_capturing_temp_data<_FinalPosT> __pos_catcher(__detected_oob_pos);
     __gen_scan_input(std::forward<_InRng>(__in_rng), __start_id_reached_on_oob, __pos_catcher, __no_callback_tag{});
     return __pos_catcher.__get_saved_src_pos();
-}
-
-template <bool _Bounded, typename _StopPosInitState>
-auto
-__create_stop_pos_storage_opt(sycl::queue& __q)
-{
-    if constexpr (_Bounded)
-        return __result_storage<_StopPosInitState>(__q, 1);
-    else
-        return __internal::__no_stop_pos_acc_tag{};
-}
-
-template <bool _Bounded, typename _ModeTagT, typename _StopPosStorage>
-auto
-__get_stop_pos_accessor_opt(_ModeTagT __mode, sycl::handler& __cgh, _StopPosStorage& __stop_pos_storage)
-{
-    if constexpr (_Bounded)
-        return __get_accessor(__mode, __stop_pos_storage, __cgh, __dpl_sycl::__no_init{});
-    else
-        return __no_stop_pos_acc_tag{};
 }
 
 } // namespace __internal
