@@ -21,6 +21,66 @@
 #include <oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h>
 
 #if _ENABLE_STD_RANGES_TESTING
+template <typename RandomIt>
+struct NonConstSubscriptableView : std::ranges::view_base
+{
+    RandomIt it_begin;
+    RandomIt it_end;
+
+#if TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+    NonConstSubscriptableView() = default;
+#endif
+
+    NonConstSubscriptableView(RandomIt __it_begin, RandomIt __it_end) : it_begin(__it_begin), it_end(__it_end) {}
+
+    decltype(auto)
+    operator[](std::iter_difference_t<RandomIt> __n)
+    {
+        return it_begin[__n];
+    }
+};
+
+template <typename RandomIt>
+RandomIt
+begin(NonConstSubscriptableView<RandomIt> __view)
+{
+    return __view.it_begin;
+}
+
+template <typename RandomIt>
+RandomIt
+end(NonConstSubscriptableView<RandomIt> __view)
+{
+    return __view.it_end;
+}
+
+template <typename RandomIt>
+struct NonConstIterableView : std::ranges::view_base
+{
+    RandomIt it_begin;
+    RandomIt it_end;
+
+#if TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+    NonConstIterableView() = default;
+#endif
+
+    NonConstIterableView(RandomIt __it_begin, RandomIt __it_end) : it_begin(__it_begin), it_end(__it_end) {}
+};
+
+template <typename RandomIt>
+RandomIt
+begin(NonConstIterableView<RandomIt>& __view)
+{
+    return __view.it_begin;
+}
+
+template <typename RandomIt>
+RandomIt
+end(NonConstIterableView<RandomIt>& __view)
+{
+    return __view.it_end;
+}
+
 template <typename SourceView>
     requires std::ranges::view<SourceView>
 void
@@ -104,6 +164,23 @@ main()
 
     // All oneDPL algorithms require at least a random access range
     static_assert(std::ranges::random_access_range<TestUtils::MinimalisticView<IntVector::iterator>>);
+
+    // Check that a view with non-const operator[] is wrapped because kernels access ranges as const
+    using NonConstSubscriptable = NonConstSubscriptableView<IteratorOfIntVector>;
+    static_assert(std::ranges::random_access_range<NonConstSubscriptable>);
+    static_assert(!oneapi::dpl::__ranges::__has_subscription_op<NonConstSubscriptable>::value);
+    using NonConstSubscriptableSubscriptionView =
+        decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<NonConstSubscriptable>()));
+    static_assert(!std::is_same_v<std::decay_t<NonConstSubscriptableSubscriptionView>, NonConstSubscriptable>);
+    static_assert(requires(const std::remove_reference_t<NonConstSubscriptableSubscriptionView>& __view) { __view[0]; });
+
+    // Check that wrapping supports random access views that are not const-iterable
+    using NonConstIterable = NonConstIterableView<IteratorOfIntVector>;
+    static_assert(std::ranges::random_access_range<NonConstIterable>);
+    static_assert(!std::ranges::range<const NonConstIterable>);
+    using NonConstIterableSubscriptionView =
+        decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<NonConstIterable>()));
+    static_assert(requires(const std::remove_reference_t<NonConstIterableSubscriptionView>& __view) { __view[0]; });
 
 #endif // _ENABLE_STD_RANGES_TESTING
 #endif // TEST_DPCPP_BACKEND_PRESENT
