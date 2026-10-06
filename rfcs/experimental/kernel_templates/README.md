@@ -394,6 +394,29 @@ When combined with `data_per_workitem`, the memory access pattern could be confi
 3. **Combined mode:** `data_per_workitem` is a multiple of `vector_width`.
   Each work-item loads/stores contiguous `vector_width` elements per stride.
 
+### Floating-Point Reproducibility
+
+Floating-point operations such as addition are not associative:
+different groupings of the same inputs can produce different rounded results.
+
+This can affect algorithms that accumulate floating-point values, such as `reduce`,
+`exclusive_scan`, and their by-key or segmented variants. It can also affect
+`histogram` with floating-point bin values.
+
+For example, `oneapi::dpl::experimental::kt::gpu::inclusive_scan`
+can produce different results across repeated runs when used with floating-point addition
+because the decoupled look-back it relies on may combine values from preceding groups differently:
+
+- If it finds a global prefix, it stops looking back.
+- If it finds a local prefix, it combines it and continues looking back.
+
+Should results be reproducible across repeated runs with the same inputs?
+Should there be a guarantee across devices?
+
+We should consider offering modes with different reproducibility guarantees.
+As the look-back example illustrates, stronger guarantees may require different algorithms.
+What should these modes guarantee, how should users select them, and how important is this capability?
+
 ## Exit Criteria
 
 The proposed set of algorithms should become fully supported if:
