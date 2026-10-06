@@ -202,9 +202,10 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     _generate_sort_test("kt_sycl" "batched_merge_sort" "16" "512" "int32_t" "uint32_t" 1000)
 endif()
 
+# Work-group sizes other than 512 and 1024 are supported only for segments which fit in a work-group tile
 function(_generate_batched_radix_sort_tests)
     set(_data_per_work_item_all "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" "13" "14" "15" "16")
-    set(_work_group_size_all "1024" "512")
+    set(_work_group_size_all "64" "128" "256" "512" "1024")
     set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double" "sycl::half")
     if (_bfloat16_key_type_supported)
         list(APPEND _type_all "sycl::ext::oneapi::bfloat16")
@@ -232,6 +233,7 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     _generate_sort_test("kt_sycl" "batched_radix_sort" "3" "1024" "float" "uint32_t" 1000)
     _generate_sort_test("kt_sycl" "batched_radix_sort" "16" "1024" "int32_t" "uint64_t" 1000)
     _generate_sort_test("kt_sycl" "batched_radix_sort" "1" "512" "uint8_t" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "batched_radix_sort" "4" "256" "uint32_t" "" 1000)
 endif()
 
 # 4 radix bits are supported only for segments which fit in a work-group tile, sorted by the one work-group kernel,

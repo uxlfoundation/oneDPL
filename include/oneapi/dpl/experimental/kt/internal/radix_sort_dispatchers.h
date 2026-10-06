@@ -474,8 +474,8 @@ __batched_radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _R
             static_cast<std::uint32_t>(__segment_size));
     }
 #endif
-    // Onesweep only supports 8 radix bits; smaller radices are rejected for larger segments by the parameter check
-    if constexpr (__radix_bits == 8)
+    // The parameter check rejects larger segments when onesweep does not support the kernel parameters
+    if constexpr (__onesweep_supports_v<__radix_bits, _KernelParam::workgroup_size>)
     {
         return __onesweep<typename _KernelParam::kernel_name, __is_ascending, __radix_bits,
                           _KernelParam::data_per_workitem, _KernelParam::workgroup_size, __in_place,

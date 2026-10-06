@@ -49,8 +49,9 @@ constexpr std::uint8_t BatchedRadixBits = TEST_RADIX_BITS;
 #else
 constexpr std::uint8_t BatchedRadixBits = TestRadixBits;
 #endif
-// Only onesweep (8 radix bits) sorts segments larger than a tile
-constexpr bool OneWorkGroupOnly = BatchedRadixBits != 8;
+// Only onesweep (8 radix bits, 512 or 1024 work-items) sorts segments larger than a tile
+constexpr bool OneWorkGroupOnly =
+    BatchedRadixBits != 8 || (TEST_WORK_GROUP_SIZE != 512 && TEST_WORK_GROUP_SIZE != 1024);
 
 enum class DataMode
 {
