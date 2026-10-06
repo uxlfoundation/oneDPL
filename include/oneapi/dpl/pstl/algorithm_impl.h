@@ -3092,53 +3092,94 @@ __pattern_remove_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 // merge
 //------------------------------------------------------------------------
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Comp,
-          typename _Proj1, typename _Proj2>
+          typename _Proj1, typename _Proj2, typename _Assign = oneapi::dpl::__internal::__pstl_assign>
 std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
 __serial_merge_out_lim(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                        _ForwardIterator2 __last2, _OutputIterator __first3, _OutputIterator __last3, _Comp __comp,
-                       _Proj1 __proj1, _Proj2 __proj2)
+                       _Proj1 __proj1, _Proj2 __proj2, _Assign __assign = {})
 {
     while (__first3 != __last3)
     {
         if (__first1 == __last1)
         {
             assert(__first2 != __last2);
-            *__first3++ = *__first2++;
+            __assign(*__first2++, *__first3++);
         }
         else if (__first2 == __last2)
         {
             assert(__first1 != __last1);
-            *__first3++ = *__first1++;
+            __assign(*__first1++, *__first3++);
         }
         else
         {
             if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
-                *__first3++ = *__first2++;
+                __assign(*__first2++, *__first3++);
             else
-                *__first3++ = *__first1++;
+                __assign(*__first1++, *__first3++);
         }
     }
 
     return {__first1, __first2, __first3};
 }
 
+// This implementation is based on the Merge Path algorithm described in:
+// O. Green, S. Odeh, and Y. Birk,
+// "Merge Path - A Visually Intuitive Approach to Parallel Merging", arXiv:1406.2628, 2014.
+template <typename _Index, typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _Comp,
+          typename _Proj1, typename _Proj2>
+std::pair<_Index, _Index>
+__merge_path_intersection(_Index __diag, _Index __n_1, _Index __n_2, _RandomAccessIterator1 __first1,
+                          _RandomAccessIterator2 __first2, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    if (__diag == 0)
+        return {0, 0};
+
+    const _Index __row_begin = std::min(__diag, __n_1);
+    const _Index __row_end = (__diag > __n_2) ? __diag - __n_2 : _Index{0};
+    const _Index __col_begin = (__diag > __n_1) ? __diag - __n_1 : _Index{0};
+    const _Index __search_size = __row_begin - __row_end;
+
+    auto __get_row = [__row_begin](_Index __d) -> _Index {
+        return __row_begin - __d - 1;
+    };
+    auto __get_column = [__col_begin](_Index __d) -> _Index {
+        return __col_begin + __d;
+    };
+
+    using _Iter = oneapi::dpl::counting_iterator<_Index>;
+    const _Iter __it_d(0);
+    _Iter __found = std::lower_bound(__it_d, __it_d + __search_size, 1, [&](_Index __d, auto __val) {
+        const _Index __r_tmp = __get_row(__d);
+        const _Index __c_tmp = __get_column(__d);
+
+        assert(__r_tmp < __n_1);
+        assert(__c_tmp < __n_2);
+
+        const auto __res = std::invoke(__comp, std::invoke(__proj2, __first2[__c_tmp]),
+                                               std::invoke(__proj1, __first1[__r_tmp])) ? 0: 1;
+        return __res < __val;
+    });
+    const _Index __res_d = *__found; // __found == end -> __search_size, which is intentional
+    return {__row_begin - __res_d, __get_column(__res_d)};
+}
+
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
 _OutputIterator
 __brick_merge(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
               _ForwardIterator2 __last2, _OutputIterator __d_first, _Compare __comp,
-              /* __is_vector = */ ::std::false_type) noexcept
+              /* __is_vector = */ std::false_type) noexcept
 {
-    return ::std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
+    return std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
 __brick_merge(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
               _RandomAccessIterator2 __last2, _RandomAccessIterator3 __d_first, _Compare __comp,
-              /* __is_vector = */ ::std::true_type) noexcept
+              /* __is_vector = */ std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return ::std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
+    return std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
@@ -3154,132 +3195,88 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
                                      typename _Tag::__is_vector{});
 }
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator>
-using _merge_path_out_lim_return_t = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>;
-
-template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _ForwardIterator3, typename _Comp, typename _Proj1, typename _Proj2>
-_merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _ForwardIterator3>
-__merge_path_out_lim(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                     _ForwardIterator2 __first2, _ForwardIterator2 __last2, _ForwardIterator3 __first3,
-                     _ForwardIterator3 __last3, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
-
-    return __serial_merge_out_lim(__first1, __last1, __first2, __last2, __first3, __last3, __comp, __proj1, __proj2);
-}
-
-inline constexpr std::size_t __merge_path_cut_off = 2000;
-
-template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator1,
-          typename _RandomAccessIterator2, typename _RandomAccessIterator3, typename _Comp, typename _Proj1,
-          typename _Proj2>
-std::enable_if_t<__is_random_access_iterator_v<_RandomAccessIterator1> &&
-                     __is_random_access_iterator_v<_RandomAccessIterator2> &&
-                     __is_random_access_iterator_v<_RandomAccessIterator3>,
-                 _merge_path_out_lim_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3>>
-__merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
-                     _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                     _RandomAccessIterator3 __first3, _RandomAccessIterator3 __last3, _Comp __comp, _Proj1 __proj1,
-                     _Proj2 __proj2)
-{
-    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
-
-    using _Index1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
-    using _Index2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
-    using _Index3 = typename std::iterator_traits<_RandomAccessIterator3>::difference_type;
-    using _IndexCommon = std::common_type_t<_Index1, _Index2, _Index3>;
-    static_assert(std::is_signed_v<_IndexCommon>);
-
-    using _counting_iterator_t = oneapi::dpl::counting_iterator<_IndexCommon>;
-
-    const _IndexCommon __n_1 = __last1 - __first1;
-    const _IndexCommon __n_2 = __last2 - __first2;
-    const _IndexCommon __n_out = __last3 - __first3;
-
-    assert(__n_1 > 0);
-    assert(__n_2 > 0);
-    assert(__n_out > 0);
-
-    _merge_path_out_lim_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3> __result{
-        __first1, __first2, __first3};
-
-    __internal::__except_handler([&]() {
-        __par_backend::__parallel_for(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
-            [=, &__result](_IndexCommon __i, _IndexCommon __j) {
-                //a start merging point on the merge path; for each thread
-                _IndexCommon __r = 0; //row index
-                _IndexCommon __c = 0; //column index
-
-                if (__i > 0)
-                {
-                    //calc merge path intersection:
-                    const _IndexCommon __d_size =
-                        std::abs(std::max(_IndexCommon{0}, __i - __n_2) - (std::min(__i, __n_1) - 1)) + 1;
-
-                    auto __get_row = [__i, __n_1](_IndexCommon __d) -> _IndexCommon {
-                        return std::min(__i, __n_1) - __d - 1;
-                    };
-                    auto __get_column = [__i, __n_1](_IndexCommon __d) -> _IndexCommon {
-                        return std::max(_IndexCommon{0}, __i - __n_1) + __d;
-                    };
-
-                    const _counting_iterator_t __it_d(0);
-
-                    _counting_iterator_t __found =
-                        std::lower_bound(__it_d, __it_d + __d_size, 1, [&](_IndexCommon __d, auto __val) {
-                            const _IndexCommon __r_tmp = __get_row(__d);
-                            const _IndexCommon __c_tmp = __get_column(__d);
-
-                            assert(0 <= __r_tmp && __r_tmp < __n_1);
-                            assert(0 <= __c_tmp && __c_tmp < __n_2);
-
-                            const auto __res = std::invoke(__comp, std::invoke(__proj2, __first2[__c_tmp]),
-                                                           std::invoke(__proj1, __first1[__r_tmp])) ? 0 : 1;
-                            return __res < __val;
-                        });
-                    const _IndexCommon __res_d = *__found; // __found == end -> __d_size, which is intentional
-
-                    //intersection point
-                    __r = __get_row(__res_d);
-                    __c = __get_column(__res_d);
-
-                    ++__r; //to get a merge matrix ceil, lying on the current diagonal
-                }
-
-                //serial merge n elements, starting from input x and y, to [i, j) output range
-                const auto __merge_out_lim_res =
-                    __serial_merge_out_lim(__first1 + __r, __first1 + __n_1, __first2 + __c, __first2 + __n_2,
-                                           __first3 + __i, __first3 + __j, __comp, __proj1, __proj2);
-
-                if (__j == __n_out)
-                    __result = __merge_out_lim_res;
-            },
-            __merge_path_cut_off); //grainsize
-    });
-
-    return __result;
-}
+// Assume that non-arithmetic types and the associated operations are more expensive
+template <typename _Tp>
+inline constexpr std::size_t __merge_chunk_size = std::is_arithmetic_v<_Tp> ? 2000 : 500;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
 __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                 _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                _RandomAccessIterator3 __d_first, _Compare __comp)
+                _RandomAccessIterator3 __first3, _Compare __comp)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    return __internal::__except_handler([&]() {
-        __par_backend::__parallel_merge(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __d_first,
-            __comp,
-            [](_RandomAccessIterator1 __f1, _RandomAccessIterator1 __l1, _RandomAccessIterator2 __f2,
-               _RandomAccessIterator2 __l2, _RandomAccessIterator3 __f3, _Compare __comp) {
-                return __internal::__brick_merge(__f1, __l1, __f2, __l2, __f3, __comp, _IsVector{});
-            });
-        return __d_first + (__last1 - __first1) + (__last2 - __first2);
+    using _Index1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _Index2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _Index3 = typename std::iterator_traits<_RandomAccessIterator3>::difference_type;
+    using _Index = std::common_type_t<_Index1, _Index2, _Index3>;
+
+    const _Index __n_1 = __last1 - __first1;
+    const _Index __n_2 = __last2 - __first2;
+    const _Index __n_out = __n_1 + __n_2;
+
+    if (__n_out == 0)
+        return __first3;
+
+    // Too few elements
+    using _Tp = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
+    if (static_cast<std::size_t>(__n_out) <= __merge_chunk_size<_Tp>)
+    {
+        return __internal::__brick_merge(__first1, __last1, __first2, __last2, __first3, __comp, _IsVector{});
+    }
+    // {1} is empty
+    if (__n_1 == 0)
+    {
+        return __pattern_walk2_brick(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first2,
+                                     __last2, __first3, __brick_copy<__parallel_tag<_IsVector>>{});
+    }
+    // {2} is empty
+    if (__n_2 == 0)
+    {
+        return __pattern_walk2_brick(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first1,
+                                     __last1, __first3, __brick_copy<__parallel_tag<_IsVector>>{});
+    }
+
+    // {1} is ordered before {2} or vice versa
+    auto __copy_ordered = [=, &__exec](auto __first_a, auto __last_a, auto __first_b, auto __last_b) {
+        auto __copy = [=, &__exec](auto __in_first, auto __in_last, _Index __out_offset) {
+            __pattern_walk2_brick(__parallel_tag<_IsVector>{}, __exec, __in_first, __in_last, __first3 + __out_offset,
+                                  __brick_copy<__parallel_tag<_IsVector>>{});
+        };
+        const _Index __offset_b = __last_a - __first_a;
+        return __internal::__except_handler([=, &__exec]() {
+            __par_backend::__parallel_invoke(__backend_tag{}, __exec,
+                [=] { __copy(__first_a, __last_a, _Index{0}); },
+                [=] { __copy(__first_b, __last_b, __offset_b); });
+            return __first3 + __n_out;
+        });
+    };
+    // {1} is ordered before {2}
+    if (!__comp(*__first2, *(__last1 - 1)))
+    {
+        return __copy_ordered(__first1, __last1, __first2, __last2);
+    }
+    // {2} is ordered before {1}
+    if (__comp(*(__last2 - 1), *__first1))
+    {
+        return __copy_ordered(__first2, __last2, __first1, __last1);
+    }
+
+    return __internal::__except_handler([=, &__exec]() {
+        __par_backend::__parallel_for(
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_out,
+            [=](_Index __i, _Index __j) {
+                const auto [__r, __c] = __merge_path_intersection(__i, __n_1, __n_2, __first1, __first2, __comp,
+                                                                  oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                // Bounded merge is used to ensure that each task only writes to its assigned output range
+                __serial_merge_out_lim(__first1 + __r, __last1, __first2 + __c, __last2, __first3 + __i, __first3 + __j,
+                                       __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            },
+            __merge_chunk_size<_Tp>);
+
+        return __first3 + __n_out;
     });
 }
 
@@ -3289,18 +3286,18 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
 template <class _BidirectionalIterator, class _Compare>
 void
 __brick_inplace_merge(_BidirectionalIterator __first, _BidirectionalIterator __middle, _BidirectionalIterator __last,
-                      _Compare __comp, /* __is_vector = */ ::std::false_type) noexcept
+                      _Compare __comp, /* __is_vector = */ std::false_type) noexcept
 {
-    ::std::inplace_merge(__first, __middle, __last, __comp);
+    std::inplace_merge(__first, __middle, __last, __comp);
 }
 
 template <class _RandomAccessIterator, class _Compare>
 void
 __brick_inplace_merge(_RandomAccessIterator __first, _RandomAccessIterator __middle, _RandomAccessIterator __last,
-                      _Compare __comp, /* __is_vector = */ ::std::true_type) noexcept
+                      _Compare __comp, /* __is_vector = */ std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial")
-    ::std::inplace_merge(__first, __middle, __last, __comp);
+    std::inplace_merge(__first, __middle, __last, __comp);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _BidirectionalIterator, class _Compare>
@@ -3319,39 +3316,109 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
                         _RandomAccessIterator __middle, _RandomAccessIterator __last, _Compare __comp)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+    using _Index = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
+    using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
+    constexpr _Index __merge_chunk = static_cast<_Index>(__merge_chunk_size<_Tp>);
 
-    if (__first == __last || __first == __middle || __middle == __last)
+    // Nothing to merge
+    if (__first == __middle || __middle == __last)
     {
         return;
     }
+    // {1} is ordered before {2}
+    if (!__comp(*__middle, *(__middle - 1)))
+    {
+        return;
+    }
+    // {2} is ordered before {1}
+    if (__comp(*(__last - 1), *__first))
+    {
+        __pattern_rotate(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first, __middle,
+                         __last);
+        return;
+    }
+    // Narrow the range: {1}'s head, which is ordered before {2}, and {2}'s tail, which is ordered after {1},
+    // are already in their final positions
+    __first = std::upper_bound(__first, __middle, *__middle, __comp);
+    __last = std::upper_bound(__middle, __last, *(__middle - 1), __comp);
 
-    using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
-    auto __n = __last - __first;
+    // Too few elements
+    // multiple of the serial merge chunk size to amortize the allocation overhead
+    if (static_cast<std::size_t>(__last - __first) <= 4 * __merge_chunk)
+    {
+        std::inplace_merge(__first, __middle, __last, __comp);
+        return;
+    }
+
+    const _Index __n_1 = __middle - __first;
+    const _Index __n_2 = __last - __middle;
+    const _Index __n = __n_1 + __n_2;
+    const _Index __n_chunks = __internal::__dpl_ceiling_div(__n, __merge_chunk);
+
     __par_backend::__buffer<_Tp> __buf(__n);
-    _Tp* __r = __buf.get();
-    __internal::__except_handler([&]() {
-        auto __move_values = [](_RandomAccessIterator __x, _Tp* __z) {
-            ::new (std::addressof(*__z)) _Tp(std::move(*__x));
-        };
+    __par_backend::__buffer<_Index> __split_buf(__n_chunks + 1); // +1 to store the final boundary
+    _Tp* __b = __buf.get();
+    _Index* __split = __split_buf.get();
 
-        auto __move_sequences = [](_RandomAccessIterator __first1, _RandomAccessIterator __last1, _Tp* __first2) {
-            return __internal::__brick_uninitialized_move(__first1, __last1, __first2, _IsVector{});
+    __internal::__except_handler([=, &__exec]() {
+        // 1. Partition
+        __split[0] = 0;
+        __split[__n_chunks] = __n_1;
+        auto __partition = [=](_Index __c_first, _Index __c_last) {
+            for (_Index __c = __c_first; __c < __c_last; ++__c)
+            {
+                const _Index __diag = std::min(__c * __merge_chunk, __n);
+                __split[__c] = __merge_path_intersection(__diag, __n_1, __n_2, __first, __middle, __comp,
+                                                         oneapi::dpl::identity{}, oneapi::dpl::identity{}).first;
+            }
         };
+        constexpr _Index __diagonal_chunk_size = 64; // empirically determined
+        if (__n_chunks < __diagonal_chunk_size)
+            __partition(_Index{1}, __n_chunks);
+        else
+            __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{1}, __n_chunks, __partition,
+                                          __diagonal_chunk_size);
 
-        __par_backend::__parallel_merge(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle, __middle, __last, __r, __comp,
-            [__n, __move_values, __move_sequences](_RandomAccessIterator __f1, _RandomAccessIterator __l1,
-                                                   _RandomAccessIterator __f2, _RandomAccessIterator __l2, _Tp* __f3,
-                                                   _Compare __comp) {
-                (__utils::__serial_move_merge(__n))(__f1, __l1, __f2, __l2, __f3, __comp, __move_values, __move_values,
-                                                    __move_sequences, __move_sequences);
-                return __f3 + (__l1 - __f1) + (__l2 - __f2);
+        // 2. Move to the temporary buffer to merge to the original range later
+        __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{0}, __n, [=](_Index __i, _Index __j) {
+            __internal::__brick_uninitialized_move(__first + __i, __first + __j, __b + __i, _IsVector{});
+        });
+
+        // 3. Merge
+        auto __move_assign = [](_Tp& __x, auto&& __y) { std::forward<decltype(__y)>(__y) = std::move(__x); };
+
+        __par_backend::__parallel_for(
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_chunks,
+            [=](_Index __c_first, _Index __c_last) {
+                for (_Index __c = __c_first; __c < __c_last; ++__c)
+                {
+                    const _Index __i = __c * __merge_chunk;
+                    const _Index __j = std::min(__i + __merge_chunk, __n);
+                    const _Index __row = __split[__c];
+                    const _Index __col = __i - __row;
+                    const _Index __row_end = __split[__c + 1];
+                    const _Index __col_end = __j - __row_end;
+
+                    if (__row == __row_end) // Chunk contains only {2} elements
+                    {
+                        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __n_1 + __col, __b + __n_1 + __col_end,
+                                                                          __first + __i, _IsVector{});
+                    }
+                    else if (__col == __col_end) // Chunk contains only {1} elements
+                    {
+                        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__b + __row, __b + __row_end, __first + __i,
+                                                                          _IsVector{});
+                    }
+                    else // Chunk contains both {1} and {2} elements
+                    {
+                        __serial_merge_out_lim(__b + __row, __b + __row_end, __b + __n_1 + __col,
+                                               __b + __n_1 + __col_end, __first + __i, __first + __j, __comp,
+                                               oneapi::dpl::identity{}, oneapi::dpl::identity{}, __move_assign);
+                        __internal::__brick_destroy(__b + __row, __b + __row_end, _IsVector{});
+                        __internal::__brick_destroy(__b + __n_1 + __col, __b + __n_1 + __col_end, _IsVector{});
+                    }
+                }
             });
-        __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n,
-                                      [__r, __first](_Tp* __i, _Tp* __j) {
-                                          __brick_move_destroy<__parallel_tag<_IsVector>>{}(
-                                              __i, __j, __first + (__i - __r), _IsVector{});
-                                      });
     });
 }
 
