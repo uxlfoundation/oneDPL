@@ -161,3 +161,138 @@ This allows backend patterns to be written generically, whether a result storage
 is needed or not. Using an accessor to an optional result storage must be guarded
 by the same compile-time condition used for storage creation or by
 `__is_combi_accessor(accessor)`.
+
+## `__storage_holder`
+
+`__storage_holder<_NScratch, _ResultTypes...>` is the lifetime and ownership manager
+for the allocations of an asynchronous backend pattern. It is constructed by an
+algorithm before the backend pattern is called, passed by reference into the pattern,
+and used to retrieve results after the kernels submitted by the pattern are complete.
+
+The template parameters are:
+- `_NScratch` — the number of scratch storage slots. This must equal the
+  maximum number of `__device_storage` and `__combined_storage` objects
+  simultaneously used by any code path through the backend pattern.
+- `_ResultTypes...` — the value types of the result slots, one per result.
+
+Note that a `__combined_storage` needs both a scratch slot and a result slot;
+see [Depositing Storages](#depositing-storages) for more information.
+
+### Holder Type Alias
+
+A backend pattern defines a holder type alias that fixes the storage
+parameters and exposes it to callers. The alias typically hides the number of
+scratch slots (usually irrelevant to callers) and any compile-time variation
+of result types behind a pattern-specific name.
+
+For example, the scan pattern defines two aliases depending on whether the
+output can be bounded (requiring a stop position result) or it cannot:
+
+```cpp
+template <bool _Bounded, typename _ValueType, typename _StopPosType>
+using __transform_scan_storage_holder =
+    std::conditional_t<_Bounded,
+                       __storage_holder<2, _ValueType, _StopPosType>,
+                       __storage_holder<2, _ValueType>>;
+
+template <typename _ValueType>
+using __transform_scan_storage_holder_simple = __storage_holder<2, _ValueType>;
+```
+
+It is recommended that the number and the order of template type parameters
+of the alias match the holder result slots, for predictable result retrieval API.
+
+A caller uses the appropriate alias based on its own template parameters
+and constructs the holder without any knowledge of the scratch count
+or the internal storages:
+```cpp
+__transform_scan_storage_holder<_Bounded, diff_t, _PositionType> __holder(__q);
+```
+
+Note that callers may need to know the conditions for a certain result to be
+retrieved, such as dependence of `_PositionType` availability on `_Bounded`
+in the above example.
+
+### Depositing Storages
+
+After submitting kernels, the backend pattern transfers ownership of its
+storage objects into the holder before returning. The pattern is responsible
+for using a correct slot for each storage object, depending on the data type
+and storage type.
+
+To save a result storage for subsequent data retrieval, use `__store<Idx>`
+with the index of the result slot that matches the storage data type, e.g.:
+```cpp
+__holder.template __store<0>(std::move(__result));
+```
+
+Each result slot may only be written once; an assertion enforces this at
+runtime.
+
+When a `__combined_storage` is stored via `__store<Idx>`, its scratch allocation,
+if separate, is automatically moved into the next available scratch slot;
+no special call is needed. That is the reason for the number of scratch slots
+to include the combined storage objects.
+
+To only protect storage lifetime without possibility to get any data for it,
+use `__store_scratch`:
+```cpp
+__holder.__store_scratch(std::move(__scratch));
+```
+
+It is primarily intended for a `__device_storage`, but it works with other
+storage types which inherit that. Note that it is especially dangerous to use
+with a `__combined_storage` - it may have a separate allocation for result data,
+which is not transferred by `__store_scratch` and risks to be freed prematurely
+when the storage is destroyed. Whether stricter usage limitations should be
+set for `__store_scratch` is an open question.
+
+The following pseudocode example illustrates how a backend pattern with two
+implementation paths uses the holder. The small-size path produces only
+a result; the other path requires scratch memory in addition:
+
+```cpp
+template<typename ValueType>
+using __parallel_pattern_holder = __storage_holder<1, ValueType>;
+
+template<typename ValueType>
+sycl::event
+__parallel_pattern_small_impl(sycl::queue& __q,
+                              __parallel_pattern_holder<ValueType>& __holder, ...)
+{
+    __result_storage<ValueType> __result(__q, 1);
+    sycl::event __event = __single_wg_submitter(__q, __result, ...);
+    __holder.template __store<0>(std::move(__result));
+    return __event;
+}
+
+template<typename ValueType>
+sycl::event
+__parallel_pattern_impl(sycl::queue& __q,
+                        __parallel_pattern_holder<ValueType>& __holder, ...)
+{
+    __combined_storage<<ValueType> __scratch_and_result(__q, __scratch_n, 1);
+    sycl::event __event = __nd_range_submitter(__q, __scratch_and_result, ...);
+    __holder.template __store<0>(std::move(__scratch_and_result));
+    return __event;
+}
+```
+
+Note that `_NScratch` is set to 1; the small-size path stores no scratch, while 
+the other path may store a scratch region from the `__combined_storage`.
+
+### Safe Memory Management
+
+Both the storage objects and `__storage_holder` manage allocations via RAII.
+A storage object that is destroyed without being moved into the holder —
+for example if an exception is thrown between construction and `__store` —
+will free its memory. Once ownership is transferred via `__store` or
+`__store_scratch`, the holder takes responsibility: its destructor frees any
+USM memory that has not subsequently been transferred out via `__extract()`
+(see [Asynchronous Algorithm](#asynchronous-algorithm)).
+
+Care must be taken when a kernel is in flight and holds a reference to storage
+memory: destroying a storage object or the holder before the kernel completes
+will cause premature deallocation. The backend pattern is responsible for
+ensuring that all in-flight kernels have completed or that ownership has been
+transferred to the holder before any storage object goes out of scope.
