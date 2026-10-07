@@ -1,4 +1,4 @@
-# Storage Utilities for SYCL Backend Patterns in oneDPL
+# Storage Utilities for SYCL Backend Patterns
 
 ## Overview
 
@@ -21,12 +21,12 @@ and outlives the pattern, carrying the results back to the caller.
 flowchart TB
     subgraph CallerStart["Algorithm"]
         S1["Construct holder\n__parallel_pattern_holder&lt;N, Ts...&gt; __holder(__q)"]
-        S2["Call a backend pattern\n__parallel_pattern_name(..., __holder, ...)"]
+        S2["Call a backend pattern\n__parallel_pattern_async(..., __holder, ...)"]
 
         subgraph BackendPattern["Backend Pattern"]
             BP1["Defines a holder alias\nusing __parallel_pattern_holder =\n__storage_holder&lt;NScratch, ResultTypes...&gt;"]
             BP2["Construct storage\n__device_storage&lt;T&gt;,\n__result_storage&lt;T&gt; or\n__combined_storage&lt;T&gt;"]
-            BP3["Submit kernel(s)"]
+            BP3["Call the kernel submitter(s)"]
 
             subgraph KernelSubmitter["Kernel Submitter"]
                 KS1["Submit kernel\n__q.submit([&](sycl::handler& __cgh){...})"]
@@ -296,3 +296,66 @@ memory: destroying a storage object or the holder before the kernel completes
 will cause premature deallocation. The backend pattern is responsible for
 ensuring that all in-flight kernels have completed or that ownership has been
 transferred to the holder before any storage object goes out of scope.
+
+## Algorithm Integration
+
+### Synchronous Algorithm
+
+A synchronous algorithm constructs the holder, calls the backend pattern,
+waits for kernel completion, and reads the result directly from the holder
+using its `__copy_result<Idx>` function template:
+
+```cpp
+template<typename _ExecutionPolicy, ...>
+auto
+__hetero_algo_pattern(oneapi::dpl::__internal::__device_backend_tag,
+                      _ExecutionPolicy&& __exec, ...)
+{
+    using ValueType = ... ;
+    sycl::queue __q = __exec.queue();
+    __parallel_pattern_holder<ValueType> __holder(__q);
+    sycl::event __event = __parallel_pattern_async(__q, __holder, ...);
+    __event.wait_and_throw();
+
+    ValueType value;
+    __holder.template __copy_result<0>(&value, 1);
+    return value;
+}
+```
+
+If all result types are default-constructible and a single value per slot is
+expected, the `__get_results` function provides a more concise alternative
+to `__copy_result`, returning a `std::tuple<_ResultTypes...>`:
+
+```cpp
+    std::tuple results = __get_results(__holder);
+    return std::get<0>(results);
+    // alternatively: auto [value] = __get_results(__holder);
+```
+
+### Asynchronous Algorithm
+
+An asynchronous algorithm constructs the holder, calls the backend pattern,
+and packages the returned event into a `__future` object together with
+the storage extracted from the holder:
+
+```cpp
+template<typename _ExecutionPolicy, ...>
+auto
+__hetero_algo_pattern_async(oneapi::dpl::__internal::__device_backend_tag,
+                            _ExecutionPolicy&& __exec, ...)
+{
+    using ValueType = ... ;
+    sycl::queue __q = __exec.queue();
+    __parallel_pattern_holder<ValueType> __holder(__q);
+    sycl::event __event = __parallel_pattern_async(__q, __holder, ...);
+
+    return __future{std::move(__event), std::move(__holder).__extract()};
+}
+```
+
+`__extract()` consumes the holder and converts its content into a tuple of
+`__copyable_storage_state` objects with shared ownership of the underlying
+allocations. The `__future` holds these states for its own lifetime, ensuring
+the memory remains valid until the asynchronous result is consumed. The holder
+itself is left in a state where its destructor has nothing to free.
