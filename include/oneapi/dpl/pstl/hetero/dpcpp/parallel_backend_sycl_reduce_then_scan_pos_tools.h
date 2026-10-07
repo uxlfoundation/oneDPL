@@ -83,13 +83,6 @@ using _SetOpFinalAndOOBPosType = _SetOpFinalAndOOBPosTypeImpl<std::decay_t<_Rang
 
 namespace __internal
 {
-// Describes whether we have a final-position type in the storage or not
-template <typename _StopPosStorage>
-inline constexpr bool __has_final_pos = false;
-
-template <typename _Range1, typename _Range2>
-inline constexpr bool __has_final_pos<_SetOpFinalAndOOBPosTypeImpl<_Range1, _Range2>> = true;
-
 // Temporary data stand-in which discards the stored values and instead captures
 // the source position of the element at a specific index during a reduce then scan operation.
 template <typename _FinalPosT>
