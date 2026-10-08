@@ -313,11 +313,14 @@ the `first_value` and `last_value` iterators will define the valid range to acce
 
 ### Synopsis
 
-```c++
-// Included from <oneapi/dpl/numeric>
-// Can be included from <oneapi/dpl/algorithm>
-// as the existing overload, but it is discouraged.
+All the proposed segmented algorithms are included from `<oneapi/dpl/numeric>`.
 
+Optionally, the algorithms can also be made available from `<oneapi/dpl/algorithm>`,
+because the existing `reduce_by_segment` allows it due to historical reasons.
+
+#### `reduce_by_segment`
+
+```c++
 // (1) Variable-length segments
 template <typename Policy,
           typename InputValueIt,
@@ -360,8 +363,10 @@ oneapi::dpl::reduce_by_segment(
 );
 ```
 
+#### `min_element_by_segment`
+
 ```c++
-// (1) Variable-lengh segments
+// (1) Variable-length segments
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,     // to be constrained to an integral type
@@ -378,7 +383,7 @@ oneapi::dpl::min_element_by_segment(
     OutputIndexIt result_index
 );
 
-// (2) Variable-lengh segments, with comparator
+// (2) Variable-length segments, with comparator
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,     // to be constrained to an integral type
@@ -435,6 +440,8 @@ oneapi::dpl::min_element_by_segment(
     InitT          init_value
 );
 ```
+
+#### `max_element_by_segment`
 
 ```c++
 // (1) Variable-length segment
@@ -516,20 +523,22 @@ oneapi::dpl::max_element_by_segment(
 
 The RFC can be implemented in stages, for example:
 
-1. Implement device-only policy support with variable-segment overloads.
-2. Enable other policies with the variable-segment overloads.
-3. Implement fixed-segment overloads.
+1. Implement device-only policy support with variable-segment overloads of `reduce_by_segment`
+2. Enable other policies with the variable-segment overloads of `reduce_by_segment`.
+3. Implement fixed-segment overloads of `reduce_by_segment`.
 4. Add support for `min_element_by_segment` and `max_element_by_segment`.
 5. Enable identities for the custom binary operations and types.
 
 ### Feature Macro
 
 The API is set to be evolving, hence a feature macro should be defined for convenience.
-For example: `ONEDPL_HAS_REDUCE_BY_SEGMENT 202109L`
-for the current state as it already has the key-based segmented reduction,
-`ONEDPL_HAS_REDUCE_BY_SEGMENT 202611L` with the next version,
-e.g. including device policy support and variable-segment overloads.
-`ONEDPL_HAS_REDUCE_BY_SEGMENT YYYYMML` for future versions.
+For example:
+
+- `ONEDPL_HAS_REDUCE_BY_SEGMENT 202109L`
+  for the current state as it already has the key-based segmented reduction,
+- `ONEDPL_HAS_REDUCE_BY_SEGMENT 202611L` with the next version, e.g.,
+   including device policy support and variable-segment overloads of `reduce_by_segment`.
+- `ONEDPL_HAS_REDUCE_BY_SEGMENT YYYYMML` for future versions.
 
 ### Examples
 
