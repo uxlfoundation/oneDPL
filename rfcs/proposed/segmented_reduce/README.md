@@ -235,21 +235,78 @@ Extensive research: [P4229R0](https://www.open-std.org/jtc1/sc22/wg21/docs/paper
 - Do our best to achieve run-to-run determinism where possible,
   and document where it is not present (may be policy-dependent).
 
-### Overload Disambiguation
+### Binary Operation and Init Value Order
+
+In `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`,
+the order is `binary_op, init_value`.
+In `dpl::reduce`, it is the opposite.
+For API consistency, `init_value, binary_op` is preferred.
+If full order compatibility with CUB and rocPRIM equivalents is required,
+wrappers can be added to, for example, `compat` namespace.
+
+**Strategy**: Use `init_value, binary_op` order.
+
+### Arguments and Overload Disambiguation
 
 The algorithm can be positioned as a sibling of `dpl::reduce_by_segment`,
 which means that it should have the same naming if possible.
+
 It should be kept in mind that the proposed overloads
 may introduce default values for the binary operation and the initial value.
 
 Overload resolution should be carefully considered to avoid ambiguity.
 
-In the proposed overloads,
-the distinction is made by constraining the `num_segments` to an integral type.
-In the existing overload, it takes the place of the `InputValueIt val_first` argument,
-which is semantically required to be an iterator.
+Given that providing an alternative functionality
+to `cub::DeviceSegmentedReduce` is the main motivation,
+the new overloads should have a similar argument order.
 
-**Strategy**. Constrain arguments which require integral types to avoid ambiguity.
+The table below shows the suggested argument order.
+It uses the arguments from `cub::DeviceSegmentedReduce`, keeping their order,
+adds an input boundary ([Input Boundary](#input-boundary)),
+and reorders the last two arguments
+([Binary Operation and Initial Value Order](#binary-operation-and-init-value-order)).
+Lines are listed for comparison between oneDPL algorithsm,
+and CUB algorithms are shown for the reference on the arguments used.
+
+| CUB `Reduce` (variable segments) | CUB `Reduce` (fixed segments) | Line | `dpl::reduce_by_segment` (key-based segments) | `dpl::reduce_by_segment` (variable segments) | `dpl::reduce_by_segment` (fixed segments) |
+|---|---|---|---|---|---|
+| `d_temp_storage` | `d_temp_storage` | \- | — | — | — |
+| `temp_storage_bytes` | `temp_storage_bytes` | 1 | `policy` | `policy` | `policy` |
+| `d_in` | `d_in` | 2 | `key_first` | `first` | `first` |
+| `d_out` | `d_out` | 3 | `key_last` | `last` | `last` |
+| `num_segments` | `num_segments` | 4 | `val_first` | `out_first` | `out_first` |
+| `d_begin_offsets` | `segment_size` | 5 | `out_key_first` | `num_segments` | `num_segments` |
+| `d_end_offsets` | `reduction_op` | 6 | `out_val_first` | `begin_offsets` | `segment_length` |
+| `reduction_op` | `initial_value` | 7 | `binary_pred` (opt) | `end_offsets` | `binary_op` (opt) |
+| `initial_value` | `stream` (opt) | 8 | `binary_op` (opt) | `binary_op` (opt) | `init` (opt) |
+| `stream` (opt) | — | 9 | — | `init` (opt) | — |
+
+`(opt)` means that the argument is optional or can be made optional in the future.
+`—` is padding for better mapping of the relevant arguments.
+
+The overloads overlap in the number of arguments (6 to 8),
+and only the 5th and 6th arguments differ in kind (iterator vs integer),
+which can be constrained using SFINAE:
+
+| Overload | 5th argument | 6th argument |
+|---|---|---|
+| key-based (existing) | `out_key_first`: not integral | — |
+| variable-length | `num_segments`: integral | `begin_offsets`: not integral |
+| fixed-length | `num_segments`: integral | `segment_length`: integral |
+
+The existing key-based overloads must get a new constraint: `!std::is_integral_v<OutputKeyIt>`,
+It does not break existing code.
+This SFINAE constraint can be folded into the existing policy constraint, for example:
+`enable_if<is_execution_policy<Policy>, !std::is_integral_v<OutputKeyIt>, /*return-type*/>`,
+instead of:
+`enable_if_execution_policy<Policy, /*return-type*/>`.
+The same approach can be applied to constrain the new overloads.
+
+**Strategy**:
+
+- Constrain `num_segments` and `segment_length` to integral types,
+  and `begin_offsets` to non-integral types.
+- Constrain the existing key-based overloads to reject an integral `out_key_first`.
 
 ### Accumulator Type
 
@@ -327,8 +384,8 @@ template <typename Policy,
           typename SegmentNumT,     // to be constrained to an integral type
           typename OffsetIt,
           typename OutputValueIt,
-          typename BinaryOp,
-          typename InitT>
+          typename InitT,
+          typename BinaryOp>
 OutputValueIt
 oneapi::dpl::reduce_by_segment(
     Policy&&      policy,
@@ -338,8 +395,8 @@ oneapi::dpl::reduce_by_segment(
     OffsetIt      begin_offsets,
     OffsetIt      end_offsets,
     OutputValueIt result_value,
-    BinaryOp      binary_op,
-    InitT         init_value
+    InitT         init_value,
+    BinaryOp      binary_op
 );
 
 // (2) Fixed-length segments
@@ -348,8 +405,8 @@ template <typename Policy,
           typename SegmentNumT,      // to be constrained to an integral type
           typename SegmentLengthT,   // to be constrained to an integral type
           typename OutputValueIt,
-          typename BinaryOp,
-          typename InitT>
+          typename InitT,
+          typename BinaryOp>
 OutputValueIt
 oneapi::dpl::reduce_by_segment(
     Policy&&        policy,
@@ -358,10 +415,14 @@ oneapi::dpl::reduce_by_segment(
     SegmentNumT     num_segments,
     SegmentLengthT  segment_length,
     OutputValueIt   result_value,
-    BinaryOp        binary_op,
-    InitT           init_value
+    InitT           init_value,
+    BinaryOp        binary_op
 );
 ```
+
+See [Arguments and Overload Disambiguation](#arguments-and-overload-disambiguation)
+for details on the constraints.
+Note, the key-based overloads must constrain the `OutputKeyIt` type to be non-integral.
 
 #### `min_element_by_segment`
 
@@ -389,8 +450,8 @@ template <typename Policy,
           typename SegmentNumT,     // to be constrained to an integral type
           typename OffsetIt,
           typename OutputIndexIt,
-          typename Compare,
-          typename InitT>
+          typename InitT,
+          typename Compare>
 OutputIndexIt
 oneapi::dpl::min_element_by_segment(
     Policy&&      policy,
@@ -400,8 +461,8 @@ oneapi::dpl::min_element_by_segment(
     OffsetIt      begin_offsets,
     OffsetIt      end_offsets,
     OutputIndexIt result_index,
-    Compare       comp,
-    InitT         init_value
+    InitT         init_value,
+    Compare       comp
 );
 
 // (3) Fixed-length segments
@@ -426,8 +487,8 @@ template <typename Policy,
           typename SegmentNumT,      // to be constrained to an integral type
           typename SegmentLengthT,   // to be constrained to an integral type
           typename OutputIndexIt,
-          typename Compare,
-          typename InitT>
+          typename InitT,
+          typename Compare>
 OutputIndexIt
 oneapi::dpl::min_element_by_segment(
     Policy&&       policy,
@@ -436,8 +497,8 @@ oneapi::dpl::min_element_by_segment(
     SegmentNumT    num_segments,
     SegmentLengthT segment_length,
     OutputIndexIt  result_index,
-    Compare        comp,
-    InitT          init_value
+    InitT          init_value,
+    Compare        comp
 );
 ```
 
@@ -467,8 +528,8 @@ template <typename Policy,
           typename SegmentNumT,     // to be constrained to an integral type
           typename OffsetIt,
           typename OutputIndexIt,
-          typename Compare,
-          typename InitT>
+          typename InitT,
+          typename Compare>
 OutputIndexIt
 oneapi::dpl::max_element_by_segment(
     Policy&&      policy,
@@ -478,8 +539,8 @@ oneapi::dpl::max_element_by_segment(
     OffsetIt      begin_offsets,
     OffsetIt      end_offsets,
     OutputIndexIt result_index,
-    Compare       comp,
-    InitT         init_value
+    InitT         init_value,
+    Compare       comp
 );
 
 // (3) Fixed-length segments
@@ -504,8 +565,8 @@ template <typename Policy,
           typename SegmentNumT,      // to be constrained to an integral type
           typename SegmentLengthT,   // to be constrained to an integral type
           typename OutputIndexIt,
-          typename Compare,
-          typename InitT>
+          typename InitT,
+          typename Compare>
 OutputIndexIt
 oneapi::dpl::max_element_by_segment(
     Policy&&       policy,
@@ -514,8 +575,8 @@ oneapi::dpl::max_element_by_segment(
     SegmentNumT    num_segments,
     SegmentLengthT segment_length,
     OutputIndexIt  result_index,
-    Compare        comp,
-    InitT          init_value
+    InitT          init_value,
+    Compare        comp
 );
 ```
 
@@ -577,7 +638,7 @@ int main()
 
     int* result_end = oneapi::dpl::reduce_by_segment(
         policy, values, values + num_elements, num_segments,
-        begin_offsets, end_offsets, result, std::plus<int>{}, 0);
+        begin_offsets, end_offsets, result, 0, std::plus<int>{});
 
     for (int* it = result; it != result_end; ++it)
         std::cout << *it << ' ';
@@ -613,7 +674,7 @@ int main()
     auto result_end = oneapi::dpl::reduce_by_segment(
         oneapi::dpl::execution::par_unseq, values.begin(), values.end(),
         num_segments, segment_length, result.begin(),
-        maximum, std::numeric_limits<int>::lowest());
+        std::numeric_limits<int>::lowest(), maximum);
 
     for (auto it = result.begin(); it != result_end; ++it)
         std::cout << *it << ' ';
