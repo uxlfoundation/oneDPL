@@ -114,7 +114,8 @@ main()
                                                         TestUtils::create_new_kernel_param_idx<3>(params));
                 }
 
-                const DataMode mode = modes[mode_idx++ % 4];
+                // Only the segment counts advance the rotation, so each count cycles through all modes
+                const DataMode mode = modes[mode_idx % 4];
                 test_case<Sorter, Ascending, false>(q, mode, segment_size, many,
                                                     TestUtils::create_new_kernel_param_idx<0>(params),
                                                     DataPattern::all_equal);

@@ -231,7 +231,7 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     # Pin some cases to track them
     _generate_sort_test("kt_sycl" "batched_radix_sort" "8" "512" "uint32_t" "" 1000)
     _generate_sort_test("kt_sycl" "batched_radix_sort" "3" "1024" "float" "uint32_t" 1000)
-    _generate_sort_test("kt_sycl" "batched_radix_sort" "16" "1024" "int32_t" "uint64_t" 1000)
+    _generate_sort_test("kt_sycl" "batched_radix_sort" "12" "512" "int32_t" "uint64_t" 1000)
     _generate_sort_test("kt_sycl" "batched_radix_sort" "1" "512" "uint8_t" "uint32_t" 1000)
     _generate_sort_test("kt_sycl" "batched_radix_sort" "4" "256" "uint32_t" "" 1000)
 endif()
