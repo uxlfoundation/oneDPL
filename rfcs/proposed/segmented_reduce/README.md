@@ -85,8 +85,8 @@ Therefore, they should be supported.
 specifying the appropriate binary operation and initial value for the reduction.
 no need to introduce special overloads for the `reduce_by_segment` algorithm, complicating the API.
 
-`ArgMin` and `ArgMax` is a special case, because they reduce key-value pairs instead of just values.
-Algorithmically it does the following:
+`ArgMin` and `ArgMax` is a special case, because they reduce index-value pairs instead of just values.
+Algorithmically they do the following:
 
 1. Pack the input into `zip(counting_iterator, input_first)`.
 2. Do the regular segmented reduction
@@ -250,15 +250,14 @@ wrappers can be added to, for example, `compat` namespace.
 
 The algorithm can be positioned as a sibling of `dpl::reduce_by_segment`,
 which means that it should have the same naming if possible.
-
 It should be kept in mind that the proposed overloads
 may introduce default values for the binary operation and the initial value.
-
 Overload resolution should be carefully considered to avoid ambiguity.
 
-Given that providing an alternative functionality
+Providing an alternative functionality
 to `cub::DeviceSegmentedReduce` is the main motivation,
-the new overloads should have a similar argument order.
+therefore, the new overloads should have compatible interfaces
+and as close in argument order as possible.
 
 The table below shows the suggested argument order.
 It uses the arguments from `cub::DeviceSegmentedReduce`, keeping their order,
@@ -295,11 +294,18 @@ which can be constrained using SFINAE:
 | fixed-length | `num_segments`: integral | `segment_length`: integral |
 
 The existing key-based overloads must get a new constraint: `!std::is_integral_v<OutputKeyIt>`,
-It does not break existing code.
+It does not break existing code, because an integral type does not satisfy the iterator requirements.
 This SFINAE constraint can be folded into the existing policy constraint, for example:
-`enable_if<is_execution_policy<Policy>, !std::is_integral_v<OutputKeyIt>, /*return-type*/>`,
+```c++
+__internal::__enable_if<oneapi::dpl::is_execution_policy_v<Policy>, !std::is_integral_v<OutputKeyIt>, /*return-type*/>
+```
+
 instead of:
-`enable_if_execution_policy<Policy, /*return-type*/>`.
+
+```c++
+__internal::__enable_if_execution_policy<Policy, /*return-type*/>
+```
+
 The same approach can be applied to constrain the new overloads.
 
 **Strategy**:
@@ -317,7 +323,7 @@ This type can be influenced by:
 - initial value type
 - input value type
 - output value type
-- type inferred from the binary operation
+- result type of the binary operation
 
 Consider these cases:
 - The accumulator type may differ from both the input and output value types.
