@@ -98,7 +98,7 @@ Given that there options on how to handle `ArgMin` and `ArgMax`:
    use the same overload, and customize the behaviour accordingly.
 2. Introduce a fancy iterator with `enumerate` semantics,
    add `dpl::argmin` and `dpl::argmax` functors that work with it,
-   and to trigger the normalization of the indices. 
+   and to trigger the normalization of the indices.
 3. Provide special overloads, and name after min and max element functions, e.g.,
    `min_element_by_segment` and `max_element_by_segment`.
 
@@ -168,6 +168,8 @@ It's much easier to emulate via existing key-based segmented reduction
 via counting and discard iterators,
 but it is not as efficient due to segment boundary checks.
 
+**Strategy**: provide the fixed-length segment overloads.
+
 ### Binary Operator
 
 Associativity is essential for parallelization.
@@ -224,6 +226,8 @@ the distinction is made by constraining the `num_segments` to an integral type.
 In the existing overload, it takes the place of the `InputValueIt val_first` argument,
 which is semantically required to be an iterator.
 
+**Strategy**. Constrain arguments which require integral types to avoid ambiguity.
+
 ### Accumulator Type
 
 The accumulator type determines the representation of intermediate reduction results.
@@ -233,7 +237,7 @@ This type can be influenced by:
 - initial value type
 - input value type
 - output value type
-- type inferred from the binary operation 
+- type inferred from the binary operation
 
 Consider these cases:
 - The accumulator type may differ from both the input and output value types.
@@ -259,7 +263,7 @@ The documentation does not provide explicit rules for the accumulator type. Algo
 - [`std::reduce`](<https://eel.is/c++draft/reduce>)
 
 **Strategy**: Use the common type from all involved types as the accumulator type.
-Document this choice as it affects performance and accuracy (in case of `float` and `double` types).
+Document this choice as it may affect performance and accuracy.
 
 ## Return Value
 
@@ -268,6 +272,19 @@ should the function also return the last processed input iterator?
 
 **Tentative Strategy**. Do not return it to be aligned with the existing overload
 and iterator-based algorithms in general.
+
+## Empty Segments
+
+**Strategy**. Return the initial value as in
+`cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`.
+
+## Negative Offsets
+
+**Strategy**. Explicitly prohibit them,
+contrary to the `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce` for safety.
+
+In the proposed interfaces,
+the `first_value` and `last_value` iterators will define the valid range to access.
 
 ## Proposal
 
@@ -339,7 +356,7 @@ The RFC can be implemented in stages, for example:
 The API is set to be evolving, hence a feature macro should be defined for convenience.
 For example: `ONEDPL_HAS_REDUCE_BY_SEGMENT 202109L`
 for the current state as it already has the key-based segmented reduction,
-`ONEDPL_HAS_REDUCE_BY_SEGMENT 202611L` with the next version, 
+`ONEDPL_HAS_REDUCE_BY_SEGMENT 202611L` with the next version,
 e.g. including device policy support and variable-segment overloads.
 `ONEDPL_HAS_REDUCE_BY_SEGMENT YYYYMML` for future versions.
 
@@ -529,6 +546,9 @@ API notes:
 - The operation must be both associative and commutative, due to the use of SYCL group reductions.
 
 Implementation: assign a work-group to a segment, and do the reduction within one kernel launch.
+When the value type and the passed predicate is compatible with the `sycl::joint_reduce`, it uses this group algorithm.
+Otherwise, it uses `sycl::ext::oneapi::experimental::joint_reduce` group algorithm, hence only oneAPI is supported
+in a general case.
 
 ## Appendix B: Other Libraries
 
@@ -563,12 +583,12 @@ static inline cudaError_t
 cub::DeviceSegmentedReduce::Reduce(
     void*              d_temp_storage,
     size_t&            temp_storage_bytes,
-    InputValueIt       d_in,           
-    OutputValueIt      d_out,          
-    cuda::std::int64_t num_segments,   
-    int                segment_size,   
-    BinaryOp           reduction_op,   
-    InitValueT         initial_value,  
+    InputValueIt       d_in,
+    OutputValueIt      d_out,
+    cuda::std::int64_t num_segments,
+    int                segment_size,
+    BinaryOp           reduction_op,
+    InitValueT         initial_value,
     cudaStream_t       stream = nullptr
 );
 
@@ -592,6 +612,8 @@ API notes:
 - Variable-length segments can be empty. They produce the initial value.
 - There can be gaps between the variable-length segments.
 - `BinaryOp` requires both associativity and commutativity.
+- Negative offsets neither explicitly allowed nor prohibited.
+  Implementation allows it, and accesses a subrange before `d_in`.
 - The accumulator type is not stated explicitly.
   AI-assisted research shows that it is inferred from `InputValueIt`, `InitValueT`, and `BinaryOp`.
 - The overload with the execution environment allows control over floating-point determinism,
@@ -705,10 +727,12 @@ API specifics:
 - Begin and end offsets use the same iterator type.
 - Both the binary operation and initial value have defaults.
   The default operation is addition; the default initial value is value-initialized.
+- Negative offsets are neither explicitly allowed nor prohibited.
+  Implementation allows it, and accesses a sub-range before `input`.
 - The binary operation must be associative and commutative (in practice, it is a documentation gap).
 - `Config` allows customization of the implementation's tuning parameters.
 
-Implementation: assign one work-group to each segment. 
+Implementation: assign one work-group to each segment.
 Batch when `num_segments > UINT_MAX / work_group_size`.
 A single kernel launch unless batched.
 
