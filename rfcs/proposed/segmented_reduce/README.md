@@ -325,17 +325,17 @@ template <typename Policy,
           typename OutputValueIt,
           typename BinaryOp,
           typename InitT>
-OutputValueIt                      // example return: result_value + 3
+OutputValueIt
 oneapi::dpl::reduce_by_segment(
-    Policy&&      policy,          // host and device policies
-    InputValueIt  first_value,     // example input:  {10, 20, 5, 7, 4}
-    InputValueIt  last_value,      // example:        first_value + 5
-    SegmentNumT   num_segments,    // example:        3
-    OffsetIt      begin_offsets,   // example input:  {0, 2, 4}
-    OffsetIt      end_offsets,     // example input:  {2, 4, 5}
-    OutputValueIt result_value,    // example output: {30, 12, 4}
-    BinaryOp      binary_op,       // example: std::plus<int>{}
-    InitT  init_value              // example: 0
+    Policy&&      policy,
+    InputValueIt  first_value,
+    InputValueIt  last_value,
+    SegmentNumT   num_segments,
+    OffsetIt      begin_offsets,
+    OffsetIt      end_offsets,
+    OutputValueIt result_value,
+    BinaryOp      binary_op,
+    InitT  init_value
 );
 
 // (2) Reduce using fixed-length segments
@@ -346,16 +346,16 @@ template <typename Policy,
           typename OutputValueIt,
           typename BinaryOp,
           typename InitT>
-OutputValueIt                        // example return: result_value + 3
+OutputValueIt
 oneapi::dpl::reduce_by_segment(
-    Policy&&        policy,          // host and device policies
-    InputValueIt    first_value,     // example input:  {10, 20, 5, 7, 4, 8}
-    InputValueIt    last_value,      // example:        first_value + 6
-    SegmentNumT     num_segments,    // example:        3
-    SegmentLengthT  segment_length,  // example:        2
-    OutputValueIt   result_value,    // example output: {30, 12, 12}
-    BinaryOp        binary_op,       // example: std::plus<int>{}
-    InitT           init_value       // example: 0
+    Policy&&        policy,
+    InputValueIt    first_value,
+    InputValueIt    last_value,
+    SegmentNumT     num_segments,
+    SegmentLengthT  segment_length,
+    OutputValueIt   result_value,
+    BinaryOp        binary_op,
+    InitT           init_value
 );
 ```
 
@@ -366,15 +366,15 @@ template <typename Policy,
           typename SegmentNumT,     // to be constrained to an integral type
           typename OffsetIt,
           typename OutputIndexIt>
-OutputIndexIt                     // example return: result_index + 3
+OutputIndexIt
 oneapi::dpl::min_element_by_segment(
-    Policy&&      policy,         // host and device policies
-    InputValueIt  first_value,    // example input:  {20, 10, 5, 7, 4}
-    InputValueIt  last_value,     // example:        first_value + 5
-    SegmentNumT   num_segments,   // example:        3
-    OffsetIt      begin_offsets,  // example input:  {0, 2, 4}
-    OffsetIt      end_offsets,    // example input:  {2, 4, 5}
-    OutputIndexIt result_index    // example output: {1, 0, 0}
+    Policy&&      policy,
+    InputValueIt  first_value,
+    InputValueIt  last_value,
+    SegmentNumT   num_segments,
+    OffsetIt      begin_offsets,
+    OffsetIt      end_offsets,
+    OutputIndexIt result_index
 );
 
 // (2) Minimum element indices using variable-length segments, with a comparator
@@ -394,8 +394,8 @@ oneapi::dpl::min_element_by_segment(
     OffsetIt      begin_offsets,
     OffsetIt      end_offsets,
     OutputIndexIt result_index,
-    Compare       comp,           // example: std::less<>{}
-    InitT         init_value      // example: std::pair{0, std::numeric_limits<int>::max()}
+    Compare       comp,
+    InitT         init_value
 );
 
 // (3) Minimum element indices using fixed-length segments, with defaults
@@ -404,14 +404,14 @@ template <typename Policy,
           typename SegmentNumT,      // to be constrained to an integral type
           typename SegmentLengthT,   // to be constrained to an integral type
           typename OutputIndexIt>
-OutputIndexIt                       // example return: result_index + 3
+OutputIndexIt
 oneapi::dpl::min_element_by_segment(
-    Policy&&       policy,          // host and device policies
-    InputValueIt   first_value,     // example input:  {20, 10, 5, 7, 8, 4}
-    InputValueIt   last_value,      // example:        first_value + 6
-    SegmentNumT    num_segments,    // example:        3
-    SegmentLengthT segment_length,  // example:        2
-    OutputIndexIt  result_index     // example output: {1, 0, 1}
+    Policy&&       policy,
+    InputValueIt   first_value,
+    InputValueIt   last_value,
+    SegmentNumT    num_segments,
+    SegmentLengthT segment_length,
+    OutputIndexIt  result_index
 );
 
 // (4) Minimum element indices using fixed-length segments, with a comparator
@@ -430,8 +430,8 @@ oneapi::dpl::min_element_by_segment(
     SegmentNumT    num_segments,
     SegmentLengthT segment_length,
     OutputIndexIt  result_index,
-    Compare        comp,            // example: std::less<>{}
-    InitT          init_value       // example: std::pair{0, std::numeric_limits<int>::max()}
+    Compare        comp,
+    InitT          init_value
 );
 ```
 
@@ -442,15 +442,15 @@ template <typename Policy,
           typename SegmentNumT,     // to be constrained to an integral type
           typename OffsetIt,
           typename OutputIndexIt>
-OutputIndexIt                     // example return: result_index + 3
+OutputIndexIt
 oneapi::dpl::max_element_by_segment(
-    Policy&&      policy,         // host and device policies
-    InputValueIt  first_value,    // example input:  {20, 10, 5, 7, 4}
-    InputValueIt  last_value,     // example:        first_value + 5
-    SegmentNumT   num_segments,   // example:        3
-    OffsetIt      begin_offsets,  // example input:  {0, 2, 4}
-    OffsetIt      end_offsets,    // example input:  {2, 4, 5}
-    OutputIndexIt result_index    // example output: {0, 1, 0}
+    Policy&&      policy,
+    InputValueIt  first_value,
+    InputValueIt  last_value,
+    SegmentNumT   num_segments,
+    OffsetIt      begin_offsets,
+    OffsetIt      end_offsets,
+    OutputIndexIt result_index
 );
 
 // (5) Maximum element indices using variable-length segments, with a comparator
@@ -470,8 +470,8 @@ oneapi::dpl::max_element_by_segment(
     OffsetIt      begin_offsets,
     OffsetIt      end_offsets,
     OutputIndexIt result_index,
-    Compare       comp,           // example: std::greater<>{}
-    InitT         init_value      // example: std::pair{0, std::numeric_limits<int>::min()}
+    Compare       comp,
+    InitT         init_value
 );
 
 // (6) Maximum element indices using fixed-length segments, with defaults
@@ -480,14 +480,14 @@ template <typename Policy,
           typename SegmentNumT,      // to be constrained to an integral type
           typename SegmentLengthT,   // to be constrained to an integral type
           typename OutputIndexIt>
-OutputIndexIt                       // example return: result_index + 3
+OutputIndexIt
 oneapi::dpl::max_element_by_segment(
-    Policy&&       policy,          // host and device policies
-    InputValueIt   first_value,     // example input:  {20, 10, 5, 7, 8, 4}
-    InputValueIt   last_value,      // example:        first_value + 6
-    SegmentNumT    num_segments,    // example:        3
-    SegmentLengthT segment_length,  // example:        2
-    OutputIndexIt  result_index     // example output: {0, 1, 0}
+    Policy&&       policy,
+    InputValueIt   first_value,
+    InputValueIt   last_value,
+    SegmentNumT    num_segments,
+    SegmentLengthT segment_length,
+    OutputIndexIt  result_index
 );
 
 // (7) Maximum element indices using fixed-length segments, with a comparator
@@ -506,8 +506,8 @@ oneapi::dpl::max_element_by_segment(
     SegmentNumT    num_segments,
     SegmentLengthT segment_length,
     OutputIndexIt  result_index,
-    Compare        comp,            // example: std::greater<>{}
-    InitT          init_value       // example: std::pair{0, std::numeric_limits<int>::min()}
+    Compare        comp,
+    InitT          init_value
 );
 ```
 
