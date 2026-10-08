@@ -89,7 +89,8 @@ no need to introduce special overloads for the `reduce_by_segment` algorithm, co
 Algorithmically it does the following:
 
 1. Pack the input into `zip(counting_iterator, input_first)`.
-2. Do the regular segmented reduction.
+2. Do the regular segmented reduction
+  with a custom binary operation which also checks the order of the arguments.
 3. When writing the final result, normalize the index: `result.key -= begin_offsets[segment];`
 
 Given that there options on how to handle `ArgMin` and `ArgMax`:
@@ -102,19 +103,41 @@ Given that there options on how to handle `ArgMin` and `ArgMax`:
 3. Provide special overloads, and name after min and max element functions, e.g.,
    `min_element_by_segment` and `max_element_by_segment`.
 
-Assuming that the customizations spoil the interface, option (3) seems preferable.
+Assuming that the customizations "spoil" the interface, option (3) is preferable.
 
-The question about normalization of the indices remains open for the option (3).
 `min_element` and `max_element` return iterators to the input range,
-although it does not work with segments.
-Should they provide global iterators or segment-local indices?
-Or should they even return a pair of the global iterator and a segment-local index?
-Or there should even be a pair of indices, one global and one segment-local?
+what should their segmented counterparts do?
+`min_element` and `max_element` receive iterators to the input range and return iterators.
+Given that the segmented versions receive segment offsets as indices,
+returning segment-local indices is natural.
+
+Should the binary operation (comparator) and the initial value be allowed to be specified
+with `min_element_by_segment` and `max_element_by_segment`?
+What should they return in case of an empty segment?
+`min_element` and `max_element` allow passing a comparator. The initial value is not applicable there.
+`cub::DeviceSegmentedReduce` does not allow passing them directly.
+It uses `<` or `>` as the comparator, and for an empty segment returns an identity,
+`{1, cuda::std::numeric_limits<T>::max()}` for `min_element_by_segment` and
+`{1, cuda::std::numeric_limits<T>::min()}` for `max_element_by_segment`.
+It is not clear why `1` is provided as an index for an empty segment.
+What should be done:
+
+- Provide an interface without comparator and no initial value.
+  The initial value will be:
+  `{OffsetT{}, std::numeric_limits<T>::max()}` for `min_element_by_segment` and
+  `{OffsetT{}, std::numeric_limits<T>::min()}` for `max_element_by_segment`.
+  The comparator will be `std::less{}` or `std::greater{}` for alignment with the
+  corresponding C++ functions.
+- Provide an interface with a comparator and an initial value.
+
+Returning both, although possible and potentially useful,
+but it will have a trade-off with extra memory traffic when writing the final result,
+which should be avoided unless explicitly asked for.
 
 **Strategy**:
 
 - Do nothing special for `Sum`, `Min`, and `Max` semantics.
-- **Tentative**. For `ArgMin` and `ArgMax`, consider providing special overloads like `min_element_by_segment` and `max_element_by_segment`, but the exact handling of index normalization remains to be decided.
+- For `ArgMin` and `ArgMax`, provide `min_element_by_segment` and `max_element_by_segment`.
 
 ### Bounding Input
 
@@ -334,11 +357,158 @@ oneapi::dpl::reduce_by_segment(
     BinaryOp        binary_op,       // example: std::plus<int>{}
     InitT           init_value       // example: 0
 );
+```
 
-// To define the min and max element by segment functions
-// once the question about its result type is resolved.
-// (3) min_element_by_segment
-// (4) max_element_by_segment
+```c++
+// (1) Minimum element indices using variable-length segments
+template <typename Policy,
+          typename InputValueIt,
+          typename SegmentNumT,     // to be constrained to an integral type
+          typename OffsetIt,
+          typename OutputIndexIt>
+OutputIndexIt                     // example return: result_index + 3
+oneapi::dpl::min_element_by_segment(
+    Policy&&      policy,         // host and device policies
+    InputValueIt  first_value,    // example input:  {20, 10, 5, 7, 4}
+    InputValueIt  last_value,     // example:        first_value + 5
+    SegmentNumT   num_segments,   // example:        3
+    OffsetIt      begin_offsets,  // example input:  {0, 2, 4}
+    OffsetIt      end_offsets,    // example input:  {2, 4, 5}
+    OutputIndexIt result_index    // example output: {1, 0, 0}
+);
+
+// (2) Minimum element indices using variable-length segments, with a comparator
+template <typename Policy,
+          typename InputValueIt,
+          typename SegmentNumT,     // to be constrained to an integral type
+          typename OffsetIt,
+          typename OutputIndexIt,
+          typename Compare,
+          typename InitT>
+OutputIndexIt
+oneapi::dpl::min_element_by_segment(
+    Policy&&      policy,
+    InputValueIt  first_value,
+    InputValueIt  last_value,
+    SegmentNumT   num_segments,
+    OffsetIt      begin_offsets,
+    OffsetIt      end_offsets,
+    OutputIndexIt result_index,
+    Compare       comp,           // example: std::less<>{}
+    InitT         init_value      // example: std::pair{0, std::numeric_limits<int>::max()}
+);
+
+// (3) Minimum element indices using fixed-length segments, with defaults
+template <typename Policy,
+          typename InputValueIt,
+          typename SegmentNumT,      // to be constrained to an integral type
+          typename SegmentLengthT,   // to be constrained to an integral type
+          typename OutputIndexIt>
+OutputIndexIt                       // example return: result_index + 3
+oneapi::dpl::min_element_by_segment(
+    Policy&&       policy,          // host and device policies
+    InputValueIt   first_value,     // example input:  {20, 10, 5, 7, 8, 4}
+    InputValueIt   last_value,      // example:        first_value + 6
+    SegmentNumT    num_segments,    // example:        3
+    SegmentLengthT segment_length,  // example:        2
+    OutputIndexIt  result_index     // example output: {1, 0, 1}
+);
+
+// (4) Minimum element indices using fixed-length segments, with a comparator
+template <typename Policy,
+          typename InputValueIt,
+          typename SegmentNumT,      // to be constrained to an integral type
+          typename SegmentLengthT,   // to be constrained to an integral type
+          typename OutputIndexIt,
+          typename Compare,
+          typename InitT>
+OutputIndexIt
+oneapi::dpl::min_element_by_segment(
+    Policy&&       policy,
+    InputValueIt   first_value,
+    InputValueIt   last_value,
+    SegmentNumT    num_segments,
+    SegmentLengthT segment_length,
+    OutputIndexIt  result_index,
+    Compare        comp,            // example: std::less<>{}
+    InitT          init_value       // example: std::pair{0, std::numeric_limits<int>::max()}
+);
+```
+
+```c++
+// (4) Maximum element indices using variable-length segments
+template <typename Policy,
+          typename InputValueIt,
+          typename SegmentNumT,     // to be constrained to an integral type
+          typename OffsetIt,
+          typename OutputIndexIt>
+OutputIndexIt                     // example return: result_index + 3
+oneapi::dpl::max_element_by_segment(
+    Policy&&      policy,         // host and device policies
+    InputValueIt  first_value,    // example input:  {20, 10, 5, 7, 4}
+    InputValueIt  last_value,     // example:        first_value + 5
+    SegmentNumT   num_segments,   // example:        3
+    OffsetIt      begin_offsets,  // example input:  {0, 2, 4}
+    OffsetIt      end_offsets,    // example input:  {2, 4, 5}
+    OutputIndexIt result_index    // example output: {0, 1, 0}
+);
+
+// (5) Maximum element indices using variable-length segments, with a comparator
+template <typename Policy,
+          typename InputValueIt,
+          typename SegmentNumT,     // to be constrained to an integral type
+          typename OffsetIt,
+          typename OutputIndexIt,
+          typename Compare,
+          typename InitT>
+OutputIndexIt
+oneapi::dpl::max_element_by_segment(
+    Policy&&      policy,
+    InputValueIt  first_value,
+    InputValueIt  last_value,
+    SegmentNumT   num_segments,
+    OffsetIt      begin_offsets,
+    OffsetIt      end_offsets,
+    OutputIndexIt result_index,
+    Compare       comp,           // example: std::greater<>{}
+    InitT         init_value      // example: std::pair{0, std::numeric_limits<int>::min()}
+);
+
+// (6) Maximum element indices using fixed-length segments, with defaults
+template <typename Policy,
+          typename InputValueIt,
+          typename SegmentNumT,      // to be constrained to an integral type
+          typename SegmentLengthT,   // to be constrained to an integral type
+          typename OutputIndexIt>
+OutputIndexIt                       // example return: result_index + 3
+oneapi::dpl::max_element_by_segment(
+    Policy&&       policy,          // host and device policies
+    InputValueIt   first_value,     // example input:  {20, 10, 5, 7, 8, 4}
+    InputValueIt   last_value,      // example:        first_value + 6
+    SegmentNumT    num_segments,    // example:        3
+    SegmentLengthT segment_length,  // example:        2
+    OutputIndexIt  result_index     // example output: {0, 1, 0}
+);
+
+// (7) Maximum element indices using fixed-length segments, with a comparator
+template <typename Policy,
+          typename InputValueIt,
+          typename SegmentNumT,      // to be constrained to an integral type
+          typename SegmentLengthT,   // to be constrained to an integral type
+          typename OutputIndexIt,
+          typename Compare,
+          typename InitT>
+OutputIndexIt
+oneapi::dpl::max_element_by_segment(
+    Policy&&       policy,
+    InputValueIt   first_value,
+    InputValueIt   last_value,
+    SegmentNumT    num_segments,
+    SegmentLengthT segment_length,
+    OutputIndexIt  result_index,
+    Compare        comp,            // example: std::greater<>{}
+    InitT          init_value       // example: std::pair{0, std::numeric_limits<int>::min()}
+);
 ```
 
 ### Evolution
@@ -438,6 +608,51 @@ int main()
     for (auto it = result.begin(); it != result_end; ++it)
         std::cout << *it << ' ';
     std::cout << '\n'; // -10 -5 -4
+}
+```
+
+`dpcpp_default` policy, variable-length segments, maximum element indices:
+
+```c++
+#include <oneapi/dpl/execution>
+#include <oneapi/dpl/numeric>
+#include <sycl/sycl.hpp>
+
+#include <algorithm>
+#include <iostream>
+
+int main()
+{
+    auto policy = oneapi::dpl::execution::dpcpp_default;
+    auto queue = policy.queue();
+
+    constexpr int num_elements = 5;
+    constexpr int num_segments = 3;
+    int input[] = {20, 10, 5, 7, 4};
+    int host_begin_offsets[] = {0, 2, 4};
+    int host_end_offsets[] = {2, 4, 5};
+
+    int* values = sycl::malloc_shared<int>(num_elements, queue);
+    int* begin_offsets = sycl::malloc_shared<int>(num_segments, queue);
+    int* end_offsets = sycl::malloc_shared<int>(num_segments, queue);
+    int* result_index = sycl::malloc_shared<int>(num_segments, queue);
+
+    std::copy_n(input, num_elements, values);
+    std::copy_n(host_begin_offsets, num_segments, begin_offsets);
+    std::copy_n(host_end_offsets, num_segments, end_offsets);
+
+    int* result_end = oneapi::dpl::max_element_by_segment(
+        policy, values, values + num_elements, num_segments,
+        begin_offsets, end_offsets, result_index);
+
+    for (int* it = result_index; it != result_end; ++it)
+        std::cout << *it << ' ';
+    std::cout << '\n'; // 0 1 0
+
+    sycl::free(values, queue);
+    sycl::free(begin_offsets, queue);
+    sycl::free(end_offsets, queue);
+    sycl::free(result_index, queue);
 }
 ```
 
@@ -668,8 +883,8 @@ It implies that the custom types are supported, e.g. via specializing these mech
 | `Sum` | `OutputT{}` |
 | `Min` | `cuda::std::numeric_limits<T>::max()` |
 | `Max` | `cuda::std::numeric_limits<T>::lowest()` |
-| `ArgMin` | `{1, numeric_limits<T>::max()}` |
-| `ArgMax` | `{1, numeric_limits<T>::lowest()}` |
+| `ArgMin` | `{1, cuda::std::numeric_limits<T>::max()}` |
+| `ArgMax` | `{1, cuda::std::numeric_limits<T>::lowest()}` |
 
 The documentation says nothing about the maximum value for the number of the input elements,
 segment count and their maximum size, however there are implications based on the interfaces:
