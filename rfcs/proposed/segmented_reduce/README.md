@@ -315,9 +315,10 @@ the `first_value` and `last_value` iterators will define the valid range to acce
 
 ```c++
 // Included from <oneapi/dpl/numeric>
-// Can be included from <oneapi/dpl/algorithm> as the existing overload, but it is discouraged.
+// Can be included from <oneapi/dpl/algorithm>
+// as the existing overload, but it is discouraged.
 
-// (1) Reduce using variable length segments, by their offsets
+// (1) Variable-length segments
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,     // to be constrained to an integral type
@@ -335,10 +336,10 @@ oneapi::dpl::reduce_by_segment(
     OffsetIt      end_offsets,
     OutputValueIt result_value,
     BinaryOp      binary_op,
-    InitT  init_value
+    InitT         init_value
 );
 
-// (2) Reduce using fixed-length segments
+// (2) Fixed-length segments
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,      // to be constrained to an integral type
@@ -360,7 +361,7 @@ oneapi::dpl::reduce_by_segment(
 ```
 
 ```c++
-// (1) Minimum element indices using variable-length segments
+// (1) Variable-lengh segments
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,     // to be constrained to an integral type
@@ -377,7 +378,7 @@ oneapi::dpl::min_element_by_segment(
     OutputIndexIt result_index
 );
 
-// (2) Minimum element indices using variable-length segments, with a comparator
+// (2) Variable-lengh segments, with comparator
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,     // to be constrained to an integral type
@@ -398,7 +399,7 @@ oneapi::dpl::min_element_by_segment(
     InitT         init_value
 );
 
-// (3) Minimum element indices using fixed-length segments, with defaults
+// (3) Fixed-length segments
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,      // to be constrained to an integral type
@@ -414,7 +415,7 @@ oneapi::dpl::min_element_by_segment(
     OutputIndexIt  result_index
 );
 
-// (4) Minimum element indices using fixed-length segments, with a comparator
+// (4) Fixed-length segments, with comparator
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,      // to be constrained to an integral type
@@ -436,7 +437,7 @@ oneapi::dpl::min_element_by_segment(
 ```
 
 ```c++
-// (4) Maximum element indices using variable-length segments
+// (1) Variable-length segment
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,     // to be constrained to an integral type
@@ -453,7 +454,7 @@ oneapi::dpl::max_element_by_segment(
     OutputIndexIt result_index
 );
 
-// (5) Maximum element indices using variable-length segments, with a comparator
+// (2) Variable-length segment, with comparator
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,     // to be constrained to an integral type
@@ -474,7 +475,7 @@ oneapi::dpl::max_element_by_segment(
     InitT         init_value
 );
 
-// (6) Maximum element indices using fixed-length segments, with defaults
+// (3) Fixed-length segments
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,      // to be constrained to an integral type
@@ -490,7 +491,7 @@ oneapi::dpl::max_element_by_segment(
     OutputIndexIt  result_index
 );
 
-// (7) Maximum element indices using fixed-length segments, with a comparator
+// (4) Fixed-length segments, with a comparator
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,      // to be constrained to an integral type
