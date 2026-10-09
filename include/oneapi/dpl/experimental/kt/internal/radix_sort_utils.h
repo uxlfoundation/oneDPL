@@ -69,6 +69,31 @@ __check_sycl_sort_params([[maybe_unused]] std::size_t __n)
     assert((__n < (1 << 30)) && "Inputs >= 2^30 are currently unsupported in the SYCL sort KT");
 }
 
+template <std::uint8_t __radix_bits, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size>
+inline void
+__check_batched_radix_sort_params([[maybe_unused]] std::size_t __n, [[maybe_unused]] std::size_t __segment_size)
+{
+    __check_sycl_sort_params<__radix_bits, __data_per_workitem, __workgroup_size>(__n);
+    assert(__segment_size > 0 && "The segment size must be greater than zero");
+    assert(__n % __segment_size == 0 && "The number of elements must be a multiple of the segment size");
+}
+
+//-----------------------------------------------------------------------------
+// Segment geometry of a onesweep sort
+//-----------------------------------------------------------------------------
+// A batched sort splits the input into __segment_count independent segments of __segment_size elements, each covered
+// by __tiles_per_segment tiles that never straddle a segment boundary. A non-batched sort is the single segment case
+// (__segment_size == n), and __is_batched == false lets the kernels drop the segment decomposition at compile time.
+template <bool __is_batched_v>
+struct __onesweep_segments
+{
+    static constexpr bool __is_batched = __is_batched_v;
+
+    std::uint32_t __segment_size;
+    std::uint32_t __segment_count;
+    std::uint32_t __tiles_per_segment;
+};
+
 template <typename _T>
 constexpr void
 __sycl_radix_sort_unsupported_msg()
