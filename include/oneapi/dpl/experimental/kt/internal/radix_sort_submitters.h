@@ -71,6 +71,7 @@ template <bool __is_ascending, std::uint8_t __radix_bits, std::uint32_t __hist_w
 struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_work_group_count, __hist_work_group_size,
                                         oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
+    // ESIMD version of histogram does not support multiple segments, it ignores the segment argument
     template <typename _KeysRng, typename _GlobalOffsetData>
     sycl::event
     operator()(__esimd_tag, sycl::queue& __q, const _KeysRng& __keys_rng, const _GlobalOffsetData& __global_offset_data,

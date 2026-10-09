@@ -287,7 +287,7 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     return __event_chain;
 }
 
-// The input is sorted as independent segments of __segment_size elements. ESIMD supports only __segment_size == __n.
+// The input is sorted as independent segments of __segment_size elements.
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, bool __in_place, typename _KtTag, typename _RngPack1, typename _RngPack2>
 sycl::event
