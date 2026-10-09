@@ -171,6 +171,37 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     endif()
 endif()
 
+function(_generate_batched_merge_sort_tests)
+    set(_data_per_work_item_all "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" "13" "14" "15" "16")
+    set(_work_group_size_all "64" "128" "256" "512" "1024")
+    set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double" "sycl::half")
+    if (_bfloat16_key_type_supported)
+        list(APPEND _type_all "sycl::ext::oneapi::bfloat16")
+    endif()
+
+    foreach (_data_per_work_item ${_data_per_work_item_all})
+        foreach (_work_group_size ${_work_group_size_all})
+            foreach (_key_type ${_type_all})
+                # ~1 test: (2/1000) * (16 * 5 * 7)
+                _generate_sort_test("kt_sycl" "batched_merge_sort" ${_data_per_work_item} ${_work_group_size} ${_key_type} "" 2)
+                foreach (_val_type ${_type_all})
+                    # ~4 tests: (1/1000) * (16 * 5 * 7 * 7)
+                    _generate_sort_test("kt_sycl" "batched_merge_sort" ${_data_per_work_item} ${_work_group_size} ${_key_type} ${_val_type} 1)
+                endforeach()
+            endforeach()
+        endforeach()
+    endforeach()
+endfunction()
+
+if (ONEDPL_TEST_ENABLE_KT_SYCL)
+    _generate_batched_merge_sort_tests()
+
+    # Pin some cases to track them
+    _generate_sort_test("kt_sycl" "batched_merge_sort" "4" "256" "uint32_t" "" 1000)
+    _generate_sort_test("kt_sycl" "batched_merge_sort" "3" "128" "float" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "batched_merge_sort" "16" "512" "int32_t" "uint32_t" 1000)
+endif()
+
 # Work-group sizes other than 512 and 1024 are supported only for segments which fit in a work-group tile
 function(_generate_batched_radix_sort_tests)
     set(_data_per_work_item_all "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" "13" "14" "15" "16")
