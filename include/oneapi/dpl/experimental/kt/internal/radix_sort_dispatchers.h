@@ -31,6 +31,9 @@ class __radix_sort_one_wg;
 template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_histogram;
 
+template <typename... _Name>
+class __radix_sort_onesweep_segmented_histogram;
+
 template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_scan;
 
@@ -221,6 +224,8 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
 
     using _RadixSortHistogram = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __radix_sort_onesweep_histogram<_KtTag, std::decay_t<_RngPack1>, _KernelName>>;
+    using _RadixSortSegmentedHistogram = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __radix_sort_onesweep_segmented_histogram<std::decay_t<_RngPack1>, _KernelName>>;
     using _RadixSortScan = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __radix_sort_onesweep_scan<_KtTag, _KernelName>>;
     using _RadixSortSweepInitial =
@@ -249,9 +254,26 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     // TODO: consider adding a more versatile API, e.g. passing special kernel_config parameters for histogram computation
     constexpr std::uint32_t __hist_work_group_count = __radix_sort_histogram_params<_KtTag>::__work_group_count;
     constexpr std::uint32_t __hist_work_group_size = __radix_sort_histogram_params<_KtTag>::__work_group_size;
-    __event_chain = __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_work_group_count,
-                                                     __hist_work_group_size, _RadixSortHistogram>()(
-        __kt_tag, __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __n, __segments, __event_chain);
+    // A single segment uses the grid-stride histogram, the only one ESIMD has
+    auto __submit_single_segment_histogram = [&]() {
+        return __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_work_group_count,
+                                                __hist_work_group_size, _RadixSortHistogram>()(
+            __kt_tag, __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __n, __event_chain);
+    };
+    if constexpr (std::is_same_v<_KtTag, __sycl_tag>)
+    {
+        if (__segments.__segment_count > 1)
+            __event_chain = __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_work_group_count,
+                                                             __hist_work_group_size, _RadixSortSegmentedHistogram>()(
+                __kt_tag, __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __segments,
+                __event_chain);
+        else
+            __event_chain = __submit_single_segment_histogram();
+    }
+    else
+    {
+        __event_chain = __submit_single_segment_histogram();
+    }
 
     __event_chain = __radix_sort_onesweep_scan_submitter<__stage_count, __bin_count, _RadixSortScan>()(
         __kt_tag, __q, __mem_holder.__global_hist_ptr(), __segments.__segment_count, __event_chain);
