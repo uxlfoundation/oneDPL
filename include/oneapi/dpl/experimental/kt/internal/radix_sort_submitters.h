@@ -74,7 +74,7 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
     template <typename _KeysRng, typename _GlobalOffsetData>
     sycl::event
     operator()(__esimd_tag, sycl::queue& __q, const _KeysRng& __keys_rng, const _GlobalOffsetData& __global_offset_data,
-               std::size_t __n, const sycl::event& __e) const
+               std::size_t __n, const __onesweep_segments&, const sycl::event& __e) const
     {
         sycl::nd_range<1> __nd_range(__hist_work_group_count * __hist_work_group_size, __hist_work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
@@ -87,41 +87,15 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
         });
     }
 
-    template <typename _KeysRng, typename _GlobalOffsetData>
-    sycl::event
-    operator()(__sycl_tag, sycl::queue& __q, const _KeysRng& __keys_rng, const _GlobalOffsetData& __global_offset_data,
-               std::size_t __n, const sycl::event& __e) const
-    {
-        using _GlobalHistKernelT = __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_group_count,
-                                                      __hist_work_group_size, std::decay_t<_KeysRng>>;
-
-        // Calculate number of histograms based on SLM capacity
-        constexpr std::uint32_t __max_histograms = 16;
-        constexpr std::uint32_t __max_slm_bytes = 1 << 16;
-        constexpr std::uint32_t __num_histograms =
-            std::min(__max_histograms,
-                     std::uint32_t(__max_slm_bytes / (_GlobalHistKernelT::__hist_buffer_size * sizeof(std::uint32_t))));
-
-        sycl::nd_range<1> __nd_range(__hist_work_group_count * __hist_work_group_size, __hist_work_group_size);
-        return __q.submit([&](sycl::handler& __cgh) {
-            sycl::local_accessor<std::uint32_t, 1> __slm_accessor(
-                _GlobalHistKernelT::__hist_buffer_size * __num_histograms, __cgh);
-            oneapi::dpl::__ranges::__require_access(__cgh, __keys_rng);
-            __cgh.depends_on(__e);
-            _GlobalHistKernelT __kernel(__n, __keys_rng, __slm_accessor, __global_offset_data, __num_histograms);
-            __cgh.parallel_for<_Name...>(__nd_range, __kernel);
-        });
-    }
-
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-    // Batched sort: per-segment histograms, laid out as [stage][segment][bin]
+    // Per-segment histograms, laid out as [stage][segment][bin]
     template <typename _KeysRng>
     sycl::event
     operator()(__sycl_tag, sycl::queue& __q, const _KeysRng& __keys_rng, std::uint32_t* __global_offset_data,
-               const __onesweep_segments</*__is_batched=*/true>& __segments, const sycl::event& __e) const
+               std::size_t, const __onesweep_segments& __segments, const sycl::event& __e) const
     {
-        using _GlobalHistKernelT =
-            __batched_global_histogram<__is_ascending, __radix_bits, __hist_work_group_size, std::decay_t<_KeysRng>>;
+        using _GlobalHistKernelT = __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_group_count,
+                                                      __hist_work_group_size, std::decay_t<_KeysRng>>;
 
         // Calculate number of histograms based on SLM capacity
         constexpr std::uint32_t __max_histograms = 16;
@@ -161,8 +135,7 @@ template <std::uint32_t __stage_count, std::uint32_t __bin_count, typename... _N
 struct __radix_sort_onesweep_scan_submitter<
     __stage_count, __bin_count, oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
-    // One work-group scans each histogram of __bin_count bins: one per stage, times __segment_count for the batched
-    // sort, whose histograms are laid out as [stage][segment][bin]
+    // One work-group scans each histogram of __bin_count bins, laid out as [stage][segment][bin]
     template <typename _KtTag, typename _GlobalOffsetData>
     sycl::event
     operator()(_KtTag, sycl::queue& __q, const _GlobalOffsetData& __global_offset_data, std::uint32_t __segment_count,
@@ -216,8 +189,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
     sycl::event
     operator()(__esimd_tag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack,
                _GlobalHistT* __p_global_hist, _GlobalHistT* __p_group_hists, std::uint32_t __sweep_work_group_count,
-               std::size_t __n, std::uint32_t __stage, const __onesweep_segments</*__is_batched=*/false>&,
-               const sycl::event& __e) const
+               std::size_t __n, std::uint32_t __stage, const __onesweep_segments&, const sycl::event& __e) const
     {
         sycl::nd_range<1> __nd_range(__sweep_work_group_count * __work_group_size, __work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
@@ -236,16 +208,15 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
     }
 
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-    template <typename _InRngPack, typename _OutRngPack, typename _GlobalHistT, bool __is_batched>
+    template <typename _InRngPack, typename _OutRngPack, typename _GlobalHistT>
     sycl::event
     operator()(__sycl_tag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack,
                _GlobalHistT* __p_global_hist, _GlobalHistT* __p_group_hists, std::uint32_t __sweep_work_group_count,
-               std::size_t __n, std::uint32_t __stage, const __onesweep_segments<__is_batched>& __segments,
-               const sycl::event& __e) const
+               std::size_t, std::uint32_t __stage, const __onesweep_segments& __segments, const sycl::event& __e) const
     {
-        using _KernelType = __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item,
-                                                         __work_group_size, std::decay_t<_InRngPack>,
-                                                         std::decay_t<_OutRngPack>, __is_batched>;
+        using _KernelType =
+            __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item,
+                                         __work_group_size, std::decay_t<_InRngPack>, std::decay_t<_OutRngPack>>;
         using _KernelName = typename __onesweep_kernel_name_helper<
             _KernelType, oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>::kernel_name;
 
@@ -268,7 +239,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
                 oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__vals_rng(), __out_pack.__vals_rng());
             }
             __cgh.depends_on(__e);
-            _KernelType __kernel(__n, __stage, __p_global_hist, __p_group_hists, std::forward<_InRngPack>(__in_pack),
+            _KernelType __kernel(__stage, __p_global_hist, __p_group_hists, std::forward<_InRngPack>(__in_pack),
                                  std::forward<_OutRngPack>(__out_pack), __slm_accessor, __sweep_work_group_count,
                                  __segments);
             __cgh.parallel_for<_KernelName>(__nd_range, __kernel);

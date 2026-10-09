@@ -28,6 +28,9 @@ namespace oneapi::dpl::experimental::kt::gpu::__impl
 //-----------------------------------------------------------------------------
 // SYCL global histogram kernel implementation
 //-----------------------------------------------------------------------------
+// The input is split into chunks of one work-group step that never straddle a segment boundary. Each work-group owns
+// a contiguous range of chunks, so it visits the segments in order: it accumulates the current segment in SLM and
+// flushes it into global_hist[stage][segment][bin] whenever the segment changes.
 template <bool __is_ascending, std::uint8_t __radix_bits, std::uint32_t __hist_work_group_count,
           std::uint16_t __hist_work_group_size, typename _KeysRng>
 struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_group_count, __hist_work_group_size,
@@ -46,20 +49,26 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
         oneapi::dpl::__internal::__dpl_ceiling_div(__bit_count, __radix_bits);
     static constexpr std::uint32_t __hist_data_per_sub_group = 128;
     static constexpr std::uint32_t __hist_data_per_work_item = __hist_data_per_sub_group / __sub_group_size;
-    static constexpr std::uint32_t __device_wide_step =
-        __hist_work_group_count * __hist_work_group_size * __hist_data_per_work_item;
     static constexpr std::uint32_t __hist_buffer_size = __stage_count * __bin_count;
+    // Elements covered by one work-group step: the chunk size
+    static constexpr std::uint32_t __chunk_size = __hist_num_sub_groups * __hist_data_per_sub_group;
 
-    std::size_t __n;
     _KeysRng __keys_rng;
     sycl::local_accessor<std::uint32_t, 1> __slm_acc;
     std::uint32_t* __p_global_offset;
     std::uint32_t __num_histograms;
+    __onesweep_segments __segments;
+    std::uint32_t __chunks_per_segment;
+    std::uint32_t __chunk_count;
+    std::uint32_t __chunks_per_group;
 
-    __global_histogram(std::size_t __n, const _KeysRng& __keys_rng, sycl::local_accessor<std::uint32_t, 1> __slm_acc,
-                       std::uint32_t* __p_global_offset, std::uint32_t __num_histograms)
-        : __n(__n), __keys_rng(__keys_rng), __slm_acc(__slm_acc), __p_global_offset(__p_global_offset),
-          __num_histograms(__num_histograms)
+    __global_histogram(const _KeysRng& __keys_rng, sycl::local_accessor<std::uint32_t, 1> __slm_acc,
+                       std::uint32_t* __p_global_offset, std::uint32_t __num_histograms,
+                       __onesweep_segments __segments, std::uint32_t __chunks_per_segment,
+                       std::uint32_t __chunk_count, std::uint32_t __chunks_per_group)
+        : __keys_rng(__keys_rng), __slm_acc(__slm_acc), __p_global_offset(__p_global_offset),
+          __num_histograms(__num_histograms), __segments(__segments), __chunks_per_segment(__chunks_per_segment),
+          __chunk_count(__chunk_count), __chunks_per_group(__chunks_per_group)
     {
     }
 
@@ -130,104 +139,6 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
         }
     }
 
-    [[sycl::reqd_sub_group_size(__sub_group_size)]] void
-    operator()(sycl::nd_item<1> __idx) const
-    {
-        std::uint32_t* __slm = __slm_acc.get_multi_ptr<sycl::access::decorated::no>().get();
-
-        const std::uint32_t __local_id = __idx.get_local_linear_id();
-        const std::uint32_t __group_id = __idx.get_group_linear_id();
-        const std::uint32_t __sub_group_id = __idx.get_sub_group().get_group_linear_id();
-        const std::uint32_t __sub_group_local_id = __idx.get_sub_group().get_local_linear_id();
-
-        _GlobOffsetT __sub_group_start =
-            (__group_id * __hist_num_sub_groups + __sub_group_id) * __hist_data_per_sub_group;
-
-        // 0. Early exit - important for small inputs as we intentionally oversubscribe the hardware
-        if ((__sub_group_start - __sub_group_id * __hist_data_per_sub_group) >= __n)
-            return;
-
-        // 1. Initialize group-local histograms in SLM
-        __zero_slm_hists(__slm, __local_id, __num_histograms);
-
-        sycl::group_barrier(__idx.get_group());
-
-        for (_GlobOffsetT __wi_offset = __sub_group_start + __sub_group_local_id; __wi_offset < __n;
-             __wi_offset += __device_wide_step)
-        {
-            // Keys loaded with stride of sub-group size
-            _KeyT __keys[__hist_data_per_work_item];
-
-            // 2. Read __keys
-            __load_keys(__keys, __keys_rng, __wi_offset, __n);
-
-            // 3. Accumulate histogram to SLM
-            __accumulate_to_slm(__slm, __keys, __sub_group_local_id, __num_histograms);
-        }
-
-        sycl::group_barrier(__idx.get_group());
-
-        // 4. Reduce group-local histograms from SLM into global histograms in global memory
-        for (_LocIdxT __i = __local_id; __i < __hist_buffer_size; __i += __hist_work_group_size)
-        {
-            using _AtomicRef = sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                                                sycl::access::address_space::global_space>;
-            _GlobOffsetT __reduced_bincount = 0;
-            // Blocked layout enables load vectorization from SLM
-            _ONEDPL_PRAGMA_UNROLL
-            for (_LocIdxT __j = 0; __j < __num_histograms; ++__j)
-            {
-                __reduced_bincount += __slm[__i * __num_histograms + __j];
-            }
-            _AtomicRef __global_hist_ref(__p_global_offset[__i]);
-            __global_hist_ref.fetch_add(__reduced_bincount);
-        }
-    }
-};
-
-//-----------------------------------------------------------------------------
-// SYCL global histogram kernel for the batched sort
-//-----------------------------------------------------------------------------
-// The input is split into chunks of one work-group step that never straddle a segment boundary. Each work-group owns
-// a contiguous range of chunks, so it visits the segments in order: it accumulates the current segment in SLM, as the
-// non-batched kernel does, and flushes it into global_hist[stage][segment][bin] whenever the segment changes.
-template <bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __hist_work_group_size, typename _KeysRng>
-struct __batched_global_histogram
-{
-    // Only the per-work-group configuration of the non-batched kernel is shared; its work-group count is unused
-    using _BaseT = __global_histogram<__sycl_tag, __is_ascending, __radix_bits, /*__hist_work_group_count=*/1,
-                                      __hist_work_group_size, _KeysRng>;
-    using _KeyT = typename _BaseT::_KeyT;
-    using _GlobOffsetT = typename _BaseT::_GlobOffsetT;
-    using _LocIdxT = typename _BaseT::_LocIdxT;
-
-    static constexpr std::uint32_t __bin_count = _BaseT::__bin_count;
-    static constexpr std::uint32_t __hist_buffer_size = _BaseT::__hist_buffer_size;
-    static constexpr std::uint32_t __hist_data_per_sub_group = _BaseT::__hist_data_per_sub_group;
-    static constexpr std::uint32_t __hist_data_per_work_item = _BaseT::__hist_data_per_work_item;
-    // Elements covered by one work-group step: the chunk size
-    static constexpr std::uint32_t __chunk_size = _BaseT::__hist_num_sub_groups * __hist_data_per_sub_group;
-
-    _KeysRng __keys_rng;
-    sycl::local_accessor<std::uint32_t, 1> __slm_acc;
-    std::uint32_t* __p_global_offset;
-    std::uint32_t __num_histograms;
-    __onesweep_segments</*__is_batched=*/true> __segments;
-    std::uint32_t __chunks_per_segment;
-    std::uint32_t __chunk_count;
-    std::uint32_t __chunks_per_group;
-
-    __batched_global_histogram(const _KeysRng& __keys_rng, sycl::local_accessor<std::uint32_t, 1> __slm_acc,
-                               std::uint32_t* __p_global_offset, std::uint32_t __num_histograms,
-                               __onesweep_segments</*__is_batched=*/true> __segments,
-                               std::uint32_t __chunks_per_segment, std::uint32_t __chunk_count,
-                               std::uint32_t __chunks_per_group)
-        : __keys_rng(__keys_rng), __slm_acc(__slm_acc), __p_global_offset(__p_global_offset),
-          __num_histograms(__num_histograms), __segments(__segments), __chunks_per_segment(__chunks_per_segment),
-          __chunk_count(__chunk_count), __chunks_per_group(__chunks_per_group)
-    {
-    }
-
     // Reduces the SLM histograms of __segment into global memory and zeroes them for the next segment
     inline void
     __flush_segment(std::uint32_t* __slm, std::uint32_t __local_id, std::uint32_t __segment) const
@@ -237,6 +148,7 @@ struct __batched_global_histogram
         for (_LocIdxT __i = __local_id; __i < __hist_buffer_size; __i += __hist_work_group_size)
         {
             _GlobOffsetT __reduced_bincount = 0;
+            // Blocked layout enables load vectorization from SLM
             _ONEDPL_PRAGMA_UNROLL
             for (_LocIdxT __j = 0; __j < __num_histograms; ++__j)
             {
@@ -257,7 +169,7 @@ struct __batched_global_histogram
         }
     }
 
-    [[sycl::reqd_sub_group_size(_BaseT::__sub_group_size)]] void
+    [[sycl::reqd_sub_group_size(__sub_group_size)]] void
     operator()(sycl::nd_item<1> __idx) const
     {
         std::uint32_t* __slm = __slm_acc.get_multi_ptr<sycl::access::decorated::no>().get();
@@ -277,7 +189,7 @@ struct __batched_global_histogram
         std::uint32_t __segment = __chunk / __chunks_per_segment;
         std::uint32_t __local_chunk = __chunk - __segment * __chunks_per_segment;
 
-        _BaseT::__zero_slm_hists(__slm, __local_id, __num_histograms);
+        __zero_slm_hists(__slm, __local_id, __num_histograms);
         sycl::group_barrier(__group);
 
         for (; __chunk < __chunk_end; ++__chunk, ++__local_chunk)
@@ -300,8 +212,8 @@ struct __batched_global_histogram
             if (__sub_group_start < __segment_end)
             {
                 _KeyT __keys[__hist_data_per_work_item];
-                _BaseT::__load_keys(__keys, __keys_rng, __sub_group_start + __sub_group_local_id, __segment_end);
-                _BaseT::__accumulate_to_slm(__slm, __keys, __sub_group_local_id, __num_histograms);
+                __load_keys(__keys, __keys_rng, __sub_group_start + __sub_group_local_id, __segment_end);
+                __accumulate_to_slm(__slm, __keys, __sub_group_local_id, __num_histograms);
             }
         }
 
@@ -310,10 +222,11 @@ struct __batched_global_histogram
     }
 };
 
+
 template <bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
-          std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack, bool __is_batched>
+          std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
 struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
-                                    _InRngPack, _OutRngPack, __is_batched>
+                                    _InRngPack, _OutRngPack>
 {
     using _LocOffsetT = std::uint16_t;
     using _GlobOffsetT = std::uint32_t;
@@ -398,7 +311,6 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
     static constexpr std::uint32_t __tile_size = __work_group_size * __data_per_work_item;
 
-    const _GlobOffsetT __n;
     const std::uint32_t __stage;
     _GlobOffsetT* __p_global_hist;
     _GlobOffsetT* __p_group_hists;
@@ -406,21 +318,19 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     _OutRngPack __out_pack;
     sycl::local_accessor<unsigned char, 1> __slm_accessor;
     std::uint32_t __num_tiles;
-    __onesweep_segments<__is_batched> __segments;
+    __onesweep_segments __segments;
 
-    __radix_sort_onesweep_kernel(_GlobOffsetT __n, std::uint32_t __stage, _GlobOffsetT* __p_global_hist,
-                                 _GlobOffsetT* __p_group_hists, const _InRngPack& __in_pack,
-                                 const _OutRngPack& __out_pack, sycl::local_accessor<unsigned char, 1> __slm_acc,
-                                 std::uint32_t __num_tiles, __onesweep_segments<__is_batched> __segments)
-        : __n(__n), __stage(__stage), __p_global_hist(__p_global_hist), __p_group_hists(__p_group_hists),
-          __in_pack(__in_pack), __out_pack(__out_pack), __slm_accessor(__slm_acc), __num_tiles(__num_tiles),
-          __segments(__segments)
+    __radix_sort_onesweep_kernel(std::uint32_t __stage, _GlobOffsetT* __p_global_hist, _GlobOffsetT* __p_group_hists,
+                                 const _InRngPack& __in_pack, const _OutRngPack& __out_pack,
+                                 sycl::local_accessor<unsigned char, 1> __slm_acc, std::uint32_t __num_tiles,
+                                 __onesweep_segments __segments)
+        : __stage(__stage), __p_global_hist(__p_global_hist), __p_group_hists(__p_group_hists), __in_pack(__in_pack),
+          __out_pack(__out_pack), __slm_accessor(__slm_acc), __num_tiles(__num_tiles), __segments(__segments)
     {
     }
 
     // Position of a tile in the input. Tiles are aligned to segments: a segment is covered by __tiles_per_segment
-    // consecutive tile ids, and only its last tile may be partial. The non-batched sort is a single segment of __n
-    // elements, where the decomposition reduces to compile-time constants.
+    // consecutive tile ids, and only its last tile may be partial.
     struct __tile_location
     {
         std::uint32_t __local_tile;   // tile index within its segment, the position in its chained scan
@@ -433,20 +343,12 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     inline __tile_location
     __locate_tile(std::uint32_t __tile_id) const
     {
-        if constexpr (__is_batched)
-        {
-            // One scalar division per tile, amortized over the tile's elements
-            const std::uint32_t __segment = __tile_id / __segments.__tiles_per_segment;
-            const std::uint32_t __local_tile = __tile_id - __segment * __segments.__tiles_per_segment;
-            const _GlobOffsetT __segment_begin = __segment * __segments.__segment_size;
-            return __tile_location{__local_tile, __segment, __segment_begin,
-                                   __segment_begin + __segments.__segment_size,
-                                   __segment_begin + __local_tile * __tile_size};
-        }
-        else
-        {
-            return __tile_location{__tile_id, 0, 0, __n, __tile_id * __tile_size};
-        }
+        // One scalar division per tile, amortized over the tile's elements
+        const std::uint32_t __segment = __tile_id / __segments.__tiles_per_segment;
+        const std::uint32_t __local_tile = __tile_id - __segment * __segments.__tiles_per_segment;
+        const _GlobOffsetT __segment_begin = __segment * __segments.__segment_size;
+        return __tile_location{__local_tile, __segment, __segment_begin, __segment_begin + __segments.__segment_size,
+                               __segment_begin + __local_tile * __tile_size};
     }
 
     template <typename _KVPack>
@@ -560,13 +462,12 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         sycl::group_barrier(__idx.get_group());
     }
 
-    // Offset of the __hist_id-th histogram of __bin_count entries. The batched sort may have up to n tiles and
-    // segments, so it computes the offset in 64 bits.
-    static inline auto
+    // Offset of the __hist_id-th histogram of __bin_count entries. Small segments may produce up to n tiles and
+    // segments, so the offset is computed in 64 bits.
+    static inline std::size_t
     __hist_offset(std::uint32_t __hist_id)
     {
-        using _OffsetT = std::conditional_t<__is_batched, std::size_t, std::uint32_t>;
-        return _OffsetT(__bin_count) * __hist_id;
+        return std::size_t(__bin_count) * __hist_id;
     }
 
     inline void
@@ -577,7 +478,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     {
         auto __group = __idx.get_group();
         // Tile histograms are indexed by the flat tile id. The tiles of a segment are consecutive, so its chained
-        // scan walks backwards through memory as in the non-batched sort.
+        // scan walks backwards through memory.
         _GlobOffsetT* __p_this_group_hist = __p_group_hists + __hist_offset(__tile_id);
         _GlobOffsetT* __p_prev_group_hist = __p_this_group_hist - __bin_count;
 
@@ -713,10 +614,9 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         }
         else
         {
-            // WG0 is a special case: it also retrieves the total global histogram and adds it to its local histogram
-            // This global histogram will be propagated to other work-groups through a chained scan at stage 2
-            // In the batched sort, the first tile of each segment is the special case and reads the scanned histogram
-            // of its segment. Offsets are relative to the segment start, see __global_fix_to_slm.
+            // The first tile of each segment is a special case: it also retrieves the scanned global histogram of its
+            // segment and adds it to its local histogram. This is propagated to the other tiles of the segment through
+            // a chained scan at stage 2. Offsets are relative to the segment start, see __global_fix_to_slm.
             _GlobOffsetT __global_hist =
                 __p_global_hist[__hist_offset(__loc.__segment) + __hist_idx] & __global_offset_mask;
             _GlobOffsetT __after_group_hist_sum = __global_hist + __item_bin_count;
@@ -817,14 +717,11 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         // Note: Due to standard C++ unsigned integer guaranteed wrap-around (two's complement), this math
         // works even if SLMBaseOffset > GlobalBaseOffset.
         //
-        // In the batched sort, the global offsets accumulated by the chained scan are relative to the segment start,
-        // so the segment start is folded into the fix as well. It is zero for the non-batched sort.
+        // The global offsets accumulated by the chained scan are relative to the segment start, so the segment start
+        // is folded into the fix as well.
         for (_LocIdxT __i = __idx.get_local_id(); __i < __bin_count; __i += __work_group_size)
         {
-            if constexpr (__is_batched)
-                __slm_global_incoming[__i] = __slm_global_incoming[__i] + __segment_begin - __slm_group_hist[__i];
-            else
-                __slm_global_incoming[__i] -= __slm_group_hist[__i];
+            __slm_global_incoming[__i] = __slm_global_incoming[__i] + __segment_begin - __slm_group_hist[__i];
         }
         sycl::group_barrier(__idx.get_group());
     }
@@ -876,8 +773,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
             // TODO: we need to figure out how to relax this bounds checking for full unrolling
             // Padding keys of a partial tile sort after the real keys of the last bin, so their output indices start
-            // exactly at the segment end. In the batched sort that is the start of the next segment: the mask must be
-            // the segment end, not __n.
+            // exactly at the segment end, which is the start of the next segment.
             bool __output_mask = __out_idx < __segment_end;
             if (__output_mask)
                 __out_pack.__keys_rng()[__out_idx] = __key;
@@ -910,7 +806,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         std::uint32_t __tile_id = __group.get_group_linear_id();
         std::uint32_t __num_wgs = __idx.get_group_range(0);
         // Work-groups grid-stride over tiles in increasing order, and a tile only waits on smaller tile ids of its own
-        // segment, so the forward-progress argument of the non-batched sort holds unchanged.
+        // segment.
         for (; __tile_id < __num_tiles; __tile_id += __num_wgs)
         {
             auto __values_pack = __make_key_value_pack<__data_per_work_item, _KeyT, _ValT>();
