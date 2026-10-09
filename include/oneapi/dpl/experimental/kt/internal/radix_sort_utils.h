@@ -10,6 +10,7 @@
 #ifndef _ONEDPL_KT_SYCL_RADIX_SORT_UTILS_H
 #define _ONEDPL_KT_SYCL_RADIX_SORT_UTILS_H
 
+#include <algorithm>
 #include <limits>
 #include <cstdint>
 #include <type_traits>
@@ -68,6 +69,58 @@ __check_sycl_sort_params([[maybe_unused]] std::size_t __n)
     static_assert(__workgroup_size == 1024 || __workgroup_size == 512);
     assert((__n < (1 << 30)) && "Inputs >= 2^30 are currently unsupported in the SYCL sort KT");
 }
+
+template <std::uint8_t __radix_bits, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size>
+inline void
+__check_batched_radix_sort_params([[maybe_unused]] std::size_t __n, [[maybe_unused]] std::size_t __segment_size)
+{
+    __check_sycl_sort_params<__radix_bits, __data_per_workitem, __workgroup_size>(__n);
+    assert(__segment_size > 0 && "The segment size must be greater than zero");
+    assert(__n % __segment_size == 0 && "The number of elements must be a multiple of the segment size");
+}
+
+//-----------------------------------------------------------------------------
+// Segment geometry of a onesweep sort
+//-----------------------------------------------------------------------------
+// A batched sort splits the input into __segment_count independent segments of __segment_size elements, each covered
+// by __tiles_per_segment tiles that never straddle a segment boundary. A non-batched sort is the single segment case
+// (__segment_size == n).
+struct __onesweep_segments
+{
+    std::uint32_t __segment_size;
+    std::uint32_t __segment_count;
+    std::uint32_t __tiles_per_segment;
+};
+
+// Unsigned 32-bit division by a divisor fixed for the kernel's lifetime, computed with a multiply-high and two shifts
+// instead of an emulated integer division (Granlund and Montgomery, "Division by Invariant Integers using
+// Multiplication", 1994)
+class __invariant_divisor
+{
+    std::uint32_t __multiplier;
+    std::uint32_t __shift1;
+    std::uint32_t __shift2;
+
+  public:
+    explicit __invariant_divisor(std::uint32_t __divisor)
+    {
+        assert(__divisor > 0);
+        std::uint32_t __log2_ceil = 0;
+        while ((std::uint64_t{1} << __log2_ceil) < __divisor)
+            ++__log2_ceil;
+        __multiplier = static_cast<std::uint32_t>(
+            ((std::uint64_t{1} << 32) * ((std::uint64_t{1} << __log2_ceil) - __divisor)) / __divisor + 1);
+        __shift1 = std::min<std::uint32_t>(__log2_ceil, 1);
+        __shift2 = __log2_ceil > 0 ? __log2_ceil - 1 : 0;
+    }
+
+    std::uint32_t
+    __divide(std::uint32_t __n) const
+    {
+        const std::uint32_t __t = sycl::mul_hi(__multiplier, __n);
+        return (__t + ((__n - __t) >> __shift1)) >> __shift2;
+    }
+};
 
 template <typename _T>
 constexpr void
