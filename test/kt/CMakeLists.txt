@@ -176,7 +176,8 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     endif()
 endif()
 
-# radix_single_group_tag accepts any work-group size which is a multiple of 32, radix_many_groups_tag only 512 or 1024
+# merge_single_group_tag accepts any work-group size, radix_single_group_tag any multiple of 32, and
+# radix_many_groups_tag only 512 or 1024
 function(_generate_batched_stable_sort_tests _test_name _work_group_size_all)
     foreach (_data_per_work_item ${_kt_sycl_data_per_work_item_all})
         foreach (_work_group_size ${_work_group_size_all})
@@ -195,6 +196,7 @@ endfunction()
 if (ONEDPL_TEST_ENABLE_KT_SYCL)
     _generate_batched_stable_sort_tests("batched_stable_sort" "${_kt_sycl_work_group_size_all}")
     _generate_batched_stable_sort_tests("batched_stable_sort_single_group" "64;128;256;512;1024")
+    _generate_batched_stable_sort_tests("batched_stable_sort_merge_single_group" "64;128;256;512;1024")
 
     # Pin some cases to track them
     _generate_sort_test("kt_sycl" "batched_stable_sort" "8" "512" "uint32_t" "" 1000)
@@ -204,6 +206,9 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     _generate_sort_test("kt_sycl" "batched_stable_sort_single_group" "8" "512" "uint32_t" "" 1000)
     _generate_sort_test("kt_sycl" "batched_stable_sort_single_group" "4" "256" "uint32_t" "" 1000)
     _generate_sort_test("kt_sycl" "batched_stable_sort_single_group" "3" "128" "float" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "batched_stable_sort_merge_single_group" "4" "256" "uint32_t" "" 1000)
+    _generate_sort_test("kt_sycl" "batched_stable_sort_merge_single_group" "3" "128" "float" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "batched_stable_sort_merge_single_group" "16" "512" "int32_t" "uint32_t" 1000)
 endif()
 
 function (_generate_gpu_scan_test _data_per_work_item _work_group_size _type _probability_permille)
