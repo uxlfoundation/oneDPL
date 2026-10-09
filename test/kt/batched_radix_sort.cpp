@@ -34,7 +34,14 @@ using ValueT = TEST_VALUE_TYPE;
 #endif
 using KeyT = TEST_KEY_TYPE;
 
+#ifdef TEST_RADIX_BITS
+constexpr std::uint8_t BatchedRadixBits = TEST_RADIX_BITS;
+#else
 constexpr std::uint8_t BatchedRadixBits = TestRadixBits;
+#endif
+// Only onesweep (8 radix bits, 512 or 1024 work-items) sorts segments larger than a tile
+constexpr bool OneWorkGroupOnly =
+    BatchedRadixBits != 8 || (TEST_WORK_GROUP_SIZE != 512 && TEST_WORK_GROUP_SIZE != 1024);
 
 #include "batched_sort_test_utils.h"
 
@@ -55,15 +62,21 @@ struct BatchedRadixSort
 };
 
 // Segment sizes around the tile size (data_per_workitem * workgroup_size) and the global histogram chunk (4096), plus
-// segments smaller than a tile, multi-tile segments and segments that are not multiples of the sub-group size
+// segments smaller than a tile, multi-tile segments and segments that are not multiples of the sub-group size.
+// Segments that fit in a tile are owned by whole sub-groups of 32 * data_per_workitem elements, several per
+// work-group, so sizes around multiples of a sub-group's elements are covered too.
 std::vector<std::size_t>
-segment_sizes(std::size_t tile)
+segment_sizes(std::size_t tile, std::size_t sub_group_tile)
 {
     std::vector<std::size_t> sizes = {
         1,        2,      7,        100,      317,          1000,           4095,         4097,
         tile - 1, tile,   tile + 1, 2 * tile, 2 * tile + 1, 3 * tile + 333, 7 * tile - 5, 50'000,
-        1 << 17,  300'007};
+        1 << 17,  300'007,
+        sub_group_tile - 1, sub_group_tile, sub_group_tile + 1, 2 * sub_group_tile + 3, tile / 2 + 1, tile / 3};
     sizes.erase(std::remove(sizes.begin(), sizes.end(), std::size_t(0)), sizes.end());
+    if (OneWorkGroupOnly)
+        sizes.erase(std::remove_if(sizes.begin(), sizes.end(), [tile](std::size_t s) { return s > tile; }),
+                    sizes.end());
     std::sort(sizes.begin(), sizes.end());
     sizes.erase(std::unique(sizes.begin(), sizes.end()), sizes.end());
     return sizes;
@@ -92,7 +105,7 @@ main()
             const DataMode modes[] = {DataMode::usm_iterators, DataMode::usm_ranges, DataMode::buffer_iterators,
                                       DataMode::buffer_ranges};
             std::size_t mode_idx = 0;
-            for (std::size_t segment_size : segment_sizes(tile))
+            for (std::size_t segment_size : segment_sizes(tile, std::size_t(Param::data_per_workitem) * 32))
             {
                 // A single segment (segment_size == n), a few segments, and many segments. The count of the
                 // smallest segments is capped: global scratch memory grows with the number of tiles and segments.
@@ -123,8 +136,9 @@ main()
 
             // More histogram chunks than histogram work-groups, with segments of 3 chunks: work-groups own several
             // chunks and switch segments in the middle of their range
-            test_case<Sorter, Ascending, false>(q, DataMode::usm_iterators, 9000, 600,
-                                                TestUtils::create_new_kernel_param_idx<0>(params));
+            if (!OneWorkGroupOnly || 9000 <= tile)
+                test_case<Sorter, Ascending, false>(q, DataMode::usm_iterators, 9000, 600,
+                                                    TestUtils::create_new_kernel_param_idx<0>(params));
 
             test_empty_input<Sorter>(q, params);
         }
