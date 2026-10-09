@@ -283,27 +283,23 @@ struct __batched_one_wg_radix_sort_kernel
     void
     __scan_segment_bins(const sycl::sub_group& __sub_group, std::uint32_t __sg_local_id, _LocOffsetT* __row) const
     {
-        constexpr std::uint32_t __bins_per_lane =
-            oneapi::dpl::__internal::__dpl_ceiling_div(__bin_count, __sub_group_size);
+        static_assert(__bin_count % __sub_group_size == 0);
+        constexpr std::uint32_t __bins_per_lane = __bin_count / __sub_group_size;
         const std::uint32_t __first_bin = __sg_local_id * __bins_per_lane;
 
         std::uint32_t __lane_sum = 0;
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __j = 0; __j < __bins_per_lane; ++__j)
         {
-            if (__first_bin + __j < __bin_count)
-                __lane_sum += __row[__first_bin + __j];
+            __lane_sum += __row[__first_bin + __j];
         }
         std::uint32_t __prefix = sycl::exclusive_scan_over_group(__sub_group, __lane_sum, sycl::plus<std::uint32_t>{});
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __j = 0; __j < __bins_per_lane; ++__j)
         {
-            if (__first_bin + __j < __bin_count)
-            {
-                const _LocOffsetT __count = __row[__first_bin + __j];
-                __row[__first_bin + __j] = __prefix;
-                __prefix += __count;
-            }
+            const _LocOffsetT __count = __row[__first_bin + __j];
+            __row[__first_bin + __j] = __prefix;
+            __prefix += __count;
         }
     }
 };

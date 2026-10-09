@@ -34,14 +34,9 @@ using ValueT = TEST_VALUE_TYPE;
 #endif
 using KeyT = TEST_KEY_TYPE;
 
-#ifdef TEST_RADIX_BITS
-constexpr std::uint8_t BatchedRadixBits = TEST_RADIX_BITS;
-#else
 constexpr std::uint8_t BatchedRadixBits = TestRadixBits;
-#endif
-// Only onesweep (8 radix bits, 512 or 1024 work-items) sorts segments larger than a tile
-constexpr bool OneWorkGroupOnly =
-    BatchedRadixBits != 8 || (TEST_WORK_GROUP_SIZE != 512 && TEST_WORK_GROUP_SIZE != 1024);
+// Only onesweep (512 or 1024 work-items) sorts segments larger than a tile
+constexpr bool OneWorkGroupOnly = TEST_WORK_GROUP_SIZE != 512 && TEST_WORK_GROUP_SIZE != 1024;
 
 #include "batched_sort_test_utils.h"
 

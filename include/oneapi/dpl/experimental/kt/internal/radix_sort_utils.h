@@ -70,18 +70,16 @@ __check_sycl_sort_params([[maybe_unused]] std::size_t __n)
     assert((__n < (1 << 30)) && "Inputs >= 2^30 are currently unsupported in the SYCL sort KT");
 }
 
-// Larger segments than one work-group's tile are sorted by onesweep, which needs 8 radix bits and 512 or 1024
-// work-items
-template <std::uint8_t __radix_bits, std::uint16_t __workgroup_size>
-inline constexpr bool __onesweep_supports_v =
-    __radix_bits == 8 && (__workgroup_size == 512 || __workgroup_size == 1024);
+// Larger segments than one work-group's tile are sorted by onesweep, which needs 512 or 1024 work-items
+template <std::uint16_t __workgroup_size>
+inline constexpr bool __onesweep_supports_v = __workgroup_size == 512 || __workgroup_size == 1024;
 
 template <std::uint8_t __radix_bits, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size>
 inline void
 __check_batched_radix_sort_params([[maybe_unused]] std::size_t __n, [[maybe_unused]] std::size_t __segment_size)
 {
-    static_assert(__radix_bits == 4 || __radix_bits == 8);
-    if constexpr (__onesweep_supports_v<__radix_bits, __workgroup_size>)
+    static_assert(__radix_bits == 8);
+    if constexpr (__onesweep_supports_v<__workgroup_size>)
     {
         __check_sycl_sort_params<__radix_bits, __data_per_workitem, __workgroup_size>(__n);
     }
@@ -90,7 +88,7 @@ __check_batched_radix_sort_params([[maybe_unused]] std::size_t __n, [[maybe_unus
         static_assert(__workgroup_size % 32 == 0 && __workgroup_size <= 1024);
         assert((__n < (1 << 30)) && "Inputs >= 2^30 are currently unsupported in the SYCL sort KT");
         assert(__segment_size <= std::size_t(__data_per_workitem) * __workgroup_size &&
-               "Unless onesweep supports radix_bits and workgroup_size, the segment size must not exceed "
+               "Unless workgroup_size is 512 or 1024, the segment size must not exceed "
                "data_per_workitem * workgroup_size");
     }
     assert(__segment_size > 0 && "The segment size must be greater than zero");

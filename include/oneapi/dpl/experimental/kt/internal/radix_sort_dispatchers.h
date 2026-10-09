@@ -449,7 +449,7 @@ __batched_radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _R
     }
 #endif
     // The parameter check rejects larger segments when onesweep does not support the kernel parameters
-    if constexpr (__onesweep_supports_v<__radix_bits, _KernelParam::workgroup_size>)
+    if constexpr (__onesweep_supports_v<_KernelParam::workgroup_size>)
     {
         return __onesweep<typename _KernelParam::kernel_name, __is_ascending, __radix_bits,
                           _KernelParam::data_per_workitem, _KernelParam::workgroup_size, __in_place>(
