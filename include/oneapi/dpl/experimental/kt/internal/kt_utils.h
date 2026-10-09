@@ -28,38 +28,42 @@ std::uint32_t
 __get_num_cooperative_groups(const _Kernel& __kernel, sycl::queue& __q, std::uint32_t __work_group_size,
                              std::uint32_t __tile_count, std::uint32_t __slm_size_bytes)
 {
-    // Exceptions for excessive SLM usage will be thrown by SYCL.
-    __slm_size_bytes = std::min<std::uint32_t>(__slm_size_bytes, 1 << 17);
-
     std::uint32_t __max_num_cooperative_groups = 1;
 #if _ONEDPL_KT_COOPERATIVE_KERNELS_PRESENT
-    std::uint32_t __max_work_group_kernel_query =
-        __kernel.template ext_oneapi_get_info<syclex::info::kernel_queue_specific::max_num_work_groups>(
-            __q, __work_group_size, __slm_size_bytes);
-
-    // There is a bug produced on BMG where zeKernelSuggestMaxCooperativeGroupCount suggests too large of a
-    // work-group count when we are beyond half SLM capacity, causing a hang. To fix this, we can manually compute
-    // the safe number of groups to launch and take the min with the root group query for any kernel specific
-    // restrictions that may limit the number of groups
     constexpr std::uint32_t __xve_per_xe = 8;
     constexpr std::uint32_t __lanes_per_xe = 2048;
-    const std::uint32_t __max_groups_per_xe = __lanes_per_xe / __work_group_size;
 
     const std::uint32_t __max_slm_xe = __q.get_device().get_info<sycl::info::device::local_mem_size>();
     const std::uint32_t __xes_on_device =
         __q.get_device().get_info<sycl::info::device::max_compute_units>() / __xve_per_xe;
 
+    // Exceptions for excessive SLM usage will be thrown by SYCL.
+    __slm_size_bytes = std::min(__slm_size_bytes, __max_slm_xe);
+
+    std::uint32_t __max_work_group_kernel_query =
+        __kernel.template ext_oneapi_get_info<syclex::info::kernel_queue_specific::max_num_work_groups>(
+            __q, __work_group_size, __slm_size_bytes);
+
+    // The query alone may suggest too large of a work-group count, causing a hang due to two separate reasons:
+    // 1. On BMG, zeKernelSuggestMaxCooperativeGroupCount suggests too many work-groups due to miscalculation
+    //    of available SLM in certain cases.
+    // 2. The Level Zero adapter of Unified Runtime drops the dynamic SLM size passed to the L0 query resulting in the
+    //    kernel's first call to zeKernelSuggestMaxCooperativeGroupCount assuming no SLM is used.
+    //
+    // This workaround is needed for: oneAPI versions <= 2026.2 and currently all compute-runtime versions.
+    const std::uint32_t __max_groups_per_xe = __lanes_per_xe / __work_group_size;
+
     // The HW reserves SLM for a work group on a limited number of granularities. We must account for this to avoid
     // launching too many groups.
     constexpr std::uint32_t __kib = 1 << 10;
-    constexpr std::uint32_t __slm_granularity_table[] = {0,          1 * __kib,  2 * __kib,  4 * __kib,
-                                                         8 * __kib,  16 * __kib, 24 * __kib, 32 * __kib,
-                                                         48 * __kib, 64 * __kib, 96 * __kib, 128 * __kib};
-    constexpr std::uint32_t __slm_granularity_table_size = sizeof(__slm_granularity_table) / sizeof(std::uint32_t);
-    const std::uint32_t* __slm_granularity_it = std::lower_bound(
-        __slm_granularity_table, __slm_granularity_table + __slm_granularity_table_size, __slm_size_bytes);
+    constexpr std::uint32_t __slm_granularity_table[] = {
+        1 * __kib,  2 * __kib,  4 * __kib,   8 * __kib,   16 * __kib,  24 * __kib,  32 * __kib, 48 * __kib,
+        64 * __kib, 96 * __kib, 128 * __kib, 192 * __kib, 256 * __kib, 320 * __kib, 384 * __kib};
+    const std::uint32_t* __slm_granularity_it =
+        std::lower_bound(std::cbegin(__slm_granularity_table), std::cend(__slm_granularity_table), __slm_size_bytes);
     assert(__slm_granularity_it != std::cend(__slm_granularity_table));
-    const std::uint32_t __true_slm_size_bytes = *__slm_granularity_it;
+    const std::uint32_t __true_slm_size_bytes =
+        (__slm_granularity_it != std::cend(__slm_granularity_table)) ? *__slm_granularity_it : __slm_size_bytes;
 
     const std::uint32_t __groups_per_xe_slm_adj = std::min(__max_groups_per_xe, __max_slm_xe / __true_slm_size_bytes);
     const std::uint32_t __concurrent_groups_est = __groups_per_xe_slm_adj * __xes_on_device;

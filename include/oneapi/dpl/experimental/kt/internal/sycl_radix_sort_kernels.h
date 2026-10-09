@@ -11,6 +11,7 @@
 #define _ONEDPL_KT_SYCL_RADIX_SORT_KERNELS_H
 
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
@@ -186,6 +187,9 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     static constexpr std::uint32_t __sub_group_size = 32;
     static constexpr std::uint32_t __num_sub_groups_per_work_group = __work_group_size / __sub_group_size;
     static constexpr std::uint32_t __data_per_sub_group = __data_per_work_item * __sub_group_size;
+    // Bin counts within a tile are stored in _LocOffsetT and may reach the full tile size
+    static_assert(std::uint32_t{__work_group_size} * __data_per_work_item <= std::numeric_limits<_LocOffsetT>::max(),
+                  "The work-group tile size (work_group_size * data_per_work_item) must not exceed 65535");
 
     static constexpr std::uint32_t __bit_count = sizeof(_KeyT) * 8;
     static constexpr _LocOffsetT __mask = __bin_count - 1;

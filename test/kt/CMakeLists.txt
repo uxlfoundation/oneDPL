@@ -49,6 +49,8 @@ endfunction()
 #   _val_type. Treated as absent for values: "" (empty string).
 #              If absent, key sort test is generated, otherwise key-value sort test
 #   _variant. Must be "esimd" or "sycl" to specify which kernel variant to use
+#   _tile_multiples. Optional. Comma separated list of tile counts. If provided, the test replaces the default
+#                    element counts with counts derived from the tile size of the kernel configuration.
 function(_generate_sort_test _variant _base_file _data_per_work_item _work_group_size _key_type _val_type _probability_permille)
     if ((NOT TARGET build-${_variant}-sort-tests) AND (NOT TARGET run-${_variant}-sort-tests))
         string(TOUPPER ${_variant} _variant_upper)
@@ -86,6 +88,9 @@ function(_generate_sort_test _variant _base_file _data_per_work_item _work_group
         target_compile_definitions(${_target_name} PRIVATE TEST_KEY_TYPE=${_key_type})
         if (NOT "${_val_type}" STREQUAL "")
             target_compile_definitions(${_target_name} PRIVATE TEST_VALUE_TYPE=${_val_type})
+        endif()
+        if (NOT "${ARGV7}" STREQUAL "")
+            target_compile_definitions(${_target_name} PRIVATE TEST_TILE_MULTIPLES=${ARGV7})
         endif()
     endif()
 endfunction()
@@ -169,6 +174,17 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     if (_bfloat16_key_type_supported)
         _generate_sort_test("kt_sycl" "radix_sort_by_key" "7" "512" "sycl::ext::oneapi::bfloat16" "uint32_t" 1000)
     endif()
+
+    # Pin configurations which reserve SLM on the coarse granularities above 128 KiB. The larger tile multiple exceeds
+    # the number of work-groups which can be resident at once, which is the condition that hangs the cooperative
+    # onesweep kernel if the SLM reservation granularity is not accounted for.
+    _generate_sort_test("kt_sycl" "radix_sort_by_key" "16" "512"  "uint64_t" "uint64_t" 1000 "2,65") # 192 KiB
+    _generate_sort_test("kt_sycl" "radix_sort_by_key" "16" "1024" "uint64_t" "uint64_t" 1000 "2,33") # 320 KiB
+    _generate_sort_test("kt_sycl" "radix_sort_by_key" "20" "1024" "uint64_t" "uint64_t" 1000 "2,33") # 384 KiB
+    _generate_sort_test("kt_sycl" "radix_sort" "24" "1024" "uint64_t" "" 1000 "2,33")                # 256 KiB
+    _generate_sort_test("kt_sycl" "radix_sort" "16" "1024" "uint64_t" "" 1000 "2,33")                # 192 KiB
+
+    _generate_test("kt_sycl_cooperative_groups_estimate.pass" "implementation_details/cooperative_groups_estimate.cpp")
 endif()
 
 function (_generate_gpu_scan_test _data_per_work_item _work_group_size _type _probability_permille)

@@ -91,11 +91,27 @@ can_run_test(sycl::queue q, KernelParam param)
     return slm_alloc_size < max_slm_size;
 }
 
+// Some configurations are currently broken with USM shared memory. This flag is meant for developer debugging.
+//#define TEST_KT_SORT_USM_SHARED_BROKEN 1
+
+// TEST_TILE_MULTIPLES is a comma separated list of tile counts, used in place of absolute element counts to express
+// "more tiles than resident work-groups" independently of the tile size of the configuration under test.
+#ifdef TEST_TILE_MULTIPLES
+inline const std::vector<std::size_t> sort_sizes = [] {
+    constexpr std::size_t elems_in_tile = std::size_t{TEST_DATA_PER_WORK_ITEM} * TEST_WORK_GROUP_SIZE;
+    std::vector<std::size_t> sizes;
+    // The extra element covers the partial tile path.
+    for (std::size_t tiles : {TEST_TILE_MULTIPLES})
+        sizes.push_back(tiles * elems_in_tile + 1);
+    return sizes;
+}();
+#else
 inline const std::vector<std::size_t> sort_sizes = {
     1,       6,         16,      43,        256,           316,           2048,
     5072,    8192,      14001,   1 << 14,   (1 << 14) + 1, 50000,         67543,
     100'000, 1 << 17,   179'581, 250'000,   1 << 18,       (1 << 18) + 1, 500'000,
     888'235, 1'000'000, 1 << 20, 10'000'000};
+#endif
 
 template <typename T, bool Order>
 struct Compare : public std::less<T>

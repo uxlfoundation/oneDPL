@@ -135,10 +135,12 @@ int main()
         {
             for (auto size : sort_sizes)
             {
+#    if !TEST_KT_SORT_USM_SHARED_BROKEN
                 test_usm<TEST_KEY_TYPE, TEST_VALUE_TYPE, Ascending, TestRadixBits, sycl::usm::alloc::shared>(
                     q, size, TestUtils::create_new_kernel_param_idx<0>(params));
                 test_usm<TEST_KEY_TYPE, TEST_VALUE_TYPE, Descending, TestRadixBits, sycl::usm::alloc::shared>(
                     q, size, TestUtils::create_new_kernel_param_idx<1>(params));
+#endif
                 test_sycl_buffer<TEST_KEY_TYPE, TEST_VALUE_TYPE, Ascending, TestRadixBits>(
                     q, size, TestUtils::create_new_kernel_param_idx<2>(params));
                 test_sycl_buffer<TEST_KEY_TYPE, TEST_VALUE_TYPE, Descending, TestRadixBits>(
