@@ -319,13 +319,15 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     sycl::local_accessor<unsigned char, 1> __slm_accessor;
     std::uint32_t __num_tiles;
     __onesweep_segments __segments;
+    __invariant_divisor __tiles_per_segment_divisor;
 
     __radix_sort_onesweep_kernel(std::uint32_t __stage, _GlobOffsetT* __p_global_hist, _GlobOffsetT* __p_group_hists,
                                  const _InRngPack& __in_pack, const _OutRngPack& __out_pack,
                                  sycl::local_accessor<unsigned char, 1> __slm_acc, std::uint32_t __num_tiles,
                                  __onesweep_segments __segments)
         : __stage(__stage), __p_global_hist(__p_global_hist), __p_group_hists(__p_group_hists), __in_pack(__in_pack),
-          __out_pack(__out_pack), __slm_accessor(__slm_acc), __num_tiles(__num_tiles), __segments(__segments)
+          __out_pack(__out_pack), __slm_accessor(__slm_acc), __num_tiles(__num_tiles), __segments(__segments),
+          __tiles_per_segment_divisor(__segments.__tiles_per_segment)
     {
     }
 
@@ -343,8 +345,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     inline __tile_location
     __locate_tile(std::uint32_t __tile_id) const
     {
-        // One scalar division per tile, amortized over the tile's elements
-        const std::uint32_t __segment = __tile_id / __segments.__tiles_per_segment;
+        const std::uint32_t __segment = __tiles_per_segment_divisor.__divide(__tile_id);
         const std::uint32_t __local_tile = __tile_id - __segment * __segments.__tiles_per_segment;
         const _GlobOffsetT __segment_begin = __segment * __segments.__segment_size;
         return __tile_location{__local_tile, __segment, __segment_begin, __segment_begin + __segments.__segment_size,
