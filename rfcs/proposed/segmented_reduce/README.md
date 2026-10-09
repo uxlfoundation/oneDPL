@@ -40,6 +40,12 @@ is covered in [Initial Value, its Default Value, and Identity](#initial-value-it
 
 **Strategy**. Support empty segments.
 
+### Overlapping Segments
+
+`cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce` support overlapping segments.
+
+### Ordered Segments
+
 ### Initial Value, its Default Value, and Identity
 
 The [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) request
@@ -265,7 +271,7 @@ Yes, because this semantics is already used and due to the performance benefits:
 
 It's much easier to emulate via existing key-based segmented reduction
 via counting and discard iterators,
-but it is not as efficient due to segment boundary checks.
+but it is not as efficient due to the segment boundary checks.
 
 **Strategy**: provide the fixed-length segment overloads.
 
