@@ -27,6 +27,19 @@ The implementation experience can guide the design of the tuning parameters for 
 Passing the temporary storage is an obvious gap,
 but the corresponding interface in kernel templates has not yet been defined.
 
+### Empty Segments
+
+[#2829](https://github.com/oneapi-src/oneDPL/issues/2829) request
+explicitly asks to support empty segments, and return an identity for them.
+
+They are also supported by `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`.
+Both implementations return an initial value for empty segments.
+
+The question about if it should be an identity or an initial value
+is covered in [Initial Value, its Default Value, and Identity](#initial-value-its-default-value-and-identity) section.
+
+**Strategy**. Support empty segments.
+
 ### Initial Value, its Default Value, and Identity
 
 The [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) request
@@ -86,7 +99,7 @@ specifying the appropriate binary operation and initial value for the reduction.
 no need to introduce special overloads for the `reduce_by_segment` algorithm, complicating the API.
 
 `ArgMin` and `ArgMax` is a special case, because they reduce index-value pairs instead of just values.
-Algorithmically they do the following:
+Algorithmically, they do the following compared to `Min` and `Max`:
 
 1. Pack the input into `zip(counting_iterator, input_first)`.
 2. Do the regular segmented reduction
@@ -123,9 +136,7 @@ It is not clear why `1` is provided as an index for an empty segment.
 What should be done:
 
 - Provide an interface without comparator and no initial value.
-  The initial value will be:
-  `{OffsetT{}, std::numeric_limits<T>::max()}` for `min_element_by_segment` and
-  `{OffsetT{}, std::numeric_limits<T>::min()}` for `max_element_by_segment`.
+  The initial value selection is not trivial, it is discussed in [Default Value for ...](#default-value-for-min_element_by_segment-and-max_element_by_segment) section.
   The comparator will be `std::less{}` or `std::greater{}` for alignment with the
   corresponding C++ functions.
 - Provide an interface with a comparator and an initial value.
@@ -138,6 +149,71 @@ which should be avoided unless explicitly asked for.
 
 - Do nothing special for `Sum`, `Min`, and `Max` semantics.
 - For `ArgMin` and `ArgMax`, provide `min_element_by_segment` and `max_element_by_segment`.
+
+### Default Value for `min_element_by_segment` and `max_element_by_segment`
+
+`cub::DeviceSegmentedReduce` contract:
+
+| CUB API | Documented value and purpose |
+|---|---|
+| `ArgMin` | `{1, cuda::std::numeric_limits<T>::max()}` for empty segments |
+| `ArgMax` | `{1, cuda::std::numeric_limits<T>::lowest()}` for empty segments |
+
+It is the same for any type, be it an integral, floating-point, or user-defined type.
+Assuming that the safe value for an empty segment is an identity,
+it must be `-inf` or `+inf` for floating-point types or any type which has infinity.
+
+Why is `cuda::std` namespace needed? Should there also be `dpl::numeric_limits`?
+
+According to [https://nvidia.github.io/cccl/unstable/libcudacxx/\#summary-std-cuda-and-cuda-std](<https://nvidia.github.io/cccl/unstable/libcudacxx/#summary-std-cuda-and-cuda-std>),
+`cuda::std` namespace includes features guaranteed to be available on both host and device.
+In this regard, `dpl::numeric_limits` should be used.
+It is already available, and partially covered in [Tested Standard C++ API](../../../tested_standard_cpp_api.rst),
+
+One may assume that it can also ease the use of fixed-width floating point types,
+such as `sycl::half`, `sycl::ext::oneapi::bfloat16`, and other similar types.
+However, SYCL specification does require `std::numeric_limits` to be available for `sycl::half`,
+and the extensions are expected to follow the same approach.
+
+Arguments against using `dpl::numeric_limits` and preferring `std::numeric_limits`:
+- It is also not necessary to necessary to calculate the default value on the device.
+- `std::numeric_limits` is familiar to the developers,
+  and already provides well-defined specialization options.
+- `std::numeric_limits` functions for built-in types satisfy the SYCL requirements for device functions.
+  For custom types, this requirement must be explicitly specified in the documentation
+  be it `std::numeric_limits` or `dpl::numeric_limits`.
+
+Given these points, it is more preferable to use `std::numeric_limits`.
+
+Why is `1` chosen as the default initial value for empty segments?
+Should it be different?
+There appears to be no strong rationale for it.
+A more reasonable choice is `std::numeric_limits<IndexT>::max()`
+because the algorithm must select the first occurrence.
+
+Why is the initial value applied only to empty segments?
+In `Reduce`, `Min` and `Max` it is applied to all segments.
+It is likely because `1` is the default index,
+the algorithm must select the first occurance,
+but the input may contain an element equal to the initial value.
+
+**Strategy**. Provide the default values for `min_element_by_segment` and `max_element_by_segment`
+following this logic:
+
+```c++
+constexpr std::pair<IndexT, T> min_value{
+    std::numeric_limits<IndexT>::max(),
+    std::numeric_limits<T>::has_infinity ?
+        std::numeric_limits<T>::infinity() : std::numeric_limits<T>::max()};
+
+constexpr std::pair<IndexT, T> max_value{
+    std::numeric_limits<IndexT>::max(),
+    std::numeric_limits<T>::has_infinity ?
+        -std::numeric_limits<T>::infinity() : std::numeric_limits<T>::lowest()};
+```
+
+It will require `T` to support unary `-` for `max_element_by_segment`, but this is acceptable,
+because there is an alternative overload which allows passing the initial value explicitly.
 
 ### Bounding Input
 
@@ -196,7 +272,7 @@ but it is not as efficient due to segment boundary checks.
 ### Binary Operator
 
 Associativity is essential for parallelization.
-Commutativity is useful for example, when doing sub-group and work-group striding,
+Commutativity is useful, for example, when doing sub-group and work-group striding,
 a common approach in GPU programming to improve memory coalescing.
 
 There are different associativity and commutativity requirements in different implementations:
@@ -906,6 +982,7 @@ API notes:
 - `BinaryOp` requires both associativity and commutativity.
 - Negative offsets neither explicitly allowed nor prohibited.
   Implementation allows it, and accesses a subrange before `d_in`.
+- The initial value is applied to each segment, not only empty segments.
 - The accumulator type is not stated explicitly.
   AI-assisted research shows that it is inferred from `InputValueIt`, `InitValueT`, and `BinaryOp`.
 - The overload with the execution environment allows control over floating-point determinism,
@@ -913,7 +990,11 @@ API notes:
 
 There are `Sum`, `Min`, `Max`, `ArgMin`, and `ArgMax`
 specialized methods that supply their own binary operation and initial value.
-`ArgMin` and `ArgMax` return both the index and the value of the first occurrence of the minimum or maximum element within each segment.
+`ArgMin` and `ArgMax` return both the index and the value
+of the first occurrence of the minimum or maximum element within each segment.
+In `Min` and `Max` documentation, the initial value is said to apply to each segment.
+In `ArgMin` and `ArgMax` documentation,
+the initial value is said to apply to empty segments only.
 All these functions also have 3 overloads as the general `Reduce`.
 Below are the examples of some methods.
 
@@ -1021,6 +1102,7 @@ API specifics:
   The default operation is addition; the default initial value is value-initialized.
 - Negative offsets are neither explicitly allowed nor prohibited.
   Implementation allows it, and accesses a sub-range before `input`.
+- The initial value is applied to each segment, not only empty segments.
 - The binary operation must be associative and commutative (in practice, it is a documentation gap).
 - `Config` allows customization of the implementation's tuning parameters.
 
