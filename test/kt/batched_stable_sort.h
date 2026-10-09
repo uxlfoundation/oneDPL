@@ -73,15 +73,17 @@ struct BatchedStableSort
 // Segment sizes around the tile size (data_per_workitem * workgroup_size) and the global histogram chunk (4096), plus
 // segments smaller than a tile, multi-tile segments and segments that are not multiples of the sub-group size.
 // Segments that fit in a tile are owned by whole sub-groups of 32 * data_per_workitem elements, several per
-// work-group, so sizes around multiples of a sub-group's elements are covered too.
+// work-group, so sizes around multiples of a sub-group's elements are covered too. Sizes around a work-item's
+// elements cover the merge sort's leaf sort and first merge round.
 std::vector<std::size_t>
-segment_sizes(std::size_t tile, std::size_t sub_group_tile, bool wg_resident_only)
+segment_sizes(std::size_t tile, std::size_t sub_group_tile, std::size_t work_item_tile, bool wg_resident_only)
 {
     std::vector<std::size_t> sizes = {
         1,        2,      7,        100,      317,          1000,           4095,         4097,
         tile - 1, tile,   tile + 1, 2 * tile, 2 * tile + 1, 3 * tile + 333, 7 * tile - 5, 50'000,
         1 << 17,  300'007,
-        sub_group_tile - 1, sub_group_tile, sub_group_tile + 1, 2 * sub_group_tile + 3, tile / 2 + 1, tile / 3};
+        sub_group_tile - 1, sub_group_tile, sub_group_tile + 1, 2 * sub_group_tile + 3, tile / 2 + 1, tile / 3,
+        work_item_tile, work_item_tile + 1, 2 * work_item_tile - 1};
     sizes.erase(std::remove(sizes.begin(), sizes.end(), std::size_t(0)), sizes.end());
     if (wg_resident_only)
         sizes.erase(std::remove_if(sizes.begin(), sizes.end(), [tile](std::size_t s) { return s > tile; }),
@@ -123,7 +125,8 @@ test()
                                       DataMode::buffer_ranges};
             std::size_t mode_idx = 0;
             const std::size_t sub_group_tile = std::size_t(Param::data_per_workitem) * 32;
-            for (std::size_t segment_size : segment_sizes(tile, sub_group_tile, WgResidentOnly))
+            for (std::size_t segment_size :
+                 segment_sizes(tile, sub_group_tile, Param::data_per_workitem, WgResidentOnly))
             {
                 // A single segment (segment_size == n), a few segments, and many segments. The count of the
                 // smallest segments is capped: global scratch memory grows with the number of tiles and segments.
