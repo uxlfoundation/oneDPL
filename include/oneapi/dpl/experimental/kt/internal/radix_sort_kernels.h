@@ -21,9 +21,8 @@ template <typename _KtTag, bool __is_ascending, std::uint8_t __radix_bits, std::
           std::uint16_t __hist_work_group_size, typename _KeysRng>
 struct __global_histogram;
 
-// __is_batched selects the segment-aware sweep of the batched sort (SYCL only)
 template <typename _KtTag, bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
-          std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack, bool __is_batched = false>
+          std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
 struct __radix_sort_onesweep_kernel;
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl

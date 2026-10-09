@@ -83,12 +83,9 @@ __check_batched_radix_sort_params([[maybe_unused]] std::size_t __n, [[maybe_unus
 //-----------------------------------------------------------------------------
 // A batched sort splits the input into __segment_count independent segments of __segment_size elements, each covered
 // by __tiles_per_segment tiles that never straddle a segment boundary. A non-batched sort is the single segment case
-// (__segment_size == n), and __is_batched == false lets the kernels drop the segment decomposition at compile time.
-template <bool __is_batched_v>
+// (__segment_size == n).
 struct __onesweep_segments
 {
-    static constexpr bool __is_batched = __is_batched_v;
-
     std::uint32_t __segment_size;
     std::uint32_t __segment_count;
     std::uint32_t __tiles_per_segment;
