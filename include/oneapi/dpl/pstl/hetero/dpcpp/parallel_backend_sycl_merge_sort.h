@@ -16,7 +16,6 @@
 #ifndef _ONEDPL_PARALLEL_BACKEND_SYCL_MERGE_SORT_H
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_MERGE_SORT_H
 
-#include <limits>      // std::numeric_limits
 #include <cassert>     // assert
 #include <utility>     // std::swap, std::pair
 #include <cstdint>     // std::uint32_t, ...
@@ -146,7 +145,7 @@ struct __leaf_sorter
         const std::uint32_t __sg_size = __sg.get_local_linear_range();
         const std::uint32_t __sg_local_id = __sg.get_local_linear_id();
         const std::uint32_t __sg_process_size = __sg_size * __data_per_workitem;
-        const std::size_t __wg_start = __wg_id * __process_size;
+        const std::size_t __wg_start = std::size_t{__wg_id} * __process_size;
         const std::uint32_t __sg_start = __sg_id * __sg_process_size;
         const std::size_t __wg_end = __wg_start + std::min<std::size_t>(__process_size, __n - __wg_start);
         const std::uint32_t __adjusted_process_size = __wg_end - __wg_start;
@@ -217,7 +216,7 @@ struct __merge_sort_leaf_submitter<__internal::__optional_kernel_name<_LeafSortN
         return __q.submit([&__rng, &__leaf_sorter](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             auto __storage_acc = __leaf_sorter.create_storage_accessor(__cgh);
-            const std::uint32_t __wg_count = oneapi::dpl::__internal::__dpl_ceiling_div(
+            const std::size_t __wg_count = oneapi::dpl::__internal::__dpl_ceiling_div(
                 oneapi::dpl::__ranges::__size(__rng), __leaf_sorter.__process_size);
             const sycl::nd_range<1> __nd_range(sycl::range<1>(__wg_count * __leaf_sorter.__workgroup_size),
                                                sycl::range<1>(__leaf_sorter.__workgroup_size));
@@ -793,7 +792,10 @@ __parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
 
     sycl::queue __q_local = __exec.queue();
 
-    if (oneapi::dpl::__ranges::__size(__rng) <= std::numeric_limits<std::uint32_t>::max())
+    // Up to 2^31 elements, bit_ceil(n), the doubled sorted size and signed merge-path diagonals fit 32 bits
+    constexpr std::size_t __max_size_for_32bit_index = std::size_t{1} << 31;
+    const std::size_t __n = oneapi::dpl::__ranges::__size(__rng);
+    if (__n <= __max_size_for_32bit_index)
     {
         return __submit_selecting_leaf<_CustomName, std::uint32_t>(__q_local, std::forward<_Range>(__rng), __comp);
     }
