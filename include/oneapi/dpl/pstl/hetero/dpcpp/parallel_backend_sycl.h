@@ -1303,18 +1303,21 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _Execution
 //-----------------------------------------------------------------------
 
 // TODO: check if it makes sense to move these wrappers out of backend to a common place
-// partial_sort's tail is unspecified, so a full sort satisfies the contract. Bypassing the radix dispatch is
-// deliberate: radix loses to this path at every size on CUDA, and below a few million elements on Intel GPUs.
+// partial_sort's tail is unspecified, so a full sort satisfies the contract. This is merge sort for every type,
+// including those __parallel_stable_sort sends to radix sort.
 template <typename _ExecutionPolicy, typename _Iterator, typename _Compare>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
 __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Iterator __first,
-                        _Iterator /*__mid*/, _Iterator __last, _Compare __comp)
+                        _Iterator __last, _Compare __comp)
 {
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf = __keep(__first, __last);
 
-    return __parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
-                                __buf.all_view(), __comp);
+    // Wrapped as __parallel_stable_sort wraps it, so that sort and partial_sort share kernel names and bodies
+    return __parallel_sort_impl(
+        oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __buf.all_view(),
+        oneapi::dpl::__internal::__binary_op<_Compare, oneapi::dpl::identity, oneapi::dpl::identity>{
+            __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{}});
 }
 
 //------------------------------------------------------------------------
