@@ -95,132 +95,6 @@ Request the initial value to be passed explicitly by the user.
 Provide a default value when, again,
 [p3732r2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html) settles.
 
-### Sum, Min, Max, ArgMin and ArgMax semantics
-
-All semantics are used according to the [real-world use cases](usage_pattern_study.md).
-Therefore, they should be supported.
-
-`Sum`, `Min`, and `Max` semantics can be enabled by
-specifying the appropriate binary operation and initial value for the reduction.
-no need to introduce special overloads for the `reduce_by_segment` algorithm, complicating the API.
-
-`ArgMin` and `ArgMax` is a special case, because they reduce index-value pairs instead of just values.
-Algorithmically, they do the following compared to `Min` and `Max`:
-
-1. Pack the input into `zip(counting_iterator, input_first)`.
-2. Do the regular segmented reduction
-  with a custom binary operation which also checks the order of the arguments.
-3. When writing the final result, normalize the index: `result.key -= begin_offsets[segment];`
-
-Given that there options on how to handle `ArgMin` and `ArgMax`:
-
-1. Introduce special functors, e.g., `dpl::argmin` and `dpl::argmax`,
-   use the same overload, and customize the behaviour accordingly.
-2. Introduce a fancy iterator with `enumerate` semantics,
-   add `dpl::argmin` and `dpl::argmax` functors that work with it,
-   and to trigger the normalization of the indices.
-3. Provide special overloads, and name after min and max element functions, e.g.,
-   `min_element_by_segment` and `max_element_by_segment`.
-
-Assuming that the customizations "spoil" the interface, option (3) is preferable.
-
-`min_element` and `max_element` return iterators to the input range,
-what should their segmented counterparts do?
-`min_element` and `max_element` receive iterators to the input range and return iterators.
-Given that the segmented versions receive segment offsets as indices,
-returning segment-local indices is natural.
-
-Should the binary operation (comparator) and the initial value be allowed to be specified
-with `min_element_by_segment` and `max_element_by_segment`?
-What should they return in case of an empty segment?
-`min_element` and `max_element` allow passing a comparator. The initial value is not applicable there.
-`cub::DeviceSegmentedReduce` does not allow passing them directly.
-It uses `<` or `>` as the comparator, and for an empty segment returns an identity,
-`{1, cuda::std::numeric_limits<T>::max()}` for `min_element_by_segment` and
-`{1, cuda::std::numeric_limits<T>::min()}` for `max_element_by_segment`.
-It is not clear why `1` is provided as an index for an empty segment.
-What should be done:
-
-- Provide an interface without comparator and no initial value.
-  The initial value selection is not trivial, it is discussed in [Default Value for ...](#default-value-for-min_element_by_segment-and-max_element_by_segment) section.
-  The comparator will be `std::less{}` or `std::greater{}` for alignment with the
-  corresponding C++ functions.
-- Provide an interface with a comparator and an initial value.
-
-Returning both, although possible and potentially useful,
-but it will have a trade-off with extra memory traffic when writing the final result,
-which should be avoided unless explicitly asked for.
-
-**Strategy**:
-
-- Do nothing special for `Sum`, `Min`, and `Max` semantics.
-- For `ArgMin` and `ArgMax`, provide `min_element_by_segment` and `max_element_by_segment`.
-
-### Default Value for `min_element_by_segment` and `max_element_by_segment`
-
-`cub::DeviceSegmentedReduce` contract:
-
-| CUB API | Documented value and purpose |
-|---|---|
-| `ArgMin` | `{1, cuda::std::numeric_limits<T>::max()}` for empty segments |
-| `ArgMax` | `{1, cuda::std::numeric_limits<T>::lowest()}` for empty segments |
-
-It is the same for any type, be it an integral, floating-point, or user-defined type.
-Assuming that the safe value for an empty segment is an identity,
-it must be `-inf` or `+inf` for floating-point types or any type which has infinity.
-
-Why is `cuda::std` namespace needed? Should there also be `dpl::numeric_limits`?
-
-According to [https://nvidia.github.io/cccl/unstable/libcudacxx/\#summary-std-cuda-and-cuda-std](<https://nvidia.github.io/cccl/unstable/libcudacxx/#summary-std-cuda-and-cuda-std>),
-`cuda::std` namespace includes features guaranteed to be available on both host and device.
-In this regard, `dpl::numeric_limits` should be used.
-It is already available, and partially covered in [Tested Standard C++ API](../../../tested_standard_cpp_api.rst),
-
-One may assume that it can also ease the use of fixed-width floating point types,
-such as `sycl::half`, `sycl::ext::oneapi::bfloat16`, and other similar types.
-However, SYCL specification does require `std::numeric_limits` to be available for `sycl::half`,
-and the extensions are expected to follow the same approach.
-
-Arguments against using `dpl::numeric_limits` and preferring `std::numeric_limits`:
-- It is also not necessary to necessary to calculate the default value on the device.
-- `std::numeric_limits` is familiar to the developers,
-  and already provides well-defined specialization options.
-- `std::numeric_limits` functions for built-in types satisfy the SYCL requirements for device functions.
-  For custom types, this requirement must be explicitly specified in the documentation
-  be it `std::numeric_limits` or `dpl::numeric_limits`.
-
-Given these points, it is more preferable to use `std::numeric_limits`.
-
-Why is `1` chosen as the default initial value for empty segments?
-Should it be different?
-There appears to be no strong rationale for it.
-A more reasonable choice is `std::numeric_limits<IndexT>::max()`
-because the algorithm must select the first occurrence.
-
-Why is the initial value applied only to empty segments?
-In `Reduce`, `Min` and `Max` it is applied to all segments.
-It is likely because `1` is the default index,
-the algorithm must select the first occurance,
-but the input may contain an element equal to the initial value.
-
-**Strategy**. Provide the default values for `min_element_by_segment` and `max_element_by_segment`
-following this logic:
-
-```c++
-constexpr std::pair<IndexT, T> min_value{
-    std::numeric_limits<IndexT>::max(),
-    std::numeric_limits<T>::has_infinity ?
-        std::numeric_limits<T>::infinity() : std::numeric_limits<T>::max()};
-
-constexpr std::pair<IndexT, T> max_value{
-    std::numeric_limits<IndexT>::max(),
-    std::numeric_limits<T>::has_infinity ?
-        -std::numeric_limits<T>::infinity() : std::numeric_limits<T>::lowest()};
-```
-
-It will require `T` to support unary `-` for `max_element_by_segment`, but this is acceptable,
-because there is an alternative overload which allows passing the initial value explicitly.
-
 ### Bounding Input
 
 `cub::DeviceSegmentedReduce` (variable-segments) and `rocprim::segmented_reduce`
@@ -396,6 +270,240 @@ The same approach can be applied to constrain the new overloads.
   and `begin_offsets` to non-integral types.
 - Constrain the existing key-based overloads to reject an integral `out_key_first`.
 
+### Sum, Min, Max, ArgMin and ArgMax semantics
+
+All semantics are used according to the [real-world use cases](usage_pattern_study.md).
+Therefore, they should be supported.
+
+#### Sum, Min, Max
+
+`Sum`, `Min`, and `Max` semantics can be enabled by
+specifying the appropriate binary operation and initial value for the reduction.
+Therefore, there is no need to introduce special overloads
+for the `reduce_by_segment` algorithm, complicating the API.
+
+#### ArgMin and ArgMax
+
+`ArgMin` and `ArgMax` is a special case, because they reduce index-value pairs instead of just values.
+
+Algorithmically, they do the following compared to `Min` and `Max`:
+
+1. Pack the input into `zip(counting_iterator, input_first)`.
+2. Do the regular segmented reduction
+  with a custom binary operation which also checks the order of the arguments.
+3. When writing the final result, normalize the index: `result.first -= begin_offsets[segment];`
+  Note, `segment` corresponds to the position of the output iterator,
+  therefore the output iterator can theoretically be customized to do the normalization.
+
+How it can be implemented via `reduce_by_segment` and fancy iterators with `ArgMin` as an example:
+
+```c++
+// Min op, strictly returning the first match
+struct argmin
+{
+    template <typename A, typename B>
+    AccT
+    operator()(const A& a, const B& b) const
+    {
+        auto va = std::get<1>(a);
+        auto vb = std::get<1>(b);
+        auto ia = std::get<0>(a);
+        auto ib = std::get<0>(b);
+        const bool take_b = vb < va || (!(va < vb) && ib < ia);
+        return take_b ? AccT{ib, vb} : AccT{ia, va};
+    }
+};
+
+// Convert the global index into a segment-local one.
+struct global_to_local
+{
+    IdxT* out;
+    IdxT begin;
+    const global_to_local&
+    operator=(IdxT global) const
+    {
+        *out =  global - begin;
+        return *this;
+    }
+};
+
+const AccT init{std::numeric_limits<IdxT>::max(),
+                std::numeric_limits<T>::infinity()};
+
+T* values = sycl::malloc_shared<T>(n, q);
+IdxT* begin_offsets = sycl::malloc_shared<IdxT>(num_segments, q);
+IdxT* end_offsets = sycl::malloc_shared<IdxT>(num_segments, q);
+IdxT* idx_out = sycl::malloc_shared<IdxT>(num_segments, q);
+T* val_out = sycl::malloc_shared<T>(num_segments, q);
+auto in = dpl::make_zip_iterator(dpl::counting_iterator<IdxT>(0), values);
+
+// Variable segment: (1) index-value pairs or (2) only index
+auto local_idx_out = dpl::make_transform_iterator(
+    dpl::make_zip_iterator(idx_out, begin_offsets),
+    [](auto it) { // it: {idx_out + segment, begin_offset + segment}
+        return global_to_local{&std::get<0>(it), std::get<1>(it)};
+    }
+);
+auto out = dpl::make_zip_iterator(local_idx_out, val_out); // (1)
+auto out = dpl::make_transform_iterator(local_idx_out, dpl::discard_iterator<IdxT>()); // (2)
+dpl::reduce_by_segment(policy,
+                       in, in + n,
+                       num_segments,
+                       begin_offsets, end_offsets,
+                       out,
+                       init, argmin{});
+
+// Fixed segment: (1) index-value pairs or (2) only index
+auto local_idx_out = dpl::make_transform_iterator(
+    dpl::make_zip_iterator(idx_out, dpl::counting_iterator<IdxT>(0)),
+    [segment_length](auto it) { // it: {idx_out + segment, begin_offset + segment}
+        return global_to_local{&std::get<0>(it), std::get<1>(it) * segment_length};
+    }
+);
+auto out = dpl::make_zip_iterator(local_idx_out, val_out); // (1)
+auto out = dpl::make_transform_iterator(local_idx_out, dpl::discard_iterator<IdxT>()); // (2)
+dpl::reduce_by_segment(policy,
+                       in, in + n,
+                       num_segments,
+                       segment_length,
+                       out,
+                       init, argmin{});
+```
+
+The transformation from global to local indices is too complicated for users to handle manually. Therefore, helper functions should be provided.
+
+Providing positions is close to the concept of `min_element` and `max_element`, which return iterators pointing to the minimum and maximum elements, respectively.
+Hence, the new functions can be potentially named `min_element_by_segment` and `max_element_by_segment`.
+
+CUB's `DeviceSegmentedReduce` accepts a plain input sequence, and returns a single sequence
+with index-value pairs, where indexes are local to the segments.
+It is not an obvious choice, therefore it should be carefully considered.
+It has been studied in the
+[use of the returned index](usage_pattern_study.md#argmax-and-argmin-use-of-the-returned-index)
+and the
+[use of the returned value](usage_pattern_study.md#argmax-and-argmin-use-of-the-returned-value),
+below is the overview:
+
+| Output | Index type | Case exists? |
+| --- | --- | --- |
+| Index-value pair | Global | No case found |
+| Index-value pair | Local | Yes (DaCe; consumer use unconfirmed), CUB's approach |
+| Index | Global | Yes (k2) |
+| Index | Local | Yes (PyTorch, OneFlow, AITemplate, Timemachine) |
+| Index-value separated | Global | No case found |
+| Index-value separated | Local | Yes (Jittor) |
+
+<!-- If `min_element_by_segment` and `max_element_by_segment` return segment-local indices
+and write index-value pairs into a single output,
+all the cases above can be covered together with `reduce_by_segment` and fancy iterators.
+The overhead is estimated relative to a dedicated implementation for each case:
+
+| Input | Output | Index | Covered by | Overhead |
+| --- | --- | --- | --- | --- |
+| Value sequence | Index | Local | `min/max_element_by_segment`, output `zip(idx_out, discard)` | None |
+| Value sequence | Index-value separated | Local | `min/max_element_by_segment`, output `zip(idx_out, val_out)` | None |
+| Value sequence | Index-value pair (CUB) | Local | `min/max_element_by_segment`, output into the pair array | None |
+| Index-value pair: `zip(counting, values)` | Index | Global | `reduce_by_segment`, output `zip(idx_out, discard)` | Small and compute-only. |
+| Index-value pair: `zip(counting, values)` | Index-value separated | Global | `reduce_by_segment`, output `zip(idx_out, val_out)` | Small and compute-only. |
+| Index-value pair: `zip(counting, values)` | Index-value pair | Global | `reduce_by_segment`, output into the pair array | Small and compute-only. | -->
+
+> [!IMPORTANT]
+> TODO: update the information below based on the usage study above.
+
+Given that, there are options on how to handle `ArgMin` and `ArgMax`:
+
+1. Introduce special functors, e.g., `dpl::argmin` and `dpl::argmax`,
+   use the same overload, and customize the behaviour accordingly.
+2. Introduce a fancy iterator with `enumerate` semantics,
+   add `dpl::argmin` and `dpl::argmax` functors that work with it,
+   and to trigger the normalization of the indices.
+3. Provide special overloads, and name after min and max element functions, e.g.,
+   `min_element_by_segment` and `max_element_by_segment`.
+
+- Provide an interface without comparator and no initial value.
+  The initial value selection is not trivial, it is discussed in [Default Value for ...](#default-value-for-min_element_by_segment-and-max_element_by_segment) section.
+  The comparator will be `std::less{}` or `std::greater{}` for alignment with the
+  corresponding C++ functions.
+- Provide an interface with a comparator and an initial value.
+
+Returning both, although possible and potentially useful,
+but it will have a trade-off with extra memory traffic when writing the final result,
+which should be avoided unless explicitly asked for.
+
+**Strategy**:
+
+- Do nothing special for `Sum`, `Min`, and `Max` semantics.
+- For `ArgMin` and `ArgMax`, provide `min_element_by_segment` and `max_element_by_segment`.
+
+### Default Value for `min_element_by_segment` and `max_element_by_segment`
+
+> [!IMPORTANT]
+> Below is the initial suggestion, which should be updated according to the
+> decisions made in the [ArgMin and ArgMax](#argmin-and-argmax) section.
+
+`cub::DeviceSegmentedReduce` contract:
+
+| CUB API | Documented value and purpose |
+|---|---|
+| `ArgMin` | `{1, cuda::std::numeric_limits<T>::max()}` for empty segments |
+| `ArgMax` | `{1, cuda::std::numeric_limits<T>::lowest()}` for empty segments |
+
+It is the same for any type, be it an integral, floating-point, or user-defined type.
+Assuming that the safe value for an empty segment is an identity,
+it must be `-inf` or `+inf` for floating-point types or any type which has infinity.
+
+Why is `cuda::std` namespace needed? Should there also be `dpl::numeric_limits`?
+
+According to [https://nvidia.github.io/cccl/unstable/libcudacxx/\#summary-std-cuda-and-cuda-std](<https://nvidia.github.io/cccl/unstable/libcudacxx/#summary-std-cuda-and-cuda-std>),
+`cuda::std` namespace includes features guaranteed to be available on both host and device.
+In this regard, `dpl::numeric_limits` should be used.
+It is already available, and partially covered in [Tested Standard C++ API](../../../tested_standard_cpp_api.rst),
+
+One may assume that it can also ease the use of fixed-width floating point types,
+such as `sycl::half`, `sycl::ext::oneapi::bfloat16`, and other similar types.
+However, SYCL specification does require `std::numeric_limits` to be available for `sycl::half`,
+and the extensions are expected to follow the same approach.
+
+Arguments against using `dpl::numeric_limits` and preferring `std::numeric_limits`:
+- It is also not necessary to necessary to calculate the default value on the device.
+- `std::numeric_limits` is familiar to the developers,
+  and already provides well-defined specialization options.
+- `std::numeric_limits` functions for built-in types satisfy the SYCL requirements for device functions.
+  For custom types, this requirement must be explicitly specified in the documentation
+  be it `std::numeric_limits` or `dpl::numeric_limits`.
+
+Given these points, it is more preferable to use `std::numeric_limits`.
+
+Why is `1` chosen as the default initial value for empty segments?
+Should it be different?
+There appears to be no strong rationale for it.
+A more reasonable choice is `std::numeric_limits<IndexT>::max()`
+because the algorithm must select the first occurrence.
+
+Why is the initial value applied only to empty segments?
+In `Reduce`, `Min` and `Max` it is applied to all segments.
+It is likely because `1` is the default index,
+the algorithm must select the first occurance,
+but the input may contain an element equal to the initial value.
+
+**Strategy**. Provide the default values for `min_element_by_segment` and `max_element_by_segment`
+following this logic:
+
+```c++
+constexpr std::pair<IndexT, T> min_value{
+    std::numeric_limits<IndexT>::max(),
+    std::numeric_limits<T>::has_infinity ?
+        std::numeric_limits<T>::infinity() : std::numeric_limits<T>::max()};
+
+constexpr std::pair<IndexT, T> max_value{
+    std::numeric_limits<IndexT>::max(),
+    std::numeric_limits<T>::has_infinity ?
+        -std::numeric_limits<T>::infinity() : std::numeric_limits<T>::lowest()};
+```
+
+It will require `T` to support unary `-` for `max_element_by_segment`, but this is acceptable,
+because there is an alternative overload which allows passing the initial value explicitly.
+
 ### Accumulator Type
 
 The accumulator type determines the representation of intermediate reduction results.
@@ -511,6 +619,10 @@ oneapi::dpl::reduce_by_segment(
 See [Arguments and Overload Disambiguation](#arguments-and-overload-disambiguation)
 for details on the constraints.
 Note, the key-based overloads must constrain the `OutputKeyIt` type to be non-integral.
+
+> [!IMPORTANT]
+> Below is the initial suggestion, which should be updated according to the
+> decisions made in the [ArgMin and ArgMax](#argmin-and-argmax) section.
 
 #### `min_element_by_segment`
 

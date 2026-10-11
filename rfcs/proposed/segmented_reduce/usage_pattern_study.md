@@ -48,3 +48,41 @@ Gathered on 2026-10-06 and extended on 2026-10-09 with AI assistance.
 | [DiffDVR ray adjoint sums](https://github.com/shamanDevel/DiffDVR/blob/c0230313a54a0887f55dc261c0b87532a5ba6e75/renderer/camera_impl.cu#L319-L345) | Differentiable volume rendering | [41](https://github.com/shamanDevel/DiffDVR) | Fixed | `Sum` |
 | [SIMULATeQCD stacked lattice sums](https://github.com/LatticeQCD/SIMULATeQCD/blob/af5971e101071a5702185b4430efa63d0dc2083e/src/base/latticeContainer.h#L200-L222) | Lattice QCD | [41](https://github.com/LatticeQCD/SIMULATeQCD) | Fixed | `Sum` (CUB or hipCUB) |
 | [ddcMD molecular mass sums](https://github.com/llnl/ddcMD/blob/3545c823359ff7010ecd17240487935d3907b9b5/src/molecularPressureGPU.cu#L253-L267) | Molecular dynamics / Martini force field | [36](https://github.com/llnl/ddcMD) | Variable; one array, consecutive | `Sum` |
+
+## ArgMax and ArgMin: Use of the Returned Index
+
+A **local** index is a position within a segment; a **global** index is a position within the whole input array.
+
+| Usage example | Segment represents | Index needed by the consumer |
+| --- | --- | --- |
+| PyTorch arg reductions (custom GPU reduction) | Values along one tensor dimension, possibly strided | **Local**, required by API contract: the dimension coordinate returned by [`torch.argmin`](https://docs.pytorch.org/docs/stable/generated/torch.argmin.html) / [`torch.argmax`](https://docs.pytorch.org/docs/stable/generated/torch.argmax.html) |
+| OneFlow rowwise argmax | Values along one tensor dimension | **Local**, required by API contract: the dimension coordinate returned by [`flow.argmax`](https://oneflow.readthedocs.io/en/master/generated/oneflow.argmax.html) |
+| AITemplate rowwise argmax | One row along the last tensor dimension | **Local**, required by API contract: the dimension coordinate returned by [`ops.argmax`](https://facebookincubator.github.io/AITemplate/reference/ops.html#aitemplate.compiler.ops.argmax) |
+| Jittor arg reductions | Values along one tensor dimension | **Local**, required by API contract: the dimension coordinate returned by [`jt.argmin`](https://cg.cs.tsinghua.edu.cn/jittor/assets/docs/jittor.html#jittor.argmin) / [`jt.argmax`](https://cg.cs.tsinghua.edu.cn/jittor/assets/docs/jittor.html#jittor.argmax) |
+| [Timemachine weighted sampling](https://github.com/proteneer/timemachine/blob/2f6fe1fdb9e667349a5f52b6bedf497f21da85d8/timemachine/cpp/src/segmented_weighted_random_sampler.hpp#L11-L13) | Candidate molecules for one random draw | **Local**: candidate number, used directly or [mapped to a molecule ID](https://github.com/proteneer/timemachine/blob/2f6fe1fdb9e667349a5f52b6bedf497f21da85d8/timemachine/cpp/src/kernels/k_exchange.cu#L768-L791) |
+| k2 ragged argmax | Candidate paths or incoming graph edges, stored as variable-length lists | **Global**, required by API contract: a position in the input array returned by [`ArgMaxPerSublist`](https://github.com/k2-fsa/k2/blob/ec31d2c96e04665eadb276ebcfd436892f74b0aa/k2/csrc/ragged_ops.h#L98-L114), used to gather associated data |
+| DaCe GPU reduction expansion | One tensor slice | **Local** index emitted by generated CUB code; consumer requirement unconfirmed |
+
+### PyTorch
+
+PyTorch uses a custom alternative to CUB's `ArgMax` / `ArgMin`:
+[`argmax_kernel_cuda_impl`](https://github.com/pytorch/pytorch/blob/3374f39c8319c124db51929ef85273e5ca9585c5/aten/src/ATen/native/cuda/ReduceArgMaxKernel.cu#L18-L24)
+and [`argmin_kernel_cuda_impl`](https://github.com/pytorch/pytorch/blob/3374f39c8319c124db51929ef85273e5ca9585c5/aten/src/ATen/native/cuda/ReduceArgMinKernel.cu#L18-L24), which differ from CUB in several ways:
+
+- **NaNs:** PyTorch's [comparison rules select the first NaN if present, otherwise the first extremum](https://github.com/pytorch/pytorch/blob/3374f39c8319c124db51929ef85273e5ca9585c5/aten/src/ATen/native/SharedReduceOps.h#L419-L446).
+  [CUB's comparators use ordinary `<`, `>`, and `==`](https://github.com/NVIDIA/cccl/blob/main/cub/cub/thread/thread_operators.cuh#L61-L106), which do not provide that NaN policy.
+- **Output:** PyTorch writes only an `int64` index; CUB's offset-based routines return `(int index, value)`.
+- **Tensor layout:** PyTorch handles arbitrary axes and strides, and
+  [maps threads according to strides to improve memory access](https://github.com/pytorch/pytorch/blob/3374f39c8319c124db51929ef85273e5ca9585c5/aten/src/ATen/native/cuda/Reduce.cuh#L1050-L1093).
+
+## ArgMax and ArgMin: Use of the Returned Value
+
+| Usage example | Use of the selected value | Result passed to the consumer |
+| --- | --- | --- |
+| PyTorch arg reductions (custom GPU reduction) | Unused: [the reduction projects its internal pair to the index](https://github.com/pytorch/pytorch/blob/3374f39c8319c124db51929ef85273e5ca9585c5/aten/src/ATen/native/SharedReduceOps.h#L479-L499), without writing a value output | Index only |
+| OneFlow rowwise argmax | Unused: [`WriteKeysToOutput` copies only `key`](https://github.com/Oneflow-Inc/oneflow/blob/25c8978c1c8b1371ef6aa4187dae4495bd233c35/oneflow/user/kernels/argmax_kernel.cu#L112-L116) from the temporary CUB pair | Index only |
+| AITemplate rowwise argmax | Unused: [the output kernel copies only `key`](https://github.com/facebookincubator/AITemplate/blob/23a2e348857591ac41f4946f0177c53d833a0104/python/aitemplate/backend/common/tensor/argmax_common.py#L174-L182) from the temporary CUB pair | Index only |
+| Jittor arg reductions | Required by the `jt.argmax` / `jt.argmin` API: [the output kernel copies both fields](https://github.com/Jittor/jittor/blob/06f5d3d271555682c95aa3505518f47eeab2bd9c/python/jittor/extern/cuda/cub/ops/cub_arg_reduce_op.cc#L74-L81) | Index and value in separate arrays |
+| Timemachine weighted sampling | Unused: [the sampler extracts only `key`](https://github.com/proteneer/timemachine/blob/2f6fe1fdb9e667349a5f52b6bedf497f21da85d8/timemachine/cpp/src/kernels/k_sampling.cu#L107-L117); the chosen candidate is the sampling result | Index only |
+| k2 ragged argmax | [The output iterator stores only the index](https://github.com/k2-fsa/k2/blob/ec31d2c96e04665eadb276ebcfd436892f74b0aa/k2/csrc/ragged_ops_inl.h#L570-L585); the best-edge computation subsequently loads the selected score from the input | Index only |
+| DaCe GPU reduction expansion | Consumer requirement unconfirmed: [generated code forwards CUB's output](https://github.com/spcl/dace/blob/2f430277e88bcd00be938e6786b6acedcfa9d510/dace/libraries/standard/nodes/reduce.py#L601-L611), but no application consuming the value was identified | Index-value pair |
