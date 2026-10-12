@@ -576,6 +576,16 @@ to avoid segmentation faults, which is optional, and have minimal performance im
 
 **Strategy**: Document the requirement to avoid negative offsets.
 
+### Offset Iterator Types
+
+`cub::DeviceSegmentedReduce` allows different types for the offset iterators,
+`rocprim::segmented_reduce` forces the same type.
+
+As the interfaces let passing different sequence types,
+The types should be allowed to differ as in `cub::DeviceSegmentedReduce`.
+
+**Strategy**: Allow different types for the offset iterators.
+
 ## Proposal
 
 ### Synopsis
@@ -592,7 +602,8 @@ because the existing `reduce_by_segment` allows it due to historical reasons.
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,     // to be constrained to an integral type
-          typename OffsetIt,
+          typename OffsetBeginIt,
+          typename OffsetEndIt,
           typename OutputValueIt,
           typename InitT,
           typename BinaryOp>
@@ -602,8 +613,8 @@ oneapi::dpl::reduce_by_segment(
     InputValueIt  first_value,
     InputValueIt  last_value,
     SegmentNumT   num_segments,
-    OffsetIt      begin_offsets,
-    OffsetIt      end_offsets,
+    OffsetBeginIt begin_offsets,
+    OffsetEndIt   end_offsets,
     OutputValueIt result_value,
     InitT         init_value,
     BinaryOp      binary_op
@@ -645,7 +656,8 @@ Note, the key-based overloads must constrain the `OutputKeyIt` type to be non-in
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,     // to be constrained to an integral type
-          typename OffsetIt,
+          typename OffsetBeginIt,
+          typename OffsetEndIt,
           typename OutputIndexIt>
 OutputIndexIt
 oneapi::dpl::min_element_by_segment(
@@ -653,8 +665,8 @@ oneapi::dpl::min_element_by_segment(
     InputValueIt  first_value,
     InputValueIt  last_value,
     SegmentNumT   num_segments,
-    OffsetIt      begin_offsets,
-    OffsetIt      end_offsets,
+    OffsetBeginIt begin_offsets,
+    OffsetEndIt   end_offsets,
     OutputIndexIt result_index
 );
 
@@ -662,7 +674,8 @@ oneapi::dpl::min_element_by_segment(
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,     // to be constrained to an integral type
-          typename OffsetIt,
+          typename OffsetBeginIt,
+          typename OffsetEndIt,
           typename OutputIndexIt,
           typename InitT,
           typename Compare>
@@ -672,8 +685,8 @@ oneapi::dpl::min_element_by_segment(
     InputValueIt  first_value,
     InputValueIt  last_value,
     SegmentNumT   num_segments,
-    OffsetIt      begin_offsets,
-    OffsetIt      end_offsets,
+    OffsetBeginIt begin_offsets,
+    OffsetEndIt   end_offsets,
     OutputIndexIt result_index,
     InitT         init_value,
     Compare       comp
@@ -723,7 +736,8 @@ oneapi::dpl::min_element_by_segment(
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,     // to be constrained to an integral type
-          typename OffsetIt,
+          typename OffsetBeginIt,
+          typename OffsetEndIt,
           typename OutputIndexIt>
 OutputIndexIt
 oneapi::dpl::max_element_by_segment(
@@ -731,8 +745,8 @@ oneapi::dpl::max_element_by_segment(
     InputValueIt  first_value,
     InputValueIt  last_value,
     SegmentNumT   num_segments,
-    OffsetIt      begin_offsets,
-    OffsetIt      end_offsets,
+    OffsetBeginIt begin_offsets,
+    OffsetEndIt   end_offsets,
     OutputIndexIt result_index
 );
 
@@ -740,7 +754,8 @@ oneapi::dpl::max_element_by_segment(
 template <typename Policy,
           typename InputValueIt,
           typename SegmentNumT,     // to be constrained to an integral type
-          typename OffsetIt,
+          typename OffsetBeginIt,
+          typename OffsetEndIt,
           typename OutputIndexIt,
           typename InitT,
           typename Compare>
@@ -750,8 +765,8 @@ oneapi::dpl::max_element_by_segment(
     InputValueIt  first_value,
     InputValueIt  last_value,
     SegmentNumT   num_segments,
-    OffsetIt      begin_offsets,
-    OffsetIt      end_offsets,
+    OffsetBeginIt begin_offsets,
+    OffsetEndIt   end_offsets,
     OutputIndexIt result_index,
     InitT         init_value,
     Compare       comp
