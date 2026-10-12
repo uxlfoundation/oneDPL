@@ -54,12 +54,12 @@ reduce(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __l
 
 template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
-                                                      typename ::std::iterator_traits<_ForwardIterator>::value_type>
+                                                      typename std::iterator_traits<_ForwardIterator>::value_type>
 reduce(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
     using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
-    return transform_reduce(std::forward<_ExecutionPolicy>(__exec), __first, __last, _ValueType{},
-                            std::plus<>(), oneapi::dpl::identity{});
+    return transform_reduce(std::forward<_ExecutionPolicy>(__exec), __first, __last, _ValueType{}, std::plus<>(),
+                            oneapi::dpl::identity{});
 }
 
 // [transform.reduce]
