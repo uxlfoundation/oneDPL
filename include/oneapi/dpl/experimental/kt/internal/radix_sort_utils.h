@@ -66,6 +66,9 @@ __check_sycl_sort_params([[maybe_unused]] std::size_t __n)
 {
     static_assert(__radix_bits == 8);
     static_assert(__workgroup_size == 1024 || __workgroup_size == 512);
+    // Bin counts within the onesweep kernel use 16-bit integers
+    static_assert(std::uint32_t{__workgroup_size} * __data_per_workitem <= std::numeric_limits<std::uint16_t>::max(),
+                  "The work-group tile size (work_group_size * data_per_work_item) must not exceed 65535");
     assert((__n < (1 << 30)) && "Inputs >= 2^30 are currently unsupported in the SYCL sort KT");
 }
 

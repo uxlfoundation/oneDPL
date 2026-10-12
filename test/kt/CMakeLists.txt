@@ -169,6 +169,17 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     if (_bfloat16_key_type_supported)
         _generate_sort_test("kt_sycl" "radix_sort_by_key" "7" "512" "sycl::ext::oneapi::bfloat16" "uint32_t" 1000)
     endif()
+
+    # Add configurations which reserve > 128 KiB SLM and launch more tiles than work-groups which can be resident at
+    # once, checking that the cooperative onesweep kernel does not hang.
+    _generate_sort_test("kt_sycl" "radix_sort_residency" "22" "1024" "sycl::half" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_residency" "17" "512" "uint64_t" "uint64_t" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_residency" "24" "1024" "uint64_t" "" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_residency" "33" "512" "double" "" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_residency" "32" "1024" "uint32_t" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_residency" "20" "1024" "uint64_t" "uint64_t" 1000)
+
+    _generate_test("kt_sycl_cooperative_groups_estimate.pass" "implementation_details/cooperative_groups_estimate.cpp")
 endif()
 
 function (_generate_gpu_scan_test _data_per_work_item _work_group_size _type _probability_permille)
