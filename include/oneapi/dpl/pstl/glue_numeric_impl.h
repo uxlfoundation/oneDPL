@@ -48,8 +48,8 @@ template <class _ExecutionPolicy, class _ForwardIterator, class _Tp>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Tp>
 reduce(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last, _Tp __init)
 {
-    return transform_reduce(std::forward<_ExecutionPolicy>(__exec), __first, __last, std::move(__init),
-                            std::plus<_Tp>(), oneapi::dpl::identity{});
+    return transform_reduce(std::forward<_ExecutionPolicy>(__exec), __first, __last, std::move(__init), std::plus<>(),
+                            oneapi::dpl::identity{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator>
@@ -69,13 +69,11 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Tp>
 transform_reduce(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
                  _ForwardIterator2 __first2, _Tp __init)
 {
-    using _InputType = typename std::iterator_traits<_ForwardIterator1>::value_type;
-
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2);
 
-    return oneapi::dpl::__internal::__pattern_transform_reduce(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, std::move(__init),
-        ::std::plus<_InputType>(), ::std::multiplies<_InputType>());
+    return oneapi::dpl::__internal::__pattern_transform_reduce(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
+                                                               __first1, __last1, __first2, std::move(__init),
+                                                               std::plus<>(), std::multiplies<>());
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Tp, class _BinaryOperation1,

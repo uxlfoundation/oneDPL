@@ -59,6 +59,20 @@ test_impl(Policy&& exec)
     EXPECT_EQ(expected1, res1, "wrong effect from transform_reduce1 with sycl ranges");
     EXPECT_EQ(expected2, res2, "wrong effect from transform_reduce2 with sycl ranges");
     EXPECT_EQ(expected3, res3, "wrong effect from transform_reduce3 with sycl ranges");
+
+    // Default operations must be std::plus<> and std::multiplies<> ([transform.reduce]/2),
+    // so the initial value is not converted to the value type of the input ranges
+    std::uint32_t data_u32[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    const std::uint64_t init_u64 = std::uint64_t{1} << 32;
+    std::uint64_t res4 = 0;
+    {
+        sycl::buffer<std::uint32_t> B(data_u32, sycl::range<1>(max_n));
+        res4 = oneapi::dpl::experimental::ranges::transform_reduce(CLONE_TEST_POLICY_IDX(exec, 3), B, B, init_u64);
+    }
+    std::uint64_t expected4 = init_u64;
+    for (std::uint32_t v : data_u32)
+        expected4 += v * v;
+    EXPECT_EQ(expected4, res4, "wrong effect from transform_reduce4 with sycl ranges (mixed types)");
 }
 #endif // _ENABLE_RANGES_TESTING
 

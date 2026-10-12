@@ -98,6 +98,28 @@ struct test_3_iters_default_ops
     }
 };
 
+// Default operations must be std::plus<> and std::multiplies<> ([transform.reduce]/2), so neither the
+// initial value nor the elements of the second sequence are converted to the value type of the first one
+template <typename Type>
+struct test_3_iters_default_ops_mixed_types
+{
+    template <typename Policy, typename InputIterator1, typename InputIterator2, typename T>
+    void
+    operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
+               InputIterator2 /* last2 */, T init)
+    {
+        T expected = init;
+        auto it2 = first2;
+        for (auto it1 = first1; it1 != last1; ++it1)
+        {
+            expected = expected + (*it1) * (*it2);
+            ++it2;
+        }
+        T res = std::transform_reduce(std::forward<Policy>(exec), first1, last1, first2, init);
+        EXPECT_EQ(expected, res, "wrong result with tranform_reduce (3 iterators, default predicates, mixed types)");
+    }
+};
+
 template <typename Type>
 struct test_3_iters_custom_ops
 {
@@ -178,9 +200,34 @@ test_by_type(T init, BinaryOperation1 opB1, BinaryOperation2 opB2, UnaryOp opU, 
     }
 }
 
+void
+test_default_ops_mixed_types()
+{
+#if !ONEDPL_FPGA_DEVICE
+    constexpr std::size_t n = 100000;
+
+    // The initial value and the sum do not fit into the value type of the input sequences
+    Sequence<std::uint32_t> in1_u32(n, [](std::size_t) { return std::uint32_t(rand() % 1000); });
+    Sequence<std::uint32_t> in2_u32(n, [](std::size_t) { return std::uint32_t(rand() % 1000); });
+    const std::uint64_t init_u64 = std::uint64_t{1} << 32;
+    invoke_on_all_policies<6>()(test_3_iters_default_ops_mixed_types<std::uint32_t>(), in1_u32.begin(),
+                                in1_u32.begin() + 1, in2_u32.begin(), in2_u32.begin() + 1, init_u64);
+    invoke_on_all_policies<7>()(test_3_iters_default_ops_mixed_types<std::uint32_t>(), in1_u32.begin(), in1_u32.end(),
+                                in2_u32.begin(), in2_u32.end(), init_u64);
+
+    // The elements of the second sequence do not fit into the value type of the first one;
+    // the values are chosen so that the floating-point result is exact regardless of the order of summation
+    Sequence<std::int32_t> in1_i32(n, [](std::size_t) { return std::int32_t(rand() % 10); });
+    Sequence<float32_t> in2_f32(n, [](std::size_t) { return 0.5f; });
+    invoke_on_all_policies<8>()(test_3_iters_default_ops_mixed_types<std::int32_t>(), in1_i32.begin(), in1_i32.end(),
+                                in2_f32.begin(), in2_f32.end(), 0.0f);
+#endif
+}
+
 int
 main()
 {
+    test_default_ops_mixed_types();
     test_by_type<std::int32_t>(42, ::std::plus<std::int32_t>(), ::std::multiplies<std::int32_t>(), ::std::negate<std::int32_t>(),
                           [](::std::size_t) -> std::int32_t { return std::int32_t(rand() % 1000); });
     test_by_type<std::int64_t>(0, [](const std::int64_t& a, const std::int64_t& b) -> std::int64_t { return a | b; }, XOR(),
