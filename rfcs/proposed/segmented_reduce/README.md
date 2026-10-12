@@ -27,7 +27,16 @@ The implementation experience can guide the design of the tuning parameters for 
 Passing the temporary storage is an obvious gap,
 but the corresponding interface in kernel templates has not yet been defined.
 
-### Empty Segments
+### Empty, Overlapping, and Unordered Segments
+
+`cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`
+support overlapping and unordered segments.
+According to the usage study, non-consecutive offsets is a rare scenario,
+while overlapping and unordered segments might be even rarer.
+CUB and rocPRIM support them,
+so it is reasonable to support them in oneDPL as well,
+although it should not the primary target for performance optimizations.
+No obstacles are expected for supporting them from the implementation standpoint.
 
 [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) request
 explicitly asks to support empty segments, and return an identity for them.
@@ -38,13 +47,8 @@ Both implementations return an initial value for empty segments.
 The question about if it should be an identity or an initial value
 is covered in [Initial Value, its Default Value, and Identity](#initial-value-its-default-value-and-identity) section.
 
-**Strategy**. Support empty segments.
-
-### Overlapping Segments
-
-`cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce` support overlapping segments.
-
-### Ordered Segments
+**Strategy**: support empty, overlapping, and unordered segments.
+The latter two should not be the primary target for performance optimizations.
 
 ### Initial Value, its Default Value, and Identity
 
