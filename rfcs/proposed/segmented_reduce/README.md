@@ -546,15 +546,31 @@ The documentation does not provide explicit rules for the accumulator type. Algo
 **Strategy**: Use the common type from all involved types as the accumulator type.
 Document this choice as it may affect performance and accuracy.
 
-## Return Value
+### Return Value
 
-If the input span is provided,
-should the function also return the last processed input iterator?
+`dpl::reduce_by_segment` returns a pair of iterators: `{output_keys_end, output_values_end}`
+`cub::DeviceSegmentedReduce::Reduce` and `rocprim::segmented_reduce` return runtime status codes.
 
-**Tentative Strategy**. Do not return it to be aligned with the existing overload
-and iterator-based algorithms in general.
+Obviously, returning the status codes is not an option
+due to the inconsistency with the existing oneDPL algorithms.
 
-## Negative Offsets
+In the key-based `dpl::reduce_by_segment`,
+`output_keys_end` is useful to determine the number of segments, and
+`output_values_end` is useful to determine the number of reduced values,
+as this information is not directly passed to the algorithm.
+In the new overloads, this either not relevant (no keys) or known in advance:
+`out_last = out_first + num_segments;`
+
+In the new overloads, the usefulness of the returned value depends on the segment type.
+In variable-length segments, an iterator past the last processed may differ from `last`
+because the number of elements to process is determined by segment offsets,
+and is not known in advance.
+In the fixed-segment case, the last output iterator is known: `out_first + num_segments`.
+
+**Tentative Strategy**. Return an iterator past the last processed element for variable-length segments,
+and return nothing for the fixed-segment overloads.
+
+### Negative Offsets
 
 `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce` allow negative segments.
 In this case, the algorithms may access the memory regions before the beginning of the input range.
@@ -572,7 +588,7 @@ Handling options:
 For example, `std::inplace_merge` requires data to be sorted,
 and `middle` must be a valid iterator within the range, otherwise, the behavior is undefined.
 (3) and (4) can be treated as actions to take for the undefined behavior scenarios
-to avoid segmentation faults, which is optional, and have minimal performance impact.
+to avoid segmentation faults when contract is violated, which is optional.
 
 **Strategy**: Document the requirement to avoid negative offsets.
 
