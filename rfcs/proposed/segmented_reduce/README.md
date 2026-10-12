@@ -49,18 +49,18 @@ because the existing `reduce_by_segment` allows it due to historical reasons.
 ```c++
 // (1) Variable-length segments
 template <typename Policy,
-          typename InputValueIt,
-          typename OutputValueIt,
-          typename SegmentNumT,     // to be constrained to an integral type
-          typename OffsetIt,       // to be constrained to a non-integral type
+          typename InputIt,
+          typename OutputIt,
+          typename SegmentNumT, // to be constrained to an integral type
+          typename OffsetIt,    // to be constrained to a non-integral type
           typename InitT,
           typename BinaryOp>
-InputValueIt
+void
 oneapi::dpl::reduce_by_segment(
     Policy&&      policy,
-    InputValueIt  first_value,
-    InputValueIt  last_value,
-    OutputValueIt result_value,
+    InputIt       first,
+    InputIt       last,
+    OutputIt      out_first,
     SegmentNumT   num_segments,
     OffsetIt      offsets,
     InitT         init_value,
@@ -69,18 +69,18 @@ oneapi::dpl::reduce_by_segment(
 
 // (2) Fixed-length segments
 template <typename Policy,
-          typename InputValueIt,
-          typename OutputValueIt,
-          typename SegmentNumT,      // to be constrained to an integral type
-          typename SegmentLengthT,   // to be constrained to an integral type
+          typename InputIt,
+          typename OutputIt,
+          typename SegmentNumT,    // to be constrained to an integral type
+          typename SegmentLengthT, // to be constrained to an integral type
           typename InitT,
           typename BinaryOp>
 void
 oneapi::dpl::reduce_by_segment(
     Policy&&        policy,
-    InputValueIt    first_value,
-    InputValueIt    last_value,
-    OutputValueIt   result_value,
+    InputIt         first,
+    InputIt         last,
+    OutputIt        out_first,
     SegmentNumT     num_segments,
     SegmentLengthT  segment_length,
     InitT           init_value,
@@ -427,10 +427,14 @@ In the new overloads, the usefulness of the returned value depends on the segmen
 In variable-length segments, an iterator past the last processed may differ from `last`
 because the number of elements to process is determined by segment offsets,
 and is not known in advance.
+However, with consecutive segments,
+the `last` iterator can be easily calculated as `first + offsets[num_segments - 1]`,
+It is unclear if returning it is worth a copy of the data
+from the device to the host in case of device policies.
+
 In the fixed-segment case, the last output iterator is known: `out_first + num_segments`.
 
-**Tentative Strategy**. Return an iterator past the last processed element for variable-length segments,
-and return nothing for the fixed-segment overloads.
+**Tentative Strategy**. Return nothing for both variable-length and fixed-segment overloads.
 
 ### Negative Offsets
 
@@ -506,12 +510,12 @@ int main()
     std::copy_n(input, num_elements, values);
     std::copy_n(host_offsets, num_segments + 1, offsets);
 
-    int* result_end = oneapi::dpl::reduce_by_segment(
+    oneapi::dpl::reduce_by_segment(
         policy, values, values + num_elements, result,
         num_segments, offsets, 0, std::plus<int>{});
 
-    for (int* it = result; it != result_end; ++it)
-        std::cout << *it << ' ';
+    for (int i = 0; i < num_segments; ++i)
+        std::cout << result[i] << ' ';
     std::cout << '\n'; // 30 0 12 4
 
     sycl::free(values, queue);
@@ -561,3 +565,15 @@ The rest should follow the established testing practices for oneDPL algorithms,
 and have comprehensive coverage.
 
 ## Open Questions
+
+> [!NOTE]
+> Besides the questions in this section,
+> some topics from the [Design Considerations](#design-considerations) section
+> are partially unresolved or have no clear resolution.
+> They can be found using the "Tentative Strategy" keyword.
+
+### Different `first` and `last` Types
+
+`last` can have a different type than `first`.
+For example, it may be useful to pass `std::unreachable_sentinel` for better compatibility with CUB and rocPRIM,
+assuming projects using these APIs have already built their code around and have lost the information about `last`.
