@@ -61,7 +61,8 @@ What should be provided as an argument in place of the initial value? What shoul
 Initial value applies only once, and known identity can be applied multiple times.
 The initial value may be equal to the known identity or not. A safe default initial value is the identity.
 
-Initial value is always needed as the starting point for the accumulator.
+Initial value is always needed as the starting point for the accumulator
+when empty input is possible.
 Identity value is optional. It is needed for the SIMD and the group reductions,
 and to get a safe default initial value.
 
@@ -553,18 +554,27 @@ should the function also return the last processed input iterator?
 **Tentative Strategy**. Do not return it to be aligned with the existing overload
 and iterator-based algorithms in general.
 
-## Empty Segments
-
-**Strategy**. Return the initial value as in
-`cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`.
-
 ## Negative Offsets
 
-**Strategy**. Explicitly prohibit them,
-contrary to the `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce` for safety.
+`cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce` allow negative segments.
+In this case, the algorithms may access the memory regions before the beginning of the input range.
+It is dangerous and should be prohibited.
 
-In the proposed interfaces,
-the `first_value` and `last_value` iterators will define the valid range to access.
+Handling options:
+
+1. Allow passing only unsigned offsets.
+2. Document the requirement, which results in undefined behavior if violated, and do nothing at the implementation level.
+3. Stop the algorithm if a negative offset is detected.
+4. Skip accessing memory before the beginning of the input range or whole segments with negative offsets.
+
+(1) may be not compatible with the existing code bases.
+(2) is dangerous, but acceptable. This approach is commonly used in the standard library.
+For example, `std::inplace_merge` requires data to be sorted,
+and `middle` must be a valid iterator within the range, otherwise, the behavior is undefined.
+(3) and (4) can be treated as actions to take for the undefined behavior scenarios
+to avoid segmentation faults, which is optional, and have minimal performance impact.
+
+**Strategy**: Document the requirement to avoid negative offsets.
 
 ## Proposal
 
