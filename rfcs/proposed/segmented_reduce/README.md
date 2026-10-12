@@ -11,19 +11,40 @@ Motivation:
   but it is a helper rather than a fully-supported library API.
 - [Real-world use cases](usage_pattern_study.md), including [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) request with its own motivation.
 
+Table of contents:
+
+- [Synopsis](#synopsis)
+- [Design Considerations](#design-considerations)
+  - [Kernel Template or Core Algorithm Extension](#kernel-template-or-core-algorithm-extension)
+  - [Empty, Overlapping, and Unordered Segments](#empty-overlapping-and-unordered-segments)
+  - [Initial Value, its Default Value, and Identity](#initial-value-its-default-value-and-identity)
+  - [Bounding Input](#bounding-input)
+  - [Fixed-Length Segments](#fixed-length-segments)
+  - [Binary Operator](#binary-operator)
+  - [Floating Point Determinism](#floating-point-determinism)
+  - [Binary Operation and Init Value Order](#binary-operation-and-init-value-order)
+  - [Arguments and Overload Disambiguation](#arguments-and-overload-disambiguation)
+  - [Sum, Min, Max semantics](#sum-min-max-semantics)
+  - [ArgMin and ArgMax semantics](#argmin-and-argmax-semantics)
+  - [Accumulator Type](#accumulator-type)
+  - [Return Value](#return-value)
+  - [Negative Offsets](#negative-offsets)
+- [Evolution](#evolution)
+- [Feature Macro](#feature-macro)
+- [Examples](#examples)
+- [Testing](#testing)
+- [Open Questions](#open-questions)
+
 See [reference implementations](reference_implementations.md) and the
 [usage pattern study](usage_pattern_study.md) for background.
 
-## Proposal
 
-### Synopsis
+## Synopsis
 
 All the proposed segmented algorithms are included from `<oneapi/dpl/numeric>`.
 
 Optionally, the algorithms can also be made available from `<oneapi/dpl/algorithm>`,
 because the existing `reduce_by_segment` allows it due to historical reasons.
-
-#### `reduce_by_segment`
 
 ```c++
 // (1) Variable-length segments
@@ -34,7 +55,7 @@ template <typename Policy,
           typename OffsetIt,       // to be constrained to a non-integral type
           typename InitT,
           typename BinaryOp>
-OutputValueIt
+InputValueIt
 oneapi::dpl::reduce_by_segment(
     Policy&&      policy,
     InputValueIt  first_value,
@@ -54,7 +75,7 @@ template <typename Policy,
           typename SegmentLengthT,   // to be constrained to an integral type
           typename InitT,
           typename BinaryOp>
-OutputValueIt
+void
 oneapi::dpl::reduce_by_segment(
     Policy&&        policy,
     InputValueIt    first_value,
@@ -71,112 +92,6 @@ See [Arguments and Overload Disambiguation](#arguments-and-overload-disambiguati
 for details on the constraints.
 Note, the key-based overloads must constrain the `OutputKeyIt` type to be non-integral.
 
-### Evolution
-
-The RFC can be implemented in stages, for example:
-
-1. Implement device-only policy support with variable-segment overloads of `reduce_by_segment`
-2. Enable other policies with the variable-segment overloads of `reduce_by_segment`.
-3. Implement fixed-segment overloads of `reduce_by_segment`.
-4. Enable identities for the custom binary operations and types.
-
-### Feature Macro
-
-The API is set to be evolving, hence a feature macro should be defined for convenience.
-For example:
-
-- `ONEDPL_HAS_REDUCE_BY_SEGMENT 202109L`
-  for the current state as it already has the key-based segmented reduction,
-- `ONEDPL_HAS_REDUCE_BY_SEGMENT 202611L` with the next version, e.g.,
-   including device policy support and variable-segment overloads of `reduce_by_segment`.
-- `ONEDPL_HAS_REDUCE_BY_SEGMENT YYYYMML` for future versions.
-
-### Examples
-
-The following complete programs illustrate the proposed overloads.
-
-`device` policy, variable-length segments, `sum` operation:
-
-```c++
-#include <oneapi/dpl/execution>
-#include <oneapi/dpl/numeric>
-#include <sycl/sycl.hpp>
-
-#include <algorithm>
-#include <functional>
-#include <iostream>
-
-int main()
-{
-    auto policy = oneapi::dpl::execution::dpcpp_default;
-    auto queue = policy.queue();
-
-    constexpr int num_elements = 5;
-    constexpr int num_segments = 4;
-    const int input[] = {10, 20, 5, 7, 4};
-    const int host_offsets[] = {0, 2, 2, 4, 5};
-
-    int* values = sycl::malloc_shared<int>(num_elements, queue);
-    int* offsets = sycl::malloc_shared<int>(num_segments + 1, queue);
-    int* result = sycl::malloc_shared<int>(num_segments, queue);
-
-    std::copy_n(input, num_elements, values);
-    std::copy_n(host_offsets, num_segments + 1, offsets);
-
-    int* result_end = oneapi::dpl::reduce_by_segment(
-        policy, values, values + num_elements, result,
-        num_segments, offsets, 0, std::plus<int>{});
-
-    for (int* it = result; it != result_end; ++it)
-        std::cout << *it << ' ';
-    std::cout << '\n'; // 30 0 12 4
-
-    sycl::free(values, queue);
-    sycl::free(offsets, queue);
-    sycl::free(result, queue);
-}
-```
-
-`par_unseq` policy, fixed-length segments, `maximum` operation:
-
-```c++
-#include <oneapi/dpl/execution>
-#include <oneapi/dpl/numeric>
-
-#include <algorithm>
-#include <array>
-#include <cstdint>
-#include <iostream>
-#include <limits>
-
-int main()
-{
-    constexpr int num_segments = 3;
-    constexpr std::int64_t segment_length = 2;
-    std::array<int, 6> values = {-10, -20, -5, -7, -4, -8};
-    std::array<int, num_segments> result{};
-    auto maximum = [](int lhs, int rhs) { return std::max(lhs, rhs); };
-
-    auto result_end = oneapi::dpl::reduce_by_segment(
-        oneapi::dpl::execution::par_unseq, values.begin(), values.end(),
-        result.begin(), num_segments, segment_length,
-        std::numeric_limits<int>::lowest(), maximum);
-
-    for (auto it = result.begin(); it != result_end; ++it)
-        std::cout << *it << ' ';
-    std::cout << '\n'; // -10 -5 -4
-}
-```
-
-## Testing
-
-Use `std::reduce` with a sequential execution policy
-as a reference implementation with a loop over segments,
-and additionally test this variant against predefined results for small inputs.
-
-The rest should follow the established testing practices for oneDPL algorithms,
-and have comprehensive coverage.
-
 ## Design Considerations
 
 ### Kernel Template or Core Algorithm Extension
@@ -191,7 +106,7 @@ The implementation experience can guide the design of the tuning parameters for 
 Passing the temporary storage is an obvious gap,
 but the corresponding interface in kernel templates has not yet been defined.
 
-**Strategy**: implement as a core extension algorithm first.
+**Strategy**: implement it as a core extension algorithm first.
 
 ### Empty, Overlapping, and Unordered Segments
 
@@ -539,8 +454,110 @@ to avoid segmentation faults when contract is violated, which is optional.
 
 **Strategy**: Document the requirement to avoid negative offsets.
 
+## Evolution
+
+The RFC can be implemented in stages, for example:
+
+1. Implement device-only policy support with variable-segment overloads of `reduce_by_segment`
+2. Enable other policies with the variable-segment overloads of `reduce_by_segment`.
+3. Implement fixed-segment overloads of `reduce_by_segment`.
+4. Enable identities for the custom binary operations and types.
+
+## Feature Macro
+
+The API is set to be evolving, hence a feature macro should be defined for convenience.
+For example:
+
+- `ONEDPL_HAS_REDUCE_BY_SEGMENT 202109L`
+  for the current state as it already has the key-based segmented reduction,
+- `ONEDPL_HAS_REDUCE_BY_SEGMENT 202611L` with the next version, e.g.,
+   including device policy support and variable-segment overloads of `reduce_by_segment`.
+- `ONEDPL_HAS_REDUCE_BY_SEGMENT YYYYMML` for future versions.
+
+## Examples
+
+The following complete programs illustrate the proposed overloads.
+
+`device` policy, variable-length segments, `sum` operation:
+
+```c++
+#include <oneapi/dpl/execution>
+#include <oneapi/dpl/numeric>
+#include <sycl/sycl.hpp>
+
+#include <algorithm>
+#include <functional>
+#include <iostream>
+
+int main()
+{
+    auto policy = oneapi::dpl::execution::dpcpp_default;
+    auto queue = policy.queue();
+
+    constexpr int num_elements = 5;
+    constexpr int num_segments = 4;
+    const int input[] = {10, 20, 5, 7, 4};
+    const int host_offsets[] = {0, 2, 2, 4, 5};
+
+    int* values = sycl::malloc_shared<int>(num_elements, queue);
+    int* offsets = sycl::malloc_shared<int>(num_segments + 1, queue);
+    int* result = sycl::malloc_shared<int>(num_segments, queue);
+
+    std::copy_n(input, num_elements, values);
+    std::copy_n(host_offsets, num_segments + 1, offsets);
+
+    int* result_end = oneapi::dpl::reduce_by_segment(
+        policy, values, values + num_elements, result,
+        num_segments, offsets, 0, std::plus<int>{});
+
+    for (int* it = result; it != result_end; ++it)
+        std::cout << *it << ' ';
+    std::cout << '\n'; // 30 0 12 4
+
+    sycl::free(values, queue);
+    sycl::free(offsets, queue);
+    sycl::free(result, queue);
+}
+```
+
+`par_unseq` policy, fixed-length segments, `maximum` operation:
+
+```c++
+#include <oneapi/dpl/execution>
+#include <oneapi/dpl/numeric>
+
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <iostream>
+#include <limits>
+
+int main()
+{
+    constexpr int num_segments = 3;
+    constexpr std::int64_t segment_length = 2;
+    std::array<int, 6> values = {-10, -20, -5, -7, -4, -8};
+    std::array<int, num_segments> result{};
+    auto maximum = [](int lhs, int rhs) { return std::max(lhs, rhs); };
+
+    auto result_end = oneapi::dpl::reduce_by_segment(
+        oneapi::dpl::execution::par_unseq, values.begin(), values.end(),
+        result.begin(), num_segments, segment_length,
+        std::numeric_limits<int>::lowest(), maximum);
+
+    for (auto it = result.begin(); it != result_end; ++it)
+        std::cout << *it << ' ';
+    std::cout << '\n'; // -10 -5 -4
+}
+```
+
+## Testing
+
+Use `std::reduce` with a sequential execution policy
+as a reference implementation with a loop over segments,
+and additionally test this variant against predefined results for small inputs.
+
+The rest should follow the established testing practices for oneDPL algorithms,
+and have comprehensive coverage.
+
 ## Open Questions
-
-## Appendix
-
-See [API references and implementation notes](reference_implementations.md).
