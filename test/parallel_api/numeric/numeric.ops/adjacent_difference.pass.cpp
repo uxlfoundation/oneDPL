@@ -171,7 +171,7 @@ main()
     test<std::int32_t, std::int64_t>([](std::int64_t a, std::int64_t b) { return a / (b + 1); });
     test<std::int64_t, float32_t>([](float32_t a, float32_t b) { return (a + b) / 2; });
     // Negative differences of unsigned input elements must not wrap around within the input type
-    test<std::int32_t, std::uint8_t>([](std::uint8_t a, std::uint8_t b) { return a ^ b; });
+    test<std::int16_t, std::uint8_t>([](std::uint8_t a, std::uint8_t b) { return a ^ b; });
 #if !TEST_DPCPP_BACKEND_PRESENT
     test<wrapper<std::int32_t>, wrapper<std::int64_t>>(
         [](const wrapper<std::int64_t>& a, const wrapper<std::int64_t>& b) { return a - b; });
