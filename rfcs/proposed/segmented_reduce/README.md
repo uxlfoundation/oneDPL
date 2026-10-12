@@ -30,25 +30,22 @@ but the corresponding interface in kernel templates has not yet been defined.
 ### Empty, Overlapping, and Unordered Segments
 
 `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`
-support overlapping and unordered segments.
-According to the usage study, non-consecutive offsets is a rare scenario,
-while overlapping and unordered segments might be even rarer.
-CUB and rocPRIM support them,
-so it is reasonable to support them in oneDPL as well,
-although it should not the primary target for performance optimizations.
-No obstacles are expected for supporting them from the implementation standpoint.
+support overlapping and unordered segments,
+which is possible because of providing two ranges with segment boundaries (`begin_offsets` and `end_offsets`).
+However, according to the [usage study](usage_pattern_study.md),
+overwhelming majority of the cases involve one consecutive sequence with offsets.
+Consecutive segments are also the target use-case in [#2829](https://github.com/oneapi-src/oneDPL/issues/2829).
+Therefore, it is suggested to provide the offsets as a
+single sequence to support consecutive segments directly.
+Adding support for overlapping or unordered segments can be considered in the future if there is demand.
 
-[#2829](https://github.com/oneapi-src/oneDPL/issues/2829) request
-explicitly asks to support empty segments, and return an identity for them.
+Empty segment is supported by `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`.
+[#2829](https://github.com/oneapi-src/oneDPL/issues/2829) also requests support for empty segments.
 
-They are also supported by `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`.
-Both implementations return an initial value for empty segments.
+**Strategy**:
 
-The question about if it should be an identity or an initial value
-is covered in [Initial Value, its Default Value, and Identity](#initial-value-its-default-value-and-identity) section.
-
-**Strategy**: support empty, overlapping, and unordered segments.
-The latter two should not be the primary target for performance optimizations.
+- Support empty segments,
+- Provide only one sequence of offsets (no overlapping or unordered segments).
 
 ### Initial Value, its Default Value, and Identity
 
@@ -124,10 +121,10 @@ If the end bound is provided, it creates another question about how to
 reconcile the input range size provided with the segment offsets,
 because both define the reduction range. Options:
 
-1. Handle the minimum between `last - first` and offsets including gaps.
+1. Handle the minimum between `last - first` and segment offsets.
   In this case, we will need to return stop positions in the input, output and offset arrays.
 2. Always handle all segments defined by offsets,
-  require `num_elements` to be covering all offsets including gaps.
+  require the input range to cover all offsets.
 
 Option (2) is preferred due to its alignment with expectations by the iterator-based interfaces.
 The bound checking in (1) can be implemented in the range-based interfaces if needed.
@@ -221,10 +218,12 @@ therefore, the new overloads should have compatible interfaces
 and as close in argument order as possible.
 
 The table below shows the suggested argument order.
-It uses the arguments from `cub::DeviceSegmentedReduce`, keeping their order,
-adds an input boundary ([Input Boundary](#input-boundary)),
+It follows the argument order from `cub::DeviceSegmentedReduce`,
+adds an input boundary ([Bounding Input](#bounding-input)),
+replaces the separate begin and end offset ranges with a single sequence
+([Empty, Overlapping, and Unordered Segments](#empty-overlapping-and-unordered-segments)),
 and reorders the last two arguments
-([Binary Operation and Initial Value Order](#binary-operation-and-init-value-order)).
+([Binary Operation and Init Value Order](#binary-operation-and-init-value-order)).
 Lines are listed for comparison between oneDPL algorithsm,
 and CUB algorithms are shown for the reference on the arguments used.
 
@@ -236,10 +235,10 @@ and CUB algorithms are shown for the reference on the arguments used.
 | `d_out` | `d_out` | 3 | `key_last` | `last` | `last` |
 | `num_segments` | `num_segments` | 4 | `val_first` | `out_first` | `out_first` |
 | `d_begin_offsets` | `segment_size` | 5 | `out_key_first` | `num_segments` | `num_segments` |
-| `d_end_offsets` | `reduction_op` | 6 | `out_val_first` | `begin_offsets` | `segment_length` |
-| `reduction_op` | `initial_value` | 7 | `binary_pred` (opt) | `end_offsets` | `binary_op` (opt) |
-| `initial_value` | `stream` (opt) | 8 | `binary_op` (opt) | `binary_op` (opt) | `init` (opt) |
-| `stream` (opt) | — | 9 | — | `init` (opt) | — |
+| `d_end_offsets` | `reduction_op` | 6 | `out_val_first` | `offsets` | `segment_length` |
+| `reduction_op` | `initial_value` | 7 | `binary_pred` (opt) | `init` (opt) | `init` (opt) |
+| `initial_value` | `stream` (opt) | 8 | `binary_op` (opt) | `binary_op` (opt) | `binary_op` (opt) |
+| `stream` (opt) | — | 9 | — | — | — |
 
 `(opt)` means that the argument is optional or can be made optional in the future.
 `—` is padding for better mapping of the relevant arguments.
@@ -251,7 +250,7 @@ which can be constrained using SFINAE:
 | Overload | 5th argument | 6th argument |
 |---|---|---|
 | key-based (existing) | `out_key_first`: not integral | — |
-| variable-length | `num_segments`: integral | `begin_offsets`: not integral |
+| variable-length | `num_segments`: integral | `offsets`: not integral |
 | fixed-length | `num_segments`: integral | `segment_length`: integral |
 
 The existing key-based overloads must get a new constraint: `!std::is_integral_v<OutputKeyIt>`,
@@ -272,7 +271,7 @@ The same approach can be applied to constrain the new overloads.
 **Strategy**:
 
 - Constrain `num_segments` and `segment_length` to integral types,
-  and `begin_offsets` to non-integral types.
+  and `offsets` to non-integral types.
 - Constrain the existing key-based overloads to reject an integral `out_key_first`.
 
 ### Sum, Min, Max semantics
@@ -374,16 +373,6 @@ to avoid segmentation faults when contract is violated, which is optional.
 
 **Strategy**: Document the requirement to avoid negative offsets.
 
-### Offset Iterator Types
-
-`cub::DeviceSegmentedReduce` allows different types for the offset iterators,
-`rocprim::segmented_reduce` forces the same type.
-
-As the interfaces let passing different sequence types,
-The types should be allowed to differ as in `cub::DeviceSegmentedReduce`.
-
-**Strategy**: Allow different types for the offset iterators.
-
 ## Proposal
 
 ### Synopsis
@@ -399,10 +388,9 @@ because the existing `reduce_by_segment` allows it due to historical reasons.
 // (1) Variable-length segments
 template <typename Policy,
           typename InputValueIt,
-          typename SegmentNumT,     // to be constrained to an integral type
-          typename OffsetBeginIt,
-          typename OffsetEndIt,
           typename OutputValueIt,
+          typename SegmentNumT,     // to be constrained to an integral type
+          typename OffsetIt,       // to be constrained to a non-integral type
           typename InitT,
           typename BinaryOp>
 OutputValueIt
@@ -410,10 +398,9 @@ oneapi::dpl::reduce_by_segment(
     Policy&&      policy,
     InputValueIt  first_value,
     InputValueIt  last_value,
-    SegmentNumT   num_segments,
-    OffsetBeginIt begin_offsets,
-    OffsetEndIt   end_offsets,
     OutputValueIt result_value,
+    SegmentNumT   num_segments,
+    OffsetIt      offsets,
     InitT         init_value,
     BinaryOp      binary_op
 );
@@ -421,9 +408,9 @@ oneapi::dpl::reduce_by_segment(
 // (2) Fixed-length segments
 template <typename Policy,
           typename InputValueIt,
+          typename OutputValueIt,
           typename SegmentNumT,      // to be constrained to an integral type
           typename SegmentLengthT,   // to be constrained to an integral type
-          typename OutputValueIt,
           typename InitT,
           typename BinaryOp>
 OutputValueIt
@@ -431,9 +418,9 @@ oneapi::dpl::reduce_by_segment(
     Policy&&        policy,
     InputValueIt    first_value,
     InputValueIt    last_value,
+    OutputValueIt   result_value,
     SegmentNumT     num_segments,
     SegmentLengthT  segment_length,
-    OutputValueIt   result_value,
     InitT           init_value,
     BinaryOp        binary_op
 );
@@ -484,31 +471,27 @@ int main()
     auto queue = policy.queue();
 
     constexpr int num_elements = 5;
-    constexpr int num_segments = 3;
+    constexpr int num_segments = 4;
     const int input[] = {10, 20, 5, 7, 4};
-    const int host_begin_offsets[] = {0, 2, 4};
-    const int host_end_offsets[] = {2, 4, 5};
+    const int host_offsets[] = {0, 2, 2, 4, 5};
 
     int* values = sycl::malloc_shared<int>(num_elements, queue);
-    int* begin_offsets = sycl::malloc_shared<int>(num_segments, queue);
-    int* end_offsets = sycl::malloc_shared<int>(num_segments, queue);
+    int* offsets = sycl::malloc_shared<int>(num_segments + 1, queue);
     int* result = sycl::malloc_shared<int>(num_segments, queue);
 
     std::copy_n(input, num_elements, values);
-    std::copy_n(host_begin_offsets, num_segments, begin_offsets);
-    std::copy_n(host_end_offsets, num_segments, end_offsets);
+    std::copy_n(host_offsets, num_segments + 1, offsets);
 
     int* result_end = oneapi::dpl::reduce_by_segment(
-        policy, values, values + num_elements, num_segments,
-        begin_offsets, end_offsets, result, 0, std::plus<int>{});
+        policy, values, values + num_elements, result,
+        num_segments, offsets, 0, std::plus<int>{});
 
     for (int* it = result; it != result_end; ++it)
         std::cout << *it << ' ';
-    std::cout << '\n'; // 30 12 4
+    std::cout << '\n'; // 30 0 12 4
 
     sycl::free(values, queue);
-    sycl::free(begin_offsets, queue);
-    sycl::free(end_offsets, queue);
+    sycl::free(offsets, queue);
     sycl::free(result, queue);
 }
 ```
@@ -535,7 +518,7 @@ int main()
 
     auto result_end = oneapi::dpl::reduce_by_segment(
         oneapi::dpl::execution::par_unseq, values.begin(), values.end(),
-        num_segments, segment_length, result.begin(),
+        result.begin(), num_segments, segment_length,
         std::numeric_limits<int>::lowest(), maximum);
 
     for (auto it = result.begin(); it != result_end; ++it)
