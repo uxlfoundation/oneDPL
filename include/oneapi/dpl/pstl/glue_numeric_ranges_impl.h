@@ -57,7 +57,7 @@ reduce(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
     return transform_reduce(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), _ValueType{},
-                            std::plus<_ValueType>(), oneapi::dpl::identity{});
+                            std::plus<>(), oneapi::dpl::identity{});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Tp>

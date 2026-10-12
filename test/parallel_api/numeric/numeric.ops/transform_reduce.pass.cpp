@@ -94,7 +94,7 @@ struct test_3_iters_default_ops
     {
         auto expectedB = ::std::inner_product(first1, last1, first2, init);
         T resRA = std::transform_reduce(std::forward<Policy>(exec), first1, last1, first2, init);
-        CheckResults(expectedB, resRA, "wrong result with tranform_reduce (3 iterators, default predicates)");
+        CheckResults(expectedB, resRA, "wrong result with transform_reduce (3 iterators, default predicates)");
     }
 };
 
@@ -116,7 +116,7 @@ struct test_3_iters_default_ops_mixed_types
             ++it2;
         }
         T res = std::transform_reduce(std::forward<Policy>(exec), first1, last1, first2, init);
-        EXPECT_EQ(expected, res, "wrong result with tranform_reduce (3 iterators, default predicates, mixed types)");
+        EXPECT_EQ(expected, res, "wrong result with transform_reduce (3 iterators, default predicates, mixed types)");
     }
 };
 
@@ -131,7 +131,7 @@ struct test_3_iters_custom_ops
     {
         auto expectedB = ::std::inner_product(first1, last1, first2, std::move(init1), opB1, opB2);
         T resRA = std::transform_reduce(std::forward<Policy>(exec), first1, last1, first2, std::move(init2), opB1, opB2);
-        CheckResults(std::move(expectedB), std::move(resRA), "wrong result with tranform_reduce (3 iterators, custom predicates)");
+        CheckResults(std::move(expectedB), std::move(resRA), "wrong result with transform_reduce (3 iterators, custom predicates)");
     }
 };
 
@@ -145,7 +145,7 @@ struct test_2_iters
     {
         auto expectedU = transform_reduce_serial(first1, last1, std::move(init1), opB, opU);
         T resRA = std::transform_reduce(std::forward<Policy>(exec), first1, last1, std::move(init2), opB, opU);
-        CheckResults(std::move(expectedU), std::move(resRA), "wrong result with tranform_reduce (2 iterators)");
+        CheckResults(std::move(expectedU), std::move(resRA), "wrong result with transform_reduce (2 iterators)");
     }
 };
 

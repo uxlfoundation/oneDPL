@@ -160,7 +160,7 @@ reduce_async(_ExecutionPolicy&& __exec, _ForwardIt __first, _ForwardIt __last, _
 {
     using _ValueType = typename ::std::iterator_traits<_ForwardIt>::value_type;
     return reduce_async(::std::forward<_ExecutionPolicy>(__exec), __first, __last, _ValueType(0),
-                        ::std::plus<_ValueType>(), ::std::forward<_Events>(__dependencies)...);
+                        ::std::plus<>(), ::std::forward<_Events>(__dependencies)...);
 }
 
 template <class _ExecutionPolicy, class _ForwardIt, class _T, class... _Events,

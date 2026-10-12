@@ -59,7 +59,7 @@ reduce(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __l
 {
     using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
     return transform_reduce(std::forward<_ExecutionPolicy>(__exec), __first, __last, _ValueType{},
-                            std::plus<_ValueType>(), oneapi::dpl::identity{});
+                            std::plus<>(), oneapi::dpl::identity{});
 }
 
 // [transform.reduce]
