@@ -19,6 +19,7 @@
 #include <algorithm>   // for std::min
 #include <functional>  // for std::invoke
 #include <iterator>    // for std::iterator_traits
+#include <limits>      // for std::numeric_limits
 #include <memory>      // for std::addressof
 #include <type_traits> // for std::true_type, std::is_copy_constructible_v, std::common_type_t
 #include <utility>     // for std::pair, std::make_pair
