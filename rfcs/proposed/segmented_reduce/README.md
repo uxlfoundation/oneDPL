@@ -459,7 +459,82 @@ for the `reduce_by_segment` algorithm, complicating the API.
 
 ### ArgMin and ArgMax semantics
 
-This semantics will be explored in a separate RFC due to their complexity.
+This semantics will be explored in a [separate RFC](minmax_positions.md) due to their complexity.
+
+Note, `ArgMin` and `ArgMax` can already be expressed via the proposed `reduce_by_segment` and fancy iterators:
+
+1. Pack the input into `zip(counting_iterator, first)` to reduce global index-value pairs.
+2. Use a binary operation which compares the values and, for equal values, selects the smaller index.
+3. Make the output iterator convert the global index into a segment-local one:
+   the output position corresponds to the segment, which gives access to the segment's begin offset.
+
+`ArgMin` example:
+
+```c++
+// Index-value pair: {global index, value}
+using AccT = std::tuple<IdxT, T>;
+
+// Min op, strictly returning the first match
+struct argmin
+{
+    template <typename A, typename B>
+    AccT
+    operator()(const A& a, const B& b) const
+    {
+        auto ia = std::get<0>(a);
+        auto ib = std::get<0>(b);
+        auto va = std::get<1>(a);
+        auto vb = std::get<1>(b);
+        const bool take_b = vb < va || (!(va < vb) && ib < ia);
+        return take_b ? AccT{ib, vb} : AccT{ia, va};
+    }
+};
+
+// Convert the global index into a segment-local one
+struct global_to_local
+{
+    IdxT* out;
+    IdxT begin;
+    const global_to_local&
+    operator=(IdxT global) const
+    {
+        *out = global - begin;
+        return *this;
+    }
+};
+
+const AccT init{std::numeric_limits<IdxT>::max(), std::numeric_limits<T>::infinity()};
+T* values = sycl::malloc_shared<T>(n, q);
+IdxT* idx_out = sycl::malloc_shared<IdxT>(num_segments, q);
+T* val_out = sycl::malloc_shared<T>(num_segments, q);
+auto in = dpl::make_zip_iterator(dpl::counting_iterator<IdxT>(0), values);
+
+// Variable-length segments: (1) index-value pairs or (2) only index
+IdxT* offsets = sycl::malloc_shared<IdxT>(num_segments + 1, q);
+auto local_idx_out = dpl::make_transform_iterator(
+    dpl::counting_iterator<IdxT>(0),
+    [=](IdxT segment) { return global_to_local{idx_out + segment, offsets[segment]}; }
+);
+auto out = dpl::make_zip_iterator(local_idx_out, val_out);                 // (1)
+auto out = dpl::make_zip_iterator(local_idx_out, dpl::discard_iterator()); // (2)
+dpl::reduce_by_segment(policy, in, in + n, out, num_segments, offsets, init, argmin{});
+
+// Fixed-length segments: (1) index-value pairs or (2) only index
+auto local_idx_out = dpl::make_transform_iterator(
+    dpl::counting_iterator<IdxT>(0),
+    [=](IdxT segment) { return global_to_local{idx_out + segment, segment * segment_length}; }
+);
+auto out = dpl::make_zip_iterator(local_idx_out, val_out);                 // (1)
+auto out = dpl::make_zip_iterator(local_idx_out, dpl::discard_iterator()); // (2)
+dpl::reduce_by_segment(policy, in, in + n, out, num_segments, offsets, init, argmin{});
+```
+
+**Strategy**:
+
+- Postpone the exploration and implementation of dedicated interfaces.
+- Document how `ArgMin` and `ArgMax` can be implemented via `reduce_by_segment` and fancy iterators.
+  The emulation is complex, thus there also should be a note that
+  a dedicated interface is expected in the future.
 
 ### Accumulator Type
 
