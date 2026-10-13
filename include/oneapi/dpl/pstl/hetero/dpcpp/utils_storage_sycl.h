@@ -208,10 +208,10 @@ __move_state(__scratch_raw_state&& __raw_st, const sycl::queue& __q)
     __copyable_storage_state<std::byte> __state{nullptr, nullptr, std::move(__raw_st.__sycl_buf)};
     if (__raw_st.__usm_ptr)
     {
+        std::byte* __tmpptr = static_cast<std::byte*>(__raw_st.__usm_ptr);
+        __raw_st.__usm_ptr = nullptr; // clear in advance, in case the ctor of shared_ptr throws and calls the deleter
         __state.__kind = sycl::usm::alloc::device;
-        __state.__scratch_buf =
-            std::shared_ptr<std::byte>(static_cast<std::byte*>(__raw_st.__usm_ptr), __sycl_usm_free{__q});
-        __raw_st.__usm_ptr = nullptr;
+        __state.__scratch_buf = std::shared_ptr<std::byte>(__tmpptr, __sycl_usm_free{__q});
     }
     __raw_st.__sycl_buf.reset();
     return __state;
@@ -225,11 +225,12 @@ __move_state(__result_raw_state<_T>&& __raw_st, const sycl::queue& __q)
                                          __raw_st.__result_sz, __raw_st.__offset, __raw_st.__kind};
     if (__raw_st.__usm_ptr)
     {
+        _T* __tmpptr = __raw_st.__usm_ptr;
+        __raw_st.__usm_ptr = nullptr; // clear in advance, in case the ctor of shared_ptr throws and calls the deleter
         if (__raw_st.__kind == sycl::usm::alloc::host)
-            __state.__result_buf = std::shared_ptr<_T>(__raw_st.__usm_ptr, __sycl_usm_free{__q});
+            __state.__result_buf = std::shared_ptr<_T>(__tmpptr, __sycl_usm_free{__q});
         else
-            __state.__scratch_buf = std::shared_ptr<_T>(__raw_st.__usm_ptr, __sycl_usm_free{__q});
-        __raw_st.__usm_ptr = nullptr;
+            __state.__scratch_buf = std::shared_ptr<_T>(__tmpptr, __sycl_usm_free{__q});
     }
     __raw_st.__sycl_buf.reset();
     return __state;
@@ -567,8 +568,8 @@ class __storage_holder
 
     __storage_holder(const __storage_holder&) = delete;
     __storage_holder& operator=(const __storage_holder&) = delete;
-    __storage_holder(__storage_holder&& __other) = delete;
-    __storage_holder& operator=(__storage_holder&& __other) = delete;
+    __storage_holder(__storage_holder&&) = delete;
+    __storage_holder& operator=(__storage_holder&&) = delete;
 
     ~__storage_holder()
     {
