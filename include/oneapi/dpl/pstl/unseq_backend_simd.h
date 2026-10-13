@@ -865,7 +865,7 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
             return __res;
 
         __block_begin = __block_end;
-        // With a narrow difference type both limits may be clipped to the same value, so the block cannot grow
+        // A narrow difference type may leave no room to double the block: then it grows straight to the maximum
         if constexpr (__block_size_min < __block_size_max / 2)
             __block_size = __block_size < __block_size_max / 2 ? __block_size * 2 : __block_size_max;
         else
