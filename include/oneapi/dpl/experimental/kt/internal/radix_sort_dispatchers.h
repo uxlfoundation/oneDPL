@@ -376,6 +376,24 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
     return __mem_holder.__async_deallocate(__event_chain);
 }
 
+#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+// Sorts each consecutive run of __segment_size elements, each of which must fit in a work-group tile
+template <bool __is_ascending, std::uint8_t __radix_bits, typename _KernelParam, typename _RngPack1,
+          typename _RngPack2>
+sycl::event
+__batched_one_wg(sycl::queue& __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __n,
+                 std::size_t __segment_size)
+{
+    using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __batched_radix_sort_one_wg<std::decay_t<_RngPack1>, std::decay_t<_RngPack2>,
+                                    typename _KernelParam::kernel_name>>;
+    return __batched_one_wg_radix_sort_submitter<__is_ascending, __radix_bits, _KernelParam::data_per_workitem,
+                                                 _KernelParam::workgroup_size, _KernelName>()(
+        __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n,
+        static_cast<std::uint32_t>(__segment_size));
+}
+#endif
+
 // TODO: allow calling it only for all_view (accessor) and guard_view (USM) ranges, views::subrange and sycl_iterator
 template <bool __is_ascending, std::uint8_t __radix_bits, bool __in_place, typename _KtTag, typename _RngPack1,
           typename _RngPack2, typename _KernelParam>
@@ -389,21 +407,13 @@ __radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&
     constexpr auto __data_per_workitem = _KernelParam::data_per_workitem;
     constexpr auto __workgroup_size = _KernelParam::workgroup_size;
     using _KernelName = typename _KernelParam::kernel_name;
+    constexpr std::uint32_t __one_wg_cap = __data_per_workitem * __workgroup_size;
 
-    // TODO: enable sort_by_key for one-work-group implementation
-    if constexpr (::std::decay_t<_RngPack1>::__has_values)
+    if constexpr (std::is_same_v<_KtTag, __esimd_tag>)
     {
-        return __onesweep<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size, __in_place>(
-            __kt_tag, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n,
-            /*__segment_size=*/__n);
-    }
-    else
-    {
-        // At the time of writing, we have decided not to add a SYCL single work-group implementation that is dispatched
-        // at runtime.
-        if constexpr (std::is_same_v<_KtTag, __esimd_tag>)
+        // TODO: enable sort_by_key for one-work-group implementation
+        if constexpr (!std::decay_t<_RngPack1>::__has_values)
         {
-            constexpr std::uint32_t __one_wg_cap = __data_per_workitem * __workgroup_size;
             if (__n <= __one_wg_cap)
             {
                 // TODO: support different RadixBits values (only 7, 8, 9 are currently supported for ESIMD)
@@ -413,13 +423,24 @@ __radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&
                     __kt_tag, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n);
             }
         }
-        // TODO: avoid kernel duplication (generate the output storage with the same type as input storage and use swap)
-        // TODO: support different RadixBits
-        // TODO: support more granular DataPerWorkItem and WorkGroupSize
-        return __onesweep<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size, __in_place>(
-            __kt_tag, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n,
-            /*__segment_size=*/__n);
     }
+#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+    else
+    {
+        if (__n <= __one_wg_cap)
+        {
+                return __batched_one_wg<__is_ascending, __radix_bits, _KernelParam>(
+                    __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n,
+                    /*__segment_size=*/__n);
+        }
+    }
+#endif
+    // TODO: avoid kernel duplication (generate the output storage with the same type as input storage and use swap)
+    // TODO: support different RadixBits
+    // TODO: support more granular DataPerWorkItem and WorkGroupSize
+    return __onesweep<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size, __in_place>(
+        __kt_tag, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n,
+        /*__segment_size=*/__n);
 }
 
 // Batched sort: each consecutive run of __segment_size elements is sorted independently, by the one work-group kernel
@@ -439,13 +460,8 @@ __batched_radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _R
     constexpr std::size_t __tile_size = std::size_t(_KernelParam::data_per_workitem) * _KernelParam::workgroup_size;
     if (__segment_size <= __tile_size)
     {
-        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __batched_radix_sort_one_wg<std::decay_t<_RngPack1>, std::decay_t<_RngPack2>,
-                                        typename _KernelParam::kernel_name>>;
-        return __batched_one_wg_radix_sort_submitter<__is_ascending, __radix_bits, _KernelParam::data_per_workitem,
-                                                     _KernelParam::workgroup_size, _KernelName>()(
-            __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n,
-            static_cast<std::uint32_t>(__segment_size));
+            return __batched_one_wg<__is_ascending, __radix_bits, _KernelParam>(
+                __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n, __segment_size);
     }
 #endif
     // The parameter check rejects larger segments when onesweep does not support the kernel parameters
