@@ -16,7 +16,8 @@ Table of contents:
 - [Synopsis](#synopsis)
 - [Design Considerations](#design-considerations)
   - [Kernel Template or Core Algorithm Extension](#kernel-template-or-core-algorithm-extension)
-  - [Empty, Overlapping, and Unordered Segments](#empty-overlapping-and-unordered-segments)
+  - [Empty, Overlapping, Negatively Sized, and Unordered Segments](#empty-overlapping-negatively-sized-and-unordered-segments)
+  - [`num_segments` and `segment_length`: Types and Negative Values](#num_segments-and-segment_length-types-and-negative-values)
   - [Initial Value, its Default Value, and Identity](#initial-value-its-default-value-and-identity)
   - [Bounding Input and Negative Offsets](#bounding-input-and-negative-offsets)
   - [Fixed-Length Segments](#fixed-length-segments)
@@ -33,6 +34,7 @@ Table of contents:
 - [Examples](#examples)
 - [Testing](#testing)
 - [Open Questions](#open-questions)
+  - [Different `first` and `last` Types](#different-first-and-last-types)
 
 See [reference implementations](reference_implementations.md) and the
 [usage pattern study](usage_pattern_study.md) for background.
@@ -137,6 +139,30 @@ which can optionally be flagged in debug mode.
   Optionally, flag in debug mode, for example with an assertion.
 - Provide only one sequence of offsets (no overlapping or unordered segments).
 
+### `num_segments` and `segment_length`: Types and Negative Values
+Both overloads have a `num_segments` argument; the fixed-length overload also has `segment_length`.
+
+These are single-value arguments always available on the host,
+making it easier to check their validity.
+Unlike negatively sized segments defined via offsets, which may reside on a device,
+they can be checked before any work is submitted.
+
+Possible argument types:
+
+| Type | Alignment | Non-positive value |
+|---|---|---|
+| template: unsigned integer | None | Zero returns immediately. Negative values are not representable; signed arguments, even literals like `3`, do not compile |
+| template: any integer | The count argument of the standard and oneDPL `*_n` algorithms | Representable for signed types; non-positive values return immediately |
+| `std::size_t` | dpct, rocPRIM (`unsigned int`) | Zero returns immediately. A negative argument silently wraps to a huge value: out-of-bounds accesses for variable-length segments, clamped by the input bounds for fixed-length segments |
+| `std::uint64_t` | None | Same as `std::size_t` |
+| `std::int64_t` | CUB (`num_segments`) | Representable; non-positive values return immediately. Unsigned arguments silently convert |
+
+**Strategy**:
+
+- Accept any integral type for `num_segments` and `segment_length` via template parameters.
+- If `num_segments <= 0` or `segment_length <= 0`, short-circuit the algorithm: the input and the offsets are not read, and the output is not written.
+  Document this behavior.
+
 ### Initial Value, its Default Value, and Identity
 
 The [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) request
@@ -224,7 +250,7 @@ Its notation:
   for variable-length segments
   (the offsets are consecutive, see [Empty, Overlapping, Negatively Sized, and Unordered Segments](#empty-overlapping-negatively-sized-and-unordered-segments),
   thus only the first and the last offsets define the bounds),
-  or non-negative `num_segments` and `segment_length` with `num_segments * segment_length <= N`
+  or positive `num_segments` and `segment_length` with `num_segments * segment_length <= N`
   for fixed-length segments.
 
 | Option | Alignment | Enforcement | Communication | Performance |
@@ -324,11 +350,6 @@ It should be kept in mind that the proposed overloads
 may introduce default values for the binary operation and the initial value.
 Overload resolution should be carefully considered to avoid ambiguity.
 
-Providing an alternative functionality
-to `cub::DeviceSegmentedReduce` is the main motivation,
-therefore, the new overloads should have compatible interfaces
-and as close in argument order as possible.
-
 The table below shows the suggested argument order:
 
 | CUB `Reduce` (variable segments) | CUB `Reduce` (fixed segments) | Line | `dpl::reduce_by_segment` (key-based segments) | `dpl::reduce_by_segment` (variable segments) | `dpl::reduce_by_segment` (fixed segments) |
@@ -392,7 +413,7 @@ for the `reduce_by_segment` algorithm, complicating the API.
 
 ### ArgMin and ArgMax semantics
 
-This semantics will be explored in a separate RFC.
+This semantics will be explored in a separate RFC due to their complexity.
 
 ### Accumulator Type
 
