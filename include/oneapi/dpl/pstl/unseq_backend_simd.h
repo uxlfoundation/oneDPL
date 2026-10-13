@@ -21,7 +21,7 @@
 #include <iterator>    // for std::iterator_traits
 #include <limits>      // for std::numeric_limits
 #include <memory>      // for std::addressof
-#include <type_traits> // for std::true_type, std::is_copy_constructible_v, std::common_type_t
+#include <type_traits> // for std::true_type, std::is_copy_constructible_v
 #include <utility>     // for std::pair, std::make_pair
 
 #include "utils.h"
@@ -835,8 +835,6 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
 {
     using _ValueT1 = typename std::iterator_traits<_ForwardIterator1>::value_type;
     using _DifferenceType1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
-    // Neither the rest of the first sequence nor a block size is truncated in this type
-    using _CmpSizeType = std::common_type_t<_DifferenceType1, std::ptrdiff_t>;
 
     // The first sequence is searched in blocks, so that an early match costs O(__n2 * __block_size) comparisons
     // instead of O(__n2 * __n1). The block starts small and doubles, which amortizes the overhead of the small
@@ -855,7 +853,7 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     {
         // The block is cut to the rest of the sequence, so its end fits into the difference type
         const _DifferenceType1 __block_end =
-            __block_begin + _DifferenceType1(std::min(_CmpSizeType(__n1 - __block_begin), _CmpSizeType(__block_size)));
+            __block_begin + _DifferenceType1(std::min<std::size_t>(__n1 - __block_begin, __block_size));
         const _ForwardIterator1 __it_block_end = __first + __block_end;
         const _ForwardIterator1 __res =
             __simd_find_first_of_block(__first + __block_begin, __it_block_end, __s_first, __s_last, __pred);
