@@ -470,7 +470,7 @@ for the `reduce_by_segment` algorithm, complicating the API.
 
 ### ArgMin and ArgMax semantics
 
-This semantics will be explored in a [separate RFC](minmax_positions.md) due to their complexity.
+This semantics will be explored in a separate RFC due to their complexity.
 
 Note, `ArgMin` and `ArgMax` can already be expressed via the proposed `reduce_by_segment` and fancy iterators:
 
@@ -551,38 +551,78 @@ dpl::reduce_by_segment(policy, in, in + n, out, num_segments, offsets, init, arg
 
 The accumulator type determines the representation of intermediate reduction results.
 
-This type can be influenced by:
+It affects:
 
-- initial value type
-- input value type
-- output value type
-- result type of the binary operation
+- Performance. For example, unnecessary wider accumulator may increase memory traffic.
+- Accuracy. For example, using a wider accumulator may reduce rounding errors in floating-point computations.
+- Correctness. For example, using an accumulator type
+  that can represent all possible intermediate results prevents overflow.
 
-Consider these cases:
-- The accumulator type may differ from both the input and output value types.
-  For example, having `double` accumulator for `float`
-  inputs and outputs improves accuracy and reduces memory traffic.
-- Input can hold smaller values than the output type,
-  for example, input is `float` or `int` and output is `double` or `int64_t` respectively.
-  Then the accumulator type must be selected from the output.
-- An initial value is lazily passed as `0` (`int`) when the output is `int64_t`.
-  The accumulator types must be `int64_t`.
-- An initial value is lazily passed as `0` (`int`) when the output is `double`.
-  The accumulator types must be `double`.
+Consider how the accumulator is used:
 
-The safest approach is use the common type from all involved types as the accumulator type.
-For the case with `float` and `double`, the common type would be `double`.
+1. It is initialized by some value, which generally might be the initial value,
+   an input value, or a binary operation result
+   (using both the initial value and an input value, or either one of them).
+2. It is passed as an argument to the binary operation,
+   together with an input value or another accumulator.
+3. It is updated (assigned) with the result of the binary operation.
+4. Eventually it is assigned to the output value.
 
-The documentation does not provide explicit rules for the accumulator type. Algorithms checked:
+Following the usage pattern, the accumulator type should be
+```c++
+using AccT = std::decay_t<std::invoke_result_t<BinaryOp&, InitT, InputRefT>>;
+```
 
-- [CUB `DeviceSegmentedReduce::Reduce`](<https://nvidia.github.io/cccl/unstable/cub/api/structcub_1_1DeviceSegmentedReduce.html>)
-- [rocPRIM `segmented_reduce`](<https://rocm.docs.amd.com/projects/rocPRIM/en/latest/device_ops/reduce.html>)
-- `dpl::reduce`
-- `dpl::reduce_by_segment`
-- [`std::reduce`](<https://eel.is/c++draft/reduce>)
+where `AccT` is the accumulator type,
+`BinaryOp` is the binary operation type,
+`InitT` is the initial value type,
+and `InputRefT` is `std::iterator_traits<InputIt>::reference`.
+`OutputIt` does not affect the accumulator type,
+because output iterators often do not have a meaningful value type
+(for example, `discard_iterator` or proxy iterators).
 
-**Strategy**: Use the common type from all involved types as the accumulator type.
-Document this choice as it may affect performance and accuracy.
+The same rule is used by [`std::ranges::fold_left`](<https://eel.is/c++draft/alg.fold>).
+
+The suggested rule allows controlling the accumulator type
+through the binary operation, which alone should handle all needed combinations.
+If the binary operation type is not specified,
+the accumulator type will be deduced automatically based on
+the initial value and input reference types. For example:
+
+| Goal | Input | Output | `init` | `binary_op` | `AccT` |
+|---|---|---|---|---|---|
+| Performance | `float` | `float` | `0.0` | `std::plus<float>` | `float` |
+| Pitfall: performance | `float` | `float` | `0.0` | `std::plus<>` | `double` |
+| Accuracy | `float` | `float` | `0.0` | `std::plus<double>` | `double` |
+| No overflow | `int` | `int64_t` | `0` | `std::plus<int64_t>` | `int64_t` |
+| Pitfall: overflow | `int` | `int64_t` | `0` | `std::plus<>` | `int` |
+
+The pitfall is the same as in `std::reduce`,
+and documenting the accumulator type helps users avoid it.
+
+A parallel reduction combines the operands in an unspecified order and grouping:
+a partial result may start from an input element rather than from the initial value,
+and partial results are combined with each other.
+Therefore the operation imposes the following type requirements:
+
+- `binary_op(a, b)` must be valid for any combination of `AccT`, `InitT`, and `InputRefT`.
+- `AccT` must be constructible from `InitT` and `InputRefT`,
+  and must be writable to the output iterator.
+
+Comparison with other reductions:
+
+- In [`std::reduce`](<https://eel.is/c++draft/reduce>) and `dpl::reduce`, `AccT` is `InitT`,
+- In the key-based `dpl::reduce_by_segment`, `AccT` is not documented,
+  and is the input value type in practise.
+- In CUB the accumulator type is not documented, and is inferred as proposed above in practice.
+- In rocPRIM the accumulator type is not documented,
+  and is inferred as `invoke_result_t<BinaryOp, InitT, InitT>` in practice.
+
+**Strategy**:
+
+- Use `std::decay_t<std::invoke_result_t<BinaryOp&, InitT, InputRefT>>` as the accumulator type.
+- Document that the binary operation and the accumulator type requirements.
+- Document how the accumulator type is determined.
 
 ### Return Value
 
