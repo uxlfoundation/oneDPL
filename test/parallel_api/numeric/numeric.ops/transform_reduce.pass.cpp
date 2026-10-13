@@ -215,6 +215,11 @@ test_default_ops_mixed_types()
     invoke_on_all_policies<7>()(test_3_iters_default_ops_mixed_types<std::uint32_t>(), in1_u32.begin(), in1_u32.end(),
                                 in2_u32.begin(), in2_u32.end(), init_u64);
 
+    // Each product fits into the value type of the input sequences, but a sum of two products does not
+    Sequence<std::uint32_t> in_max_u32(n, [](std::size_t) { return std::uint32_t(65535); });
+    invoke_on_all_policies<9>()(test_3_iters_default_ops_mixed_types<std::uint32_t>(), in_max_u32.begin(),
+                                in_max_u32.end(), in_max_u32.begin(), in_max_u32.end(), init_u64);
+
     // The elements of the second sequence do not fit into the value type of the first one;
     // the values are chosen so that the floating-point result is exact regardless of the order of summation
     Sequence<std::int32_t> in1_i32(n, [](std::size_t) { return std::int32_t(rand() % 10); });

@@ -127,6 +127,55 @@ test_differing_init_type()
                                 std::plus<>{}, static_cast<InputType>(expected));
 }
 
+struct test_reduce_default_op
+{
+    template <typename Policy, typename Iterator, typename T>
+    void
+    operator()(Policy&& exec, Iterator first, Iterator last, T init, T expected)
+    {
+        T result = std::reduce(std::forward<Policy>(exec), first, last, init);
+        EXPECT_TRUE(expected == result, "bad result from reduce(exec, first, last, init) with mixed types");
+    }
+};
+
+// Non-arithmetic accumulator, to exercise the generic (non-arithmetic) reduction paths of the host backends
+struct U64Accumulator
+{
+    std::uint64_t value;
+
+    explicit U64Accumulator(std::uint64_t v) : value(v) {}
+
+    friend U64Accumulator
+    operator+(const U64Accumulator& a, const U64Accumulator& b)
+    {
+        return U64Accumulator{a.value + b.value};
+    }
+    friend U64Accumulator
+    operator+(const U64Accumulator& a, std::uint64_t b)
+    {
+        return U64Accumulator{a.value + b};
+    }
+    friend bool
+    operator==(const U64Accumulator& a, const U64Accumulator& b)
+    {
+        return a.value == b.value;
+    }
+};
+
+// The sum of two elements does not fit into the value type of the sequence, init type is larger and accomodates it
+void
+test_default_op_mixed_types()
+{
+    std::size_t n = 100000;
+    Sequence<std::uint32_t> in(n, [](std::size_t) { return std::uint32_t(3000000000u); });
+    const std::uint64_t init = std::uint64_t{1} << 32;
+    const std::uint64_t expected = init + std::uint64_t(n) * 3000000000u;
+
+    invoke_on_all_policies<6>()(test_reduce_default_op(), in.begin(), in.end(), init, expected);
+    invoke_on_all_host_policies()(test_reduce_default_op(), in.begin(), in.end(), U64Accumulator{init},
+                                  U64Accumulator{expected});
+}
+
 int
 main()
 {
@@ -147,6 +196,8 @@ main()
     // Test designed to capture kernel naming issues with the edge case where the init type differs from the sequence
     // input type with the same binary operator.
     test_differing_init_type();
+
+    test_default_op_mixed_types();
 
     return done();
 }
