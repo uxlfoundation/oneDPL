@@ -45,7 +45,7 @@ __parallel_find(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Index __f
     const _DifferenceType __n = __last - __first;
     _DifferenceType __initial_dist = _IsFirst::value ? __n : -1;
 
-    constexpr auto __comp = ::std::conditional_t<_IsFirst::value, __pstl_less, __pstl_greater>{};
+    constexpr auto __comp = std::conditional_t<_IsFirst::value, std::less<>, std::greater<>>{};
 
     ::std::atomic<_DifferenceType> __extremum(__initial_dist);
     // TODO: find out what is better here: parallel_for or parallel_reduce

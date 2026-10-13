@@ -88,13 +88,12 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
 #endif // DUMP_CHECK_RESULTS
 
     template <typename Iterator1, typename Iterator2, typename Iterator3, typename Iterator4, typename InputSize,
-              typename OutputKeySize, typename OutputValSize,
-              typename BinaryPredicateCheck = oneapi::dpl::__internal::__pstl_equal,
-              typename BinaryOperationCheck = oneapi::dpl::__internal::__pstl_plus>
-    void check_values(Iterator1 host_keys, Iterator2 host_vals, Iterator3 key_res, Iterator4 val_res, InputSize n,
-                      OutputKeySize num_keys, OutputValSize num_vals,
-                      BinaryPredicateCheck pred = BinaryPredicateCheck(),
-                      BinaryOperationCheck op = BinaryOperationCheck())
+              typename OutputKeySize, typename OutputValSize, typename BinaryPredicateCheck = std::equal_to<>,
+              typename BinaryOperationCheck = std::plus<>>
+    void
+    check_values(Iterator1 host_keys, Iterator2 host_vals, Iterator3 key_res, Iterator4 val_res, InputSize n,
+                 OutputKeySize num_keys, OutputValSize num_vals, BinaryPredicateCheck pred = BinaryPredicateCheck(),
+                 BinaryOperationCheck op = BinaryOperationCheck())
     {
         // https://docs.oneapi.io/versions/latest/onedpl/extension_api.html
         // keys:   [ 0, 0, 0, 1, 1, 1 ]
