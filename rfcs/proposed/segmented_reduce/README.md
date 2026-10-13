@@ -514,7 +514,9 @@ struct global_to_local
     }
 };
 
-const AccT init{std::numeric_limits<IdxT>::max(), std::numeric_limits<T>::infinity()};
+const T max_value = std::numeric_limits<T>::has_infinity ? std::numeric_limits<T>::infinity()
+                                                         : std::numeric_limits<T>::max();
+const AccT init{std::numeric_limits<IdxT>::max(), max_value};
 T* values = sycl::malloc_shared<T>(n, q);
 IdxT* idx_out = sycl::malloc_shared<IdxT>(num_segments, q);
 T* val_out = sycl::malloc_shared<T>(num_segments, q);
@@ -537,7 +539,7 @@ auto local_idx_out = dpl::make_transform_iterator(
 );
 auto out = dpl::make_zip_iterator(local_idx_out, val_out);                 // (1)
 auto out = dpl::make_zip_iterator(local_idx_out, dpl::discard_iterator()); // (2)
-dpl::reduce_by_segment(policy, in, in + n, out, num_segments, offsets, init, argmin{});
+dpl::reduce_by_segment(policy, in, in + n, out, num_segments, segment_length, init, argmin{});
 ```
 
 **Strategy**:
@@ -738,12 +740,12 @@ int main()
     std::array<int, num_segments> result{};
     auto maximum = [](int lhs, int rhs) { return std::max(lhs, rhs); };
 
-    auto result_end = oneapi::dpl::reduce_by_segment(
+    oneapi::dpl::reduce_by_segment(
         oneapi::dpl::execution::par_unseq, values.begin(), values.end(),
         result.begin(), num_segments, segment_length,
         std::numeric_limits<int>::lowest(), maximum);
 
-    for (auto it = result.begin(); it != result_end; ++it)
+    for (auto it = result.begin(); it != result.end(); ++it)
         std::cout << *it << ' ';
     std::cout << '\n'; // -10 -5 -4
 }
