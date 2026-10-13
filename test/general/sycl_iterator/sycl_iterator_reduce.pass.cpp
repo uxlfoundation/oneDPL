@@ -42,7 +42,7 @@ DEFINE_TEST(test_reduce)
 
         // with initial value
         auto init = T1(42);
-        auto result2 = std::reduce(CLONE_TEST_POLICY_IDX(exec, 1), first1 + (n / 3), first1 + (n / 2), init);
+        auto result2 = std::reduce(CLONE_TEST_POLICY_IDX(exec, 0), first1 + (n / 3), first1 + (n / 2), init);
         wait_and_throw(exec);
 
         EXPECT_TRUE(result2 == init + value * (n / 2 - n / 3), "wrong effect from reduce (2)");
