@@ -35,6 +35,7 @@ Table of contents:
 - [Testing](#testing)
 - [Open Questions](#open-questions)
   - [Different `first` and `last` Types](#different-first-and-last-types)
+  - [Iterator Requirements](#iterator-requirements)
 
 See [reference implementations](reference_implementations.md) and the
 [usage pattern study](usage_pattern_study.md) for background.
@@ -604,3 +605,27 @@ Note, in this case `last` does not bound the input,
 so the safety and performance benefits described in
 [Bounding Input and Negative Offsets](#bounding-input-and-negative-offsets) are lost,
 and the behavior falls back to option (5) from that section.
+
+### Iterator Requirements
+
+Should the iterator types be constrained,
+or should their requirements be conveyed via the template parameter names, or only documented?
+
+The algorithm needs random access to the input, output and offsets.
+The [synopsis](#synopsis) uses generic names (`InputIt`, `OutputIt`, `OffsetIt`),
+as the existing `reduce_by_segment` does (`InputIt1`, `OutputIt1`, etc.).
+
+Possible approaches, not mutually exclusive:
+
+- Constrain: reject non-conforming types during overload resolution,
+  for example via SFINAE on `std::iterator_traits<It>::iterator_category` in C++17,
+  or `std::random_access_iterator` in C++20.
+  It gives earlier and clearer diagnostics,
+  but has no precedent in the oneDPL iterator-based algorithms,
+  and may reject types that otherwise work, such as proxy iterators or iterators with incomplete traits.
+- Name: convey the requirements via the template parameter names, for example `RandomAccessIt`,
+  following the convention of the C++ standard ([algorithms.requirements]).
+- Document only: keep the generic names and list the requirements in the description of the algorithm.
+
+Note, the answer may depend on [Different `first` and `last` Types](#different-first-and-last-types),
+because a sentinel `last` would require constraining or documenting a sentinel-iterator relationship as well.
