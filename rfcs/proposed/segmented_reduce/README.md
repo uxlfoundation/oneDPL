@@ -174,12 +174,12 @@ What should be provided as an argument in place of the initial value? What shoul
 Initial value applies only once, and known identity can be applied multiple times.
 The initial value may be equal to the known identity or not. A safe default initial value is the identity.
 
-Initial value is always needed as the starting point for the accumulator
-when empty input is possible.
+Initial value is mandatory when the algorithm's contract is apply it to each segment,
+or as a result for empty segments, what is done by CUB and rocPRIM.
 Identity value is optional. It is needed for the SIMD and the group reductions,
 and to get a safe default initial value.
 
-It may be inferred from the most typical operations and data types, for example:
+The identity may be inferred from the most typical operations and data types, for example:
 
 | Operation | Identity |
 |---|---|
@@ -292,21 +292,32 @@ but it is not as efficient due to the segment boundary checks.
 ### Binary Operator
 
 Associativity is essential for parallelization.
-Commutativity is useful, for example, when doing sub-group and work-group striding,
-a common approach in GPU programming to improve memory coalescing.
+Commutativity lets the implementation reorder the operands, which is used by:
 
-There are different associativity and commutativity requirements in different implementations:
+- Sub-group and work-group striding, a common GPU technique to improve memory coalescing.
+- Host vectorization, for example `omp simd reduction`.
+- SYCL group reductions, for example `sycl::reduce_over_group` and `sycl::joint_reduce`.
 
-- `cub::DeviceSegmentedReduce`, `rocprim::segmented_reduce`, `dpct::device::segmented_reduce`: both.
+Requirements in the existing implementations:
+
+- `cub::DeviceSegmentedReduce`, `rocprim::segmented_reduce`, `dpct::device::segmented_reduce`:
+  associativity and commutativity.
 - `dpl::reduce_by_segment`: associativity only.
-- For the reference, `std::reduce` and `std::transform_reduce` and their oneDPL equivalents require both.
+- For reference, `std::reduce`, `std::transform_reduce`, and their oneDPL equivalents:
+  associativity and commutativity.
 
-Why is not commutativity required for key-based segmented reduction?
-Is it an oversight, or is there a specific reason? Does it come at the cost?
-Its requirements should not relaxed straight away, because of being a breaking change,
-but the new algorithm may require commutativity immediately.
+The key-based `dpl::reduce_by_segment` relies on the scan pattern internally
+to get the offset boundaries, which preserves the operand order,
+and because of that, it was likely decided not to require commutativity.
+With offsets or a fixed segment length, the boundaries are known in advance,
+and the algorithm is a batch of independent reductions.
+Requiring commutativity, keeps the optimization techniques above available.
 
-**Tentative Strategy**: require commutativity.
+**Strategy**:
+
+- Require associativity and commutativity.
+- Document that, unlike the key-based overloads,
+  the new overloads do not support non-commutative operations.
 
 ### Floating Point Determinism
 
