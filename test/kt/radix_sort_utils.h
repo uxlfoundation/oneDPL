@@ -11,6 +11,7 @@
 #ifndef _ESIMD_RADIX_SORT_TEST_UTILS_H
 #define _ESIMD_RADIX_SORT_TEST_UTILS_H
 
+#include <algorithm>
 #include <string>
 #include <tuple>
 #include <random>
@@ -96,6 +97,17 @@ inline const std::vector<std::size_t> sort_sizes = {
     5072,    8192,      14001,   1 << 14,   (1 << 14) + 1, 50000,         67543,
     100'000, 1 << 17,   179'581, 250'000,   1 << 18,       (1 << 18) + 1, 500'000,
     888'235, 1'000'000, 1 << 20, 10'000'000};
+
+// sort_sizes plus the sizes around one work-group tile, where the one work-group kernel hands over to onesweep
+inline std::vector<std::size_t>
+sort_sizes_around_tile(std::size_t tile)
+{
+    std::vector<std::size_t> sizes = sort_sizes;
+    sizes.insert(sizes.end(), {tile - 1, tile, tile + 1});
+    std::sort(sizes.begin(), sizes.end());
+    sizes.erase(std::unique(sizes.begin(), sizes.end()), sizes.end());
+    return sizes;
+}
 
 template <typename T, bool Order>
 struct Compare : public std::less<T>
