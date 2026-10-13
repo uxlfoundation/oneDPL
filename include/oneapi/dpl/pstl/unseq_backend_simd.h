@@ -841,23 +841,19 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     // leading blocks, up to a size that stays in the L1 cache together with the second sequence.
     constexpr std::size_t __target_block_bytes_min = __lane_size * 4; // 256 bytes
     constexpr std::size_t __target_block_bytes_max = 16 * 1024;       // half of the smallest common L1d (32KB)
-
-    // A narrow difference type (e.g. of counting_iterator<std::int8_t>) cannot hold such a block: limit it
-    constexpr auto __bytes_to_block_size = [](std::size_t __bytes) {
-        return _DifferenceType1(std::min(__internal::__dpl_ceiling_div(__bytes, sizeof(_ValueT1)),
-                                         std::size_t(std::numeric_limits<_DifferenceType1>::max())));
-    };
-    constexpr _DifferenceType1 __block_size_min = __bytes_to_block_size(__target_block_bytes_min);
-    constexpr _DifferenceType1 __block_size_max = __bytes_to_block_size(__target_block_bytes_max);
+    constexpr std::size_t __block_size_min = __internal::__dpl_ceiling_div(__target_block_bytes_min, sizeof(_ValueT1));
+    constexpr std::size_t __block_size_max = __internal::__dpl_ceiling_div(__target_block_bytes_max, sizeof(_ValueT1));
 
     if (__first == __last || __s_first == __s_last)
         return __last; // according to the standard
 
     const _DifferenceType1 __n1 = __last - __first;
-    for (_DifferenceType1 __block_begin = 0, __block_size = __block_size_min; __block_begin < __n1;)
+    std::size_t __block_size = __block_size_min;
+    for (_DifferenceType1 __block_begin = 0; __block_begin < __n1;)
     {
+        // The block is cut to the rest of the sequence, so its end fits into the difference type
         const _DifferenceType1 __block_end =
-            __block_begin + std::min<_DifferenceType1>(__n1 - __block_begin, __block_size);
+            __block_begin + _DifferenceType1(std::min<std::size_t>(__n1 - __block_begin, __block_size));
         const _ForwardIterator1 __it_block_end = __first + __block_end;
         const _ForwardIterator1 __res =
             __simd_find_first_of_block(__first + __block_begin, __it_block_end, __s_first, __s_last, __pred);
@@ -865,11 +861,7 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
             return __res;
 
         __block_begin = __block_end;
-        // A narrow difference type may leave no room to double the block: then it grows straight to the maximum
-        if constexpr (__block_size_min < __block_size_max / 2)
-            __block_size = __block_size < __block_size_max / 2 ? __block_size * 2 : __block_size_max;
-        else
-            __block_size = __block_size_max;
+        __block_size = std::min(__block_size * 2, __block_size_max);
     }
 
     return __last;
