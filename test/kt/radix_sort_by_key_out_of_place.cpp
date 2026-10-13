@@ -178,7 +178,7 @@ main()
     {
         try
         {
-            for (auto size : sort_sizes)
+            for (auto size : sort_sizes_around_tile(std::size_t(TEST_DATA_PER_WORK_ITEM) * TEST_WORK_GROUP_SIZE))
             {
                 test_usm<TEST_KEY_TYPE, TEST_VALUE_TYPE, Ascending, TestRadixBits, sycl::usm::alloc::shared>(
                     q, size, TestUtils::create_new_kernel_param_idx<0>(params));
