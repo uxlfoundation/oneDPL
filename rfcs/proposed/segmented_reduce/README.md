@@ -40,7 +40,6 @@ Table of contents:
 See [reference implementations](reference_implementations.md) and the
 [usage pattern study](usage_pattern_study.md) for background.
 
-
 ## Synopsis
 
 All the proposed segmented algorithms are included from `<oneapi/dpl/numeric>`.
@@ -311,26 +310,72 @@ but the new algorithm may require commutativity immediately.
 
 ### Floating Point Determinism
 
-Floating point operations are generally non-deterministic when applied in different orders,
-that is they are not associative.
+Floating point operations are not associative,
+so the result depends on how the implementation groups the operands.
 
-`cub::DeviceSegmentedReduce` environment allows specifying these guarantees:
+[P4229R0](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p4229r0.pdf) (section 2),
+proposed for the C++ standard, distinguishes these scopes of determinism, from the weakest:
 
-- no determinism
-- run-to-run (default)
-- cross-device
+- *Run-to-run*: the same result for the same program, input, implementation, and environment.
+- *Same-platform*: also the same result across thread count, chunk size, or vector width on one platform.
+- *Expression-based*: the result is defined by a named expression, for example a fixed tree
+  ([P4016R0](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p4016r0.pdf) proposes one for `reduce`).
+- *Cross-ISA*: also the same result across architectures and implementations,
+  which needs control over contraction, extended precision, and rounding
+  ([P3375R3](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3375r3.html)).
 
-The determinism requires adding separate, and likely more complex and less efficient algorithms.
-Cross-device determinism may not even be achievable in practice.
-Run-to-run determinism question is still open.
+[CCCL](https://github.com/NVIDIA/cccl/blob/main/docs/cccl/determinism.rst) defines these levels in
+`cuda::execution::determinism`, passed to algorithms through the execution environment:
 
-Extensive research: [P4229R0](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p4229r0.pdf).
+- *No determinism* (`not_guaranteed`): the result may differ between runs, even on the same GPU.
+- *Run-to-run* (`run_to_run`): the same result on the same GPU, with the same input, build, and tuning.
+- *GPU-to-GPU* (`gpu_to_gpu`): also the same result across GPU architectures.
 
-**Tentative Strategy**:
+`cub::DeviceSegmentedReduce` supports the first two, with run-to-run as the default.
 
-- Do not guarantee determinism, even the weakest run-to-run one.
-- Do our best to achieve run-to-run determinism where possible,
-  and document where it is not present (may be policy-dependent).
+oneDPL documents no floating point guarantees for `dpl::reduce` or `dpl::reduce_by_segment`.
+The table shows what the current implementation does.
+
+| Policy | Backend | `dpl::reduce` | `dpl::reduce_by_segment` |
+|---|---|---|---|
+| `seq` | - | *Expression-based*: left fold. | *Expression-based*: left fold. |
+| `unseq` | - | *No determinism* for `std::plus` on arithmetic types: `omp simd reduction` is used. Otherwise, *run-to-run*: fixed 64-byte lanes. | *No determinism* where `omp simd scan` is supported (icpx 2023.1+, not Windows). Otherwise, *expression-based*: left fold. |
+| `par` | TBB | *No determinism.* `tbb::parallel_reduce` split points depend on work stealing. | *No determinism.* `tbb::parallel_scan` split points depend on work stealing. |
+| `par` | OpenMP | *No determinism.* `omp taskloop` assigns chunks dynamically, making the combination order unpredictable. | *Expression-based*: left fold (the scan is serial). |
+| `par` | serial | Same as `seq`. | Same as `seq`. |
+| `par_unseq` | TBB | Same as `par`. | Same as `par`. |
+| `par_unseq` | OpenMP | Same as `par`. | Same as `unseq`. |
+| `par_unseq` | serial | Same as `unseq`. | Same as `unseq`. |
+| device | SYCL | *No determinism* for arithmetic types with standard operators, such as `std::plus<float>`: `sycl::reduce_over_group` is used. Otherwise, *run-to-run*: grouping depends on the work-group size, compute units, and input size. | *Run-to-run* (reduce-then-scan): values are combined only by oneDPL code. Grouping depends on sub-group sizes, work-group size, compute units, and cache size. |
+
+Run-to-run determinism is lost in three ways:
+
+- Dynamic partitioning: TBB `parallel_reduce` and `parallel_scan`, OpenMP `taskloop`.
+- OpenMP reductions and scans, including `omp simd` and `inscan` ones.
+  The OpenMP specification says that "the order in which values are combined [is] unspecified",
+  and "bitwise-identical results are not guaranteed" even between two parallel executions
+  (OpenMP 5.2 section 5.5.6, OpenMP 6.0 section 7.6.7).
+- SYCL group algorithms applied to floating point values.
+  SYCL 2020 (section 4.17.3.5) only calls their result non-deterministic for non-associative operators,
+  so they are assumed to provide no determinism.
+
+Potential implementation challenges for run-to-run determinism:
+
+- Load balancing with host execution:
+  work stealing balances the load, while it is more difficult to implement with a fixed partition.
+- Host vectorization: replacing `omp simd reduction`
+  with customly vectorized code is more difficult and may be less efficient.
+- Device group operations: replacing `sycl::reduce_over_group`
+  is more difficult and may be less efficient.
+- Long segments on a device: combining partial results across work-groups without atomics or
+  decoupled look-back cannot be used, which limits optimization opportunities.
+
+**Strategy**:
+
+- Do not guarantee determinism, consistently with `dpl::reduce` and `dpl::reduce_by_segment`.
+- Reconsider determinism in the future for specific policies
+  if there is demand and
+  if the implementation experience suggests that it is feasible.
 
 ### Binary Operation and Init Value Order
 
