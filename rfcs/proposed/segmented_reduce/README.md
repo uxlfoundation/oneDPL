@@ -18,7 +18,7 @@ Table of contents:
   - [Kernel Template or Core Algorithm Extension](#kernel-template-or-core-algorithm-extension)
   - [Empty, Overlapping, and Unordered Segments](#empty-overlapping-and-unordered-segments)
   - [Initial Value, its Default Value, and Identity](#initial-value-its-default-value-and-identity)
-  - [Bounding Input](#bounding-input)
+  - [Bounding Input and Negative Offsets](#bounding-input-and-negative-offsets)
   - [Fixed-Length Segments](#fixed-length-segments)
   - [Binary Operator](#binary-operator)
   - [Floating Point Determinism](#floating-point-determinism)
@@ -28,7 +28,6 @@ Table of contents:
   - [ArgMin and ArgMax semantics](#argmin-and-argmax-semantics)
   - [Accumulator Type](#accumulator-type)
   - [Return Value](#return-value)
-  - [Negative Offsets](#negative-offsets)
 - [Evolution](#evolution)
 - [Feature Macro](#feature-macro)
 - [Examples](#examples)
@@ -106,9 +105,12 @@ The implementation experience can guide the design of the tuning parameters for 
 Passing the temporary storage is an obvious gap,
 but the corresponding interface in kernel templates has not yet been defined.
 
+Note, full API compatibility with `cub::DeviceSegmentedReduce` is a non-goal for core algorithms,
+because it is a more high-level abstraction.
+
 **Strategy**: implement it as a core extension algorithm first.
 
-### Empty, Overlapping, and Unordered Segments
+### Empty, Overlapping, Negatively Sized, and Unordered Segments
 
 `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`
 support overlapping and unordered segments,
@@ -123,9 +125,16 @@ Adding support for overlapping or unordered segments can be considered in the fu
 Empty segment is supported by `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`.
 [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) also requests support for empty segments.
 
+A segment with a negative size (`offsets[i] > offsets[i + 1]`) can be considered empty.
+It is [erroneous behavior](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p2795r5.html),
+because it violates the assumption of consecutive segments,
+which can optionally be flagged in debug mode.
+
 **Strategy**:
 
-- Support empty segments,
+- Support empty segments.
+- Treat negatively sized segments as empty. Document this behavior.
+  Optionally, flag in debug mode, for example with an assertion.
 - Provide only one sequence of offsets (no overlapping or unordered segments).
 
 ### Initial Value, its Default Value, and Identity
@@ -178,41 +187,63 @@ Request the initial value to be passed explicitly by the user.
 Provide a default value when, again,
 [p3732r2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html) settles.
 
-### Bounding Input
+### Bounding Input and Negative Offsets
 
-`cub::DeviceSegmentedReduce` (variable-segments) and `rocprim::segmented_reduce`
+`cub::DeviceSegmentedReduce` (variable-length segments) and `rocprim::segmented_reduce`
 do not provide the end bound for the input range explicitly.
 The bound is implicitly determined by the segment offsets and the number of segments.
-Moreover, these segments may have gaps and be unordered.
+They also allow negative offsets,
+in which case the algorithms access the memory regions before the beginning of the input range.
 
 It has two issues:
-1. Safety: there is a risk of accessing out-of-bounds elements.
-  Although it is user's responsibility to provide correct offset sizes and sufficient input range,
-  it is still a hazard.
+
+1. Safety: there is a risk of accessing out-of-bounds elements,
+   both past the end and before the beginning of the input range.
 2. Performance: the only information guaranteed to be available on the host
-  to distribute the workload is the number of segments.
-  It either forces the implementation to assign a segment to a work-group,
-  which is not efficient with varying segment sizes,
-  and limits batching opportunities for better cache utilization,
-  or it involves additional checks to understand the actual input data space.
+   to distribute the workload is the number of segments.
+   It either forces the implementation to assign a segment to a work-group,
+   which is not efficient with varying segment sizes,
+   or it involves additional checks and kernel launches to understand the actual input data space.
 
-The interfaces must have the end bound to address these issues.
-
-If the end bound is provided, it creates another question about how to
+The interfaces should have the end bound to address these issues,
+and negative offsets should not be processed, or should be disallowed altogether.
+It creates another question about how to
 reconcile the input range size provided with the segment offsets,
-because both define the reduction range. Options:
+because both define the reduction range.
+See also [Different `first` and `last` Types](#different-first-and-last-types)
+for the case when `last` does not bound the input.
 
-1. Handle the minimum between `last - first` and segment offsets.
-  In this case, we will need to return stop positions in the input, output and offset arrays.
-2. Always handle all segments defined by offsets,
-  require the input range to cover all offsets.
+The offsets and output ranges are out of scope here,
+because their sizes are specified in a much more direct way via `num_segments`.
 
-Option (2) is preferred due to its alignment with expectations by the iterator-based interfaces.
-The bound checking in (1) can be implemented in the range-based interfaces if needed.
+The table below outlines the options for handling input bounds and negative offsets.
+Its notation:
 
-In the fixed-length segment scenario, the output bound should also be provided for safety reasons.
+- `N = last - first`.
+- Valid offsets: `0 <= offsets[0]` and `offsets[num_segments] <= N`
+  for variable-length segments
+  (the offsets are consecutive, see [Empty, Overlapping, Negatively Sized, and Unordered Segments](#empty-overlapping-negatively-sized-and-unordered-segments),
+  thus only the first and the last offsets define the bounds),
+  or non-negative `num_segments` and `segment_length` with `num_segments * segment_length <= N`
+  for fixed-length segments.
 
-**Strategy**: provide the end bounds for both variable-length and fixed-length segments.
+| Option | Alignment | Enforcement | Communication | Performance |
+|---|---|---|---|---|
+| (1) No preconditions, partial reduction of the segments crossing the bounds | Binary `std::ranges::transform`, `std::ranges::mismatch`, and `std::ranges::equal`, which process the minimum of two bounds and return the stop positions | Per-segment clamping, nothing is written for the segments entirely outside the bounds | Return value: output iterators to the first and past the last written segments (the first one is relevant only if negative offsets are allowed). Requires adjusting [Return Value](#return-value) | Variable-length: a few `min` and `max` operations per segment, negligible; returning iterators requires a device-to-host copy and a synchronization for device policies. Fixed-length: `min(num_segments, N / segment_length)` is computed on the host, no performance impact |
+| (2) No preconditions, skip segments crossing and beyond the bounds | No close precedent | Per-segment check, nothing is written for the skipped segments | Same as (1) | Same as (1) |
+| (3) Require valid offsets, stop if violated | Checked APIs such as `std::vector::at`, which is uncommon for the standard algorithms. Hardened preconditions ([C++26 hardening](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3471r4.html), libc++ hardening modes) also check the preconditions, but terminate instead of throwing | Variable-length: set a flag in the kernel and check it afterwards (the output is partially written). Fixed-length: a host-side check before the launch | An exception (e.g., `std::out_of_range`) | Variable-length with device policies: a small device-to-host copy and a synchronization; with host policies: negligible. Fixed-length: none |
+| (4) Require valid offsets, unspecified results but no out-of-bounds accesses to the input range if violated | [Erroneous behavior](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p2795r5.html): the behavior is well-defined but incorrect, and implementations may diagnose it | Clamping as in (1) or (2), whichever is cheaper for the backend, not specified | Silent, the output values are unspecified. Optionally, an assertion in debug mode | Same as (1) and (2), without the cost of returning iterators |
+| (5) Require valid offsets, document only | Standard practice for iterator-based algorithms: for example, `std::inplace_merge` requires `middle` to be a valid iterator within the range, otherwise, the behavior is undefined. It also matches the behavior of CUB and rocPRIM | None, except for optional host-side assertions in debug mode | None: out-of-bounds accesses, crashes or garbage results | None, `last` is used only for the workload distribution |
+
+**Tentative Strategy**:
+
+- Provide the end bounds for both variable-length and fixed-length segments.
+- Follow option (4): document the requirement for valid offsets,
+  and guarantee no out-of-bounds accesses to the input range if it is violated,
+  leaving the output values unspecified.
+  It addresses both safety and performance issues at a negligible cost,
+  and does not require synchronization or a change of the return value.
+- Leave the clamping approach to the implementation, and optionally add assertions in debug mode.
 
 ### Fixed-Length Segments
 
@@ -298,15 +329,7 @@ to `cub::DeviceSegmentedReduce` is the main motivation,
 therefore, the new overloads should have compatible interfaces
 and as close in argument order as possible.
 
-The table below shows the suggested argument order.
-It follows the argument order from `cub::DeviceSegmentedReduce`,
-adds an input boundary ([Bounding Input](#bounding-input)),
-replaces the separate begin and end offset ranges with a single sequence
-([Empty, Overlapping, and Unordered Segments](#empty-overlapping-and-unordered-segments)),
-and reorders the last two arguments
-([Binary Operation and Init Value Order](#binary-operation-and-init-value-order)).
-Lines are listed for comparison between oneDPL algorithsm,
-and CUB algorithms are shown for the reference on the arguments used.
+The table below shows the suggested argument order:
 
 | CUB `Reduce` (variable segments) | CUB `Reduce` (fixed segments) | Line | `dpl::reduce_by_segment` (key-based segments) | `dpl::reduce_by_segment` (variable segments) | `dpl::reduce_by_segment` (fixed segments) |
 |---|---|---|---|---|---|
@@ -428,35 +451,13 @@ In variable-length segments, an iterator past the last processed may differ from
 because the number of elements to process is determined by segment offsets,
 and is not known in advance.
 However, with consecutive segments,
-the `last` iterator can be easily calculated as `first + offsets[num_segments - 1]`,
+the iterator past the last processed element can be easily calculated as `first + offsets[num_segments]`.
 It is unclear if returning it is worth a copy of the data
 from the device to the host in case of device policies.
 
 In the fixed-segment case, the last output iterator is known: `out_first + num_segments`.
 
 **Tentative Strategy**. Return nothing for both variable-length and fixed-segment overloads.
-
-### Negative Offsets
-
-`cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce` allow negative segments.
-In this case, the algorithms may access the memory regions before the beginning of the input range.
-It is dangerous and should be prohibited.
-
-Handling options:
-
-1. Allow passing only unsigned offsets.
-2. Document the requirement, which results in undefined behavior if violated, and do nothing at the implementation level.
-3. Stop the algorithm if a negative offset is detected.
-4. Skip accessing memory before the beginning of the input range or whole segments with negative offsets.
-
-(1) may be not compatible with the existing code bases.
-(2) is dangerous, but acceptable. This approach is commonly used in the standard library.
-For example, `std::inplace_merge` requires data to be sorted,
-and `middle` must be a valid iterator within the range, otherwise, the behavior is undefined.
-(3) and (4) can be treated as actions to take for the undefined behavior scenarios
-to avoid segmentation faults when contract is violated, which is optional.
-
-**Strategy**: Document the requirement to avoid negative offsets.
 
 ## Evolution
 
@@ -577,3 +578,8 @@ and have comprehensive coverage.
 `last` can have a different type than `first`.
 For example, it may be useful to pass `std::unreachable_sentinel` for better compatibility with CUB and rocPRIM,
 assuming projects using these APIs have already built their code around and have lost the information about `last`.
+
+Note, in this case `last` does not bound the input,
+so the safety and performance benefits described in
+[Bounding Input and Negative Offsets](#bounding-input-and-negative-offsets) are lost,
+and the behavior falls back to option (5) from that section.
