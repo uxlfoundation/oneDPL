@@ -57,8 +57,11 @@ run_archetype_view_all_policies(Algo algo, Checker checker, const char* algo_nam
 
 #if TEST_DPCPP_BACKEND_PRESENT
     auto policy = TestUtils::get_dpcpp_test_policy<call_id>();
-    sycl::usm_allocator<Elem, sycl::usm::alloc::shared> q_alloc{policy.queue()};
-    run_over_archetype_view<Elem>(q_alloc, policy, algo, checker, algo_name);
+    if (policy.queue().get_device().has(sycl::aspect::usm_shared_allocations))
+    {
+        sycl::usm_allocator<Elem, sycl::usm::alloc::shared> q_alloc{policy.queue()};
+        run_over_archetype_view<Elem>(q_alloc, policy, algo, checker, algo_name);
+    }
 #endif //TEST_DPCPP_BACKEND_PRESENT
 }
 

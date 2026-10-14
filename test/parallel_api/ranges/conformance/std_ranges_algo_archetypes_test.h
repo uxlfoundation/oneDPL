@@ -68,10 +68,25 @@ make_out_storage(_Policy&& __policy, std::size_t __n)
     return make_storage<_Elem>(std::forward<_Policy>(__policy), __n, [](std::size_t) { return 0; });
 }
 
+template <typename _Policy>
+bool
+storage_supported(_Policy& __policy)
+{
+#if TEST_DPCPP_BACKEND_PRESENT
+    if constexpr (is_device_policy_v<std::remove_cvref_t<_Policy>>)
+        return __policy.queue().get_device().has(sycl::aspect::usm_shared_allocations);
+    else
+#endif
+        return true;
+}
+
 template <typename _Elem, typename _Policy, typename _Algo, typename _Checker>
 void
 run_algo(_Policy&& __policy, _Algo __algo, _Checker __checker, const char* __algo_name)
 {
+    if (!storage_supported(__policy))
+        return;
+
     auto __storage = make_storage<_Elem>(__policy, archetype_test_size, archetype_index_factory);
     auto __view = __storage.view();
 
@@ -84,6 +99,9 @@ template <typename _Elem1, typename _Elem2, typename _Policy, typename _Algo, ty
 void
 run_algo2(_Policy&& __policy, _Algo __algo, _Checker __checker, const char* __algo_name)
 {
+    if (!storage_supported(__policy))
+        return;
+
     auto __storage1 = make_storage<_Elem1>(__policy, archetype_test_size, archetype_index_factory);
     auto __storage2 = make_storage<_Elem2>(__policy, archetype_test_size, archetype_index_factory);
     auto __view1 = __storage1.view();
@@ -98,6 +116,9 @@ template <typename _Elem1, typename _Elem2, typename _Policy, typename _Algo, ty
 void
 run_algo2_offset(_Policy&& __policy, _Algo __algo, _Checker __checker, const char* __algo_name)
 {
+    if (!storage_supported(__policy))
+        return;
+
     auto __storage1 = make_storage<_Elem1>(__policy, archetype_test_size, archetype_index_factory);
     auto __storage2 = make_storage<_Elem2>(__policy, archetype_test_size, archetype_offset_index_factory);
     auto __view1 = __storage1.view();
@@ -112,6 +133,9 @@ template <typename _Elem, typename _Policy, typename _Algo, typename _Checker>
 void
 run_algo_plain(_Policy&& __policy, _Algo __algo, _Checker __checker, const char* __algo_name)
 {
+    if (!storage_supported(__policy))
+        return;
+
     auto __storage = make_storage<_Elem>(__policy, archetype_test_size, archetype_index_factory);
     auto __view = __storage.template view<archetypes::plain_archetype_view>();
 
@@ -124,6 +148,9 @@ template <typename _Elem1, typename _Elem2, typename _Policy, typename _Algo, ty
 void
 run_algo2_plain(_Policy&& __policy, _Algo __algo, _Checker __checker, const char* __algo_name)
 {
+    if (!storage_supported(__policy))
+        return;
+
     auto __storage1 = make_storage<_Elem1>(__policy, archetype_test_size, archetype_index_factory);
     auto __storage2 = make_storage<_Elem2>(__policy, archetype_test_size, archetype_index_factory);
     auto __view1 = __storage1.template view<archetypes::plain_archetype_view>();
