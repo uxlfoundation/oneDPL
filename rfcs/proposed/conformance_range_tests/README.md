@@ -54,7 +54,7 @@ The proposal has three parts:
 | `conformance/std_ranges_algo_archetypes_{read,value,cross,write,permute,merge,storable}.pass.cpp`, `conformance/std_ranges_memory_archetypes.pass.cpp` | the eight test targets |
 | `std_ranges_test.h` and eleven `std_ranges_*.pass.cpp` | projection checks, unique kernel names |
 | `std_ranges_memory_test.h`, `std_ranges_partial_sort_copy.pass.cpp`, `std_ranges_rotate_copy.pass.cpp` | smaller changes to the existing tests |
-| `test/support/test_config.h` | 33 broken test macros |
+| `test/support/test_config.h` | 32 broken test macros |
 
 ### Archetype Conformance Suite
 
@@ -133,7 +133,8 @@ in the third one:
 - `*_all_policies<E, E_dc, CallId>` runs both, with the host element on the host and the `_dc` element on the device.
 
 `CallId` must be unique within a translation unit, because the policy name becomes part of the SYCL kernel names
-(`-fno-sycl-unnamed-lambda`).
+(`-fno-sycl-unnamed-lambda`). A device run is skipped when the device does not support USM shared allocations,
+as in the projection helpers.
 
 ```cpp
 // reverse_copy from a non-copyable input into an output that is assignable only from a non-const input lvalue
@@ -226,7 +227,7 @@ The `result_as_is`, `result_index`, `result_subrange` and `result_indices` reduc
 into a `std::vector<int>`, so that the result can be compared with the serial checker's result.
 
 The algorithms covered are `equal`, `mismatch`, `search`, `find_end`, `find_first_of`, `starts_with`, `ends_with`,
-`contains_subrange`, `merge` and `transform`.
+`contains_subrange`, `lexicographical_compare`, `merge` and `transform`.
 
 **Data level.** The data is generated so that the result is correct only if each projection reaches its own
 sequence. One sequence is generated as `i`, the other as `2 * i` or `4 * i + 2`, and the projection makes them
@@ -245,10 +246,9 @@ match. This is done for `equal`, `find_end` and `find_first_of`. `lexicographica
 - **`std_ranges_memory_test.h`.** `test_memory_algo` gets `call_id` (for kernel names) and `OutElem` (the output
   element type of `uninitialized_copy` and `uninitialized_move`) template parameters. Both have defaults, so the
   existing tests are unchanged.
-- **`std_ranges_partial_sort_copy.pass.cpp`.** `test_projections_consistency()` uses two projections that order the
-  input and the output differently, and compares every policy with `seq`. These projections violate a precondition
-  of `partial_sort_copy`, so the test is to be replaced (T1 in
-  [Classification of the Disabled Calls](#classification-of-the-disabled-calls)).
+- **`std_ranges_partial_sort_copy.pass.cpp`.** `test_projections_consistency()` uses two different projections,
+  `-2 * x` for the input and `-x` for the output, which order both ranges the same way, as [partial.sort.copy]/4
+  requires. It compares the result of every policy, the device one included, with the expected one.
 
 ### Tracking Known Implementation Gaps
 
@@ -300,9 +300,10 @@ macro. One macro per defect is easier to maintain than per-side bookkeeping.
 
 #### Classification of the Disabled Calls
 
-There are 33 broken test macros (32 `_REQUIRES_` and one `_WRONG_RESULT_`) over 60 disabled calls. The tables below
-classify every call by what fails and why. They describe the head of PR #2832 at `adaabb332`, which contains `main`
-as of 2026-10-13.
+There are 32 broken test macros, all of them `_REQUIRES_`, over 59 disabled calls. The tables below classify every
+call by what fails and why. The calls were measured at `adaabb332`, a head of PR #2832 that contains `main` as of
+2026-10-13. The test commits after it, up to `ecfe2a5b3`, change no library code; what they changed in the macros
+is described in [Removing a Broken Test Macro](#removing-a-broken-test-macro). Call sites refer to `ecfe2a5b3`.
 
 **Method.** Each disabled call is compiled on its own: a copy of its test file has only that macro set to `0`
 (with the outer guard of the host idiom), and every other macro stays `1`. A copy per call is needed because Clang
@@ -317,16 +318,14 @@ hides the next. Each copy is compiled with `-fsyntax-only -std=c++20` in the mod
 Every error is attributed to the first oneDPL frame outside the generic wrappers in `utils.h` (`__binary_op`,
 `__unary_op`, ...). Where that frame only passes the problem on, the tables cite the line that reading the code
 shows as the cause, for example `utils.h:170`, `:451` or `:1137`. Every test target compiles cleanly in every mode
-with all macros at `1`. The wrong-result macro was checked at run time by a probe that repeats the calls of its
-test and prints the result of every policy, on Linux with a CPU device and on Windows with a CPU and a GPU device.
+with all macros at `1`.
 
 Limits of the method: a host cell fails if any of the four host policies fails; MSVC `cl`, Clang and libc++ were not
 measured; and an error can hide another one behind it, for example in a function template that overload resolution
 already rejected. A fix of one class can therefore expose the next.
 
 **Defect classes.** `D` classes break only the device policy, `H` classes only the host policies (some of the
-cited lines are in code that both sides share), and `T` is a test defect. Paths are relative to
-`include/oneapi/dpl/pstl/`.
+cited lines are in code that both sides share). Paths are relative to `include/oneapi/dpl/pstl/`.
 
 | Class | What the implementation does | Where | What the requirements grant instead |
 |---|---|---|---|
@@ -342,7 +341,6 @@ cited lines are in code that both sides share), and `T` is a test defect. Paths 
 | H4 | oneDPL calls `std::ranges::stable_sort` as the leaf sort of `stable_sort` with every host policy (on the whole range for `seq` and `unseq`, on each chunk for `par` and `par_unseq`), and `std::ranges::inplace_merge` in the serial `inplace_merge`. libstdc++ 13 implements both on top of its classic algorithms and calls the comparator with `const` lvalues; the Microsoft STL does not. | `glue_algorithm_ranges_impl.h:578`, reached through `algorithm_ranges_impl.h:453-455` and `algorithm_impl.h:2544`, `:2555-2558`; `algorithm_ranges_impl.h:847` | the same as D1; the defect is in the standard library, and oneDPL inherits it |
 | H5 | The serial `inplace_merge` returns `__end(__r)` as `borrowed_iterator_t<R>`. For a range that is not common, that is the sentinel, which does not convert. | `algorithm_ranges_impl.h:848` | `bidirectional_range`; `common_range` is not required |
 | H6 | `__replace_copy_functor` stores a copy of the new value (`const _Tp _M_value`), which needs a copyable `_Tp`. With a value that is not copyable, the functor is not copyable either, and every walk copies the functor. With g++ the first error comes earlier: `__ref_or_copy<_ExecutionPolicy, const _T>{__new_value}` is a braced cast to a reference type, which g++ 13 evaluates by copying. | `utils.h:451`, `:455`, created at `algorithm_ranges_impl.h:1754`; `glue_algorithm_ranges_impl.h:1182` | `indirectly_writable<O, const T&>` does not make `T` copyable |
-| T1 | The test uses projections that order the input and the output differently (`-x` and `x`). That violates the precondition of `partial_sort_copy` that writing a value into the output does not change how `comp` with `proj1` or `proj2` orders it ([partial.sort.copy]/4 in the working draft; C++20 has no such paragraph). The parallel and device patterns rely on that precondition: they apply only `proj2`, after copying. | test: `std_ranges_partial_sort_copy.pass.cpp:78`; library: `algorithm_ranges_impl.h:510`, `hetero/algorithm_ranges_impl_hetero.h:1533` | the precondition makes `proj1` and `proj2` interchangeable for ordering |
 
 **Macros.** "Host" is the outcome with the four host policies, "device" the outcome with the device policy; a
 dash means that the macro does not cover that side.
@@ -358,7 +356,7 @@ dash means that the macro does not cover that side.
 | `IS_HEAP_HETERO` | `read:308` | — | fails | D1 |
 | `IS_HEAP_UNTIL_HETERO` | `read:320` | — | fails | D1 |
 | `IS_PARTITIONED_HETERO` | `read:251` | — | fails | D1 |
-| `LEXICOGRAPHICAL_COMPARE` | `cross:177` | **compiles** | fails | D1 |
+| `LEXICOGRAPHICAL_COMPARE_HETERO` | `cross:186` | — | fails | D1 |
 | `MAX_HOST` | `storable:71` | all backends | — | H3 |
 | `MINMAX_HOST` | `storable:89` | all backends | — | H3 |
 | `MIN_HOST` | `storable:55` | all backends | — | H3 |
@@ -381,22 +379,17 @@ dash means that the macro does not cover that side.
 | `STABLE_PARTITION_HETERO` | `permute:222` | — | fails | D1 |
 | `STABLE_SORT` | `permute:113`, `permute:245`, `permute:333`, `permute:402` | OpenMP; for `permute:245` TBB too, and with libstdc++ serial too | fails only for `permute:402` | H2; H3 and H4 for `permute:245`; D6 for `permute:402` |
 | `UNIQUE_COPY_HETERO` | `write:182`, `write:380` | — | fails | D3 |
-| `WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1` | `std_ranges_partial_sort_copy.pass.cpp:78` | `par` and `par_unseq` differ from `seq` | differs from `seq` | T1 |
 
-The `_REQUIRES_` macros are shown without the common prefix `_TEST_CPP20_RANGES_BROKEN_REQUIRES_`, the
-wrong-result macro without `_TEST_CPP20_RANGES_BROKEN_`. A call site `<family>:<line>` is a line of
-`conformance/std_ranges_algo_archetypes_<family>.pass.cpp`. The per-call results, with the backends and the standard
-libraries apart, are in [Appendix A](#appendix-a-disabled-calls).
+The macros are shown without the common prefix `_TEST_CPP20_RANGES_BROKEN_REQUIRES_`. A call site `<family>:<line>`
+is a line of `conformance/std_ranges_algo_archetypes_<family>.pass.cpp`. The per-call results, with the backends
+and the standard libraries apart, are in [Appendix A](#appendix-a-disabled-calls).
 
 **What the classification shows.**
-- **The defects are few.** Twelve library classes and one test defect explain all 60 calls. 23 of the 32
-  `_REQUIRES_` macros have a single class: D1 seven of them, D3 five, H3 four, D4 three, H6 two, D2 and D5 one each.
-  The other nine (the four set algorithms, `sort`, `stable_sort`, `partial_sort`, `partial_sort_copy` and
-  `inplace_merge`) combine two to four classes, so each of them needs more than one fix before it can be removed.
-  The most frequent classes are D1 (in 12 macros), H3 (9), D6 (6), D3 and H1 (5 each).
-- **One label is wrong.** `LEXICOGRAPHICAL_COMPARE` compiles on the host in every cell; only the device fails (D1).
-  The host defect the macro was introduced for has been fixed. The macro should become `..._HETERO`, with the call
-  split.
+- **The defects are few.** Twelve library classes explain all 59 calls. 23 of the 32 macros have a single class: D1
+  seven of them, D3 five, H3 four, D4 three, H6 two, D2 and D5 one each. The other nine (the four set algorithms,
+  `sort`, `stable_sort`, `partial_sort`, `partial_sort_copy` and `inplace_merge`) combine two to four classes, so
+  each of them needs more than one fix before it can be removed. The most frequent classes are D1 (in 12 macros),
+  H3 (9), D6 (6), D3 and H1 (5 each).
 - **Macros without a suffix also disable nine device calls that compile.** By the collapse rule, `SORT`,
   `STABLE_SORT` and `INPLACE_MERGE` have no suffix because one call of each fails on the device too (`permute:389`,
   `permute:402` and `permute:309`). Their nine other calls (`permute:101`, `:113`, `:172`, `:233`, `:245`, `:323`,
@@ -405,32 +398,35 @@ libraries apart, are in [Appendix A](#appendix-a-disabled-calls).
   the sort calls with a `const` comparator, the default comparator, a projected key or a plain range fail only
   with OpenMP, and compile with TBB and with the serial backend. D5 and H4 appear only with libstdc++. With g++,
   H6 starts with an extra error of its own.
-- **One macro covers a test defect (T1).** `test_projections_consistency()` uses projections that violate the
-  precondition of `partial_sort_copy`, so the behavior is undefined. The library behavior that the test reports (`par`,
-  `par_unseq` and the device apply only `proj2`) is allowed by that precondition. Even `seq` gives different results
-  with the two standard libraries: compared with `par`, the result of the Microsoft STL differs in 8201 of 16385
-  elements, starting at index 8184, and the result of libstdc++ only in the last element. The test should use
-  projections that satisfy the precondition, and the macro should be removed.
 
 #### Removing a Broken Test Macro
 
 Set the macro to `0`, then build and run the targets that use it, in the modes its suffix names (to check several
 macros, set them to `0` one call at a time, see the method above). If they pass, the fix is in, and the macro and
-its `#if` blocks are removed. Four macros have been removed this way
-after library fixes so far:
+its `#if` blocks are removed. So far four macros have been removed and two narrowed to the side that still fails:
 - `_TEST_BROKEN_WRONG_RESULT_FIND_FIRST_OF_UNSEQ`, a former broken test macro of the iterator-level test
   `alg.nonmodifying/find_first_of.pass.cpp`, and `_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_FIND_FIRST_OF_PROJ1_HOST`
   were removed after the `__simd_find_first_of()` fix;
-- `_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF` was removed after the same fix, and its remaining device case
-  was narrowed to `_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HETERO`;
+- `_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF` was narrowed to
+  `_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF_HETERO` after the same fix;
 - `_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_LEXICOGRAPHICAL_COMPARE_PROJ1_HOST` was removed after the fix of the
-  vectorized `__brick_lexicographical_compare`.
+  vectorized `__brick_lexicographical_compare`. `_TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE` was
+  narrowed to `_TEST_CPP20_RANGES_BROKEN_REQUIRES_LEXICOGRAPHICAL_COMPARE_HETERO` once the classification showed that
+  its host half compiles everywhere after that fix;
+- `_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1` was removed with a fix of its test, not of the
+  library. The projections of `test_projections_consistency()` (`-x` for the input, `x` for the output) violated the
+  precondition of `partial_sort_copy` that writing a value into the output does not change how `comp` with `proj1`
+  or `proj2` orders it ([partial.sort.copy]/4 in the working draft; C++20 has no such paragraph), so the behavior was
+  undefined. The parallel and device patterns, which apply only `proj2` after copying (`algorithm_ranges_impl.h:510`,
+  `hetero/algorithm_ranges_impl_hetero.h:1533`), were within that contract. Even `seq` gave different results with
+  the two standard libraries: compared with `par`, the result of the Microsoft STL differed in 8201 of 16385 elements,
+  starting at index 8184, and the result of libstdc++ only in the last element.
 
 #### Alternatives to New Broken Test Macros
 
 A broken test macro keeps a failing scenario as code that compiles as soon as the macro is set to `0`. It needs one
 switch per defect, lists all open gaps in `test_config.h`, and a fix is checked by changing one value. The cost is
-33 new macros in a shared header, each defined to `1` in every configuration (see [Open Questions](#open-questions)),
+32 new macros in a shared header, each defined to `1` in every configuration (see [Open Questions](#open-questions)),
 and the per-side bookkeeping of the idioms above. Three other ways to handle a failing scenario do without a new
 broken test macro:
 
@@ -459,7 +455,9 @@ broken test macro:
   `GLOB_RECURSE` and labels them `parallel_api;ranges;conformance`. Running `ctest -L ranges` or
   `ctest -L conformance` selects them.
 - **Standard.** They need C++20 with `std::ranges` (`_ENABLE_STD_RANGES_TESTING`); otherwise they compile to a skip.
-- **Device part.** It is compiled when `TEST_DPCPP_BACKEND_PRESENT` and uses USM shared allocations.
+- **Device part.** It is compiled when `TEST_DPCPP_BACKEND_PRESENT` and uses USM shared allocations. The archetype
+  runs are skipped on a device without them; the memory harness of the existing tests, which the memory family
+  also uses, still assumes them.
 - **Public CI.** The names match the `std_ranges_.*` filter that public CI uses for the DPC++ backend on non-FPGA
   devices (`.github/scripts/run-linux-tests.sh`), so they run in those device cells as well. They build cleanly with
   the CI warning flags (`-Wall -Werror`, `/W4 /WX`); the compile-out idiom above exists for that.
@@ -485,7 +483,6 @@ These are known, accepted limits of the current suite. Some of them are listed a
 - **Indeterminate values and unconstructed objects.** Like the existing memory tests, some checks read fields that
   no constructor wrote and run `destroy` over storage where no object was constructed. A fully conforming variant
   needs `std::byte` sentinels in the shared harness.
-- **`lexicographical_compare` has no compile-level projection check.** It has only the data-level cases.
 
 ### Alternatives Considered
 
@@ -508,30 +505,24 @@ These are known, accepted limits of the current suite. Some of them are listed a
   root cause and the affected `file:line`?
 - **Broken test macros or an alternative?** Should a new failing scenario get a broken test macro, or one of the
   [alternatives](#alternatives-to-new-broken-test-macros): a separate test that does not compile, commented-out
-  code, or a description of what to test after the fix? Should the existing 33 macros be converted as well?
-- **Labels after the classification.** Should `LEXICOGRAPHICAL_COMPARE` become `..._HETERO` (its host half compiles
-  everywhere)? Should the collapse rule give way when a macro without a suffix also disables device calls that compile:
-  nine such calls are under `SORT`, `STABLE_SORT` and `INPLACE_MERGE`?
+  code, or a description of what to test after the fix? Should the existing 32 macros be converted as well?
+- **The collapse rule.** Should it give way when a macro without a suffix also disables device calls that compile?
+  Nine such calls are under `SORT`, `STABLE_SORT` and `INPLACE_MERGE`.
 - **Backend- and library-specific gaps.** H2 exists only with the OpenMP backend, D5 and H4 only with libstdc++. A
   macro is defined to `1` everywhere, so these calls lose coverage on every backend and standard library. Should such
   macros depend on the configuration, for example `ONEDPL_USE_OPENMP_BACKEND` or `_GLIBCXX_RELEASE`?
 - **Standard-library defects.** H4 is in libstdc++'s `std::ranges::stable_sort` and `std::ranges::inplace_merge`,
   which the host patterns call. Should oneDPL stop delegating there, or should the gap be reported upstream and the
   macro kept?
-- **The `partial_sort_copy` projection test (T1).** Replace the projections of `test_projections_consistency()`
-  with a pair that satisfies [partial.sort.copy]/4, and remove
-  `_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1`?
 - **Stronger checks.** Use shuffled or descending input for the sorting algorithms, check the full output of
   `remove`, `merge` and the set algorithms, and use distinct inputs for `uninitialized_copy` and
   `uninitialized_move`.
 - **Device coverage of non-copyable types.** Can some device-copyable archetypes keep a deleted copy assignment, or
   is `sycl::is_device_copyable` specialization needed for that?
-- **Wider coverage.** Heterogeneous default predicates, more `plain_archetype_view` calls, the remaining
-  `oneapi::dpl::ranges` algorithms, and the compile-level projection check for `lexicographical_compare`.
+- **Wider coverage.** Heterogeneous default predicates, more `plain_archetype_view` calls, and the remaining
+  `oneapi::dpl::ranges` algorithms.
 - **Conforming memory tests.** Move the shared memory harness to `std::byte` sentinels and construct objects before
   `destroy`, in the existing tests as well.
-- **Devices without USM shared allocations.** The conformance driver assumes them, while the projection helpers skip
-  such devices.
 
 ## Appendix A: Disabled Calls
 
@@ -554,7 +545,7 @@ in every cell; where the two standard libraries differ, both are given.
 | `value:98` | find_last, noncopyable value | `FIND_LAST_HETERO` | not disabled | fails | D4 |
 | `value:156` | find_last, non-const projection | `FIND_LAST_HETERO` | not disabled | fails | D4 |
 | `cross:146` | find_first_of, non-const callable | `FIND_FIRST_OF_HETERO` | not disabled | fails | D1 |
-| `cross:177` | lexicographical_compare, non-const comparator | `LEXICOGRAPHICAL_COMPARE` | compiles | fails | D1 |
+| `cross:186` | lexicographical_compare, non-const comparator | `LEXICOGRAPHICAL_COMPARE_HETERO` | not disabled | fails | D1 |
 | `write:76` | rotate_copy | `ROTATE_COPY_HETERO` | not disabled | fails | D2 |
 | `write:150` | copy_if | `COPY_IF_HETERO` | not disabled | fails | D3 |
 | `write:166` | remove_copy_if | `REMOVE_COPY_IF_HETERO` | not disabled | fails | D3 |
@@ -602,4 +593,3 @@ in every cell; where the two standard libraries differ, both are given.
 | `storable:55` | min, non-const comparator | `MIN_HOST` | all backends | not disabled | H3 |
 | `storable:71` | max, non-const comparator | `MAX_HOST` | all backends | not disabled | H3 |
 | `storable:89` | minmax, non-const comparator | `MINMAX_HOST` | all backends | not disabled | H3 |
-| `std_ranges_partial_sort_copy.pass.cpp:78` | `test_projections_consistency()` | `WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1` | `par`, `par_unseq` differ from `seq` | differs from `seq` | T1 |
