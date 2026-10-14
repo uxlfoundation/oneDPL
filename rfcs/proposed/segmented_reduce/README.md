@@ -697,14 +697,19 @@ Stage (1) in detail:
 
 ## Feature Macro
 
-The API is expected to evolve, hence a feature macro should be defined for convenience.
+The API is expected to evolve,
+hence a feature macro should be defined for convenience.
+
 For example:
 
-- `ONEDPL_HAS_REDUCE_BY_SEGMENT 202109L`
+- `ONEDPL_HAS_SEGMENTED_ALGORITHMS 202109L`
   for the current state as it already has the key-based segmented reduction,
-- `ONEDPL_HAS_REDUCE_BY_SEGMENT 202611L` with the next version, e.g.,
-   including device policy support and variable-length overloads of `reduce_by_segment`.
-- `ONEDPL_HAS_REDUCE_BY_SEGMENT YYYYMML` for future versions.
+- `ONEDPL_HAS_SEGMENTED_ALGORITHMS 202611L` with the next version,
+   e.g., including device policy `reduce_by_segment`.
+- `ONEDPL_HAS_SEGMENTED_ALGORITHMS YYYYMML` for future versions.
+
+`ONEDPL_HAS_SEGMENTED_ALGORITHMS` will also cover
+future segmented algorithms beyond `reduce_by_segment`.
 
 ## Examples
 
