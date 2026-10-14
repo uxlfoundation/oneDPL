@@ -136,53 +136,38 @@ main()
         },
         [](auto&&, auto&&, auto res) { return res; }, "transform, binary, projections");
 
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_all_policies<copy_in_archetype, copy_out_archetype, copy_in_archetype_dc, copy_out_archetype_dc, 10>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::copy_if(std::forward<decltype(policy)>(policy), in_view, out_view, copy_pred{});
-        };
-        auto check = [](auto&& in_view, auto&& out_view, auto res) {
+        },
+        [](auto&& in_view, auto&& out_view, auto res) {
             const auto n = std::ranges::size(in_view);
             return std::ranges::begin(out_view)[1].val == 3 &&
                    (std::size_t)(res.out - std::ranges::begin(out_view)) == (n + 2) / 3;
-        };
+        },
+        "copy_if");
 
-        run_algo2_host_policies<copy_in_archetype, copy_out_archetype>(call, check, "copy_if");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_COPY_IF_HETERO
-        run_algo2_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 10>(call, check, "copy_if");
-#endif
-    }
-
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_all_policies<copy_in_archetype, copy_out_archetype, copy_in_archetype_dc, copy_out_archetype_dc, 11>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::remove_copy_if(std::forward<decltype(policy)>(policy), in_view, out_view, copy_pred{});
-        };
-        auto check = [](auto&& in_view, auto&& out_view, auto res) {
+        },
+        [](auto&& in_view, auto&& out_view, auto res) {
             const auto n = std::ranges::size(in_view);
             return std::ranges::begin(out_view)[0].val == 1 &&
                    (std::size_t)(res.out - std::ranges::begin(out_view)) == n - (n + 2) / 3;
-        };
+        },
+        "remove_copy_if");
 
-        run_algo2_host_policies<copy_in_archetype, copy_out_archetype>(call, check, "remove_copy_if");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_IF_HETERO
-        run_algo2_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 11>(call, check, "remove_copy_if");
-#endif
-    }
-
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_all_policies<copy_in_archetype, copy_out_archetype, copy_in_archetype_dc, copy_out_archetype_dc, 12>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::unique_copy(std::forward<decltype(policy)>(policy), in_view, out_view, copy_equiv{});
-        };
-        auto check = [](auto&& in_view, auto&& out_view, auto res) {
+        },
+        [](auto&& in_view, auto&& out_view, auto res) {
             const auto n = std::ranges::size(in_view);
             return std::ranges::begin(out_view)[1].val == 3 &&
                    (std::size_t)(res.out - std::ranges::begin(out_view)) == (n + 2) / 3;
-        };
-
-        run_algo2_host_policies<copy_in_archetype, copy_out_archetype>(call, check, "unique_copy");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_UNIQUE_COPY_HETERO
-        run_algo2_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 12>(call, check, "unique_copy");
-#endif
-    }
+        },
+        "unique_copy");
 
     {
         auto call = [](auto&& policy, auto&& in_view, auto&& out_true_view) {
@@ -227,21 +212,17 @@ main()
         },
         "replace");
 
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_all_policies<remove_copy_in_archetype, copy_out_archetype, remove_copy_in_archetype_dc,
+                           copy_out_archetype_dc, 16>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::remove_copy(std::forward<decltype(policy)>(policy), in_view, out_view, search_value{3});
-        };
-        auto check = [](auto&& in_view, auto&& out_view, auto res) {
+        },
+        [](auto&& in_view, auto&& out_view, auto res) {
             const auto n = std::ranges::size(in_view);
             return std::ranges::begin(out_view)[3].val == 4 &&
                    (std::size_t)(res.out - std::ranges::begin(out_view)) == n - 1;
-        };
-
-        run_algo2_host_policies<remove_copy_in_archetype, copy_out_archetype>(call, check, "remove_copy");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_HETERO
-        run_algo2_hetero_policies<remove_copy_in_archetype_dc, copy_out_archetype_dc, 16>(call, check, "remove_copy");
-#endif
-    }
+        },
+        "remove_copy");
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_IF_HOST || TEST_DPCPP_BACKEND_PRESENT
     {
@@ -329,59 +310,40 @@ main()
         },
         [](auto&&, auto&&, auto res) { return res; }, "transform, binary, non-const projections");
 
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_all_policies<copy_in_archetype, copy_out_archetype, copy_in_archetype_dc, copy_out_archetype_dc, 23>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::copy_if(std::forward<decltype(policy)>(policy), in_view, out_view, copy_pred_mut{});
-        };
-        auto check = [](auto&& in_view, auto&& out_view, auto res) {
+        },
+        [](auto&& in_view, auto&& out_view, auto res) {
             const auto n = std::ranges::size(in_view);
             return std::ranges::begin(out_view)[1].val == 3 &&
                    (std::size_t)(res.out - std::ranges::begin(out_view)) == (n + 2) / 3;
-        };
+        },
+        "copy_if, non-const predicate");
 
-        run_algo2_host_policies<copy_in_archetype, copy_out_archetype>(call, check, "copy_if, non-const predicate");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_COPY_IF_HETERO
-        run_algo2_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 23>(call, check,
-                                                                                   "copy_if, non-const predicate");
-#endif
-    }
-
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_all_policies<copy_in_archetype, copy_out_archetype, copy_in_archetype_dc, copy_out_archetype_dc, 24>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::remove_copy_if(std::forward<decltype(policy)>(policy), in_view, out_view,
                                               copy_pred_mut{});
-        };
-        auto check = [](auto&& in_view, auto&& out_view, auto res) {
+        },
+        [](auto&& in_view, auto&& out_view, auto res) {
             const auto n = std::ranges::size(in_view);
             return std::ranges::begin(out_view)[0].val == 1 &&
                    (std::size_t)(res.out - std::ranges::begin(out_view)) == n - (n + 2) / 3;
-        };
+        },
+        "remove_copy_if, non-const predicate");
 
-        run_algo2_host_policies<copy_in_archetype, copy_out_archetype>(call, check,
-                                                                       "remove_copy_if, non-const predicate");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_IF_HETERO
-        run_algo2_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 24>(
-            call, check, "remove_copy_if, non-const predicate");
-#endif
-    }
-
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_all_policies<copy_in_archetype, copy_out_archetype, copy_in_archetype_dc, copy_out_archetype_dc, 25>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::unique_copy(std::forward<decltype(policy)>(policy), in_view, out_view,
                                            copy_equiv_mut{});
-        };
-        auto check = [](auto&& in_view, auto&& out_view, auto res) {
+        },
+        [](auto&& in_view, auto&& out_view, auto res) {
             const auto n = std::ranges::size(in_view);
             return std::ranges::begin(out_view)[1].val == 3 &&
                    (std::size_t)(res.out - std::ranges::begin(out_view)) == (n + 2) / 3;
-        };
-
-        run_algo2_host_policies<copy_in_archetype, copy_out_archetype>(call, check, "unique_copy, non-const relation");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_UNIQUE_COPY_HETERO
-        run_algo2_hetero_policies<copy_in_archetype_dc, copy_out_archetype_dc, 25>(call, check,
-                                                                                   "unique_copy, non-const relation");
-#endif
-    }
+        },
+        "unique_copy, non-const relation");
 
     {
         auto call = [](auto&& policy, auto&& in_view, auto&& out_true_view) {
@@ -428,24 +390,18 @@ main()
         },
         "replace, non-const projection");
 
-    {
-        auto call = [](auto&& policy, auto&& in_view, auto&& out_view) {
+    run_algo2_all_policies<remove_copy_in_archetype, copy_out_archetype, remove_copy_in_archetype_dc,
+                           copy_out_archetype_dc, 29>(
+        [](auto&& policy, auto&& in_view, auto&& out_view) {
             return dpl_ranges::remove_copy(std::forward<decltype(policy)>(policy), in_view, out_view, search_value{3},
                                            replace_proj_mut{});
-        };
-        auto check = [](auto&& in_view, auto&& out_view, auto res) {
+        },
+        [](auto&& in_view, auto&& out_view, auto res) {
             const auto n = std::ranges::size(in_view);
             return std::ranges::begin(out_view)[3].val == 4 &&
                    (std::size_t)(res.out - std::ranges::begin(out_view)) == n - 1;
-        };
-
-        run_algo2_host_policies<remove_copy_in_archetype, copy_out_archetype>(call, check,
-                                                                             "remove_copy, non-const projection");
-#if TEST_DPCPP_BACKEND_PRESENT && !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REMOVE_COPY_HETERO
-        run_algo2_hetero_policies<remove_copy_in_archetype_dc, copy_out_archetype_dc, 29>(
-            call, check, "remove_copy, non-const projection");
-#endif
-    }
+        },
+        "remove_copy, non-const projection");
 
 #if !_TEST_CPP20_RANGES_BROKEN_REQUIRES_REPLACE_COPY_IF_HOST || TEST_DPCPP_BACKEND_PRESENT
     {
