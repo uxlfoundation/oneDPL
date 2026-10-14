@@ -36,6 +36,21 @@ struct test_search_n
     }
 };
 
+// The default predicate must compare the elements with the value as is ([alg.search]),
+// without converting the value to the value type of the sequence
+template <typename Type>
+struct test_search_n_mixed_types
+{
+    template <typename ExecutionPolicy, typename Iterator, typename Size, typename T>
+    void
+    operator()(ExecutionPolicy&& exec, Iterator b, Iterator e, Size count, const T& value)
+    {
+        auto expected = std::search_n(b, e, count, value);
+        auto actual = search_n(std::forward<ExecutionPolicy>(exec), b, e, count, value);
+        EXPECT_EQ(expected, actual, "wrong return result from search_n with mixed types");
+    }
+};
+
 template <typename Type>
 struct test_search_n_predicate
 {
@@ -83,6 +98,18 @@ test()
             }
         }
     }
+}
+
+void
+test_mixed_types()
+{
+    const std::size_t n = 1000;
+    Sequence<std::int32_t> in(n, [](std::size_t) { return std::int32_t(2); });
+
+    // 2.5 is not equal to any element; converting it to std::int32_t would give a match at the beginning
+    invoke_on_all_policies<4>()(test_search_n_mixed_types<std::int32_t>(), in.begin(), in.end(), 2, 2.5);
+    // 2.0 is equal to the elements
+    invoke_on_all_policies<5>()(test_search_n_mixed_types<std::int32_t>(), in.begin(), in.end(), 2, 2.0);
 }
 
 template <typename T>
@@ -155,6 +182,7 @@ main()
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
 
     test_empty_list_initialization();
+    test_mixed_types();
 
     return done();
 }

@@ -259,8 +259,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 search_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last, _Size __count,
          const _Tp& __value)
 {
-    return oneapi::dpl::search_n(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __count, __value,
-                                 ::std::equal_to<typename ::std::iterator_traits<_ForwardIterator>::value_type>());
+    return oneapi::dpl::search_n(std::forward<_ExecutionPolicy>(__exec), __first, __last, __count, __value,
+                                 oneapi::dpl::__internal::__pstl_equal());
 }
 
 // [alg.copy]
