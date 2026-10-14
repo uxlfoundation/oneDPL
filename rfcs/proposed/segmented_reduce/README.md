@@ -2,7 +2,7 @@
 
 ## Introduction
 
-RFC proposes adding offset-based segmented reduction to oneDPL.
+This RFC proposes adding offset-based segmented reduction to oneDPL.
 
 Motivation:
 
@@ -118,13 +118,13 @@ because it is a more high-level abstraction.
 support overlapping and unordered segments,
 which is possible because of providing two ranges with segment boundaries (`begin_offsets` and `end_offsets`).
 However, according to the [usage study](usage_pattern_study.md),
-overwhelming majority of the cases involve one consecutive sequence with offsets.
+the overwhelming majority of the cases involve one consecutive sequence with offsets.
 Consecutive segments are also the target use-case in [#2829](https://github.com/oneapi-src/oneDPL/issues/2829).
 Therefore, it is suggested to provide the offsets as a
 single sequence to support consecutive segments directly.
 Adding support for overlapping or unordered segments can be considered in the future if there is demand.
 
-Empty segment is supported by `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`.
+Empty segments are supported by `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`.
 [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) also requests support for empty segments.
 
 A segment with a negative size (`offsets[i] > offsets[i + 1]`) can be considered empty.
@@ -167,14 +167,14 @@ Possible argument types:
 
 The [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) request
 specified an identity as the last argument,
-while the industry practice it is typically if not always an initial value.
+while in industry practice it is typically if not always an initial value.
 
 What should be provided as an argument in place of the initial value? What should be the default value?
 
 Initial value applies only once, and known identity can be applied multiple times.
 The initial value may be equal to the known identity or not. A safe default initial value is the identity.
 
-Initial value is mandatory when the algorithm's contract is apply it to each segment,
+Initial value is mandatory when the algorithm's contract is to apply it to each segment,
 or as a result for empty segments, what is done by CUB and rocPRIM.
 Identity value is optional. It is needed for the SIMD and the group reductions,
 and to get a safe default initial value.
@@ -283,8 +283,8 @@ Yes, because this semantics is already used and due to the performance benefits:
 - Derive tile counts and partial-result locations directly,
   avoiding segment identifiers in multi-kernel implementations.
 
-It's much easier to emulate via existing key-based segmented reduction
-via counting and discard iterators,
+It can be emulated with the existing key-based segmented reduction
+using counting and discard iterators,
 but it is not as efficient due to the segment boundary checks.
 
 **Strategy**: provide the fixed-length segment overloads.
@@ -311,7 +311,7 @@ to get the offset boundaries, which preserves the operand order,
 and because of that, it was likely decided not to require commutativity.
 With offsets or a fixed segment length, the boundaries are known in advance,
 and the algorithm is a batch of independent reductions.
-Requiring commutativity, keeps the optimization techniques above available.
+Requiring commutativity keeps the optimization techniques above available.
 
 **Strategy**:
 
@@ -375,11 +375,11 @@ Potential implementation challenges for run-to-run determinism:
 - Load balancing with host execution:
   work stealing balances the load, while it is more difficult to implement with a fixed partition.
 - Host vectorization: replacing `omp simd reduction`
-  with customly vectorized code is more difficult and may be less efficient.
+  with custom-vectorized code is more difficult and may be less efficient.
 - Device group operations: replacing `sycl::reduce_over_group`
   is more difficult and may be less efficient.
-- Long segments on a device: combining partial results across work-groups without atomics or
-  decoupled look-back cannot be used, which limits optimization opportunities.
+- Long segments on a device: partial results must be combined across work-groups
+  without atomics or decoupled look-back, which limits optimization opportunities.
 
 **Strategy**:
 
@@ -418,7 +418,7 @@ The table below shows the suggested argument order:
 | `num_segments` | `num_segments` | 4 | `val_first` | `out_first` | `out_first` |
 | `d_begin_offsets` | `segment_size` | 5 | `out_key_first` | `num_segments` | `num_segments` |
 | `d_end_offsets` | `reduction_op` | 6 | `out_val_first` | `offsets` | `segment_length` |
-| `reduction_op` | `initial_value` | 7 | `binary_pred` (opt) | `init` (opt) | `init` (opt) |
+| `reduction_op` | `initial_value` | 7 | `binary_pred` (opt) | `init_value` (opt) | `init_value` (opt) |
 | `initial_value` | `stream` (opt) | 8 | `binary_op` (opt) | `binary_op` (opt) | `binary_op` (opt) |
 | `stream` (opt) | — | 9 | — | — | — |
 
@@ -435,7 +435,7 @@ which can be constrained using SFINAE:
 | variable-length | `num_segments`: integral | `offsets`: not integral |
 | fixed-length | `num_segments`: integral | `segment_length`: integral |
 
-The existing key-based overloads must get a new constraint: `!std::is_integral_v<OutputKeyIt>`,
+The existing key-based overloads must get a new constraint: `!std::is_integral_v<OutputKeyIt>`.
 It does not break existing code, because an integral type does not satisfy the iterator requirements.
 This SFINAE constraint can be folded into the existing policy constraint, for example:
 ```c++
@@ -456,7 +456,7 @@ The same approach can be applied to constrain the new overloads.
   and `offsets` to non-integral types.
 - Constrain the existing key-based overloads to reject an integral `out_key_first`.
 
-### Sum, Min, Max semantics
+### Sum, Min, Max Semantics
 
 All semantics are used according to the [real-world use cases](usage_pattern_study.md).
 Therefore, they should be supported.
@@ -468,9 +468,9 @@ for the `reduce_by_segment` algorithm, complicating the API.
 
 **Strategy**: Do nothing special for `Sum`, `Min`, and `Max` semantics.
 
-### ArgMin and ArgMax semantics
+### ArgMin and ArgMax Semantics
 
-This semantics will be explored in a separate RFC due to their complexity.
+These semantics will be explored in a separate RFC due to their complexity.
 
 Note, `ArgMin` and `ArgMax` can already be expressed via the proposed `reduce_by_segment` and fancy iterators:
 
@@ -613,9 +613,9 @@ Therefore the operation imposes the following type requirements:
 
 Comparison with other reductions:
 
-- In [`std::reduce`](<https://eel.is/c++draft/reduce>) and `dpl::reduce`, `AccT` is `InitT`,
+- In [`std::reduce`](<https://eel.is/c++draft/reduce>) and `dpl::reduce`, `AccT` is `InitT`.
 - In the key-based `dpl::reduce_by_segment`, `AccT` is not documented,
-  and is the input value type in practise.
+  and is the input value type in practice.
 - In CUB the accumulator type is not documented, and is inferred as proposed above in practice.
 - In rocPRIM the accumulator type is not documented,
   and is inferred as `invoke_result_t<BinaryOp, InitT, InitT>` in practice.
@@ -623,12 +623,12 @@ Comparison with other reductions:
 **Strategy**:
 
 - Use `std::decay_t<std::invoke_result_t<BinaryOp&, InitT, InputRefT>>` as the accumulator type.
-- Document that the binary operation and the accumulator type requirements.
+- Document the binary operation and accumulator type requirements.
 - Document how the accumulator type is determined.
 
 ### Return Value
 
-`dpl::reduce_by_segment` returns a pair of iterators: `{output_keys_end, output_values_end}`
+`dpl::reduce_by_segment` returns a pair of iterators: `{output_keys_end, output_values_end}`.
 `cub::DeviceSegmentedReduce::Reduce` and `rocprim::segmented_reduce` return runtime status codes.
 
 Obviously, returning the status codes is not an option
@@ -638,7 +638,7 @@ In the key-based `dpl::reduce_by_segment`,
 `output_keys_end` is useful to determine the number of segments, and
 `output_values_end` is useful to determine the number of reduced values,
 as this information is not directly passed to the algorithm.
-In the new overloads, this either not relevant (no keys) or known in advance:
+In the new overloads, this is either not relevant (no keys) or known in advance:
 `out_last = out_first + num_segments;`
 
 In the new overloads, the usefulness of the returned value depends on the segment type.
@@ -650,9 +650,9 @@ the iterator past the last processed element can be easily calculated as `first 
 It is unclear if returning it is worth a copy of the data
 from the device to the host in case of device policies.
 
-In the fixed-segment case, the last output iterator is known: `out_first + num_segments`.
+In the fixed-length case, the last output iterator is known: `out_first + num_segments`.
 
-**Tentative Strategy**. Return nothing for both variable-length and fixed-segment overloads.
+**Tentative Strategy**. Return nothing for both variable-length and fixed-length overloads.
 
 ## Evolution
 
@@ -660,30 +660,30 @@ The RFC can be implemented in stages, for example:
 
 1. Implement `reduce_by_segment` with device policies support.
 2. Enable host policies.
-3. Optimize fixed-segment overloads of `reduce_by_segment` by adding a dedicated implementation,
-   and explore/implement tiling strategy for the variable-segment overloads.
+3. Optimize fixed-length overloads of `reduce_by_segment` by adding a dedicated implementation,
+   and explore/implement tiling strategy for the variable-length overloads.
 4. Support semantics with min/max values and their indices.
 5. Enable identities for the custom binary operations and types.
 
 Stage (1) in detail:
 
 - Implement `reduce_by_segment` for only device policies.
-- Add a dedicated implementation for the variable-segment overloads.
+- Add a dedicated implementation for the variable-length overloads.
   Follow the approach from `dpct::device::segmented_reduce`, CUB and rocPRIM:
   assign one segment to a work-group.
   Consider adapting `__work_group_reduce_kernel` for this purpose.
-- Enable the fixed-segment overloads using fancy iterators with key-based `reduce_by_segment`.
+- Enable the fixed-length overloads using fancy iterators with key-based `reduce_by_segment`.
 - If host policies are used, issue a static assertion error.
 
 ## Feature Macro
 
-The API is set to be evolving, hence a feature macro should be defined for convenience.
+The API is expected to evolve, hence a feature macro should be defined for convenience.
 For example:
 
 - `ONEDPL_HAS_REDUCE_BY_SEGMENT 202109L`
   for the current state as it already has the key-based segmented reduction,
 - `ONEDPL_HAS_REDUCE_BY_SEGMENT 202611L` with the next version, e.g.,
-   including device policy support and variable-segment overloads of `reduce_by_segment`.
+   including device policy support and variable-length overloads of `reduce_by_segment`.
 - `ONEDPL_HAS_REDUCE_BY_SEGMENT YYYYMML` for future versions.
 
 ## Examples
