@@ -145,8 +145,9 @@ Supporting them would also rule out using binary search.
 **Tentative Strategy**:
 
 - Support empty segments.
-- Treat negatively sized segments as UB.
-  At the implementation level, they can be treated as empty.
+- Treat negatively sized segments as erroneous behavior
+  (In this context, UB with a guaranteed prevention of out-of-bounds accesses).
+  At the implementation level, treat them as empty.
   Optionally, flag in debug mode, for example with an assertion.
 - Provide only one sequence of offsets (no overlapping or unordered segments), and
   require that it is sorted in ascending order.
@@ -669,7 +670,7 @@ However, with consecutive segments,
 the iterator past the last processed element can be easily calculated as `first + offsets[num_segments]`.
 It is unclear if returning it is worth a copy of the data
 from the device to the host in case of device policies.
-In the fixed-length case, the last input iterator is known: `in_first + num_segments * segment_length`.
+In the fixed-length case, the last input iterator is known: `first + num_segments * segment_length`.
 
 **Tentative Strategy**. Return nothing for both variable-length and fixed-length overloads.
 
