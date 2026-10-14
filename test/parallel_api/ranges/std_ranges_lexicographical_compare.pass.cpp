@@ -48,6 +48,13 @@ main()
     auto gen_equal_projected_2 = [](auto) { return -2; };
     test_range_algo<8, int, data_in_in, decltype(gen_equal_projected_1), decltype(gen_equal_projected_2)>{}(
         dpl_ranges::lexicographical_compare, checker, std::ranges::less{}, proj);
+
+    check_mixed_types_in_in_host(dpl_ranges::lexicographical_compare, checker, {{1}, {2}, {3}}, {{1}, {2}, {4}},
+                                 result_as_is, std::ranges::less{}, proj_a, proj_b);
+#if TEST_DPCPP_BACKEND_PRESENT
+    check_mixed_types_in_in_device(dpl_ranges::lexicographical_compare, checker, {{1}, {2}, {3}}, {{1}, {2}, {4}},
+                                   result_as_is, std::ranges::less{}, proj_a, proj_b);
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
