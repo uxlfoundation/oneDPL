@@ -126,7 +126,8 @@ By default element `i` holds the value `i`. It then passes the views and the res
 | `run_algo2<E1, E2>`, `run_algo2_plain<E1, E2>` | two ranges with the same values |
 | `run_algo2_offset<E1, E2>` | the second range holds `i + 1000`, so an output's initial content differs from the input |
 
-Each of them comes in three wrappers:
+`run_algo`, `run_algo2` and `run_algo2_offset` come in three wrappers; `run_algo_plain` and `run_algo2_plain` only
+in the third one:
 - `*_host_policies` runs `seq`, `unseq`, `par` and `par_unseq`.
 - `*_hetero_policies<..., CallId>` runs `TestUtils::get_dpcpp_test_policy<CallId>()`.
 - `*_all_policies<E, E_dc, CallId>` runs both, with the host element on the host and the `_dc` element on the device.
@@ -245,8 +246,9 @@ match. This is done for `equal`, `find_end` and `find_first_of`. `lexicographica
   element type of `uninitialized_copy` and `uninitialized_move`) template parameters. Both have defaults, so the
   existing tests are unchanged.
 - **`std_ranges_partial_sort_copy.pass.cpp`.** `test_projections_consistency()` uses two projections that order the
-  input and the output differently. The result is then implementation-defined, so the check compares every policy
-  with `seq` instead of with a reference value.
+  input and the output differently, and compares every policy with `seq`. These projections violate a precondition
+  of `partial_sort_copy`, so the test is to be replaced (T1 in
+  [Classification of the Gated Calls](#classification-of-the-gated-calls)).
 
 ### Tracking Known Implementation Gaps
 
@@ -313,9 +315,9 @@ Each copy is compiled with `-fsyntax-only -std=c++20` in the modes its gate can 
 
 Every error is attributed to the first oneDPL frame outside the generic wrappers in `utils.h` (`__binary_op`,
 `__unary_op`, ...). Where that frame only passes the problem on, the tables cite the line that reading the code
-shows as the cause, for example `utils.h:170`, `:451` or `:1137`. Every test target compiles cleanly in every mode with all gates in place. The wrong-result gate
-was checked at run time by a probe that repeats the calls of its test and prints the result of every policy, on
-Linux with a CPU device and on Windows with a CPU and a GPU device.
+shows as the cause, for example `utils.h:170`, `:451` or `:1137`. Every test target compiles cleanly in every mode
+with all gates in place. The wrong-result gate was checked at run time by a probe that repeats the calls of its
+test and prints the result of every policy, on Linux with a CPU device and on Windows with a CPU and a GPU device.
 
 Limits of the method: a host cell fails if any of the four host policies fails; MSVC `cl`, Clang and libc++ were not
 measured; and an error can hide another one behind it, for example in a function template that overload resolution
@@ -398,9 +400,10 @@ libraries apart, are in [Appendix A](#appendix-a-gated-calls).
   `INPLACE_MERGE` have no suffix because one call of each fails on the device too (`permute:389`, `permute:402` and
   `permute:309`). Their nine other calls (`permute:101`, `:113`, `:172`, `:233`, `:245`, `:323`, `:333`, `:372`,
   `:415`) compile on the device, but their device halves are compiled out as well.
-- **Some gaps exist with one backend or one standard library only.** H2 is the OpenMP backend: the host halves of the sort calls with
-  a `const` comparator, the default comparator, a projected key or a plain range fail only with OpenMP, and compile
-  with TBB and with the serial backend. D5 and H4 appear only with libstdc++. With g++, H6 starts with an extra error of its own.
+- **Some gaps exist with one backend or one standard library only.** H2 is the OpenMP backend: the host halves of
+  the sort calls with a `const` comparator, the default comparator, a projected key or a plain range fail only
+  with OpenMP, and compile with TBB and with the serial backend. D5 and H4 appear only with libstdc++. With g++,
+  H6 starts with an extra error of its own.
 - **One gate covers a test defect (T1).** `test_projections_consistency()` uses projections that violate the
   precondition of `partial_sort_copy`, so the behavior is undefined. The library behavior that the test reports (`par`,
   `par_unseq` and the device apply only `proj2`) is allowed by that precondition. Even `seq` gives different results
@@ -465,7 +468,8 @@ These are known, accepted limits of the current suite. Some of them are listed a
 - **Fixing the library in the same PR.** The test PR would become hard to review and would mix many unrelated
   fixes. Gating keeps it test-only. The fixes go into separate PRs, each removing its gate.
 - **Finer gate suffixes** (`_HOST_PARALLEL`, `_HOST_SIMD`, one gate per backend). They were tried and dropped: the
-  host side is reported as a whole, and finer gates mostly add bookkeeping.
+  host side is reported as a whole, and finer gates mostly add bookkeeping. Gates that depend on the backend or the
+  standard library are a separate question, see [Open Questions](#open-questions).
 - **Data-level projection checks only.** They depend on the generators and are easy to defeat. The compile-level
   check with `A` and `B` is exact and costs one call per algorithm.
 
@@ -484,7 +488,8 @@ These are known, accepted limits of the current suite. Some of them are listed a
   which the host patterns call. Should oneDPL stop delegating there, or should the gap be reported upstream and the
   gate kept?
 - **The `partial_sort_copy` projection test (T1).** Replace the projections of `test_projections_consistency()`
-  with a pair that satisfies [partial.sort.copy]/4, and remove `_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1`?
+  with a pair that satisfies [partial.sort.copy]/4, and remove
+  `_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1`?
 - **Stronger checks.** Use shuffled or descending input for the sorting algorithms, check the full output of
   `remove`, `merge` and the set algorithms, and use distinct inputs for `uninitialized_copy` and
   `uninitialized_move`.
