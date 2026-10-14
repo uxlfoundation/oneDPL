@@ -61,8 +61,13 @@ void test_projections_consistency()
     for (int i = 0; i < n; ++i)
         in[i] = P2{i, i};
 
-    auto in_proj = [](const P2& v) { return -v.x; };
-    auto out_proj = [](const P2& v) { return v.x; };
+    // Different projections, but they order the input and the output the same way, as [partial.sort.copy]/4 requires
+    auto in_proj = [](const P2& v) { return -2 * v.x; };
+    auto out_proj = [](const P2& v) { return -v.x; };
+
+    std::vector<P2> expected(n_out);
+    for (int i = 0; i < n_out; ++i)
+        expected[i] = P2{n - 1 - i, n - 1 - i};
 
     auto call = [&](auto&& exec)
     {
@@ -72,13 +77,11 @@ void test_projections_consistency()
         return out;
     };
 
-    std::vector<P2> out_seq = call(oneapi::dpl::execution::seq);
-    EXPECT_EQ_RANGES(out_seq, call(oneapi::dpl::execution::unseq), "unseq policy disagrees with seq policy");
-
-#if !_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1
-    EXPECT_EQ_RANGES(out_seq, call(oneapi::dpl::execution::par), "par policy disagrees with seq policy");
-    EXPECT_EQ_RANGES(out_seq, call(oneapi::dpl::execution::par_unseq), "par_unseq policy disagrees with seq policy");
-#    if TEST_DPCPP_BACKEND_PRESENT
+    EXPECT_EQ_RANGES(expected, call(oneapi::dpl::execution::seq), "wrong result with seq policy");
+    EXPECT_EQ_RANGES(expected, call(oneapi::dpl::execution::unseq), "wrong result with unseq policy");
+    EXPECT_EQ_RANGES(expected, call(oneapi::dpl::execution::par), "wrong result with par policy");
+    EXPECT_EQ_RANGES(expected, call(oneapi::dpl::execution::par_unseq), "wrong result with par_unseq policy");
+#if TEST_DPCPP_BACKEND_PRESENT
     auto policy = TestUtils::get_dpcpp_test_policy();
     sycl::queue q = policy.queue();
     if (q.get_device().has(sycl::aspect::usm_shared_allocations))
@@ -89,9 +92,8 @@ void test_projections_consistency()
 
         dpl_ranges::partial_sort_copy(policy, std::ranges::subrange(v_in), std::ranges::subrange(v_out),
                                       std::ranges::less{}, in_proj, out_proj);
-        EXPECT_EQ_RANGES(out_seq, v_out, "device policy disagrees with seq policy");
+        EXPECT_EQ_RANGES(expected, v_out, "wrong result with device policy");
     }
-#    endif
 #endif
 }
 #endif //_ENABLE_STD_RANGES_TESTING
