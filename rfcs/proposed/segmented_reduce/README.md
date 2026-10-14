@@ -658,10 +658,22 @@ In the fixed-segment case, the last output iterator is known: `out_first + num_s
 
 The RFC can be implemented in stages, for example:
 
-1. Implement device-only policy support with variable-segment overloads of `reduce_by_segment`
-2. Enable other policies with the variable-segment overloads of `reduce_by_segment`.
-3. Implement fixed-segment overloads of `reduce_by_segment`.
-4. Enable identities for the custom binary operations and types.
+1. Implement `reduce_by_segment` with device policies support.
+2. Enable host policies.
+3. Optimize fixed-segment overloads of `reduce_by_segment` by adding a dedicated implementation,
+   and explore/implement tiling strategy for the variable-segment overloads.
+4. Support semantics with min/max values and their indices.
+5. Enable identities for the custom binary operations and types.
+
+Stage (1) in detail:
+
+- Implement `reduce_by_segment` for only device policies.
+- Add a dedicated implementation for the variable-segment overloads.
+  Follow the approach from `dpct::device::segmented_reduce`, CUB and rocPRIM:
+  assign one segment to a work-group.
+  Consider adapting `__work_group_reduce_kernel` for this purpose.
+- Enable the fixed-segment overloads using fancy iterators with key-based `reduce_by_segment`.
+- If host policies are used, issue a static assertion error.
 
 ## Feature Macro
 
