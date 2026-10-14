@@ -656,20 +656,27 @@ In the key-based `dpl::reduce_by_segment`,
 `output_keys_end` is useful to determine the number of segments, and
 `output_values_end` is useful to determine the number of reduced values,
 as this information is not directly passed to the algorithm.
-In the new overloads, this is either not relevant (no keys) or known in advance:
-`out_last = out_first + num_segments;`
 
-In the new overloads, the usefulness of the returned value depends on the segment type.
-In variable-length segments, an iterator past the last processed may differ from `last`
-because the number of elements to process is determined by segment offsets,
-and is not known in advance.
-With consecutive segments,
-the iterator past the last processed element can be easily calculated as `first + offsets[num_segments]`.
-It is unclear if returning it is worth a copy of the data
-from the device to the host in case of device policies.
-When segments are out-of-order, have gaps, or overlap,
-the number of processed elements cannot be represented via a single iterator.
-In the fixed-length case, the last input iterator is known: `min(first + num_segments * segment_length, last)`.
+In the new overloads, the usefulness of the returned value depends on the segment type:
+
+| Iterator | Variable-length | Fixed-length | Usefulness |
+|---|---|---|---|
+| (1) Output end | `out_first + num_segments` | Same | Low: known in advance |
+| (2) Output: past the last segment within `N` | `out_first + k`, `k` segments with `offsets[s + 1] <= N`; device-to-host copy and sync | `out_first + min(num_segments, N / segment_length)` (`num_segments` if `segment_length == 0`); free | Medium: tells segments beyond `last` from empty ones, both get `init_value` |
+| (3) Offsets end | `offsets + num_segments + 1` | — | Low: known in advance |
+| (4) Input: past the last processed | `first + min(offsets[num_segments], N)`; device-to-host copy and sync | `first + min(num_segments * segment_length, N)`; free | Medium: tells where the processing stopped |
+| (5) Continuation point: `{first + offsets[k], offsets + k, out_first + k}` | `k` from (2); device-to-host copy and sync | `k` from (2), input at `first + k * segment_length`; free | Medium: resume the reduction from segment `k` when more input is available |
+
+Notation: `N = last - first`
+
+The useful values, (2), (4), and (5),
+differ from the known ones only when the input does not cover all the segments,
+which is expected to be a corner case.
+Even then, the behavior is documented
+(see [Bounding Input and Negative Offsets](#bounding-input-and-negative-offsets)),
+so users who need this information can derive it from the arguments, paying the cost only then.
+For variable-length segments with device policies,
+returning these values requires a device-to-host copy and a synchronization.
 
 **Strategy**. Return nothing for both variable-length and fixed-length overloads.
 
