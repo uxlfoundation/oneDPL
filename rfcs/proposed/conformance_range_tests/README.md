@@ -40,7 +40,7 @@ The goals are:
 The proposal has three parts:
 - an **archetype conformance suite** in a new directory `test/parallel_api/ranges/conformance/`;
 - **projection checks** added to the existing two-range tests;
-- **gate macros** in `test/support/test_config.h` for the cases that currently fail.
+- **broken test macros** in `test/support/test_config.h` for the cases that currently fail.
 
 ### Layout
 
@@ -54,7 +54,7 @@ The proposal has three parts:
 | `conformance/std_ranges_algo_archetypes_{read,value,cross,write,permute,merge,storable}.pass.cpp`, `conformance/std_ranges_memory_archetypes.pass.cpp` | the eight test targets |
 | `std_ranges_test.h` and eleven `std_ranges_*.pass.cpp` | projection checks, unique kernel names |
 | `std_ranges_memory_test.h`, `std_ranges_partial_sort_copy.pass.cpp`, `std_ranges_rotate_copy.pass.cpp` | smaller changes to the existing tests |
-| `test/support/test_config.h` | 33 gate macros |
+| `test/support/test_config.h` | 33 broken test macros |
 
 ### Archetype Conformance Suite
 
@@ -248,12 +248,13 @@ match. This is done for `equal`, `find_end` and `find_first_of`. `lexicographica
 - **`std_ranges_partial_sort_copy.pass.cpp`.** `test_projections_consistency()` uses two projections that order the
   input and the output differently, and compares every policy with `seq`. These projections violate a precondition
   of `partial_sort_copy`, so the test is to be replaced (T1 in
-  [Classification of the Gated Calls](#classification-of-the-gated-calls)).
+  [Classification of the Disabled Calls](#classification-of-the-disabled-calls)).
 
 ### Tracking Known Implementation Gaps
 
 A call that does not compile, or returns a wrong result, is not removed and not weakened. It is compiled out by a
-**gate macro** defined to `1` in `test/support/test_config.h`. The macro is removed together with the library fix.
+**broken test macro** defined to `1` in `test/support/test_config.h`. The macro is removed together with the library
+fix.
 
 **Naming.**
 - `_TEST_CPP20_RANGES_BROKEN_REQUIRES_<ALGO>[_HOST|_HETERO]`: the algorithm needs more than its requires-clause; the
@@ -261,11 +262,11 @@ A call that does not compile, or returns a wrong result, is not removed and not 
 - `_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_<ALGO>_<WHAT>`: the call compiles but gives a wrong result.
 - The suffix names the broken side. `_HOST` means the four host policies, `_HETERO` the device policy, and no suffix
   means both.
-- The macros are sorted by name. Gates are used only by the conformance tests and by the projection checks.
+- The macros are sorted by name. They are used only by the conformance tests and by the projection checks.
 
 **Idioms.**
 
-One side broken: only that half of the call is gated.
+One side broken: only that half of the call is disabled.
 
 ```cpp
 // device half broken
@@ -294,21 +295,21 @@ One side broken: only that half of the call is gated.
 ```
 
 Both sides broken: one unsuffixed macro and one merged call, `#if !MACRO` around `run_algo*_all_policies`. When an
-algorithm has gaps on both sides, even in different test files, the gates are collapsed into one unsuffixed
-macro. One gate per defect is easier to maintain than per-side bookkeeping.
+algorithm has gaps on both sides, even in different test files, the macros are collapsed into one unsuffixed
+macro. One macro per defect is easier to maintain than per-side bookkeeping.
 
-#### Classification of the Gated Calls
+#### Classification of the Disabled Calls
 
-There are 33 gates (32 `_REQUIRES_` and one `_WRONG_RESULT_`) over 60 gated calls. The tables below classify every
-call by what fails and why. They describe the head of PR #2832 at `adaabb332`, which contains `main` as of
-2026-10-13.
+There are 33 broken test macros (32 `_REQUIRES_` and one `_WRONG_RESULT_`) over 60 disabled calls. The tables below
+classify every call by what fails and why. They describe the head of PR #2832 at `adaabb332`, which contains `main`
+as of 2026-10-13.
 
-**Method.** Each gated call is compiled on its own: a copy of its test file has only that gate set to `0` (with the
-outer guard of the host idiom), and every other gate stays `1`. A copy per call is needed because Clang reports an
-error in a given template specialization only once, so with several gates open one failing call hides the next.
-Each copy is compiled with `-fsyntax-only -std=c++20` in the modes its gate can affect:
+**Method.** Each disabled call is compiled on its own: a copy of its test file has only that macro set to `0`
+(with the outer guard of the host idiom), and every other macro stays `1`. A copy per call is needed because Clang
+reports an error in a given template specialization only once, so with several macros at `0` one failing call
+hides the next. Each copy is compiled with `-fsyntax-only -std=c++20` in the modes its macro can affect:
 - host side: the TBB, OpenMP and serial backends, each with all four host policies;
-- device side: `-fsycl`; for an unsuffixed gate also `-fsycl` with the host half of the driver switched off, so
+- device side: `-fsycl`; for a macro without a suffix also `-fsycl` with the host half of the driver switched off, so
   that the device half is judged alone;
 - compilers and standard libraries: icpx 2026.1 on Windows with the Microsoft STL (14.51) and on Linux with
   libstdc++ 13; on Linux the host side also with g++ 13.
@@ -316,7 +317,7 @@ Each copy is compiled with `-fsyntax-only -std=c++20` in the modes its gate can 
 Every error is attributed to the first oneDPL frame outside the generic wrappers in `utils.h` (`__binary_op`,
 `__unary_op`, ...). Where that frame only passes the problem on, the tables cite the line that reading the code
 shows as the cause, for example `utils.h:170`, `:451` or `:1137`. Every test target compiles cleanly in every mode
-with all gates in place. The wrong-result gate was checked at run time by a probe that repeats the calls of its
+with all macros at `1`. The wrong-result macro was checked at run time by a probe that repeats the calls of its
 test and prints the result of every policy, on Linux with a CPU device and on Windows with a CPU and a GPU device.
 
 Limits of the method: a host cell fails if any of the four host policies fails; MSVC `cl`, Clang and libc++ were not
@@ -343,10 +344,10 @@ cited lines are in code that both sides share), and `T` is a test defect. Paths 
 | H6 | `__replace_copy_functor` stores a copy of the new value (`const _Tp _M_value`), which needs a copyable `_Tp`. With a value that is not copyable, the functor is not copyable either, and every walk copies the functor. With g++ the first error comes earlier: `__ref_or_copy<_ExecutionPolicy, const _T>{__new_value}` is a braced cast to a reference type, which g++ 13 evaluates by copying. | `utils.h:451`, `:455`, created at `algorithm_ranges_impl.h:1754`; `glue_algorithm_ranges_impl.h:1182` | `indirectly_writable<O, const T&>` does not make `T` copyable |
 | T1 | The test uses projections that order the input and the output differently (`-x` and `x`). That violates the precondition of `partial_sort_copy` that writing a value into the output does not change how `comp` with `proj1` or `proj2` orders it ([partial.sort.copy]/4 in the working draft; C++20 has no such paragraph). The parallel and device patterns rely on that precondition: they apply only `proj2`, after copying. | test: `std_ranges_partial_sort_copy.pass.cpp:78`; library: `algorithm_ranges_impl.h:510`, `hetero/algorithm_ranges_impl_hetero.h:1533` | the precondition makes `proj1` and `proj2` interchangeable for ordering |
 
-**Gates.** "Host" is the outcome with the four host policies, "device" the outcome with the device policy; a dash
-means that the gate does not cover that side.
+**Macros.** "Host" is the outcome with the four host policies, "device" the outcome with the device policy; a
+dash means that the macro does not cover that side.
 
-| Gate | Gated calls | Host | Device | Classes |
+| Macro | Disabled calls | Host | Device | Classes |
 |---|---|---|---|---|
 | `COPY_IF_HETERO` | `write:150`, `write:343` | — | fails | D3 |
 | `FIND_FIRST_OF_HETERO` | `cross:146` | — | fails | D1 |
@@ -382,42 +383,42 @@ means that the gate does not cover that side.
 | `UNIQUE_COPY_HETERO` | `write:182`, `write:380` | — | fails | D3 |
 | `WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1` | `std_ranges_partial_sort_copy.pass.cpp:78` | `par` and `par_unseq` differ from `seq` | differs from `seq` | T1 |
 
-The `_REQUIRES_` gates are shown without the common prefix `_TEST_CPP20_RANGES_BROKEN_REQUIRES_`, the wrong-result
-gate without `_TEST_CPP20_RANGES_BROKEN_`. A call site `<family>:<line>` is a line of
+The `_REQUIRES_` macros are shown without the common prefix `_TEST_CPP20_RANGES_BROKEN_REQUIRES_`, the
+wrong-result macro without `_TEST_CPP20_RANGES_BROKEN_`. A call site `<family>:<line>` is a line of
 `conformance/std_ranges_algo_archetypes_<family>.pass.cpp`. The per-call results, with the backends and the standard
-libraries apart, are in [Appendix A](#appendix-a-gated-calls).
+libraries apart, are in [Appendix A](#appendix-a-disabled-calls).
 
 **What the classification shows.**
 - **The defects are few.** Twelve library classes and one test defect explain all 60 calls. 23 of the 32
-  `_REQUIRES_` gates have a single class: D1 seven of them, D3 five, H3 four, D4 three, H6 two, D2 and D5 one each.
+  `_REQUIRES_` macros have a single class: D1 seven of them, D3 five, H3 four, D4 three, H6 two, D2 and D5 one each.
   The other nine (the four set algorithms, `sort`, `stable_sort`, `partial_sort`, `partial_sort_copy` and
   `inplace_merge`) combine two to four classes, so each of them needs more than one fix before it can be removed.
-  The most frequent classes are D1 (in 12 gates), H3 (9), D6 (6), D3 and H1 (5 each).
+  The most frequent classes are D1 (in 12 macros), H3 (9), D6 (6), D3 and H1 (5 each).
 - **One label is wrong.** `LEXICOGRAPHICAL_COMPARE` compiles on the host in every cell; only the device fails (D1).
-  The host defect the gate was introduced for has been fixed. The gate should become `..._HETERO`, with the call
+  The host defect the macro was introduced for has been fixed. The macro should become `..._HETERO`, with the call
   split.
-- **Unsuffixed gates also cover nine device calls that compile.** By the collapse rule, `SORT`, `STABLE_SORT` and
-  `INPLACE_MERGE` have no suffix because one call of each fails on the device too (`permute:389`, `permute:402` and
-  `permute:309`). Their nine other calls (`permute:101`, `:113`, `:172`, `:233`, `:245`, `:323`, `:333`, `:372`,
-  `:415`) compile on the device, but their device halves are compiled out as well.
+- **Macros without a suffix also disable nine device calls that compile.** By the collapse rule, `SORT`,
+  `STABLE_SORT` and `INPLACE_MERGE` have no suffix because one call of each fails on the device too (`permute:389`,
+  `permute:402` and `permute:309`). Their nine other calls (`permute:101`, `:113`, `:172`, `:233`, `:245`, `:323`,
+  `:333`, `:372`, `:415`) compile on the device, but their device halves are compiled out as well.
 - **Some gaps exist with one backend or one standard library only.** H2 is the OpenMP backend: the host halves of
   the sort calls with a `const` comparator, the default comparator, a projected key or a plain range fail only
   with OpenMP, and compile with TBB and with the serial backend. D5 and H4 appear only with libstdc++. With g++,
   H6 starts with an extra error of its own.
-- **One gate covers a test defect (T1).** `test_projections_consistency()` uses projections that violate the
+- **One macro covers a test defect (T1).** `test_projections_consistency()` uses projections that violate the
   precondition of `partial_sort_copy`, so the behavior is undefined. The library behavior that the test reports (`par`,
   `par_unseq` and the device apply only `proj2`) is allowed by that precondition. Even `seq` gives different results
   with the two standard libraries: compared with `par`, the result of the Microsoft STL differs in 8201 of 16385
   elements, starting at index 8184, and the result of libstdc++ only in the last element. The test should use
-  projections that satisfy the precondition, and the gate should be removed.
+  projections that satisfy the precondition, and the macro should be removed.
 
-#### Retiring a Gate
+#### Removing a Broken Test Macro
 
-Set the macro to `0`, then build and run the targets that use it, in the modes its suffix names (with several gates
-open at once, open them one call at a time, see the method above). If they pass, the fix is in, and the macro and
-its `#if` blocks are removed. Four gates have been retired this way
+Set the macro to `0`, then build and run the targets that use it, in the modes its suffix names (to check several
+macros, set them to `0` one call at a time, see the method above). If they pass, the fix is in, and the macro and
+its `#if` blocks are removed. Four macros have been removed this way
 after library fixes so far:
-- `_TEST_BROKEN_WRONG_RESULT_FIND_FIRST_OF_UNSEQ`, a former gate of the iterator-level test
+- `_TEST_BROKEN_WRONG_RESULT_FIND_FIRST_OF_UNSEQ`, a former broken test macro of the iterator-level test
   `alg.nonmodifying/find_first_of.pass.cpp`, and `_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_FIND_FIRST_OF_PROJ1_HOST`
   were removed after the `__simd_find_first_of()` fix;
 - `_TEST_CPP20_RANGES_BROKEN_REQUIRES_FIND_FIRST_OF` was removed after the same fix, and its remaining device case
@@ -466,27 +467,27 @@ These are known, accepted limits of the current suite. Some of them are listed a
 - **Reusing the types from `test/support`.** They are designed for functional tests and provide too much; making
   them minimal would change the existing tests.
 - **Fixing the library in the same PR.** The test PR would become hard to review and would mix many unrelated
-  fixes. Gating keeps it test-only. The fixes go into separate PRs, each removing its gate.
-- **Finer gate suffixes** (`_HOST_PARALLEL`, `_HOST_SIMD`, one gate per backend). They were tried and dropped: the
-  host side is reported as a whole, and finer gates mostly add bookkeeping. Gates that depend on the backend or the
+  fixes. Broken test macros keep it test-only. The fixes go into separate PRs, each removing its macro.
+- **Finer suffixes** (`_HOST_PARALLEL`, `_HOST_SIMD`, one macro per backend). They were tried and dropped: the
+  host side is reported as a whole, and finer macros mostly add bookkeeping. Macros that depend on the backend or the
   standard library are a separate question, see [Open Questions](#open-questions).
 - **Data-level projection checks only.** They depend on the generators and are easy to defeat. The compile-level
   check with `A` and `B` is exact and costs one call per algorithm.
 
 ## Open Questions
 
-- **Gate lifecycle.** Should the macros stay hard-coded in `test_config.h`, or be configurable, for example to
-  allow an "all gates off" build in CI that measures the remaining gaps? Should each macro carry a comment with the
+- **Lifecycle of the macros.** Should the macros stay hard-coded in `test_config.h`, or be configurable, for example to
+  allow an "all macros at `0`" build in CI that measures the remaining gaps? Should each macro carry a comment with the
   root cause and the affected `file:line`?
 - **Labels after the classification.** Should `LEXICOGRAPHICAL_COMPARE` become `..._HETERO` (its host half compiles
-  everywhere)? Should the collapse rule give way when an unsuffixed gate also compiles out device calls that compile:
+  everywhere)? Should the collapse rule give way when a macro without a suffix also disables device calls that compile:
   nine such calls are under `SORT`, `STABLE_SORT` and `INPLACE_MERGE`?
 - **Backend- and library-specific gaps.** H2 exists only with the OpenMP backend, D5 and H4 only with libstdc++. A
-  gate is defined to `1` everywhere, so these calls lose coverage on every backend and standard library. Should such
-  gates depend on the configuration, for example `ONEDPL_USE_OPENMP_BACKEND` or `_GLIBCXX_RELEASE`?
+  macro is defined to `1` everywhere, so these calls lose coverage on every backend and standard library. Should such
+  macros depend on the configuration, for example `ONEDPL_USE_OPENMP_BACKEND` or `_GLIBCXX_RELEASE`?
 - **Standard-library defects.** H4 is in libstdc++'s `std::ranges::stable_sort` and `std::ranges::inplace_merge`,
   which the host patterns call. Should oneDPL stop delegating there, or should the gap be reported upstream and the
-  gate kept?
+  macro kept?
 - **The `partial_sort_copy` projection test (T1).** Replace the projections of `test_projections_consistency()`
   with a pair that satisfies [partial.sort.copy]/4, and remove
   `_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1`?
@@ -502,59 +503,60 @@ These are known, accepted limits of the current suite. Some of them are listed a
 - **Devices without USM shared allocations.** The conformance driver assumes them, while the projection helpers skip
   such devices.
 
-## Appendix A: Gated Calls
+## Appendix A: Disabled Calls
 
-One row per gated call, in the order of the families. "Call" is the name the call reports, "not gated" means that
+One row per disabled call, in the order of the families. "Call" is the name the call reports, "not disabled"
+means that
 this half of the call runs in the test today, and the classes are those of the
-[classification](#classification-of-the-gated-calls). The host results of g++ 13 equal those of icpx with libstdc++
+[classification](#classification-of-the-disabled-calls). The host results of g++ 13 equal those of icpx with libstdc++
 in every cell; where the two standard libraries differ, both are given.
 
-| Call site | Call | Gate | Host policies | Device policy | Classes |
+| Call site | Call | Macro | Host policies | Device policy | Classes |
 |---|---|---|---|---|---|
-| `read:58` | find_last_if | `FIND_LAST_IF_HETERO` | not gated | fails | D4 |
-| `read:73` | find_last_if_not | `FIND_LAST_IF_NOT_HETERO` | not gated | fails | D4 |
-| `read:206` | find_last_if, non-const callable | `FIND_LAST_IF_HETERO` | not gated | fails | D4 |
-| `read:221` | find_last_if_not, non-const callable | `FIND_LAST_IF_NOT_HETERO` | not gated | fails | D4 |
-| `read:251` | is_partitioned, non-const callable | `IS_PARTITIONED_HETERO` | not gated | fails | D1 |
-| `read:308` | is_heap, non-const comparator | `IS_HEAP_HETERO` | not gated | fails | D1 |
-| `read:320` | is_heap_until, non-const comparator | `IS_HEAP_UNTIL_HETERO` | not gated | fails | D1 |
-| `value:47` | find_last | `FIND_LAST_HETERO` | not gated | fails | D4 |
-| `value:98` | find_last, noncopyable value | `FIND_LAST_HETERO` | not gated | fails | D4 |
-| `value:156` | find_last, non-const projection | `FIND_LAST_HETERO` | not gated | fails | D4 |
-| `cross:146` | find_first_of, non-const callable | `FIND_FIRST_OF_HETERO` | not gated | fails | D1 |
+| `read:58` | find_last_if | `FIND_LAST_IF_HETERO` | not disabled | fails | D4 |
+| `read:73` | find_last_if_not | `FIND_LAST_IF_NOT_HETERO` | not disabled | fails | D4 |
+| `read:206` | find_last_if, non-const callable | `FIND_LAST_IF_HETERO` | not disabled | fails | D4 |
+| `read:221` | find_last_if_not, non-const callable | `FIND_LAST_IF_NOT_HETERO` | not disabled | fails | D4 |
+| `read:251` | is_partitioned, non-const callable | `IS_PARTITIONED_HETERO` | not disabled | fails | D1 |
+| `read:308` | is_heap, non-const comparator | `IS_HEAP_HETERO` | not disabled | fails | D1 |
+| `read:320` | is_heap_until, non-const comparator | `IS_HEAP_UNTIL_HETERO` | not disabled | fails | D1 |
+| `value:47` | find_last | `FIND_LAST_HETERO` | not disabled | fails | D4 |
+| `value:98` | find_last, noncopyable value | `FIND_LAST_HETERO` | not disabled | fails | D4 |
+| `value:156` | find_last, non-const projection | `FIND_LAST_HETERO` | not disabled | fails | D4 |
+| `cross:146` | find_first_of, non-const callable | `FIND_FIRST_OF_HETERO` | not disabled | fails | D1 |
 | `cross:177` | lexicographical_compare, non-const comparator | `LEXICOGRAPHICAL_COMPARE` | compiles | fails | D1 |
-| `write:76` | rotate_copy | `ROTATE_COPY_HETERO` | not gated | fails | D2 |
-| `write:150` | copy_if | `COPY_IF_HETERO` | not gated | fails | D3 |
-| `write:166` | remove_copy_if | `REMOVE_COPY_IF_HETERO` | not gated | fails | D3 |
-| `write:182` | unique_copy | `UNIQUE_COPY_HETERO` | not gated | fails | D3 |
-| `write:202` | partition_copy | `PARTITION_COPY_HETERO` | not gated | fails | D3 |
-| `write:241` | remove_copy | `REMOVE_COPY_HETERO` | not gated | fails | D3 |
-| `write:258` | replace_copy_if | `REPLACE_COPY_IF_HOST` | all backends | not gated | H6 |
-| `write:279` | replace_copy | `REPLACE_COPY_HOST` | all backends | not gated | H6 |
-| `write:343` | copy_if, non-const predicate | `COPY_IF_HETERO` | not gated | fails | D3 |
-| `write:362` | remove_copy_if, non-const predicate | `REMOVE_COPY_IF_HETERO` | not gated | fails | D3 |
-| `write:380` | unique_copy, non-const relation | `UNIQUE_COPY_HETERO` | not gated | fails | D3 |
-| `write:402` | partition_copy, non-const predicate | `PARTITION_COPY_HETERO` | not gated | fails | D3 |
-| `write:444` | remove_copy, non-const projection | `REMOVE_COPY_HETERO` | not gated | fails | D3 |
-| `write:462` | replace_copy_if, non-const predicate | `REPLACE_COPY_IF_HOST` | all backends | not gated | H6 |
-| `write:484` | replace_copy, non-const projection | `REPLACE_COPY_HOST` | all backends | not gated | H6 |
-| `permute:40` | reverse | `REVERSE_HETERO` | not gated | MSVC STL: compiles; libstdc++: fails | D5 |
+| `write:76` | rotate_copy | `ROTATE_COPY_HETERO` | not disabled | fails | D2 |
+| `write:150` | copy_if | `COPY_IF_HETERO` | not disabled | fails | D3 |
+| `write:166` | remove_copy_if | `REMOVE_COPY_IF_HETERO` | not disabled | fails | D3 |
+| `write:182` | unique_copy | `UNIQUE_COPY_HETERO` | not disabled | fails | D3 |
+| `write:202` | partition_copy | `PARTITION_COPY_HETERO` | not disabled | fails | D3 |
+| `write:241` | remove_copy | `REMOVE_COPY_HETERO` | not disabled | fails | D3 |
+| `write:258` | replace_copy_if | `REPLACE_COPY_IF_HOST` | all backends | not disabled | H6 |
+| `write:279` | replace_copy | `REPLACE_COPY_HOST` | all backends | not disabled | H6 |
+| `write:343` | copy_if, non-const predicate | `COPY_IF_HETERO` | not disabled | fails | D3 |
+| `write:362` | remove_copy_if, non-const predicate | `REMOVE_COPY_IF_HETERO` | not disabled | fails | D3 |
+| `write:380` | unique_copy, non-const relation | `UNIQUE_COPY_HETERO` | not disabled | fails | D3 |
+| `write:402` | partition_copy, non-const predicate | `PARTITION_COPY_HETERO` | not disabled | fails | D3 |
+| `write:444` | remove_copy, non-const projection | `REMOVE_COPY_HETERO` | not disabled | fails | D3 |
+| `write:462` | replace_copy_if, non-const predicate | `REPLACE_COPY_IF_HOST` | all backends | not disabled | H6 |
+| `write:484` | replace_copy, non-const projection | `REPLACE_COPY_HOST` | all backends | not disabled | H6 |
+| `permute:40` | reverse | `REVERSE_HETERO` | not disabled | MSVC STL: compiles; libstdc++: fails | D5 |
 | `permute:101` | sort | `SORT` | OpenMP | compiles | H2 |
 | `permute:113` | stable_sort | `STABLE_SORT` | OpenMP | compiles | H2 |
-| `permute:141` | partial_sort | `PARTIAL_SORT_HOST` | OpenMP | not gated | H2 |
+| `permute:141` | partial_sort | `PARTIAL_SORT_HOST` | OpenMP | not disabled | H2 |
 | `permute:150` | partial_sort_copy | `PARTIAL_SORT_COPY` | all backends | fails | D2, H1, H2 |
 | `permute:172` | inplace_merge | `INPLACE_MERGE` | all backends, through `seq` | compiles | H5 |
-| `permute:208` | partition, non-const callable | `PARTITION_HETERO` | not gated | fails | D1 |
-| `permute:222` | stable_partition, non-const callable | `STABLE_PARTITION_HETERO` | not gated | fails | D1 |
+| `permute:208` | partition, non-const callable | `PARTITION_HETERO` | not disabled | fails | D1 |
+| `permute:222` | stable_partition, non-const callable | `STABLE_PARTITION_HETERO` | not disabled | fails | D1 |
 | `permute:233` | sort, non-const comparator | `SORT` | TBB, OpenMP | compiles | H2, H3 |
 | `permute:245` | stable_sort, non-const comparator | `STABLE_SORT` | MSVC STL: TBB, OpenMP; libstdc++: all backends | compiles | H2, H3, H4 |
-| `permute:267` | partial_sort, non-const comparator | `PARTIAL_SORT_HOST` | TBB, OpenMP | not gated | H2, H3 |
+| `permute:267` | partial_sort, non-const comparator | `PARTIAL_SORT_HOST` | TBB, OpenMP | not disabled | H2, H3 |
 | `permute:276` | partial_sort_copy, non-const callables | `PARTIAL_SORT_COPY` | all backends | fails | D2, H1, H2, H3 |
-| `permute:300` | nth_element, non-const comparator | `NTH_ELEMENT_HOST` | all backends | not gated | H3 |
+| `permute:300` | nth_element, non-const comparator | `NTH_ELEMENT_HOST` | all backends | not disabled | H3 |
 | `permute:309` | inplace_merge, non-const comparator | `INPLACE_MERGE` | all backends | fails | D1, H3, H4, H5 |
 | `permute:323` | sort, default comparator | `SORT` | OpenMP | compiles | H2 |
 | `permute:333` | stable_sort, default comparator | `STABLE_SORT` | OpenMP | compiles | H2 |
-| `permute:355` | partial_sort, default comparator | `PARTIAL_SORT_HOST` | OpenMP | not gated | H2 |
+| `permute:355` | partial_sort, default comparator | `PARTIAL_SORT_HOST` | OpenMP | not disabled | H2 |
 | `permute:372` | inplace_merge, default comparator | `INPLACE_MERGE` | all backends, through `seq` | compiles | H5 |
 | `permute:389` | sort, projected key | `SORT` | OpenMP | fails | D6, H2 |
 | `permute:402` | stable_sort, projected key | `STABLE_SORT` | OpenMP | fails | D6, H2 |
@@ -567,7 +569,7 @@ in every cell; where the two standard libraries differ, both are given.
 | `merge:121` | set_difference, non-const comparator | `SET_DIFFERENCE` | all backends | fails | D1, D6, H1 |
 | `merge:134` | set_intersection, non-const comparator | `SET_INTERSECTION` | all backends | fails | D1, D6, H1 |
 | `merge:148` | set_symmetric_difference, non-const comparator | `SET_SYMMETRIC_DIFFERENCE` | all backends | fails | D1, D6, H1 |
-| `storable:55` | min, non-const comparator | `MIN_HOST` | all backends | not gated | H3 |
-| `storable:71` | max, non-const comparator | `MAX_HOST` | all backends | not gated | H3 |
-| `storable:89` | minmax, non-const comparator | `MINMAX_HOST` | all backends | not gated | H3 |
+| `storable:55` | min, non-const comparator | `MIN_HOST` | all backends | not disabled | H3 |
+| `storable:71` | max, non-const comparator | `MAX_HOST` | all backends | not disabled | H3 |
+| `storable:89` | minmax, non-const comparator | `MINMAX_HOST` | all backends | not disabled | H3 |
 | `std_ranges_partial_sort_copy.pass.cpp:78` | `test_projections_consistency()` | `WRONG_RESULT_PARTIAL_SORT_COPY_PROJ1` | `par`, `par_unseq` differ from `seq` | differs from `seq` | T1 |
