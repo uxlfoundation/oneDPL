@@ -610,8 +610,9 @@ and partial results are combined with each other.
 Therefore the operation imposes the following type requirements:
 
 - `binary_op(a, b)` must be valid for any combination of `AccT`, `InitT`, and `InputRefT`.
-- `AccT` must be constructible from `InitT` and `InputRefT`,
-  and must be writable to the output iterator.
+- The result of `binary_op(a, b)` for any such combination must be convertible to `AccT`
+  and assignable to an `AccT` object.
+- `AccT` must be writable to the output iterator.
 
 Comparison with other reductions:
 
