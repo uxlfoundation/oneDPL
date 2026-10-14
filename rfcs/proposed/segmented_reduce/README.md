@@ -303,9 +303,10 @@ Yes, because this semantics is already used and due to the performance benefits:
 - Derive tile counts and partial-result locations directly,
   avoiding segment identifiers in multi-kernel implementations.
 
-It can be emulated with the existing key-based segmented reduction
-using counting and discard iterators,
-but it is not as efficient due to the segment boundary checks.
+It can be emulated via the variable-length overload, with offsets `i * segment_length`
+produced by a transform iterator over a counting iterator.
+A dedicated implementation can take advantage of the known segment length and number on the host,
+to select the optimal reduction strategy before the kernel submission.
 
 **Strategy**: provide the fixed-length segment overloads.
 
@@ -692,7 +693,8 @@ Stage (1) in detail:
   Follow the approach from `dpct::device::segmented_reduce`, CUB and rocPRIM:
   assign one segment to a work-group.
   Consider adapting `__work_group_reduce_kernel` for this purpose.
-- Enable the fixed-length overloads using fancy iterators with key-based `reduce_by_segment`.
+- Enable the fixed-length overloads via the variable-length implementation,
+  with offsets `i * segment_length` produced by a transform iterator over a counting iterator.
 - If host policies are used, issue a static assertion error.
 
 ## Feature Macro
