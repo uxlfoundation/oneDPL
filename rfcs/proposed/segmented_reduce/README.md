@@ -283,7 +283,7 @@ Its notation:
 
 **Tentative Strategy**:
 
-- Provide the end bounds for both variable-length and fixed-length segments.
+- Have a parameter for the `last` input element in both proposed function overloads.
 - Follow option (4): document the requirement for valid offsets,
   and guarantee no out-of-bounds accesses to the input range if it is violated,
   leaving the output values unspecified.
