@@ -426,6 +426,33 @@ after library fixes so far:
 - `_TEST_CPP20_RANGES_BROKEN_WRONG_RESULT_LEXICOGRAPHICAL_COMPARE_PROJ1_HOST` was removed after the fix of the
   vectorized `__brick_lexicographical_compare`.
 
+#### Alternatives to New Broken Test Macros
+
+A broken test macro keeps a failing scenario as code that compiles as soon as the macro is set to `0`. It needs one
+switch per defect, lists all open gaps in `test_config.h`, and a fix is checked by changing one value. The cost is
+33 new macros in a shared header, each defined to `1` in every configuration (see [Open Questions](#open-questions)),
+and the per-side bookkeeping of the idioms above. Three other ways to handle a failing scenario do without a new
+broken test macro:
+
+1. **Separate tests that do not compile.** The failing scenarios move into test files of their own.
+   - For: the main tests and `test_config.h` stay free of new macros, and the scenarios stay real code. If the files
+     are registered as tests that are expected not to compile, a library fix shows up by itself, as an unexpected
+     success.
+   - Against: the test build has no notion of an expected compile failure today (`test/CMakeLists.txt` has no
+     support for it), so it has to be added; otherwise the files are excluded from the build and nobody compiles
+     them. A file fails as a whole, so it needs one scenario per file: otherwise one remaining error hides a partial
+     fix. Several gaps exist with one backend or one standard library only (H2, D5, H4); a test that is expected to
+     fail breaks in the configurations where it compiles.
+2. **Commented-out code.** The parts that do not compile stay in the tests, commented out.
+   - For: the smallest change; no macros and no build changes.
+   - Against: commented-out code is not compiled, so it rots as the archetypes and the driver evolve. Checking a fix
+     needs a manual edit, no single place lists the open gaps, and the code cannot be enabled for one configuration.
+3. **Removed scenarios with a description.** The failing scenarios are removed from the tests, and a comment says
+   what to implement after the fix and what exactly to test.
+   - For: the test code is the smallest, and nothing that does not compile stays in the tree.
+   - Against: the test has to be written again after the fix, and a description is easier to get wrong than code.
+     A fix is not detected, and the list of gaps exists only as comments.
+
 ### Building and Running
 
 - **Discovery and labels.** The targets are ordinary `*.pass.cpp` files. `test/CMakeLists.txt` picks them up with
@@ -479,6 +506,9 @@ These are known, accepted limits of the current suite. Some of them are listed a
 - **Lifecycle of the macros.** Should the macros stay hard-coded in `test_config.h`, or be configurable, for example to
   allow an "all macros at `0`" build in CI that measures the remaining gaps? Should each macro carry a comment with the
   root cause and the affected `file:line`?
+- **Broken test macros or an alternative?** Should a new failing scenario get a broken test macro, or one of the
+  [alternatives](#alternatives-to-new-broken-test-macros): a separate test that does not compile, commented-out
+  code, or a description of what to test after the fix? Should the existing 33 macros be converted as well?
 - **Labels after the classification.** Should `LEXICOGRAPHICAL_COMPARE` become `..._HETERO` (its host half compiles
   everywhere)? Should the collapse rule give way when a macro without a suffix also disables device calls that compile:
   nine such calls are under `SORT`, `STABLE_SORT` and `INPLACE_MERGE`?
