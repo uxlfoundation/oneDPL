@@ -663,13 +663,15 @@ In the new overloads, the usefulness of the returned value depends on the segmen
 In variable-length segments, an iterator past the last processed may differ from `last`
 because the number of elements to process is determined by segment offsets,
 and is not known in advance.
-However, with consecutive segments,
+With consecutive segments,
 the iterator past the last processed element can be easily calculated as `first + offsets[num_segments]`.
 It is unclear if returning it is worth a copy of the data
 from the device to the host in case of device policies.
+When segments are out-of-order, have gaps, or overlap,
+the number of processed elements cannot be represented via a single iterator.
 In the fixed-length case, the last input iterator is known: `min(first + num_segments * segment_length, last)`.
 
-**Tentative Strategy**. Return nothing for both variable-length and fixed-length overloads.
+**Strategy**. Return nothing for both variable-length and fixed-length overloads.
 
 ## Evolution
 
