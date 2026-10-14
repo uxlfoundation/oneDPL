@@ -667,7 +667,7 @@ However, with consecutive segments,
 the iterator past the last processed element can be easily calculated as `first + offsets[num_segments]`.
 It is unclear if returning it is worth a copy of the data
 from the device to the host in case of device policies.
-In the fixed-length case, the last input iterator is known: `first + num_segments * segment_length`.
+In the fixed-length case, the last input iterator is known: `min(first + num_segments * segment_length, last)`.
 
 **Tentative Strategy**. Return nothing for both variable-length and fixed-length overloads.
 
