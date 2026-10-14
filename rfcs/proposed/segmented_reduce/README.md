@@ -270,7 +270,7 @@ Its notation:
 
 | Option | Alignment | Enforcement | Communication | Performance |
 |---|---|---|---|---|
-| (1) No preconditions, partial reduction of the segments crossing the bounds | Binary `std::ranges::transform`, `std::ranges::mismatch`, and `std::ranges::equal`, which process the minimum of two bounds and return the stop positions | Per-segment clamping. | Segments completely beyond the input range receive `init_value` | Variable-length: a few `min` and `max` operations per segment, negligible; Fixed-length: `min(num_segments, N / segment_length)` (or `num_segments` if `segment_length == 0`) is computed on the host, no performance impact |
+| (1) No preconditions, partial reduction of the segments crossing the bounds | Binary `std::ranges::transform`, `std::ranges::mismatch`, and `std::ranges::equal`, which process the minimum of two bounds and return the stop positions | Per-segment clamping. | Segments completely beyond the input range receive `init_value` as if the segments are empty, because the intersection of the offsets with the input is empty | Variable-length: a few `min` and `max` operations per segment, negligible; Fixed-length: `min(num_segments, N / segment_length)` (or `num_segments` if `segment_length == 0`) is computed on the host, no performance impact |
 | (2) No preconditions, skip segments crossing and beyond the bounds | No close precedent | Per-segment check | Same as (1) | Same as (1) |
 | (3) Require valid offsets, stop if violated | Checked APIs such as `std::vector::at`, which is uncommon for the standard algorithms. Hardened preconditions ([C++26 hardening](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3471r4.html), libc++ hardening modes) also check the preconditions, but terminate instead of throwing | Variable-length: set a flag in the kernel and check it afterwards (the output is partially written). Fixed-length: a host-side check before the launch | An exception (e.g., `std::out_of_range`) | Variable-length with device policies: a small device-to-host copy and a synchronization; with host policies: negligible. Fixed-length: none |
 | (4) Require valid offsets, unspecified results but no out-of-bounds accesses to the input range if violated | [Erroneous behavior](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p2795r5.html): the behavior is well-defined but incorrect, and implementations may diagnose it | Clamping as in (1) or (2), whichever is cheaper for the backend, not specified | Silent, the output values are unspecified. Optionally, an assertion in debug mode | Same as (1) and (2), without the cost of returning iterators |
@@ -409,7 +409,7 @@ Potential implementation challenges for run-to-run determinism:
 
 In `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`,
 the order is `binary_op, init_value`.
-In `dpl::reduce`, it is the opposite.
+In `dpl::reduce` and in almost all C++ algorithms, it is the opposite.
 For API consistency, `init_value, binary_op` is preferred.
 If full order compatibility with CUB and rocPRIM equivalents is required,
 wrappers can be added to, for example, `compat` namespace.
