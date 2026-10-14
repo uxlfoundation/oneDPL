@@ -146,9 +146,9 @@ Supporting them would also rule out using binary search.
 
 - Support empty segments.
 - Treat negatively sized segments as erroneous behavior
-  (In this context, UB with a guaranteed prevention of out-of-bounds accesses).
-  At the implementation level, treat them as empty.
-  Optionally, flag in debug mode, for example with an assertion.
+  (In this context,
+  UB with a guaranteed prevention of out-of-bounds accesses to the input range).
+  Decision on how to avoid out-of-bounds access is left to the implementation.
 - Provide only one sequence of offsets (no overlapping or unordered segments), and
   require that it is sorted in ascending order.
 
@@ -257,7 +257,7 @@ for the case when `last` does not bound the input.
 The offsets and output ranges are out of scope here,
 because their sizes are specified in a much more direct way via `num_segments`.
 
-The table below outlines the options for handling input bounds and negative offsets.
+The table below outlines the options for handling input bounds.
 Its notation:
 
 - `N = last - first`.
@@ -270,8 +270,8 @@ Its notation:
 
 | Option | Alignment | Enforcement | Communication | Performance |
 |---|---|---|---|---|
-| (1) No preconditions, partial reduction of the segments crossing the bounds | Binary `std::ranges::transform`, `std::ranges::mismatch`, and `std::ranges::equal`, which process the minimum of two bounds and return the stop positions | Per-segment clamping, nothing is written for the segments entirely outside the bounds | Silent. No signaling is needed because this is safe behavior, well defined by the provided input arguments. | Variable-length: a few `min` and `max` operations per segment, negligible; Fixed-length: `min(num_segments, N / segment_length)` (or `num_segments` if `segment_length == 0`) is computed on the host, no performance impact |
-| (2) No preconditions, skip segments crossing and beyond the bounds | No close precedent | Per-segment check, nothing is written for the skipped segments | Same as (1) | Same as (1) |
+| (1) No preconditions, partial reduction of the segments crossing the bounds | Binary `std::ranges::transform`, `std::ranges::mismatch`, and `std::ranges::equal`, which process the minimum of two bounds and return the stop positions | Per-segment clamping. | Segments completely beyond the input range receive `init_value` | Variable-length: a few `min` and `max` operations per segment, negligible; Fixed-length: `min(num_segments, N / segment_length)` (or `num_segments` if `segment_length == 0`) is computed on the host, no performance impact |
+| (2) No preconditions, skip segments crossing and beyond the bounds | No close precedent | Per-segment check | Same as (1) | Same as (1) |
 | (3) Require valid offsets, stop if violated | Checked APIs such as `std::vector::at`, which is uncommon for the standard algorithms. Hardened preconditions ([C++26 hardening](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3471r4.html), libc++ hardening modes) also check the preconditions, but terminate instead of throwing | Variable-length: set a flag in the kernel and check it afterwards (the output is partially written). Fixed-length: a host-side check before the launch | An exception (e.g., `std::out_of_range`) | Variable-length with device policies: a small device-to-host copy and a synchronization; with host policies: negligible. Fixed-length: none |
 | (4) Require valid offsets, unspecified results but no out-of-bounds accesses to the input range if violated | [Erroneous behavior](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p2795r5.html): the behavior is well-defined but incorrect, and implementations may diagnose it | Clamping as in (1) or (2), whichever is cheaper for the backend, not specified | Silent, the output values are unspecified. Optionally, an assertion in debug mode | Same as (1) and (2), without the cost of returning iterators |
 | (5) Require valid offsets, document only | Standard practice for iterator-based algorithms: for example, `std::inplace_merge` requires `middle` to be a valid iterator within the range, otherwise, the behavior is undefined. It also matches the behavior of CUB and rocPRIM | None, except for optional host-side assertions in debug mode | None: out-of-bounds accesses, crashes or garbage results | None, `last` is used only for the workload distribution |
