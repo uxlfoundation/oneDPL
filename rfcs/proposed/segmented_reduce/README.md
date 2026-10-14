@@ -160,8 +160,10 @@ Possible argument types:
 **Strategy**:
 
 - Accept any integral type for `num_segments` and `segment_length` via template parameters.
-- If `num_segments <= 0` or `segment_length <= 0`, short-circuit the algorithm: the input and the offsets are not read, and the output is not written.
-  Document this behavior.
+- If `num_segments <= 0` or `segment_length < 0`,
+  short-circuit the algorithm: the input and the offsets are not read, and the output is not written.
+- If `segment_length == 0` (and `num_segments > 0`), treat all segments as empty.
+- Document this behavior.
 
 ### Initial Value, its Default Value, and Identity
 
@@ -250,12 +252,12 @@ Its notation:
   for variable-length segments
   (the offsets are consecutive, see [Empty, Overlapping, Negatively Sized, and Unordered Segments](#empty-overlapping-negatively-sized-and-unordered-segments),
   thus only the first and the last offsets define the bounds),
-  or positive `num_segments` and `segment_length` with `num_segments * segment_length <= N`
+  or positive `num_segments` and non-negative `segment_length` with `num_segments * segment_length <= N`
   for fixed-length segments.
 
 | Option | Alignment | Enforcement | Communication | Performance |
 |---|---|---|---|---|
-| (1) No preconditions, partial reduction of the segments crossing the bounds | Binary `std::ranges::transform`, `std::ranges::mismatch`, and `std::ranges::equal`, which process the minimum of two bounds and return the stop positions | Per-segment clamping, nothing is written for the segments entirely outside the bounds | Return value: output iterators to the first and past the last written segments (the first one is relevant only if negative offsets are allowed). Requires adjusting [Return Value](#return-value) | Variable-length: a few `min` and `max` operations per segment, negligible; returning iterators requires a device-to-host copy and a synchronization for device policies. Fixed-length: `min(num_segments, N / segment_length)` is computed on the host, no performance impact |
+| (1) No preconditions, partial reduction of the segments crossing the bounds | Binary `std::ranges::transform`, `std::ranges::mismatch`, and `std::ranges::equal`, which process the minimum of two bounds and return the stop positions | Per-segment clamping, nothing is written for the segments entirely outside the bounds | Return value: output iterators to the first and past the last written segments (the first one is relevant only if negative offsets are allowed). Requires adjusting [Return Value](#return-value) | Variable-length: a few `min` and `max` operations per segment, negligible; returning iterators requires a device-to-host copy and a synchronization for device policies. Fixed-length: `min(num_segments, N / segment_length)` (or `num_segments` if `segment_length == 0`) is computed on the host, no performance impact |
 | (2) No preconditions, skip segments crossing and beyond the bounds | No close precedent | Per-segment check, nothing is written for the skipped segments | Same as (1) | Same as (1) |
 | (3) Require valid offsets, stop if violated | Checked APIs such as `std::vector::at`, which is uncommon for the standard algorithms. Hardened preconditions ([C++26 hardening](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3471r4.html), libc++ hardening modes) also check the preconditions, but terminate instead of throwing | Variable-length: set a flag in the kernel and check it afterwards (the output is partially written). Fixed-length: a host-side check before the launch | An exception (e.g., `std::out_of_range`) | Variable-length with device policies: a small device-to-host copy and a synchronization; with host policies: negligible. Fixed-length: none |
 | (4) Require valid offsets, unspecified results but no out-of-bounds accesses to the input range if violated | [Erroneous behavior](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p2795r5.html): the behavior is well-defined but incorrect, and implementations may diagnose it | Clamping as in (1) or (2), whichever is cheaper for the backend, not specified | Silent, the output values are unspecified. Optionally, an assertion in debug mode | Same as (1) and (2), without the cost of returning iterators |
@@ -649,8 +651,7 @@ However, with consecutive segments,
 the iterator past the last processed element can be easily calculated as `first + offsets[num_segments]`.
 It is unclear if returning it is worth a copy of the data
 from the device to the host in case of device policies.
-
-In the fixed-length case, the last output iterator is known: `out_first + num_segments`.
+In the fixed-length case, the last input iterator is known: `in_first + num_segments * segment_length`.
 
 **Tentative Strategy**. Return nothing for both variable-length and fixed-length overloads.
 
