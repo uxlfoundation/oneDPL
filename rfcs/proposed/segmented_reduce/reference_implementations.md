@@ -97,9 +97,9 @@ API notes:
 - The operation must be both associative and commutative, due to the use of SYCL group reductions.
 
 Implementation: assign a work-group to a segment, and do the reduction within one kernel launch.
-When the value type and the passed predicate is compatible with the `sycl::joint_reduce`, it uses this group algorithm.
-Otherwise, it uses `sycl::ext::oneapi::experimental::joint_reduce` group algorithm, hence only oneAPI is supported
-in a general case.
+When the value type and binary operation are compatible with `sycl::joint_reduce`, it uses that group algorithm.
+Otherwise, it uses the `sycl::ext::oneapi::experimental::joint_reduce` group algorithm, so only oneAPI supports
+the general case.
 
 ## Other Libraries
 

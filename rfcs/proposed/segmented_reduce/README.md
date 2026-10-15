@@ -145,9 +145,8 @@ Supporting them would also rule out using binary search.
 **Tentative Strategy**:
 
 - Support empty segments.
-- Treat negatively sized segments as erroneous behavior
-  (In this context,
-  UB with a guaranteed prevention of out-of-bounds accesses to the input range).
+- Treat negatively sized segments as erroneous behavior:
+  results are unspecified, but the implementation must prevent out-of-bounds accesses to the input range.
   Decision on how to avoid out-of-bounds access is left to the implementation.
 - Provide only one sequence of offsets (no overlapping or unordered segments), and
   require that it is sorted in ascending order.
