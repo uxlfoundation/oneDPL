@@ -324,10 +324,23 @@ Following the [Kernel Templates testing guidance][kt-testing]:
   * SYCL async memory pool, passing a `memory_pool`
     (see [PR #2842](https://github.com/uxlfoundation/oneDPL/pull/2842))
   * An env object holding the queue and pool, like newer CUB (possibly with defaults)
-  * A separately named query function, like `batched_stable_sort_alloc_size`
+  * A separately named query function, like `batched_stable_sort_bytes_required`
 
-  My recommendation is to use an async memory pool, and if none specified, create one with the
-  provided queue.
+  Feedback from a potential user has described the need to pre-plan temporary memory allocation
+  budgets at compile time. This is not possible to satisfy through the SYCL async memory pool
+  strategy. Also, the async malloc/free SYCL extension is [not supported by sycl graph.](https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/experimental/sycl_ext_oneapi_graph.asciidoc#122-limitations-of-native-recording)
+  SYCL graph recording is important to pytorch, so I would not recommend this strategy since it
+  would not be supported in a recorded graph.
+  With this in mind, I suggest a separately named query function, which accepts the arguments
+  required to know allocation sizes.
+  Possible signature:
+
+```c++
+template <typename _SortConfig, typename _KernelParam,
+          typename _KeyT, typename _ValT>
+constexpr std::size_t
+batched_stable_sort_by_key_bytes_req(std::size_t __segment_size, std::size_t __total_size, _KernelParam __param = {});
+```
 
 * Should merge path sort be part of the initial offering? One work-group radix sort and Modified
   OneSweep together serve every segment size. The cost of leaving merge out is giving up its
