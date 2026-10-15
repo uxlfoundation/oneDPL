@@ -368,17 +368,12 @@ struct __write_multiple_to_id
     void
     operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data) const
     {
-        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
-        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
-        // through.
-        using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
         const __temp_data_array_idx_t __n = std::get<1>(__v);
         for (__temp_data_array_idx_t __i = 0; __i < __n; ++__i)
         {
-            __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
-                     __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
+            // The copy is assigned as a const lvalue: the constness of the input element is not known here
+            const auto __val = __temp_data.get_and_destroy(__i);
+            __assign_with_tuple_conversion(__assign, __val, __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
         }
     }
 
@@ -387,12 +382,6 @@ struct __write_multiple_to_id
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData& __temp_data,
                _OnOOBReached __on_oob_reached) const
     {
-        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
-        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
-        // through.
-        using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
         const __temp_data_array_idx_t __n = std::get<1>(__v);
         for (__temp_data_array_idx_t __i = 0; __i < __n; ++__i)
         {
@@ -401,11 +390,11 @@ struct __write_multiple_to_id
             // matching destruction. Since __temp_data is reused for the next scanned element, destroying only on the
             // in-bounds path would leak slots whose output index falls outside __out_size (the bounded/overflow case)
             // and let the next set() placement-new over a still-live object.
-            auto&& __val = __temp_data.get_and_destroy(__i);
+            const auto __val = __temp_data.get_and_destroy(__i);
 
             const std::size_t __out_idx = std::get<0>(__v) - std::get<1>(__v) + __i;
             if (__out_idx < __out_size)
-                __assign(static_cast<_ConvertedTupleType>(std::forward<decltype(__val)>(__val)), __out_rng[__out_idx]);
+                __assign_with_tuple_conversion(__assign, __val, __out_rng[__out_idx]);
 
             // Report the source id of the current diagonal together with the local element offset within the
             // temporary data. This is enough to recover the source index pair later (by re-running the serial
