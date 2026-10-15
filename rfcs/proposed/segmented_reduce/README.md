@@ -165,7 +165,7 @@ Possible argument types:
 |---|---|---|
 | template: unsigned integer | None | Zero returns immediately. Negative values are not representable; signed arguments, even literals like `3`, do not compile |
 | template: any integer | The count argument of the standard and oneDPL `*_n` algorithms | Representable for signed types; non-positive values return immediately |
-| `std::size_t` | dpct, rocPRIM (`unsigned int`) | Zero returns immediately. A negative argument silently wraps to a huge value: out-of-bounds accesses for variable-length segments, clamped by the input bounds for fixed-length segments |
+| `std::size_t` | dpct, rocPRIM (`unsigned int`) | Zero returns immediately. A negative argument silently wraps to a huge value. |
 | `std::uint64_t` | None | Same as `std::size_t` |
 | `std::int64_t` | CUB (`num_segments`) | Representable; non-positive values return immediately. Unsigned arguments silently convert |
 
