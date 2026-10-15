@@ -336,8 +336,7 @@ Following the [Kernel Templates testing guidance][kt-testing]:
   Possible signature:
 
 ```c++
-template <typename _SortConfig, typename _KernelParam,
-          typename _KeyT, typename _ValT>
+template <typename _SortConfig, typename _KeyT, typename _ValT, typename _KernelParam>
 constexpr std::size_t
 batched_stable_sort_by_key_bytes_req(std::size_t __segment_size, std::size_t __total_size, _KernelParam __param = {});
 ```
