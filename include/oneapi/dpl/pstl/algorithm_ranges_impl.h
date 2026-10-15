@@ -842,7 +842,7 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
     const _Index __n1 = static_cast<_Index>(std::ranges::size(__r1));
     const _Index __n2 = static_cast<_Index>(std::ranges::size(__r2));
     const _Index __n3 = static_cast<_Index>(std::ranges::size(__out_r));
-    const _Index __n_out = std::min(__n1 + __n2, __n3);
+    const _Index __n_out = std::min<_Index>(__n1 + __n2, __n3);
 
     if (__n3 == 0)
         return {__first1, __first2, __first3};
