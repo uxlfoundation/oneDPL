@@ -209,35 +209,28 @@ struct __write_partitioned
                 || (__start_idx - __mask_prefix) + __max_write_offset > __out2_size);
     }
 
-    template <typename _ValueType, typename _Range>
-    static constexpr auto
-    __tuple_type_cast(_ValueType&& __value, _Range&&)
-    {
-        // An explicit cast to our internal tuple type is required to resolve conversion issues between an
-        // internal tuple and a std::tuple. If the underlying type is not a tuple, it just passes through.
-        // _Range is only used for type deduction; no runtime access occurs.
-        using _ConvertedType = typename oneapi::dpl::__internal::__get_tuple_type<
-            std::decay_t<_ValueType>, std::decay_t<decltype(std::declval<_Range>()[0])>>::__type;
-        return static_cast<_ConvertedType>(std::forward<_ValueType>(__value));
-    }
-
+    // __v as for __write_to_id_if
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, _SizeType __id, _ValueType&& __v) const
     {
-        const auto& [__mask_prefix, __mask, __value] = __v;
+        const auto __mask_prefix = std::get<0>(__v);
+        const bool __mask = std::get<1>(__v);
         auto& [__out1_rng, __out2_rng] = __out_rng; // unpack the tuple of outputs
         if (__mask)
-            __out1_rng[__mask_prefix - 1] = __tuple_type_cast(__value, __out1_rng);
+            __assign_with_tuple_conversion(__assign, std::get<2>(std::forward<_ValueType>(__v)),
+                                           __out1_rng[__mask_prefix - 1]);
         else
-            __out2_rng[__id - __mask_prefix] = __tuple_type_cast(__value, __out2_rng);
+            __assign_with_tuple_conversion(__assign, std::get<2>(std::forward<_ValueType>(__v)),
+                                           __out2_rng[__id - __mask_prefix]);
     }
 
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _OnOOBReached __on_oob_reached) const
+    operator()(_OutRng& __out_rng, _SizeType __id, _ValueType&& __v, _OnOOBReached __on_oob_reached) const
     {
-        const auto& [__mask_prefix, __mask, __value] = __v;
+        const auto __mask_prefix = std::get<0>(__v);
+        const bool __mask = std::get<1>(__v);
         auto& [__out1_rng, __out2_rng] = __out_rng; // unpack the tuple of outputs
         // __mask_prefix is the number of inputs for the first output range up to and including this item.
         // the index to write to if the mask matches out1/out2, otherwise the previous would-be written index (or -1)
@@ -252,9 +245,11 @@ struct __write_partitioned
             if (__target_idx_in_bound)
             {
                 if (__mask)
-                    __out1_rng[__out1_idx] = __tuple_type_cast(__value, __out1_rng);
+                    __assign_with_tuple_conversion(__assign, std::get<2>(std::forward<_ValueType>(__v)),
+                                                   __out1_rng[__out1_idx]);
                 else
-                    __out2_rng[__out2_idx] = __tuple_type_cast(__value, __out2_rng);
+                    __assign_with_tuple_conversion(__assign, std::get<2>(std::forward<_ValueType>(__v)),
+                                                   __out2_rng[__out2_idx]);
             }
             // If out-of-bound conditions detected, report stop positions in the input and the 1st output
             if (__oob_reached)
@@ -263,6 +258,7 @@ struct __write_partitioned
     }
     const diff_t __out1_size;
     const diff_t __out2_size;
+    oneapi::dpl::__internal::__pstl_forward_assign __assign;
 };
 
 // Writes operation for reduce_by_segment, writes first key if the id is 0. Also, if the segment end is reached, writes
