@@ -150,40 +150,33 @@ struct __write_to_id_if
         return (__carry_in + __max_write_offset > __out_size);
     }
 
+    // __v is the scanned value with the value category and the constness of the input elements, see
+    // __as_input_element, so that get<2>(__v) is assigned as indirectly_copyable requires
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v) const
+    operator()(_OutRng& __out_rng, _SizeType __id, _ValueType&& __v) const
     {
-        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
-        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
-        // through.
-        using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
         if (std::get<1>(__v))
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
+            __assign_with_tuple_conversion(__assign, std::get<2>(std::forward<_ValueType>(__v)),
+                                           __out_rng[std::get<0>(__v) - 1 + __offset]);
     }
 
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
     void
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _OnOOBReached __on_oob_reached) const
+    operator()(_OutRng& __out_rng, _SizeType __id, _ValueType&& __v, _OnOOBReached __on_oob_reached) const
     {
-        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
-        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
-        // through.
-        using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
         if (std::get<1>(__v))
         {
             const std::size_t __out_idx = std::get<0>(__v) - 1 + __offset;
 
             if (__out_idx < __out_size)
-                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
+                __assign_with_tuple_conversion(__assign, std::get<2>(std::forward<_ValueType>(__v)),
+                                               __out_rng[__out_idx]);
             if (__out_idx == __out_size)
                 __on_oob_reached(__id, __id);
         }
     }
+
     const std::size_t __out_size;
     _Assign __assign;
 };
@@ -2207,7 +2200,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                             if (__sub_group_local_id == 0)
                             {
                                 // For unique patterns, always copy the 0th element to the output
-                                __write_op.__assign(__in_rng[0], __out_rng[0]);
+                                __assign_with_tuple_conversion(__write_op.__assign, __in_rng[0], __out_rng[0]);
                             }
                         }
 
