@@ -79,9 +79,8 @@ a single launch. If we decide to provide a similar API, we reserve `segmented` f
 
 `_SortConfig` selects the algorithm, and carries any parameters specific to it.
 `_SortConfig` has no default and must always be specified, which keeps the algorithm, and its
-segment size limit and requirements, visible at each call site. It is placed first, so the sort
-direction keeps its default: `batched_stable_sort<kt::gpu::radix_one_wg<8>>(...)` sorts ascending.
-Kernel templates are meant to be a thin layer around an algorithm / kernel, so each call runs
+segment size limit and requirements, visible at each call site. Kernel templates are
+meant to be a thin layer around an algorithm / kernel, so each call runs
 exactly one algorithm, configured by one `kernel_param`.
 
 ```c++
@@ -324,7 +323,7 @@ Following the [Kernel Templates testing guidance][kt-testing]:
   * SYCL async memory pool, passing a `memory_pool`
     (see [PR #2842](https://github.com/uxlfoundation/oneDPL/pull/2842))
   * An env object holding the queue and pool, like newer CUB (possibly with defaults)
-  * A separately named query function, like `batched_stable_sort_bytes_required`
+  * A separately named query function, like `batched_stable_sort[_by_key]_bytes_req`
 
   Feedback from a potential user has described the need to pre-plan temporary memory allocation
   budgets at compile time. This is not possible to satisfy through the SYCL async memory pool
@@ -338,7 +337,7 @@ Following the [Kernel Templates testing guidance][kt-testing]:
 ```c++
 template <typename _SortConfig, typename _KeyT, typename _ValT, typename _KernelParam>
 constexpr std::size_t
-batched_stable_sort_by_key_bytes_req(std::size_t __segment_size, std::size_t __total_size, _KernelParam __param = {});
+batched_stable_sort_by_key_bytes_req(std::size_t __segment_size, std::size_t __total_size, bool __in_place, _KernelParam __param = {});
 ```
 
 * Should merge path sort be part of the initial offering? One work-group radix sort and Modified
