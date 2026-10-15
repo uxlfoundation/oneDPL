@@ -52,15 +52,15 @@ namespace:
 `oneapi::dpl::experimental::kt::gpu`
 
 ```c++
-template <bool __is_ascending = true, std::uint8_t __radix_bits = 8, typename _KernelParam,
+template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam,
           typename _KeysIterator1, typename _ValsIterator1,
           typename _KeysIterator2, typename _ValsIterator2>
 sycl::event
-batched_radix_sort_by_key(sycl::queue __q,
-                          _KeysIterator1 __keys_first, _KeysIterator1 __keys_last,
-                          _ValsIterator1 __vals_first,
-                          _KeysIterator2 __keys_out_first, _ValsIterator2 __vals_out_first,
-                          std::size_t __segment_size, _KernelParam __param = {});
+batched_stable_sort_by_key(sycl::queue __q,
+                           _KeysIterator1 __keys_first, _KeysIterator1 __keys_last,
+                           _ValsIterator1 __vals_first,
+                           _KeysIterator2 __keys_out_first, _ValsIterator2 __vals_out_first,
+                           std::size_t __segment_size, _KernelParam __param = {});
 ```
 
 Replicates for permutations of:
@@ -70,18 +70,43 @@ Replicates for permutations of:
 * In-place (no out keys or ranges)
 * key value pairs or just key only
   Key only sorts remove "_by_key" and any value sequence arguments.
-* radix sort and (optionally) merge sort
-  Replace "radix" with "merge" and remove radix template parameter
 
 We chose the term `batched`, because it helps indicate that we are launching a batch of fixed size
 independent sorts. CUB already has segmented radix sort which allows arbitrary and varied sizes in
-a single launch. If we decide to provide a similar API, we reserve `segmented` for that. Kernel
-templates are meant to be a thin layer around an algorithm / kernel, so we provide an API for each
-stable sort approach: radix, and optionally merge.
+a single launch. If we decide to provide a similar API, we reserve `segmented` for that.
+
+#### Sort Configuration
+
+`_SortConfig` selects the algorithm, and carries any parameters specific to it.
+`_SortConfig` has no default and must always be specified, which keeps the algorithm, and its
+segment size limit and requirements, visible at each call site. It is placed first, so the sort
+direction keeps its default: `batched_stable_sort<kt::gpu::radix_one_wg<8>>(...)` sorts ascending.
+Kernel templates are meant to be a thin layer around an algorithm / kernel, so each call runs
+exactly one algorithm, configured by one `kernel_param`.
+
+```c++
+// Merge path sort; requires __segment_size <= data_per_workitem * workgroup_size
+struct merge_path;
+
+// One work-group radix sort; requires __segment_size <= data_per_workitem * workgroup_size
+template <std::uint8_t __radix_bits = 8>
+struct radix_one_wg;
+
+// Modified OneSweep radix sort; any __segment_size
+template <std::uint8_t __radix_bits = 8>
+struct radix_onesweep;
+```
+
+Unsupported combinations of `_SortConfig` and `kernel_param` are rejected at compile time, e.g.
+`radix_onesweep` currently requires 8 radix bits and 512 or 1024 work-items. Unsupported runtime
+arguments for specific sort configurations assert at runtime.
+
+Dispatching between algorithms by segment size is left to the user. The documentation will include
+an example wrapper (see [Dispatch](#dispatch)).
 
 Compile time parameters:
-* ascending / descending - direction of the sort
-* radix - the radix of the sort, only applicable to radix sort
+* `_SortConfig` - the algorithm, and its algorithm specific parameters (radix bits)
+* ascending / descending - direction of the sort, defaults to ascending
 * `kernel_param`: `data_per_workitem`, `workgroup_size`
 
 Runtime Parameters:
@@ -94,19 +119,20 @@ Runtime Parameters:
 * `__segment_size == 0` is rejected with an assertion.
 * For `__segment_size > 0`, `n == 0` is a no-op; otherwise, `n % __segment_size != 0` is rejected
   with an assertion.
-* `batched_radix_sort*` sorts with one work-group radix sort when
-  `__segment_size <= data_per_workitem * workgroup_size`, and with Modified OneSweep otherwise.
-  If the `kernel_param` is not supported by Modified OneSweep (currently 8 radix bits with 512 or
-  1024 work-items), `__segment_size > data_per_workitem * workgroup_size` is rejected with an
-  assertion.
-* `batched_merge_sort*` rejects `__segment_size > data_per_workitem * workgroup_size` with an
-  assertion.
-* One work-group radix sort and `batched_merge_sort*` stage a full work-group tile of keys (and
-  values) in local memory, so `data_per_workitem * workgroup_size * (sizeof(key) + sizeof(value))`
-  must not exceed the device's local memory (`sycl::info::device::local_mem_size`). Choosing a
-  `kernel_param` which satisfies this is the user's responsibility, as for other kernel templates.
+* For `merge_path` and `radix_one_wg`, `__segment_size > data_per_workitem * workgroup_size` is
+  rejected with an assertion. `radix_onesweep` accepts any `__segment_size`.
+* `merge_path` and `radix_one_wg` stage a full work-group tile of keys (and values) in local memory,
+  so `data_per_workitem * workgroup_size * (sizeof(key) + sizeof(value))` must not exceed the
+  device's local memory (`sycl::info::device::local_mem_size`). Choosing a `kernel_param` which
+  satisfies this is the user's responsibility, as for other kernel templates.
+* `radix_onesweep` requires parallel forward progress between work-groups (see
+  [Implementation Details](#implementation-details)).
 * Input and output must not overlap. Full aliasing is served by the in-place overloads; partial
   overlap is not supported.
+* All algorithms order keys by the same total order as `kt::gpu::radix_sort`, the order of their
+  order-preserving bit transform: for floating point, `-0.0` sorts before `+0.0`, and NaNs are
+  ordered by sign and payload. Since every algorithm is also stable, the output does not depend on
+  the `_SortConfig`, so it can be chosen for performance alone.
 * Supported key types, data passing mechanisms (USM pointers, `oneapi::dpl::begin` / `end`,
   `sycl::buffer`, `views::all` / `views::subrange`), and the returned `sycl::event` match the
   existing `kt::gpu::radix_sort[_by_key]`.
@@ -131,10 +157,12 @@ std::uint32_t* ids_out = sycl::malloc_device<std::uint32_t>(n, q);
 q.wait(); // The current API has no dependency-event parameter.
 
 // A row fits in one tile of 8 * 512 = 4096 keys + ids (32 KB of SLM), so one work-group radix
-// sort is used; a larger V would be sorted by Modified OneSweep with the same call
+// sort can be used
+using config_t = kt::gpu::radix_one_wg<8>;
 using param_t = kt::kernel_param<8, 512>;
-sycl::event e = kt::gpu::batched_radix_sort_by_key<false, 8>(q, probs, probs + n, ids, probs_out,
-                                                             ids_out, V, param_t{});
+sycl::event e = kt::gpu::batched_stable_sort_by_key<config_t, false>(q, probs, probs + n, ids,
+                                                                     probs_out, ids_out, V,
+                                                                     param_t{});
 e.wait();
 // each row of probs_out is sorted descending; ties keep the lower token id first
 ```
@@ -182,6 +210,8 @@ Implement two kernels, and optionally a third:
 3) (Optional, or secondary priority) Work-group merge path sort, for segments which fit into a
    single work-group (`workgroup_size * data_per_workitem`). Multiple segments may be packed into
    one work-group.
+   * Keys are compared after the same order-preserving bit transform radix sort uses, rather than
+     with `operator<`, so the order matches radix sort exactly, including `-0.0` / `+0.0` and NaN.
    * Load into registers and stable sort each work-item's `data_per_workitem` keys (leaf sort).
      The last work-item of a segment may hold fewer than `data_per_workitem` keys; its unused
      slots are padded and excluded from the merges and the final write.
@@ -198,19 +228,35 @@ decoupled lookback, so like `kt::gpu::radix_sort` it requires parallel forward p
 work-groups, and initially carries the same device and runtime restrictions.
 
 #### Dispatch
-With one work-group radix sort and Modified OneSweep behind the same API (see
-[open questions](#open-questions)), `batched_radix_sort` serves every segment size, and picks its
-kernel with a simple rule:
-* `__segment_size <= data_per_workitem * workgroup_size`: one work-group radix sort
-* Otherwise: Modified OneSweep
+Each call runs one algorithm, and the best one depends on segment size. A user who needs to serve a
+range of segment sizes can dispatch with a small wrapper, which the documentation will include:
 
-The user chooses which kernel runs through the `kernel_param`, and is responsible for a tile of
-keys (and values) which fits in local memory whenever one work-group radix sort is chosen. If
-`batched_merge_sort` is optionally provided, the documentation will recommend it for segments
-smaller than roughly 1K elements which fit in its tile, where it is faster.
+```c++
+namespace kt = oneapi::dpl::experimental::kt;
+
+template <bool __is_ascending, typename _Key, typename _Val>
+sycl::event
+my_batched_sort_by_key(sycl::queue q, _Key* keys, _Val* vals, _Key* keys_out, _Val* vals_out,
+                       std::size_t n, std::size_t segment_size)
+{
+    // Thresholds and kernel_params are illustrative; tune for the target device and types.
+    // Tiles below fit 32 KB of SLM for 4-byte keys and values.
+    if (segment_size <= 256)
+        return kt::gpu::batched_stable_sort_by_key<kt::gpu::merge_path, __is_ascending>(
+            q, keys, keys + n, vals, keys_out, vals_out, segment_size, kt::kernel_param<4, 64>{});
+    if (segment_size <= 4096)
+        return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_one_wg<8>, __is_ascending>(
+            q, keys, keys + n, vals, keys_out, vals_out, segment_size, kt::kernel_param<8, 512>{});
+    return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_onesweep<8>, __is_ascending>(
+        q, keys, keys + n, vals, keys_out, vals_out, segment_size, kt::kernel_param<4, 512>{});
+}
+```
+
+Each branch has its own `kernel_param`, so the one work-group tile and the Modified OneSweep tile
+can be tuned independently.
 
 The local memory bound depends on key and value size, so larger types reduce the largest segment
-size served by one work-group radix sort and `batched_merge_sort`. For example, at 64 KB of local
+size served by one work-group radix sort and merge path sort. For example, at 64 KB of local
 memory, the tile is limited to 16K `std::uint32_t` keys, 8K `std::uint32_t` key-value pairs, or 4K
 `std::uint64_t` key-value pairs.
 
@@ -253,17 +299,18 @@ most cases. 2048 element segments were not measured, and 16K segments do not fit
 ## Testing
 
 Following the [Kernel Templates testing guidance][kt-testing]:
-* Verify each segment against a per-segment `std::stable_sort` reference. Use values holding the
-  original index to check stability.
-* Segment sizes: 1, small non-power-of-two, around `data_per_workitem * workgroup_size` (-1, ==, +1
-  for radix), large segments, and a single segment (`__segment_size == n`).
-* All supported key types, including floating point edge cases (-0.0, +0.0, infinities), and key
-  and value types of different widths.
+* Verify each segment against a per-segment `std::stable_sort` reference, comparing keys by the
+  same order-preserving bit transform. Use values holding the original index to check stability.
+* Segment sizes: 1, small non-power-of-two, around each algorithm's capacity (-1, ==), large
+  segments, and a single segment (`__segment_size == n`).
+* Each `_SortConfig`, with a representative sample of `kernel_param`s and radix bits.
+* Identical output from every `_SortConfig` for the same input.
+* All supported key types, including floating point edge cases (-0.0, +0.0, infinities, NaNs), and
+  key and value types of different widths.
 * Ascending and descending; key only and by key; out-of-place and in-place; iterators and ranges;
   USM and `sycl::buffer`.
 * `n == 0` is a no-op; assertions fire for `__segment_size == 0`, `n % __segment_size != 0`, and
-  `__segment_size > data_per_workitem * workgroup_size` for merge sort, and for radix sort with a
-  `kernel_param` not supported by Modified OneSweep.
+  `__segment_size > data_per_workitem * workgroup_size` for `merge_path` and `radix_one_wg`.
 * Reuse the existing `kt::gpu::radix_sort` test setup to cover a representative sample of kernel
   parameters.
 
@@ -282,21 +329,16 @@ Following the [Kernel Templates testing guidance][kt-testing]:
   My recommendation is to use an async memory pool, and if none specified, create one with the
   provided queue.
 
-* Should only radix sort be provided? One work-group radix sort and Modified OneSweep together
-  serve every segment size, which would leave a single algorithm and API. The cost is giving up
-  merge path sort's advantage for segments below roughly 1K elements, which is up to 3-4x at 32
-  element segments.
-    * My suggestion would be to make the initial offering radix only, and provide the merge API
-      separately as a secondary priority.
+* Should merge path sort be part of the initial offering? One work-group radix sort and Modified
+  OneSweep together serve every segment size. The cost of leaving merge out is giving up its
+  advantage for segments below roughly 1K elements, which is up to 3-4x at 32 element segments.
+  Adding it later only adds a `_SortConfig` type to the API.
+    * My suggestion would be to make the initial offering radix only, and add merge path as a
+      secondary priority.
 
-* Should one work-group radix sort be offered through the same `batched_radix_sort` API, with the
-  clean dispatch rule: one work-group radix sort if at least one segment fits in a tile
-  (`__segment_size <= data_per_workitem * workgroup_size`), Modified OneSweep otherwise? The
-  alternative is a separately named kernel template, keeping each kernel template a thin layer
-  over one kernel. With a shared API, the `kernel_param` also decides which kernel runs, and its
-  tile of keys (and values) must fit in local memory whenever the one work-group kernel is chosen.
-    * My suggestion would be to provide these in the same API, and dispatch based on the simple
-      rule of whether at least one segment fits into `data_per_workitem * workgroup_size`.
+* Naming of `_SortConfig` and its types (`merge_path`, `radix_one_wg`, `radix_onesweep`). "Policy"
+  is avoided, to avoid confusion with execution policy elsewhere in oneDPL. Should these types live
+  in a nested namespace? Other options: `_SortBrick`, `_Sorter`, `_SortAlgo`...
 
 * What are the exact type support requirements?
   * `sycl::half`?
