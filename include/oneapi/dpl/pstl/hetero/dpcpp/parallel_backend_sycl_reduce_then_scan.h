@@ -1330,6 +1330,53 @@ struct __scan_by_seg_op
 
 // *** Traits of the input generators ***
 
+// The scanned value as the write operations get it: with the value category and the constness of the input elements
+template <typename _Rng, typename = void>
+struct __input_reference
+{
+    using type = void;
+};
+
+template <typename _Rng>
+struct __input_reference<_Rng, std::void_t<decltype(std::declval<const _Rng&>()[0])>>
+{
+    using type = decltype(std::declval<const _Rng&>()[0]);
+};
+
+template <typename _InRng, typename _ValueType>
+decltype(auto)
+__as_input_element(_ValueType& __v)
+{
+    using _Ref = typename __input_reference<_InRng>::type;
+    if constexpr (std::is_void_v<_Ref>)
+    {
+        return (__v);
+    }
+    else
+    {
+        using _Elem = std::remove_reference_t<_Ref>;
+        using _Value = oneapi::dpl::__internal::__value_t<_InRng>;
+        // The copy cannot stand in for a volatile element: it is assigned as a const lvalue then
+        if constexpr (std::is_volatile_v<_Elem>)
+            return std::as_const(__v);
+        // For a proxy, the copy gets the value category of the proxy converted to the value type
+        else if constexpr (!std::is_same_v<std::remove_cv_t<_Elem>, _Value> && std::is_convertible_v<_Ref, _Value&>)
+            return (__v);
+        else if constexpr (!std::is_same_v<std::remove_cv_t<_Elem>, _Value> && std::is_convertible_v<_Ref, _Value&&>)
+            return std::move(__v);
+        else if constexpr (!std::is_same_v<std::remove_cv_t<_Elem>, _Value>)
+            return std::as_const(__v);
+        else if constexpr (std::is_lvalue_reference_v<_Ref> && std::is_const_v<_Elem>)
+            return std::as_const(__v);
+        else if constexpr (std::is_lvalue_reference_v<_Ref>)
+            return (__v);
+        else if constexpr (std::is_const_v<_Elem>)
+            return std::move(std::as_const(__v));
+        else
+            return std::move(__v);
+    }
+}
+
 // Detecting TempData type alias in the specified structure
 template <typename, typename = void>
 struct __temp_data_required
@@ -1926,11 +1973,12 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                     __start_id_on_oob = __sid;
                     __oob_position = __pos;
                 };
-                auto __bounded_write_op = [&](std::size_t __id, const auto& __v) {
+                // See __as_input_element for how __v is passed on
+                auto __bounded_write_op = [&](std::size_t __id, auto& __v) {
                     if constexpr (__is_temp_data_required)
-                        __write_op(__out_rng, __id, __v, __temp_data, __on_oob_reached);
+                        __write_op(__out_rng, __id, __as_input_element<_InRng>(__v), __temp_data, __on_oob_reached);
                     else
-                        __write_op(__out_rng, __id, __v, __on_oob_reached);
+                        __write_op(__out_rng, __id, __as_input_element<_InRng>(__v), __on_oob_reached);
                 };
                 __scan_through_elements_impl<__is_inclusive>(
                     __ndi, __gen_input, __scan_input_transform, __reduce_op, __bounded_write_op, __sub_group_carry,
@@ -1953,11 +2001,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __is_inclusive, __is
                 return;
             }
         }
-        auto __unbounded_write_op = [&](std::size_t __id, const auto& __v) {
+        auto __unbounded_write_op = [&](std::size_t __id, auto& __v) {
             if constexpr (__is_temp_data_required)
-                __write_op(__out_rng, __id, __v, __temp_data);
+                __write_op(__out_rng, __id, __as_input_element<_InRng>(__v), __temp_data);
             else
-                __write_op(__out_rng, __id, __v);
+                __write_op(__out_rng, __id, __as_input_element<_InRng>(__v));
         };
         __scan_through_elements_impl<__is_inclusive>(
             __ndi, __gen_input, __scan_input_transform, __reduce_op, __unbounded_write_op, __sub_group_carry, __in_rng,
