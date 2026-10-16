@@ -387,10 +387,6 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
                _Assign __assign, std::size_t __max_wg_size)
     {
         assert(__max_wg_size <= std::numeric_limits<std::uint16_t>::max());
-        // This type is used as a workaround for when an internal tuple is assigned to std::tuple, such as
-        // with zip_iterator
-        using __tuple_type = typename oneapi::dpl::__internal::__get_tuple_type<
-            std::decay_t<decltype(__in_rng[0])>, std::decay_t<decltype(__out_rng[0])>>::__type;
 
         __result_storage<_Size> __result{__q, 2};
 
@@ -428,7 +424,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
                         if (__lacc[__idx]) {
                             _ValueType __out_idx = __lacc[__idx + __n_uniform];
                             if (__out_idx < __n_out)
-                                __assign(static_cast<__tuple_type>(__in_rng[__idx]), __out_rng[__out_idx]);
+                                __assign_with_tuple_conversion(__assign, __in_rng[__idx], __out_rng[__out_idx]);
                             if (__out_idx == __n_out)
                                 __lacc[2 * __n_uniform] = __idx; // the actual stop position in the input
                         }
@@ -493,7 +489,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
 {
     assert(__n_out > 0 && __n > 0);
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-    using _Assign = oneapi::dpl::__internal::__pstl_assign;
+    using _Assign = oneapi::dpl::__internal::__pstl_forward_assign;
     std::array<_Size, 2> __ret{};
     sycl::queue __q_local = __exec.queue();
 
@@ -580,7 +576,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
 }
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
-          typename _Assign = oneapi::dpl::__internal::__pstl_assign>
+          typename _Assign = oneapi::dpl::__internal::__pstl_forward_assign>
 std::array<_Size, 2>
 __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _InRng&& __in_rng,
                    _OutRng&& __out_rng, _Size __n, _Size __n_out, _Pred __pred, _Assign __assign = _Assign{})

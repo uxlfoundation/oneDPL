@@ -706,6 +706,19 @@ class __future : private std::tuple<_Args...>
     }
 };
 
+// Assigns the source with its value category (indirectly_copyable); an internal tuple is converted for std::tuple
+template <typename _Assign, typename _Src, typename _Dst>
+void
+__assign_with_tuple_conversion(_Assign __assign, _Src&& __src, _Dst&& __dst)
+{
+    using _ConvertedTupleType =
+        typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<_Src>, std::decay_t<_Dst>>::__type;
+    if constexpr (std::is_same_v<_ConvertedTupleType, std::decay_t<_Src>>)
+        __assign(std::forward<_Src>(__src), std::forward<_Dst>(__dst));
+    else
+        __assign(static_cast<_ConvertedTupleType>(std::forward<_Src>(__src)), std::forward<_Dst>(__dst));
+}
+
 struct __scalar_load_op
 {
     oneapi::dpl::__internal::__pstl_assign __assigner;
