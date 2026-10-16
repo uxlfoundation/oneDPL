@@ -629,6 +629,14 @@ class __future : private std::tuple<_Args...>
 
     template <typename _T>
     _T
+    __wait_and_get_value(const __internal::__copyable_storage_state<_T>& __st)
+    {
+        __internal::__copyable_storage_state<_T> __st_copy = __st;
+        return __wait_and_get_value(__result_and_scratch_storage(std::move(__st_copy)));
+    }
+
+    template <typename _T>
+    _T
     __wait_and_get_value(const _T& __val)
     {
         wait();
@@ -698,11 +706,17 @@ class __future : private std::tuple<_Args...>
     }
 };
 
-template <typename _ValueType>
-auto
-__create_future(sycl::event&& __event, __combined_storage<_ValueType>&& __payload)
+// Assigns the source with its value category (indirectly_copyable); an internal tuple is converted for std::tuple
+template <typename _Assign, typename _Src, typename _Dst>
+void
+__assign_with_tuple_conversion(_Assign __assign, _Src&& __src, _Dst&& __dst)
 {
-    return __future(std::move(__event), __result_and_scratch_storage<_ValueType>(std::move(__payload).__move_state()));
+    using _ConvertedTupleType =
+        typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<_Src>, std::decay_t<_Dst>>::__type;
+    if constexpr (std::is_same_v<_ConvertedTupleType, std::decay_t<_Src>>)
+        __assign(std::forward<_Src>(__src), std::forward<_Dst>(__dst));
+    else
+        __assign(static_cast<_ConvertedTupleType>(std::forward<_Src>(__src)), std::forward<_Dst>(__dst));
 }
 
 struct __scalar_load_op
