@@ -162,18 +162,32 @@ struct test_non_const
     }
 };
 
-struct test_merge_tuple
+template <std::size_t CallNumber>
+void
+test_stability(std::size_t a_size, std::size_t b_size)
 {
-    template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator,
-    typename Compare, typename Checker>
-    void
-    operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2,
-               OutputIterator out_first, Compare comp, Checker check)
+    using T = std::tuple<std::int32_t, std::int32_t>; // a pair (key, value)
+    std::vector<T> a(a_size, T{1, 2});
+    std::vector<T> b(b_size, T{1, 1});
+    std::vector<T> merged(a.size() + b.size());
+
+    auto test_merge_tuple = [&](auto&& exec, auto first1, auto last1, auto first2, auto last2, auto out_first, auto comp)
     {
-        std::merge(std::forward<Policy>(exec), first1, last1, first2, last2, out_first, comp);
-        check();
-    }
-};
+        std::merge(std::forward<decltype(exec)>(exec), first1, last1, first2, last2, out_first, comp);
+
+        std::int32_t sum1 = 0; // the sum of the first a.size() values
+        std::int32_t sum2 = 0; // the sum of the next b.size() values
+        for (std::size_t i = 0; i < a.size(); ++i)
+            sum1 += std::get<1>(merged[i]);
+        for (std::size_t i = a.size(); i < a.size() + b.size(); ++i)
+            sum2 += std::get<1>(merged[i]);
+
+        EXPECT_TRUE(sum1 == 2 * static_cast<std::int32_t>(a.size()), "wrong merge return with tuple");
+        EXPECT_TRUE(sum2 == static_cast<std::int32_t>(b.size()), "wrong merge return with tuple");
+    };
+    auto comp = [](const T& a, const T& b) { return std::get<0>(b) < std::get<0>(a); }; // greater by key
+    invoke_on_all_policies<CallNumber>()(test_merge_tuple, a.begin(), a.end(), b.cbegin(), b.cend(), merged.begin(), comp);
+}
 
 int
 main()
@@ -199,27 +213,8 @@ main()
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
 #endif
 
-
-    using T = std::tuple<std::int32_t, std::int32_t>; //a pair (key, value)
-    std::vector<T> a = { {1, 2}, {1, 2}, {1,2}, {1,2}, {1, 2}, {1, 2} };
-    std::vector<T> b = { {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1} };
-    std::vector<T> merged(a.size() + b.size());
-
-    auto comp = [](auto a, auto b) { return std::get<0>(b) < std::get<0>(a); }; //greater by key
-
-    invoke_on_all_policies<100>()(test_merge_tuple(), a.begin(), a.end(), b.cbegin(), b.cend(), merged.begin(), comp,
-        [&]()
-        {
-            std::int32_t sum1 = 0; //a sum of the first a.size() values, should be 2*a.size()
-            std::int32_t sum2 = 0; //a sum of the second b.size() values, should be 1*b.size()
-            for(std::int32_t i = 0; i < a.size(); ++i)
-                sum1 += std::get<1>(merged[i]);
-            for(std::int32_t i = 0; i < b.size(); ++i)
-                sum2 += std::get<1>(merged[a.size() + i]);
-
-            EXPECT_TRUE(sum1 == 2*a.size(), "wrong merge return with tuple");
-            EXPECT_TRUE(sum2 == 1*b.size(), "wrong merge return with tuple");
-        });
+    test_stability<100>(61, 77); // serial cutoff with par policies
+    test_stability<200>(5711, 20429); // parallel execution with par policies
 
     return done();
 }
