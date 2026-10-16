@@ -46,6 +46,13 @@ class __radix_sort_onesweep_by_key;
 template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_copyback_by_key;
 
+// The range pack types are part of the kernel names, so one custom name serves every data passing mechanism
+template <typename _KtTag, typename _InRngPack, typename _OutRngPack, typename _KernelName>
+using __onesweep_sweep_kernel_name = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+    std::conditional_t<_InRngPack::__has_values,
+                       __radix_sort_onesweep_by_key<_KtTag, _InRngPack, _OutRngPack, _KernelName>,
+                       __radix_sort_onesweep<_KtTag, _InRngPack, _OutRngPack, _KernelName>>>;
+
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename _KtTag, typename _RngPack>
 sycl::event
@@ -201,45 +208,38 @@ class __onesweep_memory_holder
     }
 };
 
+// Segments are described by __segments. The non-batched sort is a single segment of __n elements.
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename _KtTag, typename _RngPack1, typename _RngPack2, typename _RngPack3,
           typename _MemHolder>
 sycl::event
 __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pack1,
-                _RngPack3&& __virt_pack2, const _MemHolder& __mem_holder, std::size_t __n)
+                _RngPack3&& __virt_pack2, const _MemHolder& __mem_holder, std::size_t __n,
+                const __onesweep_segments& __segments)
 {
     using _KeyT = typename ::std::decay_t<_RngPack1>::_KeyT;
-    constexpr bool __has_values = ::std::decay_t<_RngPack1>::__has_values;
 
     using _RadixSortHistogram = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __radix_sort_onesweep_histogram<_KtTag, _KernelName>>;
+        __radix_sort_onesweep_histogram<_KtTag, std::decay_t<_RngPack1>, _KernelName>>;
     using _RadixSortScan = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __radix_sort_onesweep_scan<_KtTag, _KernelName>>;
     using _RadixSortSweepInitial =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<::std::conditional_t<
-            __has_values,
-            __radix_sort_onesweep_by_key<_KtTag, std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, _KernelName>,
-            __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, _KernelName>>>;
+        __onesweep_sweep_kernel_name<_KtTag, std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, _KernelName>;
     using _RadixSortSweepEven =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<::std::conditional_t<
-            __has_values,
-            __radix_sort_onesweep_by_key<_KtTag, std::decay_t<_RngPack3>, std::decay_t<_RngPack2>, _KernelName>,
-            __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack3>, std::decay_t<_RngPack2>, _KernelName>>>;
+        __onesweep_sweep_kernel_name<_KtTag, std::decay_t<_RngPack3>, std::decay_t<_RngPack2>, _KernelName>;
     using _RadixSortSweepOdd =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<::std::conditional_t<
-            __has_values,
-            __radix_sort_onesweep_by_key<_KtTag, std::decay_t<_RngPack2>, std::decay_t<_RngPack3>, _KernelName>,
-            __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack2>, std::decay_t<_RngPack3>, _KernelName>>>;
+        __onesweep_sweep_kernel_name<_KtTag, std::decay_t<_RngPack2>, std::decay_t<_RngPack3>, _KernelName>;
     using _GlobalHistT = ::std::uint32_t;
     constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
 
-    const ::std::uint32_t __sweep_work_group_count =
-        oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __data_per_work_item);
+    // Tiles never straddle a segment boundary
+    const std::uint32_t __sweep_work_group_count = __segments.__segment_count * __segments.__tiles_per_segment;
     constexpr ::std::uint32_t __bit_count = sizeof(_KeyT) * 8;
     constexpr ::std::uint32_t __stage_count = oneapi::dpl::__internal::__dpl_ceiling_div(__bit_count, __radix_bits);
 
-    constexpr ::std::uint32_t __global_hist_item_count = __bin_count * __stage_count;
-    const ::std::uint32_t __group_hist_item_count = __bin_count * __stage_count * __sweep_work_group_count;
+    // Global histograms are laid out as [stage][segment][bin] and group histograms as [stage][tile][bin]
+    const std::size_t __global_hist_item_count = std::size_t(__bin_count) * __stage_count * __segments.__segment_count;
+    const std::size_t __group_hist_item_count = std::size_t(__bin_count) * __stage_count * __sweep_work_group_count;
 
     // TODO: check if it is more performant to fill it inside the histogram kernel
     // This line assumes that global and group histograms are stored sequentially
@@ -251,65 +251,72 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     constexpr std::uint32_t __hist_work_group_size = __radix_sort_histogram_params<_KtTag>::__work_group_size;
     __event_chain = __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_work_group_count,
                                                      __hist_work_group_size, _RadixSortHistogram>()(
-        __kt_tag, __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __n, __event_chain);
+        __kt_tag, __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __n, __segments, __event_chain);
 
     __event_chain = __radix_sort_onesweep_scan_submitter<__stage_count, __bin_count, _RadixSortScan>()(
-        __kt_tag, __q, __mem_holder.__global_hist_ptr(), __event_chain);
+        __kt_tag, __q, __mem_holder.__global_hist_ptr(), __segments.__segment_count, __event_chain);
 
     __event_chain = __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item,
                                                     __work_group_size, _RadixSortSweepInitial>()(
         __kt_tag, __q, __input_pack, __virt_pack1, __mem_holder.__global_hist_ptr(), __mem_holder.__group_hist_ptr(),
-        __sweep_work_group_count, __n, 0, __event_chain);
+        __sweep_work_group_count, __n, 0, __segments, __event_chain);
 
     for (::std::uint32_t __stage = 1; __stage < __stage_count; __stage++)
     {
-        _GlobalHistT* __p_global_hist = __mem_holder.__global_hist_ptr() + __bin_count * __stage;
+        _GlobalHistT* __p_global_hist =
+            __mem_holder.__global_hist_ptr() + std::size_t(__segments.__segment_count) * __bin_count * __stage;
         _GlobalHistT* __p_group_hists =
-            __mem_holder.__group_hist_ptr() + __sweep_work_group_count * __bin_count * __stage;
+            __mem_holder.__group_hist_ptr() + std::size_t(__sweep_work_group_count) * __bin_count * __stage;
 
         if (__stage % 2 != 0)
         {
             __event_chain = __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item,
                                                             __work_group_size, _RadixSortSweepOdd>()(
                 __kt_tag, __q, __virt_pack1, __virt_pack2, __p_global_hist, __p_group_hists, __sweep_work_group_count,
-                __n, __stage, __event_chain);
+                __n, __stage, __segments, __event_chain);
         }
         else
         {
             __event_chain = __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item,
                                                             __work_group_size, _RadixSortSweepEven>()(
                 __kt_tag, __q, __virt_pack2, __virt_pack1, __p_global_hist, __p_group_hists, __sweep_work_group_count,
-                __n, __stage, __event_chain);
+                __n, __stage, __segments, __event_chain);
         }
     }
 
     return __event_chain;
 }
 
+// The input is sorted as independent segments of __segment_size elements.
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, bool __in_place, typename _KtTag, typename _RngPack1, typename _RngPack2>
 sycl::event
-__onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __pack_out, std::size_t __n)
+__onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __pack_out, std::size_t __n,
+           std::size_t __segment_size)
 {
     using _KeyT = typename ::std::decay_t<_RngPack1>::_KeyT;
     using _ValT = typename ::std::decay_t<_RngPack1>::_ValT;
     constexpr bool __has_values = ::std::decay_t<_RngPack1>::__has_values;
 
-    using _RadixSortCopyback = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        std::conditional_t<__has_values, __radix_sort_onesweep_copyback_by_key<_KtTag, _KernelName>,
-                           __radix_sort_onesweep_copyback<_KtTag, _KernelName>>>;
+    using _RadixSortCopyback =
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<std::conditional_t<
+            __has_values, __radix_sort_onesweep_copyback_by_key<_KtTag, std::decay_t<_RngPack1>, _KernelName>,
+            __radix_sort_onesweep_copyback<_KtTag, std::decay_t<_RngPack1>, _KernelName>>>;
 
     using _GlobalHistT = ::std::uint32_t;
 
     constexpr ::std::uint32_t __bit_count = sizeof(_KeyT) * 8;
     constexpr ::std::uint32_t __stage_count = oneapi::dpl::__internal::__dpl_ceiling_div(__bit_count, __radix_bits);
     constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
-    constexpr ::std::uint32_t __global_hist_item_count = __bin_count * __stage_count;
 
-    const ::std::uint32_t __sweep_work_group_count =
-        oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __data_per_work_item);
+    const __onesweep_segments __segments{
+        static_cast<std::uint32_t>(__segment_size), static_cast<std::uint32_t>(__n / __segment_size),
+        static_cast<std::uint32_t>(
+            oneapi::dpl::__internal::__dpl_ceiling_div(__segment_size, __work_group_size * __data_per_work_item))};
+    const std::uint32_t __sweep_work_group_count = __segments.__segment_count * __segments.__tiles_per_segment;
 
-    const ::std::uint32_t __group_hist_item_count = __bin_count * __stage_count * __sweep_work_group_count;
+    const std::size_t __global_hist_item_count = std::size_t(__bin_count) * __stage_count * __segments.__segment_count;
+    const std::size_t __group_hist_item_count = std::size_t(__bin_count) * __stage_count * __sweep_work_group_count;
 
     // Memory is not going to be allocated for void value type
     // TODO: make this more explicit to reduce coupling between __onesweep_memory_holder and __rng_pack
@@ -352,7 +359,7 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
     const auto& __virt_pack2 = __select_pack(__pack_out, __tmp_pack);
     sycl::event __event_chain =
         __onesweep_impl<_KernelName, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size>(
-            __kt_tag, __q, __pack, __virt_pack1, __virt_pack2, __mem_holder, __n);
+            __kt_tag, __q, __pack, __virt_pack1, __virt_pack2, __mem_holder, __n, __segments);
 
     if constexpr (__in_place && (__stage_count % 2 != 0))
     {
@@ -381,7 +388,8 @@ __radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&
     if constexpr (::std::decay_t<_RngPack1>::__has_values)
     {
         return __onesweep<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size, __in_place>(
-            __kt_tag, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n);
+            __kt_tag, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n,
+            /*__segment_size=*/__n);
     }
     else
     {
@@ -403,8 +411,26 @@ __radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&
         // TODO: support different RadixBits
         // TODO: support more granular DataPerWorkItem and WorkGroupSize
         return __onesweep<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size, __in_place>(
-            __kt_tag, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n);
+            __kt_tag, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n,
+            /*__segment_size=*/__n);
     }
+}
+
+// Batched sort: each consecutive run of __segment_size elements is sorted independently in one onesweep pass
+template <bool __is_ascending, std::uint8_t __radix_bits, bool __in_place, typename _KtTag, typename _RngPack1,
+          typename _RngPack2, typename _KernelParam>
+sycl::event
+__batched_radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out,
+                     std::size_t __segment_size, _KernelParam)
+{
+    static_assert(std::is_same_v<_KtTag, __sycl_tag>, "The batched radix sort is only implemented in SYCL");
+    const std::size_t __n = __pack_in.__keys_rng().size();
+    assert(__n > 0);
+
+    _PRINT_INFO_IN_DEBUG_MODE(__q);
+    return __onesweep<typename _KernelParam::kernel_name, __is_ascending, __radix_bits, _KernelParam::data_per_workitem,
+                      _KernelParam::workgroup_size, __in_place>(
+        __kt_tag, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n, __segment_size);
 }
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
