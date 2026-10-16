@@ -176,12 +176,17 @@ The best stable sort depends on segment size. Candidates considered:
 | algorithm             | scope              | notes                                             |
 |-----------------------|--------------------|---------------------------------------------------|
 | OneSweep per segment  | all                | current workaround; baseline                      |
-| Composite OneSweep    | all                | segment id prepended to key; easy worst-case gain |
+| Composite OneSweep    | all                | segment id prepended to key; performance floor    |
 | One work-group radix  | segment fits in wg | proposed; packs multiple segments per wg          |
 | Modified OneSweep     | all                | proposed; best when segments exceed one wg        |
 | Work-group merge path | segment fits in wg | proposed; packs multiple segments per wg          |
 | Sub-group merge path  | segment fits in sg | deferred; capped near 1024 by SLM                 |
 | Bitonic               | small (< ~1024)    | deferred; unstable unless augmented, pads to pow2 |
+
+Composite OneSweep runs a single unmodified OneSweep over the whole sequence, with the segment id
+in the high bits and the transformed key in the low bits, so it works for any supported key type.
+It is simple, and was used in proof of concept work to establish a performance floor, but the extra
+bits add sweep passes and data movement, so it is not proposed.
 
 #### Plan
 Implement two kernels, and optionally a third:
@@ -278,7 +283,9 @@ measured from a proof of concept; modified OneSweep numbers are projected estima
 |    larger    | modified OneSweep | size dependent | size dependent |
 
 1.5-4x looks possible for segments up to 256K on PVC. BMG is a less clear win. As segments get very
-large, it is possible that a separate kernel launch per segment could be faster.
+large, it is possible that a separate kernel launch per segment could be faster. Initial drafts of
+modified OneSweep sort the segments at ~0.7x-1.1x the wallclock time of a single `kt::gpu::radix_sort` over
+the entire sequence.
 
 One work-group radix sort versus work-group merge path sort, measured on the prototype
 implementation: the geomean over total sizes 2^8-2^28 of the best one work-group radix time divided
