@@ -77,6 +77,13 @@ main()
     test_range_algo<5, int, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f, proj);
     test_range_algo<6, P2, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f, &P2::x, &P2::x);
     test_range_algo<7, P2, data_in_in_out_lim>{}(dpl_ranges::transform, transform_binary_checker, binary_f, &P2::proj, &P2::proj);
+
+    check_mixed_types_in_in_out_host(dpl_ranges::transform, transform_binary_checker, {{1}, {2}, {3}},
+                                     {{4}, {5}, {6}}, 3, binary_f, proj_a, proj_b);
+#if TEST_DPCPP_BACKEND_PRESENT
+    check_mixed_types_in_in_out_device(dpl_ranges::transform, transform_binary_checker, {{1}, {2}, {3}},
+                                       {{4}, {5}, {6}}, 3, binary_f, proj_a, proj_b);
+#endif
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

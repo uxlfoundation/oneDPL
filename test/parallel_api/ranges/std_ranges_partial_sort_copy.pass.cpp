@@ -49,6 +49,53 @@ void test_mixed_types()
     }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 }
+
+void test_projections_consistency()
+{
+    using namespace test_std_ranges;
+
+    const int n = medium_size;
+    const int n_out = n / 8;
+
+    std::vector<P2> in(n);
+    for (int i = 0; i < n; ++i)
+        in[i] = P2{i, i};
+
+    // Different projections, but they order the input and the output the same way, as [partial.sort.copy]/4 requires
+    auto in_proj = [](const P2& v) { return -2 * v.x; };
+    auto out_proj = [](const P2& v) { return -v.x; };
+
+    std::vector<P2> expected(n_out);
+    for (int i = 0; i < n_out; ++i)
+        expected[i] = P2{n - 1 - i, n - 1 - i};
+
+    auto call = [&](auto&& exec)
+    {
+        std::vector<P2> out(n_out, P2{-1, -1});
+        dpl_ranges::partial_sort_copy(std::forward<decltype(exec)>(exec), in, out, std::ranges::less{}, in_proj,
+                                      out_proj);
+        return out;
+    };
+
+    EXPECT_EQ_RANGES(expected, call(oneapi::dpl::execution::seq), "wrong result with seq policy");
+    EXPECT_EQ_RANGES(expected, call(oneapi::dpl::execution::unseq), "wrong result with unseq policy");
+    EXPECT_EQ_RANGES(expected, call(oneapi::dpl::execution::par), "wrong result with par policy");
+    EXPECT_EQ_RANGES(expected, call(oneapi::dpl::execution::par_unseq), "wrong result with par_unseq policy");
+#if TEST_DPCPP_BACKEND_PRESENT
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    sycl::queue q = policy.queue();
+    if (q.get_device().has(sycl::aspect::usm_shared_allocations))
+    {
+        using alloc_t = sycl::usm_allocator<P2, sycl::usm::alloc::shared>;
+        std::vector<P2, alloc_t> v_in(in.begin(), in.end(), alloc_t(q));
+        std::vector<P2, alloc_t> v_out(n_out, P2{-1, -1}, alloc_t(q));
+
+        dpl_ranges::partial_sort_copy(policy, std::ranges::subrange(v_in), std::ranges::subrange(v_out),
+                                      std::ranges::less{}, in_proj, out_proj);
+        EXPECT_EQ_RANGES(expected, v_out, "wrong result with device policy");
+    }
+#endif
+}
 #endif //_ENABLE_STD_RANGES_TESTING
 
 std::int32_t
@@ -66,6 +113,8 @@ main()
 
     // Check if projections are applied to the right sequences and trigger a compile-time error if not
     test_mixed_types();
+
+    test_projections_consistency();
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

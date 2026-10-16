@@ -5100,14 +5100,15 @@ __brick_lexicographical_compare(_RandomAccessIterator1 __first1, _RandomAccessIt
         --__last1;
         --__last2;
         auto __n = ::std::min(__last1 - __first1, __last2 - __first2);
+        __internal::__reorder_pred<_Compare> __reordered_comp{__comp};
         ::std::pair<_RandomAccessIterator1, _RandomAccessIterator2> __result = __unseq_backend::__simd_first(
-            __first1, __n, __first2, [__comp](const ref_type1 __x, const ref_type2 __y) mutable {
-                return std::invoke(__comp, __x, __y) || std::invoke(__comp, __y, __x);
+            __first1, __n, __first2, [__comp, __reordered_comp](const ref_type1 __x, const ref_type2 __y) mutable {
+                return std::invoke(__comp, __x, __y) || __reordered_comp(__x, __y);
             });
 
         if (__result.first == __last1 && __result.second != __last2)
         { // if first sequence shorter than second
-            return !std::invoke(__comp, *__result.second, *__result.first);
+            return !__reordered_comp(*__result.first, *__result.second);
         }
         else
         { // if second sequence shorter than first or both have the same number of elements
