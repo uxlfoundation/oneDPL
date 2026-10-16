@@ -311,6 +311,8 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
                               __internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n));
     };
 
+    // Every __parallel_for below has a grain of one segment or chunk, as the OpenMP backend would otherwise run up to
+    // 2048 of them in one task
     __internal::__except_handler([&]() {
         // The short segments, in parallel over the segments; the long ones, at most n / __threshold of them unless the
         // offsets are not ordered, are only listed. A long segment beyond the list is reduced as a short one.
@@ -319,7 +321,8 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
         _Size* __long = __long_buf.get();
         std::atomic<_Size> __num_listed{0};
         oneapi::dpl::__par_backend::__parallel_for(
-            __backend_tag{}, __exec, _Size{0}, __m, [&](_Size __segment_first, _Size __segment_last) {
+            __backend_tag{}, __exec, _Size{0}, __m,
+            [&](_Size __segment_first, _Size __segment_last) {
                 for (_Size __segment = __segment_first; __segment < __segment_last; ++__segment)
                 {
                     const auto [__begin, __end] = __bounds(__segment);
@@ -335,7 +338,8 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
                     __result_value[__segment] =
                         __segmented_reduce_host<_Acc>(__first_value, __begin, __end, __init, __binary_op, _IsVector{});
                 }
-            });
+            },
+            /*__grainsize=*/1);
         const _Size __num_long = std::min(__num_listed.load(), __capacity);
         if (__num_long == 0)
             return;
@@ -357,7 +361,8 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
         oneapi::dpl::__par_backend::__buffer<_Acc> __partials_buf(__num_chunks);
         _Acc* __partials = __partials_buf.get();
         oneapi::dpl::__par_backend::__parallel_for(
-            __backend_tag{}, __exec, _Size{0}, __num_chunks, [&](_Size __chunk_first, _Size __chunk_last) {
+            __backend_tag{}, __exec, _Size{0}, __num_chunks,
+            [&](_Size __chunk_first, _Size __chunk_last) {
                 for (_Size __chunk = __chunk_first; __chunk < __chunk_last; ++__chunk)
                 {
                     const _Size __k = std::upper_bound(__chunk_ends, __chunk_ends + __num_long, __chunk) - __chunk_ends;
@@ -380,11 +385,13 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
                             __binary_op, _IsVector{}));
                     }
                 }
-            });
+            },
+            /*__grainsize=*/1);
 
         // The partial results of every long segment, combined in order
         oneapi::dpl::__par_backend::__parallel_for(
-            __backend_tag{}, __exec, _Size{0}, __num_long, [&](_Size __k_first, _Size __k_last) {
+            __backend_tag{}, __exec, _Size{0}, __num_long,
+            [&](_Size __k_first, _Size __k_last) {
                 for (_Size __k = __k_first; __k < __k_last; ++__k)
                 {
                     const _Size __first_chunk = __k == 0 ? _Size{0} : __chunk_ends[__k - 1];
@@ -393,7 +400,8 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
                         __acc = std::invoke(__binary_op, std::move(__acc), std::move(__partials[__chunk]));
                     __result_value[__long[__k]] = std::move(__acc);
                 }
-            });
+            },
+            /*__grainsize=*/1);
         if constexpr (!std::is_trivially_destructible_v<_Acc>)
         {
             for (_Size __chunk = 0; __chunk < __num_chunks; ++__chunk)
