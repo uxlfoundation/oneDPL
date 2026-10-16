@@ -199,15 +199,7 @@ void
 test_all_cases(sycl::queue q, std::size_t size, KernelParam param)
 {
     test_general_cases<T>(q, size, std::plus<T>{}, TestUtils::create_new_kernel_param_idx<0>(param));
-#if _PSTL_GROUP_REDUCTION_MULT_INT64_BROKEN
-    static constexpr bool int64_mult_broken = std::is_integral_v<T> && (sizeof(T) == 8);
-#else
-    static constexpr bool int64_mult_broken = 0;
-#endif
-    if constexpr (!int64_mult_broken)
-    {
-        test_general_cases<T>(q, size, std::multiplies<T>{}, TestUtils::create_new_kernel_param_idx<1>(param));
-    }
+    test_general_cases<T>(q, size, std::multiplies<T>{}, TestUtils::create_new_kernel_param_idx<1>(param));
     // Custom operator test
     if constexpr (std::is_integral_v<T>)
     {
