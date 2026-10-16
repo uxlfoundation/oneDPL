@@ -228,6 +228,27 @@ __segmented_reduce_chunk_start(const _Source& __src, _Index __first, _BinaryOper
         return _Acc(std::invoke(__binary_op, __src[__first], __src[__first + 1]));
 }
 
+// Reduces the elements [__begin, __end) of a random access iterator on the host, starting from __start; vectorized
+// when requested, if the elements can be converted to the accumulator type, as the vectorized reduction starts its
+// lanes from the operation on two of them
+template <typename _Acc, typename _RandomAccessIterator, typename _Index, typename _BinaryOperation, typename _IsVector>
+_Acc
+__segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __end, _Acc __start,
+                        _BinaryOperation& __binary_op, _IsVector)
+{
+    if constexpr (_IsVector::value && __segmented_reduce_start_from_element_v<_Acc, _RandomAccessIterator>)
+    {
+        return __internal::__brick_transform_reduce(
+            __first + __begin, __first + __end, std::move(__start), __binary_op,
+            [](auto&& __x) { return _Acc(std::forward<decltype(__x)>(__x)); }, std::true_type{});
+    }
+    else
+    {
+        return __segmented_reduce_serial<_Acc>(__first, __begin, __end, std::move(__start), __binary_op);
+    }
+}
+
+// The serial host policies: the segments one after another, each one vectorized with the unsequenced policy
 template <typename _Tag, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
           typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
 void
@@ -235,6 +256,8 @@ __reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _
                                  _OutputValueIt __result_value, _SegmentNum __num_segments, _OffsetIt __offsets,
                                  _InitType __init, _BinaryOperation __binary_op)
 {
+    static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
+
     using _Acc = __segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
     using _Size = typename std::iterator_traits<_InputValueIt>::difference_type;
 
@@ -243,9 +266,10 @@ __reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _
     {
         const _Size __begin = __segmented_reduce_clamp_offset(__offsets[__segment], __n);
         const _Size __end = __segmented_reduce_clamp_offset(__offsets[__segment + 1], __n);
-        __result_value[__segment] =
-            __begin < __end ? __segmented_reduce_serial<_Acc>(__first_value, __begin, __end, __init, __binary_op)
-                            : _Acc(__init);
+        __result_value[__segment] = __begin < __end
+                                        ? __segmented_reduce_host(__first_value, __begin, __end, _Acc(__init),
+                                                                  __binary_op, typename _Tag::__is_vector{})
+                                        : _Acc(__init);
     }
 }
 
