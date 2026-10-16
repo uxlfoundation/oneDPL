@@ -315,6 +315,15 @@ Following the [Kernel Templates testing guidance][kt-testing]:
 * Reuse the existing `kt::gpu::radix_sort` test setup to cover a representative sample of kernel
   parameters.
 
+## Future Directions
+
+These are left out of the initial proposal to limit scope.
+
+* A customization point for the order-preserving bit transform, so users can sort key types which
+  are not supported yet by defining how they map to an ordered unsigned integer.
+* Arbitrary projections, where the sort key is the result of a user callable applied to each
+  element, and the element itself is what moves. This could potentially remove the need for `_by_key` variants.
+
 ## Open Questions
 
 * How (if at all) should we allow users to size and provide their own temporary allocation to the
