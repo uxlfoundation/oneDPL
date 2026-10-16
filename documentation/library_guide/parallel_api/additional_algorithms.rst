@@ -18,6 +18,39 @@ header.  All algorithms are implemented in the ``oneapi::dpl`` namespace.
     output_keys:   [0,1]
     output_values: [1+2+3=6,4+5+6=15]
 
+* ``reduce_by_segment`` with segments defined by offsets: reduces every segment of a sequence independently.
+  ``num_segments + 1`` offsets define ``num_segments`` consecutive segments: the segment ``s`` is
+  ``[first + offsets[s], first + offsets[s + 1])``, and its reduction, which starts from the initial value,
+  is written to ``out_first[s]``. The algorithm returns nothing. It is also available through the
+  ``<oneapi/dpl/numeric>`` header, and is present if ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` is ``202611L`` or higher,
+  see :ref:`Feature Macros <feature-macros>`::
+
+    template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT,
+              typename OffsetIt, typename InitT, typename BinaryOp>
+    void
+    reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first,
+                      SegmentNumT num_segments, OffsetIt offsets, InitT init_value,
+                      BinaryOp binary_op);
+
+  ``SegmentNumT`` must be an integral type, and ``OffsetIt`` must not be one; the offsets must be of an
+  integral type. ``InputIt``, ``OutputIt`` and ``OffsetIt`` must be random access iterators.
+
+  Every segment is clamped to the input ``[first, last)``: a segment crossing a bound of the input is reduced
+  partially, and a segment that is empty or lies beyond the input gets the initial value. The input is never
+  accessed out of its bounds. If ``num_segments`` is not positive, nothing is read or written. The offsets should
+  be sorted in ascending order; otherwise the results are unspecified.
+
+  The accumulator type is
+  ``std::decay_t<std::invoke_result_t<BinaryOp&, InitT, typename std::iterator_traits<InputIt>::reference>>``.
+  The reduction operation should be associative and commutative. It must accept the accumulator, the initial value
+  and the input elements in any combination, its results must be convertible to the accumulator type, and the
+  accumulator type must be writable to the output. For example::
+
+    values:        [10,20,5,7,4]
+    offsets:       [0,2,2,4,5]
+    initial value: 0
+    result:        [10+20=30,0,5+7=12,4]
+
 * ``inclusive_scan_by_segment``: performs partial prefix scans on a sequence's values. Each
   scan applies to a contiguous subsequence of values, which are determined by the keys associated with the
   values being equal. The return value is an iterator targeting the end of the result sequence.

@@ -175,11 +175,14 @@ Known Limitations
   not provided.
   Firstly, it must satisfy the ``DefaultConstructible`` requirements.
   Secondly, a default-constructed instance of that type should act as the identity element for the binary scan function.
-* ``reduce_by_segment``, when used with C++ standard aligned policies, imposes limitations on the value type.
+* ``reduce_by_segment`` with segments defined by keys, when used with C++ standard aligned policies, imposes limitations
+  on the value type.
   Firstly, it must satisfy the ``DefaultConstructible`` requirements.
   Secondly, a default-constructed instance of that type should act as the identity element for the binary reduction function.
-* The initial value type for ``reduce_by_segment``, ``exclusive_scan_by_segment``, and ``inclusive_scan_by_segment``
-  should satisfy the ``MoveAssignable`` and the ``CopyConstructible`` requirements.
+* The initial value type for ``reduce_by_segment`` with segments defined by keys, ``exclusive_scan_by_segment``, and
+  ``inclusive_scan_by_segment`` should satisfy the ``MoveAssignable`` and the ``CopyConstructible`` requirements.
+* ``reduce_by_segment`` with segments defined by offsets requires the accumulator type to be constructible from the
+  initial value type.
 * The initial value type for ``reduce``, ``transform_reduce``, should satisfy the ``CopyConstructible`` and the
   ``CopyAssignable`` requirements when used with device execution policies.
 * The initial value type for ``exclusive_scan``, ``inclusive_scan``,  ``transform_exclusive_scan``,
@@ -202,9 +205,9 @@ Known Limitations
 * Passing rvalue views to ``ranges::zip_view`` requires standard library support for views with ownership (P2415R2).
   This can be detected using the ``__cpp_lib_ranges`` feature macro (value ``202110L`` or higher).
 * Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
-  ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``
-  with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler 2024.1 or earlier
-  with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
+  ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, and ``reduce_by_segment``
+  with segments defined by keys, with the ``unseq`` or ``par_unseq`` policy, when compiled by Intel® oneAPI DPC++/C++
+  Compiler 2024.1 or earlier with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
   To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
 
 .. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html
