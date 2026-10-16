@@ -12,7 +12,7 @@
 
 #include <utility> // std::pair, std::make_pair, std::forward
 
-#include "numeric_impl_hetero.h" // __pattern_reduce_by_segment
+#include "numeric_impl_hetero.h" // __pattern_reduce_by_segment, __pattern_reduce_by_segment_offsets
 
 namespace oneapi
 {
@@ -21,8 +21,9 @@ namespace dpl
 namespace internal
 {
 
-// The device overload of the key-based reduce_by_segment; the overloads of the host policies are in
-// internal/reduce_by_segment_impl.h, which calls them all by the qualified name and includes this header first
+// The device overloads of reduce_by_segment: the key-based one and the one of the segments defined by offsets. The
+// overloads of the host policies are in internal/reduce_by_segment_impl.h, which calls them all by the qualified name
+// and includes this header first.
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator1, typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
 std::pair<OutputIterator1, OutputIterator2>
@@ -47,6 +48,19 @@ reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& pol
         __tag, std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred, binary_op);
 
     return std::make_pair(result1 + __n, result2 + __n);
+}
+
+template <typename _BackendTag, typename _Policy, typename _RandomAccessInputIt, typename _SegmentNum,
+          typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
+void
+__reduce_by_segment_offsets_impl(__internal::__hetero_tag<_BackendTag> __tag, _Policy&& __policy,
+                                 _RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
+                                 _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
+                                 _RandomAccessOffsetIt __offsets, _InitType __init_value, _BinaryOperation __binary_op)
+{
+    oneapi::dpl::__internal::__pattern_reduce_by_segment_offsets(__tag, std::forward<_Policy>(__policy), __first_value,
+                                                                 __last_value, __result_value, __num_segments,
+                                                                 __offsets, __init_value, __binary_op);
 }
 
 } // namespace internal
