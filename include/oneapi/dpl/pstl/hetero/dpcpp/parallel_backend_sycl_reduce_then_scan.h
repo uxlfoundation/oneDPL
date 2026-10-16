@@ -2323,7 +2323,8 @@ __parallel_transform_reduce_then_scan_impl(
         {
             // If minimal demand is within the cache target, launch 2 work groups per core (still fit full LLC)
             __num_work_groups = __num_xe_cores * 2;
-            __max_inputs_per_block = __target_cache_size_bytes / __bytes_per_work_item_iter;
+            __max_inputs_per_block = std::max<std::size_t>(__target_cache_size_bytes / __bytes_per_work_item_iter,
+                                                           __num_work_groups * __work_group_size);
         }
         else if (std::size_t{__num_xe_cores} * __min_wg_cache_demand <= __last_level_cache_size_bytes)
         {
