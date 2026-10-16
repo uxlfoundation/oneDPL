@@ -172,9 +172,8 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
 //------------------------------------------------------------------------
 
 template <typename _InitType, typename _InputIterator, typename _BinaryOperation>
-using __segmented_reduce_acc_t =
-    std::decay_t<std::invoke_result_t<_BinaryOperation&, _InitType,
-                                      typename std::iterator_traits<_InputIterator>::reference>>;
+using __segmented_reduce_acc_t = std::decay_t<
+    std::invoke_result_t<_BinaryOperation&, _InitType, typename std::iterator_traits<_InputIterator>::reference>>;
 
 // Reduces the elements [__begin, __end) of a random access iterator or a range, starting from the initial value
 template <typename _Acc, typename _Source, typename _Index, typename _InitType, typename _BinaryOperation>
@@ -222,10 +221,9 @@ __reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _
     {
         const _Size __begin = __segmented_reduce_clamp_offset(__offsets[__segment], __n);
         const _Size __end = __segmented_reduce_clamp_offset(__offsets[__segment + 1], __n);
-        __result_value[__segment] = __begin < __end
-                                        ? __segmented_reduce_serial<_Acc>(__first_value, __begin, __end, __init,
-                                                                          __binary_op)
-                                        : _Acc(__init);
+        __result_value[__segment] =
+            __begin < __end ? __segmented_reduce_serial<_Acc>(__first_value, __begin, __end, __init, __binary_op)
+                            : _Acc(__init);
     }
 }
 
@@ -512,10 +510,9 @@ class __segmented_reduce_combine_wrapper;
 template <typename _BackendTag, typename Policy, typename InputValueIt, typename SegmentNumT, typename OffsetIt,
           typename OutputValueIt, typename InitT, typename BinaryOperator>
 void
-__reduce_by_segment_offsets_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy,
-                                 InputValueIt first_value, InputValueIt last_value, OutputValueIt result_value,
-                                 SegmentNumT num_segments, OffsetIt offsets, InitT init_value,
-                                 BinaryOperator binary_op)
+__reduce_by_segment_offsets_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy, InputValueIt first_value,
+                                 InputValueIt last_value, OutputValueIt result_value, SegmentNumT num_segments,
+                                 OffsetIt offsets, InitT init_value, BinaryOperator binary_op)
 {
     namespace __bknd = __par_backend_hetero;
 
