@@ -4911,17 +4911,16 @@ __pattern_min_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
                 _RandomAccessIterator __init) -> _RandomAccessIterator {
                 const _RandomAccessIterator __subresult =
                     __internal::__brick_min_element(__begin, __end, __comp, _IsVector{});
-                return __init == __last ? __subresult
-                                        : __internal::__cmp_iterators_by_values(__init, __subresult, __comp,
-                                                                                oneapi::dpl::__internal::__pstl_less());
+                return __init == __last
+                           ? __subresult
+                           : __internal::__cmp_iterators_by_values(__init, __subresult, __comp, std::less<>{});
             },
             [=](_RandomAccessIterator __it1, _RandomAccessIterator __it2) -> _RandomAccessIterator {
                 if (__it1 == __last)
                     return __it2;
                 if (__it2 == __last)
                     return __it1;
-                return __internal::__cmp_iterators_by_values(__it1, __it2, __comp,
-                                                             oneapi::dpl::__internal::__pstl_less());
+                return __internal::__cmp_iterators_by_values(__it1, __it2, __comp, std::less<>{});
             });
     });
 }
@@ -4983,11 +4982,10 @@ __pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
                 if (__init.first == __last) // = identity
                     return __subresult;
                 return ::std::make_pair(
-                    __internal::__cmp_iterators_by_values(__init.first, __subresult.first, __comp,
-                                                          oneapi::dpl::__internal::__pstl_less()),
+                    __internal::__cmp_iterators_by_values(__init.first, __subresult.first, __comp, std::less<>{}),
                     __internal::__cmp_iterators_by_values(__init.second, __subresult.second,
                                                           oneapi::dpl::__internal::__reorder_pred<_Compare>(__comp),
-                                                          oneapi::dpl::__internal::__pstl_greater()));
+                                                          std::greater<>{}));
             },
             [=, &__comp](_Result __p1, _Result __p2) -> _Result {
                 if (__p1.first == __last)
@@ -4995,11 +4993,10 @@ __pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
                 if (__p2.first == __last)
                     return __p1;
                 return ::std::make_pair(
-                    __internal::__cmp_iterators_by_values(__p1.first, __p2.first, __comp,
-                                                          oneapi::dpl::__internal::__pstl_less()),
+                    __internal::__cmp_iterators_by_values(__p1.first, __p2.first, __comp, std::less<>{}),
                     __internal::__cmp_iterators_by_values(__p1.second, __p2.second,
                                                           oneapi::dpl::__internal::__reorder_pred<_Compare>(__comp),
-                                                          oneapi::dpl::__internal::__pstl_greater()));
+                                                          std::greater<>{}));
             });
     });
 }
