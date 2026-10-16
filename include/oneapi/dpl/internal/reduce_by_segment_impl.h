@@ -42,15 +42,15 @@
 #ifndef _ONEDPL_REDUCE_BY_SEGMENT_IMPL_H
 #define _ONEDPL_REDUCE_BY_SEGMENT_IMPL_H
 
-#include <algorithm> // std::min, std::clamp
-#include <cmath>     // std::sqrt
-#include <cstdint>
-#include <functional> // std::invoke
-#include <iterator>   // std::distance
-#include <limits>
-#include <memory> // std::unique_ptr
-#include <type_traits>
-#include <utility>
+#include <algorithm>   // std::min, std::clamp
+#include <cmath>       // std::sqrt
+#include <cstdint>     // std::uint8_t, std::uint32_t, std::uint64_t
+#include <functional>  // std::invoke
+#include <iterator>    // std::distance
+#include <limits>      // std::numeric_limits
+#include <memory>      // std::unique_ptr
+#include <type_traits> // std::decay_t, std::invoke_result_t, std::is_integral_v
+#include <utility>     // std::pair, std::forward, std::move, std::declval
 
 #include "by_segment_extension_defs.h"
 
