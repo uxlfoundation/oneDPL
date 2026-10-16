@@ -20,7 +20,8 @@
 #define _ONEDPL_BY_SEGMENT_EXTENSION_DEFS_H
 
 #include "../pstl/onedpl_config.h"
-#include <utility> // std::pair
+#include <utility>     // std::pair
+#include <type_traits> // std::is_integral_v
 
 namespace oneapi
 {
@@ -80,7 +81,8 @@ reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, 
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIterator1, OutputIterator2>>
+oneapi::dpl::__internal::__enable_if_execution_policy<
+    Policy, std::enable_if_t<!std::is_integral_v<OutputIterator1>, std::pair<OutputIterator1, OutputIterator2>>>
 reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                   OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred, BinaryOperator binary_op);
 
