@@ -37,6 +37,8 @@
 #include <type_traits>
 #include <vector>
 
+static_assert(ONEDPL_HAS_SEGMENTED_ALGORITHMS >= 202611L);
+
 using namespace TestUtils;
 
 // The ways to split the input [0, n) into segments
