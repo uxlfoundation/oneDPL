@@ -60,7 +60,8 @@ batched_stable_sort_by_key(sycl::queue __q,
                            _KeysIterator1 __keys_first, _KeysIterator1 __keys_last,
                            _ValsIterator1 __vals_first,
                            _KeysIterator2 __keys_out_first, _ValsIterator2 __vals_out_first,
-                           std::size_t __segment_size, _KernelParam __param = {});
+                           typename std::iterator_traits<_KeysIterator1>::difference_type __segment_size,
+                           _KernelParam __param = {});
 ```
 
 Replicates for permutations of:
@@ -111,11 +112,12 @@ Compile time parameters:
 Runtime Parameters:
 * queue - sycl queue
 * data params: iterator and range parameters for in-place and out-of-place
-* `__segment_size`: size of individual segments
+* `__segment_size`: size of individual segments, as the difference type of the keys input iterator
+  (of the keys input range for range overloads), as with `std::ranges::views::chunk`
 
 ### Semantics
 
-* `__segment_size == 0` is rejected with an assertion.
+* `__segment_size <= 0` is rejected with an assertion.
 * For `__segment_size > 0`, `n == 0` is a no-op; otherwise, `n % __segment_size != 0` is rejected
   with an assertion.
 * For `merge_path` and `radix_one_wg`, `__segment_size > data_per_workitem * workgroup_size` is
@@ -236,7 +238,7 @@ namespace kt = oneapi::dpl::experimental::kt;
 template <bool __is_ascending, typename _Key, typename _Val>
 sycl::event
 my_batched_sort_by_key(sycl::queue q, _Key* keys, _Val* vals, _Key* keys_out, _Val* vals_out,
-                       std::size_t n, std::size_t segment_size)
+                       std::ptrdiff_t n, std::ptrdiff_t segment_size)
 {
     // Thresholds and kernel_params are illustrative; tune for the target device and types.
     // Tiles below fit 32 KB of SLM for 4-byte keys and values.
@@ -308,7 +310,7 @@ Following the [Kernel Templates testing guidance][kt-testing]:
   key and value types of different widths.
 * Ascending and descending; key only and by key; out-of-place and in-place; iterators and ranges;
   USM and `sycl::buffer`.
-* `n == 0` is a no-op; assertions fire for `__segment_size == 0`, `n % __segment_size != 0`, and
+* `n == 0` is a no-op; assertions fire for `__segment_size <= 0`, `n % __segment_size != 0`, and
   `__segment_size > data_per_workitem * workgroup_size` for `merge_path` and `radix_one_wg`.
 * Reuse the existing `kt::gpu::radix_sort` test setup to cover a representative sample of kernel
   parameters.
