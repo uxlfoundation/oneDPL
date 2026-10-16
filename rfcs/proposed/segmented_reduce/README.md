@@ -494,68 +494,93 @@ Note, `ArgMin` and `ArgMax` can already be expressed via the proposed `reduce_by
 2. Use a binary operation which compares the values and, for equal values, selects the smaller index.
 3. Make the output iterator convert the global index into a segment-local one:
    the output position corresponds to the segment, which gives access to the segment's begin offset.
+   Preserve the default index for empty segments.
 
 `ArgMin` example:
 
 ```c++
-// Index-value pair: {global index, value}
-using AccT = std::tuple<IdxT, T>;
+using IndexValueIt = decltype(
+  dpl::make_zip_iterator(dpl::counting_iterator<OffsetT>(0), std::declval<T*>())
+);
+using IndexValueT = typename IndexValueIt::value_type;
 
-// Min op, strictly returning the first match
+constexpr OffsetT identity_index = std::numeric_limits<OffsetT>::max();
+constexpr T identity_value = std::numeric_limits<T>::has_infinity? std::numeric_limits<T>::infinity():
+                                                                   std::numeric_limits<T>::max();
+
+// min, return the first match
 struct argmin
 {
     template <typename A, typename B>
-    AccT
+    auto
     operator()(const A& a, const B& b) const
     {
         auto ia = std::get<0>(a);
         auto ib = std::get<0>(b);
         auto va = std::get<1>(a);
         auto vb = std::get<1>(b);
+        // NaN values are not supported in this comparison
         const bool take_b = vb < va || (!(va < vb) && ib < ia);
-        return take_b ? AccT{ib, vb} : AccT{ia, va};
+        return IndexValueT{take_b ? ib : ia, take_b ? vb : va};
     }
 };
-
-// Convert the global index into a segment-local one
+// helper to convert global index to local index when writing the result to the output
 struct global_to_local
 {
-    IdxT* out;
-    IdxT begin;
+    OffsetT* out_offset_position;
+    OffsetT segment_begin_idx;
     const global_to_local&
-    operator=(IdxT global) const
+    operator=(OffsetT global_offset) const
     {
-        *out = global - begin;
+        bool is_empty = global_offset == identity_index;
+        *out_offset_position = is_empty ? identity_index : global_offset - segment_begin_idx;
         return *this;
     }
 };
 
-const T max_value = std::numeric_limits<T>::has_infinity ? std::numeric_limits<T>::infinity()
-                                                         : std::numeric_limits<T>::max();
-const AccT init{std::numeric_limits<IdxT>::max(), max_value};
 T* values = sycl::malloc_shared<T>(n, q);
-IdxT* idx_out = sycl::malloc_shared<IdxT>(num_segments, q);
-T* val_out = sycl::malloc_shared<T>(num_segments, q);
-auto in = dpl::make_zip_iterator(dpl::counting_iterator<IdxT>(0), values);
+OffsetT* out_offsets = sycl::malloc_shared<OffsetT>(num_segments, q);
+T* out_values = sycl::malloc_shared<T>(num_segments, q);
 
-// Variable-length segments: (1) index-value pairs or (2) only index
-IdxT* offsets = sycl::malloc_shared<IdxT>(num_segments + 1, q);
-auto local_idx_out = dpl::make_transform_iterator(
-    dpl::counting_iterator<IdxT>(0),
-    [=](IdxT segment) { return global_to_local{idx_out + segment, offsets[segment]}; }
-);
-auto out = dpl::make_zip_iterator(local_idx_out, val_out);                 // (1)
-auto out = dpl::make_zip_iterator(local_idx_out, dpl::discard_iterator()); // (2)
-dpl::reduce_by_segment(policy, in, in + n, out, num_segments, offsets, init, argmin{});
+// pack the input into index-value pairs, the indices are global for now
+IndexValueIt in{dpl::counting_iterator<OffsetT>(0), values};
 
-// Fixed-length segments: (1) index-value pairs or (2) only index
-auto local_idx_out = dpl::make_transform_iterator(
-    dpl::counting_iterator<IdxT>(0),
-    [=](IdxT segment) { return global_to_local{idx_out + segment, segment * segment_length}; }
-);
-auto out = dpl::make_zip_iterator(local_idx_out, val_out);                 // (1)
-auto out = dpl::make_zip_iterator(local_idx_out, dpl::discard_iterator()); // (2)
-dpl::reduce_by_segment(policy, in, in + n, out, num_segments, segment_length, init, argmin{});
+// use IndexValueIt::value_type to guarantee device compatibility for the initial value
+const IndexValueT init{identity_index, identity_value};
+
+// Variable-length segments
+{
+    OffsetT* offsets = sycl::malloc_shared<OffsetT>(num_segments + 1, q);
+
+    // the result position in the output corresponds to the segment index,
+    // which is used to get the beginning of the segment in the input
+    // which in turn is used to convert the global index to a local index within the segment.
+    auto out_local_offsets = dpl::make_transform_iterator(
+        dpl::counting_iterator<OffsetT>(0), // segment index
+        [=](OffsetT segment_idx) {
+            return global_to_local{
+                out_offsets + segment_idx,  // where to write the result to
+                offsets[segment_idx]        // where the segment begins relative to the input
+            };
+        }
+    );
+    auto out = dpl::make_zip_iterator(out_local_offsets, out_values); // index-value pairs as output
+    // auto out = dpl::make_zip_iterator(out_local_offsets, dpl::discard_iterator()); // only index as output
+    dpl::reduce_by_segment(policy, in, in + n, out, num_segments, offsets, init, argmin{});
+}
+
+// Fixed-length segments
+{
+    // Almost the same as above, but with fixed segment dimensions instead of the offset sequence.
+    auto out_local_offsets = dpl::make_transform_iterator(
+        dpl::counting_iterator<OffsetT>(0),
+        [=](OffsetT segment_idx) { return global_to_local{out_offsets + segment_idx,
+                                                       segment_idx * segment_length}; }
+    );
+    auto out = dpl::make_zip_iterator(out_local_offsets, out_values); // index-value pairs as output
+    // auto out = dpl::make_zip_iterator(out_local_offsets, dpl::discard_iterator()); // only index as output
+    dpl::reduce_by_segment(policy, in, in + n, out, num_segments, segment_length, init, argmin{});
+}
 ```
 
 **Strategy**:
