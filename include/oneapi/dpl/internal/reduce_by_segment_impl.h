@@ -206,6 +206,28 @@ __segmented_reduce_clamp_offset(_Offset __offset, _Size __n)
     return static_cast<_Size>(__offset);
 }
 
+// A chunk of a long segment other than its first one starts from its first element converted to the accumulator type,
+// not to combine two elements in their own type; if the accumulator cannot be made from an element, from the result
+// of the operation on its first two elements (such a chunk has at least 64 elements).
+template <typename _Acc, typename _Source>
+inline constexpr bool __segmented_reduce_start_from_element_v =
+    std::is_constructible_v<_Acc, decltype(std::declval<const _Source&>()[0])>;
+
+// The number of the first elements of such a chunk that make its start value
+template <typename _Acc, typename _Source>
+inline constexpr std::uint8_t __segmented_reduce_start_length_v =
+    __segmented_reduce_start_from_element_v<_Acc, _Source> ? 1 : 2;
+
+template <typename _Acc, typename _Source, typename _Index, typename _BinaryOperation>
+_Acc
+__segmented_reduce_chunk_start(const _Source& __src, _Index __first, _BinaryOperation& __binary_op)
+{
+    if constexpr (__segmented_reduce_start_from_element_v<_Acc, _Source>)
+        return _Acc(__src[__first]);
+    else
+        return _Acc(std::invoke(__binary_op, __src[__first], __src[__first + 1]));
+}
+
 template <typename _Tag, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
           typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
 void
@@ -406,23 +428,6 @@ struct __segmented_reduce_chunk_brick
     _InitType __init;
     mutable _BinaryOperation __binary_op;
 
-    // A chunk other than the first one starts from its first element converted to the accumulator type, not to
-    // combine two elements in their own type; if the accumulator cannot be made from an element, from the result of
-    // the operation on its first two elements (a chunk has at least 64 elements).
-    template <typename _Input>
-    static constexpr bool __start_from_element =
-        std::is_constructible_v<_Acc, decltype(std::declval<const _Input&>()[_Size{0}])>;
-
-    template <typename _Input>
-    _Acc
-    __chunk_start(const _Input& __input, _Size __first) const
-    {
-        if constexpr (__start_from_element<_Input>)
-            return _Acc(__input[__first]);
-        else
-            return _Acc(std::invoke(__binary_op, __input[__first], __input[__first + 1]));
-    }
-
     template <typename _IsFull, typename _Params, typename _ChunkEnds, typename _Offsets, typename _Partials,
               typename _Input>
     void
@@ -455,8 +460,9 @@ struct __segmented_reduce_chunk_brick
         const _Size __k = __chunk - __first_chunk;
         const _Size __chunk_begin = __k == 0 ? __begin : __begin + __head + (__k - 1) * __chunk_size;
         const _Size __chunk_end = __k == 0 ? __begin + __head : __chunk_begin + __chunk_size;
-        const _Size __start_length = __start_from_element<_Input> ? 1 : 2;
-        const _Acc __start = __k == 0 ? _Acc(__init) : __chunk_start(__input, __chunk_begin);
+        const _Size __start_length = __segmented_reduce_start_length_v<_Acc, _Input>;
+        const _Acc __start =
+            __k == 0 ? _Acc(__init) : __segmented_reduce_chunk_start<_Acc>(__input, __chunk_begin, __binary_op);
         std::get<0>(__partials[__idx]) = __segmented_reduce_serial<_Acc>(
             __input, __k == 0 ? __chunk_begin : __chunk_begin + __start_length, __chunk_end, __start, __binary_op);
     }
