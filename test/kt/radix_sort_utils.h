@@ -91,6 +91,9 @@ can_run_test(sycl::queue q, KernelParam param)
     return slm_alloc_size < max_slm_size;
 }
 
+// Some configurations are currently broken with USM shared memory. This flag is meant for developer debugging.
+//#define TEST_KT_SORT_USM_SHARED_BROKEN 1
+
 inline const std::vector<std::size_t> sort_sizes = {
     1,       6,         16,      43,        256,           316,           2048,
     5072,    8192,      14001,   1 << 14,   (1 << 14) + 1, 50000,         67543,
