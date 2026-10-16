@@ -820,6 +820,12 @@ struct __segmented_reduce_variable_brick;
 template <typename _Acc, typename _InitType>
 struct __segmented_reduce_init_brick;
 
+template <typename _Acc, typename _Size, typename _InitType, typename _BinaryOperation>
+struct __segmented_reduce_chunk_brick;
+
+template <typename _Acc, typename _Size, typename _InitType, typename _BinaryOperation>
+struct __segmented_reduce_combine_brick;
+
 } // namespace oneapi::dpl::internal
 
 template <typename Comp, typename T, oneapi::dpl::internal::search_algorithm func>
@@ -839,6 +845,20 @@ template <typename _Acc, typename _InitType>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::__segmented_reduce_init_brick, _Acc,
                                                        _InitType)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_InitType>
+{
+};
+
+template <typename _Acc, typename _Size, typename _InitType, typename _BinaryOperation>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::__segmented_reduce_chunk_brick, _Acc,
+                                                       _Size, _InitType, _BinaryOperation)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Size, _InitType, _BinaryOperation>
+{
+};
+
+template <typename _Acc, typename _Size, typename _InitType, typename _BinaryOperation>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::internal::__segmented_reduce_combine_brick, _Acc,
+                                                       _Size, _InitType, _BinaryOperation)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Size, _InitType, _BinaryOperation>
 {
 };
 

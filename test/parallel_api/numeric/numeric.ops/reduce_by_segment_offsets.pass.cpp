@@ -27,6 +27,7 @@
 #endif
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -172,6 +173,41 @@ struct segment_begin
     operator()(std::int64_t segment) const
     {
         return segment * length;
+    }
+};
+
+// An accumulator which only the operation makes from the input elements: the RFC requires the operation for every
+// combination of the accumulator, the initial value and the input, but no conversion of an element
+struct sum_acc
+{
+    std::int64_t value;
+
+    sum_acc() = default;
+    sum_acc(std::int64_t v, std::nullptr_t) : value(v) {}
+    operator std::int64_t() const { return value; }
+};
+
+struct sum_acc_plus
+{
+    sum_acc
+    operator()(sum_acc a, int b) const
+    {
+        return sum_acc(a.value + b, nullptr);
+    }
+    sum_acc
+    operator()(int a, sum_acc b) const
+    {
+        return sum_acc(a + b.value, nullptr);
+    }
+    sum_acc
+    operator()(int a, int b) const
+    {
+        return sum_acc(std::int64_t(a) + b, nullptr);
+    }
+    sum_acc
+    operator()(sum_acc a, sum_acc b) const
+    {
+        return sum_acc(a.value + b.value, nullptr);
     }
 };
 
@@ -394,7 +430,7 @@ test_usm()
     using NewKernelName = TestUtils::unique_kernel_name<KernelName, TestUtils::uniq_kernel_index<alloc_type>()>;
     auto policy = TestUtils::get_dpcpp_test_policy();
     sycl::queue q = policy.queue();
-    const std::size_t n = 1000;
+    const std::size_t n = 20000; // some segments are long, beyond the chunk length of the device implementation
     std::mt19937 gen(42);
     std::vector<int> in(n);
     std::iota(in.begin(), in.end(), -500);
@@ -422,7 +458,7 @@ void
 test_buffer()
 {
     auto policy = TestUtils::get_dpcpp_test_policy();
-    const std::size_t n = 1000;
+    const std::size_t n = 20000; // some segments are long, beyond the chunk length of the device implementation
     std::mt19937 gen(42);
     std::vector<int> in(n);
     std::iota(in.begin(), in.end(), -500);
@@ -499,8 +535,12 @@ main()
         std::uint64_t{0}, std::bit_xor<std::uint64_t>{},
         [](std::size_t i) { return std::uint64_t(i) * 0x9E3779B97F4A7C15ull; }, std::uint64_t{1});
 
-    test_unordered<27>();
-    test_rfc_example<28>();
+    // Sum into an accumulator which cannot be made from an input element
+    test_segments<9, int, std::int64_t, std::int64_t, int>(
+        sum_acc(5, nullptr), sum_acc_plus{}, [](std::size_t i) { return int(i % 101) - 50; }, std::int64_t{-1});
+
+    test_unordered<30>();
+    test_rfc_example<31>();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT
