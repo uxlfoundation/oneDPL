@@ -42,7 +42,8 @@
 #ifndef _ONEDPL_REDUCE_BY_SEGMENT_IMPL_H
 #define _ONEDPL_REDUCE_BY_SEGMENT_IMPL_H
 
-#include <algorithm>   // std::min, std::clamp
+#include <algorithm>   // std::min, std::clamp, std::upper_bound
+#include <atomic>      // std::atomic
 #include <cmath>       // std::sqrt
 #include <cstdint>     // std::uint8_t, std::uint32_t, std::uint64_t
 #include <functional>  // std::invoke
@@ -206,6 +207,49 @@ __segmented_reduce_clamp_offset(_Offset __offset, _Size __n)
     return static_cast<_Size>(__offset);
 }
 
+// A chunk of a long segment other than its first one starts from its first element converted to the accumulator type,
+// not to combine two elements in their own type; if the accumulator cannot be made from an element, from the result
+// of the operation on its first two elements (such a chunk has at least 64 elements).
+template <typename _Acc, typename _Source>
+inline constexpr bool __segmented_reduce_start_from_element_v =
+    std::is_constructible_v<_Acc, decltype(std::declval<const _Source&>()[0])>;
+
+// The number of the first elements of such a chunk that make its start value
+template <typename _Acc, typename _Source>
+inline constexpr std::uint8_t __segmented_reduce_start_length_v =
+    __segmented_reduce_start_from_element_v<_Acc, _Source> ? 1 : 2;
+
+template <typename _Acc, typename _Source, typename _Index, typename _BinaryOperation>
+_Acc
+__segmented_reduce_chunk_start(const _Source& __src, _Index __first, _BinaryOperation& __binary_op)
+{
+    if constexpr (__segmented_reduce_start_from_element_v<_Acc, _Source>)
+        return _Acc(__src[__first]);
+    else
+        return _Acc(std::invoke(__binary_op, __src[__first], __src[__first + 1]));
+}
+
+// Reduces the elements [__begin, __end) of a random access iterator on the host, starting from __start; vectorized
+// when requested, if the elements can be converted to the accumulator type, as the vectorized reduction starts its
+// lanes from the operation on two of them
+template <typename _Acc, typename _RandomAccessIterator, typename _Index, typename _BinaryOperation, typename _IsVector>
+_Acc
+__segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __end, _Acc __start,
+                        _BinaryOperation& __binary_op, _IsVector)
+{
+    if constexpr (_IsVector::value && __segmented_reduce_start_from_element_v<_Acc, _RandomAccessIterator>)
+    {
+        return __internal::__brick_transform_reduce(
+            __first + __begin, __first + __end, std::move(__start), __binary_op,
+            [](auto&& __x) { return _Acc(std::forward<decltype(__x)>(__x)); }, std::true_type{});
+    }
+    else
+    {
+        return __segmented_reduce_serial<_Acc>(__first, __begin, __end, std::move(__start), __binary_op);
+    }
+}
+
+// The serial host policies: the segments one after another, each one vectorized with the unsequenced policy
 template <typename _Tag, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
           typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
 void
@@ -213,6 +257,8 @@ __reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _
                                  _OutputValueIt __result_value, _SegmentNum __num_segments, _OffsetIt __offsets,
                                  _InitType __init, _BinaryOperation __binary_op)
 {
+    static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
+
     using _Acc = __segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
     using _Size = typename std::iterator_traits<_InputValueIt>::difference_type;
 
@@ -221,10 +267,142 @@ __reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _
     {
         const _Size __begin = __segmented_reduce_clamp_offset(__offsets[__segment], __n);
         const _Size __end = __segmented_reduce_clamp_offset(__offsets[__segment + 1], __n);
-        __result_value[__segment] =
-            __begin < __end ? __segmented_reduce_serial<_Acc>(__first_value, __begin, __end, __init, __binary_op)
-                            : _Acc(__init);
+        __result_value[__segment] = __begin < __end
+                                        ? __segmented_reduce_host(__first_value, __begin, __end, _Acc(__init),
+                                                                  __binary_op, typename _Tag::__is_vector{})
+                                        : _Acc(__init);
     }
+}
+
+// The parallel host policies reduce a short segment in one task, and split a longer one into chunks reduced in
+// parallel, which balances the load when a few segments hold most of the input.
+// - a segment up to this length is short;
+inline constexpr std::size_t __segmented_reduce_host_threshold = 32768;
+// - the length of a chunk of a long segment.
+inline constexpr std::size_t __segmented_reduce_host_chunk_size = 16384;
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _InputValueIt, typename _SegmentNum,
+          typename _OffsetIt, typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
+void
+__reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
+                                 _InputValueIt __first_value, _InputValueIt __last_value, _OutputValueIt __result_value,
+                                 _SegmentNum __num_segments, _OffsetIt __offsets, _InitType __init,
+                                 _BinaryOperation __binary_op)
+{
+    using __backend_tag = typename __internal::__parallel_tag<_IsVector>::__backend_tag;
+    using _Acc = __segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
+    using _Size = typename std::iterator_traits<_InputValueIt>::difference_type;
+
+    if (!(__num_segments > _SegmentNum{0}))
+        return;
+
+    const _Size __n = __last_value - __first_value;
+    const _Size __m = __num_segments;
+    const _Size __threshold = __segmented_reduce_host_threshold;
+    const _Size __chunk_size = __segmented_reduce_host_chunk_size;
+    auto __bounds = [__offsets, __n](_Size __segment) {
+        return std::make_pair(__segmented_reduce_clamp_offset(__offsets[__segment], __n),
+                              __segmented_reduce_clamp_offset(__offsets[__segment + 1], __n));
+    };
+
+    // Every __parallel_for below has a grain of one segment or chunk, as the OpenMP backend would otherwise run up to
+    // 2048 of them in one task
+    __internal::__except_handler([&]() {
+        // The short segments, in parallel over the segments; the long ones, at most n / __threshold of them unless the
+        // offsets are not ordered, are only listed. A long segment beyond the list is reduced as a short one.
+        const _Size __capacity = __n / __threshold + 1;
+        oneapi::dpl::__par_backend::__buffer<_Size> __long_buf(__capacity);
+        _Size* __long = __long_buf.get();
+        std::atomic<_Size> __num_listed{0};
+        oneapi::dpl::__par_backend::__parallel_for(
+            __backend_tag{}, __exec, _Size{0}, __m,
+            [&](_Size __segment_first, _Size __segment_last) {
+                for (_Size __segment = __segment_first; __segment < __segment_last; ++__segment)
+                {
+                    const auto [__begin, __end] = __bounds(__segment);
+                    if (__end - __begin > __threshold)
+                    {
+                        const _Size __k = __num_listed.fetch_add(1, std::memory_order_relaxed);
+                        if (__k < __capacity)
+                        {
+                            __long[__k] = __segment;
+                            continue;
+                        }
+                    }
+                    __result_value[__segment] = __begin < __end
+                                                    ? __segmented_reduce_host(__first_value, __begin, __end,
+                                                                              _Acc(__init), __binary_op, _IsVector{})
+                                                    : _Acc(__init);
+                }
+            },
+            /*__grainsize=*/1);
+        const _Size __num_long = std::min(__num_listed.load(), __capacity);
+        if (__num_long == 0)
+            return;
+
+        // The end of the chunks of every long segment: a serial scan of their numbers
+        oneapi::dpl::__par_backend::__buffer<_Size> __chunk_ends_buf(__num_long);
+        _Size* __chunk_ends = __chunk_ends_buf.get();
+        _Size __num_chunks = 0;
+        for (_Size __k = 0; __k < __num_long; ++__k)
+        {
+            const auto [__begin, __end] = __bounds(__long[__k]);
+            __num_chunks += (__end - __begin + __chunk_size - 1) / __chunk_size;
+            __chunk_ends[__k] = __num_chunks;
+        }
+
+        // The chunks in parallel. The first chunk of a segment takes the remainder of its length and starts from the
+        // initial value; every other chunk has exactly __chunk_size elements and starts from its first ones.
+        oneapi::dpl::__par_backend::__buffer<_Acc> __partials_buf(__num_chunks);
+        _Acc* __partials = __partials_buf.get();
+        oneapi::dpl::__par_backend::__parallel_for(
+            __backend_tag{}, __exec, _Size{0}, __num_chunks,
+            [&](_Size __chunk_first, _Size __chunk_last) {
+                for (_Size __chunk = __chunk_first; __chunk < __chunk_last; ++__chunk)
+                {
+                    const _Size __k = std::upper_bound(__chunk_ends, __chunk_ends + __num_long, __chunk) - __chunk_ends;
+                    const _Size __first_chunk = __k == 0 ? _Size{0} : __chunk_ends[__k - 1];
+                    const auto [__begin, __end] = __bounds(__long[__k]);
+                    const _Size __head = (__end - __begin) - (__chunk_ends[__k] - __first_chunk - 1) * __chunk_size;
+                    const _Size __j = __chunk - __first_chunk;
+                    if (__j == 0)
+                    {
+                        ::new (__partials + __chunk) _Acc(__segmented_reduce_host(
+                            __first_value, __begin, __begin + __head, _Acc(__init), __binary_op, _IsVector{}));
+                    }
+                    else
+                    {
+                        constexpr _Size __start_length = __segmented_reduce_start_length_v<_Acc, _InputValueIt>;
+                        const _Size __chunk_begin = __begin + __head + (__j - 1) * __chunk_size;
+                        ::new (__partials + __chunk) _Acc(__segmented_reduce_host(
+                            __first_value, __chunk_begin + __start_length, __chunk_begin + __chunk_size,
+                            __segmented_reduce_chunk_start<_Acc>(__first_value, __chunk_begin, __binary_op),
+                            __binary_op, _IsVector{}));
+                    }
+                }
+            },
+            /*__grainsize=*/1);
+
+        // The partial results of every long segment, combined in order
+        oneapi::dpl::__par_backend::__parallel_for(
+            __backend_tag{}, __exec, _Size{0}, __num_long,
+            [&](_Size __k_first, _Size __k_last) {
+                for (_Size __k = __k_first; __k < __k_last; ++__k)
+                {
+                    const _Size __first_chunk = __k == 0 ? _Size{0} : __chunk_ends[__k - 1];
+                    _Acc __acc = std::move(__partials[__first_chunk]);
+                    for (_Size __chunk = __first_chunk + 1; __chunk < __chunk_ends[__k]; ++__chunk)
+                        __acc = std::invoke(__binary_op, std::move(__acc), std::move(__partials[__chunk]));
+                    __result_value[__long[__k]] = std::move(__acc);
+                }
+            },
+            /*__grainsize=*/1);
+        if constexpr (!std::is_trivially_destructible_v<_Acc>)
+        {
+            for (_Size __chunk = 0; __chunk < __num_chunks; ++__chunk)
+                __partials[__chunk].~_Acc();
+        }
+    });
 }
 
 #if _ONEDPL_BACKEND_SYCL
@@ -406,23 +584,6 @@ struct __segmented_reduce_chunk_brick
     _InitType __init;
     mutable _BinaryOperation __binary_op;
 
-    // A chunk other than the first one starts from its first element converted to the accumulator type, not to
-    // combine two elements in their own type; if the accumulator cannot be made from an element, from the result of
-    // the operation on its first two elements (a chunk has at least 64 elements).
-    template <typename _Input>
-    static constexpr bool __start_from_element =
-        std::is_constructible_v<_Acc, decltype(std::declval<const _Input&>()[_Size{0}])>;
-
-    template <typename _Input>
-    _Acc
-    __chunk_start(const _Input& __input, _Size __first) const
-    {
-        if constexpr (__start_from_element<_Input>)
-            return _Acc(__input[__first]);
-        else
-            return _Acc(std::invoke(__binary_op, __input[__first], __input[__first + 1]));
-    }
-
     template <typename _IsFull, typename _Params, typename _ChunkEnds, typename _Offsets, typename _Partials,
               typename _Input>
     void
@@ -455,8 +616,9 @@ struct __segmented_reduce_chunk_brick
         const _Size __k = __chunk - __first_chunk;
         const _Size __chunk_begin = __k == 0 ? __begin : __begin + __head + (__k - 1) * __chunk_size;
         const _Size __chunk_end = __k == 0 ? __begin + __head : __chunk_begin + __chunk_size;
-        const _Size __start_length = __start_from_element<_Input> ? 1 : 2;
-        const _Acc __start = __k == 0 ? _Acc(__init) : __chunk_start(__input, __chunk_begin);
+        const _Size __start_length = __segmented_reduce_start_length_v<_Acc, _Input>;
+        const _Acc __start =
+            __k == 0 ? _Acc(__init) : __segmented_reduce_chunk_start<_Acc>(__input, __chunk_begin, __binary_op);
         std::get<0>(__partials[__idx]) = __segmented_reduce_serial<_Acc>(
             __input, __k == 0 ? __chunk_begin : __chunk_begin + __start_length, __chunk_end, __start, __binary_op);
     }
