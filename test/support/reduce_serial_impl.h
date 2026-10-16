@@ -10,7 +10,11 @@
 #ifndef _REDUCE_SERIAL_IMPL_H
 #define _REDUCE_SERIAL_IMPL_H
 
+#include <algorithm>
+#include <cstdint>
 #include <iterator>
+#include <numeric>
+#include <type_traits>
 
 template <typename RandAccessItKeysIn, typename RandAccessItValsIn, typename RandAccessItKeysOut,
           typename RandAccessItValsOut, typename Size, typename BinaryPredicate, typename BinaryOperation>
@@ -46,6 +50,39 @@ reduce_by_segment_serial(RandAccessItKeysIn keys, RandAccessItValsIn vals,
     res_vals[segment_count] = tmp_val;
 
     return segment_count + 1;
+}
+
+// Reference of reduce_by_segment with segments defined by offsets: the segment s is [offsets[s], offsets[s + 1])
+// clamped to the input [0, last - first), reduced from init_value; an empty segment gives init_value, and
+// a non-positive num_segments writes nothing.
+template <typename RandAccessItIn, typename RandAccessItOffsets, typename RandAccessItOut, typename SegmentNum,
+          typename Init, typename BinaryOperation>
+void
+reduce_by_segment_offsets_serial(RandAccessItIn first, RandAccessItIn last, RandAccessItOffsets offsets,
+                                 SegmentNum num_segments, Init init_value, BinaryOperation binary_op,
+                                 RandAccessItOut result)
+{
+    // The accumulator type of the algorithm
+    using AccT = std::decay_t<
+        std::invoke_result_t<BinaryOperation&, Init, typename std::iterator_traits<RandAccessItIn>::reference>>;
+    using Size = typename std::iterator_traits<RandAccessItIn>::difference_type;
+
+    const Size n = last - first;
+    auto clamp = [n](auto offset) -> Size {
+        if constexpr (std::is_signed_v<decltype(offset)>)
+        {
+            if (offset < 0)
+                return 0;
+        }
+        return std::uint64_t(offset) < std::uint64_t(n) ? Size(offset) : n;
+    };
+    for (SegmentNum s = 0; s < num_segments; ++s)
+    {
+        const Size begin = clamp(offsets[s]);
+        const Size end = std::max(begin, clamp(offsets[s + 1]));
+        // A left fold with an AccT accumulator; std::reduce would combine the elements in their own type
+        result[s] = std::accumulate(first + begin, first + end, AccT(init_value), binary_op);
+    }
 }
 
 #endif //_REDUCE_SERIAL_IMPL_H
