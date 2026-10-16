@@ -42,9 +42,9 @@ template <class _ForwardIterator1, class _ForwardIterator2, class _Tp, class _Bi
 _Tp
 __brick_transform_reduce(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Tp __init,
                          _BinaryOperation1 __binary_op1, _BinaryOperation2 __binary_op2,
-                         /*is_vector=*/::std::false_type) noexcept
+                         /*is_vector=*/std::false_type) noexcept
 {
-    return ::std::inner_product(__first1, __last1, __first2, std::move(__init), __binary_op1, __binary_op2);
+    return std::inner_product(__first1, __last1, __first2, std::move(__init), __binary_op1, __binary_op2);
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Tp, class _BinaryOperation1,
@@ -53,7 +53,7 @@ _Tp
 __brick_transform_reduce(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
                          _RandomAccessIterator2 __first2, _Tp __init, _BinaryOperation1 __binary_op1,
                          _BinaryOperation2 __binary_op2,
-                         /*is_vector=*/::std::true_type) noexcept
+                         /*is_vector=*/std::true_type) noexcept
 {
     using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     return __unseq_backend::__simd_transform_reduce(
