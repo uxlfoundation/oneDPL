@@ -250,7 +250,7 @@ struct __parallel_merge_submitter<_Bounded, _IdType, __internal::__optional_kern
                 if constexpr (_Bounded)
                 {
                     if (__id == __steps - 1) // the last WI does additional work
-                        *(__result_acc.__data()) = __ends;
+                        __result_acc.__data()[0] = __ends;
                 }
             });
         });
@@ -386,7 +386,7 @@ struct __parallel_merge_submitter_large<_Bounded, _IdType, _CustomName,
                     if constexpr (_Bounded)
                     {
                         if (__global_idx == __nd_range_params.steps - 1)
-                            *(__result_acc.__data()) = __ends;
+                            __result_acc.__data()[0] = __ends;
                     }
                 });
         });
