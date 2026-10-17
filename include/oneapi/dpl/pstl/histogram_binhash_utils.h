@@ -80,7 +80,31 @@ struct __evenly_divided_binhash<_T1, ::std::enable_if_t<!::std::is_floating_poin
         __bin_idx_t ret = -1;
         if ((__value >= __minimum) && (__value < (__minimum + __range_size)))
         {
-            ret = ::std::uint64_t(__value - __minimum) * ::std::uint64_t(__num_bins) / __range_size;
+            if constexpr (::std::is_floating_point_v<_T2>)
+            {
+                const _T2 __scale = _T2(__num_bins) / __range_size;
+                ret = (__value - __minimum) * __scale;
+            }
+            else
+            {
+                const ::std::uint64_t __offset = __value - __minimum;
+                const ::std::uint64_t __bins = __num_bins;
+                if (__offset <= ::std::numeric_limits<::std::uint64_t>::max() / __bins)
+                    ret = __offset * __bins / __range_size;
+                else
+                {
+                    const auto __quotient = ::std::uint64_t(__range_size) / __bins;
+                    const auto __remainder = ::std::uint64_t(__range_size) % __bins;
+                    // Find the first bin boundary above the offset. Decomposing the range keeps
+                    // ceil(bin * range / bins) exact without overflowing either product.
+                    ret = __pstl_lower_bound_impl(
+                              __bin_idx_t{1}, __num_bins,
+                              [=](__bin_idx_t __bin) {
+                                  return __quotient * __bin + (__remainder * __bin + __bins - 1) / __bins <= __offset;
+                              }) -
+                          1;
+                }
+            }
         }
         return ret;
     }

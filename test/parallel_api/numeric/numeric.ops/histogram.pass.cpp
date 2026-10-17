@@ -123,6 +123,53 @@ test_histogram(T min_boundary, T max_boundary, T overflow, Size jitter, Size tra
     }
 }
 
+struct test_histogram_even_bins_arithmetic
+{
+    template <typename Policy, typename Iterator1, typename Iterator2, typename T>
+    void
+    operator()(Policy&& exec, Iterator1 first, Iterator1 last, Iterator2 bin_first, Iterator2 bin_last,
+               T minimum, T maximum, std::initializer_list<int> expected)
+    {
+        if constexpr (is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator2>)
+        {
+            auto end = oneapi::dpl::histogram(std::forward<Policy>(exec), first, last, expected.size(),
+                                              minimum, maximum, bin_first);
+            EXPECT_TRUE(end == bin_last, "histogram returned wrong iterator");
+            EXPECT_EQ_N(expected.begin(), bin_first, expected.size(), "wrong result from histogram bin arithmetic");
+        }
+    }
+};
+
+template <std::size_t CallNumber, typename T, typename Bound>
+void
+test_even_bin_arithmetic(std::initializer_list<T> values, Bound minimum, Bound maximum,
+                         std::initializer_list<int> expected)
+{
+    Sequence<T> in(values);
+    Sequence<int> out(expected.size(), [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber>()(test_histogram_even_bins_arithmetic(), in.begin(), in.end(),
+                                        out.begin(), out.end(), minimum, maximum, expected);
+}
+
+void
+test_bin_arithmetic()
+{
+    // Integer bounds must preserve fractional samples and lower-inclusive bin edges.
+    test_even_bin_arithmetic<8, float>({-0.25f, 0.0f, 0.25f, 0.5f, 0.75f, 1.0f}, 0, 1, {2, 2});
+    test_even_bin_arithmetic<9, double>({-1.25, -1.0, -0.75, -0.5, -0.25, 0.0}, -1, 0, {2, 2});
+
+    using U = std::uint64_t;
+    const U width = U{1} << 61;
+    // Check both sides of large bin edges without overflowing the reference calculation.
+    test_even_bin_arithmetic<10, U>({0, width - 1, width, 2 * width - 1, 2 * width, 2 * width + 1,
+                                   3 * width - 1, 3 * width, 4 * width - 1, 4 * width},
+                                  U{0}, 4 * width, {2, 2, 3, 2});
+    // A non-divisible range has integer thresholds at minimum + k * width + 1.
+    test_even_bin_arithmetic<11, U>({17 + width, 18 + width, 17 + 2 * width, 18 + 2 * width,
+                                   17 + 3 * width, 18 + 3 * width, 17 + 4 * width},
+                                  U{17}, 18 + 4 * width, {1, 2, 2, 2});
+}
+
 int
 main()
 {
@@ -131,6 +178,8 @@ main()
 #if !ONEDPL_FPGA_DEVICE
     test_histogram<1, std::int32_t, uint64_t>(-50000, 50000, 10000, uint64_t(5), uint64_t(99999));
 #endif //!ONEDPL_FPGA_DEVICE
+
+    test_bin_arithmetic();
 
     return done();
 }
