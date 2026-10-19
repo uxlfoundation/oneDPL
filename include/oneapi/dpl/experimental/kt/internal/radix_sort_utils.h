@@ -70,13 +70,15 @@ __check_sycl_sort_params([[maybe_unused]] std::size_t __n)
     assert((__n < (1 << 30)) && "Inputs >= 2^30 are currently unsupported in the SYCL sort KT");
 }
 
-template <std::uint8_t __radix_bits, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size>
+// __segment_size is the signed difference type of the keys sequence
+template <typename _Size>
 inline void
-__check_batched_radix_sort_params([[maybe_unused]] std::size_t __n, [[maybe_unused]] std::size_t __segment_size)
+__check_batched_sort_params([[maybe_unused]] std::size_t __n, [[maybe_unused]] _Size __segment_size)
 {
-    __check_sycl_sort_params<__radix_bits, __data_per_workitem, __workgroup_size>(__n);
+    assert((__n < (1 << 30)) && "Inputs >= 2^30 are currently unsupported in the SYCL sort KT");
     assert(__segment_size > 0 && "The segment size must be greater than zero");
-    assert(__n % __segment_size == 0 && "The number of elements must be a multiple of the segment size");
+    assert(__n % static_cast<std::size_t>(__segment_size) == 0 &&
+           "The number of elements must be a multiple of the segment size");
 }
 
 //-----------------------------------------------------------------------------

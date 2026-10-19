@@ -12,7 +12,8 @@
 
 // Shared by the batched sort tests, which define KeyT, ValueT and TEST_KEYS_ONLY before including this header.
 // A Sorter provides static sort<IsAscending>(q, args...) and sort_by_key<IsAscending>(q, args...), forwarding to the
-// keys-only and key-value overloads of the sort under test.
+// keys-only and key-value overloads of the sort under test. A Sorter with uses_temp_storage also provides
+// bytes_req<KernelParam>(segment_size, n, in_place), and its sorts are given temporary storage of that many bytes.
 
 #include <oneapi/dpl/experimental/kernel_templates>
 #include <oneapi/dpl/iterator>
@@ -198,55 +199,58 @@ reference_sort(std::vector<KeyT>& keys, std::vector<ValueT>& vals, std::size_t s
 }
 
 // Calls the in-place or out-of-place overload of the sort under test with the given keys, values and outputs: either
-// iterators (first, last) or ranges
+// iterators (first, last) or ranges. Extra arguments, such as temporary storage, precede the kernel_param.
 template <typename Sorter, bool IsAscending, bool InPlace, typename Keys, typename Vals, typename KeysOut,
-          typename ValsOut, typename KernelParam>
+          typename ValsOut, typename KernelParam, typename... Extra>
 sycl::event
 invoke_sort([[maybe_unused]] sycl::queue q, [[maybe_unused]] Keys keys_first, [[maybe_unused]] Keys keys_last,
             [[maybe_unused]] Vals vals, [[maybe_unused]] KeysOut keys_out, [[maybe_unused]] ValsOut vals_out,
-            [[maybe_unused]] std::size_t segment_size, [[maybe_unused]] KernelParam param, std::true_type /*iterators*/)
+            [[maybe_unused]] std::size_t segment_size, [[maybe_unused]] KernelParam param, std::true_type /*iterators*/,
+            [[maybe_unused]] Extra... extra)
 {
 #if TEST_KEYS_ONLY
     if constexpr (InPlace)
-        return Sorter::template sort<IsAscending>(q, keys_first, keys_last, segment_size, param);
+        return Sorter::template sort<IsAscending>(q, keys_first, keys_last, segment_size, extra..., param);
     else
-        return Sorter::template sort<IsAscending>(q, keys_first, keys_last, keys_out, segment_size, param);
+        return Sorter::template sort<IsAscending>(q, keys_first, keys_last, keys_out, segment_size, extra..., param);
 #else
     if constexpr (InPlace)
-        return Sorter::template sort_by_key<IsAscending>(q, keys_first, keys_last, vals, segment_size, param);
+        return Sorter::template sort_by_key<IsAscending>(q, keys_first, keys_last, vals, segment_size, extra..., param);
     else
         return Sorter::template sort_by_key<IsAscending>(q, keys_first, keys_last, vals, keys_out, vals_out,
-                                                         segment_size, param);
+                                                         segment_size, extra..., param);
 #endif
 }
 
 template <typename Sorter, bool IsAscending, bool InPlace, typename Keys, typename Vals, typename KeysOut,
-          typename ValsOut, typename KernelParam>
+          typename ValsOut, typename KernelParam, typename... Extra>
 sycl::event
 invoke_sort([[maybe_unused]] sycl::queue q, [[maybe_unused]] Keys&& keys, [[maybe_unused]] Vals&& vals,
             [[maybe_unused]] KeysOut&& keys_out, [[maybe_unused]] ValsOut&& vals_out,
-            [[maybe_unused]] std::size_t segment_size, [[maybe_unused]] KernelParam param)
+            [[maybe_unused]] std::size_t segment_size, [[maybe_unused]] KernelParam param,
+            [[maybe_unused]] Extra... extra)
 {
 #if TEST_KEYS_ONLY
     if constexpr (InPlace)
-        return Sorter::template sort<IsAscending>(q, keys, segment_size, param);
+        return Sorter::template sort<IsAscending>(q, keys, segment_size, extra..., param);
     else
-        return Sorter::template sort<IsAscending>(q, keys, keys_out, segment_size, param);
+        return Sorter::template sort<IsAscending>(q, keys, keys_out, segment_size, extra..., param);
 #else
     if constexpr (InPlace)
-        return Sorter::template sort_by_key<IsAscending>(q, keys, vals, segment_size, param);
+        return Sorter::template sort_by_key<IsAscending>(q, keys, vals, segment_size, extra..., param);
     else
-        return Sorter::template sort_by_key<IsAscending>(q, keys, vals, keys_out, vals_out, segment_size, param);
+        return Sorter::template sort_by_key<IsAscending>(q, keys, vals, keys_out, vals_out, segment_size, extra...,
+                                                         param);
 #endif
 }
 
 // Sorts on the device with the given data passing mode. The output vectors are both input and output for
 // in-place sorts.
-template <typename Sorter, bool IsAscending, bool InPlace, typename KernelParam>
+template <typename Sorter, bool IsAscending, bool InPlace, typename KernelParam, typename... Extra>
 void
 device_sort(sycl::queue q, DataMode mode, const std::vector<KeyT>& keys_in, const std::vector<ValueT>& vals_in,
             std::vector<KeyT>& keys_out, std::vector<ValueT>& vals_out, std::vector<KeyT>& keys_in_after,
-            std::vector<ValueT>& vals_in_after, std::size_t segment_size, KernelParam param)
+            std::vector<ValueT>& vals_in_after, std::size_t segment_size, KernelParam param, Extra... extra)
 {
     const std::size_t n = keys_in.size();
     keys_in_after = keys_in;
@@ -268,15 +272,15 @@ device_sort(sycl::queue q, DataMode mode, const std::vector<KeyT>& keys_in, cons
         if (mode == DataMode::usm_iterators)
         {
             e = invoke_sort<Sorter, IsAscending, InPlace>(q, kp, kp + n, vp, kop, vop, segment_size, param,
-                                                          std::true_type{});
+                                                          std::true_type{}, extra...);
         }
         else
         {
             // USM ranges are passed as subrange views over the pointers
             namespace views = oneapi::dpl::experimental::ranges::views;
             e = invoke_sort<Sorter, IsAscending, InPlace>(q, views::subrange(kp, kp + n), views::subrange(vp, vp + n),
-                                                          views::subrange(kop, kop + n),
-                                                          views::subrange(vop, vop + n), segment_size, param);
+                                                          views::subrange(kop, kop + n), views::subrange(vop, vop + n),
+                                                          segment_size, param, extra...);
         }
         e.wait();
         if constexpr (InPlace)
@@ -305,12 +309,13 @@ device_sort(sycl::queue q, DataMode mode, const std::vector<KeyT>& keys_in, cons
             {
                 auto kb = oneapi::dpl::begin(k);
                 invoke_sort<Sorter, IsAscending, InPlace>(q, kb, kb + n, oneapi::dpl::begin(v), oneapi::dpl::begin(ko),
-                                                          oneapi::dpl::begin(vo), segment_size, param, std::true_type{})
+                                                          oneapi::dpl::begin(vo), segment_size, param, std::true_type{},
+                                                          extra...)
                     .wait();
             }
             else
             {
-                invoke_sort<Sorter, IsAscending, InPlace>(q, k, v, ko, vo, segment_size, param).wait();
+                invoke_sort<Sorter, IsAscending, InPlace>(q, k, v, ko, vo, segment_size, param, extra...).wait();
             }
         }
         if constexpr (InPlace)
@@ -342,12 +347,24 @@ test_case(sycl::queue q, DataMode mode, std::size_t segment_size, std::size_t se
 
     std::vector<KeyT> actual_keys, keys_in_after;
     std::vector<ValueT> actual_vals, vals_in_after;
-    device_sort<Sorter, IsAscending, InPlace>(q, mode, keys, vals, actual_keys, actual_vals, keys_in_after,
-                                              vals_in_after, segment_size, param);
+    if constexpr (Sorter::uses_temp_storage)
+    {
+        // Exactly the reported number of bytes, at an address only aligned to a byte
+        const std::size_t bytes = Sorter::template bytes_req<KernelParam>(segment_size, n, InPlace);
+        std::uint8_t* mem = sycl::malloc_device<std::uint8_t>(bytes + 1, q);
+        device_sort<Sorter, IsAscending, InPlace>(q, mode, keys, vals, actual_keys, actual_vals, keys_in_after,
+                                                  vals_in_after, segment_size, param, mem + 1, bytes);
+        sycl::free(mem, q);
+    }
+    else
+    {
+        device_sort<Sorter, IsAscending, InPlace>(q, mode, keys, vals, actual_keys, actual_vals, keys_in_after,
+                                                  vals_in_after, segment_size, param);
+    }
 
     std::ostringstream msg;
-    msg << mode_name(mode) << ", in-place: " << InPlace << ", ascending: " << IsAscending
-        << ", segment size: " << segment_size << ", segments: " << segment_count
+    msg << mode_name(mode) << ", temp storage: " << Sorter::uses_temp_storage << ", in-place: " << InPlace
+        << ", ascending: " << IsAscending << ", segment size: " << segment_size << ", segments: " << segment_count
         << ", dpwi: " << KernelParam::data_per_workitem << ", wgs: " << KernelParam::workgroup_size
         << ", data: " << pattern_name(pattern);
     const std::string m = msg.str();
@@ -385,32 +402,32 @@ test_special_patterns(sycl::queue q, std::size_t segment_size, KernelParam param
         test_case<Sorter, true, true>(q, DataMode::usm_ranges, segment_size, 5,
                                       TestUtils::create_new_kernel_param_idx<2>(params), DataPattern::float_specials);
         test_case<Sorter, false, false>(q, DataMode::buffer_iterators, segment_size, 5,
-                                        TestUtils::create_new_kernel_param_idx<1>(params),
-                                        DataPattern::float_specials);
+                                        TestUtils::create_new_kernel_param_idx<1>(params), DataPattern::float_specials);
     }
 }
 
-// n == 0 is a no-op for every overload. sycl::buffer cannot be empty, so only USM is covered.
-template <typename Sorter, typename KernelParam>
+// n == 0 is a no-op for every overload, and needs no temporary storage. sycl::buffer cannot be empty, so only USM is
+// covered.
+template <typename Sorter, typename KernelParam, typename... Extra>
 void
-test_empty_input(sycl::queue q, KernelParam params)
+test_empty_input(sycl::queue q, KernelParam params, Extra... extra)
 {
     namespace views = oneapi::dpl::experimental::ranges::views;
     KeyT* keys = nullptr;
     ValueT* vals = nullptr;
     invoke_sort<Sorter, true, true>(q, keys, keys, vals, keys, vals, 4,
-                                    TestUtils::create_new_kernel_param_idx<4>(params), std::true_type{})
+                                    TestUtils::create_new_kernel_param_idx<4>(params), std::true_type{}, extra...)
         .wait();
     invoke_sort<Sorter, true, false>(q, keys, keys, vals, keys, vals, 4,
-                                     TestUtils::create_new_kernel_param_idx<5>(params), std::true_type{})
+                                     TestUtils::create_new_kernel_param_idx<5>(params), std::true_type{}, extra...)
         .wait();
     invoke_sort<Sorter, true, true>(q, views::subrange(keys, keys), views::subrange(vals, vals),
                                     views::subrange(keys, keys), views::subrange(vals, vals), 4,
-                                    TestUtils::create_new_kernel_param_idx<6>(params))
+                                    TestUtils::create_new_kernel_param_idx<6>(params), extra...)
         .wait();
     invoke_sort<Sorter, true, false>(q, views::subrange(keys, keys), views::subrange(vals, vals),
                                      views::subrange(keys, keys), views::subrange(vals, vals), 4,
-                                     TestUtils::create_new_kernel_param_idx<7>(params))
+                                     TestUtils::create_new_kernel_param_idx<7>(params), extra...)
         .wait();
 }
 
