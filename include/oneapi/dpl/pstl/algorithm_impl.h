@@ -3460,36 +3460,68 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
     const _Index __n_1 = __middle - __first;
     const _Index __n_2 = __last - __middle;
     const _Index __n = __n_1 + __n_2;
-    const _Index __n_chunks = __internal::__dpl_ceiling_div(__n, __merge_chunk);
 
     __par_backend::__buffer<_Tp> __buf(__n);
-    __par_backend::__buffer<_Index> __split_buf(__n_chunks + 1); // +1 to store the final boundary
     _Tp* __b = __buf.get();
-    _Index* __split = __split_buf.get();
 
-    __internal::__except_handler([=, &__exec]() {
-        // 1. Partition
-        __merge_path_partition(__parallel_tag<_IsVector>{}, __exec, __split, __n_chunks, __merge_chunk, __n_1, __n_2,
-                               __n, __first, __middle, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    auto __move_assign = [](_Tp& __x, auto&& __y) { std::forward<decltype(__y)>(__y) = std::move(__x); };
 
-        // 2. Move to the temporary buffer to merge to the original range later
-        __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{0}, __n, [=](_Index __i, _Index __j) {
-            __internal::__brick_uninitialized_move(__first + __i, __first + __j, __b + __i, _IsVector{});
-        });
-
-        // 3. Merge
-        auto __move_assign = [](_Tp& __x, auto&& __y) { std::forward<decltype(__y)>(__y) = std::move(__x); };
-
-        __merge_path_chunks(
-            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __split, __n_chunks, __merge_chunk,
-            __n, __b, __b + __n_1, __first, __brick_move_destroy<__parallel_tag<_IsVector>>{},
-            [=](_Tp* __f1, _Tp* __l1, _Tp* __f2, _Tp* __l2, _RandomAccessIterator __f3, _RandomAccessIterator __l3) {
-                __serial_merge_out_lim(__f1, __l1, __f2, __l2, __f3, __l3, __comp, oneapi::dpl::identity{},
-                                       oneapi::dpl::identity{}, __move_assign);
-                __internal::__brick_destroy(__f1, __l1, _IsVector{});
-                __internal::__brick_destroy(__f2, __l2, _IsVector{});
+    using _Ref = typename std::iterator_traits<_RandomAccessIterator>::reference;
+    if constexpr (std::is_trivially_assignable_v<_Ref, _Tp&&> && std::is_trivially_destructible_v<_Tp>)
+    {
+        // The buffer is not modified by the merge, hence each task can compute its own split on the fly
+        __internal::__except_handler([=, &__exec]() {
+            // 1. Move to the temporary buffer to merge to the original range later
+            __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{0}, __n, [=](_Index __i, _Index __j) {
+                __internal::__brick_uninitialized_move(__first + __i, __first + __j, __b + __i, _IsVector{});
             });
-    });
+
+            // 2. Merge
+            __par_backend::__parallel_for(
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n,
+                [=](_Index __i, _Index __j) {
+                    const auto [__r, __c] = __merge_path_intersection(__i, __n_1, __n_2, __b, __b + __n_1, __comp,
+                                                                      oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                    // Bounded merge is used to ensure that each task only writes to its assigned output range
+                    __serial_merge_out_lim(__b + __r, __b + __n_1, __b + __n_1 + __c, __b + __n, __first + __i,
+                                           __first + __j, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
+                                           __move_assign);
+                },
+                __merge_chunk);
+        });
+    }
+    else
+    {
+        // The buffer may be modified by the merge (e.g., moved from), hence all the splits are computed beforehand
+        const _Index __n_chunks = __internal::__dpl_ceiling_div(__n, __merge_chunk);
+
+        __par_backend::__buffer<_Index> __split_buf(__n_chunks + 1); // +1 to store the final boundary
+        _Index* __split = __split_buf.get();
+
+        __internal::__except_handler([=, &__exec]() {
+            // 1. Partition
+            __merge_path_partition(__parallel_tag<_IsVector>{}, __exec, __split, __n_chunks, __merge_chunk, __n_1,
+                                   __n_2, __n, __first, __middle, __comp, oneapi::dpl::identity{},
+                                   oneapi::dpl::identity{});
+
+            // 2. Move to the temporary buffer to merge to the original range later
+            __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{0}, __n, [=](_Index __i, _Index __j) {
+                __internal::__brick_uninitialized_move(__first + __i, __first + __j, __b + __i, _IsVector{});
+            });
+
+            // 3. Merge
+            __merge_path_chunks(
+                __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __split, __n_chunks, __merge_chunk,
+                __n, __b, __b + __n_1, __first, __brick_move_destroy<__parallel_tag<_IsVector>>{},
+                [=](_Tp* __f1, _Tp* __l1, _Tp* __f2, _Tp* __l2, _RandomAccessIterator __f3,
+                    _RandomAccessIterator __l3) {
+                    __serial_merge_out_lim(__f1, __l1, __f2, __l2, __f3, __l3, __comp, oneapi::dpl::identity{},
+                                           oneapi::dpl::identity{}, __move_assign);
+                    __internal::__brick_destroy(__f1, __l1, _IsVector{});
+                    __internal::__brick_destroy(__f2, __l2, _IsVector{});
+                });
+        });
+    }
 }
 
 //------------------------------------------------------------------------
