@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- batched_radix_sort.cpp --------------------------------------------===//
+//===-- batched_stable_sort.cpp -------------------------------------------===//
 //
 // Copyright (C) UXL Foundation Contributors
 //
@@ -34,23 +34,37 @@ using ValueT = TEST_VALUE_TYPE;
 #endif
 using KeyT = TEST_KEY_TYPE;
 
-constexpr std::uint8_t BatchedRadixBits = TestRadixBits;
+using SortConfig = kt::gpu::radix_onesweep<TestRadixBits>;
 
 #include "batched_sort_test_utils.h"
 
-struct BatchedRadixSort
+template <bool UsesTempStorage>
+struct BatchedStableSort
 {
+    static constexpr bool uses_temp_storage = UsesTempStorage;
+
     template <bool IsAscending, typename... Args>
     static sycl::event
     sort(sycl::queue q, Args&&... args)
     {
-        return kt::gpu::batched_radix_sort<IsAscending, BatchedRadixBits>(q, std::forward<Args>(args)...);
+        return kt::gpu::batched_stable_sort<SortConfig, IsAscending>(q, std::forward<Args>(args)...);
     }
     template <bool IsAscending, typename... Args>
     static sycl::event
     sort_by_key(sycl::queue q, Args&&... args)
     {
-        return kt::gpu::batched_radix_sort_by_key<IsAscending, BatchedRadixBits>(q, std::forward<Args>(args)...);
+        return kt::gpu::batched_stable_sort_by_key<SortConfig, IsAscending>(q, std::forward<Args>(args)...);
+    }
+    template <typename KernelParam>
+    static constexpr std::size_t
+    bytes_req(std::size_t segment_size, std::size_t n, bool in_place)
+    {
+#if TEST_KEYS_ONLY
+        return kt::gpu::batched_stable_sort_bytes_req<SortConfig, KeyT>(segment_size, n, in_place, KernelParam{});
+#else
+        return kt::gpu::batched_stable_sort_by_key_bytes_req<SortConfig, KeyT, ValueT>(segment_size, n, in_place,
+                                                                                       KernelParam{});
+#endif
     }
 };
 
@@ -75,8 +89,12 @@ main()
     bool run_test = false;
 #if TEST_SYCL_RADIX_SORT_KT_AVAILABLE
     using Param = kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE>;
-    using Sorter = BatchedRadixSort;
+    using Sorter = BatchedStableSort</*UsesTempStorage=*/false>;
+    using SorterTempStorage = BatchedStableSort</*UsesTempStorage=*/true>;
     constexpr Param params;
+    // The memory requirement can be known at compile time
+    static_assert(SorterTempStorage::bytes_req<Param>(4096, 1 << 20, false) > 0);
+    static_assert(SorterTempStorage::bytes_req<Param>(4096, 0, true) == 0);
     auto q = TestUtils::get_test_queue();
 #    if TEST_KEYS_ONLY
     run_test = can_run_test<Param, KeyT>(q, params);
@@ -119,6 +137,12 @@ main()
                                                     TestUtils::create_new_kernel_param_idx<3>(params),
                                                     DataPattern::reversed);
                 test_special_patterns<Sorter>(q, segment_size, params);
+
+                // Temporary storage provided by the caller, for each data mode with in-place and out-of-place sorts
+                test_case<SorterTempStorage, Ascending, false>(q, modes[mode_idx % 4], segment_size, 3,
+                                                               TestUtils::create_new_kernel_param_idx<0>(params));
+                test_case<SorterTempStorage, Descending, true>(q, modes[(mode_idx + 1) % 4], segment_size, 3,
+                                                               TestUtils::create_new_kernel_param_idx<3>(params));
             }
 
             // More histogram chunks than histogram work-groups, with segments of 3 chunks: work-groups own several
@@ -127,6 +151,12 @@ main()
                                                 TestUtils::create_new_kernel_param_idx<0>(params));
 
             test_empty_input<Sorter>(q, params);
+            test_empty_input<SorterTempStorage>(q, params, static_cast<void*>(nullptr), std::size_t{0});
+
+            // The kernel_param may be given as a template argument instead, also with temporary storage
+            KeyT* no_keys = nullptr;
+            kt::gpu::batched_stable_sort<SortConfig, Ascending, Param>(q, no_keys, no_keys, 4).wait();
+            kt::gpu::batched_stable_sort<SortConfig, Ascending, Param>(q, no_keys, no_keys, 4, nullptr, 0).wait();
         }
         catch (const std::exception& exc)
         {

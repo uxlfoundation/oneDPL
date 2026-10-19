@@ -102,21 +102,10 @@ class __onesweep_memory_holder
 
     sycl::queue __m_q;
 
-    void
-    __calculate_raw_memory_amount() noexcept
-    {
-        // Extra bytes are added for potentiall padding
-        __m_raw_mem_bytes = __m_keys_bytes + __m_global_hist_bytes + __m_group_hist_bytes + sizeof(_KeyT);
-        if constexpr (__has_values)
-        {
-            __m_raw_mem_bytes += (__m_vals_bytes + sizeof(_ValT));
-        }
-    }
 
     void
     __allocate_raw_memory()
     {
-        // Non-typed allocation is guaranteed to be aligned for any fundamental type according to SYCL spec
         void* __mem = sycl::malloc_device(__m_raw_mem_bytes, __m_q);
         __m_raw_mem_ptr = reinterpret_cast<::std::uint8_t*>(__mem);
         if (!__m_raw_mem_ptr)
@@ -126,26 +115,50 @@ class __onesweep_memory_holder
     void
     __appoint_aligned_memory_regions()
     {
-        // It assumes that the raw pointer is already aligned for _HistT
-        __m_global_hist_ptr = reinterpret_cast<_HistT*>(__m_raw_mem_ptr);
-        __m_group_hist_ptr = reinterpret_cast<_HistT*>(__m_raw_mem_ptr + __m_global_hist_bytes);
+        // Memory provided by the caller may not be aligned for _HistT, unlike a non-typed USM allocation
+        void* __base_ptr = __m_raw_mem_ptr;
+        std::size_t __remainder = __m_raw_mem_bytes;
+        const std::size_t __hist_bytes = __m_global_hist_bytes + __m_group_hist_bytes;
+        void* __aligned_ptr = std::align(std::alignment_of_v<_HistT>, __hist_bytes, __base_ptr, __remainder);
+        __m_global_hist_ptr = reinterpret_cast<_HistT*>(__aligned_ptr);
+        __m_group_hist_ptr = __m_global_hist_ptr + __m_global_hist_bytes / sizeof(_HistT);
 
-        void* __base_ptr = reinterpret_cast<void*>(__m_raw_mem_ptr + __m_global_hist_bytes + __m_group_hist_bytes);
-        ::std::size_t __remainder = __m_raw_mem_bytes - (__m_global_hist_bytes + __m_group_hist_bytes);
-        void* __aligned_ptr = ::std::align(::std::alignment_of_v<_KeyT>, __m_keys_bytes, __base_ptr, __remainder);
+        __base_ptr = reinterpret_cast<std::uint8_t*>(__aligned_ptr) + __hist_bytes;
+        __remainder -= __hist_bytes;
+        __aligned_ptr = std::align(std::alignment_of_v<_KeyT>, __m_keys_bytes, __base_ptr, __remainder);
         __m_keys_ptr = reinterpret_cast<_KeyT*>(__aligned_ptr);
 
         if constexpr (__has_values)
         {
-            __base_ptr = reinterpret_cast<void*>(__m_keys_ptr + __m_keys_bytes / sizeof(_KeyT));
-            __remainder = __m_raw_mem_bytes - (__m_global_hist_bytes + __m_group_hist_bytes + __m_keys_bytes);
-            __aligned_ptr = ::std::align(::std::alignment_of_v<_ValT>, __m_vals_bytes, __base_ptr, __remainder);
+            __base_ptr = reinterpret_cast<std::uint8_t*>(__aligned_ptr) + __m_keys_bytes;
+            __remainder -= __m_keys_bytes;
+            __aligned_ptr = std::align(std::alignment_of_v<_ValT>, __m_vals_bytes, __base_ptr, __remainder);
             __m_vals_ptr = reinterpret_cast<_ValT*>(__aligned_ptr);
         }
     }
 
+    void
+    __calculate_raw_memory_amount() noexcept
+    {
+        __m_raw_mem_bytes = __raw_memory_bytes(__m_keys_bytes / sizeof(_KeyT), __m_global_hist_bytes / sizeof(_HistT),
+                                               __m_group_hist_bytes / sizeof(_HistT));
+    }
+
   public:
     __onesweep_memory_holder(sycl::queue __q) : __m_q(__q) {}
+
+    // Bytes of raw memory needed to hold every region, including the padding to align each of them
+    static constexpr std::size_t
+    __raw_memory_bytes(std::size_t __key_count, std::size_t __global_hist_item_count,
+                       std::size_t __group_hist_item_count) noexcept
+    {
+        std::size_t __bytes = (__global_hist_item_count + __group_hist_item_count) * sizeof(_HistT) +
+                              (std::alignment_of_v<_HistT> - 1) + __key_count * sizeof(_KeyT) +
+                              (std::alignment_of_v<_KeyT> - 1);
+        if constexpr (__has_values)
+            __bytes += __key_count * sizeof(_ValT) + (std::alignment_of_v<_ValT> - 1);
+        return __bytes;
+    }
 
     void
     __keys_alloc_count(::std::size_t __key_count) noexcept
@@ -194,6 +207,17 @@ class __onesweep_memory_holder
     {
         __calculate_raw_memory_amount();
         __allocate_raw_memory();
+        __appoint_aligned_memory_regions();
+    }
+
+    // Places the regions in memory owned by the caller instead of allocating it
+    void
+    __assign([[maybe_unused]] void* __mem, [[maybe_unused]] std::size_t __bytes)
+    {
+        __calculate_raw_memory_amount();
+        assert(__mem != nullptr && "The temporary storage must not be null");
+        assert(__bytes >= __m_raw_mem_bytes && "The temporary storage is smaller than the required number of bytes");
+        __m_raw_mem_ptr = reinterpret_cast<std::uint8_t*>(__mem);
         __appoint_aligned_memory_regions();
     }
 
@@ -287,16 +311,72 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     return __event_chain;
 }
 
-// The input is sorted as independent segments of __segment_size elements.
+// Segment geometry and histogram sizes of a onesweep sort of __n elements in segments of __segment_size elements
+template <typename _KeyT, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
+          std::uint16_t __work_group_size>
+struct __onesweep_layout
+{
+    static constexpr std::uint32_t __bin_count = 1 << __radix_bits;
+    static constexpr std::uint32_t __stage_count =
+        oneapi::dpl::__internal::__dpl_ceiling_div(sizeof(_KeyT) * 8, __radix_bits);
+
+    __onesweep_segments __segments;
+    std::size_t __global_hist_item_count;
+    std::size_t __group_hist_item_count;
+
+    constexpr __onesweep_layout(std::size_t __n, std::size_t __segment_size)
+        : __segments{static_cast<std::uint32_t>(__segment_size), static_cast<std::uint32_t>(__n / __segment_size),
+                     static_cast<std::uint32_t>(oneapi::dpl::__internal::__dpl_ceiling_div(
+                         __segment_size, __work_group_size * __data_per_work_item))},
+          __global_hist_item_count(std::size_t(__bin_count) * __stage_count * __segments.__segment_count),
+          __group_hist_item_count(std::size_t(__bin_count) * __stage_count * __sweep_work_group_count())
+    {
+    }
+
+    // Tiles never straddle a segment boundary
+    constexpr std::uint32_t
+    __sweep_work_group_count() const
+    {
+        return __segments.__segment_count * __segments.__tiles_per_segment;
+    }
+};
+
+// Bytes of temporary memory used by a onesweep sort of __n elements in segments of __segment_size elements
+template <typename _KeyT, typename _ValT, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
+          std::uint16_t __work_group_size>
+constexpr std::size_t
+__onesweep_temp_bytes(std::size_t __n, std::size_t __segment_size)
+{
+    const __onesweep_layout<_KeyT, __radix_bits, __data_per_work_item, __work_group_size> __layout(__n, __segment_size);
+    return __onesweep_memory_holder<std::uint32_t, _KeyT, _ValT>::__raw_memory_bytes(
+        __n, __layout.__global_hist_item_count, __layout.__group_hist_item_count);
+}
+
+// Selects internally allocated temporary memory, which is freed once the sort completes
+struct __internal_temp_storage
+{
+};
+
+// Selects temporary memory provided by the caller, which is neither allocated nor freed
+struct __external_temp_storage
+{
+    void* __ptr;
+    std::size_t __bytes;
+};
+
+// The input is sorted as independent segments of __segment_size elements. The temporary memory is either allocated
+// internally (__internal_temp_storage) or provided by the caller (__external_temp_storage).
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          std::uint16_t __work_group_size, bool __in_place, typename _KtTag, typename _RngPack1, typename _RngPack2>
+          std::uint16_t __work_group_size, bool __in_place, typename _KtTag, typename _RngPack1, typename _RngPack2,
+          typename _TempStorage = __internal_temp_storage>
 sycl::event
 __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __pack_out, std::size_t __n,
-           std::size_t __segment_size)
+           std::size_t __segment_size, _TempStorage __temp_storage = {})
 {
     using _KeyT = typename ::std::decay_t<_RngPack1>::_KeyT;
     using _ValT = typename ::std::decay_t<_RngPack1>::_ValT;
     constexpr bool __has_values = ::std::decay_t<_RngPack1>::__has_values;
+    constexpr bool __internal_alloc = std::is_same_v<_TempStorage, __internal_temp_storage>;
 
     using _RadixSortCopyback =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<std::conditional_t<
@@ -305,18 +385,9 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
 
     using _GlobalHistT = ::std::uint32_t;
 
-    constexpr ::std::uint32_t __bit_count = sizeof(_KeyT) * 8;
-    constexpr ::std::uint32_t __stage_count = oneapi::dpl::__internal::__dpl_ceiling_div(__bit_count, __radix_bits);
-    constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
-
-    const __onesweep_segments __segments{
-        static_cast<std::uint32_t>(__segment_size), static_cast<std::uint32_t>(__n / __segment_size),
-        static_cast<std::uint32_t>(
-            oneapi::dpl::__internal::__dpl_ceiling_div(__segment_size, __work_group_size * __data_per_work_item))};
-    const std::uint32_t __sweep_work_group_count = __segments.__segment_count * __segments.__tiles_per_segment;
-
-    const std::size_t __global_hist_item_count = std::size_t(__bin_count) * __stage_count * __segments.__segment_count;
-    const std::size_t __group_hist_item_count = std::size_t(__bin_count) * __stage_count * __sweep_work_group_count;
+    using _Layout = __onesweep_layout<_KeyT, __radix_bits, __data_per_work_item, __work_group_size>;
+    constexpr ::std::uint32_t __stage_count = _Layout::__stage_count;
+    const _Layout __layout(__n, __segment_size);
 
     // Memory is not going to be allocated for void value type
     // TODO: make this more explicit to reduce coupling between __onesweep_memory_holder and __rng_pack
@@ -327,9 +398,12 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
     {
         __mem_holder.__vals_alloc_count(__n);
     }
-    __mem_holder.__global_hist_item_alloc_count(__global_hist_item_count);
-    __mem_holder.__group_hist_item_alloc_count(__group_hist_item_count);
-    __mem_holder.__allocate();
+    __mem_holder.__global_hist_item_alloc_count(__layout.__global_hist_item_count);
+    __mem_holder.__group_hist_item_alloc_count(__layout.__group_hist_item_count);
+    if constexpr (__internal_alloc)
+        __mem_holder.__allocate();
+    else
+        __mem_holder.__assign(__temp_storage.__ptr, __temp_storage.__bytes);
 
     auto __get_tmp_pack = [&]() {
         auto __keys_tmp_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write>();
@@ -359,7 +433,7 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
     const auto& __virt_pack2 = __select_pack(__pack_out, __tmp_pack);
     sycl::event __event_chain =
         __onesweep_impl<_KernelName, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size>(
-            __kt_tag, __q, __pack, __virt_pack1, __virt_pack2, __mem_holder, __n, __segments);
+            __kt_tag, __q, __pack, __virt_pack1, __virt_pack2, __mem_holder, __n, __layout.__segments);
 
     if constexpr (__in_place && (__stage_count % 2 != 0))
     {
@@ -367,7 +441,10 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
                                                                               __event_chain);
     }
 
-    return __mem_holder.__async_deallocate(__event_chain);
+    if constexpr (__internal_alloc)
+        return __mem_holder.__async_deallocate(__event_chain);
+    else
+        return __event_chain;
 }
 
 // TODO: allow calling it only for all_view (accessor) and guard_view (USM) ranges, views::subrange and sycl_iterator
@@ -418,10 +495,10 @@ __radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&
 
 // Batched sort: each consecutive run of __segment_size elements is sorted independently in one onesweep pass
 template <bool __is_ascending, std::uint8_t __radix_bits, bool __in_place, typename _KtTag, typename _RngPack1,
-          typename _RngPack2, typename _KernelParam>
+          typename _RngPack2, typename _KernelParam, typename _TempStorage>
 sycl::event
-__batched_radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out,
-                     std::size_t __segment_size, _KernelParam)
+__batched_onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out,
+                   std::size_t __segment_size, _KernelParam, _TempStorage __temp_storage)
 {
     static_assert(std::is_same_v<_KtTag, __sycl_tag>, "The batched radix sort is only implemented in SYCL");
     const std::size_t __n = __pack_in.__keys_rng().size();
@@ -429,8 +506,9 @@ __batched_radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _R
 
     _PRINT_INFO_IN_DEBUG_MODE(__q);
     return __onesweep<typename _KernelParam::kernel_name, __is_ascending, __radix_bits, _KernelParam::data_per_workitem,
-                      _KernelParam::workgroup_size, __in_place>(
-        __kt_tag, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n, __segment_size);
+                      _KernelParam::workgroup_size, __in_place>(__kt_tag, __q, std::forward<_RngPack1>(__pack_in),
+                                                                std::forward<_RngPack2>(__pack_out), __n,
+                                                                __segment_size, __temp_storage);
 }
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
