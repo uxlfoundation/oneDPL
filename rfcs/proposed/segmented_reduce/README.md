@@ -36,6 +36,7 @@ Table of contents:
 - [Open Questions](#open-questions)
   - [Different `first` and `last` Types](#different-first-and-last-types)
   - [Iterator Requirements](#iterator-requirements)
+- [Links](#links)
 
 See [reference implementations](reference_implementations.md) and the
 [usage pattern study](usage_pattern_study.md) for background.
@@ -867,6 +868,13 @@ Possible approaches, not mutually exclusive:
 - Name: convey the requirements via the template parameter names, for example `RandomAccessIt`,
   following the convention of the C++ standard ([algorithms.requirements]).
 - Document only: keep the generic names and list the requirements in the description of the algorithm.
+
+## links
+https://eel.is/c++draft/reduce
+https://eel.is/c++draft/numerics.defns
+https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html#add-declarations-of-reduce-sum-product-and-their-_into-variants
+https://en.cppreference.com/cpp/algorithm/ranges/fold_concepts
+https://cppreference.com/cpp/algorithm/reduce
 
 Note, the answer may depend on [Different `first` and `last` Types](#different-first-and-last-types),
 because a sentinel `last` would require constraining or documenting a sentinel-iterator relationship as well.
