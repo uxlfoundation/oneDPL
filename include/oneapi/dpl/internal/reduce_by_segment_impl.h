@@ -172,6 +172,28 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
 // reduce_by_segment with segments defined by offsets or by a fixed length
 //------------------------------------------------------------------------
 
+// Reduces the elements [__begin, __end) of a random access iterator on the host as __segmented_reduce_serial does
+template <typename _Acc, typename _RandomAccessIterator, typename _Index, typename _InitType, typename _BinaryOperation>
+_Acc
+__segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __end, _InitType __init,
+                        _BinaryOperation& __binary_op, /*is_vector=*/std::false_type)
+{
+    return __internal::__segmented_reduce_serial<_Acc>(__first, __begin, __end, std::move(__init), __binary_op);
+}
+
+// The same, vectorized: the vectorized reduction also starts its lanes from the operation on two elements
+template <typename _Acc, typename _RandomAccessIterator, typename _Index, typename _InitType, typename _BinaryOperation>
+_Acc
+__segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __end, _InitType __init,
+                        _BinaryOperation& __binary_op, /*is_vector=*/std::true_type)
+{
+    if (__begin >= __end)
+        return _Acc(std::move(__init));
+    _Acc __start(std::invoke(__binary_op, std::move(__init), __first[__begin]));
+    return __internal::__brick_transform_reduce(__first + __begin + 1, __first + __end, std::move(__start), __binary_op,
+                                                oneapi::dpl::identity{}, /*is_vector=*/std::true_type{});
+}
+
 // Reduces the __count > 0 elements from __it as std::ranges::fold_left does, and moves __it past them
 template <typename _Acc, typename _ForwardIterator, typename _Size, typename _InitType, typename _BinaryOperation>
 _Acc
@@ -183,26 +205,25 @@ __segmented_reduce_forward(_ForwardIterator& __it, _Size __count, _InitType __in
     return __acc;
 }
 
-// The host policies, the segments one after another in the order of the offsets and the results
-template <typename _Tag, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
-          typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
+// The segments one after another in the order of the offsets and the results, with one pass over the input: the input
+// before the first segment is skipped once, then the iterator only moves with the reduction, as a segment of sorted
+// offsets starts where the previous one ends. Unsorted offsets, whose results are unspecified, may give a segment
+// starting before the current position: it is reduced from the current position.
+template <typename _Acc, typename _ForwardInputIt, typename _SegmentNum, typename _ForwardOffsetIt,
+          typename _ForwardOutputIt, typename _InitType, typename _BinaryOperation>
 void
-__reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _InputValueIt __last_value,
-                                 _OutputValueIt __result_value, _SegmentNum __num_segments, _OffsetIt __offsets,
-                                 _InitType __init, _BinaryOperation __binary_op)
+__brick_reduce_by_segment_offsets(_ForwardInputIt __first_value, _ForwardInputIt __last_value,
+                                  _ForwardOutputIt __result_value, _SegmentNum __num_segments,
+                                  _ForwardOffsetIt __offsets, _InitType __init, _BinaryOperation& __binary_op,
+                                  /*is_vector=*/std::false_type)
 {
-    using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
-    using _Size = typename std::iterator_traits<_InputValueIt>::difference_type;
+    using _Size = typename std::iterator_traits<_ForwardInputIt>::difference_type;
 
-    // The offsets and the results in order, and one pass over the input. The input before the first segment is skipped
-    // once; then the iterator only moves with the reduction, as a segment of sorted offsets starts where the previous
-    // one ends. Unsorted offsets, whose results are unspecified, may give a segment starting before the current
-    // position: it is reduced from the current position.
     if (__num_segments <= 0)
         return;
     const _Size __n = std::distance(__first_value, __last_value);
     _Size __pos = __internal::__segmented_reduce_clamp_offset(*__offsets, __n); // the position of __it
-    _InputValueIt __it = std::next(__first_value, __pos);
+    _ForwardInputIt __it = std::next(__first_value, __pos);
     for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
     {
         ++__offsets;
@@ -218,6 +239,43 @@ __reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _
         }
         ++__result_value;
     }
+}
+
+// The segments by their indices, each one vectorized; the tag asks for vectorization only with random access iterators
+template <typename _Acc, typename _RandomAccessInputIt, typename _SegmentNum, typename _RandomAccessOffsetIt,
+          typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
+void
+__brick_reduce_by_segment_offsets(_RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
+                                  _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
+                                  _RandomAccessOffsetIt __offsets, _InitType __init, _BinaryOperation& __binary_op,
+                                  /*is_vector=*/std::true_type)
+{
+    using _Size = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
+
+    const _Size __n = __last_value - __first_value;
+    for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
+    {
+        __result_value[__segment] = __segmented_reduce_host<_Acc>(
+            __first_value, __internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n),
+            __internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n), __init, __binary_op,
+            /*is_vector=*/std::true_type{});
+    }
+}
+
+// The host policies: the segments one after another, vectorized when the tag asks for vectorization
+template <typename _Tag, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
+          typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
+void
+__reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _InputValueIt __last_value,
+                                 _OutputValueIt __result_value, _SegmentNum __num_segments, _OffsetIt __offsets,
+                                 _InitType __init, _BinaryOperation __binary_op)
+{
+    static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
+
+    using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
+
+    __brick_reduce_by_segment_offsets<_Acc>(__first_value, __last_value, __result_value, __num_segments, __offsets,
+                                            __init, __binary_op, typename _Tag::__is_vector{});
 }
 
 } // namespace internal
