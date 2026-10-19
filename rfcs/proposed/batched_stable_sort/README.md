@@ -358,6 +358,23 @@ constexpr std::size_t
 batched_stable_sort_by_key_bytes_req(std::size_t __segment_size, std::size_t __total_size, bool __in_place, _KernelParam __param = {});
 ```
 
+  The memory would then be passed as a pointer and a size in bytes, directly before the
+  `kernel_param`, in additional overloads of each sort (key only variants drop the values and `_ValT`):
+
+```c++
+template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam,
+          typename _KeysIterator1, typename _ValsIterator1,
+          typename _KeysIterator2, typename _ValsIterator2>
+sycl::event
+batched_stable_sort_by_key(sycl::queue __q,
+                           _KeysIterator1 __keys_first, _KeysIterator1 __keys_last,
+                           _ValsIterator1 __vals_first,
+                           _KeysIterator2 __keys_out_first, _ValsIterator2 __vals_out_first,
+                           typename std::iterator_traits<_KeysIterator1>::difference_type __segment_size,
+                           void* __temp_storage, std::size_t __temp_storage_bytes,
+                           _KernelParam __param = {});
+```
+
 * Should merge path sort be part of the initial offering? One work-group radix sort and Modified
   OneSweep together serve every segment size. The cost of leaving merge out is giving up its
   advantage for segments below roughly 1K elements, which is up to 3-4x at 32 element segments.
