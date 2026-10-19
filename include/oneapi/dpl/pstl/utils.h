@@ -185,6 +185,11 @@ class __pstl_forward_assign
     }
 };
 
+// Checks that the source is not modified by the assignment
+template <typename _OutRefType, typename _InRefType>
+inline constexpr bool __is_assignment_source_preserving_v =
+    std::is_trivially_assignable_v<_OutRefType, _InRefType> || std::is_lvalue_reference_v<_InRefType>;
+
 template <typename _F, typename _Proj>
 struct __unary_op
 {

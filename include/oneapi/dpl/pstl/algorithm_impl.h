@@ -3335,29 +3335,56 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
         return __copy_ordered(__first2, __last2, __first1, __last1);
     }
 
-    constexpr _Index __merge_chunk = static_cast<_Index>(__merge_chunk_size<_Tp>);
-    const _Index __n_chunks = __internal::__dpl_ceiling_div(__n_out, __merge_chunk);
+    using _OutRef = typename std::iterator_traits<_RandomAccessIterator3>::reference;
+    using _InRef1 = typename std::iterator_traits<_RandomAccessIterator1>::reference;
+    using _InRef2 = typename std::iterator_traits<_RandomAccessIterator2>::reference;
+    if constexpr (__is_assignment_source_preserving_v<_OutRef, _InRef1> &&
+                  __is_assignment_source_preserving_v<_OutRef, _InRef2>)
+    {
+        // The inputs are not modified by the merge, hence each task can compute its own split on the fly
+        return __internal::__except_handler([=, &__exec]() {
+            __par_backend::__parallel_for(
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_out,
+                [=](_Index __i, _Index __j) {
+                    const auto [__r, __c] = __merge_path_intersection(__i, __n_1, __n_2, __first1, __first2, __comp,
+                                                                      oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                    // Bounded merge is used to ensure that each task only writes to its assigned output range
+                    __serial_merge_out_lim(__first1 + __r, __last1, __first2 + __c, __last2, __first3 + __i,
+                                           __first3 + __j, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                },
+                __merge_chunk_size<_Tp>);
 
-    __par_backend::__buffer<_Index> __split_buf(__n_chunks + 1); // +1 to store the final boundary
-    _Index* __split = __split_buf.get();
+            return __first3 + __n_out;
+        });
+    }
+    else
+    {
+        // The inputs may be modified by the merge (e.g., moved from), hence all the splits are computed beforehand
+        constexpr _Index __merge_chunk = static_cast<_Index>(__merge_chunk_size<_Tp>);
+        const _Index __n_chunks = __internal::__dpl_ceiling_div(__n_out, __merge_chunk);
 
-    return __internal::__except_handler([=, &__exec]() {
-        // 1. Partition
-        __merge_path_partition(__parallel_tag<_IsVector>{}, __exec, __split, __n_chunks, __merge_chunk, __n_1, __n_2,
-                               __n_out, __first1, __first2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+        __par_backend::__buffer<_Index> __split_buf(__n_chunks + 1); // +1 to store the final boundary
+        _Index* __split = __split_buf.get();
 
-        // 2. Merge
-        __merge_path_chunks(
-            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __split, __n_chunks, __merge_chunk,
-            __n_out, __first1, __first2, __first3, __brick_copy<__parallel_tag<_IsVector>>{},
-            [__comp](auto __f1, auto __l1, auto __f2, auto __l2, auto __f3, auto __l3) {
-                // Bounded merge is used to ensure that each task only writes to its assigned output range
-                __serial_merge_out_lim(__f1, __l1, __f2, __l2, __f3, __l3, __comp, oneapi::dpl::identity{},
-                                       oneapi::dpl::identity{});
-            });
+        return __internal::__except_handler([=, &__exec]() {
+            // 1. Partition
+            __merge_path_partition(__parallel_tag<_IsVector>{}, __exec, __split, __n_chunks, __merge_chunk, __n_1,
+                                   __n_2, __n_out, __first1, __first2, __comp, oneapi::dpl::identity{},
+                                   oneapi::dpl::identity{});
 
-        return __first3 + __n_out;
-    });
+            // 2. Merge
+            __merge_path_chunks(
+                __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __split, __n_chunks, __merge_chunk,
+                __n_out, __first1, __first2, __first3, __brick_copy<__parallel_tag<_IsVector>>{},
+                [__comp](auto __f1, auto __l1, auto __f2, auto __l2, auto __f3, auto __l3) {
+                    // Bounded merge is used to ensure that each task only writes to its assigned output range
+                    __serial_merge_out_lim(__f1, __l1, __f2, __l2, __f3, __l3, __comp, oneapi::dpl::identity{},
+                                           oneapi::dpl::identity{});
+                });
+
+            return __first3 + __n_out;
+        });
+    }
 }
 
 //------------------------------------------------------------------------
