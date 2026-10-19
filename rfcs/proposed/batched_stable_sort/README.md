@@ -86,20 +86,20 @@ exactly one algorithm, configured by one `kernel_param`.
 
 ```c++
 // Merge path sort; requires __segment_size <= data_per_workitem * workgroup_size
-struct merge_path;
+struct merge_single_group_tag;
 
 // One work-group radix sort; requires __segment_size <= data_per_workitem * workgroup_size
 template <std::uint8_t __radix_bits = 8>
-struct radix_one_wg;
+struct radix_single_group_tag;
 
 // Modified OneSweep radix sort; any __segment_size
 template <std::uint8_t __radix_bits = 8>
-struct radix_onesweep;
+struct radix_many_groups_tag;
 ```
 
 Unsupported combinations of `_SortConfig` and `kernel_param` are rejected at compile time, e.g.
-`radix_onesweep` currently requires 8 radix bits and 512 or 1024 work-items. Unsupported runtime
-arguments for specific sort configurations assert at runtime.
+`radix_many_groups_tag` currently requires 8 radix bits and 512 or 1024 work-items. Unsupported
+runtime arguments for specific sort configurations assert at runtime.
 
 Dispatching between algorithms by segment size is left to the user. The documentation will include
 an example wrapper (see [Dispatch](#dispatch)).
@@ -120,13 +120,14 @@ Runtime Parameters:
 * `__segment_size <= 0` is rejected with an assertion.
 * For `__segment_size > 0`, `n == 0` is a no-op; otherwise, `n % __segment_size != 0` is rejected
   with an assertion.
-* For `merge_path` and `radix_one_wg`, `__segment_size > data_per_workitem * workgroup_size` is
-  rejected with an assertion. `radix_onesweep` accepts any `__segment_size`.
-* `merge_path` and `radix_one_wg` stage a full work-group tile of keys (and values) in local memory,
-  so `data_per_workitem * workgroup_size * (sizeof(key) + sizeof(value))` must not exceed the
-  device's local memory (`sycl::info::device::local_mem_size`). Choosing a `kernel_param` which
-  satisfies this is the user's responsibility, as for other kernel templates.
-* `radix_onesweep` requires parallel forward progress between work-groups (see
+* For `merge_single_group_tag` and `radix_single_group_tag`,
+  `__segment_size > data_per_workitem * workgroup_size` is rejected with an assertion.
+  `radix_many_groups_tag` accepts any `__segment_size`.
+* `merge_single_group_tag` and `radix_single_group_tag` stage a full work-group tile of keys (and
+  values) in local memory, so `data_per_workitem * workgroup_size * (sizeof(key) + sizeof(value))`
+  must not exceed the device's local memory (`sycl::info::device::local_mem_size`). Choosing a
+  `kernel_param` which satisfies this is the user's responsibility, as for other kernel templates.
+* `radix_many_groups_tag` requires parallel forward progress between work-groups (see
   [Implementation Details](#implementation-details)).
 * Input and output must not overlap. Full aliasing is served by the in-place overloads; partial
   overlap is not supported.
@@ -159,7 +160,7 @@ q.wait(); // The current API has no dependency-event parameter.
 
 // A row fits in one tile of 8 * 512 = 4096 keys + ids (32 KB of SLM), so one work-group radix
 // sort can be used
-using config_t = kt::gpu::radix_one_wg<8>;
+using config_t = kt::gpu::radix_single_group_tag<8>;
 using param_t = kt::kernel_param<8, 512>;
 sycl::event e = kt::gpu::batched_stable_sort_by_key<config_t, false>(q, probs, probs + n, ids,
                                                                      probs_out, ids_out, V,
@@ -248,12 +249,13 @@ my_batched_sort_by_key(sycl::queue q, _Key* keys, _Val* vals, _Key* keys_out, _V
     // Thresholds and kernel_params are illustrative; tune for the target device and types.
     // Tiles below fit 32 KB of SLM for 4-byte keys and values.
     if (segment_size <= 256)
-        return kt::gpu::batched_stable_sort_by_key<kt::gpu::merge_path, __is_ascending>(
+        return kt::gpu::batched_stable_sort_by_key<kt::gpu::merge_single_group_tag, __is_ascending>(
             q, keys, keys + n, vals, keys_out, vals_out, segment_size, kt::kernel_param<4, 64>{});
     if (segment_size <= 4096)
-        return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_one_wg<8>, __is_ascending>(
+        return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_single_group_tag<8>,
+                                                   __is_ascending>(
             q, keys, keys + n, vals, keys_out, vals_out, segment_size, kt::kernel_param<8, 512>{});
-    return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_onesweep<8>, __is_ascending>(
+    return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_many_groups_tag<8>, __is_ascending>(
         q, keys, keys + n, vals, keys_out, vals_out, segment_size, kt::kernel_param<4, 512>{});
 }
 ```
@@ -318,7 +320,8 @@ Following the [Kernel Templates testing guidance][kt-testing]:
 * Ascending and descending; key only and by key; out-of-place and in-place; iterators and ranges;
   USM and `sycl::buffer`.
 * `n == 0` is a no-op; assertions fire for `__segment_size <= 0`, `n % __segment_size != 0`, and
-  `__segment_size > data_per_workitem * workgroup_size` for `merge_path` and `radix_one_wg`.
+  `__segment_size > data_per_workitem * workgroup_size` for `merge_single_group_tag` and
+  `radix_single_group_tag`.
 * Reuse the existing `kt::gpu::radix_sort` test setup to cover a representative sample of kernel
   parameters.
 
@@ -382,9 +385,10 @@ batched_stable_sort_by_key(sycl::queue __q,
     * My suggestion would be to make the initial offering radix only, and add merge path as a
       secondary priority.
 
-* Naming of `_SortConfig` and its types (`merge_path`, `radix_one_wg`, `radix_onesweep`). "Policy"
-  is avoided, to avoid confusion with execution policy elsewhere in oneDPL. Should these types live
-  in a nested namespace? Other options: `_SortBrick`, `_Sorter`, `_SortAlgo`...
+* Naming of `_SortConfig` and its types (`merge_single_group_tag`, `radix_single_group_tag`,
+  `radix_many_groups_tag`). "Policy" is avoided, to avoid confusion with execution policy elsewhere
+  in oneDPL. Should these types live in a nested namespace? Other options: `_SortBrick`, `_Sorter`,
+  `_SortAlgo`...
 
 * What are the exact type support requirements?
   * `sycl::half`?
