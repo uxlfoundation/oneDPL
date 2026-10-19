@@ -21,6 +21,13 @@
 #include "support/utils.h"
 
 #include <functional>
+#include <string>
+#include <string_view>
+#include <vector>
+#include <iterator>
+#include <algorithm>
+#include <numeric>
+#include <utility>
 
 using namespace TestUtils;
 
@@ -189,6 +196,68 @@ test_stability(std::size_t a_size, std::size_t b_size)
     invoke_on_all_policies<CallNumber>()(test_merge_tuple, a.begin(), a.end(), b.cbegin(), b.cend(), merged.begin(), comp);
 }
 
+#if !TEST_DPCPP_BACKEND_PRESENT
+template <typename Policy>
+void
+test_merge_move_iterators_impl(Policy&& exec, int n1, int n2)
+{
+    std::vector<std::string> in1(n1), in2(n2), out(n1 + n2);
+    std::vector<int> keys1(n1), keys2(n2), keys_expected(n1 + n2), keys_out(n1 + n2);
+
+    // 1. Generate alternating blocks for keys1 and keys2:
+    //    keys1: [0:49, 100:149, 200:249, ...]
+    //    keys2: [50:99, 150:199, 250:299, ...]
+    //    Once one of the sequences is exhausted, the other one continues with the remaining keys
+    constexpr int block = 50;
+    for (int i = 0; i < n1; ++i)
+        keys1[i] = i + std::min(i / block * block, n2);
+    for (int i = 0; i < n2; ++i)
+        keys2[i] = i + std::min((i / block + 1) * block, n1);
+
+    // 2. Together the keys cover [0, n1 + n2) without duplicates, hence the merged keys are just a sequence
+    std::iota(keys_expected.begin(), keys_expected.end(), 0);
+
+    // 3. Encode the same keys into strings
+    constexpr std::string_view base_str("i_am_long_enough_to_avoid_SSO"); // SSO-ed string may not be emptied when moved
+    const std::size_t key_width = std::to_string(n1 + n2).size();
+    auto key_to_string = [base_str, key_width](int key) {
+        const std::string key_str = std::to_string(key);
+        const std::string padding(key_width - key_str.size(), '0');
+        return std::string(base_str) + padding + key_str; // it always has the same length, regardless of the key value
+    };
+    std::transform(keys1.begin(), keys1.end(), in1.begin(), key_to_string);
+    std::transform(keys2.begin(), keys2.end(), in2.begin(), key_to_string);
+
+    // 4. Merge these strings using the same order as the keys
+    auto res = std::merge(std::forward<Policy>(exec),
+                          std::make_move_iterator(in1.begin()), std::make_move_iterator(in1.end()),
+                          std::make_move_iterator(in2.begin()), std::make_move_iterator(in2.end()),
+                          out.begin());
+
+    // 5. Extract the merged keys from the merged strings, and compare them with the expected keys
+    auto string_to_key = [base_str](const std::string& s) {
+        // check the size since substr throws for an empty (moved-from) string in case of corrupted output
+        return s.size() > base_str.size() ? std::stoi(s.substr(base_str.size())) : -1;
+    };
+    std::transform(out.begin(), out.end(), keys_out.begin(), string_to_key);
+    EXPECT_TRUE(res == out.end(), "wrong return result from merge with move iterators");
+    EXPECT_EQ_RANGES(keys_expected, keys_out, "wrong result from merge with move iterators");
+}
+
+void
+test_merge_move_iterators()
+{
+    const int sizes[][2] = {{3000, 3000}, {1000, 20000}, {50000, 7000}};
+    for (const auto& s : sizes)
+    {
+        test_merge_move_iterators_impl(oneapi::dpl::execution::seq, s[0], s[1]);
+        test_merge_move_iterators_impl(oneapi::dpl::execution::unseq, s[0], s[1]);
+        test_merge_move_iterators_impl(oneapi::dpl::execution::par, s[0], s[1]);
+        test_merge_move_iterators_impl(oneapi::dpl::execution::par_unseq, s[0], s[1]);
+    }
+}
+#endif // !TEST_DPCPP_BACKEND_PRESENT
+
 int
 main()
 {
@@ -211,6 +280,11 @@ main()
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
+#endif
+
+    // Data is moved instead of copied: checking for possible data races
+#if !TEST_DPCPP_BACKEND_PRESENT
+    test_merge_move_iterators();
 #endif
 
     test_stability<100>(61, 77); // serial cutoff with par policies

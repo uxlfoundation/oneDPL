@@ -904,24 +904,28 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
         return {__first1 + __k1, __first2 + __k2, __first3 + __n_out};
     }
 
-    __merge_ranges_return_t<_R1, _R2, _OutRange> __result{__first1, __first2, __first3};
+    const _Index __n_chunks = __internal::__dpl_ceiling_div(__n_out, __merge_chunk);
 
-    __internal::__except_handler([=, &__exec, &__result]() {
-        __par_backend::__parallel_for(
-            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_out,
-            [=, &__result](_Index __i, _Index __j) {
-                const auto [__r, __c] = __internal::__merge_path_intersection(__i, __n1, __n2, __first1, __first2,
-                                                                              __comp, __proj1, __proj2);
-                const auto [__it1, __it2, __it3] =
-                    __internal::__serial_merge_out_lim(__first1 + __r, __first1 + __n1, __first2 + __c, __first2 + __n2,
-                                                       __first3 + __i, __first3 + __j, __comp, __proj1, __proj2);
-                if (__j == __n_out)
-                    __result = {__it1, __it2, __it3};
-            },
-            __merge_chunk);
+    __par_backend::__buffer<_Index> __split_buf(__n_chunks + 1); // +1 to store the final boundary
+    _Index* __split = __split_buf.get();
+
+    return __internal::__except_handler([=, &__exec]() -> __merge_ranges_return_t<_R1, _R2, _OutRange> {
+        // 1. Partition
+        __internal::__merge_path_partition(__tag, __exec, __split, __n_chunks, __merge_chunk, __n1, __n2, __n_out,
+                                           __first1, __first2, __comp, __proj1, __proj2);
+
+        // 2. Merge
+        __internal::__merge_path_chunks(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __split, __n_chunks, __merge_chunk, __n_out, __first1,
+            __first2, __first3, __internal::__brick_copy<_Tag>{},
+            [__comp, __proj1, __proj2](auto __f1, auto __l1, auto __f2, auto __l2, auto __f3, auto __l3) {
+                // Bounded merge is used to ensure that each task only writes to its assigned output range
+                __internal::__serial_merge_out_lim(__f1, __l1, __f2, __l2, __f3, __l3, __comp, __proj1, __proj2);
+            });
+
+        const _Index __row_last = __split[__n_chunks];
+        return {__first1 + __row_last, __first2 + (__n_out - __row_last), __first3 + __n_out};
     });
-
-    return __result;
 }
 
 //---------------------------------------------------------------------------------------------------------------------

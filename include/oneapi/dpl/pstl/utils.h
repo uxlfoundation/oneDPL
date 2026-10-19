@@ -173,6 +173,18 @@ class __pstl_assign
     }
 };
 
+//! Assignment operator preserving the value category of the source, e.g. to move the elements through move iterators
+class __pstl_forward_assign
+{
+  public:
+    template <typename _Xp, typename _Yp>
+    void
+    operator()(_Xp&& __x, _Yp&& __y) const
+    {
+        std::forward<_Yp>(__y) = std::forward<_Xp>(__x);
+    }
+};
+
 template <typename _F, typename _Proj>
 struct __unary_op
 {
