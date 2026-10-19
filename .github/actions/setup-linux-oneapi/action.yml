@@ -24,16 +24,12 @@ inputs:
     description: Install Intel® oneAPI DPC++/C++ Compiler
     required: false
     default: 'false'
-  fpga:
-    description: Install Intel® oneAPI DPC++/C++ Compiler with SYCL* FPGA Emulator Runtime
-    required: false
-    default: 'false'
 
 runs:
   using: composite
   steps:
     - name: Set up Intel APT repository
-      if: inputs.tbb == 'true' || inputs.compiler == 'true' || inputs.fpga == 'true'
+      if: inputs.tbb == 'true' || inputs.compiler == 'true'
       shell: bash
       run: |
         # https://www.intel.com/content/www/us/en/docs/oneapi/installation-guide-linux/2024-0/apt.html
@@ -69,8 +65,3 @@ runs:
         sudo apt-get install intel-oneapi-compiler-dpcpp-cpp -y
         # Avoid accidental use of a released version, keeping libpstloffload.so.
         sudo rm -rf "${LINUX_ONEAPI_PATH:?}/dpl/latest/include"
-    - name: Install Intel® oneAPI DPC++/C++ Compiler with SYCL* FPGA Emulator Runtime
-      if: inputs.fpga == 'true'
-      shell: bash
-      run: |
-        sudo apt-get install intel-oneapi-compiler-fpga -y
