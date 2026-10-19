@@ -168,6 +168,8 @@ test_bin_arithmetic()
     test_even_bin_arithmetic<11, U>({17 + width, 18 + width, 17 + 2 * width, 18 + 2 * width,
                                    17 + 3 * width, 18 + 3 * width, 17 + 4 * width},
                                   U{17}, 18 + 4 * width, {1, 2, 2, 2});
+    // Values just below a large bin edge stay in the lower bin.
+    test_even_bin_arithmetic<12, U>({2 * width - 256, 2 * width - 1, 2 * width}, U{0}, 4 * width, {2, 1});
 }
 
 int

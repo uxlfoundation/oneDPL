@@ -67,8 +67,12 @@ struct __evenly_divided_binhash<_T1, ::std::enable_if_t<!::std::is_floating_poin
     _T1 __minimum;
     _T1 __range_size;
     __bin_idx_t __num_bins;
+    // Set when offset * num_bins may not fit in std::uint64_t for some offset in the range
+    bool __large_range;
     __evenly_divided_binhash(const _T1& __min, const _T1& __max, ::std::size_t __num_bins_)
-        : __minimum(__min), __range_size(__max - __min), __num_bins(__num_bins_)
+        : __minimum(__min), __range_size(__max - __min), __num_bins(__num_bins_),
+          __large_range(__num_bins_ != 0 &&
+                        ::std::uint64_t(__range_size) > ::std::numeric_limits<::std::uint64_t>::max() / __num_bins_)
     {
         assert(__num_bins < ::std::numeric_limits<__bin_idx_t>::max());
     }
@@ -89,20 +93,21 @@ struct __evenly_divided_binhash<_T1, ::std::enable_if_t<!::std::is_floating_poin
             {
                 const ::std::uint64_t __offset = __value - __minimum;
                 const ::std::uint64_t __bins = __num_bins;
-                if (__offset <= ::std::numeric_limits<::std::uint64_t>::max() / __bins)
+                if (!__large_range)
                     ret = __offset * __bins / __range_size;
                 else
                 {
-                    const auto __quotient = ::std::uint64_t(__range_size) / __bins;
-                    const auto __remainder = ::std::uint64_t(__range_size) % __bins;
-                    // Find the first bin boundary above the offset. Decomposing the range keeps
-                    // ceil(bin * range / bins) exact without overflowing either product.
-                    ret = __pstl_lower_bound_impl(
-                              __bin_idx_t{1}, __num_bins,
-                              [=](__bin_idx_t __bin) {
-                                  return __quotient * __bin + (__remainder * __bin + __bins - 1) / __bins <= __offset;
-                              }) -
-                          1;
+                    // With range = q * bins + r and offset = j * q + s, offset * bins equals
+                    // j * range + s * bins - j * r, where s * bins < range and j * r fits in 64 bits
+                    // whenever the flag is set. The bin is j, less ceil((j * r - s * bins) / range)
+                    // when that is positive.
+                    const ::std::uint64_t __range = __range_size;
+                    const ::std::uint64_t __quotient = __range / __bins;
+                    const ::std::uint64_t __remainder = __range % __bins;
+                    const ::std::uint64_t __j = __offset / __quotient;
+                    const ::std::uint64_t __low = __offset % __quotient * __bins;
+                    const ::std::uint64_t __high = __j * __remainder;
+                    ret = __j - (__high > __low ? (__high - __low - 1) / __range + 1 : 0);
                 }
             }
         }
