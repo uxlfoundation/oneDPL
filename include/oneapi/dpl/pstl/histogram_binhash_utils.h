@@ -39,7 +39,7 @@ struct __evenly_divided_binhash;
 template <typename _BinHash, bool _LargeRange>
 struct __fixed_regime_binhash
 {
-    _BinHash __bin_hash;
+    const _BinHash& __bin_hash;
 
     template <typename _T2>
     __bin_idx_t
@@ -58,7 +58,8 @@ struct __evenly_divided_binhash<_T1, std::enable_if_t<std::is_floating_point_v<_
     __bin_idx_t __num_bins;
 
     __evenly_divided_binhash(const _T1& __min, const _T1& __max, std::size_t __num_bins_)
-        : __minimum(__min), __maximum(__max), __scale(_T1(__num_bins_) / (__max - __min)), __num_bins(__num_bins_)
+        : __minimum(__min), __maximum(__max), __scale(__max > __min ? _T1(__num_bins_) / (__max - __min) : _T1(0)),
+          __num_bins(__num_bins_)
     {
         assert(__num_bins_ < std::numeric_limits<__bin_idx_t>::max());
     }
@@ -71,7 +72,7 @@ struct __evenly_divided_binhash<_T1, std::enable_if_t<std::is_floating_point_v<_
         if ((__value >= __minimum) && (__value < __maximum))
         {
             // The rounded scale can carry a sample just below the maximum to num_bins
-            ret = std::min<__bin_idx_t>((__value - __minimum) * __scale, __num_bins - 1);
+            ret = std::clamp<__bin_idx_t>((__value - __minimum) * __scale, 0, __num_bins - 1);
         }
         return ret;
     }
@@ -82,24 +83,36 @@ struct __evenly_divided_binhash<_T1, std::enable_if_t<!std::is_floating_point_v<
 {
     // The bin of a sample is floor(offset * num_bins / range). For bound types of at most 32 bits the product fits
     // in 64 bits, so a division is exact. For 64-bit bounds it can overflow, and ranges where it may are handled by
-    // storing num_bins / range in fixed point instead: an integer part and a 64-bit fraction. Multiplying the offset
-    // by it truncates to the correct bin or the one below, which one exact 128-bit comparison corrects. The division
-    // is faster on devices without native 64-bit integer multiplication, so it serves every range where it is exact.
+    // storing num_bins / range as a 64-bit fixed-point fraction instead. Multiplying the offset by it truncates to the
+    //correct bin or the one below, which one exact 128-bit comparison corrects. The division is faster on devices
+    //without native 64-bit integer multiplication, so it serves every range where it is exact.
     static constexpr bool __may_overflow = sizeof(_T1) > sizeof(std::uint32_t);
     // The range fits in an unsigned type the size of _T1; keeping it narrow keeps the division narrow
     using _RangeT = std::conditional_t<__may_overflow, std::uint64_t, std::uint32_t>;
 
     _T1 __minimum;
     _T1 __maximum;
-    _RangeT __range; // max - min, computed in unsigned arithmetic so it cannot overflow _T1
+    _RangeT __range; // max - min
     __bin_idx_t __num_bins;
-    bool __large_range;       // offset * num_bins may not fit in 64 bits
-    std::uint64_t __int_part; // floor(num_bins / range), nonzero only when the range is smaller than num_bins
-    std::uint64_t __frac;     // floor((num_bins % range) * 2^64 / range)
+    bool __large_range;   // offset * num_bins may not fit in 64 bits
+    std::uint64_t __frac; // floor(num_bins * 2^64 / range), used only for large ranges
+
+    // The distance from __lo up to __hi, where __lo <= __hi in their common type C, which the bounds checks compare
+    // in. Subtracting in unsigned C is exact even where it overflows C, since the true distance fits in its width.
+    template <typename _Lo, typename _Hi>
+    static std::uint64_t
+    __unsigned_distance(_Lo __lo, _Hi __hi)
+    {
+        using _CommonT = decltype(__hi - __lo);
+        static_assert(std::is_integral_v<_CommonT> && sizeof(_CommonT) <= sizeof(std::uint64_t),
+                      "histogram bounds and samples must be integers of at most 64 bits, or floating point");
+        using _UnsignedT = std::make_unsigned_t<_CommonT>;
+        return _UnsignedT(__hi) - _UnsignedT(__lo);
+    }
 
     __evenly_divided_binhash(const _T1& __min, const _T1& __max, std::size_t __num_bins_)
-        : __minimum(__min), __maximum(__max), __range(_RangeT(std::uint64_t(__max) - std::uint64_t(__min))),
-          __num_bins(__num_bins_), __large_range(false), __int_part(0), __frac(0)
+        : __minimum(__min), __maximum(__max), __range(_RangeT(__unsigned_distance(__min, __max))),
+          __num_bins(__num_bins_), __large_range(false), __frac(0)
     {
         assert(__num_bins_ < std::numeric_limits<__bin_idx_t>::max());
         if constexpr (__may_overflow)
@@ -107,9 +120,9 @@ struct __evenly_divided_binhash<_T1, std::enable_if_t<!std::is_floating_point_v<
             __large_range = __num_bins_ != 0 && __range > std::numeric_limits<std::uint64_t>::max() / __num_bins_;
             if (!__large_range)
                 return;
-            __int_part = std::uint64_t(__num_bins) / __range;
-            // Long division of (num_bins % range) * 2^64 by range; the remainder stays below range throughout
-            std::uint64_t __rem = std::uint64_t(__num_bins) % __range;
+            // Long division of num_bins * 2^64 by range. A large range exceeds UINT64_MAX / num_bins >= 2^33, so
+            // num_bins < range and the remainder stays below range throughout
+            std::uint64_t __rem = std::uint64_t(__num_bins);
             for (int __i = 0; __i < 64; ++__i)
             {
                 const bool __carry = __rem >> 63;
@@ -129,7 +142,7 @@ struct __evenly_divided_binhash<_T1, std::enable_if_t<!std::is_floating_point_v<
     {
         const std::uint64_t __bins = __num_bins;
         // The correct bin or the one below it
-        std::uint64_t __bin = __offset * __int_part + __dpl_mul_hi_u64(__offset, __frac);
+        std::uint64_t __bin = __dpl_mul_hi_u64(__offset, __frac);
         // Step up when the next bin starts at or before the offset: (bin + 1) * range <= offset * num_bins,
         // compared as 128-bit products
         const std::uint64_t __next_start_hi = __dpl_mul_hi_u64(__bin + 1, __range);
@@ -147,8 +160,7 @@ struct __evenly_divided_binhash<_T1, std::enable_if_t<!std::is_floating_point_v<
         __bin_idx_t ret = -1;
         if ((__value >= __minimum) && (__value < __maximum))
         {
-            // Unsigned subtraction gives the exact offset even when it exceeds the range of _T1
-            const std::uint64_t __offset = std::uint64_t(__value) - std::uint64_t(__minimum);
+            const std::uint64_t __offset = __unsigned_distance(__minimum, __value);
             if constexpr (_LargeRange)
                 ret = __large_range_bin(__offset);
             else
@@ -173,6 +185,7 @@ struct __evenly_divided_binhash<_T1, std::enable_if_t<!std::is_floating_point_v<
     // __large_range once instead of per sample
     static constexpr bool __has_bin_regimes = __may_overflow;
 
+    // called by free function __with_bin_regime to visit the bin regime of the wrapped binhash
     template <typename _F>
     void
     __visit_bin_regime(_F&& __f) const

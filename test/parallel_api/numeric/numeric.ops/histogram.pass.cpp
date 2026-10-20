@@ -197,6 +197,12 @@ test_bin_arithmetic()
     test_even_bin_arithmetic<18, std::int8_t>(
         {std::int8_t(-101), std::int8_t(-100), std::int8_t(-1), std::int8_t(0), std::int8_t(99), std::int8_t(100)},
         std::int8_t(-100), std::int8_t(100), {1, 0, 0, 2, 0, 0, 1});
+    // Signed samples with unsigned bounds are compared as unsigned, so -2 is 2^32 - 2 and its offset must match
+    test_even_bin_arithmetic<21, std::int32_t>({-2}, std::uint32_t(3) << 30, std::uint32_t(0xffffffff), {0, 0, 1});
+
+    // With no bins nothing is written, even for samples within the bounds
+    test_even_bin_arithmetic<19, int>({0, 5}, 0, 10, {});
+    test_even_bin_arithmetic<20, float>({0.0f, 5.0f}, 0.0f, 10.0f, {});
 }
 
 int
