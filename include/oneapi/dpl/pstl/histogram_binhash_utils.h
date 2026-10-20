@@ -36,16 +36,17 @@ template <typename _T1, typename = void>
 struct __evenly_divided_binhash;
 
 template <typename _T1>
-struct __evenly_divided_binhash<_T1, ::std::enable_if_t<::std::is_floating_point_v<_T1>>>
+struct __evenly_divided_binhash<_T1, std::enable_if_t<std::is_floating_point_v<_T1>>>
 {
     _T1 __minimum;
     _T1 __maximum;
     _T1 __scale;
+    __bin_idx_t __num_bins;
 
-    __evenly_divided_binhash(const _T1& __min, const _T1& __max, ::std::size_t __num_bins)
-        : __minimum(__min), __maximum(__max), __scale(_T1(__num_bins) / (__max - __min))
+    __evenly_divided_binhash(const _T1& __min, const _T1& __max, std::size_t __num_bins_)
+        : __minimum(__min), __maximum(__max), __scale(_T1(__num_bins_) / (__max - __min)), __num_bins(__num_bins_)
     {
-        assert(__num_bins < ::std::numeric_limits<__bin_idx_t>::max());
+        assert(__num_bins_ < std::numeric_limits<__bin_idx_t>::max());
     }
 
     template <typename _T2>
@@ -55,22 +56,47 @@ struct __evenly_divided_binhash<_T1, ::std::enable_if_t<::std::is_floating_point
         __bin_idx_t ret = -1;
         if ((__value >= __minimum) && (__value < __maximum))
         {
-            ret = (__value - __minimum) * __scale;
+            // The rounded scale can carry a sample just below the maximum to num_bins
+            ret = std::min<__bin_idx_t>((__value - __minimum) * __scale, __num_bins - 1);
         }
         return ret;
     }
 };
 
 template <typename _T1>
-struct __evenly_divided_binhash<_T1, ::std::enable_if_t<!::std::is_floating_point_v<_T1>>>
+struct __evenly_divided_binhash<_T1, std::enable_if_t<!std::is_floating_point_v<_T1>>>
 {
+    // The bin of a sample is floor(offset * num_bins / range). offset * num_bins may not fit in 64 bits, so the
+    // constant num_bins / range is stored in fixed point: an integer part and a 64-bit fraction. Multiplying the
+    // offset by it truncates to the correct bin or the one below, which one exact 128-bit comparison corrects.
     _T1 __minimum;
-    _T1 __range_size;
+    _T1 __maximum;
+    std::uint64_t __range;    // max - min, computed in unsigned arithmetic so it cannot overflow _T1
+    std::uint64_t __int_part; // floor(num_bins / range), nonzero only when the range is smaller than num_bins
+    std::uint64_t __frac;     // floor((num_bins % range) * 2^64 / range)
     __bin_idx_t __num_bins;
-    __evenly_divided_binhash(const _T1& __min, const _T1& __max, ::std::size_t __num_bins_)
-        : __minimum(__min), __range_size(__max - __min), __num_bins(__num_bins_)
+
+    __evenly_divided_binhash(const _T1& __min, const _T1& __max, std::size_t __num_bins_)
+        : __minimum(__min), __maximum(__max), __range(std::uint64_t(__max) - std::uint64_t(__min)), __int_part(0),
+          __frac(0), __num_bins(__num_bins_)
     {
-        assert(__num_bins < ::std::numeric_limits<__bin_idx_t>::max());
+        assert(__num_bins_ < std::numeric_limits<__bin_idx_t>::max());
+        if (__range == 0)
+            return;
+        __int_part = std::uint64_t(__num_bins) / __range;
+        // Long division of (num_bins % range) * 2^64 by range; the remainder stays below range throughout
+        std::uint64_t __rem = std::uint64_t(__num_bins) % __range;
+        for (int __i = 0; __i < 64; ++__i)
+        {
+            const bool __carry = __rem >> 63;
+            __rem <<= 1;
+            __frac <<= 1;
+            if (__carry || __rem >= __range)
+            {
+                __rem -= __range;
+                __frac |= 1;
+            }
+        }
     }
 
     template <typename _T2>
@@ -78,9 +104,21 @@ struct __evenly_divided_binhash<_T1, ::std::enable_if_t<!::std::is_floating_poin
     get_bin(_T2 __value) const
     {
         __bin_idx_t ret = -1;
-        if ((__value >= __minimum) && (__value < (__minimum + __range_size)))
+        if ((__value >= __minimum) && (__value < __maximum))
         {
-            ret = ::std::uint64_t(__value - __minimum) * ::std::uint64_t(__num_bins) / __range_size;
+            const std::uint64_t __offset = std::uint64_t(__value) - std::uint64_t(__minimum);
+            const std::uint64_t __bins = __num_bins;
+            // The correct bin or the one below it
+            std::uint64_t __bin = __offset * __int_part + __dpl_mul_hi_u64(__offset, __frac);
+            // Step up when the next bin starts at or before the offset: (bin + 1) * range <= offset * num_bins,
+            // compared as 128-bit products
+            const std::uint64_t __next_start_hi = __dpl_mul_hi_u64(__bin + 1, __range);
+            const std::uint64_t __next_start_lo = (__bin + 1) * __range;
+            const std::uint64_t __scaled_hi = __dpl_mul_hi_u64(__offset, __bins);
+            const std::uint64_t __scaled_lo = __offset * __bins;
+            __bin +=
+                __next_start_hi < __scaled_hi || (__next_start_hi == __scaled_hi && __next_start_lo <= __scaled_lo);
+            ret = __bin;
         }
         return ret;
     }
