@@ -3480,7 +3480,7 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
     // Narrow the range: {1}'s head, which is ordered before {2}, and {2}'s tail, which is ordered after {1},
     // are already in their final positions
     __first = std::upper_bound(__first, __middle, *__middle, __comp);
-    __last = std::upper_bound(__middle, __last, *(__middle - 1), __comp);
+    __last = std::lower_bound(__middle, __last, *(__middle - 1), __comp);
 
     // Too few elements
     // multiple of the serial merge chunk size to amortize the allocation overhead
