@@ -16,8 +16,6 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
-#include <memory>
-#include <new>
 #include <type_traits>
 #include <utility>
 
@@ -98,8 +96,6 @@ struct __segmented_reduce_init_brick
 
 template <typename _Name>
 class __segmented_reduce_fill_wrapper;
-template <typename _Name>
-class __segmented_reduce_short_wrapper;
 
 // A short segment is reduced by one work-item. A long segment is split into chunks, each reduced by one work-item, and
 // the partial results of the segment are combined by one work-item. The values below were measured on Intel GPUs
@@ -332,39 +328,18 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         return;
     }
 
-    // The short segments, one work-item each; the long ones only report the longest length. The report is in host USM
-    // where the device has atomics on it, which costs nothing on CPUs; otherwise in a buffer, which costs less on GPUs
-    // than copying it from device USM (0.08 ms vs 0.33 ms on integrated graphics).
-    const __segmented_reduce_variable_brick<_Acc, _Size, _InitType, _BinaryOperation> __short_brick{
-        __n, __threshold, __init, __binary_op};
-    sycl::queue __q = __exec.queue();
-    const sycl::device __device = __q.get_device();
-    const bool __host_report = __device.has(sycl::aspect::usm_atomic_host_allocations);
-    std::uint32_t __report = 0;
-    if (__host_report)
-    {
-        std::unique_ptr<std::uint32_t, __internal::__sycl_usm_free> __report_ptr(
-            sycl::malloc_host<std::uint32_t>(1, __q), __internal::__sycl_usm_free{__q});
-        if (!__report_ptr)
-            throw std::bad_alloc();
-        *__report_ptr = 0;
-        auto __keep_report = oneapi::dpl::__ranges::__get_sycl_range<access_mode::read_write>();
-        auto __report_rng = __keep_report(__report_ptr.get(), __report_ptr.get() + 1);
-        __parallel_for(_BackendTag{}, __exec, __short_brick, __m, __offsets,
-                       oneapi::dpl::__ranges::make_zip_view(__result), __input, __report_rng.all_view())
-            .wait();
-        __report = *__report_ptr;
-    }
-    else
-    {
-        sycl::buffer<std::uint32_t, 1> __report_buf(&__report, sycl::range<1>(1));
-        __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_short_wrapper>(__exec), __short_brick, __m,
-                       __offsets, oneapi::dpl::__ranges::make_zip_view(__result), __input,
-                       oneapi::dpl::__ranges::views::all(__report_buf))
-            .__checked_deferrable_wait();
-        __report = __report_buf.get_host_access(sycl::read_only)[0];
-    }
-    const _Size __max_length = __report;
+    // The short segments, one work-item each; the long ones only report the longest length. The report is in a buffer,
+    // which costs less on GPUs than copying it from device USM (0.08 ms vs 0.33 ms on integrated graphics).
+    auto __report_buf = __buffer<std::uint32_t>(1).get_buffer();
+    // The buffer has no host data: the atomic maximum starts from the zero written here
+    __report_buf.get_host_access(sycl::write_only)[0] = 0;
+    __parallel_for(_BackendTag{}, __exec,
+                   __segmented_reduce_variable_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __threshold, __init,
+                                                                                               __binary_op},
+                   __m, __offsets, oneapi::dpl::__ranges::make_zip_view(__result), __input,
+                   oneapi::dpl::__ranges::views::all(__report_buf))
+        .__checked_deferrable_wait();
+    const _Size __max_length = __report_buf.get_host_access(sycl::read_only)[0];
 
     // The long segments in chunks: at most n / __threshold of them
     if (__max_length > 0)
