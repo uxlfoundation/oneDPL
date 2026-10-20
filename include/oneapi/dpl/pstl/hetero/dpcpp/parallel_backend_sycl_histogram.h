@@ -74,6 +74,7 @@ struct __binhash_SLM_wrapper
 
     static constexpr bool __has_bin_regimes = oneapi::dpl::__internal::__has_bin_regimes<_BinHash>::value;
 
+    // called by free function __with_bin_regime to visit the bin regime of the wrapped binhash
     template <typename _F>
     void
     __visit_bin_regime(_F&& __f) const

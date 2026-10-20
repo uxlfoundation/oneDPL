@@ -124,6 +124,10 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _RandomA
 histogram(_ExecutionPolicy&& exec, _RandomAccessIterator1 first, _RandomAccessIterator1 last, _Size num_bins,
           _ValueType first_bin_min_val, _ValueType last_bin_max_val, _RandomAccessIterator2 histogram_first)
 {
+    // With no bins there is no output, and no sample may be binned
+    if (num_bins == 0)
+        return histogram_first;
+
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(exec, first, histogram_first);
 
     // Floating-point samples with integer bounds are binned in the sample type so their fractional part is kept
