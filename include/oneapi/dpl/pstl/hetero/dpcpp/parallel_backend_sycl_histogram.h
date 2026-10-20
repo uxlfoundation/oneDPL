@@ -71,6 +71,15 @@ struct __binhash_SLM_wrapper
     {
         return __bin_hash.get_bin(__value);
     }
+
+    static constexpr bool __has_bin_regimes = oneapi::dpl::__internal::__has_bin_regimes<_BinHash>::value;
+
+    template <typename _F>
+    void
+    __visit_bin_regime(_F&& __f) const
+    {
+        __bin_hash.__visit_bin_regime(std::forward<_F>(__f));
+    }
 };
 
 // Specialization for custom range binhash function which stores boundary data
@@ -220,30 +229,33 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
 
                     __clear_wglocal_histograms(__local_histogram, 0, __num_slm_copies * __num_bins, __self_item);
 
-                    if (__seg_start + __work_group_size * __iters_per_work_item < __n)
-                    {
-                        _ONEDPL_PRAGMA_UNROLL
-                        for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
+                    // Select the binhash regime once, outside the loops over samples
+                    oneapi::dpl::__internal::__with_bin_regime(__SLM_binhash, [&](const auto& __bin_func) {
+                        if (__seg_start + __work_group_size * __iters_per_work_item < __n)
                         {
-                            __accum_local_atomics_iter<_atomic_address_space>(
-                                __input[__seg_start + __idx * __work_group_size + __self_lidx], __local_histogram,
-                                __copy_slot, __num_slm_copies, __SLM_binhash);
-                        }
-                    }
-                    else
-                    {
-                        _ONEDPL_PRAGMA_UNROLL
-                        for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
-                        {
-                            std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
-                            if (__val_idx < __n)
+                            _ONEDPL_PRAGMA_UNROLL
+                            for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
                             {
-                                __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __local_histogram,
-                                                                                  __copy_slot, __num_slm_copies,
-                                                                                  __SLM_binhash);
+                                __accum_local_atomics_iter<_atomic_address_space>(
+                                    __input[__seg_start + __idx * __work_group_size + __self_lidx], __local_histogram,
+                                    __copy_slot, __num_slm_copies, __bin_func);
                             }
                         }
-                    }
+                        else
+                        {
+                            _ONEDPL_PRAGMA_UNROLL
+                            for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
+                            {
+                                std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
+                                if (__val_idx < __n)
+                                {
+                                    __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx],
+                                                                                      __local_histogram, __copy_slot,
+                                                                                      __num_slm_copies, __bin_func);
+                                }
+                            }
+                        }
+                    });
 
                     sycl::group_barrier(__self_item.get_group());
 
@@ -331,29 +343,30 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
 
                     __clear_wglocal_histograms(__hacc_private, __wgroup_idx * __num_bins, __num_bins, __self_item);
 
-                    if (__seg_start + __work_group_size * __iters_per_work_item < __n)
-                    {
-                        for (::std::size_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
+                    // Select the binhash regime once, outside the loops over samples
+                    oneapi::dpl::__internal::__with_bin_regime(_device_copyable_func, [&](const auto& __bin_func) {
+                        if (__seg_start + __work_group_size * __iters_per_work_item < __n)
                         {
-                            ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
-                            __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __hacc_private,
-                                                                              __wgroup_idx * __num_bins, 1u,
-                                                                              _device_copyable_func);
-                        }
-                    }
-                    else
-                    {
-                        for (::std::size_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
-                        {
-                            ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
-                            if (__val_idx < __n)
+                            for (::std::size_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
                             {
-                                __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __hacc_private,
-                                                                                  __wgroup_idx * __num_bins, 1u,
-                                                                                  _device_copyable_func);
+                                ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
+                                __accum_local_atomics_iter<_atomic_address_space>(
+                                    __input[__val_idx], __hacc_private, __wgroup_idx * __num_bins, 1u, __bin_func);
                             }
                         }
-                    }
+                        else
+                        {
+                            for (::std::size_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
+                            {
+                                ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
+                                if (__val_idx < __n)
+                                {
+                                    __accum_local_atomics_iter<_atomic_address_space>(
+                                        __input[__val_idx], __hacc_private, __wgroup_idx * __num_bins, 1u, __bin_func);
+                                }
+                            }
+                        }
+                    });
 
                     sycl::group_barrier(__self_item.get_group());
                     const std::size_t __offset = __wgroup_idx * __num_bins;
