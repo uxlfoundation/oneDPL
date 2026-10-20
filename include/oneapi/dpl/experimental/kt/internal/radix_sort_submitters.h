@@ -147,7 +147,7 @@ struct __radix_sort_onesweep_scan_submitter<
         return __q.submit([&](sycl::handler& __cgh) {
             __cgh.depends_on(__e);
             __cgh.parallel_for<_Name...>(__nd_range, [=](sycl::nd_item<1> __nd_item) {
-                std::uint32_t __offset = __nd_item.get_global_id(0);
+                std::size_t __offset = __nd_item.get_global_id(0);
                 const auto __g = __nd_item.get_group();
                 std::uint32_t __count = __global_offset_data[__offset];
                 std::uint32_t __presum =
