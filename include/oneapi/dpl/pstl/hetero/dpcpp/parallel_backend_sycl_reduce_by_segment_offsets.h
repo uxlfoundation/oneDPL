@@ -118,6 +118,8 @@ class __segmented_reduce_fill_wrapper;
 // - a segment up to this length is short;
 inline constexpr std::size_t __segmented_reduce_gpu_threshold = 512;
 inline constexpr std::size_t __segmented_reduce_cpu_threshold = 32768;
+// - on GPUs an input up to this size is reduced by one kernel, one work-item per segment of any length;
+inline constexpr std::size_t __segmented_reduce_gpu_small_input = 1024;
 // - on GPUs the best chunk length of a long segment is close to the square root of its length, which balances the
 //   serial work of its chunks and of their combination; on CPUs the chunk length hardly matters above 1024.
 inline constexpr std::size_t __segmented_reduce_gpu_min_chunk_size = 64;
@@ -361,6 +363,18 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             .__checked_deferrable_wait();
         __scan.__checked_deferrable_wait();
     };
+
+    // No segment of a small input is longer than the input, which a work-item reduces alone faster on GPUs than the
+    // scan, the chunks and their combination take; a larger input may hold a segment too long for one work-item
+    if (__is_gpu && __n <= _Size(__segmented_reduce_gpu_small_input))
+    {
+        __parallel_for(
+            _BackendTag{}, make_wrapped_policy<__segmented_reduce_short_wrapper>(__exec),
+            __segmented_reduce_variable_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __n, __init, __binary_op},
+            __m, __offsets, oneapi::dpl::__ranges::make_zip_view(__result), __input)
+            .__checked_deferrable_wait();
+        return;
+    }
 
     if (__n / __m > __threshold)
     {
