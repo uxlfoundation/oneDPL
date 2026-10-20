@@ -3270,15 +3270,142 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
 template <typename _Tp>
 inline constexpr std::size_t __merge_chunk_size = std::is_arithmetic_v<_Tp> ? 2000 : 500;
 
+// Merges {1} and {2} in parallel, writing the first __n_out elements of the result to __first3.
+// Returns the number of elements taken from {1} and {2} respectively.
+// Requires __n_out <= __n_1 + __n_2
+template <class _IsVector, typename _ExecutionPolicy, typename _Index, typename _RandomAccessIterator1,
+          typename _RandomAccessIterator2, typename _RandomAccessIterator3, typename _Comp, typename _Proj1,
+          typename _Proj2>
+std::pair<_Index, _Index>
+__parallel_merge_path(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                      _Index __n_1, _RandomAccessIterator2 __first2, _Index __n_2, _RandomAccessIterator3 __first3,
+                      _Index __n_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+    using _Tp = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
+    constexpr _Index __chunk = static_cast<_Index>(__merge_chunk_size<_Tp>);
+
+    // Nothing to merge
+    if (__n_out == 0)
+        return {_Index{0}, _Index{0}};
+
+    // Too few elements
+    if (__n_out <= __chunk)
+    {
+        return __internal::__except_handler([=]() {
+            const auto [__it1, __it2, __it3] =
+                __serial_merge_out_lim(__first1, __first1 + __n_1, __first2, __first2 + __n_2, __first3,
+                                       __first3 + __n_out, __comp, __proj1, __proj2);
+            return std::make_pair(static_cast<_Index>(__it1 - __first1), static_cast<_Index>(__it2 - __first2));
+        });
+    }
+
+    // {1} is empty
+    if (__n_1 == 0)
+    {
+        __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2, __first2 + __n_out, __first3,
+                              __brick_copy<__parallel_tag<_IsVector>>{});
+        return {_Index{0}, __n_out};
+    }
+    // {2} is empty
+    if (__n_2 == 0)
+    {
+        __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n_out, __first3,
+                              __brick_copy<__parallel_tag<_IsVector>>{});
+        return {__n_out, _Index{0}};
+    }
+
+    // {1} is ordered before {2} or vice versa
+    // Returns the number of elements taken from {a} and {b} respectively
+    auto __copy_ordered = [=, &__exec](auto __first_a, _Index __n_a, auto __first_b) {
+        const _Index __k_a = std::min(__n_a, __n_out);
+        const _Index __k_b = __n_out - __k_a;
+        auto __copy = [=, &__exec](auto __first_in, _Index __n, _Index __out_offset) {
+            if (__n > 0)
+                __pattern_walk2_brick(__tag, __exec, __first_in, __first_in + __n, __first3 + __out_offset,
+                                      __brick_copy<__parallel_tag<_IsVector>>{});
+        };
+        __internal::__except_handler([=, &__exec]() {
+            __par_backend::__parallel_invoke(__backend_tag{}, __exec,
+                [=] { __copy(__first_a, __k_a, _Index{0}); },
+                [=] { __copy(__first_b, __k_b, __k_a); });
+        });
+        return std::make_pair(__k_a, __k_b);
+    };
+    // {1} is ordered before {2}
+    if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *(__first1 + (__n_1 - 1)))))
+    {
+        return __copy_ordered(__first1, __n_1, __first2);
+    }
+    // {2} is ordered before {1}
+    if (std::invoke(__comp, std::invoke(__proj2, *(__first2 + (__n_2 - 1))), std::invoke(__proj1, *__first1)))
+    {
+        const auto [__k_2, __k_1] = __copy_ordered(__first2, __n_2, __first1);
+        return {__k_1, __k_2};
+    }
+
+    using _OutRef = decltype(*__first3);
+    using _InRef1 = decltype(*__first1);
+    using _InRef2 = decltype(*__first2);
+    if constexpr (__is_assignment_source_preserving_v<_OutRef, _InRef1> &&
+                  __is_assignment_source_preserving_v<_OutRef, _InRef2>)
+    {
+        // The inputs are not modified by the merge, hence each task can compute its own split on the fly
+        std::pair<_Index, _Index> __result{_Index{0}, _Index{0}};
+
+        __internal::__except_handler([=, &__exec, &__result]() {
+            __par_backend::__parallel_for(
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_out,
+                [=, &__result](_Index __i, _Index __j) {
+                    const auto [__r, __c] =
+                        __merge_path_intersection(__i, __n_1, __n_2, __first1, __first2, __comp, __proj1, __proj2);
+                    // Bounded merge is used to ensure that each task only writes to its assigned output range
+                    const auto [__it1, __it2, __it3] =
+                        __serial_merge_out_lim(__first1 + __r, __first1 + __n_1, __first2 + __c, __first2 + __n_2,
+                                               __first3 + __i, __first3 + __j, __comp, __proj1, __proj2);
+                    if (__j == __n_out)
+                        __result = {static_cast<_Index>(__it1 - __first1), static_cast<_Index>(__it2 - __first2)};
+                },
+                __chunk);
+        });
+
+        return __result;
+    }
+    else
+    {
+        // The inputs may be modified by the merge (e.g., moved from), hence all the splits are computed beforehand
+        const _Index __n_chunks = __internal::__dpl_ceiling_div(__n_out, __chunk);
+
+        __par_backend::__buffer<_Index> __split_buf(__n_chunks + 1); // +1 to store the final boundary
+        _Index* __split = __split_buf.get();
+
+        return __internal::__except_handler([=, &__exec]() {
+            // 1. Partition
+            __merge_path_partition(__tag, __exec, __split, __n_chunks, __chunk, __n_1, __n_2, __n_out, __first1,
+                                   __first2, __comp, __proj1, __proj2);
+
+            // 2. Merge
+            __merge_path_chunks(
+                __tag, std::forward<_ExecutionPolicy>(__exec), __split, __n_chunks, __chunk, __n_out, __first1,
+                __first2, __first3, __brick_copy<__parallel_tag<_IsVector>>{},
+                [__comp, __proj1, __proj2](auto __f1, auto __l1, auto __f2, auto __l2, auto __f3, auto __l3) {
+                    // Bounded merge is used to ensure that each task only writes to its assigned output range
+                    __serial_merge_out_lim(__f1, __l1, __f2, __l2, __f3, __l3, __comp, __proj1, __proj2);
+                });
+
+            const _Index __row_last = __split[__n_chunks];
+            return std::make_pair(__row_last, __n_out - __row_last);
+        });
+    }
+}
+
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
-__pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+__pattern_merge(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                 _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                 _RandomAccessIterator3 __first3, _Compare __comp)
 {
-    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
-
     using _Index1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _Index2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _Index3 = typename std::iterator_traits<_RandomAccessIterator3>::difference_type;
@@ -3288,103 +3415,9 @@ __pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
     const _Index __n_2 = __last2 - __first2;
     const _Index __n_out = __n_1 + __n_2;
 
-    if (__n_out == 0)
-        return __first3;
-
-    // Too few elements
-    using _Tp = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
-    if (static_cast<std::size_t>(__n_out) <= __merge_chunk_size<_Tp>)
-    {
-        return __internal::__brick_merge(__first1, __last1, __first2, __last2, __first3, __comp, _IsVector{});
-    }
-    // {1} is empty
-    if (__n_1 == 0)
-    {
-        return __pattern_walk2_brick(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first2,
-                                     __last2, __first3, __brick_copy<__parallel_tag<_IsVector>>{});
-    }
-    // {2} is empty
-    if (__n_2 == 0)
-    {
-        return __pattern_walk2_brick(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first1,
-                                     __last1, __first3, __brick_copy<__parallel_tag<_IsVector>>{});
-    }
-
-    // {1} is ordered before {2} or vice versa
-    auto __copy_ordered = [=, &__exec](auto __first_a, auto __last_a, auto __first_b, auto __last_b) {
-        auto __copy = [=, &__exec](auto __in_first, auto __in_last, _Index __out_offset) {
-            __pattern_walk2_brick(__parallel_tag<_IsVector>{}, __exec, __in_first, __in_last, __first3 + __out_offset,
-                                  __brick_copy<__parallel_tag<_IsVector>>{});
-        };
-        const _Index __offset_b = __last_a - __first_a;
-        return __internal::__except_handler([=, &__exec]() {
-            __par_backend::__parallel_invoke(__backend_tag{}, __exec,
-                [=] { __copy(__first_a, __last_a, _Index{0}); },
-                [=] { __copy(__first_b, __last_b, __offset_b); });
-            return __first3 + __n_out;
-        });
-    };
-    // {1} is ordered before {2}
-    if (!__comp(*__first2, *(__last1 - 1)))
-    {
-        return __copy_ordered(__first1, __last1, __first2, __last2);
-    }
-    // {2} is ordered before {1}
-    if (__comp(*(__last2 - 1), *__first1))
-    {
-        return __copy_ordered(__first2, __last2, __first1, __last1);
-    }
-
-    using _OutRef = typename std::iterator_traits<_RandomAccessIterator3>::reference;
-    using _InRef1 = typename std::iterator_traits<_RandomAccessIterator1>::reference;
-    using _InRef2 = typename std::iterator_traits<_RandomAccessIterator2>::reference;
-    if constexpr (__is_assignment_source_preserving_v<_OutRef, _InRef1> &&
-                  __is_assignment_source_preserving_v<_OutRef, _InRef2>)
-    {
-        // The inputs are not modified by the merge, hence each task can compute its own split on the fly
-        return __internal::__except_handler([=, &__exec]() {
-            __par_backend::__parallel_for(
-                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_out,
-                [=](_Index __i, _Index __j) {
-                    const auto [__r, __c] = __merge_path_intersection(__i, __n_1, __n_2, __first1, __first2, __comp,
-                                                                      oneapi::dpl::identity{}, oneapi::dpl::identity{});
-                    // Bounded merge is used to ensure that each task only writes to its assigned output range
-                    __serial_merge_out_lim(__first1 + __r, __last1, __first2 + __c, __last2, __first3 + __i,
-                                           __first3 + __j, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
-                },
-                __merge_chunk_size<_Tp>);
-
-            return __first3 + __n_out;
-        });
-    }
-    else
-    {
-        // The inputs may be modified by the merge (e.g., moved from), hence all the splits are computed beforehand
-        constexpr _Index __merge_chunk = static_cast<_Index>(__merge_chunk_size<_Tp>);
-        const _Index __n_chunks = __internal::__dpl_ceiling_div(__n_out, __merge_chunk);
-
-        __par_backend::__buffer<_Index> __split_buf(__n_chunks + 1); // +1 to store the final boundary
-        _Index* __split = __split_buf.get();
-
-        return __internal::__except_handler([=, &__exec]() {
-            // 1. Partition
-            __merge_path_partition(__parallel_tag<_IsVector>{}, __exec, __split, __n_chunks, __merge_chunk, __n_1,
-                                   __n_2, __n_out, __first1, __first2, __comp, oneapi::dpl::identity{},
-                                   oneapi::dpl::identity{});
-
-            // 2. Merge
-            __merge_path_chunks(
-                __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __split, __n_chunks, __merge_chunk,
-                __n_out, __first1, __first2, __first3, __brick_copy<__parallel_tag<_IsVector>>{},
-                [__comp](auto __f1, auto __l1, auto __f2, auto __l2, auto __f3, auto __l3) {
-                    // Bounded merge is used to ensure that each task only writes to its assigned output range
-                    __serial_merge_out_lim(__f1, __l1, __f2, __l2, __f3, __l3, __comp, oneapi::dpl::identity{},
-                                           oneapi::dpl::identity{});
-                });
-
-            return __first3 + __n_out;
-        });
-    }
+    __parallel_merge_path(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __n_1, __first2, __n_2, __first3,
+                          __n_out, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    return __first3 + __n_out;
 }
 
 //------------------------------------------------------------------------

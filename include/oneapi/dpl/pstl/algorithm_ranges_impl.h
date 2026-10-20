@@ -832,8 +832,6 @@ __merge_ranges_return_t<_R1, _R2, _OutRange>
 __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                        _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    using _Tag = __parallel_tag<_IsVector>;
-    using _BackendTag = typename _Tag::__backend_tag;
     using _Index = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
 
     auto __first1 = std::ranges::begin(__r1);
@@ -844,119 +842,10 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
     const _Index __n3 = static_cast<_Index>(std::ranges::size(__out_r));
     const _Index __n_out = std::min<_Index>(__n1 + __n2, __n3);
 
-    if (__n3 == 0)
-        return {__first1, __first2, __first3};
-
-    // Too few elements
-    using _Tp = std::ranges::range_value_t<_OutRange>;
-    constexpr _Index __merge_chunk = static_cast<_Index>(__internal::__merge_chunk_size<_Tp>);
-    if (__n_out <= __merge_chunk)
-    {
-        return __internal::__except_handler([&]() {
-            return __serial_merge_ranges(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-                                         std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
-        });
-    }
-
-    // {1} is empty
-    if (__n1 == 0)
-    {
-        auto __last2 = __first2 + std::min<_Index>(__n2, __n_out);
-        auto __last_out = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2,
-                                                            __last2, __first3, __internal::__brick_copy<_Tag>{});
-        return {__first1, __last2, __last_out};
-    }
-    // {2} is empty
-    if (__n2 == 0)
-    {
-        auto __last1 = __first1 + std::min<_Index>(__n1, __n_out);
-        auto __last_out = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                            __last1, __first3, __internal::__brick_copy<_Tag>{});
-        return {__last1, __first2, __last_out};
-    }
-
-    // {1} is ordered before {2} or vice versa
-    auto __copy_ordered = [=, &__exec](auto __first_a, _Index __n_a, auto __first_b) {
-        const _Index __k_a = std::min<_Index>(__n_a, __n_out);
-        const _Index __k_b = __n_out - __k_a;
-        auto __copy = [=, &__exec](auto __first_in, _Index __n, _Index __out_offset) {
-            if (__n > 0)
-                __internal::__pattern_walk2_brick(__tag, __exec, __first_in, __first_in + __n, __first3 + __out_offset,
-                                                  __internal::__brick_copy<_Tag>{});
-        };
-        __internal::__except_handler([=, &__exec]() {
-            __par_backend::__parallel_invoke(_BackendTag{}, __exec,
-                [=] { __copy(__first_a, __k_a, _Index{0}); },
-                [=] { __copy(__first_b, __k_b, __k_a); });
-        });
-        return std::make_pair(__k_a, __k_b);
-    };
-    // {1} is ordered before {2}
-    if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *(__first1 + __n1 - 1))))
-    {
-        const auto [__k1, __k2] = __copy_ordered(__first1, __n1, __first2);
-        return {__first1 + __k1, __first2 + __k2, __first3 + __n_out};
-    }
-    // {2} is ordered before {1}
-    if (std::invoke(__comp, std::invoke(__proj2, *(__first2 + __n2 - 1)), std::invoke(__proj1, *__first1)))
-    {
-        const auto [__k2, __k1] = __copy_ordered(__first2, __n2, __first1);
-        return {__first1 + __k1, __first2 + __k2, __first3 + __n_out};
-    }
-
-    using _OutRef = std::iter_reference_t<decltype(__first3)>;
-    using _InRef1 = std::iter_reference_t<decltype(__first1)>;
-    using _InRef2 = std::iter_reference_t<decltype(__first2)>;
-    if constexpr (oneapi::dpl::__internal::__is_assignment_source_preserving_v<_OutRef, _InRef1> &&
-                  oneapi::dpl::__internal::__is_assignment_source_preserving_v<_OutRef, _InRef2>)
-    {
-        // The inputs are not modified by the merge, hence each task can compute its own split on the fly
-        __merge_ranges_return_t<_R1, _R2, _OutRange> __result{__first1, __first2, __first3};
-
-        __internal::__except_handler([=, &__exec, &__result]() {
-            __par_backend::__parallel_for(
-                _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_out,
-                [=, &__result](_Index __i, _Index __j) {
-                    const auto [__r, __c] = __internal::__merge_path_intersection(__i, __n1, __n2, __first1, __first2,
-                                                                                  __comp, __proj1, __proj2);
-                    // Bounded merge is used to ensure that each task only writes to its assigned output range
-                    const auto [__it1, __it2, __it3] = __internal::__serial_merge_out_lim(
-                        __first1 + __r, __first1 + __n1, __first2 + __c, __first2 + __n2, __first3 + __i,
-                        __first3 + __j, __comp, __proj1, __proj2);
-                    if (__j == __n_out)
-                        __result = {__it1, __it2, __it3};
-                },
-                __merge_chunk);
-        });
-
-        return __result;
-    }
-    else
-    {
-        // The inputs may be modified by the merge (e.g., moved from), hence all the splits are computed beforehand
-        const _Index __n_chunks = __internal::__dpl_ceiling_div(__n_out, __merge_chunk);
-
-        __par_backend::__buffer<_Index> __split_buf(__n_chunks + 1); // +1 to store the final boundary
-        _Index* __split = __split_buf.get();
-
-        return __internal::__except_handler([=, &__exec]() -> __merge_ranges_return_t<_R1, _R2, _OutRange> {
-            // 1. Partition
-            __internal::__merge_path_partition(__tag, __exec, __split, __n_chunks, __merge_chunk, __n1, __n2, __n_out,
-                                               __first1, __first2, __comp, __proj1, __proj2);
-
-            // 2. Merge
-            __internal::__merge_path_chunks(
-                __tag, std::forward<_ExecutionPolicy>(__exec), __split, __n_chunks, __merge_chunk, __n_out, __first1,
-                __first2, __first3, __internal::__brick_copy<_Tag>{},
-                [__comp, __proj1, __proj2](auto __f1, auto __l1, auto __f2, auto __l2, auto __f3, auto __l3) {
-                    // Bounded merge is used to ensure that each task only writes to its assigned output range
-                    __internal::__serial_merge_out_lim(__f1, __l1, __f2, __l2, __f3, __l3, __comp, __proj1, __proj2);
-                });
-
-            const _Index __row_last = __split[__n_chunks];
-            return {__first1 + __row_last, __first2 + (__n_out - __row_last), __first3 + __n_out};
-        });
-    }
+    const auto [__k1, __k2] =
+        __internal::__parallel_merge_path(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __n1, __first2, __n2,
+                                          __first3, __n_out, __comp, __proj1, __proj2);
+    return {__first1 + __k1, __first2 + __k2, __first3 + __n_out};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
