@@ -4906,7 +4906,7 @@ __pattern_min_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
 
     return __internal::__except_handler([&]() {
         return __par_backend::__parallel_reduce(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, /*identity*/ __last,
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __first, __last, /*identity*/ __last,
             [=](_RandomAccessIterator __begin, _RandomAccessIterator __end,
                 _RandomAccessIterator __init) -> _RandomAccessIterator {
                 const _RandomAccessIterator __subresult =
@@ -4961,7 +4961,7 @@ __pattern_minmax_element(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Fo
 }
 
 template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare>
-::std::pair<_RandomAccessIterator, _RandomAccessIterator>
+std::pair<_RandomAccessIterator, _RandomAccessIterator>
 __pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
                          _RandomAccessIterator __last, _Compare __comp)
 {
@@ -4969,7 +4969,7 @@ __pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
 
     // a trivial case pre-check
     if (__last - __first < 2)
-        return ::std::make_pair(__first, __first);
+        return std::make_pair(__first, __first);
 
     return __internal::__except_handler([&]() {
         using _Result = std::pair<_RandomAccessIterator, _RandomAccessIterator>;
@@ -4981,7 +4981,7 @@ __pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
                 const _Result __subresult = __internal::__brick_minmax_element(__begin, __end, __comp, _IsVector{});
                 if (__init.first == __last) // = identity
                     return __subresult;
-                return ::std::make_pair(
+                return std::make_pair(
                     __internal::__cmp_iterators_by_values(__init.first, __subresult.first, __comp, std::less<>{}),
                     __internal::__cmp_iterators_by_values(__init.second, __subresult.second,
                                                           oneapi::dpl::__internal::__reorder_pred<_Compare>(__comp),
@@ -4992,7 +4992,7 @@ __pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
                     return __p2;
                 if (__p2.first == __last)
                     return __p1;
-                return ::std::make_pair(
+                return std::make_pair(
                     __internal::__cmp_iterators_by_values(__p1.first, __p2.first, __comp, std::less<>{}),
                     __internal::__cmp_iterators_by_values(__p1.second, __p2.second,
                                                           oneapi::dpl::__internal::__reorder_pred<_Compare>(__comp),

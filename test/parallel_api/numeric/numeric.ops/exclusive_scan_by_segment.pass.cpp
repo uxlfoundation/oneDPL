@@ -92,12 +92,11 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
 
         using value_type = std::decay_t<decltype(val_res[0])>;
 
-        ::std::vector<value_type> expected_val_res(n);
-        exclusive_scan_by_segment_serial(host_keys, host_vals, ::std::begin(expected_val_res), n,
-            init, pred, op);
+        std::vector<value_type> expected_val_res(n);
+        exclusive_scan_by_segment_serial(host_keys, host_vals, std::begin(expected_val_res), n, init, pred, op);
 
 #ifdef DUMP_CHECK_RESULTS
-        ::std::cout << "check_values(n = " << n << "), init = " << init << ":" << ::std::endl;
+        std::cout << "check_values(n = " << n << "), init = " << init << ":" << std::endl;
         display_param("         keys:   ", host_keys, n);
         display_param("         values: ", host_vals, n);
         display_param("         result: ", val_res, n);

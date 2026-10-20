@@ -92,12 +92,11 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
 
         using ValT = typename std::iterator_traits<Iterator2>::value_type;
 
-        ::std::vector<ValT> expected_val_res(n);
-        inclusive_scan_by_segment_serial(host_keys, host_vals, ::std::begin(expected_val_res),
-            n, pred, op);
+        std::vector<ValT> expected_val_res(n);
+        inclusive_scan_by_segment_serial(host_keys, host_vals, std::begin(expected_val_res), n, pred, op);
 
 #ifdef DUMP_CHECK_RESULTS
-        ::std::cout << "check_values(n = " << n << ") : " << ::std::endl;
+        std::cout << "check_values(n = " << n << ") : " << std::endl;
         display_param("           keys:   ", host_keys, n);
         display_param("         values: ", host_vals, n);
         display_param("         result: ", val_res, n);

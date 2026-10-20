@@ -142,7 +142,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 find_end(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
          _ForwardIterator2 __s_last)
 {
-    return oneapi::dpl::find_end(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __s_first, __s_last,
+    return oneapi::dpl::find_end(std::forward<_ExecutionPolicy>(__exec), __first, __last, __s_first, __s_last,
                                  std::equal_to<>{});
 }
 
@@ -163,7 +163,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 find_first_of(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
               _ForwardIterator2 __s_first, _ForwardIterator2 __s_last)
 {
-    return oneapi::dpl::find_first_of(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __s_first, __s_last,
+    return oneapi::dpl::find_first_of(std::forward<_ExecutionPolicy>(__exec), __first, __last, __s_first, __s_last,
                                       std::equal_to<>{});
 }
 
@@ -239,7 +239,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 search(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
        _ForwardIterator2 __s_last)
 {
-    return oneapi::dpl::search(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __s_first, __s_last,
+    return oneapi::dpl::search(std::forward<_ExecutionPolicy>(__exec), __first, __last, __s_first, __s_last,
                                std::equal_to<>{});
 }
 
@@ -535,7 +535,7 @@ template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 unique(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    return oneapi::dpl::unique(::std::forward<_ExecutionPolicy>(__exec), __first, __last, std::equal_to<>{});
+    return oneapi::dpl::unique(std::forward<_ExecutionPolicy>(__exec), __first, __last, std::equal_to<>{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
@@ -553,7 +553,7 @@ template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterato
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator2>
 unique_copy(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __result)
 {
-    return oneapi::dpl::unique_copy(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+    return oneapi::dpl::unique_copy(std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
                                     std::equal_to<>{});
 }
 
@@ -679,7 +679,7 @@ template <class _ExecutionPolicy, class _RandomAccessIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last)
 {
-    oneapi::dpl::sort(::std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
+    oneapi::dpl::sort(std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
 }
 
 namespace __internal
@@ -711,7 +711,7 @@ template <class _ExecutionPolicy, class _RandomAccessIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 stable_sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last)
 {
-    oneapi::dpl::stable_sort(::std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
+    oneapi::dpl::stable_sort(std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
 }
 
 // oneapi::dpl::sort_by_key
@@ -734,7 +734,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first, _RandomAccessIterator1 __keys_last,
             _RandomAccessIterator2 __values_first)
 {
-    oneapi::dpl::sort_by_key(::std::forward<_ExecutionPolicy>(__exec), __keys_first, __keys_last, __values_first,
+    oneapi::dpl::sort_by_key(std::forward<_ExecutionPolicy>(__exec), __keys_first, __keys_last, __values_first,
                              std::less<>{});
 }
 
@@ -758,7 +758,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 stable_sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first, _RandomAccessIterator1 __keys_last,
                    _RandomAccessIterator2 __values_first)
 {
-    oneapi::dpl::stable_sort_by_key(::std::forward<_ExecutionPolicy>(__exec), __keys_first, __keys_last, __values_first,
+    oneapi::dpl::stable_sort_by_key(std::forward<_ExecutionPolicy>(__exec), __keys_first, __keys_last, __values_first,
                                     std::less<>{});
 }
 
@@ -788,12 +788,11 @@ mismatch(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2>
-oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
-                                                      ::std::pair<_ForwardIterator1, _ForwardIterator2>>
+oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, std::pair<_ForwardIterator1, _ForwardIterator2>>
 mismatch(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
          _ForwardIterator2 __last2)
 {
-    return oneapi::dpl::mismatch(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+    return oneapi::dpl::mismatch(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
                                  std::equal_to<>{});
 }
 
@@ -824,7 +823,7 @@ template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterato
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, bool>
 equal(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2)
 {
-    return oneapi::dpl::equal(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, std::equal_to<>{});
+    return oneapi::dpl::equal(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, std::equal_to<>{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
@@ -843,7 +842,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, bool>
 equal(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
       _ForwardIterator2 __last2)
 {
-    return oneapi::dpl::equal(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+    return oneapi::dpl::equal(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
                               std::equal_to<>{});
 }
 
@@ -877,7 +876,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 partial_sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __middle,
              _RandomAccessIterator __last)
 {
-    oneapi::dpl::partial_sort(::std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last, std::less<>{});
+    oneapi::dpl::partial_sort(std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last, std::less<>{});
 }
 
 // [partial.sort.copy]
@@ -898,8 +897,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _RandomA
 partial_sort_copy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last,
                   _RandomAccessIterator __d_first, _RandomAccessIterator __d_last)
 {
-    return oneapi::dpl::partial_sort_copy(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __d_first,
-                                          __d_last, std::less<>{});
+    return oneapi::dpl::partial_sort_copy(std::forward<_ExecutionPolicy>(__exec), __first, __last, __d_first, __d_last,
+                                          std::less<>{});
 }
 
 // [is.sorted]
@@ -919,7 +918,7 @@ template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 is_sorted_until(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    return oneapi::dpl::is_sorted_until(::std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
+    return oneapi::dpl::is_sorted_until(std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _Compare>
@@ -938,7 +937,7 @@ template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, bool>
 is_sorted(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    return oneapi::dpl::is_sorted(::std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
+    return oneapi::dpl::is_sorted(std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
 }
 
 // [alg.merge]
@@ -959,7 +958,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 merge(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
       _ForwardIterator2 __last2, _ForwardIterator __d_first)
 {
-    return oneapi::dpl::merge(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __d_first,
+    return oneapi::dpl::merge(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __d_first,
                               std::less<>{});
 }
 
@@ -979,7 +978,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 inplace_merge(_ExecutionPolicy&& __exec, _BidirectionalIterator __first, _BidirectionalIterator __middle,
               _BidirectionalIterator __last)
 {
-    oneapi::dpl::inplace_merge(::std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last, std::less<>{});
+    oneapi::dpl::inplace_merge(std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last, std::less<>{});
 }
 
 // [includes]
@@ -1000,7 +999,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, bool>
 includes(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
          _ForwardIterator2 __last2)
 {
-    return oneapi::dpl::includes(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+    return oneapi::dpl::includes(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
                                  std::less<>{});
 }
 
@@ -1023,7 +1022,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 set_union(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
           _ForwardIterator2 __last2, _ForwardIterator __result)
 {
-    return oneapi::dpl::set_union(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+    return oneapi::dpl::set_union(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
                                   __result, std::less<>{});
 }
 
@@ -1046,7 +1045,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 set_intersection(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
                  _ForwardIterator2 __first2, _ForwardIterator2 __last2, _ForwardIterator __result)
 {
-    return oneapi::dpl::set_intersection(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+    return oneapi::dpl::set_intersection(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
                                          __result, std::less<>{});
 }
 
@@ -1069,7 +1068,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 set_difference(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
                _ForwardIterator2 __first2, _ForwardIterator2 __last2, _ForwardIterator __result)
 {
-    return oneapi::dpl::set_difference(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+    return oneapi::dpl::set_difference(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
                                        __result, std::less<>{});
 }
 
@@ -1094,7 +1093,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 set_symmetric_difference(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
                          _ForwardIterator2 __first2, _ForwardIterator2 __last2, _ForwardIterator __result)
 {
-    return oneapi::dpl::set_symmetric_difference(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+    return oneapi::dpl::set_symmetric_difference(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
                                                  __last2, __result, std::less<>{});
 }
 
@@ -1113,7 +1112,7 @@ template <class _ExecutionPolicy, class _RandomAccessIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
 is_heap_until(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last)
 {
-    return oneapi::dpl::is_heap_until(::std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
+    return oneapi::dpl::is_heap_until(std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
 }
 
 template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
@@ -1130,7 +1129,7 @@ template <class _ExecutionPolicy, class _RandomAccessIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, bool>
 is_heap(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last)
 {
-    return oneapi::dpl::is_heap(::std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
+    return oneapi::dpl::is_heap(std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
 }
 
 // [alg.min.max]
@@ -1149,7 +1148,7 @@ template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 min_element(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    return oneapi::dpl::min_element(::std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
+    return oneapi::dpl::min_element(std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _Compare>
@@ -1164,7 +1163,7 @@ template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 max_element(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    return oneapi::dpl::min_element(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+    return oneapi::dpl::min_element(std::forward<_ExecutionPolicy>(__exec), __first, __last,
                                     oneapi::dpl::__internal::__reorder_pred<std::less<>>(std::less<>{}));
 }
 
@@ -1179,10 +1178,10 @@ minmax_element(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIter
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator>
-oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, ::std::pair<_ForwardIterator, _ForwardIterator>>
+oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, std::pair<_ForwardIterator, _ForwardIterator>>
 minmax_element(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    return oneapi::dpl::minmax_element(::std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
+    return oneapi::dpl::minmax_element(std::forward<_ExecutionPolicy>(__exec), __first, __last, std::less<>{});
 }
 
 // [alg.nth.element]
@@ -1203,7 +1202,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 nth_element(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __nth,
             _RandomAccessIterator __last)
 {
-    oneapi::dpl::nth_element(::std::forward<_ExecutionPolicy>(__exec), __first, __nth, __last, std::less<>{});
+    oneapi::dpl::nth_element(std::forward<_ExecutionPolicy>(__exec), __first, __nth, __last, std::less<>{});
 }
 
 // [alg.lex.comparison]
@@ -1224,7 +1223,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, bool>
 lexicographical_compare(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
                         _ForwardIterator2 __first2, _ForwardIterator2 __last2)
 {
-    return oneapi::dpl::lexicographical_compare(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+    return oneapi::dpl::lexicographical_compare(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
                                                 __last2, std::less<>{});
 }
 

@@ -47,9 +47,9 @@ __parallel_find(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Index __f
 
     constexpr auto __comp = std::conditional_t<_IsFirst::value, std::less<>, std::greater<>>{};
 
-    ::std::atomic<_DifferenceType> __extremum(__initial_dist);
+    std::atomic<_DifferenceType> __extremum(__initial_dist);
     // TODO: find out what is better here: parallel_for or parallel_reduce
-    __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+    __par_backend::__parallel_for(__backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __first, __last,
                                   [__comp, __f, __first, &__extremum](_Index __i, _Index __j) {
                                       // See "Reducing Contention Through Priority Updates", PPoPP '13, for discussion of
                                       // why using a shared variable scales fairly well in this situation.

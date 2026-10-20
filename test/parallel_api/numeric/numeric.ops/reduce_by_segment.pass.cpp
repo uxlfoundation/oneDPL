@@ -107,15 +107,14 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
         using KeyT = typename std::iterator_traits<Iterator1>::value_type;
         using ValT = typename std::iterator_traits<Iterator2>::value_type;
 
-        ::std::vector<KeyT> expected_key_res(n);
-        ::std::vector<ValT> expected_val_res(n);
+        std::vector<KeyT> expected_key_res(n);
+        std::vector<ValT> expected_val_res(n);
 
-        ::std::size_t num_segments =
-            reduce_by_segment_serial(host_keys, host_vals, ::std::begin(expected_key_res),
-                ::std::begin(expected_val_res), n, pred, op);
+        std::size_t num_segments = reduce_by_segment_serial(host_keys, host_vals, std::begin(expected_key_res),
+                                                            std::begin(expected_val_res), n, pred, op);
 
 #ifdef DUMP_CHECK_RESULTS
-        ::std::cout << "check_values(n = " << n << ", segments = " << num_keys << ") : " << ::std::endl;
+        std::cout << "check_values(n = " << n << ", segments = " << num_keys << ") : " << std::endl;
         display_param("           keys: ", host_keys, n);
         display_param("         values: ", host_vals, n);
         display_param("    result keys: ", key_res, num_keys);
