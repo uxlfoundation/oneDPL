@@ -767,6 +767,11 @@ __pattern_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _
 // pattern_merge_ranges
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _R1, typename _R2, typename _OutRange>
+using __merge_ranges_return_t =
+    std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                              std::ranges::borrowed_iterator_t<_OutRange>>;
+
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __merge_ranges_return_t<_R1, _R2, _OutRange>
@@ -788,11 +793,6 @@ __pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exe
                                           __first3, __n_out, __comp, __proj1, __proj2);
     return {__first1 + __k1, __first2 + __k2, __first3 + __n_out};
 }
-
-template <typename _R1, typename _R2, typename _OutRange>
-using __merge_ranges_return_t =
-    std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                              std::ranges::borrowed_iterator_t<_OutRange>>;
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
