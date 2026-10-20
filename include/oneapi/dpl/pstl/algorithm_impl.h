@@ -3459,6 +3459,8 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
     using _Index = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
     using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
     constexpr _Index __merge_chunk = static_cast<_Index>(__merge_chunk_size<_Tp>);
+    // Multiple of the serial merge chunk size to amortize the allocation overhead
+    constexpr std::size_t __serial_cutoff = 4 * __merge_chunk;
 
     // Nothing to merge
     if (__first == __middle || __middle == __last)
@@ -3473,8 +3475,11 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
     // {2} is ordered before {1}
     if (__comp(*(__last - 1), *__first))
     {
-        __pattern_rotate(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first, __middle,
-                         __last);
+        if (static_cast<std::size_t>(__last - __first) <= __serial_cutoff)
+            __internal::__brick_rotate(__first, __middle, __last, _IsVector{});
+        else
+            __pattern_rotate(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __first, __middle,
+                             __last);
         return;
     }
     // Narrow the range: {1}'s head, which is ordered before {2}, and {2}'s tail, which is ordered after {1},
@@ -3483,8 +3488,7 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
     __last = std::lower_bound(__middle, __last, *(__middle - 1), __comp);
 
     // Too few elements
-    // multiple of the serial merge chunk size to amortize the allocation overhead
-    if (static_cast<std::size_t>(__last - __first) <= 4 * __merge_chunk)
+    if (static_cast<std::size_t>(__last - __first) <= __serial_cutoff)
     {
         std::inplace_merge(__first, __middle, __last, __comp);
         return;
