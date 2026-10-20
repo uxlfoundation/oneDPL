@@ -399,8 +399,8 @@ test_forward_offsets()
 
 // Segments of the lengths at the boundaries of the implementations: the longest short segment and the shortest long one
 // (512 on GPUs, 32768 on CPU devices and on the host), and long segments whose first chunk has one element or the whole
-// chunk length (256 on GPUs for this longest segment, 4096 on CPU devices, 16384 on the host); alone, and among many
-// short segments, which take another path on GPUs
+// chunk length (on GPUs the least power of two whose square is not less than the length of the segment, at least 64,
+// 4096 on CPU devices, 16384 on the host); alone, and among many short segments, which take another path on GPUs
 template <std::size_t CallNumber>
 void
 test_boundaries()
