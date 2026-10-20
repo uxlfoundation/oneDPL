@@ -343,12 +343,20 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     }
 
     // The short segments, one work-item each; the long ones only report the longest length. The report is in a buffer,
-    // which costs less on GPUs than copying it from device USM. The atomic maximum starts from a zero written on the
-    // device, so that the host only reads the buffer, as the key-based reduce_by_segment does.
+    // which costs less on GPUs than copying it from device USM. On GPUs the atomic maximum starts from a zero written by
+    // a kernel, so that the host only reads the buffer, as the key-based reduce_by_segment does; on CPU devices from a
+    // zero written through a host accessor, which costs less there than one more kernel.
     auto __report_buf = __buffer<std::uint32_t>(1).get_buffer();
-    __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_report_wrapper>(__exec),
-                   __segmented_reduce_report_init_brick{}, _Size{1},
-                   oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::views::all_write(__report_buf)));
+    if (__is_gpu)
+    {
+        __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_report_wrapper>(__exec),
+                       __segmented_reduce_report_init_brick{}, _Size{1},
+                       oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::views::all_write(__report_buf)));
+    }
+    else
+    {
+        __report_buf.get_host_access(sycl::write_only)[0] = 0;
+    }
     __parallel_for(_BackendTag{}, __exec,
                    __segmented_reduce_variable_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __threshold, __init,
                                                                                                __binary_op},
