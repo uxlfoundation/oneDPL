@@ -27,6 +27,7 @@
 #include <iterator>
 #include <algorithm>
 #include <numeric>
+#include <tuple>
 #include <utility>
 
 using namespace TestUtils;
@@ -169,37 +170,86 @@ struct test_non_const
     }
 };
 
-template <std::size_t CallNumber>
-void
-test_stability(std::size_t a_size, std::size_t b_size)
+// A (key, value) pair compared by the key only: the order of the values reveals the stability.
+// Unlike std::tuple, it is trivially assignable, which makes the parallel merge take a different code path.
+struct KeyValue
 {
-    using T = std::tuple<std::int32_t, std::int32_t>; // a pair (key, value)
+    std::int32_t key;
+    std::int32_t value;
 
+    friend bool
+    operator==(const KeyValue& x, const KeyValue& y)
+    {
+        return x.key == y.key && x.value == y.value;
+    }
+};
+
+using KeyValueTuple = std::tuple<std::int32_t, std::int32_t>;
+
+std::int32_t
+get_key(const KeyValue& x)
+{
+    return x.key;
+}
+
+std::int32_t
+get_key(const KeyValueTuple& x)
+{
+    return std::get<0>(x);
+}
+
+enum class KeysOverlap
+{
+    interleaved, // the keys of {1} and {2} cover the same range
+    touching,    // {1} is ordered before {2}, the last key of {1} is equal to the first key of {2}
+    reversed     // {2} is ordered before {1}
+};
+
+template <std::size_t CallNumber, typename T>
+void
+test_stability_and_order_impl(std::size_t a_size, std::size_t b_size, KeysOverlap overlap)
+{
     // The keys grow from 0 to 99 in both sequences, forming runs of equal keys of different lengths.
+    // The keys of {1} are shifted to get the requested overlap.
     // The values are unique, so stability fully determines the result.
     constexpr std::size_t n_keys = 100;
+    const std::int32_t last_key_a = std::int32_t((a_size - 1) * n_keys / a_size);
+    const std::int32_t shift_a = overlap == KeysOverlap::touching   ? -last_key_a
+                                 : overlap == KeysOverlap::reversed ? std::int32_t(n_keys)
+                                                                    : 0;
     std::vector<T> a(a_size), b(b_size);
     std::vector<T> merged(a.size() + b.size());
     std::vector<T> expected(a.size() + b.size());
 
     for (std::size_t i = 0; i < a_size; ++i)
-        a[i] = T(std::int32_t(i * n_keys / a_size), std::int32_t(i));
+        a[i] = T{shift_a + std::int32_t(i * n_keys / a_size), std::int32_t(i)};
     for (std::size_t i = 0; i < b_size; ++i)
-        b[i] = T(std::int32_t(i * n_keys / b_size), std::int32_t(a_size + i));
+        b[i] = T{std::int32_t(i * n_keys / b_size), std::int32_t(a_size + i)};
 
-    auto comp = [](const T& x, const T& y) { return std::get<0>(x) < std::get<0>(y); }; // less by key
+    auto comp = [](const T& x, const T& y) { return get_key(x) < get_key(y); }; // less by key
     std::merge(a.begin(), a.end(), b.begin(), b.end(), expected.begin(), comp);
 
-    auto test_merge_tuple = [&](auto&& exec, auto first1, auto last1, auto first2, auto last2, auto out_first)
+    auto test_merge_stable = [&](auto&& exec, auto first1, auto last1, auto first2, auto last2, auto out_first)
     {
         // Reverse iterators break the order of the keys
         if constexpr (!is_reverse_v<decltype(first1)>)
         {
             std::merge(std::forward<decltype(exec)>(exec), first1, last1, first2, last2, out_first, comp);
-            EXPECT_EQ_N(expected.begin(), out_first, expected.size(), "wrong merge result with equal keys (stability)");
+            EXPECT_EQ_N(expected.begin(), out_first, expected.size(), "wrong merge result with equal keys");
         }
     };
-    invoke_on_all_policies<CallNumber>()(test_merge_tuple, a.begin(), a.end(), b.cbegin(), b.cend(), merged.begin());
+    invoke_on_all_policies<CallNumber>()(test_merge_stable, a.begin(), a.end(), b.cbegin(), b.cend(), merged.begin());
+}
+
+void
+test_stability_and_order()
+{
+    for (KeysOverlap overlap : {KeysOverlap::interleaved, KeysOverlap::touching, KeysOverlap::reversed})
+    {
+        test_stability_and_order_impl<100, KeyValue>(61, 77, overlap);
+        test_stability_and_order_impl<200, KeyValue>(5711, 20429, overlap);
+        test_stability_and_order_impl<400, KeyValueTuple>(10000, 8000, overlap);
+    }
 }
 
 #if !TEST_DPCPP_BACKEND_PRESENT
@@ -293,8 +343,7 @@ main()
     test_merge_move_iterators();
 #endif
 
-    test_stability<100>(61, 77); // serial cutoff with par policies
-    test_stability<200>(5711, 20429); // parallel execution with par policies
+    test_stability_and_order();
 
     return done();
 }

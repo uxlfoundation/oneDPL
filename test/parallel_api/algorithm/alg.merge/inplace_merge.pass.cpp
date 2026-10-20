@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <iterator>
+#include <tuple>
 #include <vector>
 
 using namespace TestUtils;
@@ -164,7 +165,8 @@ struct test_non_const
     }
 };
 
-// A (key, value) pair compared by the key only: the order of the values reveals the stability
+// A (key, value) pair compared by the key only: the order of the values reveals the stability.
+// Unlike std::tuple, it is trivially assignable, which makes the parallel inplace_merge take a different code path.
 struct KeyValue
 {
     std::int32_t key;
@@ -177,6 +179,20 @@ struct KeyValue
     }
 };
 
+using KeyValueTuple = std::tuple<std::int32_t, std::int32_t>;
+
+std::int32_t
+get_key(const KeyValue& x)
+{
+    return x.key;
+}
+
+std::int32_t
+get_key(const KeyValueTuple& x)
+{
+    return std::get<0>(x);
+}
+
 enum class KeysOverlap
 {
     interleaved, // the keys of {1} and {2} cover the same range
@@ -186,7 +202,7 @@ enum class KeysOverlap
 
 template <std::size_t CallNumber, typename T>
 void
-test_stability_impl(std::size_t n1, std::size_t n2, KeysOverlap overlap)
+test_stability_and_order_impl(std::size_t n1, std::size_t n2, KeysOverlap overlap)
 {
     // The keys grow from 0 to 99 in both sequences, forming runs of equal keys of different lengths.
     // The keys of {1} are shifted to get the requested overlap.
@@ -203,7 +219,7 @@ test_stability_impl(std::size_t n1, std::size_t n2, KeysOverlap overlap)
     for (std::size_t i = 0; i < n2; ++i)
         source[n1 + i] = T{std::int32_t(i * n_keys / n2), std::int32_t(n1 + i)};
 
-    auto comp = [](const T& x, const T& y) { return x.key < y.key; }; // less by key
+    auto comp = [](const T& x, const T& y) { return get_key(x) < get_key(y); }; // less by key
     std::vector<T> expected(source);
     std::inplace_merge(expected.begin(), expected.begin() + n1, expected.end(), comp);
 
@@ -222,12 +238,13 @@ test_stability_impl(std::size_t n1, std::size_t n2, KeysOverlap overlap)
 }
 
 void
-test_stability()
+test_stability_and_order()
 {
     for (KeysOverlap overlap : {KeysOverlap::interleaved, KeysOverlap::touching, KeysOverlap::reversed})
     {
-        test_stability_impl<100, KeyValue>(61, 77, overlap);      // serial cutoff with par policies
-        test_stability_impl<200, KeyValue>(5711, 20429, overlap); // parallel execution with par policies
+        test_stability_and_order_impl<100, KeyValue>(61, 77, overlap);
+        test_stability_and_order_impl<200, KeyValue>(5711, 20429, overlap);
+        test_stability_and_order_impl<400, KeyValueTuple>(10000, 8000, overlap);
     }
 }
 
@@ -253,7 +270,7 @@ main()
 #endif
     test_algo_basic_single<std::int32_t>(run_for_rnd_bi<test_non_const<std::int32_t>>());
 
-    test_stability();
+    test_stability_and_order();
 
     return done();
 }
