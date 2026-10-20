@@ -24,6 +24,7 @@
 #include "unseq_backend_sycl.h"
 #include "utils_ranges_sycl.h"
 
+#include "../../functional_impl.h" // oneapi::dpl::maximum
 #include "../../segmented_reduce_utils.h"
 #include "../../utils.h"
 
@@ -36,8 +37,8 @@ namespace __par_backend_hetero
 
 // reduce_by_segment with segments defined by offsets
 
-// One work-item per short segment. A longer segment is left to the reduction in chunks and only reports its length,
-// capped to 32 bits, through an atomic maximum.
+// One work-item per short segment. A longer segment is left to the reduction in chunks; with a report, it reports its
+// length, capped to 32 bits, through an atomic maximum.
 template <typename _Acc, typename _Size, typename _InitType, typename _BinaryOperation>
 struct __segmented_reduce_variable_brick
 {
@@ -71,6 +72,21 @@ struct __segmented_reduce_variable_brick
         std::get<0>(__result[__idx]) =
             oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(__input, __begin, __end, __init, __binary_op);
     }
+
+    // Without a report: a long segment is only skipped
+    template <typename _IsFull, typename _Params, typename _Offsets, typename _Result, typename _Input>
+    void
+    operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input) const
+    {
+        static_assert(_Params::__vector_size == 1,
+                      "The brick operates with tuples which must be excluded from vectorizable types");
+
+        const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__idx], __n);
+        const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__idx + 1], __n);
+        if (__end - __begin <= __threshold)
+            std::get<0>(__result[__idx]) =
+                oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(__input, __begin, __end, __init, __binary_op);
+    }
 };
 
 // Writes the initial value into every result: all the segments are empty
@@ -93,27 +109,8 @@ struct __segmented_reduce_init_brick
     }
 };
 
-// Zeroes the report of the longest length on the device
-struct __segmented_reduce_report_init_brick
-{
-    static constexpr std::uint8_t __iters_per_item = 1;
-
-    // __report is a zip view of the report only, so that it is not vectorized over
-    template <typename _IsFull, typename _Params, typename _Report>
-    void
-    operator()(_IsFull, const std::size_t, _Params, _Report __report) const
-    {
-        static_assert(_Params::__vector_size == 1,
-                      "The brick operates with tuples which must be excluded from vectorizable types");
-        using std::get;
-        get<0>(__report[0]) = 0;
-    }
-};
-
 template <typename _Name>
 class __segmented_reduce_fill_wrapper;
-template <typename _Name>
-class __segmented_reduce_report_wrapper;
 
 // A short segment is reduced by one work-item. A long segment is split into chunks, each reduced by one work-item, and
 // the partial results of the segment are combined by one work-item. The values below were measured on Intel GPUs
@@ -154,6 +151,22 @@ struct __segmented_reduce_length
         const _Size __b = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__begin, __n);
         const _Size __e = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__end, __n);
         return __b < __e ? __e - __b : _Size{0};
+    }
+};
+
+// The length of a long segment within the input, and zero for a short one
+template <typename _Size>
+struct __segmented_reduce_long_length
+{
+    _Size __n;         // the size of the input
+    _Size __threshold; // the length of the longest short segment
+
+    template <typename _OffsetEnd, typename _OffsetBegin>
+    _Size
+    operator()(_OffsetEnd __end, _OffsetBegin __begin) const
+    {
+        const _Size __length = __segmented_reduce_length<_Size>{__n}(__end, __begin);
+        return __length > __threshold ? __length : _Size{0};
     }
 };
 
@@ -269,6 +282,10 @@ struct __segmented_reduce_combine_brick
 };
 
 template <typename _Name>
+class __segmented_reduce_short_wrapper;
+template <typename _Name>
+class __segmented_reduce_length_wrapper;
+template <typename _Name>
 class __segmented_reduce_scan_wrapper;
 template <typename _Name>
 class __segmented_reduce_chunk_wrapper;
@@ -352,26 +369,38 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         return;
     }
 
-    // The short segments, one work-item each; the long ones only report the longest length. The report is in a buffer,
-    // which costs less on GPUs than copying it from device USM. On GPUs the atomic maximum starts from a zero written by
-    // a kernel, so that the host only reads the buffer, as the key-based reduce_by_segment does; on CPU devices from a
-    // zero written through a host accessor, which costs less there than one more kernel.
-    auto __report_buf = __buffer<std::uint32_t>(1).get_buffer();
+    const __segmented_reduce_variable_brick<_Acc, _Size, _InitType, _BinaryOperation> __short_brick{
+        __n, __threshold, __init, __binary_op};
     if (__is_gpu)
     {
-        __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_report_wrapper>(__exec),
-                       __segmented_reduce_report_init_brick{}, _Size{1},
-                       oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::views::all_write(__report_buf)));
+        // The short segments, one work-item each, beside a reduction over the offsets for the longest long segment,
+        // whose result reaches the host as for the other reductions: reading a buffer through a host accessor costs
+        // much more on some GPUs.
+        auto __short =
+            __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_short_wrapper>(__exec), __short_brick,
+                           __m, __offsets, oneapi::dpl::__ranges::make_zip_view(__result), __input);
+        const _Size __max_length = __parallel_transform_reduce<_Size, std::true_type>(
+                                       _BackendTag{}, make_wrapped_policy<__segmented_reduce_length_wrapper>(__exec),
+                                       oneapi::dpl::maximum<_Size>{},
+                                       unseq_backend::walk_n<__segmented_reduce_long_length<_Size>>{
+                                           __segmented_reduce_long_length<_Size>{__n, __threshold}},
+                                       unseq_backend::__init_value<_Size>{_Size{0}},
+                                       oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1}),
+                                       oneapi::dpl::__ranges::take_view_simple(__offsets, __m))
+                                       .get();
+        // The long segments in chunks: at most n / __threshold of them
+        if (__max_length > 0)
+            __reduce_in_chunks(__threshold, /*__write_empty=*/false, __n / __threshold);
+        __short.__checked_deferrable_wait();
+        return;
     }
-    else
-    {
-        __report_buf.get_host_access(sycl::write_only)[0] = 0;
-    }
-    __parallel_for(_BackendTag{}, __exec,
-                   __segmented_reduce_variable_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __threshold, __init,
-                                                                                               __binary_op},
-                   __m, __offsets, oneapi::dpl::__ranges::make_zip_view(__result), __input,
-                   oneapi::dpl::__ranges::views::all(__report_buf))
+
+    // On CPU devices the short segments, one work-item each, and the long ones only report the longest length, into a
+    // buffer zeroed and read through host accessors, which costs less there than a reduction of its own.
+    auto __report_buf = __buffer<std::uint32_t>(1).get_buffer();
+    __report_buf.get_host_access(sycl::write_only)[0] = 0;
+    __parallel_for(_BackendTag{}, __exec, __short_brick, __m, __offsets, oneapi::dpl::__ranges::make_zip_view(__result),
+                   __input, oneapi::dpl::__ranges::views::all(__report_buf))
         .__checked_deferrable_wait();
     const _Size __max_length = __report_buf.get_host_access(sycl::read_only)[0];
 
