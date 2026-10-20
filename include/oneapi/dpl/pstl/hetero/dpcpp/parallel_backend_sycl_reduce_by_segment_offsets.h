@@ -234,10 +234,8 @@ struct __segmented_reduce_combine_brick
                 std::get<0>(__result[__idx]) = _Acc(__init);
             return;
         }
-        _Acc __acc = __partials[__first];
-        for (_Size __c = __first + 1; __c < __last; ++__c)
-            __acc = std::invoke(__binary_op, std::move(__acc), __partials[__c]);
-        std::get<0>(__result[__idx]) = std::move(__acc);
+        std::get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(
+            __partials, __first + 1, __last, _Acc(__partials[__first]), __binary_op);
     }
 };
 
@@ -281,16 +279,16 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         const _Size __chunk_size = __segmented_reduce_chunk_size(__is_gpu, __max_length);
 
         // The end of the chunks of every segment: an inclusive scan of their numbers, computed from the pairs of
-        // the adjacent offsets
+        // the adjacent offsets. The chunks depend on it through __chunk_ends, so the host does not wait for it; its
+        // future keeps the temporary data of the scan until the partial results are combined.
         auto __chunk_ends = __buffer<_Size>(__m).get_buffer();
-        __parallel_transform_scan(
+        auto __scan = __parallel_transform_scan(
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
             oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
                                                  oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1})),
             oneapi::dpl::__ranges::views::all_write(__chunk_ends), __m,
             __segmented_reduce_chunk_count<_Size>{__n, __chunk_size, __min_length},
-            unseq_backend::__no_init_value<_Size>{}, std::plus<_Size>{}, /*_Inclusive=*/std::true_type{})
-            .__checked_deferrable_wait();
+            unseq_backend::__no_init_value<_Size>{}, std::plus<_Size>{}, /*_Inclusive=*/std::true_type{});
 
         // At most n / __chunk_size + 1 chunks per segment, unless the offsets are not ordered
         const _Size __num_partials = __n / __chunk_size + __max_segments + 1;
@@ -308,6 +306,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                        oneapi::dpl::__ranges::views::all_read(__partials),
                        oneapi::dpl::__ranges::make_zip_view(__result))
             .__checked_deferrable_wait();
+        __scan.__checked_deferrable_wait();
     };
 
     if (__n / __m > __threshold)

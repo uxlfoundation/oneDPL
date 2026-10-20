@@ -15,6 +15,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "onedpl_config.h"
+
 namespace oneapi
 {
 namespace dpl
@@ -39,6 +41,10 @@ __segmented_reduce_serial(const _Source& __src, _Index __begin, _Index __end, _I
     if (__begin >= __end)
         return _Acc(std::move(__init));
     _Acc __acc(std::invoke(__binary_op, std::move(__init), __src[__begin]));
+    // Unrolled on a device, where a work-item reducing alone would wait for every load
+#if defined(__SYCL_DEVICE_ONLY__)
+    _ONEDPL_PRAGMA(unroll 16)
+#endif
     for (++__begin; __begin < __end; ++__begin)
         __acc = std::invoke(__binary_op, std::move(__acc), __src[__begin]);
     return __acc;
