@@ -563,9 +563,9 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
 
   public:
     template <typename _Range, typename _Compare, typename _TempBuf, typename _LeafSizeT>
-    std::tuple<sycl::event, bool, __base_diagonals_sp_storage_t>
+    std::pair<sycl::event, bool>
     operator()(sycl::queue& __q, _Range& __rng, _Compare __comp, _LeafSizeT __leaf_size, _TempBuf& __temp_buf,
-               sycl::event __event_chain) const
+               sycl::event __event_chain, __base_diagonals_sp_storage_t& __base_diagonals_sp_global_storage) const
     {
         // 1 final base diagonal for save final sp(0,0)
         constexpr std::size_t __1_final_base_diag = 1;
@@ -590,7 +590,6 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
             get_max_base_diags_count(__q, __nd_range_params.chunk, __n) + __1_final_base_diag;
 
         // Storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
-        __base_diagonals_sp_storage_t __base_diagonals_sp_global_storage;
         if (__n_power2 >= __get_starting_size_limit_for_large_submitter<__value_type>())
             __base_diagonals_sp_global_storage = __base_diagonals_sp_storage_t(__q, __max_base_diags_count);
 
@@ -633,7 +632,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
             __data_in_temp = !__data_in_temp;
         }
 
-        return {std::move(__event_chain), __data_in_temp, std::move(__base_diagonals_sp_global_storage)};
+        return {std::move(__event_chain), __data_in_temp};
     }
 };
 
@@ -676,6 +675,21 @@ class __sort_global_kernel2;
 template <typename... _Name>
 class __sort_copy_back_kernel;
 
+// Owns the split-point scratch while kernels using it are submitted. USM is not tracked by the runtime, so if a
+// submission throws before the scratch is handed to the holder, the destructor waits for those kernels first.
+template <typename _IndexT>
+struct __merge_sort_scratch_guard
+{
+    sycl::queue __q;
+    __device_storage<_split_point_t<_IndexT>> __storage;
+
+    ~__merge_sort_scratch_guard()
+    {
+        if (__storage.__usm_buf)
+            __q.wait();
+    }
+};
+
 template <typename _CustomName, typename _IndexT, typename _Range, typename _Compare, typename _LeafSorter>
 sycl::event
 __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __leaf_sorter,
@@ -704,9 +718,10 @@ __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __l
     // 2. Merge sorting
     oneapi::dpl::__par_backend_hetero::__buffer<_Tp> __temp(oneapi::dpl::__ranges::__size(__rng));
     auto __temp_buf = __temp.get_buffer();
-    auto [__event_sort, __data_in_temp, __temp_sp_storages] =
+    __merge_sort_scratch_guard<_IndexT> __scratch{__q};
+    auto [__event_sort, __data_in_temp] =
         __merge_sort_global_submitter<_IndexT, _DiagonalsKernelName, _GlobalSortKernel1, _GlobalSortKernel2>()(
-            __q, __rng, __comp, __leaf_sorter.__process_size, __temp_buf, __event_leaf_sort);
+            __q, __rng, __comp, __leaf_sorter.__process_size, __temp_buf, __event_leaf_sort, __scratch.__storage);
 
     // 3. If the data remained in the temporary buffer then copy it back
     if (__data_in_temp)
@@ -714,7 +729,7 @@ __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __l
         __event_sort = __merge_sort_copy_back_submitter<_CopyBackKernel>()(__q, __rng, __temp_buf, __event_sort);
     }
 
-    __holder.__store_scratch(std::move(__temp_sp_storages));
+    __holder.__store_scratch(std::move(__scratch.__storage));
     return __event_sort;
 }
 
