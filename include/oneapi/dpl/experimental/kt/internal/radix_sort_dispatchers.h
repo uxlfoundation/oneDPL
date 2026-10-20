@@ -22,6 +22,9 @@
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
 
 #include "radix_sort_submitters.h"
+#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#    include "sycl_batched_one_wg_radix_sort_kernels.h"
+#endif
 
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
@@ -45,6 +48,9 @@ class __radix_sort_onesweep_by_key;
 
 template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_copyback_by_key;
+
+template <typename... _Name>
+class __batched_radix_sort_one_wg;
 
 // The range pack types are part of the kernel names, so one custom name serves every data passing mechanism
 template <typename _KtTag, typename _InRngPack, typename _OutRngPack, typename _KernelName>
@@ -447,6 +453,24 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
         return __event_chain;
 }
 
+#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+// Sorts each consecutive run of __segment_size elements, each of which must fit in a work-group tile
+template <bool __is_ascending, std::uint8_t __radix_bits, typename _KernelParam, typename _RngPack1,
+          typename _RngPack2>
+sycl::event
+__batched_one_wg(sycl::queue& __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __n,
+                 std::size_t __segment_size)
+{
+    using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __batched_radix_sort_one_wg<std::decay_t<_RngPack1>, std::decay_t<_RngPack2>,
+                                    typename _KernelParam::kernel_name>>;
+    return __batched_one_wg_radix_sort_submitter<__is_ascending, __radix_bits, _KernelParam::data_per_workitem,
+                                                 _KernelParam::workgroup_size, _KernelName>()(
+        __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n,
+        static_cast<std::uint32_t>(__segment_size));
+}
+#endif
+
 // TODO: allow calling it only for all_view (accessor) and guard_view (USM) ranges, views::subrange and sycl_iterator
 template <bool __is_ascending, std::uint8_t __radix_bits, bool __in_place, typename _KtTag, typename _RngPack1,
           typename _RngPack2, typename _KernelParam>
@@ -510,6 +534,27 @@ __batched_onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _Rng
                                                                 std::forward<_RngPack2>(__pack_out), __n,
                                                                 __segment_size, __temp_storage);
 }
+
+#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+// Batched sort: each consecutive run of __segment_size elements, which must fit in a work-group tile, is sorted
+// independently by the one work-group kernel
+template <bool __is_ascending, std::uint8_t __radix_bits, typename _KtTag, typename _RngPack1, typename _RngPack2,
+          typename _KernelParam>
+sycl::event
+__batched_single_group(_KtTag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out,
+                       std::size_t __segment_size, _KernelParam)
+{
+    static_assert(std::is_same_v<_KtTag, __sycl_tag>, "The batched radix sort is only implemented in SYCL");
+    const std::size_t __n = __pack_in.__keys_rng().size();
+    assert(__n > 0);
+    assert(__segment_size <= std::size_t(_KernelParam::data_per_workitem) * _KernelParam::workgroup_size &&
+           "radix_single_group_tag requires the segment size not to exceed data_per_workitem * workgroup_size");
+
+    _PRINT_INFO_IN_DEBUG_MODE(__q);
+    return __batched_one_wg<__is_ascending, __radix_bits, _KernelParam>(
+        __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n, __segment_size);
+}
+#endif
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
 
