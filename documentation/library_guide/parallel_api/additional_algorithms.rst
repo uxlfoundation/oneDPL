@@ -1,8 +1,11 @@
 Additional Algorithms
-######################
+#####################
 
-The definitions of the algorithms listed below are available through the ``<oneapi/dpl/algorithm>``
-header.  All algorithms are implemented in the ``oneapi::dpl`` namespace.
+All algorithms are implemented in the ``oneapi::dpl`` namespace, and are available through either
+``<oneapi/dpl/algorithm>`` or ``<oneapi/dpl/numeric>`` headers.  
+
+Algorithms in <oneapi/dpl/numeric>
+==================================
 
 * ``reduce_by_segment``: performs partial reductions on a sequence's values and keys. Each
   reduction is computed with a given reduction operation for a contiguous subsequence of values, which are
@@ -42,6 +45,41 @@ header.  All algorithms are implemented in the ``oneapi::dpl`` namespace.
     values: [1,2,3,4,5,6]
     initial value: [0]
     result: [0,0+1=1,0+1+2=3,0,0+4=4,0+4+5=9]
+
+* ``histogram``: performs a histogram on a sequence of of input elements. Histogram counts the number of
+  elements which map to each of a defined set of bins. The algorithm has two overloads.
+
+  The first overload takes as input the number of bins, range minimum, and range maximum, then evenly
+  divides bins within that range. An input element ``a`` maps to a bin ``i`` such that
+  ``i = floor((a - minimum) / ((maximum - minimum) / num_bins)))``.
+
+  The other overload defines ``m`` bins from a sorted sequence of ``m + 1`` user-provided boundaries
+  where an input element ``a`` maps to a bin ``i`` if and only if
+  ``__boundary_first[i] <= a < __boundary_first[i + 1]``.
+
+  Input values which do not map to a defined bin are skipped silently. The algorithm counts the number of
+  input elements which map to each bin and outputs the result to a user-provided sequence of ``m`` output
+  bin counts. The user must provide sufficient output data to store each bin, and the type of the output
+  sequence must be sufficient to store the counts of the histogram without overflow. All input and output
+  sequences must be ``RandomAccessIterators``. Histogram currently only supports execution with device
+  policies.
+
+  Evenly divided bins example::
+
+    inputs:   [9, 9, 3, 8, 4, 4, 4, 5, 1, 99]
+    num_bins: 5
+    min:      0
+    max:      10
+    output:   [1, 1, 4, 0 3]
+
+  Custom range bins example::
+
+    inputs:     [9, 9, 3, 8, 4, 4, 4, 5, 1, 99]
+    boundaries: [-1, 0, 8, 12]
+    output:     [0, 6, 3]
+
+Algorithms in <oneapi/dpl/algorithm>
+====================================
 
 * ``binary_search``: performs a binary search of the input sequence for each of the values in
   the search sequence provided.  For each element of the search sequence the algorithm writes a boolean value
@@ -122,36 +160,5 @@ header.  All algorithms are implemented in the ``oneapi::dpl`` namespace.
     original output sequence:  [9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
     final output sequence:     [9, 2, 9, 9, 6, 6, 8, 8, 14, 9]
 
-* ``histogram``: performs a histogram on a sequence of of input elements. Histogram counts the number of
-  elements which map to each of a defined set of bins. The algorithm has two overloads.
-
-  The first overload takes as input the number of bins, range minimum, and range maximum, then evenly
-  divides bins within that range. An input element ``a`` maps to a bin ``i`` such that
-  ``i = floor((a - minimum) / ((maximum - minimum) / num_bins)))``.
-
-  The other overload defines ``m`` bins from a sorted sequence of ``m + 1`` user-provided boundaries
-  where an input element ``a`` maps to a bin ``i`` if and only if
-  ``__boundary_first[i] <= a < __boundary_first[i + 1]``.
-
-  Input values which do not map to a defined bin are skipped silently. The algorithm counts the number of
-  input elements which map to each bin and outputs the result to a user-provided sequence of ``m`` output
-  bin counts. The user must provide sufficient output data to store each bin, and the type of the output
-  sequence must be sufficient to store the counts of the histogram without overflow. All input and output
-  sequences must be ``RandomAccessIterators``. Histogram currently only supports execution with device
-  policies.
-
-  Evenly divided bins example::
-
-    inputs:   [9, 9, 3, 8, 4, 4, 4, 5, 1, 99]
-    num_bins: 5
-    min:      0
-    max:      10
-    output:   [1, 1, 4, 0 3]
-
-  Custom range bins example::
-
-    inputs:     [9, 9, 3, 8, 4, 4, 4, 5, 1, 99]
-    boundaries: [-1, 0, 8, 12]
-    output:     [0, 6, 3]
 
 
