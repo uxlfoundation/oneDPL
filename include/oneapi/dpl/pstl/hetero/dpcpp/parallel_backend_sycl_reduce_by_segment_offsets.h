@@ -11,6 +11,7 @@
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_BY_SEGMENT_OFFSETS_H
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -314,10 +315,19 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             __segmented_reduce_chunk_count<_Size>{__n, __min_length, __is_gpu}, unseq_backend::__no_init_value<_Size>{},
             std::plus<_Size>{}, /*_Inclusive=*/std::true_type{});
 
-        // At most n / (the least chunk length) + 1 chunks per segment, unless the offsets are not ordered
+        // At most n / (the least chunk length) + 1 chunks per segment, unless the offsets are not ordered. On GPUs a
+        // segment of length L also has at most sqrt(L) + L / (the greatest chunk length) + 1 chunks, so all of them
+        // at most sqrt(__max_segments * n) + n / (the greatest chunk length) + __max_segments: far fewer for long
+        // segments, which would otherwise get many idle work-items and an oversized buffer of partial results.
         const _Size __min_chunk_size =
             _Size(__is_gpu ? __segmented_reduce_gpu_min_chunk_size : __segmented_reduce_cpu_chunk_size);
-        const _Size __num_partials = __n / __min_chunk_size + __max_segments + 1;
+        _Size __num_partials = __n / __min_chunk_size + __max_segments + 1;
+        if (__is_gpu)
+        {
+            const _Size __root = _Size(std::sqrt(double(__max_segments) * double(__n))) + 1;
+            __num_partials = std::min<_Size>(
+                __num_partials, __root + __n / _Size(__segmented_reduce_gpu_max_chunk_size) + __max_segments + 1);
+        }
         auto __partials = __buffer<_Acc>(__num_partials).get_buffer();
         __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec),
                        __segmented_reduce_chunk_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __m, __is_gpu,
