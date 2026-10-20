@@ -32,7 +32,7 @@ namespace oneapi::dpl::experimental::kt::gpu
 
 // Modified OneSweep radix sort; any __segment_size
 template <std::uint8_t __radix_bits = 8>
-struct radix_onesweep
+struct radix_many_groups_tag
 {
     static constexpr std::uint8_t radix_bits = __radix_bits;
 };
@@ -53,11 +53,11 @@ template <typename _T>
 inline constexpr bool __is_kernel_param_v = __is_kernel_param<_T>::value;
 
 template <typename _SortConfig>
-struct __is_radix_onesweep : std::false_type
+struct __is_radix_many_groups_tag : std::false_type
 {
 };
 template <std::uint8_t __radix_bits>
-struct __is_radix_onesweep<radix_onesweep<__radix_bits>> : std::true_type
+struct __is_radix_many_groups_tag<radix_many_groups_tag<__radix_bits>> : std::true_type
 {
 };
 
@@ -66,13 +66,13 @@ template <typename _SortConfig, typename _KernelParam>
 constexpr void
 __check_batched_sort_config()
 {
-    static_assert(__is_radix_onesweep<_SortConfig>::value,
-                  "Unsupported _SortConfig: only radix_onesweep is currently implemented");
-    if constexpr (__is_radix_onesweep<_SortConfig>::value)
+    static_assert(__is_radix_many_groups_tag<_SortConfig>::value,
+                  "Unsupported _SortConfig: only radix_many_groups_tag is currently implemented");
+    if constexpr (__is_radix_many_groups_tag<_SortConfig>::value)
     {
-        static_assert(_SortConfig::radix_bits == 8, "radix_onesweep currently requires 8 radix bits");
+        static_assert(_SortConfig::radix_bits == 8, "radix_many_groups_tag currently requires 8 radix bits");
         static_assert(_KernelParam::workgroup_size == 512 || _KernelParam::workgroup_size == 1024,
-                      "radix_onesweep currently requires 512 or 1024 work-items in a work-group");
+                      "radix_many_groups_tag currently requires 512 or 1024 work-items in a work-group");
     }
 }
 
