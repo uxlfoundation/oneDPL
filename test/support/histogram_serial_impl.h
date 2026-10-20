@@ -28,7 +28,8 @@ std::enable_if_t<std::is_floating_point_v<T1>, std::uint32_t>
 get_bin(T1 value, T2 min, T2 max, Size num_bins)
 {
     T1 __scale = T1(num_bins) / (max - min);
-    return std::uint32_t((value - min) * __scale);
+    // The rounded scale can carry a sample just below max to num_bins
+    return std::min(std::uint32_t((value - min) * __scale), std::uint32_t(num_bins - 1));
 }
 
 template <typename _InputIterator1, typename _Size, typename _T, typename _OutputIterator>
