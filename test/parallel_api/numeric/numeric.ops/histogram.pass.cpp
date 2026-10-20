@@ -185,12 +185,16 @@ test_bin_arithmetic()
         18 + 4 * width, {1, 2, 2, 2});
     // Samples just below a bin edge stay in the lower bin
     test_even_bin_arithmetic<15, U>({2 * width - 256, 2 * width - 1, 2 * width}, U{0}, 4 * width, {0, 2, 1, 0});
+    // A 64-bit range just small enough that offset * num_bins fits in 64 bits
+    const U edge = U{1} << 58;
+    test_even_bin_arithmetic<16, U>({0, edge - 1, edge, 6 * edge, 7 * edge - 1, 7 * edge}, U{0}, 7 * edge,
+                                    {2, 1, 0, 0, 0, 0, 2});
 
     // The range max - min does not fit in the bound type
     using I = std::int64_t;
     const I imin = std::numeric_limits<I>::min(), imax = std::numeric_limits<I>::max();
-    test_even_bin_arithmetic<16, I>({imin, I{-1}, I{0}, imax - 1, imax}, imin, imax, {1, 1, 1, 1});
-    test_even_bin_arithmetic<17, std::int8_t>(
+    test_even_bin_arithmetic<17, I>({imin, I{-1}, I{0}, imax - 1, imax}, imin, imax, {1, 1, 1, 1});
+    test_even_bin_arithmetic<18, std::int8_t>(
         {std::int8_t(-101), std::int8_t(-100), std::int8_t(-1), std::int8_t(0), std::int8_t(99), std::int8_t(100)},
         std::int8_t(-100), std::int8_t(100), {1, 0, 0, 2, 0, 0, 1});
 }
