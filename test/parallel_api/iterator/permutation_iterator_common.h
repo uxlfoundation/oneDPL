@@ -43,11 +43,12 @@ using namespace TestUtils;
 // | test_transform_reduce  | dpl::transform_reduce |     N     | __parallel_transform_reduce          |     +       |       +       |
 // | test_find              | dpl::find             |     N     | __parallel_find -> _parallel_find_or |     +       |       +       |
 // | test_is_heap           | dpl::is_heap          |     N     | __parallel_or -> _parallel_find_or   |     +       |       +       |
-// | test_merge             | dpl::merge            |     N     | __parallel_for/__parallel_merge      |     +       |       +       |
+// | test_merge             | dpl::merge            |     N     | __parallel_for/__parallel_merge (*)  |     +       |       +       |
 // | test_sort              | dpl::sort             |     Y     | __parallel_stable_sort               |     +       |       +       |
 // | test_partial_sort      | dpl::partial_sort     |     Y     | __parallel_partial_sort              |     +       |       +       |
 // | test_remove_if         | dpl::remove_if        |     Y     | __parallel_transform_scan            |     +       |       +       |
 // +------------------------+-----------------------+-----------+--------------------------------------+-------------+---------------+
+// (*) __parallel_for for host policies, __parallel_merge for hetero policies
 
 template <typename ExecutionPolicy>
 void
