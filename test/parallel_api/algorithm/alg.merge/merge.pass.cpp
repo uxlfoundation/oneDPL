@@ -174,26 +174,32 @@ void
 test_stability(std::size_t a_size, std::size_t b_size)
 {
     using T = std::tuple<std::int32_t, std::int32_t>; // a pair (key, value)
-    std::vector<T> a(a_size, T{1, 2});
-    std::vector<T> b(b_size, T{1, 1});
+
+    // The keys grow from 0 to 99 in both sequences, forming runs of equal keys of different lengths.
+    // The values are unique, so stability fully determines the result.
+    constexpr std::size_t n_keys = 100;
+    std::vector<T> a(a_size), b(b_size);
     std::vector<T> merged(a.size() + b.size());
+    std::vector<T> expected(a.size() + b.size());
 
-    auto test_merge_tuple = [&](auto&& exec, auto first1, auto last1, auto first2, auto last2, auto out_first, auto comp)
+    for (std::size_t i = 0; i < a_size; ++i)
+        a[i] = T(std::int32_t(i * n_keys / a_size), std::int32_t(i));
+    for (std::size_t i = 0; i < b_size; ++i)
+        b[i] = T(std::int32_t(i * n_keys / b_size), std::int32_t(a_size + i));
+
+    auto comp = [](const T& x, const T& y) { return std::get<0>(x) < std::get<0>(y); }; // less by key
+    std::merge(a.begin(), a.end(), b.begin(), b.end(), expected.begin(), comp);
+
+    auto test_merge_tuple = [&](auto&& exec, auto first1, auto last1, auto first2, auto last2, auto out_first)
     {
-        std::merge(std::forward<decltype(exec)>(exec), first1, last1, first2, last2, out_first, comp);
-
-        std::int32_t sum1 = 0; // the sum of the first a.size() values
-        std::int32_t sum2 = 0; // the sum of the next b.size() values
-        for (std::size_t i = 0; i < a.size(); ++i)
-            sum1 += std::get<1>(merged[i]);
-        for (std::size_t i = a.size(); i < a.size() + b.size(); ++i)
-            sum2 += std::get<1>(merged[i]);
-
-        EXPECT_TRUE(sum1 == 2 * static_cast<std::int32_t>(a.size()), "wrong merge return with tuple");
-        EXPECT_TRUE(sum2 == static_cast<std::int32_t>(b.size()), "wrong merge return with tuple");
+        // Reverse iterators break the order of the keys
+        if constexpr (!is_reverse_v<decltype(first1)>)
+        {
+            std::merge(std::forward<decltype(exec)>(exec), first1, last1, first2, last2, out_first, comp);
+            EXPECT_EQ_N(expected.begin(), out_first, expected.size(), "wrong merge result with equal keys (stability)");
+        }
     };
-    auto comp = [](const T& a, const T& b) { return std::get<0>(b) < std::get<0>(a); }; // greater by key
-    invoke_on_all_policies<CallNumber>()(test_merge_tuple, a.begin(), a.end(), b.cbegin(), b.cend(), merged.begin(), comp);
+    invoke_on_all_policies<CallNumber>()(test_merge_tuple, a.begin(), a.end(), b.cbegin(), b.cend(), merged.begin());
 }
 
 #if !TEST_DPCPP_BACKEND_PRESENT

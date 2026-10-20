@@ -3467,9 +3467,8 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
     auto __move_assign = [](_Tp& __x, auto&& __y) { std::forward<decltype(__y)>(__y) = std::move(__x); };
 
     using _Ref = typename std::iterator_traits<_RandomAccessIterator>::reference;
-    if constexpr (std::is_trivially_assignable_v<_Ref, _Tp&&> && std::is_trivially_destructible_v<_Tp>)
+    if constexpr (__is_assignment_source_preserving_v<_Ref, _Tp&&> && std::is_trivially_destructible_v<_Tp>)
     {
-        // The buffer is not modified by the merge, hence each task can compute its own split on the fly
         __internal::__except_handler([=, &__exec]() {
             // 1. Move to the temporary buffer to merge to the original range later
             __par_backend::__parallel_for(__backend_tag{}, __exec, _Index{0}, __n, [=](_Index __i, _Index __j) {
