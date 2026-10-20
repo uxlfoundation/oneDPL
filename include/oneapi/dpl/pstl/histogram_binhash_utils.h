@@ -35,6 +35,20 @@ using __bin_idx_t = std::int32_t;
 template <typename _T1, typename = void>
 struct __evenly_divided_binhash;
 
+// A view of a binhash whose bin regime is fixed at compile time, so a loop of get_bin calls carries no regime branch
+template <typename _BinHash, bool _LargeRange>
+struct __fixed_regime_binhash
+{
+    _BinHash __bin_hash;
+
+    template <typename _T2>
+    __bin_idx_t
+    get_bin(_T2 __value) const
+    {
+        return __bin_hash.template __get_bin_in_regime<_LargeRange>(__value);
+    }
+};
+
 template <typename _T1>
 struct __evenly_divided_binhash<_T1, std::enable_if_t<std::is_floating_point_v<_T1>>>
 {
@@ -126,25 +140,70 @@ struct __evenly_divided_binhash<_T1, std::enable_if_t<!std::is_floating_point_v<
                (__next_start_hi < __scaled_hi || (__next_start_hi == __scaled_hi && __next_start_lo <= __scaled_lo));
     }
 
-    template <typename _T2>
+    template <bool _LargeRange, typename _T2>
     __bin_idx_t
-    get_bin(_T2 __value) const
+    __get_bin_in_regime(_T2 __value) const
     {
         __bin_idx_t ret = -1;
         if ((__value >= __minimum) && (__value < __maximum))
         {
             // Unsigned subtraction gives the exact offset even when it exceeds the range of _T1
             const std::uint64_t __offset = std::uint64_t(__value) - std::uint64_t(__minimum);
-            if constexpr (__may_overflow)
-            {
-                if (__large_range)
-                    return __large_range_bin(__offset);
-            }
-            ret = __offset * std::uint64_t(__num_bins) / __range;
+            if constexpr (_LargeRange)
+                ret = __large_range_bin(__offset);
+            else
+                ret = __offset * std::uint64_t(__num_bins) / __range;
         }
         return ret;
     }
+
+    template <typename _T2>
+    __bin_idx_t
+    get_bin(_T2 __value) const
+    {
+        if constexpr (__may_overflow)
+        {
+            if (__large_range)
+                return __get_bin_in_regime<true>(__value);
+        }
+        return __get_bin_in_regime<false>(__value);
+    }
+
+    // Calls __f with a binhash whose regime is fixed at compile time, so callers binning many samples can test
+    // __large_range once instead of per sample
+    static constexpr bool __has_bin_regimes = __may_overflow;
+
+    template <typename _F>
+    void
+    __visit_bin_regime(_F&& __f) const
+    {
+        if (__large_range)
+            __f(__fixed_regime_binhash<__evenly_divided_binhash, true>{*this});
+        else
+            __f(__fixed_regime_binhash<__evenly_divided_binhash, false>{*this});
+    }
 };
+
+template <typename _BinHash, typename = void>
+struct __has_bin_regimes : std::false_type
+{
+};
+
+template <typename _BinHash>
+struct __has_bin_regimes<_BinHash, std::enable_if_t<_BinHash::__has_bin_regimes>> : std::true_type
+{
+};
+
+// Calls __f with __bin_hash, or with a view of it whose bin regime is fixed, for binhashes that have regimes
+template <typename _BinHash, typename _F>
+void
+__with_bin_regime(const _BinHash& __bin_hash, _F&& __f)
+{
+    if constexpr (__has_bin_regimes<_BinHash>::value)
+        __bin_hash.__visit_bin_regime(std::forward<_F>(__f));
+    else
+        __f(__bin_hash);
+}
 
 template <typename _Acc, typename _T2, typename _T3>
 __bin_idx_t
