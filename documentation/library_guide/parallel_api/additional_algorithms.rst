@@ -129,6 +129,10 @@ header.  All algorithms are implemented in the ``oneapi::dpl`` namespace.
   divides bins within that range. An input element ``a`` maps to a bin ``i`` such that
   ``i = floor((a - minimum) / ((maximum - minimum) / num_bins)))``.
 
+  When the input elements or the bounds are floating-point, this mapping is computed in floating-point arithmetic,
+  with integer bounds first converted to the input element type. An element on or within rounding error of a bin
+  boundary is subject to floating point inaccuracies and may therefore be counted in the adjacent bin.
+
   The other overload defines ``m`` bins from a sorted sequence of ``m + 1`` user-provided boundaries
   where an input element ``a`` maps to a bin ``i`` if and only if
   ``__boundary_first[i] <= a < __boundary_first[i + 1]``.
