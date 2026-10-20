@@ -94,8 +94,27 @@ struct __segmented_reduce_init_brick
     }
 };
 
+// Zeroes the report of the longest length on the device
+struct __segmented_reduce_report_init_brick
+{
+    static constexpr std::uint8_t __iters_per_item = 1;
+
+    // __report is a zip view of the report only, so that it is not vectorized over
+    template <typename _IsFull, typename _Params, typename _Report>
+    void
+    operator()(_IsFull, const std::size_t, _Params, _Report __report) const
+    {
+        static_assert(_Params::__vector_size == 1,
+                      "The brick operates with tuples which must be excluded from vectorizable types");
+        using std::get;
+        get<0>(__report[0]) = 0;
+    }
+};
+
 template <typename _Name>
 class __segmented_reduce_fill_wrapper;
+template <typename _Name>
+class __segmented_reduce_report_wrapper;
 
 // A short segment is reduced by one work-item. A long segment is split into chunks, each reduced by one work-item, and
 // the partial results of the segment are combined by one work-item. The values below were measured on Intel GPUs
@@ -328,10 +347,12 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     }
 
     // The short segments, one work-item each; the long ones only report the longest length. The report is in a buffer,
-    // which costs less on GPUs than copying it from device USM (0.08 ms vs 0.33 ms on integrated graphics).
+    // which costs less on GPUs than copying it from device USM. The atomic maximum starts from a zero written on the
+    // device, so that the host only reads the buffer, as the key-based reduce_by_segment does.
     auto __report_buf = __buffer<std::uint32_t>(1).get_buffer();
-    // The buffer has no host data: the atomic maximum starts from the zero written here
-    __report_buf.get_host_access(sycl::write_only)[0] = 0;
+    __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_report_wrapper>(__exec),
+                   __segmented_reduce_report_init_brick{}, _Size{1},
+                   oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::views::all_write(__report_buf)));
     __parallel_for(_BackendTag{}, __exec,
                    __segmented_reduce_variable_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __threshold, __init,
                                                                                                __binary_op},
