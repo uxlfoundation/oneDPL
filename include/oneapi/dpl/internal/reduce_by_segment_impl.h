@@ -264,20 +264,34 @@ __brick_reduce_by_segment_offsets(_RandomAccessInputIt __first_value, _RandomAcc
     }
 }
 
-// The host policies: the segments one after another, vectorized when the tag asks for vectorization
-template <typename _Tag, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
+// The serial host policies: the segments one after another, vectorized when the tag asks for vectorization, which unseq
+// does only with random access iterators
+template <typename _IsVector, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
           typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
 void
-__reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _InputValueIt __last_value,
-                                 _OutputValueIt __result_value, _SegmentNum __num_segments, _OffsetIt __offsets,
-                                 _InitType __init, _BinaryOperation __binary_op)
+__reduce_by_segment_offsets_impl(__internal::__serial_tag<_IsVector>, _Policy&&, _InputValueIt __first_value,
+                                 _InputValueIt __last_value, _OutputValueIt __result_value, _SegmentNum __num_segments,
+                                 _OffsetIt __offsets, _InitType __init, _BinaryOperation __binary_op)
 {
-    static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
-
     using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
 
     __brick_reduce_by_segment_offsets<_Acc>(__first_value, __last_value, __result_value, __num_segments, __offsets,
-                                            __init, __binary_op, typename _Tag::__is_vector{});
+                                            __init, __binary_op, _IsVector{});
+}
+
+// The parallel host policies with iterators which are not random access ones: the segments one after another
+template <typename _Policy, typename _ForwardInputIt, typename _SegmentNum, typename _ForwardOffsetIt,
+          typename _ForwardOutputIt, typename _InitType, typename _BinaryOperation>
+void
+__reduce_by_segment_offsets_impl(__internal::__parallel_forward_tag, _Policy&&, _ForwardInputIt __first_value,
+                                 _ForwardInputIt __last_value, _ForwardOutputIt __result_value,
+                                 _SegmentNum __num_segments, _ForwardOffsetIt __offsets, _InitType __init,
+                                 _BinaryOperation __binary_op)
+{
+    using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _ForwardInputIt, _BinaryOperation>;
+
+    __brick_reduce_by_segment_offsets<_Acc>(__first_value, __last_value, __result_value, __num_segments, __offsets,
+                                            __init, __binary_op, /*is_vector=*/std::false_type{});
 }
 
 // The parallel host policies reduce a short segment in one task, and split a longer one into chunks reduced in
