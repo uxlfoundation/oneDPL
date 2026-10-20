@@ -109,6 +109,9 @@ Difference with Standard C++ Parallel Algorithms
   ``remove``, ``remove_if``, ``rotate``, ``sort``, ``stable_sort``,
   ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union``,
   ``unique``, ``unique_copy``.
+* With device execution policies, ``partial_sort``, ``partial_sort_copy``, and ``nth_element`` may sort the whole
+  sequence they operate on (for ``partial_sort_copy``, a copy of the input), so they can perform more comparisons
+  than the complexity the C++ standard specifies for them. Their postconditions are still satisfied.
 
 Restrictions
 ************

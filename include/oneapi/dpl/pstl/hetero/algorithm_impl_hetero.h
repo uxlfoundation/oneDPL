@@ -1451,7 +1451,7 @@ __pattern_partial_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _It
     if (__mid == __first)
         return;
 
-    __par_backend_hetero::__parallel_partial_sort(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __first, __mid,
+    __par_backend_hetero::__parallel_partial_sort(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __first,
                                                   __last, __comp)
         .__checked_deferrable_wait();
 }
@@ -1535,21 +1535,20 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         auto __buf_first = __buf.get();
 
+        // This copy does not wait: accessors on __buf are what order it before the sort below.
         auto __buf_last =
             __pattern_hetero_walk2<__par_backend_hetero::__async_mode, __par_backend_hetero::access_mode::write,
                                    /*_IsOutNoInitRequested=*/true>(
                 __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_2>(__exec), __first, __last,
                 __buf_first, __brick_copy<__hetero_tag<_BackendTag>>{});
 
-        auto __buf_mid = __buf_first + __out_size;
-
-        // An explicit wait between the patterns isn't required here because we are working a with temporary
-        // sycl::buffer and sycl accessors. SYCL runtime makes a dependency graph to prevent the races between
-        // the patterns: __pattern_hetero_walk2, __parallel_partial_sort and __pattern_hetero_walk2.
-
+        // The returned future may own scratch memory, so it must be waited on before it is destroyed.
         __par_backend_hetero::__parallel_partial_sort(
-            _BackendTag{}, __par_backend_hetero::make_wrapped_policy<__partial_sort_2>(__exec), __buf_first, __buf_mid,
-            __buf_last, __comp);
+            _BackendTag{}, __par_backend_hetero::make_wrapped_policy<__partial_sort_2>(__exec), __buf_first, __buf_last,
+            __comp)
+            .__checked_deferrable_wait();
+
+        auto __buf_mid = __buf_first + __out_size;
 
         return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
                                       /*_IsOutNoInitRequested=*/true>(
