@@ -20,7 +20,7 @@ and outlives the pattern, carrying the results back to the caller.
 ```mermaid
 flowchart TB
     subgraph CallerStart["Algorithm"]
-        S1["Construct holder\n__parallel_pattern_holder&lt;N, Ts...&gt; __holder(__q)"]
+        S1["Construct holder\n__parallel_pattern_holder&lt;Ts...&gt; __holder(__q)"]
         S2["Call a backend pattern\n__parallel_pattern_async(..., __holder, ...)"]
 
         subgraph BackendPattern["Backend Pattern"]
@@ -81,7 +81,8 @@ The result type `T` must satisfy `sycl::is_device_copyable_v<T>`.
 On construction it first attempts to allocate host USM, which allows the result
 to be read back to the host without an explicit copy. If host USM is not
 available, it falls back to the device USM or `sycl::buffer` strategy of
-`__device_storage`. 
+`__device_storage`.  At the moment of writing this document,
+the use of host USM in oneDPL is limited to Level Zero GPU devices.
 
 After the kernel completes, the result can be retrieved via `__copy_result`:
 ```cpp
@@ -170,8 +171,8 @@ algorithm before the backend pattern is called, passed by reference into the pat
 and used to retrieve results after the kernels submitted by the pattern are complete.
 
 The template parameters are:
-- `_NScratch` — the number of scratch storage slots. This must equal the
-  maximum number of `__device_storage` and `__combined_storage` objects
+- `_NScratch` — the number of scratch storage slots. This must be at least
+  the maximum number of `__device_storage` and `__combined_storage` objects
   simultaneously used by any code path through the backend pattern.
 - `_ResultTypes...` — the value types of the result slots, one per result.
 
@@ -247,6 +248,10 @@ which is not transferred by `__store_scratch` and risks to be freed prematurely
 when the storage is destroyed. Whether stricter usage limitations should be
 set for `__store_scratch` is an open question.
 
+It is an error to exceed the number of scratch slots (`_NScratch`) by either
+`__store_scratch` or by automatically deposited scratch allocation of
+`__combined_storage`. An assertion enforces this at runtime.
+
 The following pseudocode example illustrates how a backend pattern with two
 implementation paths uses the holder. The small-size path produces only
 a result; the other path requires scratch memory in addition:
@@ -271,14 +276,14 @@ sycl::event
 __parallel_pattern_impl(sycl::queue& __q,
                         __parallel_pattern_holder<ValueType>& __holder, ...)
 {
-    __combined_storage<<ValueType> __scratch_and_result(__q, __scratch_n, 1);
+    __combined_storage<ValueType> __scratch_and_result(__q, __scratch_n, 1);
     sycl::event __event = __nd_range_submitter(__q, __scratch_and_result, ...);
     __holder.template __store<0>(std::move(__scratch_and_result));
     return __event;
 }
 ```
 
-Note that `_NScratch` is set to 1; the small-size path stores no scratch, while 
+Note that `_NScratch` is set to 1; the small-size path stores no scratch, while
 the other path may store a scratch region from the `__combined_storage`.
 
 ### Safe Memory Management
@@ -292,10 +297,12 @@ USM memory that has not subsequently been transferred out via `__extract()`
 (see [Asynchronous Algorithm](#asynchronous-algorithm)).
 
 Care must be taken when a kernel is in flight and holds a reference to storage
-memory: destroying a storage object or the holder before the kernel completes
-will cause premature deallocation. The backend pattern is responsible for
-ensuring that all in-flight kernels have completed or that ownership has been
-transferred to the holder before any storage object goes out of scope.
+memory: destroying a storage object or the holder does not synchronize with kernels
+and may cause premature deallocation of USM is the kernel is still running.
+The backend pattern is responsible for ensuring that all in-flight kernels
+have completed or that ownership has been transferred to the holder
+before any storage object goes out of scope in normal execution flow
+(i.e. excluding exceptions that oneDPL does not control).
 
 ## Algorithm Integration
 
@@ -356,6 +363,6 @@ __hetero_algo_pattern_async(oneapi::dpl::__internal::__device_backend_tag,
 
 `__extract()` consumes the holder and converts its content into a tuple of
 `__copyable_storage_state` objects with shared ownership of the underlying
-allocations. The `__future` holds these states for its own lifetime, ensuring
-the memory remains valid until the asynchronous result is consumed. The holder
+allocations. The `__future` holds these states for its own lifetime, keeping
+the memory valid for the asynchronous result to be consumed later. The holder
 itself is left in a state where its destructor has nothing to free.
