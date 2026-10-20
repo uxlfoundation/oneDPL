@@ -20,6 +20,11 @@
 
 #include "support/utils.h"
 
+#include <algorithm>
+#include <cstdint>
+#include <iterator>
+#include <vector>
+
 using namespace TestUtils;
 
 template <typename Type>
@@ -88,7 +93,7 @@ test_by_type(Generator1 generator1, Generator2 generator2, bool comp_flag, Compa
     Sequence<T> exp(max_size, [](size_t v) { return T(v); });
     size_t m;
 
-    
+
     for (size_t n = 0; n <= max_size; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         m = 0;
@@ -159,6 +164,73 @@ struct test_non_const
     }
 };
 
+// A (key, value) pair compared by the key only: the order of the values reveals the stability
+struct KeyValue
+{
+    std::int32_t key;
+    std::int32_t value;
+
+    friend bool
+    operator==(const KeyValue& x, const KeyValue& y)
+    {
+        return x.key == y.key && x.value == y.value;
+    }
+};
+
+enum class KeysOverlap
+{
+    interleaved, // the keys of {1} and {2} cover the same range
+    touching,    // {1} is ordered before {2}, the last key of {1} is equal to the first key of {2}
+    reversed     // {2} is ordered before {1}
+};
+
+template <std::size_t CallNumber, typename T>
+void
+test_stability_impl(std::size_t n1, std::size_t n2, KeysOverlap overlap)
+{
+    // The keys grow from 0 to 99 in both sequences, forming runs of equal keys of different lengths.
+    // The keys of {1} are shifted to get the requested overlap.
+    // The values are unique, so stability fully determines the result.
+    constexpr std::size_t n_keys = 100;
+    const std::int32_t last_key1 = std::int32_t((n1 - 1) * n_keys / n1);
+    const std::int32_t shift1 = overlap == KeysOverlap::touching   ? -last_key1
+                                : overlap == KeysOverlap::reversed ? std::int32_t(n_keys)
+                                                                   : 0;
+    const std::size_t n = n1 + n2;
+    std::vector<T> source(n), data(n);
+    for (std::size_t i = 0; i < n1; ++i)
+        source[i] = T{shift1 + std::int32_t(i * n_keys / n1), std::int32_t(i)};
+    for (std::size_t i = 0; i < n2; ++i)
+        source[n1 + i] = T{std::int32_t(i * n_keys / n2), std::int32_t(n1 + i)};
+
+    auto comp = [](const T& x, const T& y) { return x.key < y.key; }; // less by key
+    std::vector<T> expected(source);
+    std::inplace_merge(expected.begin(), expected.begin() + n1, expected.end(), comp);
+
+    auto test_inplace_merge = [&](auto&& exec, auto first, auto last) {
+        using Iterator = decltype(first);
+        // Reverse iterators break the order of the keys
+        if constexpr (!is_reverse_v<Iterator> &&
+                      is_base_of_iterator_category_v<std::bidirectional_iterator_tag, Iterator>)
+        {
+            std::copy(source.begin(), source.end(), first);
+            std::inplace_merge(std::forward<decltype(exec)>(exec), first, std::next(first, n1), last, comp);
+            EXPECT_EQ_N(expected.begin(), first, n, "wrong effect from inplace_merge with equal keys (stability)");
+        }
+    };
+    invoke_on_all_policies<CallNumber>()(test_inplace_merge, data.begin(), data.end());
+}
+
+void
+test_stability()
+{
+    for (KeysOverlap overlap : {KeysOverlap::interleaved, KeysOverlap::touching, KeysOverlap::reversed})
+    {
+        test_stability_impl<100, KeyValue>(61, 77, overlap);      // serial cutoff with par policies
+        test_stability_impl<200, KeyValue>(5711, 20429, overlap); // parallel execution with par policies
+    }
+}
+
 int
 main()
 {
@@ -180,6 +252,8 @@ main()
     EXPECT_TRUE(MemoryChecker::alive_objects() == 0, "wrong effect from inplace_merge: number of ctor and dtor calls is not equal");
 #endif
     test_algo_basic_single<std::int32_t>(run_for_rnd_bi<test_non_const<std::int32_t>>());
+
+    test_stability();
 
     return done();
 }
