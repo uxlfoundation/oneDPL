@@ -3231,7 +3231,7 @@ __merge_path_chunks(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, const 
                             __first3 + __i, __first3 + __j);
                 }
             }
-        });
+        }, 1); // A chunk already contains lots of elements, hence using the minimum granularity
 }
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
