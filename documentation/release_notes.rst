@@ -14,7 +14,7 @@ New in 2022.15.0
 New Features
 ------------
 
-- Improved performance of ``merge``, ``inplace_merge`` and ``ranges::inplace_merge``
+- Improved performance of ``merge`` and ``inplace_merge``
   with ``par`` and ``par_unseq`` execution policies.
 
 New in 2022.14.0
@@ -36,11 +36,11 @@ New Features
 - Improved performance of multiple algorithms (including ``copy_if``, ``remove``, ``remove_if``, ``unique_copy``,
   scan algorithms, and set operations) for input sizes below approximately 8000 elements per thread
   when the oneTBB backend is used for ``par`` and ``par_unseq`` execution policies.
-- Improved performance of ``partition`` algorithm when used with ``par`` and ``par_unseq`` policies.  
+- Improved performance of ``partition`` algorithm when used with ``par`` and ``par_unseq`` policies.
 - Improved performance of ``rotate`` algorithm when used with device policies.
 - Enabled use of native SYCL group reduce and scan algorithms with compilers other than Intel® oneAPI DPC++/C++
   Compiler, which might improve performance of some algorithms in ``<oneapi/dpl/numeric>``.
-- Aligned the order of constraints in requires-clauses of parallel range algorithms 
+- Aligned the order of constraints in requires-clauses of parallel range algorithms
   with the oneDPL specification.
 
 Fixed Issues
@@ -70,7 +70,7 @@ See oneDPL Guide for other `restrictions and known limitations`_.
   Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
   If these conditions are not met, the result of these algorithm calls is undefined.
 - ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
-  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
+  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed
   to the device compiler.
 - Some algorithms in ``oneapi::dpl::ranges`` require more than their ``requires`` clauses specify:
 
@@ -118,7 +118,7 @@ See oneDPL Guide for other `restrictions and known limitations`_.
   Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
   If these conditions are not met, the result of these algorithm calls is undefined.
 - ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
-  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
+  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed
   to the device compiler.
 
 New in 2022.12.0
@@ -126,7 +126,7 @@ New in 2022.12.0
 
 Changes to CMake
 -------------------
-- Removed the ``ONEDPL_DEVICE_TYPE`` and ``ONEDPL_DEVICE_BACKEND`` CMake options. 
+- Removed the ``ONEDPL_DEVICE_TYPE`` and ``ONEDPL_DEVICE_BACKEND`` CMake options.
   Use ``ONEAPI_DEVICE_SELECTOR`` environment variable or compiler options for device selection instead.
 - Removed the ``ONEDPL_USE_AOT_COMPILATION``, ``ONEDPL_AOT_ARCH``, and ``ONEDPL_FPGA_STATIC_REPORT`` CMake options.
   Use the appropriate compiler flags to control ahead-of-time compilation.
@@ -170,7 +170,7 @@ New in This Release
 ^^^^^^^^^^^^^^^^^^^
 - ``ranges::unique_copy`` with the output size smaller than the input size may lose performance on GPU devices.
 - ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
-  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
+  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed
   to the device compiler.
 
 Existing Issues
@@ -337,7 +337,7 @@ See oneDPL Guide for other `restrictions and known limitations`_.
 - ``histogram`` may provide incorrect results with device policies in a program built with ``-O0`` option and the driver
   version is 2448.13 or older.
 - For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
-  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``, 
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
   it is required that the provided input and destination iterators are equality comparable.
   Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
   If these conditions are not met, the result of these algorithm calls is undefined.
@@ -401,9 +401,9 @@ See oneDPL Guide for other `restrictions and known limitations`_.
 - ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
   when used with an FPGA policy.
 - ``histogram`` may provide incorrect results with device policies in a program built with ``-O0`` option.
-- Compilation issues may be encountered when passing zip iterators to ``exclusive_scan_by_segment`` on Windows. 
+- Compilation issues may be encountered when passing zip iterators to ``exclusive_scan_by_segment`` on Windows.
 - For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
-  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``, 
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
   it is required that the provided input and destination iterators are equality comparable.
   Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
   If these conditions are not met, the result of these algorithm calls is undefined.
@@ -424,10 +424,10 @@ New Features
   ``max_element``, ``min_element``, ``minmax_element``, ``mismatch``, ``none_of``, ``partition``, ``partition_copy``,
   ``reduce``, ``remove``, ``remove_copy``, ``remove_copy_if``, ``remove_if``, ``search``, ``search_n``,
   ``stable_partition``, ``transform_exclusive_scan``, ``transform_inclusive_scan``, ``unique``, and ``unique_copy``
-  algorithms with device policies. 
+  algorithms with device policies.
 - Improved performance of ``sort``, ``stable_sort`` and ``sort_by_key`` algorithms with device policies when using Merge
   sort [#fnote1]_.
-- Added ``stable_sort_by_key`` algorithm in ``namespace oneapi::dpl``. 
+- Added ``stable_sort_by_key`` algorithm in ``namespace oneapi::dpl``.
 - Added parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``all_of``, ``any_of``,
   ``none_of``, ``for_each``, ``find``, ``find_if``, ``find_if_not``, ``adjacent_find``, ``search``, ``search_n``,
   ``transform``, ``sort``, ``stable_sort``, ``is_sorted``, ``merge``, ``count``, ``count_if``, ``equal``, ``copy``,
@@ -449,9 +449,9 @@ Fixed Issues
 - ``gpu::esimd::radix_sort`` and ``gpu::esimd::radix_sort_by_key`` kernel templates now throw ``std::bad_alloc``
   if they fail to allocate global memory.
 - Fixed a potential hang occurring with ``gpu::esimd::radix_sort`` and
-  ``gpu::esimd::radix_sort_by_key`` kernel templates. 
+  ``gpu::esimd::radix_sort_by_key`` kernel templates.
 - Fixed documentation for ``sort_by_key`` algorithm, which used to be mistakenly described as stable, despite being
-  possibly unstable for some execution policies. If stability is required, use ``stable_sort_by_key`` instead. 
+  possibly unstable for some execution policies. If stability is required, use ``stable_sort_by_key`` instead.
 - Fixed an error when calling ``sort`` with device execution policies on CUDA devices.
 - Allow passing C++20 random access iterators to oneDPL algorithms.
 - Fixed issues caused by initialization of SYCL queues in the predefined device execution policies.
@@ -488,9 +488,9 @@ See oneDPL Guide for other `restrictions and known limitations`_.
 
 - ``histogram`` algorithm requires the output value type to be an integral type no larger than 4 bytes
   when used with an FPGA policy.
-- Compilation issues may be encountered when passing zip iterators to ``exclusive_scan_by_segment`` on Windows. 
+- Compilation issues may be encountered when passing zip iterators to ``exclusive_scan_by_segment`` on Windows.
 - For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
-  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``, 
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
   it is required that the provided input and destination iterators are equality comparable.
   Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
   If these conditions are not met, the result of these algorithm calls is undefined.
@@ -518,7 +518,7 @@ New in 2022.6.0
 ===============
 News
 ------------
-- `oneAPI DPC++ Library Manual Migration Guide`_ to simplify the migration of Thrust* and CUB* APIs from CUDA*. 
+- `oneAPI DPC++ Library Manual Migration Guide`_ to simplify the migration of Thrust* and CUB* APIs from CUDA*.
 - ``radix_sort`` and ``radix_sort_by_key`` kernel templates were moved into
   ``oneapi::dpl::experimental::kt::gpu::esimd`` namespace. The former ``oneapi::dpl::experimental::kt::esimd``
   namespace is deprecated and will be removed in a future release.
@@ -528,7 +528,7 @@ News
 New Features
 ------------
 - Added experimental ``inclusive_scan`` kernel template algorithm residing in
-  the ``oneapi::dpl::experimental::kt::gpu`` namespace. 
+  the ``oneapi::dpl::experimental::kt::gpu`` namespace.
 - ``radix_sort`` and ``radix_sort_by_key`` kernel templates are extended with overloads for out-of-place sorting.
   These overloads preserve the input sequence and sort data into the user provided output sequence.
 - Improved performance of the ``reduce``, ``min_element``, ``max_element``, ``minmax_element``, ``is_partitioned``,
@@ -571,9 +571,9 @@ See oneDPL Guide for other `restrictions and known limitations`_.
   option of Intel® oneAPI DPC++/C++ compiler, a linking issue or program crash may be encountered due to the directory
   containing libpstloffload.so not being included in the search path. Use the env/vars.sh to configure the working
   environment to avoid the issue.
-- Compilation issues may be encountered when passing zip iterators to ``exclusive_scan_by_segment`` on Windows. 
+- Compilation issues may be encountered when passing zip iterators to ``exclusive_scan_by_segment`` on Windows.
 - For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
-  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``, 
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
   it is required that the provided input and destination iterators are equality comparable.
   Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
   If these conditions are not met, the result of these algorithm calls is undefined.
@@ -637,9 +637,9 @@ See oneDPL Guide for other `restrictions and known limitations`_.
   environment to avoid the issue.
 - Compilation issues may be encountered when passing zip iterators to ``exclusive_scan_by_segment`` on Windows.
 - Incorrect results may be produced by ``set_intersection`` with a DPC++ execution policy,
-  where elements are copied from the second input range rather than the first input range. 
+  where elements are copied from the second input range rather than the first input range.
 - For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
-  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``, 
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
   it is required that the provided input and destination iterators are equality comparable.
   Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
   If these conditions are not met, the result of these algorithm calls is undefined.
@@ -724,9 +724,9 @@ New in This Release
   environment to avoid the issue.
 - Compilation issues may be encountered when passing zip iterators to ``exclusive_scan_by_segment`` on Windows.
 - Incorrect results may be produced by ``set_intersection`` with a DPC++ execution policy,
-  where elements are copied from the second input range rather than the first input range. 
+  where elements are copied from the second input range rather than the first input range.
 - For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
-  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``, 
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
   it is required that the provided input and destination iterators are equality comparable.
   Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
   If these conditions are not met, the result of these algorithm calls is undefined.
@@ -765,7 +765,7 @@ New Features
 - Improved performance of the ``reduce_by_segment``, ``inclusive_scan_by_segment``, and
   ``exclusive_scan_by_segment`` algorithms for binary operators with known identities
   when using DPC++ execution policies.
-- Added ``value_type`` to all views in ``oneapi::dpl::experimental::ranges``. 
+- Added ``value_type`` to all views in ``oneapi::dpl::experimental::ranges``.
 - Extended ``oneapi::dpl::experimental::ranges::sort`` to support projections applied to the range elements prior to comparison.
 
 Fixed Issues
@@ -805,7 +805,7 @@ New Features
 
 Fixes Issues
 ------------
-- Fixed an error that caused segmentation faults in ``transform_reduce``, ``minmax_element``, and related algorithms when ran on CPU devices. 
+- Fixed an error that caused segmentation faults in ``transform_reduce``, ``minmax_element``, and related algorithms when ran on CPU devices.
 - Fixed a compilation error in ``transform_reduce``, ``minmax_element``, and related algorithms on FPGAs.
 - Fixed ``permutation_iterator`` to support C-style array as a permutation map.
 - Fixed a radix-sort issue with 64-bit signed integer types.
@@ -862,7 +862,7 @@ Changes affecting backward compatibility
 ----------------------------------------
 - Removed support of C++11 and C++14.
 - Changed the size and the layout of the ``discard_block_engine`` class template.
-  
+
   For further details, please refer to `2022.0 Changes`_.
 
 Known Issues and Limitations
@@ -887,13 +887,13 @@ New Features
 - Added 9 more serial-based versions of algorithms: ``is_heap``, ``is_heap_until``, ``make_heap``, ``push_heap``,
   ``pop_heap``, ``is_sorted``, ``is_sorted_until``, ``partial_sort``, ``partial_sort_copy``.
   Please refer to `Tested Standard C++ API`_.
-  
+
 Fixed Issues
 ------------
 - Added namespace alias ``dpl = oneapi::dpl`` into all public headers.
 - Fixed error in ``reduce_by_segment`` algorithm.
 - Fixed wrong results error in algorithms call with permutation iterator.
-  
+
 Known Issues and Limitations
 ----------------------------
 Existing Issues
@@ -906,7 +906,7 @@ See oneDPL Guide for other `restrictions and known limitations`_.
 - The ``oneapi::dpl::experimental::ranges::reverse`` algorithm is not available with ``-fno-sycl-unnamed-lambda`` option.
 - STL algorithm functions (such as ``std::for_each``) used in DPC++ kernels do not compile with the debug version of
   the Microsoft* Visual C++ standard library.
-  
+
 New in 2021.7.0
 ===============
 
@@ -939,7 +939,7 @@ Fixed Issues
 
 Known Issues and Limitations
 ----------------------------
-- No new issues in this release. 
+- No new issues in this release.
 
 Existing Issues
 ^^^^^^^^^^^^^^^
@@ -959,7 +959,7 @@ New Features
   It can be enabled with the ``ONEDPL_USE_OPENMP_BACKEND`` macro.
   For more details, see `Macros`_ page in oneDPL Guide.
 - Added the range-based version of the ``reduce_by_segment`` algorithm and improved performance of
-  the iterator-based ``reduce_by_segment`` APIs. 
+  the iterator-based ``reduce_by_segment`` APIs.
   Please note that the use of the ``reduce_by_segment`` algorithm requires C++17.
 - Added the following algorithms (serial versions) to `Tested Standard C++ API`_: ``for_each_n``, ``copy``,
   ``copy_backward``, ``copy_if``, ``copy_n``, ``is_permutation``, ``fill``, ``fill_n``, ``move``, ``move_backward``.
@@ -998,7 +998,7 @@ New Features
 - Added new random number distributions: ``exponential_distribution``, ``bernoulli_distribution``,
   ``geometric_distribution``, ``lognormal_distribution``, ``weibull_distribution``, ``cachy_distribution``,
   ``extreme_value_distribution``.
-- Added the following algorithms (serial versions) to `Tested Standard C++ API`_: ``all_of``, ``any_of``, 
+- Added the following algorithms (serial versions) to `Tested Standard C++ API`_: ``all_of``, ``any_of``,
   ``none_of``, ``count``, ``count_if``, ``for_each``, ``find``, ``find_if``, ``find_if_not``.
 - Improved performance of ``search`` and ``find_end`` algorithms on GPU devices.
 
@@ -1051,7 +1051,7 @@ New in 2021.4
 New Features
 ------------
 -  Added the range-based versions of the following algorithms: ``any_of``, ``adjacent_find``,
-   ``copy_if``, ``none_of``, ``remove_copy_if``, ``remove_copy``, ``replace_copy``, 
+   ``copy_if``, ``none_of``, ``remove_copy_if``, ``remove_copy``, ``replace_copy``,
    ``replace_copy_if``, ``reverse``, ``reverse_copy``, ``rotate_copy``, ``swap_ranges``,
    ``unique``, ``unique_copy``.
 -  Added new asynchronous algorithms: ``inclusive_scan_async``, ``exclusive_scan_async``,
@@ -1126,7 +1126,7 @@ Fixed Issues
 
 Known Issues and Limitations
 -----------------------------
-- No new issues in this release. 
+- No new issues in this release.
 
 Existing Issues
 ^^^^^^^^^^^^^^^^
@@ -1262,4 +1262,4 @@ Known Issues and Limitations
 .. _`Macros`: https://uxlfoundation.github.io/oneDPL/library_guide/macros.html
 .. _`2022.0 Changes`: https://uxlfoundation.github.io/oneDPL/library_guide/oneDPL_2022.0_changes.html
 .. _`sycl device copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
-.. _`oneAPI DPC++ Library Manual Migration Guide`: https://www.intel.com/content/www/us/en/developer/articles/guide/oneapi-dpcpp-library-manual-migration.html 
+.. _`oneAPI DPC++ Library Manual Migration Guide`: https://www.intel.com/content/www/us/en/developer/articles/guide/oneapi-dpcpp-library-manual-migration.html
