@@ -162,7 +162,7 @@ struct U64Accumulator
     }
 };
 
-// The sum of two elements does not fit into the value type of the sequence, init type is larger and accomodates it
+// The sum of two elements does not fit into the value type of the sequence, init type is larger and accommodates it
 void
 test_default_op_mixed_types()
 {
