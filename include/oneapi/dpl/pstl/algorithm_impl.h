@@ -3317,16 +3317,19 @@ __parallel_merge_path(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
         // Returns the number of elements taken from {a} and {b} respectively
         auto __copy_ordered = [=, &__exec](auto __first_a, _Index __n_a, auto __first_b) {
             const _Index __k_a = std::min(__n_a, __n_out);
-            const _Index __k_b = __n_out - __k_a;
-            auto __copy = [=, &__exec](auto __first_in, _Index __n, _Index __out_offset) {
-                if (__n > 0)
-                    __pattern_walk2_brick(__tag, __exec, __first_in, __first_in + __n, __first3 + __out_offset,
-                                          __brick_copy<__parallel_tag<_IsVector>>{});
-            };
-            __par_backend::__parallel_invoke(__backend_tag{}, __exec,
-                [=] { __copy(__first_a, __k_a, _Index{0}); },
-                [=] { __copy(__first_b, __k_b, __k_a); });
-            return std::make_pair(__k_a, __k_b);
+            __par_backend::__parallel_for(
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index{0}, __n_out,
+                [=](_Index __i, _Index __j) {
+                    const _Index __m = std::clamp(__k_a, __i, __j); // ensure no split point within a chunk
+                    if (__i < __m)
+                        __brick_copy<__parallel_tag<_IsVector>>{}(__first_a + __i, __first_a + __m, __first3 + __i,
+                                                                  _IsVector{});
+                    if (__m < __j)
+                        __brick_copy<__parallel_tag<_IsVector>>{}(__first_b + (__m - __k_a),
+                                                                  __first_b + (__j - __k_a), __first3 + __m,
+                                                                  _IsVector{});
+                });
+            return std::make_pair(__k_a, __n_out - __k_a);
         };
         // {1} is ordered before {2}
         if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *(__first1 + (__n_1 - 1)))))
