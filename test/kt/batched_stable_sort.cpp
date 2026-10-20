@@ -34,7 +34,7 @@ using ValueT = TEST_VALUE_TYPE;
 #endif
 using KeyT = TEST_KEY_TYPE;
 
-using SortConfig = kt::gpu::radix_onesweep<TestRadixBits>;
+using SortConfig = kt::gpu::radix_many_groups_tag<TestRadixBits>;
 
 #include "batched_sort_test_utils.h"
 
