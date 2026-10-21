@@ -63,9 +63,7 @@ struct __evenly_divided_binhash_fp
 
 // The bin of an integer sample is floor(offset * num_bins / range). For bound types of at most 32 bits the product
 // fits in 64 bits, so a division is exact. For 64-bit bounds it can overflow, and ranges where it may are handled by
-// storing num_bins / range as a 64-bit fixed-point fraction instead. Multiplying the offset by it truncates to the
-// correct bin or the one below, which one exact 128-bit comparison corrects. The division is faster on devices
-// without native 64-bit integer multiplication, so it serves every range where it is exact.
+// storing num_bins / range as a 64-bit fixed-point fraction instead.
 template <typename _T1, typename _RangeT>
 struct __evenly_divided_binhash_int_base
 {
@@ -162,7 +160,7 @@ struct __evenly_divided_binhash_can_overflow : __evenly_divided_binhash_int_base
             const std::uint64_t __offset = _Base::__unsigned_distance(this->__minimum, __value);
             const std::uint64_t __bins = this->__num_bins;
             const std::uint64_t __range = this->__range;
-            // The correct bin or the one below it
+            // The correct bin or the one below it, due to truncation of the fixed-point multiplication
             const std::uint64_t __bin = __dpl_mul_hi_u64(__offset, __frac);
             // Step up when the next bin starts at or before the offset: (bin + 1) * range <= offset * num_bins,
             // compared as 128-bit products
