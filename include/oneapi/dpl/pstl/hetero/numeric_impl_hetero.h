@@ -293,8 +293,9 @@ __pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&
     using _Acc = __segmented_reduce_acc_t<_InitType, _RandomAccessInputIt, _BinaryOperation>;
     using _Size = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
 
-    auto __keep_result = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write,
-                                                                 /*_IsNoInitRequested=*/true>();
+    // Without no_init: on some paths one kernel writes a part of the results and a later kernel the rest, and an
+    // accessor with no_init would not have to keep what the earlier kernel wrote into a buffer
+    auto __keep_result = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write>();
     auto __result_buf = __keep_result(__result, __result + __num_segments);
 
     if (__first == __last)
