@@ -509,6 +509,29 @@ test_one_past_powers_of_two(std::int64_t max_power)
                                          std::plus<std::int64_t>{}, std::int64_t{-1});
 }
 
+// As many segments as a work-group of the reduction of the chunks computes the ends of their chunks for in its local
+// memory on GPUs, and one more, which takes a scan before it instead; with average lengths that take the reduction of
+// the chunks by work-items and by sub-groups
+template <std::size_t CallNumber>
+void
+test_many_segments()
+{
+    for (std::int64_t num_segments : {1024, 1025})
+    {
+        for (std::int64_t base_length : {257, 1024})
+        {
+            std::vector<std::int64_t> offsets{0};
+            for (std::int64_t i = 0; i < num_segments; ++i)
+                offsets.push_back(offsets.back() + base_length + (i * 37) % 200);
+            Sequence<int> in(offsets.back(), [](std::size_t i) { return int(i % 101) - 50; });
+            Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+            invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                                 out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                                 std::plus<std::int64_t>{}, std::int64_t{-1});
+        }
+    }
+}
+
 // The input is the middle of a larger sequence, whose other elements are poison: a read out of the bounds of the input
 // changes a result
 constexpr std::size_t guard_length = 1000;
@@ -813,6 +836,7 @@ main()
     test_long_segments<46>();
     test_one_past_powers_of_two<48>(std::int64_t(1) << 19);
     test_one_past_powers_of_two<49>(std::int64_t(1) << 20);
+    test_many_segments<50>();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT

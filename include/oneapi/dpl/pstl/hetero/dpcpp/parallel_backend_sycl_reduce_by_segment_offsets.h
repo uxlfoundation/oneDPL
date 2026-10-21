@@ -141,6 +141,9 @@ inline constexpr std::size_t __segmented_reduce_gpu_max_group_chunk_size = 65536
 // - only when the typical segment in chunks, the average one if all the segments are and the longest one otherwise, is
 //   at least this long: shorter segments leave a sub-group too few elements per work-item.
 inline constexpr std::size_t __segmented_reduce_gpu_min_group_length = 1024;
+// - on GPUs the ends of the chunks of at most this many segments are computed by every work-group of the kernel that
+//   reduces the chunks, in its local memory, instead of by a scan before that kernel;
+inline constexpr std::size_t __segmented_reduce_gpu_local_ends_segments = 1024;
 // - on GPUs an input of arithmetic types whose average segment has at least this length is reduced by tiles, one
 //   work-group per tile, of the smaller length up to the input size below and of the larger one above.
 inline constexpr std::size_t __segmented_reduce_gpu_tiles_average = 32768;
@@ -392,6 +395,94 @@ struct __segmented_reduce_chunk_group_submitter<__internal::__optional_kernel_na
                     [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__segmented_reduce_gpu_sub_group_size)]] {
                         __brick(__item, __rngs...);
                     });
+        });
+    }
+};
+
+template <typename... _Name>
+class __segmented_reduce_chunk_local_kernel;
+template <typename... _Name>
+class __segmented_reduce_chunk_group_local_kernel;
+
+template <bool _ByGroups, typename _KernelName>
+struct __segmented_reduce_chunk_local_submitter;
+
+// Reduces the chunks of the long segments of a few segments in one kernel: every work-group first computes the ends of
+// the chunks of every segment, an inclusive scan of their numbers, in its local memory, and work-group 0 also writes
+// them for the combination. Then every work-item, or every sub-group for _ByGroups, reduces every so-many-th chunk with
+// the brick, as the kernels after a scan do.
+template <bool _ByGroups, typename... _Name>
+struct __segmented_reduce_chunk_local_submitter<_ByGroups, __internal::__optional_kernel_name<_Name...>>
+{
+    // The work of a work-item; a function rather than a lambda called by the kernel, which would have to be device
+    // copyable
+    template <typename _Size, typename _Brick, typename _LocalEnds, typename _ChunkEnds, typename _Offsets,
+              typename _Partials, typename _Input>
+    static void
+    __run(const sycl::nd_item<1>& __item, const _Brick& __brick, _LocalEnds __local_ends, _ChunkEnds __chunk_ends,
+          _Offsets __offsets, _Partials __partials, _Input __input, const _Size __n, const _Size __m,
+          const _Size __min_length, const _Size __num_partials)
+    {
+        const auto __group = __item.get_group();
+        const _Size __lid = __item.get_local_id(0);
+        const _Size __wg = __item.get_local_range(0);
+        const __segmented_reduce_chunk_count<_Size> __count_of{__n, __min_length, /*__is_gpu=*/true, _ByGroups};
+        std::uint32_t __carry = 0;
+        for (_Size __first = 0; __first < __m; __first += __wg)
+        {
+            const _Size __s = __first + __lid;
+            const std::uint32_t __count =
+                __s < __m ? std::uint32_t(__count_of(std::make_tuple(__offsets[__s], __offsets[__s + 1]))) : 0;
+            const std::uint32_t __end =
+                __carry + __dpl_sycl::__inclusive_scan_over_group(__group, __count, sycl::plus<std::uint32_t>());
+            if (__s < __m)
+            {
+                __local_ends[__s] = __end;
+                if (__item.get_group(0) == 0)
+                    __chunk_ends[__s] = _Size(__end);
+            }
+            __carry = __dpl_sycl::__group_broadcast(__group, __end, __wg - 1);
+        }
+        sycl::group_barrier(__group);
+        if constexpr (_ByGroups)
+            __brick(__item, __local_ends, __offsets, __partials, __input);
+        else
+        {
+            const std::size_t __num_chunks = std::min<_Size>(_Size(__local_ends[__m - 1]), __num_partials);
+            for (std::size_t __idx = __item.get_global_linear_id(); __idx < __num_chunks;
+                 __idx += __item.get_global_range(0))
+                __brick(std::true_type{}, __idx, __pfor_params_simple{}, __local_ends, __offsets, __partials, __input);
+        }
+    }
+
+    template <typename _Size, typename _Brick, typename _ChunkEnds, typename _Offsets, typename _Partials,
+              typename _Input>
+    sycl::event
+    operator()(sycl::queue& __q, const _Brick& __brick, const std::size_t __num_groups,
+               const std::size_t __work_group_size, const _Size __n, const _Size __m, const _Size __min_length,
+               const _Size __num_partials, _ChunkEnds&& __chunk_ends, _Offsets&& __offsets, _Partials&& __partials,
+               _Input&& __input) const
+    {
+        return __q.submit([&](sycl::handler& __cgh) {
+            oneapi::dpl::__ranges::__require_access(__cgh, __chunk_ends, __offsets, __partials, __input);
+            // The ends fit 32 bits: there are fewer chunks than partial results, unless the offsets are not ordered,
+            // whose results are unspecified
+            __dpl_sycl::__local_accessor<std::uint32_t> __local_ends(sycl::range<1>(__m), __cgh);
+            const sycl::nd_range<1> __range(sycl::range<1>(__num_groups * __work_group_size),
+                                            sycl::range<1>(__work_group_size));
+            if constexpr (_ByGroups)
+                __cgh.parallel_for<_Name...>(
+                    __range,
+                    [=](sycl::nd_item<1> __item)
+                        [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__segmented_reduce_gpu_sub_group_size)]] {
+                            __run(__item, __brick, __local_ends, __chunk_ends, __offsets, __partials, __input, __n, __m,
+                                  __min_length, __num_partials);
+                        });
+            else
+                __cgh.parallel_for<_Name...>(__range, [=](sycl::nd_item<1> __item) {
+                    __run(__item, __brick, __local_ends, __chunk_ends, __offsets, __partials, __input, __n, __m,
+                          __min_length, __num_partials);
+                });
         });
     }
 };
@@ -898,16 +989,8 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                                                                              __segmented_reduce_gpu_sub_group_size);
 
         // The end of the chunks of every segment: an inclusive scan of their numbers, computed from the pairs of
-        // the adjacent offsets. The chunks depend on it through __chunk_ends, so the host does not wait for it; its
-        // future keeps the temporary data of the scan until the partial results are combined.
+        // the adjacent offsets
         auto __chunk_ends = __buffer<_Size>(__m).get_buffer();
-        auto __scan = __parallel_transform_scan(
-            _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
-            oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
-                                                 oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1})),
-            oneapi::dpl::__ranges::views::all_write(__chunk_ends), __m,
-            __segmented_reduce_chunk_count<_Size>{__n, __min_length, __is_gpu, __by_groups},
-            unseq_backend::__no_init_value<_Size>{}, std::plus<_Size>{}, /*_Inclusive=*/std::true_type{});
 
         // At most n / (the least chunk length) + 1 chunks per segment, unless the offsets are not ordered. On GPUs a
         // segment of length L also has at most sqrt(L / S) + L / (the greatest chunk length) + 1 chunks, with S the
@@ -927,6 +1010,76 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             __num_partials = std::min<_Size>(__num_partials, __root + __n / __max_chunk_size + __max_segments + 1);
         }
         auto __partials = __buffer<_Acc>(__num_partials).get_buffer();
+        auto __combine = [&]() {
+            __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec),
+                           __segmented_reduce_combine_brick<_Acc, _Size, _InitType, _BinaryOperation>{
+                               __num_partials, __write_empty, __init, __binary_op},
+                           __m, oneapi::dpl::__ranges::views::all_read(__chunk_ends),
+                           oneapi::dpl::__ranges::views::all_read(__partials),
+                           oneapi::dpl::__ranges::make_zip_view(__result))
+                .__checked_deferrable_wait();
+        };
+
+        // On GPUs the kernel that reduces the chunks of a few segments computes their ends itself
+        if (__is_gpu && __m <= _Size(__segmented_reduce_gpu_local_ends_segments))
+        {
+            sycl::queue __q = __exec.queue();
+            const std::size_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, std::size_t(256));
+            const std::size_t __max_groups = oneapi::dpl::__internal::__max_compute_units(__q);
+            auto __ends_rng = oneapi::dpl::__ranges::views::all_write(__chunk_ends);
+            auto __partials_rng =
+                oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::views::all_write(__partials));
+            if constexpr (std::is_arithmetic_v<_Acc> &&
+                          std::is_arithmetic_v<oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>>)
+            {
+                if (__by_groups)
+                {
+                    using _GroupKernel = __internal::__kernel_name_provider<__segmented_reduce_chunk_group_local_kernel<
+                        oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+
+                    // One sub-group per chunk, at most as many work-groups as compute units: every one of them
+                    // computes the ends of the chunks of all the segments
+                    const std::size_t __chunks_per_group = __work_group_size / __segmented_reduce_gpu_sub_group_size;
+                    const std::size_t __num_sub_groups =
+                        std::min<std::size_t>(__num_partials, __max_groups * __chunks_per_group);
+                    __segmented_reduce_chunk_local_submitter</*_ByGroups=*/true, _GroupKernel>{}(
+                        __q,
+                        __segmented_reduce_chunk_group_brick<_Acc, _Size, _InitType, _BinaryOperation>{
+                            __n, __m, __num_partials, __init, __binary_op},
+                        oneapi::dpl::__internal::__dpl_ceiling_div(__num_sub_groups, __chunks_per_group),
+                        __work_group_size, __n, __m, __min_length, __num_partials, __ends_rng, __offsets,
+                        __partials_rng, __input);
+                }
+            }
+            if (!__by_groups)
+            {
+                using _ItemKernel = __internal::__kernel_name_provider<__segmented_reduce_chunk_local_kernel<
+                    oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+
+                // One work-item per chunk, as many work-groups as compute units at most
+                const std::size_t __num_groups = std::min<std::size_t>(
+                    oneapi::dpl::__internal::__dpl_ceiling_div(std::size_t(__num_partials), __work_group_size),
+                    __max_groups);
+                __segmented_reduce_chunk_local_submitter</*_ByGroups=*/false, _ItemKernel>{}(
+                    __q,
+                    __segmented_reduce_chunk_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __m, __is_gpu, __init,
+                                                                                             __binary_op},
+                    __num_groups, __work_group_size, __n, __m, __min_length, __num_partials, __ends_rng, __offsets,
+                    __partials_rng, __input);
+            }
+            __combine();
+            return;
+        }
+
+        // A scan otherwise. The chunks depend on it through __chunk_ends, so the host does not wait for it; its future
+        // keeps the temporary data of the scan until the partial results are combined.
+        auto __scan = __parallel_transform_scan(
+            _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
+            oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
+                                                 oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1})),
+            oneapi::dpl::__ranges::views::all_write(__chunk_ends), __m,
+            __segmented_reduce_chunk_count<_Size>{__n, __min_length, __is_gpu, __by_groups},
+            unseq_backend::__no_init_value<_Size>{}, std::plus<_Size>{}, /*_Inclusive=*/std::true_type{});
         auto __reduce_by_items = [&]() {
             __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec),
                            __segmented_reduce_chunk_brick<_Acc, _Size, _InitType, _BinaryOperation>{
@@ -964,13 +1117,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         }
         else
             __reduce_by_items();
-        __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec),
-                       __segmented_reduce_combine_brick<_Acc, _Size, _InitType, _BinaryOperation>{
-                           __num_partials, __write_empty, __init, __binary_op},
-                       __m, oneapi::dpl::__ranges::views::all_read(__chunk_ends),
-                       oneapi::dpl::__ranges::views::all_read(__partials),
-                       oneapi::dpl::__ranges::make_zip_view(__result))
-            .__checked_deferrable_wait();
+        __combine();
         __scan.__checked_deferrable_wait();
     };
 
