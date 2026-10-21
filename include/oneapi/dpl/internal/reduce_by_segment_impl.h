@@ -168,6 +168,35 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     return std::make_pair(result1 + N, result2 + N);
 }
 
+#if _ONEDPL_BACKEND_SYCL
+
+template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
+          typename OutputIterator1, typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
+std::pair<OutputIterator1, OutputIterator2>
+reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy, InputIterator1 first1,
+                       InputIterator1 last1, InputIterator2 first2, OutputIterator1 result1, OutputIterator2 result2,
+                       BinaryPred binary_pred, BinaryOperator binary_op)
+{
+    // The algorithm reduces values in [first2, first2 + (last1-first1)) where the associated
+    // keys for the values are equal to the adjacent key.
+    //
+    // Example: keys          = { 1, 2, 3, 4, 1, 1, 3, 3, 1, 1, 3, 3, 0 } -- [first1, last1)
+    //          values        = { 1, 2, 3, 4, 1, 1, 3, 3, 1, 1, 3, 3, 0 } -- [first2, first2+n)
+    //
+    //          keys_result   = { 1, 2, 3, 4, 1, 3, 1, 3, 0 } -- result1
+    //          values_result = { 1, 2, 3, 4, 2, 6, 2, 6, 0 } -- result2
+
+    if (first1 == last1)
+        return std::make_pair(result1, result2);
+
+    // number of unique keys
+    const auto __n = oneapi::dpl::__internal::__pattern_reduce_by_segment(
+        __tag, std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred, binary_op);
+
+    return std::make_pair(result1 + __n, result2 + __n);
+}
+#endif
+
 //------------------------------------------------------------------------
 // reduce_by_segment with segments defined by offsets or by a fixed length
 //------------------------------------------------------------------------
