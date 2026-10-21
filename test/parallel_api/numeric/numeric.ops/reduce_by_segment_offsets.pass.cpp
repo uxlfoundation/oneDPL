@@ -249,6 +249,37 @@ struct bit_set_union
     }
 };
 
+// The same set union into an accumulator of an arithmetic type, the bit pattern itself, which the reduction of the
+// chunks by sub-groups on GPUs also takes
+struct bit_mask_union
+{
+    static std::uint64_t
+    bit(int i)
+    {
+        return std::uint64_t{1} << i;
+    }
+    std::uint64_t
+    operator()(std::uint64_t a, int b) const
+    {
+        return a | bit(b);
+    }
+    std::uint64_t
+    operator()(int a, std::uint64_t b) const
+    {
+        return bit(a) | b;
+    }
+    std::uint64_t
+    operator()(int a, int b) const
+    {
+        return bit(a) | bit(b);
+    }
+    std::uint64_t
+    operator()(std::uint64_t a, std::uint64_t b) const
+    {
+        return a | b;
+    }
+};
+
 // An integer accumulator made from a floating-point initial value: an empty segment gets the initial value converted
 // to the accumulator, so without its fraction
 struct int_sum
@@ -423,6 +454,28 @@ test_boundaries()
                                              out.end(), offsets.begin(), num_segments, std::int64_t{5},
                                              std::plus<std::int64_t>{}, std::int64_t{-1});
     }
+}
+
+// Long segments only, which on GPUs take the reduction of their chunks by sub-groups, with operations whose identity is
+// not a zero; the first chunks of the segments keep from none to all of the lanes of a sub-group busy
+template <std::size_t CallNumber>
+void
+test_long_segments()
+{
+    const std::int64_t lengths[] = {1064, 2053, 4159, 30000, 65537, 70001};
+    std::vector<std::int64_t> offsets{0};
+    for (std::int64_t length : lengths)
+        offsets.push_back(offsets.back() + length);
+    const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+    Sequence<int> positive(offsets.back(), [](std::size_t i) { return int((i * 7919) % 1000) + 1; });
+    Sequence<int> negative(offsets.back(), [](std::size_t i) { return -int((i * 7919) % 1000) - 1; });
+    Sequence<int> out(num_segments, [](std::size_t) { return 0; });
+    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), positive.begin(), positive.end(),
+                                         out.begin(), out.end(), offsets.begin(), num_segments,
+                                         std::numeric_limits<int>::max(), oneapi::dpl::minimum<int>{}, 0);
+    invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), negative.begin(), negative.end(),
+                                             out.begin(), out.end(), offsets.begin(), num_segments,
+                                             std::numeric_limits<int>::lowest(), oneapi::dpl::maximum<int>{}, 0);
 }
 
 // The input is the middle of a larger sequence, whose other elements are poison: a read out of the bounds of the input
@@ -712,11 +765,17 @@ main()
     test_segments<12, int, float, std::int64_t, int>(
         2.5f, int_sum_plus{}, [](std::size_t i) { return int(i % 101) - 50; }, -1.f);
 
-    test_unordered<39>();
-    test_rfc_example<40>();
-    test_boundaries<41>();
+    // Set union into an accumulator of an arithmetic type which can be made from an input element, but with another
+    // meaning
+    test_segments<13, int, std::uint64_t, std::uint32_t, std::int64_t>(
+        std::uint64_t{1}, bit_mask_union{}, [](std::size_t i) { return int(32 + (i * 7) % 32); }, std::uint64_t{0});
+
+    test_unordered<42>();
+    test_rfc_example<43>();
+    test_boundaries<44>();
     test_forward_offsets();
-    test_input_bounds<42>();
+    test_input_bounds<45>();
+    test_long_segments<46>();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT
