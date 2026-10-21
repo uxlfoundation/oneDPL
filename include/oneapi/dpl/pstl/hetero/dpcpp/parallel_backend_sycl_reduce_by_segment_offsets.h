@@ -534,13 +534,20 @@ struct __segmented_reduce_pairs
     }
 };
 
-// Whether the bricks of the reduction, which invoke the operation as a const object, can reduce the segments
-template <typename _BinaryOperation, typename _Acc, typename _InitType, typename _Ref>
-inline constexpr bool __segmented_reduce_const_invocable_v =
-    std::is_invocable_v<const _BinaryOperation&, const _InitType&, _Ref> &&
-    std::is_invocable_v<const _BinaryOperation&, _Ref, _Ref> &&
-    std::is_invocable_v<const _BinaryOperation&, _Acc, _Ref> &&
-    std::is_invocable_v<const _BinaryOperation&, _Acc, _Acc>;
+// The operation for the bricks of the reduction within a work-group, which invoke it as a const object. An operation
+// that the reduction recognizes by its type to use the group algorithm, whose call operator is const, is kept as it is,
+// since it would not be recognized once wrapped; another one, whose call operator may be non-const, is invoked
+// through a mutable copy.
+template <typename _Acc, typename _BinaryOperation>
+auto
+__segmented_reduce_group_op(_BinaryOperation __binary_op)
+{
+    if constexpr (unseq_backend::__can_use_group_reduce_scan<_BinaryOperation, _Acc>::value)
+        return __binary_op;
+    else
+        return oneapi::dpl::__internal::__binary_op<_BinaryOperation, oneapi::dpl::identity, oneapi::dpl::identity>{
+            std::move(__binary_op), {}, {}};
+}
 
 template <typename... _Name>
 class __segmented_reduce_group_kernel;
@@ -561,12 +568,14 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                const _Size __m, const std::uint16_t __work_group_size, _InitType __init,
                _BinaryOperation __binary_op) const
     {
-        using _Pairs = __segmented_reduce_pairs<_Acc, _Size, _InitType, _BinaryOperation>;
-        using _TransformPattern = unseq_backend::transform_reduce<_BinaryOperation, _Pairs, _Acc,
-                                                                  /*_Commutative=*/std::true_type, __vector_size>;
-        using _ReducePattern = unseq_backend::reduce_over_group<_BinaryOperation, _Acc>;
+        auto __op = __segmented_reduce_group_op<_Acc>(std::move(__binary_op));
+        using _Op = decltype(__op);
+        using _Pairs = __segmented_reduce_pairs<_Acc, _Size, _InitType, _Op>;
+        using _TransformPattern =
+            unseq_backend::transform_reduce<_Op, _Pairs, _Acc, /*_Commutative=*/std::true_type, __vector_size>;
+        using _ReducePattern = unseq_backend::reduce_over_group<_Op, _Acc>;
 
-        const std::size_t __local_mem_size = _ReducePattern{__binary_op}.local_mem_req(__work_group_size);
+        const std::size_t __local_mem_size = _ReducePattern{__op}.local_mem_req(__work_group_size);
         // One work-group per segment. A launch that would not fit the int range of the work-item indices, which a SYCL
         // implementation may assume (as DPC++ does by default), has fewer work-groups, each reducing every
         // __num_groups-th segment.
@@ -598,17 +607,16 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                         if (__length < 2)
                         {
                             if (__local_idx == 0)
-                                __result[__segment] = __length == 0
-                                                          ? _Acc(__init)
-                                                          : _Acc(std::invoke(__binary_op, __init, __input[__begin]));
+                                __result[__segment] =
+                                    __length == 0 ? _Acc(__init) : _Acc(std::invoke(__op, __init, __input[__begin]));
                             continue;
                         }
 
                         // The bricks of the reduction take unsigned sizes
                         const std::size_t __num_pairs = __length / 2;
                         const _TransformPattern __transform_pattern{
-                            __binary_op, _Pairs{__begin, __num_pairs, __length % 2 != 0, __init, __binary_op}};
-                        const _ReducePattern __reduce_pattern{__binary_op};
+                            __op, _Pairs{__begin, __num_pairs, __length % 2 != 0, __init, __op}};
+                        const _ReducePattern __reduce_pattern{__op};
 
                         // The iterations of a work-item as in __parallel_transform_reduce
                         const std::size_t __iters_per_work_item = __adjust_iters_per_work_item<__vector_size>(
@@ -974,28 +982,23 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     }
 
     // On GPUs one work-group per segment reduces an input of medium size in one kernel, without the scan, the chunks
-    // and their combination: no segment is longer than the input. Very short segments leave a work-group idle. The
-    // bricks of the reduction invoke the operation as a const object, so an operation with a non-const call operator
-    // keeps the other paths.
-    if constexpr (__segmented_reduce_const_invocable_v<_BinaryOperation, _Acc, _InitType, decltype(__input[0])>)
+    // and their combination: no segment is longer than the input. Very short segments leave a work-group idle.
+    if (__is_gpu && __n <= _Size(__segmented_reduce_gpu_group_input) &&
+        __n / __m >= _Size(__segmented_reduce_gpu_group_min_average))
     {
-        if (__is_gpu && __n <= _Size(__segmented_reduce_gpu_group_input) &&
-            __n / __m >= _Size(__segmented_reduce_gpu_group_min_average))
-        {
-            using _GroupKernel = __internal::__kernel_name_provider<
-                __segmented_reduce_group_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+        using _GroupKernel = __internal::__kernel_name_provider<
+            __segmented_reduce_group_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
 
-            sycl::queue __q = __exec.queue();
-            // The work-group size as in __parallel_transform_reduce: adjusted to the local memory limit, which is
-            // doubled to take into account the memory used by the compiled kernel, and at most 256
-            const std::size_t __work_group_size = std::min<std::size_t>(
-                oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, std::size_t(sizeof(_Acc) * 2)), 256);
-            __segmented_reduce_group_submitter<_Acc, _GroupKernel>()(__q, __input, __offsets, __result, __n, __m,
-                                                                     static_cast<std::uint16_t>(__work_group_size),
-                                                                     __init, __binary_op)
-                .wait_and_throw();
-            return;
-        }
+        sycl::queue __q = __exec.queue();
+        // The work-group size as in __parallel_transform_reduce: adjusted to the local memory limit, which is doubled
+        // to take into account the memory used by the compiled kernel, and at most 256
+        const std::size_t __work_group_size = std::min<std::size_t>(
+            oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, std::size_t(sizeof(_Acc) * 2)), 256);
+        __segmented_reduce_group_submitter<_Acc, _GroupKernel>()(__q, __input, __offsets, __result, __n, __m,
+                                                                 static_cast<std::uint16_t>(__work_group_size), __init,
+                                                                 __binary_op)
+            .wait_and_throw();
+        return;
     }
 
     // On GPUs the long segments of arithmetic types by tiles, one work-group per tile, whatever their lengths
