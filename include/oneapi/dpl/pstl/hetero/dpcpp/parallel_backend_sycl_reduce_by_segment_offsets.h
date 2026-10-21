@@ -150,7 +150,7 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
 
     template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size, typename _InitType,
               typename _BinaryOperation>
-    __future<sycl::event>
+    sycl::event
     operator()(sycl::queue& __q, _InRange&& __input, _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n,
                const _Size __m, const std::uint16_t __work_group_size, _InitType __init,
                _BinaryOperation __binary_op) const
@@ -166,7 +166,7 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
         // __num_groups-th segment.
         const std::size_t __num_groups =
             std::min<std::size_t>(__m, std::size_t(std::numeric_limits<int>::max()) / __work_group_size);
-        auto __event = __q.submit([&](sycl::handler& __cgh) {
+        return __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
             __dpl_sycl::__local_accessor<_Acc> __local_mem(sycl::range<1>(__local_mem_size), __cgh);
             __cgh.parallel_for<_Name...>(
@@ -228,7 +228,6 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                     }
                 });
         });
-        return __future{std::move(__event)};
     }
 };
 
@@ -269,7 +268,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     __segmented_reduce_group_submitter<_Acc, _KernelName>()(
         __q, std::forward<_InRange>(__input), std::forward<_OffsetRange>(__offsets), std::forward<_OutRange>(__result),
         __n, __m, static_cast<std::uint16_t>(__work_group_size), __init, __binary_op)
-        .__checked_deferrable_wait();
+        .wait_and_throw();
 }
 
 } // namespace __par_backend_hetero
