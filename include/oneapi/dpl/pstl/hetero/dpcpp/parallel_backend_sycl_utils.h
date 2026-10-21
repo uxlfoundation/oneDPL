@@ -335,12 +335,6 @@ struct __is_comp_ascending<std::less<_T>>
     static constexpr bool value = true;
 };
 
-template <>
-struct __is_comp_ascending<oneapi::dpl::__internal::__pstl_less>
-{
-    static constexpr bool value = true;
-};
-
 #if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201911L
 template <>
 struct __is_comp_ascending<std::ranges::less>
@@ -357,11 +351,6 @@ struct __is_comp_descending
 };
 template <typename _T>
 struct __is_comp_descending<std::greater<_T>>
-{
-    static constexpr bool value = true;
-};
-template <>
-struct __is_comp_descending<oneapi::dpl::__internal::__pstl_greater>
 {
     static constexpr bool value = true;
 };

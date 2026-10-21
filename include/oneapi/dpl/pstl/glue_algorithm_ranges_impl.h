@@ -1824,8 +1824,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
                                                       oneapi::dpl::__internal::__difference_t<_Range1>>
 find_end(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 {
-    return find_end(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
-                    ::std::forward<_Range2>(__rng2), oneapi::dpl::__internal::__pstl_equal());
+    return find_end(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
+                    std::forward<_Range2>(__rng2), std::equal_to<>{});
 }
 
 // [alg.find.first.of]
@@ -1847,8 +1847,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
                                                       oneapi::dpl::__internal::__difference_t<_Range1>>
 find_first_of(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 {
-    return find_first_of(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
-                         ::std::forward<_Range2>(__rng2), oneapi::dpl::__internal::__pstl_equal());
+    return find_first_of(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
+                         std::forward<_Range2>(__rng2), std::equal_to<>{});
 }
 
 // [alg.adjacent.find]
@@ -1914,8 +1914,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
                                                       oneapi::dpl::__internal::__difference_t<_Range1>>
 search(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 {
-    return search(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
-                  ::std::forward<_Range2>(__rng2), oneapi::dpl::__internal::__pstl_equal());
+    return search(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                  std::equal_to<>{});
 }
 
 template <typename _ExecutionPolicy, typename _Range, typename _Size, typename _Tp, typename _BinaryPredicate>
@@ -1933,8 +1933,8 @@ template <typename _ExecutionPolicy, typename _Range, typename _Size, typename _
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, oneapi::dpl::__internal::__difference_t<_Range>>
 search_n(_ExecutionPolicy&& __exec, _Range&& __rng, _Size __count, const _Tp& __value)
 {
-    return search_n(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), __count, __value,
-                    oneapi::dpl::__internal::__pstl_equal());
+    return search_n(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), __count, __value,
+                    std::equal_to<>{});
 }
 
 // [alg.copy]
@@ -2098,8 +2098,7 @@ template <typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, oneapi::dpl::__internal::__difference_t<_Range>>
 unique(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
-    return unique(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
-                  oneapi::dpl::__internal::__pstl_equal());
+    return unique(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), std::equal_to<>{});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinaryPredicate>
@@ -2119,8 +2118,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
                                                       oneapi::dpl::__internal::__difference_t<_Range2>>
 unique_copy(_ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result)
 {
-    return unique_copy(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng),
-                       ::std::forward<_Range2>(__result), oneapi::dpl::__internal::__pstl_equal());
+    return unique_copy(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng),
+                       std::forward<_Range2>(__result), std::equal_to<>{});
 }
 
 // [alg.reverse]
@@ -2237,8 +2236,7 @@ template <typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 sort(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
-    sort(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
-         oneapi::dpl::__internal::__pstl_less());
+    sort(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), std::less<>{});
 }
 
 // [stable.sort]
@@ -2257,8 +2255,7 @@ template <typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 stable_sort(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
-    stable_sort(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng),
-         oneapi::dpl::__internal::__pstl_less());
+    stable_sort(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), std::less<>{});
 }
 
 // [is.sorted]
@@ -2281,8 +2278,7 @@ template <typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, oneapi::dpl::__internal::__difference_t<_Range>>
 is_sorted_until(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
-    return is_sorted_until(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
-                           oneapi::dpl::__internal::__pstl_less());
+    return is_sorted_until(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), std::less<>{});
 }
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
@@ -2302,8 +2298,7 @@ template <typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, bool>
 is_sorted(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
-    return is_sorted(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
-                     oneapi::dpl::__internal::__pstl_less());
+    return is_sorted(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), std::less<>{});
 }
 
 // [alg.equal]
@@ -2323,8 +2318,8 @@ template <typename _ExecutionPolicy, typename _Range1, typename _Range2>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, bool>
 equal(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
 {
-    return equal(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
-                 ::std::forward<_Range2>(__rng2), oneapi::dpl::__internal::__pstl_equal());
+    return equal(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                 std::equal_to<>{});
 }
 
 // [alg.move]
@@ -2364,9 +2359,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
                                                       oneapi::dpl::__internal::__difference_t<_Range3>>
 merge(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3)
 {
-    return merge(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__rng1),
-                 ::std::forward<_Range2>(__rng2), ::std::forward<_Range3>(__rng3),
-                 oneapi::dpl::__internal::__pstl_less());
+    return merge(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                 std::forward<_Range3>(__rng3), std::less<>{});
 }
 
 // [alg.min.max]
@@ -2386,8 +2380,7 @@ template <typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, oneapi::dpl::__internal::__difference_t<_Range>>
 min_element(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
-    return min_element(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
-                       oneapi::dpl::__internal::__pstl_less());
+    return min_element(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), std::less<>{});
 }
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
@@ -2402,9 +2395,8 @@ template <typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, oneapi::dpl::__internal::__difference_t<_Range>>
 max_element(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
-    return min_element(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
-                       oneapi::dpl::__internal::__reorder_pred<oneapi::dpl::__internal::__pstl_less>(
-                           oneapi::dpl::__internal::__pstl_less()));
+    return min_element(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng),
+                       oneapi::dpl::__internal::__reorder_pred(std::less<>{}));
 }
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
@@ -2423,11 +2415,10 @@ minmax_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 template <typename _ExecutionPolicy, typename _Range>
 oneapi::dpl::__internal::__enable_if_execution_policy<
     _ExecutionPolicy,
-    ::std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__difference_t<_Range>>>
+    std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__difference_t<_Range>>>
 minmax_element(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
-    return minmax_element(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
-                          oneapi::dpl::__internal::__pstl_less());
+    return minmax_element(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), std::less<>{});
 }
 
 // oneDPL reduce_by_segment
@@ -2455,10 +2446,9 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
 reduce_by_segment(_ExecutionPolicy&& __exec, _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
                   _Range4&& __out_values, _BinaryPredicate __binary_pred)
 {
-    return reduce_by_segment(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__keys),
-                             ::std::forward<_Range2>(__values), ::std::forward<_Range3>(__out_keys),
-                             ::std::forward<_Range4>(__out_values), __binary_pred,
-                             oneapi::dpl::__internal::__pstl_plus());
+    return reduce_by_segment(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__keys),
+                             std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
+                             std::forward<_Range4>(__out_values), __binary_pred, std::plus<>{});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4>
@@ -2467,9 +2457,9 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
 reduce_by_segment(_ExecutionPolicy&& __exec, _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
                   _Range4&& __out_values)
 {
-    return reduce_by_segment(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range1>(__keys),
-                             ::std::forward<_Range2>(__values), ::std::forward<_Range3>(__out_keys),
-                             ::std::forward<_Range4>(__out_values), oneapi::dpl::__internal::__pstl_equal());
+    return reduce_by_segment(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__keys),
+                             std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
+                             std::forward<_Range4>(__out_values), std::equal_to<>{});
 }
 
 } // namespace ranges
