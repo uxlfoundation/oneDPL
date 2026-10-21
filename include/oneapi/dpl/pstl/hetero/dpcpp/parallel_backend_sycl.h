@@ -1300,8 +1300,7 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag __tag, _Exe
 //-----------------------------------------------------------------------
 
 // TODO: check if it makes sense to move these wrappers out of backend to a common place
-// partial_sort's tail is unspecified, so a full sort satisfies the contract. This is merge sort for every type,
-// including those __parallel_stable_sort sends to radix sort.
+// partial_sort's tail is unspecified, so a full sort satisfies the contract.
 template <typename _ExecutionPolicy, typename _Iterator, typename _Compare>
 auto /*__future<sycl::event, ...>*/
 __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Iterator __first,

@@ -1542,7 +1542,6 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
                 __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_2>(__exec), __first, __last,
                 __buf_first, __brick_copy<__hetero_tag<_BackendTag>>{});
 
-        // The returned future may own scratch memory, so it must be waited on before it is destroyed.
         __par_backend_hetero::__parallel_partial_sort(
             _BackendTag{}, __par_backend_hetero::make_wrapped_policy<__partial_sort_2>(__exec), __buf_first, __buf_last,
             __comp)
