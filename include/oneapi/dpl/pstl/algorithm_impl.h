@@ -3125,6 +3125,8 @@ __serial_merge_out_lim(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _F
 // This implementation is based on the Merge Path algorithm described in:
 // O. Green, S. Odeh, and Y. Birk,
 // "Merge Path - A Visually Intuitive Approach to Parallel Merging", arXiv:1406.2628, 2014.
+
+// __merge_path_intersection finds the split point on the merge path for a given diagonal.
 template <typename _Index, typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _Comp,
           typename _Proj1, typename _Proj2>
 std::pair<_Index, _Index>
@@ -3163,10 +3165,8 @@ __merge_path_intersection(_Index __diag, _Index __n_1, _Index __n_2, _RandomAcce
     return {__row_begin - __res_d, __get_column(__res_d)};
 }
 
-// Computes the merge path splits at the output chunk boundaries: __split[__c] is the number of elements taken
-// from {1} to produce the first min(__c * __chunk, __n_out) output elements, for each __c in [0, __n_chunks].
-// All splits must be computed before any element is assigned to the output: the inputs may be modified
-// by the merge step (e.g., when they are moved from) and must remain intact for the comparisons
+// Partition part of the merge path algorithm
+// Finds split points for all diagonals, which number corresponds to __n_chunks
 template <class _IsVector, typename _ExecutionPolicy, typename _Index, typename _RandomAccessIterator1,
           typename _RandomAccessIterator2, typename _Comp, typename _Proj1, typename _Proj2>
 void
@@ -3194,8 +3194,8 @@ __merge_path_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _In
                                       __n_chunks + 1, __partition, __diagonal_chunk_size);
 }
 
-// Produces the output chunks in parallel using the splits computed by __merge_path_partition.
-// A chunk taken from a single input sequence is processed by __copy brick, the other ones by __merge
+// Merge part of the merge path algorithm
+// Requires __merge_path_partition to have been called to compute the splits.
 template <class _IsVector, typename _ExecutionPolicy, typename _Index, typename _RandomAccessIterator1,
           typename _RandomAccessIterator2, typename _RandomAccessIterator3, typename _CopyBrick, typename _Merge>
 void
@@ -3267,6 +3267,7 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
 }
 
 // Assume that non-arithmetic types and the associated operations are more expensive
+// The values are chosen empirically.
 template <typename _Tp>
 inline constexpr std::size_t __merge_chunk_size = std::is_arithmetic_v<_Tp> ? 2000 : 500;
 
