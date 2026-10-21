@@ -136,14 +136,7 @@ for example, in `{0, 10, 8, 15, ...}`, what are the boundaries of the third segm
 are they `{10, 15}` or `{8, 15}`?
 Supporting them would also rule out using binary search.
 
-> [!WARNING]
-> [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) explicitly requests treating
-> `end_offsets[s] <= begin_offsets[s]` as empty segments.
-> The suggestion could just follow the CUB API,
-> with no real need to treat negatively sized segments as empty.
-> It must be double checked with the author.
-
-**Tentative Strategy**:
+**Strategy**:
 
 - Support empty segments.
 - Treat negatively sized segments as erroneous behavior:
@@ -276,12 +269,7 @@ Its notation:
 | (4) Require valid offsets, unspecified results but no out-of-bounds accesses to the input range if violated | [Erroneous behavior](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p2795r5.html): the behavior is well-defined but incorrect, and implementations may diagnose it | Clamping as in (1) or (2), whichever is cheaper for the backend, not specified | Silent, the output values are unspecified. Optionally, an assertion in debug mode | Same as (1) and (2), without the cost of returning iterators |
 | (5) Require valid offsets, document only | Standard practice for iterator-based algorithms: for example, `std::inplace_merge` requires `middle` to be a valid iterator within the range, otherwise, the behavior is undefined. It also matches the behavior of CUB and rocPRIM | None, except for optional host-side assertions in debug mode | None: out-of-bounds accesses, crashes or garbage results | None, `last` is used only for the workload distribution |
 
-> [!WARNING]
-> [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) does not include
-> `last` in the suggested interface.
-> It should be double checked with the author if adding `last` is acceptable.
-
-**Tentative Strategy**:
+**Strategy**:
 
 - Have a parameter for the `last` input element in both proposed function overloads.
 - Follow option (1): no preconditions, partial reduction of the segments crossing the bounds.
