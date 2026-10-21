@@ -722,10 +722,8 @@ hence a feature macro should be defined for convenience.
 
 For example:
 
-- `ONEDPL_HAS_SEGMENTED_ALGORITHMS 202109L`
-  for the current state as it already has the key-based segmented reduction,
-- `ONEDPL_HAS_SEGMENTED_ALGORITHMS 202611L` with the next version,
-   e.g., including device policy `reduce_by_segment`.
+- `ONEDPL_HAS_SEGMENTED_ALGORITHMS 202611L` for example,
+   after adding  `reduce_by_segment` with device policies.
 - `ONEDPL_HAS_SEGMENTED_ALGORITHMS YYYYMML` for future versions.
 
 `ONEDPL_HAS_SEGMENTED_ALGORITHMS` will also cover
