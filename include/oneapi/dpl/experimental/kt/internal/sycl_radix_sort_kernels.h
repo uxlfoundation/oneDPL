@@ -222,6 +222,72 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
     }
 };
 
+//-----------------------------------------------------------------------------
+// Sub-group ranking shared by the onesweep and the one work-group kernels
+//-----------------------------------------------------------------------------
+
+// Bitmask of the sub-group lanes holding the same bin as this lane
+template <std::uint8_t __radix_bits>
+inline std::uint32_t
+__sub_group_match_bins(sycl::sub_group __sub_group, std::uint32_t __bin)
+{
+    // start with all bits 1
+    sycl::ext::oneapi::sub_group_mask __matched_bins = sycl::ext::oneapi::group_ballot(__sub_group);
+    _ONEDPL_PRAGMA_UNROLL
+    for (int __i = 0; __i < __radix_bits; __i++)
+    {
+        bool __bit = static_cast<bool>((__bin >> __i) & 1);
+        sycl::ext::oneapi::sub_group_mask __sg_vote = sycl::ext::oneapi::group_ballot(__sub_group, __bit);
+        // If we vote yes, then we want to set all bits that also voted yes. If no, then we want to
+        // zero out the bits that said yes as they don't match and preserve others as we have no info on these.
+        __matched_bins &= __bit ? __sg_vote : ~__sg_vote;
+    }
+    std::uint32_t __result = 0;
+    __matched_bins.extract_bits(__result);
+    return __result;
+}
+
+// Ranks the elements of a sub-group of 32 lanes in the order (element, lane), and leaves the per-bin counts of the
+// sub-group in __slm_hist. __bins[i] of lane l is the bin of the sub-group's element i * 32 + l.
+template <std::uint8_t __radix_bits, std::uint16_t __data_per_work_item, typename _LocOffsetT>
+inline void
+__sub_group_rank(sycl::sub_group __sub_group, _LocOffsetT (&__ranks)[__data_per_work_item],
+                 const _LocOffsetT (&__bins)[__data_per_work_item], _LocOffsetT* __slm_hist,
+                 std::uint32_t __sub_group_local_id)
+{
+    constexpr std::uint32_t __bin_count = 1 << __radix_bits;
+    constexpr std::uint32_t __sub_group_size = 32;
+    using _SubGroupBitmaskT = std::uint32_t;
+
+    for (std::uint32_t __i = __sub_group_local_id; __i < __bin_count; __i += __sub_group_size)
+    {
+        __slm_hist[__i] = 0;
+    }
+
+    constexpr _SubGroupBitmaskT __sub_group_full_bitmask = 0x7fffffff;
+    // lower bits than my current will be set meaning we only preserve left lanes
+    _SubGroupBitmaskT __remove_right_lanes = __sub_group_full_bitmask >> (__sub_group_size - 1 - __sub_group_local_id);
+
+    _ONEDPL_PRAGMA_UNROLL
+    for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
+    {
+        _LocOffsetT __bin = __bins[__i];
+        _SubGroupBitmaskT __matched_bins = __sub_group_match_bins<__radix_bits>(__sub_group, __bin);
+        sycl::group_barrier(__sub_group);
+        _LocOffsetT __pre_rank = __slm_hist[__bin];
+        _SubGroupBitmaskT __matched_left_lanes = __matched_bins & __remove_right_lanes;
+        _LocOffsetT __this_round_rank = sycl::popcount(__matched_left_lanes);
+        _LocOffsetT __this_round_count = sycl::popcount(__matched_bins);
+        _LocOffsetT __rank_after = __pre_rank + __this_round_rank;
+        bool __is_leader = __this_round_rank == __this_round_count - 1;
+        sycl::group_barrier(__sub_group);
+        if (__is_leader)
+        {
+            __slm_hist[__bin] = __rank_after + 1;
+        }
+        __ranks[__i] = __rank_after;
+    }
+}
 
 template <bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
@@ -404,62 +470,15 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         }
     }
 
-    static inline std::uint32_t
-    __match_bins(sycl::sub_group __sub_group, std::uint32_t __bin)
-    {
-        // start with all bits 1
-        sycl::ext::oneapi::sub_group_mask __matched_bins = sycl::ext::oneapi::group_ballot(__sub_group);
-        _ONEDPL_PRAGMA_UNROLL
-        for (int __i = 0; __i < __radix_bits; __i++)
-        {
-            bool __bit = static_cast<bool>((__bin >> __i) & 1);
-            sycl::ext::oneapi::sub_group_mask __sg_vote = sycl::ext::oneapi::group_ballot(__sub_group, __bit);
-            // If we vote yes, then we want to set all bits that also voted yes. If no, then we want to
-            // zero out the bits that said yes as they don't match and preserve others as we have no info on these.
-            __matched_bins &= __bit ? __sg_vote : ~__sg_vote;
-        }
-        std::uint32_t __result = 0;
-        __matched_bins.extract_bits(__result);
-        return __result;
-    }
-
     inline auto
-    __rank_local(const sycl::nd_item<1>& __idx, sycl::sub_group __sub_group, _LocOffsetT __ranks[__data_per_work_item],
-                 _LocOffsetT __bins[__data_per_work_item], _LocOffsetT* __slm_subgroup_hists,
-                 std::uint32_t __sub_group_slm_offset, std::uint32_t __sub_group_local_id) const
+    __rank_local(const sycl::nd_item<1>& __idx, sycl::sub_group __sub_group,
+                 _LocOffsetT (&__ranks)[__data_per_work_item], const _LocOffsetT (&__bins)[__data_per_work_item],
+                 _LocOffsetT* __slm_subgroup_hists, std::uint32_t __sub_group_slm_offset,
+                 std::uint32_t __sub_group_local_id) const
     {
-        _LocOffsetT* __slm_offset = __slm_subgroup_hists + __sub_group_slm_offset;
-
-        for (_LocIdxT __i = __sub_group_local_id; __i < __bin_count; __i += __sub_group_size)
-        {
-            __slm_offset[__i] = 0;
-        }
-
-        constexpr _SubGroupBitmaskT __sub_group_full_bitmask = 0x7fffffff;
         static_assert(__sub_group_size == 32);
-        // lower bits than my current will be set meaning we only preserve left lanes
-        _SubGroupBitmaskT __remove_right_lanes =
-            __sub_group_full_bitmask >> (__sub_group_size - 1 - __sub_group_local_id);
-
-        _ONEDPL_PRAGMA_UNROLL
-        for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
-        {
-            _LocOffsetT __bin = __bins[__i];
-            _SubGroupBitmaskT __matched_bins = __match_bins(__sub_group, __bin);
-            sycl::group_barrier(__sub_group);
-            _LocOffsetT __pre_rank = __slm_offset[__bin];
-            _SubGroupBitmaskT __matched_left_lanes = __matched_bins & __remove_right_lanes;
-            _LocOffsetT __this_round_rank = sycl::popcount(__matched_left_lanes);
-            _LocOffsetT __this_round_count = sycl::popcount(__matched_bins);
-            _LocOffsetT __rank_after = __pre_rank + __this_round_rank;
-            bool __is_leader = __this_round_rank == __this_round_count - 1;
-            sycl::group_barrier(__sub_group);
-            if (__is_leader)
-            {
-                __slm_offset[__bin] = __rank_after + 1;
-            }
-            __ranks[__i] = __rank_after;
-        }
+        __sub_group_rank<__radix_bits>(__sub_group, __ranks, __bins, __slm_subgroup_hists + __sub_group_slm_offset,
+                                       __sub_group_local_id);
         sycl::group_barrier(__idx.get_group());
     }
 
