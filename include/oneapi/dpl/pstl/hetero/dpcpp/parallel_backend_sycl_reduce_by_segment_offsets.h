@@ -118,6 +118,9 @@ class __segmented_reduce_fill_wrapper;
 // - a segment up to this length is short;
 inline constexpr std::size_t __segmented_reduce_gpu_threshold = 512;
 inline constexpr std::size_t __segmented_reduce_cpu_threshold = 32768;
+// - all the segments are reduced in chunks once their average length exceeds this on GPUs, and the threshold above on
+//   CPUs: on GPUs the short segments beside the long ones in chunks cost more than all the segments in chunks;
+inline constexpr std::size_t __segmented_reduce_gpu_chunks_average = 256;
 // - on GPUs an input up to this size is reduced by one kernel, one work-item per segment of any length;
 inline constexpr std::size_t __segmented_reduce_gpu_small_input = 1024;
 // - on GPUs the best chunk length of a long segment is close to the square root of its length, which balances the
@@ -376,9 +379,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         return;
     }
 
-    if (__n / __m > __threshold)
+    if (__n / __m > (__is_gpu ? _Size(__segmented_reduce_gpu_chunks_average) : __threshold))
     {
-        // The average segment is long: all the segments in chunks
+        // The average segment is long enough: all the segments in chunks
         __reduce_in_chunks(_Size{0}, /*__write_empty=*/true, __m);
         return;
     }

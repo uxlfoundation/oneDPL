@@ -400,13 +400,14 @@ test_forward_offsets()
 // Segments of the lengths at the boundaries of the implementations: the longest short segment and the shortest long one
 // (512 on GPUs, 32768 on CPU devices and on the host), and long segments whose first chunk has one element or the whole
 // chunk length (on GPUs the least power of two whose square is not less than the length of the segment, at least 64,
-// 4096 on CPU devices, 16384 on the host); alone, and among many short segments, which take another path on GPUs
+// 4096 on CPU devices, 16384 on the host); alone, and among enough short segments for an average length below 256,
+// which takes another path on GPUs
 template <std::size_t CallNumber>
 void
 test_boundaries()
 {
     const std::int64_t lengths[] = {511, 512, 513, 4096, 4097, 16384, 16385, 32767, 32768, 32769, 49152, 49153};
-    for (std::int64_t short_ones : {0, 42})
+    for (std::int64_t short_ones : {0, 100})
     {
         std::vector<std::int64_t> offsets{0};
         for (std::int64_t length : lengths)
