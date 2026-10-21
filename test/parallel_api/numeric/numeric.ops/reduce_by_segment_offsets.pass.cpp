@@ -280,6 +280,16 @@ struct bit_mask_union
     }
 };
 
+// A sum whose call operator is not const
+struct non_const_plus
+{
+    std::int64_t
+    operator()(std::int64_t a, std::int64_t b)
+    {
+        return a + b;
+    }
+};
+
 // An integer accumulator made from a floating-point initial value: an empty segment gets the initial value converted
 // to the accumulator, so without its fraction
 struct int_sum
@@ -790,6 +800,10 @@ main()
     // meaning
     test_segments<13, int, std::uint64_t, std::uint32_t, std::int64_t>(
         std::uint64_t{1}, bit_mask_union{}, [](std::size_t i) { return int(32 + (i * 7) % 32); }, std::uint64_t{0});
+
+    // Sum with an operation whose call operator is not const
+    test_segments<17, int, std::int64_t, std::int64_t, int>(
+        std::int64_t{5}, non_const_plus{}, [](std::size_t i) { return int(i % 101) - 50; }, std::int64_t{-1});
 
     test_unordered<42>();
     test_rfc_example<43>();

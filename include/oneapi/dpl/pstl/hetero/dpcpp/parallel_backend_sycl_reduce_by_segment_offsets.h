@@ -534,6 +534,14 @@ struct __segmented_reduce_pairs
     }
 };
 
+// Whether the bricks of the reduction, which invoke the operation as a const object, can reduce the segments
+template <typename _BinaryOperation, typename _Acc, typename _InitType, typename _Ref>
+inline constexpr bool __segmented_reduce_const_invocable_v =
+    std::is_invocable_v<const _BinaryOperation&, const _InitType&, _Ref> &&
+    std::is_invocable_v<const _BinaryOperation&, _Ref, _Ref> &&
+    std::is_invocable_v<const _BinaryOperation&, _Acc, _Ref> &&
+    std::is_invocable_v<const _BinaryOperation&, _Acc, _Acc>;
+
 template <typename... _Name>
 class __segmented_reduce_group_kernel;
 
@@ -966,23 +974,28 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     }
 
     // On GPUs one work-group per segment reduces an input of medium size in one kernel, without the scan, the chunks
-    // and their combination: no segment is longer than the input. Very short segments leave a work-group idle.
-    if (__is_gpu && __n <= _Size(__segmented_reduce_gpu_group_input) &&
-        __n / __m >= _Size(__segmented_reduce_gpu_group_min_average))
+    // and their combination: no segment is longer than the input. Very short segments leave a work-group idle. The
+    // bricks of the reduction invoke the operation as a const object, so an operation with a non-const call operator
+    // keeps the other paths.
+    if constexpr (__segmented_reduce_const_invocable_v<_BinaryOperation, _Acc, _InitType, decltype(__input[0])>)
     {
-        using _GroupKernel = __internal::__kernel_name_provider<
-            __segmented_reduce_group_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+        if (__is_gpu && __n <= _Size(__segmented_reduce_gpu_group_input) &&
+            __n / __m >= _Size(__segmented_reduce_gpu_group_min_average))
+        {
+            using _GroupKernel = __internal::__kernel_name_provider<
+                __segmented_reduce_group_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
 
-        sycl::queue __q = __exec.queue();
-        // The work-group size as in __parallel_transform_reduce: adjusted to the local memory limit, which is doubled
-        // to take into account the memory used by the compiled kernel, and at most 256
-        const std::size_t __work_group_size = std::min<std::size_t>(
-            oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, std::size_t(sizeof(_Acc) * 2)), 256);
-        __segmented_reduce_group_submitter<_Acc, _GroupKernel>()(__q, __input, __offsets, __result, __n, __m,
-                                                                 static_cast<std::uint16_t>(__work_group_size), __init,
-                                                                 __binary_op)
-            .wait_and_throw();
-        return;
+            sycl::queue __q = __exec.queue();
+            // The work-group size as in __parallel_transform_reduce: adjusted to the local memory limit, which is
+            // doubled to take into account the memory used by the compiled kernel, and at most 256
+            const std::size_t __work_group_size = std::min<std::size_t>(
+                oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, std::size_t(sizeof(_Acc) * 2)), 256);
+            __segmented_reduce_group_submitter<_Acc, _GroupKernel>()(__q, __input, __offsets, __result, __n, __m,
+                                                                     static_cast<std::uint16_t>(__work_group_size),
+                                                                     __init, __binary_op)
+                .wait_and_throw();
+            return;
+        }
     }
 
     // On GPUs the long segments of arithmetic types by tiles, one work-group per tile, whatever their lengths
