@@ -2,152 +2,64 @@
 
 This document describes the high-level architecture and development patterns in oneDPL.
 
-oneDPL is a header-only library, and has a C++17 minimum requirement.
+## Three-Tier Design
 
-## Three-Tier Design Pattern
+Algorithm → Pattern Function → Backend Primitive
 
-oneDPL uses a layered architecture to provide a single API across multiple backends:
+Example: `oneapi::dpl::any_of()` → `__internal::__pattern_any_of()` → `__internal::__parallel_or()`
 
-### 1. Glue/Public API Layer
-**Location:** `include/oneapi/dpl/`
+### 1. Public API (Glue) Layer
+**Location:** `include/oneapi/dpl/` (public headers) and `include/oneapi/dpl/pstl/glue_*.h`
 
-Public headers matching C++ standard library naming:
-- `algorithm`, `execution`, `numeric`, `memory`, `ranges`, `iterator`
-
-Implementation in `glue_*.h` files:
 - Thin wrappers accepting execution policies
-- Dispatch to pattern layer using `__select_backend()`
-- Files split: `*_defs.h` (declarations), `*_impl.h` (implementations)
+- Call `__select_backend()` to obtain a dispatch tag, then call the pattern function with it
+- Headers are split into `*_defs.h` (declarations) and `*_impl.h` (implementations); `*_fwd.h` holds pattern forward declarations
 
-### 2. Pattern Implementation Layer
-**Location:** `include/oneapi/dpl/pstl/` (e.g., `algorithm_impl.h`, `numeric_impl.h`)
+### 2. Pattern Layer
+Core algorithm logic in `__pattern_*()` functions, overloaded on the dispatch tag and iterator category:
 
-Core algorithm logic in `__pattern_*()` functions:
-- Polymorphic overloads based on:
-  - Iterator type (forward, random-access)
-  - Execution policy (serial, parallel, hetero)
-  - Vectorization capability (`_IsVector` template parameter)
-- Enable single algorithm to serve multiple execution contexts
+| Location | Contents |
+|----------|----------|
+| `pstl/algorithm_impl.h`, `numeric_impl.h`, `memory_impl.h` | Host patterns (serial, TBB, OpenMP) |
+| `pstl/hetero/*_impl_hetero.h` | Device (SYCL) patterns |
+| `pstl/algorithm_ranges_impl.h`, `numeric_ranges_impl.h`, `memory_ranges_impl.h` | C++20 `std::ranges` patterns (host) |
+| `pstl/hetero/*_ranges_impl_hetero.h` | `oneapi::dpl::__ranges` patterns (device), used by both C++20 ranges and oneDPL ranges |
+| `internal/` | Extensions: by-segment algorithms, binary search, async, dynamic selection, random |
 
-Note: `include/oneapi/dpl/internal/` contains some extension implementations (scan-by-segment, binary search, dynamic selection, etc.).
+`__brick_*()` functions are elementary serial/SIMD implementations used inside work units by patterns, e.g. `__brick_any_of()` serves both serial and parallel `__pattern_any_of()`.
 
-Example flow: `std::any_of()` → `__internal::__pattern_any_of()` → backend primitives
+### 3. Backend Layer
+**Host backends** (`include/oneapi/dpl/pstl/`):
+- `parallel_backend_tbb.h`, `parallel_backend_omp.h` (+ `omp/`), `parallel_backend_serial.h`
+- Each implements `__parallel_for()`, `__parallel_reduce()`, `__parallel_strict_scan()`, etc.
+- `parallel_backend.h` aliases `__par_backend` to the active host backend
 
-### 3. Backend Implementation Layer
-**Location:** `include/oneapi/dpl/pstl/`
+**SYCL backend** (`include/oneapi/dpl/pstl/hetero/dpcpp/`):
+- `parallel_backend_sycl.h` is the entry point and contains scan, copy_if, and related primitives
+- Per-algorithm kernels are in `parallel_backend_sycl_<algo>.h`
+- `execution_sycl_defs.h` defines device policies; `sycl_iterator.h` and `utils_ranges_sycl.h` adapt buffers and iterators for kernels
 
-Backend-specific parallelism primitives:
+## Execution Policies and Dispatch Tags
 
-**Host Backends:**
-- `parallel_backend_tbb.h` - Intel Threading Building Blocks
-- `parallel_backend_omp.h` - OpenMP pragmas
-- `parallel_backend_serial.h` - Sequential fallback
+| Policy | Dispatch tag |
+|--------|--------------|
+| `seq`, `unseq` | `__serial_tag<_IsVector>` |
+| `par`, `par_unseq` | `__parallel_tag<_IsVector>` (random-access iterators) or `__parallel_forward_tag` (forward iterators) |
+| `device_policy` | `__hetero_tag<__device_backend_tag>` |
+| `fpga_policy` | `__hetero_tag<__fpga_backend_tag>` |
 
-**Heterogeneous Backend:**
-- `hetero/dpcpp/parallel_backend_sycl*.h` - SYCL/DPC++ for GPUs/accelerators
+## Backend Selection
 
-Each backend implements common interface:
-- `__parallel_for()`, `__parallel_reduce()`, `__parallel_scan()`, etc.
-- Compile-time selection via namespace aliasing (`__par_backend`)
-
-## Execution Policies
-
-Policies control algorithm execution strategy:
-
-| Policy | Execution | Use Case |
-|--------|-----------|----------|
-| `sequenced_policy` (seq) | Sequential | Single-threaded CPU |
-| `parallel_policy` (par) | Parallel threads | Multi-core CPU with TBB/OpenMP |
-| `parallel_unsequenced_policy` (par_unseq) | Parallel + SIMD | Multi-core CPU with vectorization |
-| `unsequenced_policy` (unseq) | SIMD only | Single-threaded with vectorization |
-| Device policies | GPU/accelerator | SYCL/DPC++ execution |
-
-Policies map to execution tags:
-- `__serial_tag` - Sequential execution
-- `__parallel_tag<_IsVector>` - Parallel execution with optional vectorization
-- `__hetero_tag<_BackendTag>` - Device execution
-
-## Backend Architecture
-
-### Backend Selection
-
-Backends selected at **compile-time only** via CMake `ONEDPL_BACKEND`:
-
-```cmake
--DONEDPL_BACKEND=tbb        # TBB (default for most platforms)
--DONEDPL_BACKEND=dpcpp      # SYCL/DPC++ with TBB for host
--DONEDPL_BACKEND=dpcpp_only # SYCL/DPC++ without TBB
--DONEDPL_BACKEND=omp        # OpenMP
--DONEDPL_BACKEND=serial     # Sequential
-```
-
-Selection logic in `CMakeLists.txt`:
-- When `ONEDPL_BACKEND` is not set, auto-detects SYCL support: defaults to `dpcpp` if SYCL is available, otherwise `tbb`
-- When `ONEDPL_BACKEND` is explicitly set, auto-detection is skipped; the specified backend's dependencies must be available
-- Namespace `__par_backend` points to active backend
-
-### SYCL/DPC++ Backend
-
-**Specialized Kernel Implementations:**
-
-| File | Purpose |
-|------|---------|
-| `parallel_backend_sycl_for.h` | Kernel launching primitives |
-| `parallel_backend_sycl_reduce.h` | Reduction operations |
-| `parallel_backend_sycl_*scan*.h` | Scan/prefix-sum operations |
-| `parallel_backend_sycl_merge*.h` | Merge algorithms |
-| `parallel_backend_sycl_radix_sort*.h` | Optimized radix sort |
-| `parallel_backend_sycl_reduce_by_segment.h` | Segmented operations |
-
-## Development Patterns
-
-### Pattern-Based Implementation
-
-Standard pattern for implementing algorithms:
-
-1. **Public API** (`glue_algorithm_impl.h`)
-   - Accepts execution policy + algorithm parameters
-   - Dispatches to pattern function
-
-2. **Pattern Function** (`algorithm_impl.h`)
-   - `__pattern_*()` with overloads for different contexts
-   - Selects appropriate brick/backend based on:
-     - Iterator category
-     - Execution policy
-     - Vectorization support
-
-3. **Backend Primitive**
-   - Actual parallel execution via backend
-   - Example: `__par_backend::__parallel_or()`
-
-### Brick Functions
-
-`__brick_*()` functions provide elementary implementations:
-- Used within work units by patterns
-- Enable code reuse between serial/parallel variants
-- Example: `__brick_any_of()` used by both serial and parallel `__pattern_any_of()`
-
+Backend selection is compile-time only. The host backend is chosen by the `ONEDPL_USE_TBB_BACKEND` / `ONEDPL_USE_OPENMP_BACKEND` macros (serial when both are `0`); the SYCL backend is enabled when the compiler supports SYCL unless `ONEDPL_USE_DPCPP_BACKEND=0`. oneDPL's CMake `ONEDPL_BACKEND` option sets these macros; users who include the headers directly set them (or rely on defaults) themselves. See `internal/version_impl.h` and `pstl/onedpl_config.h`.
 
 ## Testing Architecture
 
-Tests organized by execution model:
+Tests are organized in `test/` by area. Under the dpcpp backend, most tests run with both host and device policies.
 
-**`test/parallel_api/`** - Tests using host execution policies
-- `algorithm/` - Parallel algorithm tests
-- `numeric/` - Reduction, scan operations
-- `memory/` - Memory algorithms
-- `ranges/` - Range-based API
-
-**`test/xpu_api/`** - Tests for device-side API
-- C++ standard APIs callable from SYCL kernels
-- Validates device-side iterator support
-
-**`test/general/`** - General functionality
-- SYCL iterator tests
-- Policy behavior validation
-
-**`test/kt/`** - Kernel templates (experimental)
-- Hardware-specific optimizations
-- Requires specific device capabilities
-
-Test naming: `*.pass.cpp` suffix for tests expected to pass.
+| Directory | Contents |
+|-----------|----------|
+| `parallel_api/` | Parallel algorithms: `algorithm/`, `numeric/`, `memory/`, `ranges/`, `iterator/`, `dynamic_selection/`, `device_array/`, `experimental/` |
+| `xpu_api/` | C++ standard APIs callable from SYCL kernels |
+| `general/` | Policies, SYCL iterators, and other general functionality |
+| `kt/` | Kernel templates (experimental, require specific device capabilities; `*.cpp` suffix) |
+| `support/` | Shared test utilities |
