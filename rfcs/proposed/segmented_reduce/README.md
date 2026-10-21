@@ -45,8 +45,9 @@ See [reference implementations](reference_implementations.md) and the
 
 All the proposed segmented algorithms are included from `<oneapi/dpl/numeric>`.
 
-Optionally, the algorithms can also be made available from `<oneapi/dpl/algorithm>`,
-because the existing `reduce_by_segment` allows it due to historical reasons.
+They should also be available from`<oneapi/dpl/algorithm>`,
+because the existing `reduce_by_segment` allows it due to historical reasons,
+but it should not be documented.
 
 ```c++
 // (1) Variable-length segments
