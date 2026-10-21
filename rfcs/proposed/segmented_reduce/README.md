@@ -618,9 +618,7 @@ The same rule is used by [`std::ranges::fold_left`](<https://eel.is/c++draft/alg
 
 The suggested rule allows controlling the accumulator type
 through the binary operation, which alone should handle all needed combinations.
-If the binary operation type is not specified,
-the accumulator type will be deduced automatically based on
-the initial value and input reference types. For example:
+For example:
 
 | Goal | Input | Output | `init` | `binary_op` | `AccT` |
 |---|---|---|---|---|---|
