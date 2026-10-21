@@ -148,7 +148,7 @@ based on user demand and performance considerations.
 
 Proposals for additional algorithms:
 - [Batched Stable Sort](../../proposed/batched_stable_sort/README.md):
-  `batched_merge_sort` and `batched_radix_sort` for batches of fixed size segments.
+  `batched_stable_sort` and `batched_stable_sort_by_key` for batches of fixed size segments.
 
 ### Example
 
