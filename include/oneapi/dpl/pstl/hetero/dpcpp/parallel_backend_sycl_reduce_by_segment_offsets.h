@@ -679,20 +679,23 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
         using _Carry = __segmented_reduce_tile_carry<_Acc, _Size>;
 
         const _Size __num_tiles = (__n + __tile - 1) / __tile;
-        sycl::buffer<_Carry> __carries{sycl::range<1>(__num_tiles)};
+        // In USM device memory where supported: a buffer would add the cost of its accessors to every kernel and of
+        // its destruction to the call
+        __device_storage<_Carry> __carries{__q, std::size_t(__num_tiles)};
         const std::size_t __num_groups =
             std::min<std::size_t>(__num_tiles, std::size_t(std::numeric_limits<int>::max()) / __work_group_size);
         const _Size __wg = _Size(__work_group_size);
 
-        __q.submit([&](sycl::handler& __cgh) {
+        sycl::event __tile_event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
-            sycl::accessor __carry{__carries, __cgh, sycl::write_only, sycl::no_init};
+            auto __carry_acc = __get_accessor(sycl::write_only, __carries, __cgh, __dpl_sycl::__no_init{});
             __dpl_sycl::__local_accessor<_Acc> __local_mem(sycl::range<1>(__work_group_size), __cgh);
             __cgh.parallel_for<_Name...>(
                 sycl::nd_range<1>(sycl::range<1>(__num_groups * __work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item<1> __item)
                     [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__segmented_reduce_gpu_sub_group_size)]] {
                         _BinaryOperation __op = __binary_op;
+                        _Carry* const __carry = __carry_acc.__data();
                         const _Size __lid = __item.get_local_id(0);
                         const __dpl_sycl::__sub_group __sg = __item.get_sub_group();
                         const _Size __lane = __sg.get_local_linear_id();
@@ -844,9 +847,11 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
 
         __q.submit([&](sycl::handler& __cgh) {
                oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
-               sycl::accessor __carry{__carries, __cgh, sycl::read_only};
+               auto __carry_acc = __get_accessor(sycl::read_only, __carries, __cgh);
+               __cgh.depends_on(__tile_event);
                __cgh.parallel_for<_FixupName...>(sycl::range<1>(__num_tiles), [=](sycl::item<1> __it) {
                    _BinaryOperation __op = __binary_op;
+                   const _Carry* const __carry = __carry_acc.__data();
                    const _Size __t = __it.get_linear_id();
                    const _Size __s = __carry[__t].__cross;
                    if (__s >= __m)
