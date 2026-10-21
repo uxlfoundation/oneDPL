@@ -2396,7 +2396,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, oneapi::
 max_element(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
     return min_element(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng),
-                       oneapi::dpl::__internal::__reorder_pred<std::less<>>(std::less<>{}));
+                       oneapi::dpl::__internal::__reorder_pred(std::less<>{}));
 }
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>

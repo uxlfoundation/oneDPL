@@ -1164,7 +1164,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 max_element(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
     return oneapi::dpl::min_element(std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                    oneapi::dpl::__internal::__reorder_pred<std::less<>>(std::less<>{}));
+                                    oneapi::dpl::__internal::__reorder_pred(std::less<>{}));
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _Compare>
