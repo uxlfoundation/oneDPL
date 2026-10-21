@@ -21,6 +21,14 @@
 #include "support/utils.h"
 
 #include <functional>
+#include <string>
+#include <string_view>
+#include <vector>
+#include <iterator>
+#include <algorithm>
+#include <numeric>
+#include <tuple>
+#include <utility>
 
 using namespace TestUtils;
 
@@ -162,18 +170,149 @@ struct test_non_const
     }
 };
 
-struct test_merge_tuple
+// A (key, value) pair compared by the key only: the order of the values reveals the stability.
+// Unlike std::tuple, it is trivially assignable, which makes the parallel merge take a different code path.
+struct KeyValue
 {
-    template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator,
-    typename Compare, typename Checker>
-    void
-    operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2,
-               OutputIterator out_first, Compare comp, Checker check)
+    std::int32_t key;
+    std::int32_t value;
+
+    friend bool
+    operator==(const KeyValue& x, const KeyValue& y)
     {
-        std::merge(std::forward<Policy>(exec), first1, last1, first2, last2, out_first, comp);
-        check();
+        return x.key == y.key && x.value == y.value;
     }
 };
+
+using KeyValueTuple = std::tuple<std::int32_t, std::int32_t>;
+
+std::int32_t
+get_key(const KeyValue& x)
+{
+    return x.key;
+}
+
+std::int32_t
+get_key(const KeyValueTuple& x)
+{
+    return std::get<0>(x);
+}
+
+enum class KeysOverlap
+{
+    interleaved, // the keys of {1} and {2} cover the same range
+    touching,    // {1} is ordered before {2}, the last key of {1} is equal to the first key of {2}
+    reversed     // {2} is ordered before {1}
+};
+
+template <std::size_t CallNumber, typename T>
+void
+test_stability_and_order_impl(std::size_t a_size, std::size_t b_size, KeysOverlap overlap)
+{
+    // The keys grow from 0 to 99 in both sequences, forming runs of equal keys of different lengths.
+    // The keys of {1} are shifted to get the requested overlap.
+    // The values are unique, so stability fully determines the result.
+    constexpr std::size_t n_keys = 100;
+    const std::int32_t last_key_a = std::int32_t((a_size - 1) * n_keys / a_size);
+    const std::int32_t shift_a = overlap == KeysOverlap::touching   ? -last_key_a
+                                 : overlap == KeysOverlap::reversed ? std::int32_t(n_keys)
+                                                                    : 0;
+    std::vector<T> a(a_size), b(b_size);
+    std::vector<T> merged(a.size() + b.size());
+    std::vector<T> expected(a.size() + b.size());
+
+    for (std::size_t i = 0; i < a_size; ++i)
+        a[i] = T{shift_a + std::int32_t(i * n_keys / a_size), std::int32_t(i)};
+    for (std::size_t i = 0; i < b_size; ++i)
+        b[i] = T{std::int32_t(i * n_keys / b_size), std::int32_t(a_size + i)};
+
+    auto comp = [](const T& x, const T& y) { return get_key(x) < get_key(y); }; // less by key
+    std::merge(a.begin(), a.end(), b.begin(), b.end(), expected.begin(), comp);
+
+    auto test_merge_stable = [&](auto&& exec, auto first1, auto last1, auto first2, auto last2, auto out_first)
+    {
+        // Reverse iterators break the order of the keys
+        if constexpr (!is_reverse_v<decltype(first1)>)
+        {
+            std::merge(std::forward<decltype(exec)>(exec), first1, last1, first2, last2, out_first, comp);
+            EXPECT_EQ_N(expected.begin(), out_first, expected.size(), "wrong merge result with equal keys");
+        }
+    };
+    invoke_on_all_policies<CallNumber>()(test_merge_stable, a.begin(), a.end(), b.cbegin(), b.cend(), merged.begin());
+}
+
+void
+test_stability_and_order()
+{
+    for (KeysOverlap overlap : {KeysOverlap::interleaved, KeysOverlap::touching, KeysOverlap::reversed})
+    {
+        test_stability_and_order_impl<100, KeyValue>(61, 77, overlap);
+        test_stability_and_order_impl<200, KeyValue>(5711, 20429, overlap);
+        test_stability_and_order_impl<400, KeyValueTuple>(10000, 8000, overlap);
+    }
+}
+
+#if !TEST_DPCPP_BACKEND_PRESENT
+template <typename Policy>
+void
+test_merge_move_iterators_impl(Policy&& exec, int n1, int n2)
+{
+    std::vector<std::string> in1(n1), in2(n2), out(n1 + n2);
+    std::vector<int> keys1(n1), keys2(n2), keys_expected(n1 + n2), keys_out(n1 + n2);
+
+    // 1. Generate alternating blocks for keys1 and keys2:
+    //    keys1: [0:49, 100:149, 200:249, ...]
+    //    keys2: [50:99, 150:199, 250:299, ...]
+    //    Once one of the sequences is exhausted, the other one continues with the remaining keys
+    constexpr int block = 50;
+    for (int i = 0; i < n1; ++i)
+        keys1[i] = i + std::min(i / block * block, n2);
+    for (int i = 0; i < n2; ++i)
+        keys2[i] = i + std::min((i / block + 1) * block, n1);
+
+    // 2. Together the keys cover [0, n1 + n2) without duplicates, hence the merged keys are just a sequence
+    std::iota(keys_expected.begin(), keys_expected.end(), 0);
+
+    // 3. Encode the same keys into strings
+    constexpr std::string_view base_str("i_am_long_enough_to_avoid_SSO"); // SSO-ed string may not be emptied when moved
+    const std::size_t key_width = std::to_string(n1 + n2).size();
+    auto key_to_string = [base_str, key_width](int key) {
+        const std::string key_str = std::to_string(key);
+        const std::string padding(key_width - key_str.size(), '0');
+        return std::string(base_str) + padding + key_str; // it always has the same length, regardless of the key value
+    };
+    std::transform(keys1.begin(), keys1.end(), in1.begin(), key_to_string);
+    std::transform(keys2.begin(), keys2.end(), in2.begin(), key_to_string);
+
+    // 4. Merge these strings using the same order as the keys
+    auto res = std::merge(std::forward<Policy>(exec),
+                          std::make_move_iterator(in1.begin()), std::make_move_iterator(in1.end()),
+                          std::make_move_iterator(in2.begin()), std::make_move_iterator(in2.end()),
+                          out.begin());
+
+    // 5. Extract the merged keys from the merged strings, and compare them with the expected keys
+    auto string_to_key = [base_str](const std::string& s) {
+        // check the size since substr throws for an empty (moved-from) string in case of corrupted output
+        return s.size() > base_str.size() ? std::stoi(s.substr(base_str.size())) : -1;
+    };
+    std::transform(out.begin(), out.end(), keys_out.begin(), string_to_key);
+    EXPECT_TRUE(res == out.end(), "wrong return result from merge with move iterators");
+    EXPECT_EQ_RANGES(keys_expected, keys_out, "wrong result from merge with move iterators");
+}
+
+void
+test_merge_move_iterators()
+{
+    const int sizes[][2] = {{3000, 3000}, {1000, 20000}, {50000, 7000}};
+    for (const auto& s : sizes)
+    {
+        test_merge_move_iterators_impl(oneapi::dpl::execution::seq, s[0], s[1]);
+        test_merge_move_iterators_impl(oneapi::dpl::execution::unseq, s[0], s[1]);
+        test_merge_move_iterators_impl(oneapi::dpl::execution::par, s[0], s[1]);
+        test_merge_move_iterators_impl(oneapi::dpl::execution::par_unseq, s[0], s[1]);
+    }
+}
+#endif // !TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
@@ -199,27 +338,12 @@ main()
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
 #endif
 
+    // Data is moved instead of copied: checking for possible data races
+#if !TEST_DPCPP_BACKEND_PRESENT
+    test_merge_move_iterators();
+#endif
 
-    using T = std::tuple<std::int32_t, std::int32_t>; //a pair (key, value)
-    std::vector<T> a = { {1, 2}, {1, 2}, {1,2}, {1,2}, {1, 2}, {1, 2} };
-    std::vector<T> b = { {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1} };
-    std::vector<T> merged(a.size() + b.size());
-
-    auto comp = [](auto a, auto b) { return std::get<0>(b) < std::get<0>(a); }; //greater by key
-
-    invoke_on_all_policies<100>()(test_merge_tuple(), a.begin(), a.end(), b.cbegin(), b.cend(), merged.begin(), comp,
-        [&]()
-        {
-            std::int32_t sum1 = 0; //a sum of the first a.size() values, should be 2*a.size()
-            std::int32_t sum2 = 0; //a sum of the second b.size() values, should be 1*b.size()
-            for(std::int32_t i = 0; i < a.size(); ++i)
-                sum1 += std::get<1>(merged[i]);
-            for(std::int32_t i = 0; i < b.size(); ++i)
-                sum2 += std::get<1>(merged[a.size() + i]);
-
-            EXPECT_TRUE(sum1 == 2*a.size(), "wrong merge return with tuple");
-            EXPECT_TRUE(sum2 == 1*b.size(), "wrong merge return with tuple");
-        });
+    test_stability_and_order();
 
     return done();
 }

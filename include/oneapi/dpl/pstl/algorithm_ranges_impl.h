@@ -767,55 +767,68 @@ __pattern_fill(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _
 // pattern_merge_ranges
 //---------------------------------------------------------------------------------------------------------------------
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+template <typename _R1, typename _R2, typename _OutRange>
+using __merge_ranges_return_t =
+    std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                              std::ranges::borrowed_iterator_t<_OutRange>>;
+
+template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                          std::ranges::borrowed_iterator_t<_OutRange>>
-__pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
-                       _Proj1 __proj1, _Proj2 __proj2)
+__merge_ranges_return_t<_R1, _R2, _OutRange>
+__pattern_merge_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                       _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    using _IndexCommon = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
+    using _Index = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
 
     auto __first1 = std::ranges::begin(__r1);
     auto __first2 = std::ranges::begin(__r2);
     auto __first3 = std::ranges::begin(__out_r);
+    const _Index __n1 = static_cast<_Index>(std::ranges::size(__r1));
+    const _Index __n2 = static_cast<_Index>(std::ranges::size(__r2));
+    const _Index __n3 = static_cast<_Index>(std::ranges::size(__out_r));
+    const _Index __n_out = std::min<_Index>(__n1 + __n2, __n3);
 
-    const _IndexCommon __n1 = std::ranges::size(__r1);
-    const _IndexCommon __n2 = std::ranges::size(__r2);
-    const _IndexCommon __n3 = std::ranges::size(__out_r);
+    const auto [__k1, __k2] =
+        __internal::__parallel_merge_path(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __n1, __first2, __n2,
+                                          __first3, __n_out, __comp, __proj1, __proj2);
+    return {__first1 + __k1, __first2 + __k2, __first3 + __n_out};
+}
 
-    //{3} is empty
-    if (__n3 == 0)
-        return {__first1, __first2, __first3};
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
+__merge_ranges_return_t<_R1, _R2, _OutRange>
+__pattern_merge_ranges(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+                       _Proj1 __proj1, _Proj2 __proj2)
+{
+    static_assert(__is_serial_tag_v<_Tag>);
 
-    //{1} is empty
+    using _Index = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
+
+    auto __first1 = std::ranges::begin(__r1);
+    auto __first2 = std::ranges::begin(__r2);
+    auto __first3 = std::ranges::begin(__out_r);
+    const _Index __n1 = static_cast<_Index>(std::ranges::size(__r1));
+    const _Index __n2 = static_cast<_Index>(std::ranges::size(__r2));
+    const _Index __n3 = static_cast<_Index>(std::ranges::size(__out_r));
+
+    // {1} is empty
     if (__n1 == 0)
     {
-        __internal::__brick_copy<_Tag> __copy_range{};
-
-        auto __last2_tmp = __first2 + std::min(__n3, __n2);
-
-        auto __last_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2,
-                                                                __last2_tmp, __first3, __copy_range);
-        return {__first1, __last2_tmp, __last_out_res};
+        auto __last2 = __first2 + std::min(__n2, __n3);
+        auto __last3 = __internal::__brick_copy<_Tag>{}(__first2, __last2, __first3, typename _Tag::__is_vector{});
+        return {__first1, __last2, __last3};
     }
-
-    //{2} is empty
+    // {2} is empty
     if (__n2 == 0)
     {
-        __internal::__brick_copy<_Tag> __copy_range{};
-
-        auto __last1_tmp = __first1 + std::min(__n3, __n1);
-
-        auto __last_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                                __last1_tmp, __first3, __copy_range);
-        return {__last1_tmp, __first2, __last_out_res};
+        auto __last1 = __first1 + std::min(__n1, __n3);
+        auto __last3 = __internal::__brick_copy<_Tag>{}(__first1, __last1, __first3, typename _Tag::__is_vector{});
+        return {__last1, __first2, __last3};
     }
 
-    auto [__it1, __it2, __it3] = __merge_path_out_lim(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n1, __first2, __first2 + __n2, __first3,
-        __first3 + std::min<_IndexCommon>(__n1 + __n2, __n3), __comp, __proj1, __proj2);
-
+    const _Index __n_out = std::min<_Index>(__n1 + __n2, __n3);
+    auto [__it1, __it2, __it3] = __internal::__serial_merge_out_lim(
+        __first1, __first1 + __n1, __first2, __first2 + __n2, __first3, __first3 + __n_out, __comp, __proj1, __proj2);
     return {__it1, __it2, __it3};
 }
 
