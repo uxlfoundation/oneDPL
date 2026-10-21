@@ -462,7 +462,7 @@ template <std::size_t CallNumber>
 void
 test_long_segments()
 {
-    const std::int64_t lengths[] = {1064, 2053, 4159, 30000, 65537, 70001};
+    const std::int64_t lengths[] = {1064, 255, 2053, 300, 4159, 30000, 65537, 70001, 200000};
     std::vector<std::int64_t> offsets{0};
     for (std::int64_t length : lengths)
         offsets.push_back(offsets.back() + length);
@@ -476,6 +476,27 @@ test_long_segments()
     invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), negative.begin(), negative.end(),
                                              out.begin(), out.end(), offsets.begin(), num_segments,
                                              std::numeric_limits<int>::lowest(), oneapi::dpl::maximum<int>{}, 0);
+}
+
+// Segments ending one element past a power of two, which on GPUs leaves the next tile of the reduction by tiles a piece
+// of one element of a segment begun before it, and empty segments at the end, which the last tile takes
+template <std::size_t CallNumber>
+void
+test_one_past_powers_of_two(std::int64_t max_power)
+{
+    std::vector<std::int64_t> offsets{0};
+    for (std::int64_t power = 4096; power <= max_power; power *= 2)
+        offsets.push_back(power + 1);
+    // ... and two empty segments at and past the end of the input
+    const std::int64_t n = offsets.back();
+    offsets.push_back(n);
+    offsets.push_back(n + 5);
+    const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+    Sequence<int> in(n, [](std::size_t i) { return int(i % 7) + 1; });
+    Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                         out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                         std::plus<std::int64_t>{}, std::int64_t{-1});
 }
 
 // The input is the middle of a larger sequence, whose other elements are poison: a read out of the bounds of the input
@@ -776,6 +797,8 @@ main()
     test_forward_offsets();
     test_input_bounds<45>();
     test_long_segments<46>();
+    test_one_past_powers_of_two<48>(std::int64_t(1) << 19);
+    test_one_past_powers_of_two<49>(std::int64_t(1) << 20);
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT
