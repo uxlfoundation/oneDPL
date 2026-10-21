@@ -134,10 +134,11 @@ histogram(_ExecutionPolicy&& exec, _RandomAccessIterator1 first, _RandomAccessIt
     using _SampleT = typename std::iterator_traits<_RandomAccessIterator1>::value_type;
     using _BinT = std::conditional_t<std::is_floating_point_v<_SampleT> && !std::is_floating_point_v<_ValueType>,
                                      _SampleT, _ValueType>;
-    using _BinHash = oneapi::dpl::__internal::__evenly_divided_binhash<_BinT>;
-    oneapi::dpl::__internal::__pattern_histogram(
-        __dispatch_tag, std::forward<_ExecutionPolicy>(exec), first, last, num_bins,
-        _BinHash(_BinT(first_bin_min_val), _BinT(last_bin_max_val), num_bins), histogram_first);
+    oneapi::dpl::__internal::__pattern_histogram(__dispatch_tag, std::forward<_ExecutionPolicy>(exec), first, last,
+                                                 num_bins,
+                                                 oneapi::dpl::__internal::__make_evenly_divided_binhash(
+                                                     _BinT(first_bin_min_val), _BinT(last_bin_max_val), num_bins),
+                                                 histogram_first);
     return histogram_first + num_bins;
 }
 
