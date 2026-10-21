@@ -141,6 +141,12 @@ inline constexpr std::size_t __segmented_reduce_gpu_max_group_chunk_size = 65536
 // - only when the typical segment in chunks, the average one if all the segments are and the longest one otherwise, is
 //   at least this long: shorter segments leave a sub-group too few elements per work-item.
 inline constexpr std::size_t __segmented_reduce_gpu_min_group_length = 1024;
+// - on GPUs an input of arithmetic types whose average segment has at least this length is reduced by tiles, one
+//   work-group per tile, of the smaller length up to the input size below and of the larger one above.
+inline constexpr std::size_t __segmented_reduce_gpu_tiles_average = 32768;
+inline constexpr std::size_t __segmented_reduce_gpu_small_tile = 8192;
+inline constexpr std::size_t __segmented_reduce_gpu_large_tile = 16384;
+inline constexpr std::size_t __segmented_reduce_gpu_small_tile_input = std::size_t(1) << 20;
 
 // The chunk length of a long segment, computed on the device for every segment: on GPUs the least power of two whose
 // square is not less than the length, times the sub-group size for a chunk reduced by a sub-group, without the floating
@@ -979,13 +985,11 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         return;
     }
 
-#ifndef _SEGRED_TILE_MIN_AVG
-#    define _SEGRED_TILE_MIN_AVG 32768
-#endif
+    // On GPUs the long segments of arithmetic types by tiles, one work-group per tile, whatever their lengths
     if constexpr (std::is_arithmetic_v<_Acc> &&
                   std::is_arithmetic_v<oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>>)
     {
-        if (__is_gpu && __n / __m >= _Size(_SEGRED_TILE_MIN_AVG) &&
+        if (__is_gpu && __n / __m >= _Size(__segmented_reduce_gpu_tiles_average) &&
             oneapi::dpl::__internal::__supports_sub_group_size(__exec.queue(), __segmented_reduce_gpu_sub_group_size))
         {
             using _TileKernel = __internal::__kernel_name_provider<
@@ -996,7 +1000,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             __segmented_reduce_tile_submitter<_Acc, _TileKernel, _FixupKernel>()(
                 __q, __input, __offsets, __result, __n, __m,
                 oneapi::dpl::__internal::__max_work_group_size(__q, std::size_t(256)),
-                _Size(__n <= _Size(1) << 20 ? 8192 : 16384), __init, __binary_op);
+                _Size(__n <= _Size(__segmented_reduce_gpu_small_tile_input) ? __segmented_reduce_gpu_small_tile
+                                                                            : __segmented_reduce_gpu_large_tile),
+                __init, __binary_op);
             return;
         }
     }
