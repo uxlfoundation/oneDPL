@@ -132,7 +132,8 @@ histogram(_ExecutionPolicy&& exec, _RandomAccessIterator1 first, _RandomAccessIt
 
     // Floating-point samples with integer bounds are binned in the sample type so their fractional part is kept
     using _SampleT = typename std::iterator_traits<_RandomAccessIterator1>::value_type;
-    using _BinT = std::conditional_t<std::is_floating_point_v<_SampleT> && !std::is_floating_point_v<_ValueType>,
+    using _BinT = std::conditional_t<oneapi::dpl::__internal::__is_any_floating_point_v<_SampleT> &&
+                                         !oneapi::dpl::__internal::__is_any_floating_point_v<_ValueType>,
                                      _SampleT, _ValueType>;
     oneapi::dpl::__internal::__pattern_histogram(__dispatch_tag, std::forward<_ExecutionPolicy>(exec), first, last,
                                                  num_bins,

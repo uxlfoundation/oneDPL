@@ -699,6 +699,17 @@ __dpl_signbit(const _T& __x)
     return (__x & __mask) != 0;
 }
 
+// The floating-point types, including the SYCL reduced-precision types, which std::is_floating_point excludes
+template <typename _T>
+inline constexpr bool __is_any_floating_point_v =
+#if _ONEDPL_BACKEND_SYCL
+    std::is_same_v<_T, sycl::half> ||
+#    if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+    std::is_same_v<_T, sycl::ext::oneapi::bfloat16> ||
+#    endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
+#endif     // _ONEDPL_BACKEND_SYCL
+    std::is_floating_point_v<_T>;
+
 //-----------------------------------------------------------------------
 // Order-preserving bitwise casts to unsigned integrals, used by radix sort
 //-----------------------------------------------------------------------
@@ -727,13 +738,8 @@ using __uint_for_size_t = typename __uint_for_size<__size>::type;
 // size to map onto. A wider type, e.g. a 128-bit long double, is not supported.
 template <typename _T>
 inline constexpr bool __is_radix_sort_float_v =
-#if _ONEDPL_BACKEND_SYCL
-    std::is_same_v<_T, sycl::half> ||
-#    if defined(SYCL_EXT_ONEAPI_BFLOAT16)
-    std::is_same_v<_T, sycl::ext::oneapi::bfloat16> ||
-#    endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
-#endif     // _ONEDPL_BACKEND_SYCL
-    (std::is_floating_point_v<_T> && (sizeof(_T) == sizeof(std::uint32_t) || sizeof(_T) == sizeof(std::uint64_t)));
+    __is_any_floating_point_v<_T> &&
+    (sizeof(_T) == sizeof(std::uint16_t) || sizeof(_T) == sizeof(std::uint32_t) || sizeof(_T) == sizeof(std::uint64_t));
 
 // Do not use bool directly - other unsupported types may be implicitly converted to bool
 template <bool __is_ascending, typename _BoolT, std::enable_if_t<std::is_same_v<_BoolT, bool>, int> = 0>
