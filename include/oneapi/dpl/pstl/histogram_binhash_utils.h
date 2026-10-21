@@ -67,22 +67,26 @@ struct __evenly_divided_binhash_fp
 template <typename _T1, typename _RangeT>
 struct __evenly_divided_binhash_int_base
 {
+    template <typename _T>
+    static constexpr bool __is_supported_int_v = std::is_integral_v<_T> && sizeof(_T) <= sizeof(std::uint64_t);
+
+    static_assert(__is_supported_int_v<_T1>, "histogram bounds must be integers of at most 64 bits, or floating point");
+
     _T1 __minimum;
     _T1 __maximum;
     _RangeT __range; // max - min
     __bin_idx_t __num_bins;
 
-    // The distance from __lo up to __hi, where __lo <= __hi in their common type C, which the bounds checks compare
-    // in. Subtracting in unsigned C is exact even where it overflows C, since the true distance fits in its width.
-    template <typename _Lo, typename _Hi>
-    static std::uint64_t
-    __unsigned_distance(_Lo __lo, _Hi __hi)
+    // The distance from __lower up to __upper, where __lower <= __upper in their common type C, which the bounds
+    // checks compare in. Subtracting in unsigned C is exact even where it overflows C, since the true distance fits
+    // in its width.
+    template <typename _Lower, typename _Upper>
+    static std::make_unsigned_t<std::enable_if_t<std::is_integral_v<_Lower> && std::is_integral_v<_Upper>,
+                                std::common_type_t<_Lower, _Upper>>>
+    __unsigned_distance(_Lower __lower, _Upper __upper)
     {
-        using _CommonT = decltype(__hi - __lo);
-        static_assert(std::is_integral_v<_CommonT> && sizeof(_CommonT) <= sizeof(std::uint64_t),
-                      "histogram bounds and samples must be integers of at most 64 bits, or floating point");
-        using _UnsignedT = std::make_unsigned_t<_CommonT>;
-        return _UnsignedT(__hi) - _UnsignedT(__lo);
+        using _UnsignedT = std::make_unsigned_t<std::common_type_t<_Lower, _Upper>>;
+        return _UnsignedT(__upper) - _UnsignedT(__lower);
     }
 
     __evenly_divided_binhash_int_base(const _T1& __min, const _T1& __max, std::size_t __num_bins_)
@@ -97,6 +101,8 @@ struct __evenly_divided_binhash_int_base
     __bin_idx_t
     __get_bin_by_division(_T2 __value) const
     {
+        static_assert(__is_supported_int_v<_T2>,
+                      "histogram samples must be integers of at most 64 bits, or floating point");
         __bin_idx_t ret = -1;
         if ((__value >= __minimum) && (__value < __maximum))
             ret = __unsigned_distance(__minimum, __value) * std::uint64_t(__num_bins) / __range;
@@ -154,6 +160,8 @@ struct __evenly_divided_binhash_can_overflow : __evenly_divided_binhash_int_base
     __bin_idx_t
     __get_bin_by_fraction(_T2 __value) const
     {
+        static_assert(_Base::template __is_supported_int_v<_T2>,
+                      "histogram samples must be integers of at most 64 bits, or floating point");
         __bin_idx_t ret = -1;
         if ((__value >= this->__minimum) && (__value < this->__maximum))
         {
