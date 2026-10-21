@@ -641,6 +641,7 @@ Therefore the operation imposes the following type requirements:
 - The result of `binary_op(a, b)` for any such combination must be convertible to `AccT`
   and assignable to an `AccT` object.
 - `AccT` must be writable to the output iterator.
+- `InitT` should be convertible to `AccT` (for empty segments)
 
 Comparison with other reductions:
 
