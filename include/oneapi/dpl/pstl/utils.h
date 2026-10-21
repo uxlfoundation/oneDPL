@@ -668,7 +668,7 @@ __dpl_ceiling_div(_T1 __number, _T2 __divisor)
 inline std::uint64_t
 __dpl_mul_hi_u64(std::uint64_t __a, std::uint64_t __b) noexcept
 {
-#if _ONEDPL_BACKEND_SYCL
+#if _ONEDPL_BACKEND_SYCL && !_ONEDPL_SYCL2020_MUL_HI_BROKEN
     return sycl::mul_hi(__a, __b);
 #else
     const std::uint64_t __a_lo = __a & 0xffffffffu, __a_hi = __a >> 32;
