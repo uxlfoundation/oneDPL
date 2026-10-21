@@ -261,7 +261,7 @@ Its notation:
   or positive `num_segments` and non-negative `segment_length` with `num_segments * segment_length <= N`
   for fixed-length segments.
 
-| Option | Alignment | Enforcement | Communication | Performance |
+| Option | Precedents | Enforcement | Communication | Performance |
 |---|---|---|---|---|
 | (1) No preconditions, partial reduction of the segments crossing the bounds | Binary `std::ranges::transform`, `std::ranges::mismatch`, and `std::ranges::equal`, which process the minimum of two bounds and return the stop positions | Per-segment clamping. | Segments completely beyond the input range receive `init_value` as if the segments are empty, because the intersection of the offsets with the input is empty | Variable-length: a few `min` and `max` operations per segment, negligible; Fixed-length: `min(num_segments, N / segment_length)` (or `num_segments` if `segment_length == 0`) is computed on the host, no performance impact |
 | (2) No preconditions, skip segments crossing and beyond the bounds | No close precedent | Per-segment check | Same as (1) | Same as (1) |
