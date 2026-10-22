@@ -582,6 +582,35 @@ test_large_inputs_by_work_groups()
 constexpr std::size_t guard_length = 1000;
 constexpr int poison = 1000000;
 
+// A few segments of many tiles each, whose carries are combined one sub-group per tile on GPUs, for both tile lengths:
+// from the start of a tile with a last piece of one element, from inside a tile, up to the end of a tile, from the start
+// of a tile to the end of the input, and two empty segments at and past the end of the input
+template <std::size_t CallNumber>
+void
+test_long_chains()
+{
+    for (std::int64_t tile : {std::int64_t(8192), std::int64_t(16384)})
+    {
+        std::vector<std::int64_t> offsets{0};
+        for (std::int64_t end : {20 * tile + 1, 50 * tile + 101, 100 * tile, 128 * tile})
+            offsets.push_back(end);
+        const std::int64_t n = offsets.back();
+        offsets.push_back(n);
+        offsets.push_back(n + 3);
+        const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+        Sequence<int> in(n, [](std::size_t i) { return int(i % 13) - 6; });
+        Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+        if (tile == 8192)
+            invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                                 out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                                 std::plus<std::int64_t>{}, std::int64_t{-1});
+        else
+            invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
+                                                     out.begin(), out.end(), offsets.begin(), num_segments,
+                                                     std::int64_t{5}, std::plus<std::int64_t>{}, std::int64_t{-1});
+    }
+}
+
 template <std::size_t CallNumber>
 void
 test_input_bounds()
@@ -882,6 +911,7 @@ main()
     test_one_past_powers_of_two<49>(std::int64_t(1) << 20);
     test_many_segments<50>();
     test_large_inputs_by_work_groups<54>();
+    test_long_chains<56>();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT

@@ -176,6 +176,10 @@ inline constexpr std::size_t __segmented_reduce_gpu_tiles_average = 32768;
 inline constexpr std::size_t __segmented_reduce_gpu_small_tile = 8192;
 inline constexpr std::size_t __segmented_reduce_gpu_large_tile = 16384;
 inline constexpr std::size_t __segmented_reduce_gpu_small_tile_input = std::size_t(1) << 20;
+// - the partial results of the segments crossing the ends of the tiles are combined one sub-group per tile, whose lanes
+//   take the carries of the following tiles in turn, when the average segment spans at least this many tiles: one
+//   work-item per tile follows shorter chains faster.
+inline constexpr std::size_t __segmented_reduce_gpu_group_fixup_tiles = 16;
 
 // The chunk length of a long segment, computed on the device for every segment: on GPUs the least power of two whose
 // square is not less than the length, times the sub-group size for a chunk reduced by a sub-group, without the floating
@@ -1172,13 +1176,16 @@ template <typename... _Name>
 class __segmented_reduce_tile_kernel;
 template <typename... _Name>
 class __segmented_reduce_tile_fixup_kernel;
+template <typename... _Name>
+class __segmented_reduce_tile_group_fixup_kernel;
 
-template <typename _Acc, typename _KernelName, typename _FixupName>
+template <typename _Acc, typename _KernelName, typename _FixupName, typename _GroupFixupName>
 struct __segmented_reduce_tile_submitter;
 
-template <typename _Acc, typename... _Name, typename... _FixupName>
+template <typename _Acc, typename... _Name, typename... _FixupName, typename... _GroupFixupName>
 struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_name<_Name...>,
-                                         __internal::__optional_kernel_name<_FixupName...>>
+                                         __internal::__optional_kernel_name<_FixupName...>,
+                                         __internal::__optional_kernel_name<_GroupFixupName...>>
 {
     template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size, typename _InitType,
               typename _BinaryOperation>
@@ -1360,6 +1367,82 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                 });
         });
 
+        // The long chains of carries, one sub-group per tile: the lanes take the carries of the following tiles of the
+        // segment crossing its end in turn, which are partial results, and a tree combines them, so that no
+        // accumulator is made from an element alone; lane 0 starts from the first piece of the segment and adds the
+        // last one if it is of one element, which only the last tile of a segment can hold
+        if (__n / __m >= _Size(__segmented_reduce_gpu_group_fixup_tiles) * __tile)
+        {
+            const std::size_t __sub_groups_per_group =
+                std::max<std::size_t>(1, __work_group_size / __segmented_reduce_gpu_sub_group_size);
+            const std::size_t __num_fixup_groups = std::min<std::size_t>(
+                oneapi::dpl::__internal::__dpl_ceiling_div(std::size_t(__num_tiles), __sub_groups_per_group),
+                std::size_t(std::numeric_limits<int>::max()) / __work_group_size);
+            __q.submit([&](sycl::handler& __cgh) {
+                   oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
+                   auto __carry_acc = __get_accessor(sycl::read_only, __carries, __cgh);
+                   __cgh.depends_on(__tile_event);
+                   __cgh.parallel_for<_GroupFixupName...>(
+                       sycl::nd_range<1>(sycl::range<1>(__num_fixup_groups * __work_group_size),
+                                         sycl::range<1>(__work_group_size)),
+                       [=](sycl::nd_item<1> __item) {
+                           _BinaryOperation __op = __binary_op;
+                           const _Carry* const __carry = __carry_acc.__data();
+                           const __dpl_sycl::__sub_group __sg = __item.get_sub_group();
+                           const _Size __lane = __sg.get_local_linear_id();
+                           const _Size __lanes = __sg.get_local_linear_range();
+                           const _Size __num_sub_groups =
+                               _Size(__item.get_group_range(0)) * _Size(__sg.get_group_linear_range());
+                           // Every sub-group takes every (number of the sub-groups)-th tile
+                           for (_Size __t = _Size(__item.get_group(0)) * _Size(__sg.get_group_linear_range()) +
+                                            _Size(__sg.get_group_linear_id());
+                                __t < __num_tiles; __t += __num_sub_groups)
+                           {
+                               const _Size __s = __carry[__t].__cross;
+                               if (__s >= __m)
+                                   continue;
+                               const _Size __e =
+                                   oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
+                               const _Size __t1 = std::min<_Size>((__e - 1) / __tile, __num_tiles - 1);
+                               _Acc __acc{};
+                               bool __has = false;
+                               for (_Size __u = __t + 1 + __lane; __u <= __t1; __u += __lanes)
+                               {
+                                   if (__carry[__u].__kind == 1 && __has)
+                                       __acc = std::invoke(__op, __acc, __carry[__u].__in);
+                                   if (__carry[__u].__kind == 1 && !__has)
+                                       __acc = __carry[__u].__in;
+                                   __has = __has || __carry[__u].__kind == 1;
+                               }
+                               // A tree within the sub-group, whatever lanes hold a partial result
+                               for (_Size __shift = 1; __shift < __lanes; __shift *= 2)
+                               {
+                                   const _Acc __other = sycl::shift_group_left(__sg, __acc, __shift);
+                                   const bool __other_has = sycl::shift_group_left(__sg, int(__has), __shift) != 0;
+                                   const bool __take =
+                                       __lane % (2 * __shift) == 0 && __lane + __shift < __lanes && __other_has;
+                                   if (__take && __has)
+                                       __acc = std::invoke(__op, __acc, __other);
+                                   if (__take && !__has)
+                                       __acc = __other;
+                                   __has = __has || __take;
+                               }
+                               if (__lane == 0)
+                               {
+                                   _Acc __total = __carry[__t].__out;
+                                   if (__has)
+                                       __total = std::invoke(__op, __total, __acc);
+                                   if (__t1 > __t && __carry[__t1].__kind == 2)
+                                       __total = std::invoke(__op, __total, __input[__t1 * __tile]);
+                                   __result[__s] = __total;
+                               }
+                           }
+                       });
+               })
+                .wait_and_throw();
+            return;
+        }
+        // The short chains, one work-item per tile
         __q.submit([&](sycl::handler& __cgh) {
                oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
                auto __carry_acc = __get_accessor(sycl::read_only, __carries, __cgh);
@@ -1648,8 +1731,10 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                 __segmented_reduce_tile_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
             using _FixupKernel = __internal::__kernel_name_provider<
                 __segmented_reduce_tile_fixup_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+            using _GroupFixupKernel = __internal::__kernel_name_provider<__segmented_reduce_tile_group_fixup_kernel<
+                oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
             sycl::queue __q = __exec.queue();
-            __segmented_reduce_tile_submitter<_Acc, _TileKernel, _FixupKernel>()(
+            __segmented_reduce_tile_submitter<_Acc, _TileKernel, _FixupKernel, _GroupFixupKernel>()(
                 __q, __input, __offsets, __result, __n, __m,
                 oneapi::dpl::__internal::__max_work_group_size(__q, std::size_t(256)),
                 _Size(__n <= _Size(__segmented_reduce_gpu_small_tile_input) ? __segmented_reduce_gpu_small_tile
