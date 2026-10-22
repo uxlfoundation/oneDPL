@@ -49,32 +49,44 @@ namespace oneapi::dpl::ranges {
 }
 ```
 
-The algorithm fills the output, advances the engine and distribution state, and returns
-the end iterator (or `std::ranges::dangling` for a non-borrowed temporary range).
-Engine-only generation must match repeated calls to the engine; distribution generation
-must preserve the requested random distribution.
+The algorithm fills the output and returns the end iterator (or `std::ranges::dangling`
+for a non-borrowed temporary range). Without an execution policy, engine-only generation
+must match repeated calls to the supplied engine, including its final state; distribution
+generation updates the supplied engine and distribution state according to the standard
+no-policy contract. Distribution generation must preserve the requested random distribution.
+Policy overloads have the ordering and state semantics specified below.
 
 Calls without an execution policy run on the calling thread. Host policies select
 sequential or parallel execution where supported; device policies request SYCL offload.
 Engines and distributions can provide bulk-generation customizations. Otherwise, host
-calls fall back to elementwise generation. Device calls require a compatible customization.
+calls fall back to sequential generation. Device calls require a compatible customization.
 
 Feature availability is reported by `ONEDPL_HAS_GENERATE_RANDOM`.
 
+### Execution-policy ordering and state
+
+Host policy overloads, including `seq`, follow the standard
+[execution-policy rules][policy-execution-spec] and [function-object copying rules][callable-copy-spec].
+No particular stream partitioning or equivalence to sequential output is guaranteed.
+
+For these reference-taking overloads, `g` and `d` remain valid on normal return, but their
+generation state, including cached distribution state, is unspecified; distribution
+parameters are unchanged. Copies may consume incoming caches independently and need not
+merge state back. These output and state rules also apply to oneDPL device policies.
+
 ### Engine additions
 
-Add bulk-generation members to `philox_engine` and `linear_congruential_engine`:
+Add bulk-generation members to `philox_engine`:
 
 ```cpp
 template<class R>
   constexpr std::ranges::borrowed_iterator_t<R> generate_random(R&& r);
 
-// philox_engine only in the initial scope
 template<class ExecutionPolicy, class R>
   std::ranges::borrowed_iterator_t<R> generate_random(ExecutionPolicy&& exec, R&& r);
 ```
 
-These members fill the output range with engine values and advance the engine state.
+The no-policy member fills the output range with engine values and advances the engine state.
 `ranges::generate_random(r, g)` selects the engine's member when available.
 
 ### Distribution additions
@@ -89,12 +101,13 @@ template<class ExecutionPolicy, class R, class G>
 ```
 
 The policy-free member of `uniform_real_distribution` is additionally `constexpr`.
-These members use the supplied engine to fill the output range according to the
+The policy-free members use the supplied engine to fill the output range according to the
 distribution's parameters, updating the engine and any cached distribution state.
 `ranges::generate_random(r, g, d)` selects the distribution's member when available.
 
 For both engines and distributions, the policy-free members are standard customization
-hooks; the policy-taking members are oneDPL extensions.
+hooks. Policy overloads select the corresponding policy-taking members, which follow the
+[same policy semantics](#execution-policy-ordering-and-state), including when called directly.
 
 ### Example
 
@@ -126,15 +139,17 @@ A runnable example is available in [generate_random_example.cpp](generate_random
 
 ### Initial scope
 
-| Component | Sequential host | Parallel host | SYCL device |
-| --- | --- | --- | --- |
-| `philox_engine` | Yes | Yes | Yes |
-| `linear_congruential_engine` | Yes | No | No |
-| `uniform_real_distribution` | Yes | With a supporting engine | With a supporting engine |
-| `normal_distribution` | Yes | Engine generation only | With a supporting engine |
+| Component | No policy | Host `seq` | Host `unseq` / `par` / `par_unseq` | SYCL device policy |
+| --- | --- | --- | --- | --- |
+| `philox_engine` | Yes | Yes | Yes | Yes |
+| `uniform_real_distribution` | Yes | Yes | With a supporting engine; otherwise sequential fallback | With a supporting engine |
+| `normal_distribution` | Yes | Yes | Engine stage only, with a supporting engine; otherwise sequential fallback | With a supporting engine |
 
-Other engines and distributions use the host fallback. Host scalar generation is available
-without a SYCL compiler; vector-valued engines still require SYCL.
+All policy entries, including `seq` and host fallback, follow the
+[policy semantics above](#execution-policy-ordering-and-state). Other engines and
+distributions use the host fallback unless they provide compatible policy customizations.
+Host scalar generation is available without a SYCL compiler; vector-valued engines still
+require SYCL.
 
 The prototype currently accepts only sized, random-access output ranges. Supporting the
 broader output ranges allowed by the standard remains an open item.
@@ -182,6 +197,8 @@ To resolve before release:
 3. Measure performance against current oneDPL usage and oneMKL RNG, and add user documentation.
 
 [generate-random-spec]: https://eel.is/c++draft/alg.rand.generate
+[policy-execution-spec]: https://eel.is/c++draft/algorithms.parallel.exec
+[callable-copy-spec]: https://eel.is/c++draft/algorithms.requirements#9
 [ranges-spec]:
   https://uxlfoundation.github.io/oneDPL/specification/parallel_api/parallel_range_api.html
 [policies-spec]:

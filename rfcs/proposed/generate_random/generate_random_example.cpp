@@ -7,21 +7,18 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Runnable companion to README.md. Each step checks that it produced the same
-// values the equivalent scalar loop would. Exits 0 only if all steps pass.
+// Runnable companion to README.md. Checks no-policy engine sequence equivalence
+// and basic output properties. Exits 0 only if all checks pass.
 //
 // Build:
 //   icpx -fsycl -std=c++20 -O2 -I <onedpl>/include generate_random_example.cpp -o gr
 // Add the AVX-512 Philox fast path:  -mavx512f
 // Add host thread parallelism:       -ltbb
-// None of these may change the printed values.
+// Policy-generated sequences may vary between configurations.
 //
 // -fsycl is optional: <oneapi/dpl/random> also builds with a plain C++20 compiler
 // (g++ / clang++), see open question 2 in README.md.
 //
-// Verified with Intel(R) oneAPI DPC++/C++ 2026.0.0 in three configurations --
-// plain, -mavx512f, and -mavx512f -ltbb -- all printing the same values.
-
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/random>
 
@@ -60,11 +57,15 @@ main()
     oneapi::dpl::ranges::generate_random(f, g2, d);
     report("uniform_real values in [1, 2)", f[0] >= 1.0f && f[0] < 2.0f && f[n - 1] >= 1.0f && f[n - 1] < 2.0f);
 
-    // 3. oneDPL extension: explicit execution policy, same values.
+    // 3. oneDPL extension: policy output need not match the scalar sequence.
+    // The final state of g3 is valid but unspecified.
     std::vector<word_t> p(n);
     engine_t g3(777);
-    oneapi::dpl::ranges::generate_random(ex::par_unseq, p, g3);
-    report("par_unseq == scalar loop", p == ref);
+    auto last = oneapi::dpl::ranges::generate_random(ex::par_unseq, p, g3);
+    bool policy_ok = last == p.end();
+    for (auto value : p)
+        policy_ok = policy_ok && value >= engine_t::min() && value <= engine_t::max();
+    report("par_unseq output range and engine bounds", policy_ok);
 
     std::cout << (ok ? "PASSED\n" : "FAILED\n");
     return ok ? 0 : 1;
