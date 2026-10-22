@@ -88,6 +88,18 @@ oneapi::dpl::__internal::__enable_if_execution_policy<
 reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                   OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred, BinaryOperator binary_op);
 
+template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt>
+oneapi::dpl::__internal::__enable_if_execution_policy<
+    Policy, std::enable_if_t<std::is_integral_v<SegmentNumT> && !std::is_integral_v<OffsetIt>>>
+reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first, SegmentNumT num_segments,
+                  OffsetIt offsets);
+
+template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt, typename InitT>
+oneapi::dpl::__internal::__enable_if_execution_policy<
+    Policy, std::enable_if_t<std::is_integral_v<SegmentNumT> && !std::is_integral_v<OffsetIt>>>
+reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first, SegmentNumT num_segments,
+                  OffsetIt offsets, InitT init_value);
+
 template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt, typename InitT,
           typename BinaryOp>
 oneapi::dpl::__internal::__enable_if_execution_policy<
