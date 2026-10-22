@@ -173,7 +173,8 @@ struct __evenly_divided_binhash_can_overflow : __evenly_divided_binhash_int_base
             const std::uint64_t __bin = __dpl_mul_hi_u64(__offset, __frac);
             // 2^64 * (offset * num_bins / range - bin) is lo(offset * frac) + hi(offset * frac2) plus truncated terms
             // in [0, 2). The bin steps up when that reaches 2^64, which as range < 2^64 happens exactly when the
-            // computed sum reaches 2^64 - 1, i.e. lo(offset * frac) >= ~hi(offset * frac2)
+            // computed sum reaches 2^64 - 1, i.e. lo(offset * frac) >= ~hi(offset * frac2), since bitwise NOT 
+            // is equivalent to subtracting from 2^64 - 1
             ret = __bin + (__offset * __frac >= ~__dpl_mul_hi_u64(__offset, __frac2));
         }
         return ret;
