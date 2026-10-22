@@ -132,9 +132,11 @@ inline constexpr std::size_t __segmented_reduce_gpu_group_min_average = 64;
 inline constexpr std::size_t __segmented_reduce_gpu_min_chunk_size = 64;
 inline constexpr std::size_t __segmented_reduce_gpu_max_chunk_size = 16384;
 inline constexpr std::size_t __segmented_reduce_cpu_chunk_size = 4096;
-// - on GPUs the chunks of arithmetic types are reduced by sub-groups of this size, each reducing a chunk this many times
-//   faster: the chunk length is close to the square root of the length times the sub-group size, with at least 32
-//   elements per work-item, as the search for the segment of a chunk costs more than a few elements.
+// - on GPUs the chunks of arithmetic types are reduced by sub-groups on devices with sub-groups of this size, each
+//   reducing a chunk about this many times faster: the chunk length is close to the square root of the length times
+//   the sub-group size, with at least 32 elements per work-item, as the search for the segment of a chunk costs more
+//   than a few elements. The kernels do not require this size: they take the size of their sub-groups, which the
+//   compiler chooses, and are correct with any.
 inline constexpr std::uint8_t __segmented_reduce_gpu_sub_group_size = 32;
 inline constexpr std::size_t __segmented_reduce_gpu_min_group_chunk_size = 1024;
 inline constexpr std::size_t __segmented_reduce_gpu_max_group_chunk_size = 65536;
@@ -391,10 +393,7 @@ struct __segmented_reduce_chunk_group_submitter<__internal::__optional_kernel_na
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             __cgh.parallel_for<_Name...>(
                 sycl::nd_range<1>(sycl::range<1>(__num_groups * __work_group_size), sycl::range<1>(__work_group_size)),
-                [=](sycl::nd_item<1> __item)
-                    [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__segmented_reduce_gpu_sub_group_size)]] {
-                        __brick(__item, __rngs...);
-                    });
+                [=](sycl::nd_item<1> __item) { __brick(__item, __rngs...); });
         });
     }
 };
@@ -471,13 +470,10 @@ struct __segmented_reduce_chunk_local_submitter<_ByGroups, __internal::__optiona
             const sycl::nd_range<1> __range(sycl::range<1>(__num_groups * __work_group_size),
                                             sycl::range<1>(__work_group_size));
             if constexpr (_ByGroups)
-                __cgh.parallel_for<_Name...>(
-                    __range,
-                    [=](sycl::nd_item<1> __item)
-                        [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__segmented_reduce_gpu_sub_group_size)]] {
-                            __run(__item, __brick, __local_ends, __chunk_ends, __offsets, __partials, __input, __n, __m,
-                                  __min_length, __num_partials);
-                        });
+                __cgh.parallel_for<_Name...>(__range, [=](sycl::nd_item<1> __item) {
+                    __run(__item, __brick, __local_ends, __chunk_ends, __offsets, __partials, __input, __n, __m,
+                          __min_length, __num_partials);
+                });
             else
                 __cgh.parallel_for<_Name...>(__range, [=](sycl::nd_item<1> __item) {
                     __run(__item, __brick, __local_ends, __chunk_ends, __offsets, __partials, __input, __n, __m,
@@ -783,157 +779,155 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
             __dpl_sycl::__local_accessor<_Acc> __local_mem(sycl::range<1>(__work_group_size), __cgh);
             __cgh.parallel_for<_Name...>(
                 sycl::nd_range<1>(sycl::range<1>(__num_groups * __work_group_size), sycl::range<1>(__work_group_size)),
-                [=](sycl::nd_item<1> __item)
-                    [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__segmented_reduce_gpu_sub_group_size)]] {
-                        _BinaryOperation __op = __binary_op;
-                        _Carry* const __carry = __carry_acc.__data();
-                        const _Size __lid = __item.get_local_id(0);
-                        const __dpl_sycl::__sub_group __sg = __item.get_sub_group();
-                        const _Size __lane = __sg.get_local_linear_id();
-                        const _Size __lanes = __sg.get_local_linear_range();
-                        const _Size __sg_first = _Size(__sg.get_group_linear_id()) * __lanes;
-                        auto __clamp = [&](_Size __s) {
-                            return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s], __n);
-                        };
-                        // The partial result of [__b, __b + __len), __len >= 2, in work-item 0; with the initial value it
-                        // starts from the operation on the initial value and the first element
-                        auto __together = [&](_Size __b, _Size __len, bool __with_init) {
-                            // The local memory is no longer read for the previous piece
-                            sycl::group_barrier(__item.get_group());
-                            _Acc __head{};
-                            if (__with_init)
-                            {
-                                __head = std::invoke(__op, __init, __input[__b]);
-                                ++__b;
-                                --__len;
-                            }
-                            // Every work-item that takes part gets at least two elements
-                            const _Size __active = std::min<_Size>(__wg, __len / 2);
-                            _Acc __acc{};
-                            if (__lid < __active)
-                            {
-                                const _Size __last = __b + __len;
-                                _Size __i = __b + __lid;
-                                __acc = std::invoke(__op, __input[__i], __input[__i + __active]);
-                                for (__i += 2 * __active; __i + 3 * __active < __last; __i += 4 * __active)
-                                    __acc = std::invoke(
-                                        __op, __acc,
-                                        std::invoke(__op,
-                                                    _Acc(std::invoke(__op, __input[__i], __input[__i + __active])),
-                                                    _Acc(std::invoke(__op, __input[__i + 2 * __active],
-                                                                     __input[__i + 3 * __active]))));
-                                for (; __i < __last; __i += __active)
-                                    __acc = std::invoke(__op, __acc, __input[__i]);
-                            }
-                            const _Size __sg_active =
-                                std::max<_Size>(std::min<_Size>(__active - __sg_first, __lanes), _Size{0});
-                            for (_Size __shift = 1; __shift < __sg_active; __shift *= 2)
-                            {
-                                const _Acc __other = sycl::shift_group_left(__sg, __acc, __shift);
-                                if (__lane % (2 * __shift) == 0 && __lane + __shift < __sg_active)
-                                    __acc = std::invoke(__op, __acc, __other);
-                            }
-                            const _Size __groups_active = (__active + __lanes - 1) / __lanes;
-                            if (__lane == 0 && __sg_active > 0)
-                                __local_mem[__sg_first / __lanes] = __acc;
-                            sycl::group_barrier(__item.get_group());
-                            _Acc __total{};
-                            if (__lid == 0)
-                            {
-                                if (__active > 0)
-                                {
-                                    __total = __local_mem[0];
-                                    for (_Size __k = 1; __k < __groups_active; ++__k)
-                                        __total = std::invoke(__op, __total, __local_mem[__k]);
-                                }
-                                if (__with_init)
-                                    __total = __active > 0 ? _Acc(std::invoke(__op, __head, __total))
-                                              : __len == 1 ? _Acc(std::invoke(__op, __head, __input[__b]))
-                                                           : __head;
-                            }
-                            return __total;
-                        };
-                        for (std::size_t __t = __item.get_group(0); __t < std::size_t(__num_tiles); __t += __num_groups)
+                [=](sycl::nd_item<1> __item) {
+                    _BinaryOperation __op = __binary_op;
+                    _Carry* const __carry = __carry_acc.__data();
+                    const _Size __lid = __item.get_local_id(0);
+                    const __dpl_sycl::__sub_group __sg = __item.get_sub_group();
+                    const _Size __lane = __sg.get_local_linear_id();
+                    const _Size __lanes = __sg.get_local_linear_range();
+                    const _Size __sg_first = _Size(__sg.get_group_linear_id()) * __lanes;
+                    auto __clamp = [&](_Size __s) {
+                        return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s], __n);
+                    };
+                    // The partial result of [__b, __b + __len), __len >= 2, in work-item 0; with the initial value it
+                    // starts from the operation on the initial value and the first element
+                    auto __together = [&](_Size __b, _Size __len, bool __with_init) {
+                        // The local memory is no longer read for the previous piece
+                        sycl::group_barrier(__item.get_group());
+                        _Acc __head{};
+                        if (__with_init)
                         {
-                            const _Size __tb = _Size(__t) * __tile;
-                            const _Size __te = std::min<_Size>(__n, __tb + __tile);
-                            // The first segment beginning at or after a position; the last tile also takes the segments
-                            // beginning at the end of the input
-                            auto __lower = [&](_Size __v) {
-                                _Size __lo = 0, __hi = __m;
-                                while (__lo < __hi)
-                                {
-                                    const _Size __mid = __lo + (__hi - __lo) / 2;
-                                    if (__clamp(__mid) < __v)
-                                        __lo = __mid + 1;
-                                    else
-                                        __hi = __mid;
-                                }
-                                return __lo;
-                            };
-                            const _Size __sa = __lower(__tb);
-                            const _Size __sb = __te == __n ? __m : __lower(__te);
+                            __head = std::invoke(__op, __init, __input[__b]);
+                            ++__b;
+                            --__len;
+                        }
+                        // Every work-item that takes part gets at least two elements
+                        const _Size __active = std::min<_Size>(__wg, __len / 2);
+                        _Acc __acc{};
+                        if (__lid < __active)
+                        {
+                            const _Size __last = __b + __len;
+                            _Size __i = __b + __lid;
+                            __acc = std::invoke(__op, __input[__i], __input[__i + __active]);
+                            for (__i += 2 * __active; __i + 3 * __active < __last; __i += 4 * __active)
+                                __acc = std::invoke(
+                                    __op, __acc,
+                                    std::invoke(__op, _Acc(std::invoke(__op, __input[__i], __input[__i + __active])),
+                                                _Acc(std::invoke(__op, __input[__i + 2 * __active],
+                                                                 __input[__i + 3 * __active]))));
+                            for (; __i < __last; __i += __active)
+                                __acc = std::invoke(__op, __acc, __input[__i]);
+                        }
+                        const _Size __sg_active =
+                            std::max<_Size>(std::min<_Size>(__active - __sg_first, __lanes), _Size{0});
+                        for (_Size __shift = 1; __shift < __sg_active; __shift *= 2)
+                        {
+                            const _Acc __other = sycl::shift_group_left(__sg, __acc, __shift);
+                            if (__lane % (2 * __shift) == 0 && __lane + __shift < __sg_active)
+                                __acc = std::invoke(__op, __acc, __other);
+                        }
+                        const _Size __groups_active = (__active + __lanes - 1) / __lanes;
+                        if (__lane == 0 && __sg_active > 0)
+                            __local_mem[__sg_first / __lanes] = __acc;
+                        sycl::group_barrier(__item.get_group());
+                        _Acc __total{};
+                        if (__lid == 0)
+                        {
+                            if (__active > 0)
+                            {
+                                __total = __local_mem[0];
+                                for (_Size __k = 1; __k < __groups_active; ++__k)
+                                    __total = std::invoke(__op, __total, __local_mem[__k]);
+                            }
+                            if (__with_init)
+                                __total = __active > 0 ? _Acc(std::invoke(__op, __head, __total))
+                                          : __len == 1 ? _Acc(std::invoke(__op, __head, __input[__b]))
+                                                       : __head;
+                        }
+                        return __total;
+                    };
+                    for (std::size_t __t = __item.get_group(0); __t < std::size_t(__num_tiles); __t += __num_groups)
+                    {
+                        const _Size __tb = _Size(__t) * __tile;
+                        const _Size __te = std::min<_Size>(__n, __tb + __tile);
+                        // The first segment beginning at or after a position; the last tile also takes the segments
+                        // beginning at the end of the input
+                        auto __lower = [&](_Size __v) {
+                            _Size __lo = 0, __hi = __m;
+                            while (__lo < __hi)
+                            {
+                                const _Size __mid = __lo + (__hi - __lo) / 2;
+                                if (__clamp(__mid) < __v)
+                                    __lo = __mid + 1;
+                                else
+                                    __hi = __mid;
+                            }
+                            return __lo;
+                        };
+                        const _Size __sa = __lower(__tb);
+                        const _Size __sb = __te == __n ? __m : __lower(__te);
 
-                            // (A) The short segments wholly in the tile, one per work-item
-                            for (_Size __s = __sa + __lid; __s < __sb; __s += __wg)
+                        // (A) The short segments wholly in the tile, one per work-item
+                        for (_Size __s = __sa + __lid; __s < __sb; __s += __wg)
+                        {
+                            const _Size __b = __clamp(__s);
+                            const _Size __e = std::max<_Size>(__clamp(__s + 1), __b);
+                            if (__e <= __te && __e - __b < __wg)
+                                __result[__s] = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(
+                                    __input, __b, __e, __init, __op);
+                        }
+                        // (B) The piece of a segment begun before the tile
+                        std::uint8_t __k = 0;
+                        _Acc __cin{};
+                        if (__sa > 0)
+                        {
+                            const _Size __e = std::min<_Size>(__clamp(__sa), __te);
+                            if (__e - __tb >= 2)
                             {
-                                const _Size __b = __clamp(__s);
-                                const _Size __e = std::max<_Size>(__clamp(__s + 1), __b);
-                                if (__e <= __te && __e - __b < __wg)
-                                    __result[__s] = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(
-                                        __input, __b, __e, __init, __op);
+                                __cin = __together(__tb, __e - __tb, false);
+                                __k = 1;
                             }
-                            // (B) The piece of a segment begun before the tile
-                            std::uint8_t __k = 0;
-                            _Acc __cin{};
-                            if (__sa > 0)
+                            else if (__e - __tb == 1)
+                                __k = 2;
+                        }
+                        // ... and the long ones and the one crossing the end of the tile
+                        _Size __cs = __m;
+                        _Acc __cout{};
+                        for (_Size __s = __sa; __s < __sb; ++__s)
+                        {
+                            const _Size __b = __clamp(__s);
+                            const _Size __e = std::max<_Size>(__clamp(__s + 1), __b);
+                            if (__e <= __te && __e - __b < __wg)
+                                continue;
+                            const _Size __len = std::max<_Size>(std::min<_Size>(__e, __te) - __b, _Size{0});
+                            if (__len >= 2)
                             {
-                                const _Size __e = std::min<_Size>(__clamp(__sa), __te);
-                                if (__e - __tb >= 2)
+                                _Acc __p = __together(__b, __len, true);
+                                if (__lid == 0)
                                 {
-                                    __cin = __together(__tb, __e - __tb, false);
-                                    __k = 1;
-                                }
-                                else if (__e - __tb == 1)
-                                    __k = 2;
-                            }
-                            // ... and the long ones and the one crossing the end of the tile
-                            _Size __cs = __m;
-                            _Acc __cout{};
-                            for (_Size __s = __sa; __s < __sb; ++__s)
-                            {
-                                const _Size __b = __clamp(__s);
-                                const _Size __e = std::max<_Size>(__clamp(__s + 1), __b);
-                                if (__e <= __te && __e - __b < __wg)
-                                    continue;
-                                const _Size __len = std::max<_Size>(std::min<_Size>(__e, __te) - __b, _Size{0});
-                                if (__len >= 2)
-                                {
-                                    _Acc __p = __together(__b, __len, true);
-                                    if (__lid == 0)
-                                    {
-                                        if (__e <= __te)
-                                            __result[__s] = __p;
-                                        else
-                                            __cout = __p;
-                                    }
-                                }
-                                else if (__lid == 0)
-                                {
-                                    const _Acc __p =
-                                        __len == 0 ? _Acc(__init) : _Acc(std::invoke(__op, __init, __input[__b]));
-                                    if (__e <= __te || __len == 0)
+                                    if (__e <= __te)
                                         __result[__s] = __p;
                                     else
                                         __cout = __p;
                                 }
-                                if (__e > __te && __len > 0)
-                                    __cs = __s;
                             }
-                            if (__lid == 0)
-                                __carry[__t] = _Carry{__cin, __cout, __cs, __k};
+                            else if (__lid == 0)
+                            {
+                                const _Acc __p =
+                                    __len == 0 ? _Acc(__init) : _Acc(std::invoke(__op, __init, __input[__b]));
+                                if (__e <= __te || __len == 0)
+                                    __result[__s] = __p;
+                                else
+                                    __cout = __p;
+                            }
+                            if (__e > __te && __len > 0)
+                                __cs = __s;
                         }
-                    });
+                        if (__lid == 0)
+                            __carry[__t] = _Carry{__cin, __cout, __cs, __k};
+                    }
+                });
         });
 
         __q.submit([&](sycl::handler& __cgh) {
