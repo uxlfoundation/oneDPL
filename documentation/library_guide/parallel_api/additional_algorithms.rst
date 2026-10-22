@@ -1,8 +1,9 @@
 Additional Algorithms
 #####################
 
-All algorithms are implemented in the ``oneapi::dpl`` namespace, and are available through either
-``<oneapi/dpl/algorithm>`` or ``<oneapi/dpl/numeric>`` headers.  
+All algorithms are implemented in the ``oneapi::dpl`` namespace. Except for ``reduce_by_segment`` with segments
+defined by offsets, which is defined in the ``<oneapi/dpl/numeric>`` header, they are available through either
+``<oneapi/dpl/algorithm>`` or ``<oneapi/dpl/numeric>`` headers.
 
 Algorithms in <oneapi/dpl/numeric>
 ==================================
@@ -24,7 +25,7 @@ Algorithms in <oneapi/dpl/numeric>
 * ``reduce_by_segment`` with segments defined by offsets: reduces every segment of a sequence independently.
   ``num_segments + 1`` offsets define ``num_segments`` consecutive segments: the segment ``s`` is
   ``[first + offsets[s], first + offsets[s + 1])``, and its reduction, which starts from the initial value,
-  is written to ``out_first[s]``. The algorithm returns nothing. It is also available through the
+  is written to ``out_first[s]``. The algorithm returns nothing. It is defined in the
   ``<oneapi/dpl/numeric>`` header, and is present if ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` is ``202611L`` or higher,
   see :ref:`Feature Macros <feature-macros>`::
 
