@@ -196,61 +196,15 @@ __segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __
                                                 oneapi::dpl::identity{}, /*is_vector=*/std::true_type{});
 }
 
-// Reduces the __count > 0 elements from __it as std::ranges::fold_left does, and moves __it past them
-template <typename _Acc, typename _ForwardIterator, typename _Size, typename _InitType, typename _BinaryOperation>
-_Acc
-__segmented_reduce_forward(_ForwardIterator& __it, _Size __count, _InitType __init, _BinaryOperation& __binary_op)
-{
-    _Acc __acc(std::invoke(__binary_op, std::move(__init), *__it));
-    for (++__it; --__count > 0; ++__it)
-        __acc = std::invoke(__binary_op, std::move(__acc), *__it);
-    return __acc;
-}
-
-// The segments one after another in the order of the offsets and the results, with one pass over the input: the input
-// before the first segment is skipped once, then the iterator only moves with the reduction, as a segment of sorted
-// offsets starts where the previous one ends. Unsorted offsets, whose results are unspecified, may give a segment
-// starting before the current position: it is reduced from the current position.
-template <typename _Acc, typename _ForwardInputIt, typename _SegmentNum, typename _ForwardOffsetIt,
-          typename _ForwardOutputIt, typename _InitType, typename _BinaryOperation>
-void
-__brick_reduce_by_segment_offsets(_ForwardInputIt __first_value, _ForwardInputIt __last_value,
-                                  _ForwardOutputIt __result_value, _SegmentNum __num_segments,
-                                  _ForwardOffsetIt __offsets, _InitType __init, _BinaryOperation& __binary_op,
-                                  /*is_vector=*/std::false_type)
-{
-    using _Size = typename std::iterator_traits<_ForwardInputIt>::difference_type;
-
-    if (__num_segments <= 0)
-        return;
-    const _Size __n = std::distance(__first_value, __last_value);
-    _Size __pos = __internal::__segmented_reduce_clamp_offset(*__offsets, __n); // the position of __it
-    _ForwardInputIt __it = std::next(__first_value, __pos);
-    for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
-    {
-        ++__offsets;
-        const _Size __end = __internal::__segmented_reduce_clamp_offset(*__offsets, __n);
-        if (__pos >= __end)
-        {
-            *__result_value = _Acc(__init);
-        }
-        else
-        {
-            *__result_value = __segmented_reduce_forward<_Acc>(__it, __end - __pos, __init, __binary_op);
-            __pos = __end;
-        }
-        ++__result_value;
-    }
-}
-
-// The segments by their indices, each one vectorized; the tag asks for vectorization only with random access iterators
+// The segments one after another, each one from its own offsets clamped to the input, as on a device, and vectorized
+// when the tag asks for vectorization
 template <typename _Acc, typename _RandomAccessInputIt, typename _SegmentNum, typename _RandomAccessOffsetIt,
-          typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
+          typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation, typename _IsVector>
 void
 __brick_reduce_by_segment_offsets(_RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
                                   _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
                                   _RandomAccessOffsetIt __offsets, _InitType __init, _BinaryOperation& __binary_op,
-                                  /*is_vector=*/std::true_type)
+                                  _IsVector __is_vector)
 {
     using _Size = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
 
@@ -260,12 +214,11 @@ __brick_reduce_by_segment_offsets(_RandomAccessInputIt __first_value, _RandomAcc
         __result_value[__segment] = __segmented_reduce_host<_Acc>(
             __first_value, __internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n),
             __internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n), __init, __binary_op,
-            /*is_vector=*/std::true_type{});
+            __is_vector);
     }
 }
 
-// The serial host policies: the segments one after another, vectorized when the tag asks for vectorization, which unseq
-// does only with random access iterators
+// The serial host policies: the segments one after another, vectorized when the tag asks for vectorization (unseq)
 template <typename _IsVector, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
           typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
 void
@@ -277,21 +230,6 @@ __reduce_by_segment_offsets_impl(__internal::__serial_tag<_IsVector>, _Policy&&,
 
     __brick_reduce_by_segment_offsets<_Acc>(__first_value, __last_value, __result_value, __num_segments, __offsets,
                                             __init, __binary_op, _IsVector{});
-}
-
-// The parallel host policies with iterators which are not random access ones: the segments one after another
-template <typename _Policy, typename _ForwardInputIt, typename _SegmentNum, typename _ForwardOffsetIt,
-          typename _ForwardOutputIt, typename _InitType, typename _BinaryOperation>
-void
-__reduce_by_segment_offsets_impl(__internal::__parallel_forward_tag, _Policy&&, _ForwardInputIt __first_value,
-                                 _ForwardInputIt __last_value, _ForwardOutputIt __result_value,
-                                 _SegmentNum __num_segments, _ForwardOffsetIt __offsets, _InitType __init,
-                                 _BinaryOperation __binary_op)
-{
-    using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _ForwardInputIt, _BinaryOperation>;
-
-    __brick_reduce_by_segment_offsets<_Acc>(__first_value, __last_value, __result_value, __num_segments, __offsets,
-                                            __init, __binary_op, /*is_vector=*/std::false_type{});
 }
 
 // The parallel host policies reduce a short segment in one task, and split a longer one into chunks reduced in

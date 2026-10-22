@@ -1,8 +1,9 @@
 Additional Algorithms
 #####################
 
-All algorithms are implemented in the ``oneapi::dpl`` namespace, and are available through either
-``<oneapi/dpl/algorithm>`` or ``<oneapi/dpl/numeric>`` headers.  
+All algorithms are implemented in the ``oneapi::dpl`` namespace. Except for ``reduce_by_segment`` with segments
+defined by offsets, which is defined in the ``<oneapi/dpl/numeric>`` header, they are available through either
+``<oneapi/dpl/algorithm>`` or ``<oneapi/dpl/numeric>`` headers.
 
 Algorithms in <oneapi/dpl/numeric>
 ==================================
@@ -24,7 +25,7 @@ Algorithms in <oneapi/dpl/numeric>
 * ``reduce_by_segment`` with segments defined by offsets: reduces every segment of a sequence independently.
   ``num_segments + 1`` offsets define ``num_segments`` consecutive segments: the segment ``s`` is
   ``[first + offsets[s], first + offsets[s + 1])``, and its reduction, which starts from the initial value,
-  is written to ``out_first[s]``. The algorithm returns nothing. It is also available through the
+  is written to ``out_first[s]``. The algorithm returns nothing. It is defined in the
   ``<oneapi/dpl/numeric>`` header, and is present if ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` is ``202611L`` or higher,
   see :ref:`Feature Macros <feature-macros>`::
 
@@ -36,9 +37,7 @@ Algorithms in <oneapi/dpl/numeric>
                       BinaryOp binary_op);
 
   ``SegmentNumT`` must be an integral type, and ``OffsetIt`` must not be one; the offsets must be of an
-  integral type. ``InputIt``, ``OutputIt`` and ``OffsetIt`` must be random access iterators with a device
-  policy; with a host policy they may also be forward iterators, and then the segments are reduced one after
-  another.
+  integral type. ``InputIt``, ``OutputIt`` and ``OffsetIt`` must be random access iterators.
 
   Every segment is clamped to the input ``[first, last)``: a segment crossing a bound of the input is reduced
   partially, and a segment that is empty or lies beyond the input gets the initial value converted to the
@@ -49,9 +48,11 @@ Algorithms in <oneapi/dpl/numeric>
   ``std::decay_t<std::invoke_result_t<BinaryOp&, InitT, typename std::iterator_traits<InputIt>::reference>>``, and
   the accumulator is converted to the output type when written. As in ``std::ranges::fold_left``, the initial value
   itself is an operand of the operation; it is converted to the accumulator type only for an empty segment.
-  The reduction operation should be associative and commutative. It must accept the accumulator, the initial value
-  and the input elements in any combination, its results must be convertible to the accumulator type, and the
-  accumulator type must be writable to the output. As in ``std::reduce``, a partial result may start from the
+  The reduction operation should be associative and commutative: unlike ``reduce_by_segment`` with segments defined
+  by keys, this overload does not support non-commutative operations. It must accept the accumulator, the initial value
+  and the input elements in any combination, and its results must be convertible to the accumulator type and
+  assignable to an accumulator. The accumulator type must be writable to the output, and the initial value type must
+  be convertible to the accumulator type. As in ``std::reduce``, a partial result may start from the
   operation on two input elements: for example, ``std::uint32_t`` elements with a ``std::uint64_t`` initial value
   and ``std::plus<>`` may be added in 32 bits, while ``std::plus<std::uint64_t>`` adds them in 64 bits.
   For example::
