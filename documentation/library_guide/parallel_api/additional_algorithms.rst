@@ -37,7 +37,7 @@ Algorithms in <oneapi/dpl/numeric>
                       BinaryOp binary_op);
 
   ``SegmentNumT`` must be an integral type, and ``OffsetIt`` must not be one; the offsets must be of an
-  integral type. ``InputIt``, ``OutputIt`` and ``OffsetIt`` must be random access iterators.
+  integral type other than ``bool``. ``InputIt``, ``OutputIt`` and ``OffsetIt`` must be random access iterators.
 
   Every segment is clamped to the input ``[first, last)``: a segment crossing a bound of the input is reduced
   partially, and a segment that is empty or lies beyond the input gets the initial value converted to the
