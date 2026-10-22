@@ -90,7 +90,7 @@ struct __segmented_reduce_init_brick
         static_assert(_Params::__vector_size == 1,
                       "The brick operates with tuples which must be excluded from vectorizable types");
         using std::get;
-        get<0>(__result[__idx]) = _Acc(__init);
+        get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init);
     }
 };
 
@@ -198,8 +198,10 @@ struct __segmented_reduce_chunk_brick
         // A chunk other than the first one starts from the operation on its first two elements, as a partial result
         // of std::reduce does: the accumulator is never made from an element alone, which may mean something else than
         // the element to the operation (such a chunk has at least 64 elements)
-        _Acc __start = __k == 0 ? _Acc(std::invoke(__binary_op, __init, __input[__chunk_begin]))
-                                : _Acc(std::invoke(__binary_op, __input[__chunk_begin], __input[__chunk_begin + 1]));
+        _Acc __start = __k == 0 ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                      std::invoke(__binary_op, __init, __input[__chunk_begin]))
+                                : oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                      std::invoke(__binary_op, __input[__chunk_begin], __input[__chunk_begin + 1]));
         std::get<0>(__partials[__idx]) = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(
             __input, __chunk_begin + (__k == 0 ? 1 : 2), __chunk_end, std::move(__start), __binary_op);
     }
@@ -231,7 +233,7 @@ struct __segmented_reduce_combine_brick
         if (__first >= __last)
         {
             if (__write_empty)
-                std::get<0>(__result[__idx]) = _Acc(__init);
+                std::get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init);
             return;
         }
         std::get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(

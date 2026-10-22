@@ -67,6 +67,9 @@ reduce_by_segment_offsets_serial(RandAccessItIn first, RandAccessItIn last, Rand
         std::invoke_result_t<BinaryOperation&, Init, typename std::iterator_traits<RandAccessItIn>::reference>>;
     using Size = typename std::iterator_traits<RandAccessItIn>::difference_type;
 
+    // init_value and the results of the operation become an AccT implicitly: the RFC requires them to be convertible
+    auto to_acc = [](auto&& value) -> AccT { return std::forward<decltype(value)>(value); };
+
     const Size n = last - first;
     auto clamp = [n](auto offset) -> Size {
         if constexpr (std::is_signed_v<decltype(offset)>)
@@ -83,10 +86,10 @@ reduce_by_segment_offsets_serial(RandAccessItIn first, RandAccessItIn last, Rand
         // A left fold with an AccT accumulator, which combines init_value itself with the first element
         if (begin == end)
         {
-            result[s] = AccT(init_value);
+            result[s] = to_acc(init_value);
             continue;
         }
-        AccT acc(binary_op(init_value, first[begin]));
+        AccT acc = to_acc(binary_op(init_value, first[begin]));
         for (Size i = begin + 1; i < end; ++i)
             acc = binary_op(std::move(acc), first[i]);
         result[s] = std::move(acc);

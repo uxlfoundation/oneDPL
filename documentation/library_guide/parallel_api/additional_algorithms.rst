@@ -51,8 +51,9 @@ Algorithms in <oneapi/dpl/numeric>
   the accumulator is converted to the output type when written. As in ``std::ranges::fold_left``, the initial value
   itself is an operand of the operation; it is converted to the accumulator type only for an empty segment.
   The reduction operation should be associative and commutative. It must accept the accumulator, the initial value
-  and the input elements in any combination, its results must be convertible to the accumulator type, and the
-  accumulator type must be writable to the output. As in ``std::reduce``, a partial result may start from the
+  and the input elements in any combination, and its results must be convertible to the accumulator type and
+  assignable to an accumulator. The accumulator type must be writable to the output, and the initial value type must
+  be convertible to the accumulator type. As in ``std::reduce``, a partial result may start from the
   operation on two input elements: for example, ``std::uint32_t`` elements with a ``std::uint64_t`` initial value
   and ``std::plus<>`` may be added in 32 bits, while ``std::plus<std::uint64_t>`` adds them in 64 bits.
   For example::

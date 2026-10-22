@@ -181,8 +181,6 @@ Known Limitations
   Secondly, a default-constructed instance of that type should act as the identity element for the binary reduction function.
 * The initial value type for ``reduce_by_segment`` with segments defined by keys, ``exclusive_scan_by_segment``, and
   ``inclusive_scan_by_segment`` should satisfy the ``MoveAssignable`` and the ``CopyConstructible`` requirements.
-* ``reduce_by_segment`` with segments defined by offsets requires the accumulator type to be constructible from the
-  initial value type, which gives the result of an empty segment.
 * The initial value type for ``reduce``, ``transform_reduce``, should satisfy the ``CopyConstructible`` and the
   ``CopyAssignable`` requirements when used with device execution policies.
 * The initial value type for ``exclusive_scan``, ``inclusive_scan``,  ``transform_exclusive_scan``,

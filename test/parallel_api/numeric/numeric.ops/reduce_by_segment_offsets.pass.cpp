@@ -216,7 +216,7 @@ struct bit_set
     std::uint64_t bits;
 
     bit_set() = default;
-    explicit bit_set(std::uint64_t b) : bits(b) {}
+    bit_set(std::uint64_t b) : bits(b) {}
     operator std::uint64_t() const { return bits; }
 };
 
@@ -257,7 +257,7 @@ struct int_sum
 
     int_sum() = default;
     explicit int_sum(std::int64_t v) : value(v) {}
-    explicit int_sum(float f) : value(std::int64_t(f)) {}
+    int_sum(float f) : value(std::int64_t(f)) {}
     operator float() const { return float(value); }
 };
 

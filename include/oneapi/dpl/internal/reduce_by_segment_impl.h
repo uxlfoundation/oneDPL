@@ -177,7 +177,7 @@ template <typename _Acc, typename _ForwardIterator, typename _Size, typename _In
 _Acc
 __segmented_reduce_forward(_ForwardIterator& __it, _Size __count, _InitType __init, _BinaryOperation& __binary_op)
 {
-    _Acc __acc(std::invoke(__binary_op, std::move(__init), *__it));
+    _Acc __acc = __internal::__segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, std::move(__init), *__it));
     for (++__it; --__count > 0; ++__it)
         __acc = std::invoke(__binary_op, std::move(__acc), *__it);
     return __acc;
@@ -209,7 +209,7 @@ __reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _
         const _Size __end = __internal::__segmented_reduce_clamp_offset(*__offsets, __n);
         if (__pos >= __end)
         {
-            *__result_value = _Acc(__init);
+            *__result_value = __internal::__segmented_reduce_to_acc<_Acc>(__init);
         }
         else
         {
