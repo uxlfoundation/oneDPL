@@ -524,6 +524,59 @@ test_many_segments()
     }
 }
 
+// Larger inputs reduced one work-group per segment on GPUs: just up to and past the size reduced by one kernel, with as
+// many segments as the path needs and one fewer, which take the chunks instead; then segments longer than a
+// work-group reduces alone among shorter ones, for the second kernel with the tiles of 8192 elements of a GPU of at
+// least 32 compute units: beginning at the start of a tile and inside one, one ending where the next begins inside a
+// tile, and some leaving a last piece of one element
+template <std::size_t CallNumber>
+void
+test_large_inputs_by_work_groups()
+{
+    for (std::int64_t n : {65536 - 7, 65536 + 9})
+    {
+        for (std::int64_t num_segments : {100, 99})
+        {
+            std::vector<std::int64_t> offsets{0};
+            for (std::int64_t i = 1; i < num_segments; ++i)
+                offsets.push_back(n * i / num_segments + (i * 37) % 11);
+            offsets.push_back(n);
+            Sequence<int> in(n, [](std::size_t i) { return int(i % 101) - 50; });
+            Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+            invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                                 out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                                 std::plus<std::int64_t>{}, std::int64_t{-1});
+        }
+    }
+
+    const std::int64_t tile = 8192;
+    std::vector<std::int64_t> offsets{0};
+    auto add = [&offsets](std::int64_t length, std::int64_t count) {
+        for (std::int64_t i = 0; i < count; ++i)
+            offsets.push_back(offsets.back() + length);
+    };
+    // From the start of a tile, with a last piece of one element
+    add(10 * tile + 1, 1);
+    add(1000, 50);
+    // From inside a tile, and the next one from inside the tile where the first one ends
+    add(70001, 1);
+    add(9 * tile + 5000, 1);
+    add(300, 49);
+    // Up to the start of a tile, then from there the shortest long segment, with a last piece of one element
+    add(tile - offsets.back() % tile, 1);
+    add(8 * tile + 1, 1);
+    // Not a long segment: a last element past a tile
+    add(3 * tile + 1, 1);
+    add(17, 3);
+    add(0, 1);
+    const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+    Sequence<int> in(offsets.back(), [](std::size_t i) { return int(i % 101) - 50; });
+    Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                             out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                             std::plus<std::int64_t>{}, std::int64_t{-1});
+}
+
 // The input is the middle of a larger sequence, whose other elements are poison: a read out of the bounds of the input
 // changes a result
 constexpr std::size_t guard_length = 1000;
@@ -828,6 +881,7 @@ main()
     test_one_past_powers_of_two<48>(std::int64_t(1) << 19);
     test_one_past_powers_of_two<49>(std::int64_t(1) << 20);
     test_many_segments<50>();
+    test_large_inputs_by_work_groups<54>();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT
