@@ -63,7 +63,7 @@ struct __evenly_divided_binhash_fp
 
 // The bin of an integer sample is floor(offset * num_bins / range). For bound types of at most 32 bits the product
 // fits in 64 bits, so a division is exact. For 64-bit bounds it can overflow, and ranges where it may are handled by
-// storing num_bins / range as a 64-bit fixed-point fraction instead.
+// storing num_bins / range as a 128-bit fixed-point fraction instead.
 template <typename _T1, typename _RangeT>
 struct __evenly_divided_binhash_int_base
 {
@@ -130,27 +130,30 @@ struct __evenly_divided_binhash_can_overflow : __evenly_divided_binhash_int_base
 {
     using _Base = __evenly_divided_binhash_int_base<_T1, std::uint64_t>;
 
-    bool __large_range;   // offset * num_bins may not fit in 64 bits
-    std::uint64_t __frac; // floor(num_bins * 2^64 / range), used only for large ranges
+    bool __large_range; // offset * num_bins may not fit in 64 bits
+    // floor(num_bins * 2^128 / range) as its high and low words, used only for large ranges
+    std::uint64_t __frac;
+    std::uint64_t __frac2;
 
     __evenly_divided_binhash_can_overflow(const _T1& __min, const _T1& __max, std::size_t __num_bins_)
-        : _Base(__min, __max, __num_bins_), __large_range(false), __frac(0)
+        : _Base(__min, __max, __num_bins_), __large_range(false), __frac(0), __frac2(0)
     {
         __large_range = __num_bins_ != 0 && this->__range > std::numeric_limits<std::uint64_t>::max() / __num_bins_;
         if (!__large_range)
             return;
-        // Long division of num_bins * 2^64 by range. A large range exceeds UINT64_MAX / num_bins >= 2^33, so
-        // num_bins < range and the remainder stays below range throughout
+        // Long division of num_bins * 2^128 by range, shifting quotient bits in through the low word. A large range
+        // exceeds UINT64_MAX / num_bins >= 2^33, so num_bins < range and the remainder stays below range throughout
         std::uint64_t __rem = std::uint64_t(this->__num_bins);
-        for (int __i = 0; __i < 64; ++__i)
+        for (int __i = 0; __i < 128; ++__i)
         {
             const bool __carry = __rem >> 63;
             __rem <<= 1;
-            __frac <<= 1;
+            __frac = (__frac << 1) | (__frac2 >> 63);
+            __frac2 <<= 1;
             if (__carry || __rem >= this->__range)
             {
                 __rem -= this->__range;
-                __frac |= 1;
+                __frac2 |= 1;
             }
         }
     }
@@ -166,18 +169,12 @@ struct __evenly_divided_binhash_can_overflow : __evenly_divided_binhash_int_base
         if ((__value >= this->__minimum) && (__value < this->__maximum))
         {
             const std::uint64_t __offset = _Base::__unsigned_distance(this->__minimum, __value);
-            const std::uint64_t __bins = this->__num_bins;
-            const std::uint64_t __range = this->__range;
             // The correct bin or the one below it, due to truncation of the fixed-point multiplication
             const std::uint64_t __bin = __dpl_mul_hi_u64(__offset, __frac);
-            // Step up when the next bin starts at or before the offset: (bin + 1) * range <= offset * num_bins,
-            // compared as 128-bit products
-            const std::uint64_t __next_start_hi = __dpl_mul_hi_u64(__bin + 1, __range);
-            const std::uint64_t __next_start_lo = (__bin + 1) * __range;
-            const std::uint64_t __scaled_hi = __dpl_mul_hi_u64(__offset, __bins);
-            const std::uint64_t __scaled_lo = __offset * __bins;
-            ret = __bin +
-                  (__next_start_hi < __scaled_hi || (__next_start_hi == __scaled_hi && __next_start_lo <= __scaled_lo));
+            // 2^64 * (offset * num_bins / range - bin) is lo(offset * frac) + hi(offset * frac2) plus truncated terms
+            // in [0, 2). The bin steps up when that reaches 2^64, which as range < 2^64 happens exactly when the
+            // computed sum reaches 2^64 - 1, i.e. lo(offset * frac) >= ~hi(offset * frac2)
+            ret = __bin + (__offset * __frac >= ~__dpl_mul_hi_u64(__offset, __frac2));
         }
         return ret;
     }
