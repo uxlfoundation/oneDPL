@@ -309,6 +309,18 @@ struct __segmented_reduce_chunk_brick
     }
 };
 
+// Whether a range reaches its elements through a pointer returned by its begin(), as the views of USM memory and of
+// buffers do, so that consecutive elements can be loaded as one vector
+template <typename _Range, typename = void>
+struct __segmented_reduce_pointer_input : std::false_type
+{
+};
+template <typename _Range>
+struct __segmented_reduce_pointer_input<
+    _Range, std::enable_if_t<std::is_pointer_v<decltype(std::declval<const _Range&>().begin())>>> : std::true_type
+{
+};
+
 // Reduces the chunks of the long segments on GPUs, one sub-group per chunk: the lanes take the elements of the chunk
 // in turn, so that the loads of the sub-group are coalesced, and a tree combines the results of the lanes. Both
 // reorder the operands, which the required commutativity of the operation allows. Only for arithmetic types, which a
@@ -347,9 +359,66 @@ struct __segmented_reduce_chunk_group_brick
 
             // Every lane that takes part gets at least two elements: its accumulator starts from the operation on two
             // of them, never from an element alone, which may mean something else than the element to the operation
-            const _Size __active = std::min<_Size>(__lanes, (__last - __first) / 2);
+            _Size __active = std::min<_Size>(__lanes, (__last - __first) / 2);
             _Acc __acc{};
-            if (__lane < __active)
+            // Where the input is reached through a pointer, every lane loads four consecutive elements at once, from the
+            // first address aligned for such a vector on; the elements before it and after the last whole vector go to
+            // lane 0. The pairs of a vector keep the accumulator from being made from an element alone.
+            bool __by_vectors = false;
+            if constexpr (__segmented_reduce_pointer_input<_Input>::value)
+            {
+                using _T = std::remove_cv_t<std::remove_pointer_t<decltype(__input.begin())>>;
+                if constexpr (std::is_arithmetic_v<_T> && !std::is_same_v<_T, bool> &&
+                              (sizeof(_T) == 1 || sizeof(_T) == 2 || sizeof(_T) == 4 || sizeof(_T) == 8))
+                {
+                    const _T* const __base = __input.begin();
+                    using _V = sycl::vec<_T, 4>;
+                    constexpr std::uintptr_t __vb = sizeof(_V);
+                    const std::uintptr_t __mis = reinterpret_cast<std::uintptr_t>(__base + __first) % __vb;
+                    const _Size __a =
+                        std::min<_Size>(__last, __first + _Size(__mis == 0 ? 0 : (__vb - __mis) / sizeof(_T)));
+                    const _Size __nv = (__last - __a) / 4;
+                    if (__nv >= 1)
+                    {
+                        __by_vectors = true;
+                        __active = std::min<_Size>(__lanes, __nv);
+                        auto __load4 = [&](_Size __k) -> _Acc {
+                            const _V __v = *reinterpret_cast<const _V*>(__base + __a + 4 * __k);
+                            return std::invoke(__binary_op,
+                                               oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                                   std::invoke(__binary_op, _T(__v[0]), _T(__v[1]))),
+                                               oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                                   std::invoke(__binary_op, _T(__v[2]), _T(__v[3]))));
+                        };
+                        if (__lane < __active)
+                        {
+                            _Size __k = __lane;
+                            __acc = __load4(__k);
+                            // Four vector loads in flight
+                            for (__k += __active; __k + 3 * __active < __nv; __k += 4 * __active)
+                                __acc = std::invoke(
+                                    __binary_op, __acc,
+                                    std::invoke(
+                                        __binary_op,
+                                        oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                            std::invoke(__binary_op, __load4(__k), __load4(__k + __active))),
+                                        oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(
+                                            __binary_op, __load4(__k + 2 * __active), __load4(__k + 3 * __active)))));
+                            for (; __k < __nv; __k += __active)
+                                __acc = std::invoke(__binary_op, __acc, __load4(__k));
+                        }
+                        // The unaligned head and the tail, at most three elements each, to lane 0
+                        if (__lane == 0)
+                        {
+                            for (_Size __i = __first; __i < __a; ++__i)
+                                __acc = std::invoke(__binary_op, __acc, __input[__i]);
+                            for (_Size __i = __a + 4 * __nv; __i < __last; ++__i)
+                                __acc = std::invoke(__binary_op, __acc, __input[__i]);
+                        }
+                    }
+                }
+            }
+            if (!__by_vectors && __lane < __active)
             {
                 _Size __i = __first + __lane;
                 __acc = std::invoke(__binary_op, __input[__i], __input[__i + __active]);
