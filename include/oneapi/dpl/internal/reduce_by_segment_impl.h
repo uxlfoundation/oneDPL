@@ -43,11 +43,13 @@
 #define _ONEDPL_REDUCE_BY_SEGMENT_IMPL_H
 
 #include <cstdint>
+#include <functional> // std::invoke
 #include <type_traits>
 #include <utility>
 #include <iterator> // std::distance
 
 #include "by_segment_extension_defs.h"
+#include "../pstl/segmented_reduce_utils.h"
 
 #include "../pstl/glue_numeric_impl.h"
 #include "../pstl/glue_algorithm_impl.h" // TODO: replace the use of for_each & transform with __pattern_walk3
@@ -55,6 +57,10 @@
 #include "../pstl/iterator_impl.h"
 #include "function.h"
 #include "../pstl/utils.h"
+
+#if _ONEDPL_BACKEND_SYCL
+#    include "../pstl/hetero/reduce_by_segment_impl_hetero.h"
+#endif
 
 namespace oneapi
 {
@@ -162,39 +168,36 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     return std::make_pair(result1 + N, result2 + N);
 }
 
-#if _ONEDPL_BACKEND_SYCL
+//------------------------------------------------------------------------
+// reduce_by_segment with segments defined by offsets or by a fixed length
+//------------------------------------------------------------------------
 
-template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
-          typename OutputIterator1, typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
-std::pair<OutputIterator1, OutputIterator2>
-reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy, InputIterator1 first1,
-                       InputIterator1 last1, InputIterator2 first2, OutputIterator1 result1, OutputIterator2 result2,
-                       BinaryPred binary_pred, BinaryOperator binary_op)
+// The host policies, the segments one after another, each one from its own offsets clamped to the input, as on a device
+template <typename _Tag, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
+          typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
+void
+__reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _InputValueIt __last_value,
+                                 _OutputValueIt __result_value, _SegmentNum __num_segments, _OffsetIt __offsets,
+                                 _InitType __init, _BinaryOperation __binary_op)
 {
-    // The algorithm reduces values in [first2, first2 + (last1-first1)) where the associated
-    // keys for the values are equal to the adjacent key.
-    //
-    // Example: keys          = { 1, 2, 3, 4, 1, 1, 3, 3, 1, 1, 3, 3, 0 } -- [first1, last1)
-    //          values        = { 1, 2, 3, 4, 1, 1, 3, 3, 1, 1, 3, 3, 0 } -- [first2, first2+n)
-    //
-    //          keys_result   = { 1, 2, 3, 4, 1, 3, 1, 3, 0 } -- result1
-    //          values_result = { 1, 2, 3, 4, 2, 6, 2, 6, 0 } -- result2
+    using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
+    using _Size = typename std::iterator_traits<_InputValueIt>::difference_type;
 
-    if (first1 == last1)
-        return std::make_pair(result1, result2);
-
-    // number of unique keys
-    const auto __n = oneapi::dpl::__internal::__pattern_reduce_by_segment(
-        __tag, std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred, binary_op);
-
-    return std::make_pair(result1 + __n, result2 + __n);
+    const _Size __n = __last_value - __first_value;
+    for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
+    {
+        __result_value[__segment] = __internal::__segmented_reduce_serial<_Acc>(
+            __first_value, __internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n),
+            __internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n), __init, __binary_op);
+    }
 }
-#endif
+
 } // namespace internal
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIterator1, OutputIterator2>>
+oneapi::dpl::__internal::__enable_if_execution_policy<
+    Policy, std::enable_if_t<!std::is_integral_v<OutputIterator1>, std::pair<OutputIterator1, OutputIterator2>>>
 reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                   OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred, BinaryOperator binary_op)
 {
@@ -224,6 +227,19 @@ reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 fir
     using T = typename std::iterator_traits<InputIt1>::value_type;
 
     return reduce_by_segment(std::forward<Policy>(policy), first1, last1, first2, result1, result2, std::equal_to<T>());
+}
+
+template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt, typename InitT,
+          typename BinaryOp>
+oneapi::dpl::__internal::__enable_if_execution_policy<
+    Policy, std::enable_if_t<std::is_integral_v<SegmentNumT> && !std::is_integral_v<OffsetIt>>>
+reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first, SegmentNumT num_segments,
+                  OffsetIt offsets, InitT init_value, BinaryOp binary_op)
+{
+    const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first, offsets, out_first);
+
+    internal::__reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first, last, out_first,
+                                               num_segments, offsets, init_value, binary_op);
 }
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
