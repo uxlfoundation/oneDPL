@@ -121,12 +121,16 @@ inline constexpr std::size_t __segmented_reduce_cpu_threshold = 32768;
 // - all the segments are reduced in chunks once their average length exceeds this on GPUs, and the threshold above on
 //   CPUs: on GPUs the short segments beside the long ones in chunks cost more than all the segments in chunks;
 inline constexpr std::size_t __segmented_reduce_gpu_chunks_average = 256;
-// - on GPUs an input up to this size is reduced by one kernel, one work-item per segment of any length;
+// - on GPUs an input up to this size whose average segment is shorter than this is reduced by one kernel, one
+//   work-item per segment: a work-group per segment costs more for such segments, though less for a longer one;
 inline constexpr std::size_t __segmented_reduce_gpu_small_input = 1024;
-// - on GPUs a larger input up to this size, with an average segment of at least this length, is reduced by one kernel,
-//   one work-group per segment;
+inline constexpr std::size_t __segmented_reduce_gpu_small_average = 16;
+// - on GPUs an input up to this size is otherwise reduced by one kernel, one work-group per segment, for at most this
+//   many segments or with an average segment of at least this length: the work-groups of more and shorter segments
+//   cost more than the other paths;
 inline constexpr std::size_t __segmented_reduce_gpu_group_input = 32768;
-inline constexpr std::size_t __segmented_reduce_gpu_group_min_average = 64;
+inline constexpr std::size_t __segmented_reduce_gpu_group_max_segments = 1024;
+inline constexpr std::size_t __segmented_reduce_gpu_group_min_average = 24;
 // - on GPUs the best chunk length of a long segment is close to the square root of its length, which balances the
 //   serial work of its chunks and of their combination; on CPUs the chunk length hardly matters above 1024.
 inline constexpr std::size_t __segmented_reduce_gpu_min_chunk_size = 64;
@@ -1158,9 +1162,10 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         __scan.__checked_deferrable_wait();
     };
 
-    // No segment of a small input is longer than the input, which a work-item reduces alone faster on GPUs than the
-    // scan, the chunks and their combination take; a larger input may hold a segment too long for one work-item
-    if (__is_gpu && __n <= _Size(__segmented_reduce_gpu_small_input))
+    // On GPUs a work-item reduces the short segments of a small input alone faster than a work-group per segment and
+    // than the scan, the chunks and their combination; a longer segment takes a work-item longer than a work-group
+    if (__is_gpu && __n <= _Size(__segmented_reduce_gpu_small_input) &&
+        __n / __m < _Size(__segmented_reduce_gpu_small_average))
     {
         __parallel_for(
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_short_wrapper>(__exec),
@@ -1171,9 +1176,11 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     }
 
     // On GPUs one work-group per segment reduces an input of medium size in one kernel, without the scan, the chunks
-    // and their combination: no segment is longer than the input. Very short segments leave a work-group idle.
+    // and their combination: no segment is longer than the input. The work-groups of many very short segments cost
+    // more than the other paths.
     if (__is_gpu && __n <= _Size(__segmented_reduce_gpu_group_input) &&
-        __n / __m >= _Size(__segmented_reduce_gpu_group_min_average))
+        (__m <= _Size(__segmented_reduce_gpu_group_max_segments) ||
+         __n / __m >= _Size(__segmented_reduce_gpu_group_min_average)))
     {
         using _GroupKernel = __internal::__kernel_name_provider<
             __segmented_reduce_group_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
