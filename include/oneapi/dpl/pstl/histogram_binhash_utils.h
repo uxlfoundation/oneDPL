@@ -195,8 +195,13 @@ template <typename _T1>
 auto
 __make_evenly_divided_binhash(const _T1& __min, const _T1& __max, std::size_t __num_bins)
 {
-    if constexpr (std::is_floating_point_v<_T1>)
-        return __evenly_divided_binhash_fp<_T1>(__min, __max, __num_bins);
+    if constexpr (__is_any_floating_point_v<_T1>)
+    {
+        // Reduced-precision types are binned in float, which represents them exactly, so the scale is not limited
+        // to their precision
+        using _ComputeT = std::conditional_t<std::is_floating_point_v<_T1>, _T1, float>;
+        return __evenly_divided_binhash_fp<_ComputeT>(_ComputeT(__min), _ComputeT(__max), __num_bins);
+    }
     else if constexpr (sizeof(_T1) > sizeof(std::uint32_t))
         return __evenly_divided_binhash_can_overflow<_T1>(__min, __max, __num_bins);
     else

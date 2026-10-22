@@ -203,6 +203,19 @@ test_bin_arithmetic()
     // With no bins nothing is written, even for samples within the bounds
     test_even_bin_arithmetic<19, int>({0, 5}, 0, 10, {});
     test_even_bin_arithmetic<20, float>({0.0f, 5.0f}, 0.0f, 10.0f, {});
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    // sycl::half is binned in floating-point arithmetic, keeping the fractional part of samples
+    using H = sycl::half;
+    test_even_bin_arithmetic<22, H>(
+        {H(-0.5f), H(0.0f), H(0.25f), H(0.5f), H(0.75f), H(1.0f), H(1.5f), H(1.75f), H(2.0f)}, H(0.0f), H(2.0f),
+        {2, 2, 1, 2});
+    test_even_bin_arithmetic<23, H>({H(-0.25f), H(0.0f), H(0.25f), H(0.5f), H(0.75f), H(1.0f)}, 0, 1, {2, 2});
+    // More bins than half can count exactly, so the scale must not be computed in half
+    std::vector<int> expected_many(3000, 0);
+    expected_many[2047] = expected_many[2048] = 1;
+    test_even_bin_arithmetic<24, H>({H(2047.0f), H(2048.0f)}, H(0.0f), H(3000.0f), expected_many);
+#endif // TEST_DPCPP_BACKEND_PRESENT
 }
 
 int
