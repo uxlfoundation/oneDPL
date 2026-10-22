@@ -863,5 +863,6 @@ because a sentinel `last` would require constraining or documenting a sentinel-i
 - [C++ draft: `std::reduce`](https://eel.is/c++draft/reduce)
 - [C++ draft: Numeric algorithm definitions](https://eel.is/c++draft/numerics.defns)
 - [P3732R2: Declarations of `reduce`, `sum`, `product`, and their `_into` variants](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html#add-declarations-of-reduce-sum-product-and-their-_into-variants)
+- [P3809R0: Should we make std::linalg reductions deduce return types like fold algorithms?](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3809r0.html)
 - [cppreference: Fold algorithm concepts](https://en.cppreference.com/cpp/algorithm/ranges/fold_concepts)
 - [cppreference: `std::reduce`](https://cppreference.com/cpp/algorithm/reduce)
