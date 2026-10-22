@@ -36,6 +36,7 @@
 #include <random>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 static_assert(ONEDPL_HAS_SEGMENTED_ALGORITHMS >= 202611L);
@@ -524,29 +525,29 @@ test_many_segments()
     }
 }
 
-// Larger inputs reduced one work-group per segment on GPUs: just up to and past the size reduced by one kernel, with as
-// many segments as the path needs and one fewer, which take the chunks instead; then segments longer than a
-// work-group reduces alone among shorter ones, for the second kernel with the tiles of 8192 elements of a GPU of at
-// least 32 compute units: beginning at the start of a tile and inside one, one ending where the next begins inside a
-// tile, and some leaving a last piece of one element
+// Larger inputs reduced one work-group per segment on GPUs: just up to the size reduced by one kernel, with as many
+// segments as the path needs and one fewer, which take the chunks instead; past it, with the least average segment of
+// the second kernel and one element less, and with that average but one segment fewer than the path needs; then
+// segments longer than a work-group reduces alone among shorter ones, for the second kernel with the tiles of 8192
+// elements of a GPU of at least 32 compute units: beginning at the start of a tile and inside one, one ending where
+// the next begins inside a tile, and some leaving a last piece of one element
 template <std::size_t CallNumber>
 void
 test_large_inputs_by_work_groups()
 {
-    for (std::int64_t n : {65536 - 7, 65536 + 9})
+    const std::pair<std::int64_t, std::int64_t> sizes[] = {
+        {65536 - 7, 100}, {65536 - 7, 99}, {2048 * 100, 100}, {2048 * 100 - 1, 100}, {2048 * 99, 99}};
+    for (const auto& [n, num_segments] : sizes)
     {
-        for (std::int64_t num_segments : {100, 99})
-        {
-            std::vector<std::int64_t> offsets{0};
-            for (std::int64_t i = 1; i < num_segments; ++i)
-                offsets.push_back(n * i / num_segments + (i * 37) % 11);
-            offsets.push_back(n);
-            Sequence<int> in(n, [](std::size_t i) { return int(i % 101) - 50; });
-            Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
-            invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
-                                                 out.end(), offsets.begin(), num_segments, std::int64_t{5},
-                                                 std::plus<std::int64_t>{}, std::int64_t{-1});
-        }
+        std::vector<std::int64_t> offsets{0};
+        for (std::int64_t i = 1; i < num_segments; ++i)
+            offsets.push_back(n * i / num_segments + (i * 37) % 11);
+        offsets.push_back(n);
+        Sequence<int> in(n, [](std::size_t i) { return int(i % 101) - 50; });
+        Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+        invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                             out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                             std::plus<std::int64_t>{}, std::int64_t{-1});
     }
 
     const std::int64_t tile = 8192;

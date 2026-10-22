@@ -136,18 +136,17 @@ inline constexpr std::size_t __segmented_reduce_gpu_small_average = 16;
 inline constexpr std::size_t __segmented_reduce_gpu_group_input = 32768;
 inline constexpr std::size_t __segmented_reduce_gpu_group_max_segments = 1024;
 inline constexpr std::size_t __segmented_reduce_gpu_group_min_average = 24;
-// - on GPUs a larger input is reduced one work-group per segment as well when it has at least this many segments, and
-//   at most this many or an average segment of at least this length, with an average segment of at least the least
-//   one above and shorter than this: fewer segments leave too few work-groups, more and shorter ones cost more than
-//   the other paths, and the chunks reduce longer ones faster. Up to this size of the input by one kernel, as no
-//   segment is longer then; otherwise the segments longer than that are left to a second kernel, one work-group per
-//   tile of the input, of a power of two of at least this length that is close to the input size per compute unit,
-//   and at most the size above;
+// - on GPUs a larger input of at least this many segments is reduced one work-group per segment as well when its
+//   average segment is shorter than this, as the chunks reduce longer ones faster, and fewer segments leave too few
+//   work-groups. Up to this size of the input by one kernel, as no segment is longer then, with an average segment of
+//   at least the least one above. A larger input only with an average segment of at least this length, as the
+//   work-groups of more and shorter segments cost more than the chunks on some GPUs: its segments longer than the size
+//   above are left to a second kernel, one work-group per tile of the input, of a power of two of at least this length
+//   that is close to the input size per compute unit, and at most that size;
 inline constexpr std::size_t __segmented_reduce_gpu_large_group_min_segments = 100;
-inline constexpr std::size_t __segmented_reduce_gpu_large_group_max_segments = 4096;
-inline constexpr std::size_t __segmented_reduce_gpu_large_group_long_average = 2048;
 inline constexpr std::size_t __segmented_reduce_gpu_large_group_max_average = 16384;
 inline constexpr std::size_t __segmented_reduce_gpu_large_group_max_length = 65536;
+inline constexpr std::size_t __segmented_reduce_gpu_large_group_long_average = 2048;
 inline constexpr std::size_t __segmented_reduce_gpu_min_long_tile = 8192;
 // - on GPUs the best chunk length of a long segment is close to the square root of its length, which balances the
 //   serial work of its chunks and of their combination; on CPUs the chunk length hardly matters above 1024.
@@ -1672,14 +1671,14 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         return;
     }
 
-    // On GPUs one work-group per segment also reduces a larger input of enough segments, neither too many short ones
-    // nor long ones on average: in one kernel when no segment can be longer than a work-group reduces alone, otherwise
-    // with a second kernel for the longer segments, one work-group per tile of the input
+    // On GPUs one work-group per segment also reduces a larger input of enough segments, not long ones on average: in
+    // one kernel when no segment can be longer than a work-group reduces alone, otherwise, for longer segments on
+    // average, with a second kernel for the segments longer than that, one work-group per tile of the input
     if (__is_gpu && __m >= _Size(__segmented_reduce_gpu_large_group_min_segments) &&
-        __n / __m >= _Size(__segmented_reduce_gpu_group_min_average) &&
         __n / __m < _Size(__segmented_reduce_gpu_large_group_max_average) &&
-        (__m <= _Size(__segmented_reduce_gpu_large_group_max_segments) ||
-         __n / __m >= _Size(__segmented_reduce_gpu_large_group_long_average)))
+        __n / __m >= _Size(__n <= _Size(__segmented_reduce_gpu_large_group_max_length)
+                               ? __segmented_reduce_gpu_group_min_average
+                               : __segmented_reduce_gpu_large_group_long_average))
     {
         sycl::queue __q = __exec.queue();
         // As for the medium inputs above
