@@ -50,7 +50,8 @@ Algorithms in <oneapi/dpl/numeric>
   ``std::decay_t<std::invoke_result_t<BinaryOp&, InitT, typename std::iterator_traits<InputIt>::reference>>``, and
   the accumulator is converted to the output type when written. As in ``std::ranges::fold_left``, the initial value
   itself is an operand of the operation; it is converted to the accumulator type only for an empty segment.
-  The reduction operation should be associative and commutative. It must accept the accumulator, the initial value
+  The reduction operation should be associative and commutative: unlike ``reduce_by_segment`` with segments defined
+  by keys, this overload does not support non-commutative operations. It must accept the accumulator, the initial value
   and the input elements in any combination, and its results must be convertible to the accumulator type and
   assignable to an accumulator. The accumulator type must be writable to the output, and the initial value type must
   be convertible to the accumulator type. As in ``std::reduce``, a partial result may start from the
