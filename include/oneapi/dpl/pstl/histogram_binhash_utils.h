@@ -166,18 +166,13 @@ struct __evenly_divided_binhash_can_overflow : __evenly_divided_binhash_int_base
         if ((__value >= this->__minimum) && (__value < this->__maximum))
         {
             const std::uint64_t __offset = _Base::__unsigned_distance(this->__minimum, __value);
-            const std::uint64_t __bins = this->__num_bins;
-            const std::uint64_t __range = this->__range;
+            const std::uint32_t __bins = this->__num_bins;
             // The correct bin or the one below it, due to truncation of the fixed-point multiplication
             const std::uint64_t __bin = __dpl_mul_hi_u64(__offset, __frac);
             // Step up when the next bin starts at or before the offset: (bin + 1) * range <= offset * num_bins,
-            // compared as 128-bit products
-            const std::uint64_t __next_start_hi = __dpl_mul_hi_u64(__bin + 1, __range);
-            const std::uint64_t __next_start_lo = (__bin + 1) * __range;
-            const std::uint64_t __scaled_hi = __dpl_mul_hi_u64(__offset, __bins);
-            const std::uint64_t __scaled_lo = __offset * __bins;
+            // compared as {high, low} words. As bin < num_bins < 2^31, both are 64-bit by 32-bit products.
             ret = __bin +
-                  (__next_start_hi < __scaled_hi || (__next_start_hi == __scaled_hi && __next_start_lo <= __scaled_lo));
+                  (__dpl_mul_u64_u32(this->__range, std::uint32_t(__bin + 1)) <= __dpl_mul_u64_u32(__offset, __bins));
         }
         return ret;
     }

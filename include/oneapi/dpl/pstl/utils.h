@@ -681,6 +681,17 @@ __dpl_mul_hi_u64(std::uint64_t __a, std::uint64_t __b) noexcept
 #endif
 }
 
+// The 96-bit product of a 64-bit and a 32-bit unsigned integer as its {high, low} 64-bit words. Where 64-bit
+// multiplication is emulated, this takes half the 32-bit multiplies of a full 64-bit by 64-bit product.
+inline std::pair<std::uint64_t, std::uint64_t>
+__dpl_mul_u64_u32(std::uint64_t __a, std::uint32_t __b) noexcept
+{
+    const std::uint64_t __lo_part = (__a & 0xffffffffu) * __b;
+    const std::uint64_t __hi_part = (__a >> 32) * __b;
+    const std::uint64_t __lo = __lo_part + (__hi_part << 32);
+    return {(__hi_part >> 32) + (__lo < __lo_part), __lo};
+}
+
 template <typename _T>
 std::enable_if_t<std::is_floating_point_v<_T>, bool>
 __dpl_signbit(const _T& __x)
