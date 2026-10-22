@@ -172,18 +172,7 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
 // reduce_by_segment with segments defined by offsets or by a fixed length
 //------------------------------------------------------------------------
 
-// Reduces the __count > 0 elements from __it as std::ranges::fold_left does, and moves __it past them
-template <typename _Acc, typename _ForwardIterator, typename _Size, typename _InitType, typename _BinaryOperation>
-_Acc
-__segmented_reduce_forward(_ForwardIterator& __it, _Size __count, _InitType __init, _BinaryOperation& __binary_op)
-{
-    _Acc __acc = __internal::__segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, std::move(__init), *__it));
-    for (++__it; --__count > 0; ++__it)
-        __acc = std::invoke(__binary_op, std::move(__acc), *__it);
-    return __acc;
-}
-
-// The host policies, the segments one after another in the order of the offsets and the results
+// The host policies, the segments one after another, each one from its own offsets clamped to the input, as on a device
 template <typename _Tag, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
           typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
 void
@@ -194,29 +183,12 @@ __reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _
     using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
     using _Size = typename std::iterator_traits<_InputValueIt>::difference_type;
 
-    // The offsets and the results in order, and one pass over the input. The input before the first segment is skipped
-    // once; then the iterator only moves with the reduction, as a segment of sorted offsets starts where the previous
-    // one ends. Unsorted offsets, whose results are unspecified, may give a segment starting before the current
-    // position: it is reduced from the current position.
-    if (__num_segments <= 0)
-        return;
-    const _Size __n = std::distance(__first_value, __last_value);
-    _Size __pos = __internal::__segmented_reduce_clamp_offset(*__offsets, __n); // the position of __it
-    _InputValueIt __it = std::next(__first_value, __pos);
+    const _Size __n = __last_value - __first_value;
     for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
     {
-        ++__offsets;
-        const _Size __end = __internal::__segmented_reduce_clamp_offset(*__offsets, __n);
-        if (__pos >= __end)
-        {
-            *__result_value = __internal::__segmented_reduce_to_acc<_Acc>(__init);
-        }
-        else
-        {
-            *__result_value = __segmented_reduce_forward<_Acc>(__it, __end - __pos, __init, __binary_op);
-            __pos = __end;
-        }
-        ++__result_value;
+        __result_value[__segment] = __internal::__segmented_reduce_serial<_Acc>(
+            __first_value, __internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n),
+            __internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n), __init, __binary_op);
     }
 }
 
