@@ -63,9 +63,12 @@ template <typename _Offset, typename _Size>
 constexpr _Size
 __segmented_reduce_clamp_offset(_Offset __offset, _Size __n)
 {
-    static_assert(std::is_integral_v<_Offset>, "The offsets of reduce_by_segment must be of an integral type");
+    constexpr bool __is_offset = std::is_integral_v<_Offset> && !std::is_same_v<_Offset, bool>;
+    static_assert(__is_offset, "The offsets of reduce_by_segment must be of an integral type other than bool");
 
-    using _Unsigned = std::common_type_t<std::make_unsigned_t<_Offset>, std::make_unsigned_t<_Size>>;
+    // An int in place of an offset of another type keeps the static_assert the only error
+    using _Unsigned = std::common_type_t<std::make_unsigned_t<std::conditional_t<__is_offset, _Offset, int>>,
+                                         std::make_unsigned_t<_Size>>;
 
     if (__offset <= 0)
         return 0;
