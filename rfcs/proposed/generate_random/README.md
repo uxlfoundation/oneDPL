@@ -142,8 +142,13 @@ A runnable example is available in [generate_random_example.cpp](generate_random
 | Component | No policy | Host `seq` | Host `unseq` / `par` / `par_unseq` | SYCL device policy |
 | --- | --- | --- | --- | --- |
 | `philox_engine` | Yes | Yes | Yes | Yes |
-| `uniform_real_distribution` | Yes | Yes | With a supporting engine; otherwise sequential fallback | With a supporting engine |
-| `normal_distribution` | Yes | Yes | Engine stage only, with a supporting engine; otherwise sequential fallback | With a supporting engine |
+| `uniform_real_distribution` | Yes | Yes | Yes (parallel with a supporting engine; otherwise sequential fallback) | With a supporting engine |
+| `normal_distribution` | Yes | Yes | Yes (host distribution path) | With a supporting engine |
+
+`normal_distribution` host policy overloads perform the distribution transform on the host,
+using policy-enabled engine generation when available and sequential engine generation otherwise.
+Distribution overloads without a compatible host policy customization fall back to the
+no-policy distribution member when available, otherwise to elementwise `d(g)` calls.
 
 All policy entries, including `seq` and host fallback, follow the
 [policy semantics above](#execution-policy-ordering-and-state). Other engines and
