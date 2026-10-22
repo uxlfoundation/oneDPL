@@ -501,15 +501,16 @@ test_one_past_powers_of_two(std::int64_t max_power)
 }
 
 // As many segments as a work-group of the reduction of the chunks computes the ends of their chunks for in its local
-// memory on GPUs, and one more, which takes a scan before it instead; with average lengths that take the reduction of
-// the chunks by work-items and by sub-groups
+// memory on GPUs, and one more, which takes a scan before it instead: with average lengths that take the reduction of
+// the chunks by work-items, up to 2048 segments, and by sub-groups, up to 1024
 template <std::size_t CallNumber>
 void
 test_many_segments()
 {
-    for (std::int64_t num_segments : {1024, 1025})
+    for (std::int64_t base_length : {257, 1024})
     {
-        for (std::int64_t base_length : {257, 1024})
+        const std::int64_t local_ends = base_length < 1024 ? 2048 : 1024;
+        for (std::int64_t num_segments : {local_ends, local_ends + 1})
         {
             std::vector<std::int64_t> offsets{0};
             for (std::int64_t i = 0; i < num_segments; ++i)

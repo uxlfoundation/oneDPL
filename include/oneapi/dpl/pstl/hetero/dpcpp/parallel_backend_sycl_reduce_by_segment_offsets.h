@@ -148,8 +148,10 @@ inline constexpr std::size_t __segmented_reduce_gpu_max_group_chunk_size = 65536
 //   at least this long: shorter segments leave a sub-group too few elements per work-item.
 inline constexpr std::size_t __segmented_reduce_gpu_min_group_length = 1024;
 // - on GPUs the ends of the chunks of at most this many segments are computed by every work-group of the kernel that
-//   reduces the chunks, in its local memory, instead of by a scan before that kernel;
+//   reduces the chunks, in its local memory, instead of by a scan before that kernel: the first for the chunks by
+//   sub-groups, the second for the chunks by work-items, for which the local ends pay off for more segments;
 inline constexpr std::size_t __segmented_reduce_gpu_local_ends_segments = 1024;
+inline constexpr std::size_t __segmented_reduce_gpu_local_ends_item_segments = 2048;
 // - on GPUs an input of arithmetic types whose average segment has at least this length is reduced by tiles, one
 //   work-group per tile, of the smaller length up to the input size below and of the larger one above.
 inline constexpr std::size_t __segmented_reduce_gpu_tiles_average = 32768;
@@ -1058,7 +1060,8 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         // On GPUs the kernel that reduces the chunks of a few segments computes their ends itself. The ends and the
         // partial results are in USM device memory where supported: buffers would add the cost of their accessors to
         // both kernels and of their destruction to the call.
-        if (__is_gpu && __m <= _Size(__segmented_reduce_gpu_local_ends_segments))
+        if (__is_gpu && __m <= _Size(__by_groups ? __segmented_reduce_gpu_local_ends_segments
+                                                 : __segmented_reduce_gpu_local_ends_item_segments))
         {
             sycl::queue __q = __exec.queue();
             const std::size_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, std::size_t(256));
