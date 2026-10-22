@@ -215,56 +215,6 @@ class __reorder_pred<__binary_op<_Pred, _Proj1, _Proj2>> : public __binary_op<__
         : __base(__reorder_pred<_Pred>{__op.__f}, __op.__proj1, __op.__proj2) {}
 };
 
-//! "==" comparison.
-/** Not called "equal" to avoid (possibly unfounded) concerns about accidental invocation via
-    argument-dependent name lookup by code expecting to find the usual ::std::equal. */
-class __pstl_equal
-{
-  public:
-    template <typename _Xp, typename _Yp>
-    bool
-    operator()(_Xp&& __x, _Yp&& __y) const
-    {
-        return ::std::forward<_Xp>(__x) == ::std::forward<_Yp>(__y);
-    }
-};
-
-//! "<" comparison.
-class __pstl_less
-{
-  public:
-    template <typename _Xp, typename _Yp>
-    bool
-    operator()(_Xp&& __x, _Yp&& __y) const
-    {
-        return ::std::forward<_Xp>(__x) < ::std::forward<_Yp>(__y);
-    }
-};
-
-//! ">" comparison.
-class __pstl_greater
-{
-  public:
-    template <typename _Xp, typename _Yp>
-    bool
-    operator()(_Xp&& __x, _Yp&& __y) const
-    {
-        return ::std::forward<_Xp>(__x) > ::std::forward<_Yp>(__y);
-    }
-};
-
-//! General "+" operation
-class __pstl_plus
-{
-  public:
-    template <typename _Xp, typename _Yp>
-    auto
-    operator()(_Xp&& __x, _Yp&& __y) const -> decltype(::std::forward<_Xp>(__x) + ::std::forward<_Yp>(__y))
-    {
-        return ::std::forward<_Xp>(__x) + ::std::forward<_Yp>(__y);
-    }
-};
-
 //! min calculation.
 class __pstl_min
 {
