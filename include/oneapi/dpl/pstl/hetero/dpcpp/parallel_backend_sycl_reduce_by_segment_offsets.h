@@ -355,9 +355,11 @@ struct __segmented_reduce_chunk_group_brick
                 for (__i += 2 * __active; __i + 3 * __active < __last; __i += 4 * __active)
                     __acc = std::invoke(
                         __binary_op, __acc,
-                        std::invoke(
-                            __binary_op, _Acc(std::invoke(__binary_op, __input[__i], __input[__i + __active])),
-                            _Acc(std::invoke(__binary_op, __input[__i + 2 * __active], __input[__i + 3 * __active]))));
+                        std::invoke(__binary_op,
+                                    oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                        std::invoke(__binary_op, __input[__i], __input[__i + __active])),
+                                    oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(
+                                        __binary_op, __input[__i + 2 * __active], __input[__i + 3 * __active]))));
                 for (; __i < __last; __i += __active)
                     __acc = std::invoke(__binary_op, __acc, __input[__i]);
             }
@@ -372,8 +374,10 @@ struct __segmented_reduce_chunk_group_brick
             {
                 // A first chunk of one element more than the initial value takes it alone
                 if (__is_first)
-                    __acc = __active > 0       ? _Acc(std::invoke(__binary_op, __head, __acc))
-                            : __first < __last ? _Acc(std::invoke(__binary_op, __head, __input[__first]))
+                    __acc = __active > 0       ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                                     std::invoke(__binary_op, __head, __acc))
+                            : __first < __last ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                                     std::invoke(__binary_op, __head, __input[__first]))
                                                : __head;
                 std::get<0>(__partials[__chunk]) = __acc;
             }
@@ -652,8 +656,10 @@ struct __segmented_reduce_pairs
     operator()(const std::size_t __idx, const _Input& __input) const
     {
         const _Size __first = __begin + 2 * _Size(__idx);
-        _Acc __acc = __idx == 0 ? _Acc(std::invoke(__binary_op, __init, __input[__first]))
-                                : _Acc(std::invoke(__binary_op, __input[__first], __input[__first + 1]));
+        _Acc __acc = __idx == 0 ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                      std::invoke(__binary_op, __init, __input[__first]))
+                                : oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                      std::invoke(__binary_op, __input[__first], __input[__first + 1]));
         if (__idx == 0)
             __acc = std::invoke(__binary_op, std::move(__acc), __input[__first + 1]);
         if (__is_odd && __idx + 1 == __num_pairs)
@@ -736,7 +742,9 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                         {
                             if (__local_idx == 0)
                                 __result[__segment] =
-                                    __length == 0 ? _Acc(__init) : _Acc(std::invoke(__op, __init, __input[__begin]));
+                                    __length == 0 ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init)
+                                                  : oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                                        std::invoke(__op, __init, __input[__begin]));
                             continue;
                         }
 
@@ -854,9 +862,11 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                             for (__i += 2 * __active; __i + 3 * __active < __last; __i += 4 * __active)
                                 __acc = std::invoke(
                                     __op, __acc,
-                                    std::invoke(__op, _Acc(std::invoke(__op, __input[__i], __input[__i + __active])),
-                                                _Acc(std::invoke(__op, __input[__i + 2 * __active],
-                                                                 __input[__i + 3 * __active]))));
+                                    std::invoke(__op,
+                                                oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                                    std::invoke(__op, __input[__i], __input[__i + __active])),
+                                                oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(
+                                                    __op, __input[__i + 2 * __active], __input[__i + 3 * __active]))));
                             for (; __i < __last; __i += __active)
                                 __acc = std::invoke(__op, __acc, __input[__i]);
                         }
@@ -882,8 +892,10 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                                     __total = std::invoke(__op, __total, __local_mem[__k]);
                             }
                             if (__with_init)
-                                __total = __active > 0 ? _Acc(std::invoke(__op, __head, __total))
-                                          : __len == 1 ? _Acc(std::invoke(__op, __head, __input[__b]))
+                                __total = __active > 0 ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                                             std::invoke(__op, __head, __total))
+                                          : __len == 1 ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                                             std::invoke(__op, __head, __input[__b]))
                                                        : __head;
                         }
                         return __total;
@@ -955,8 +967,10 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                             }
                             else if (__lid == 0)
                             {
-                                const _Acc __p =
-                                    __len == 0 ? _Acc(__init) : _Acc(std::invoke(__op, __init, __input[__b]));
+                                const _Acc __p = __len == 0
+                                                     ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init)
+                                                     : oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                                           std::invoke(__op, __init, __input[__b]));
                                 if (__e <= __te || __len == 0)
                                     __result[__s] = __p;
                                 else
