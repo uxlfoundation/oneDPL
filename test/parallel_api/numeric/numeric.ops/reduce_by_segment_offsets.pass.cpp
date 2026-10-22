@@ -615,6 +615,43 @@ test_large_inputs_by_sub_groups()
                                          std::plus<std::int64_t>{}, std::int64_t{-1});
 }
 
+// Many segments of one element, for an average below the least one of the paths by work-groups and by sub-groups, beside
+// segments at the boundaries of the kernels of the short segments beside long ones on GPUs: the longest segment a
+// work-item reduces alone and the shortest one a sub-group takes, several of those in a row, the longest one a sub-group
+// takes and the shortest one left to the tiles of 8192 elements, and long segments from inside a tile and with a last
+// piece of one element
+template <std::size_t CallNumber>
+void
+test_short_beside_long()
+{
+    const std::int64_t tile = 8192;
+    std::vector<std::int64_t> offsets{0};
+    auto add = [&offsets](std::int64_t length, std::int64_t count) {
+        for (std::int64_t i = 0; i < count; ++i)
+            offsets.push_back(offsets.back() + length);
+    };
+    add(1, 3000);
+    add(512, 1);
+    add(513, 1);
+    add(1, 3001);
+    add(600, 9);
+    add(1, 2999);
+    add(tile, 1);
+    add(tile + 1, 1);
+    add(1, 3000);
+    add(3 * tile + 5001, 1);
+    add(0, 1);
+    add(1, 3000);
+    add(2 * tile + 1, 1);
+    add(1, 17);
+    const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+    Sequence<int> in(offsets.back(), [](std::size_t i) { return int(i % 101) - 50; });
+    Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                         out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                         std::plus<std::int64_t>{}, std::int64_t{-1});
+}
+
 // The input is the middle of a larger sequence, whose other elements are poison: a read out of the bounds of the input
 // changes a result
 constexpr std::size_t guard_length = 1000;
@@ -951,6 +988,7 @@ main()
     test_large_inputs_by_work_groups<54>();
     test_long_chains<56>();
     test_large_inputs_by_sub_groups<58>();
+    test_short_beside_long<59>();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT

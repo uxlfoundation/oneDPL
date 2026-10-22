@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <functional>
 #include <limits>
 #include <type_traits>
@@ -1342,6 +1343,230 @@ struct __segmented_reduce_sub_group_submitter<_Acc, __internal::__optional_kerne
     }
 };
 
+// EXPERIMENT (hybrid without the host wait). The first kernel: one work-item per segment, which reduces a segment of
+// at most __threshold elements alone, flags a segment of at most __max_length elements for the second kernel, and
+// leaves a longer one to the third kernel, the second of __segmented_reduce_long_group_submitter: it zeroes the number
+// of its pieces reduced and writes it into the maps of the tiles of __max_length elements. Every flag is written.
+template <typename _Acc, typename _Size, typename _InitType, typename _BinaryOperation, typename _InRange,
+          typename _OffsetRange, typename _OutRange, typename _FlagsAcc, typename _MapsAcc, typename _CountsAcc>
+struct __segmented_reduce_short_item_functor
+{
+    _InRange __input;
+    _OffsetRange __offsets;
+    _OutRange __result;
+    _FlagsAcc __flags;   // whether every segment is left to the second kernel
+    _MapsAcc __maps;     // the segment covering the start of every tile, then the one beginning inside every tile
+    _CountsAcc __counts; // the number of the reduced pieces of every long segment
+    _Size __n;
+    _Size __m;
+    _Size __threshold;       // the longest segment reduced by its work-item
+    _Size __max_length;      // the longest segment reduced by a sub-group, the length of the tiles
+    std::uint8_t __tile_log; // the tiles have 2^__tile_log elements
+    std::size_t __num_tiles; // the number of the tiles
+    _InitType __init;
+    _BinaryOperation __binary_op;
+
+    void
+    operator()(sycl::nd_item<1> __item) const
+    {
+        _BinaryOperation __op = __binary_op;
+        std::uint8_t* __flag = __flags.__data();
+        const _Size __tile = _Size{1} << __tile_log;
+        for (std::size_t __s = __item.get_global_linear_id(); __s < std::size_t(__m); __s += __item.get_global_range(0))
+        {
+            const _Size __segment = __s;
+            const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n);
+            const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n);
+            const _Size __length = __begin < __end ? __end - __begin : _Size{0};
+            __flag[__s] = __length > __threshold && __length <= __max_length;
+            if (__length <= __threshold)
+                __result[__segment] =
+                    oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(__input, __begin, __end, __init, __op);
+            if (__length > __max_length)
+            {
+                _Size* __map = __maps.__data();
+                __counts.__data()[__segment] = 0;
+                if ((__begin & (__tile - 1)) != 0)
+                    __map[__num_tiles + std::size_t(__begin >> __tile_log)] = __segment;
+                for (std::size_t __t = std::size_t((__begin + __tile - 1) >> __tile_log);
+                     __t <= std::size_t((__end - 1) >> __tile_log); ++__t)
+                    __map[__t] = __segment;
+            }
+        }
+    }
+};
+
+// EXPERIMENT. The second kernel: every sub-group takes the flags of the segments of a block, four per lane, and reduces
+// the flagged segments one after another, coalesced
+inline constexpr std::uint32_t __segmented_reduce_flags_per_lane = 4;
+
+template <typename _Acc, typename _Size, typename _InitType, typename _BinaryOperation, typename _InRange,
+          typename _OffsetRange, typename _OutRange, typename _FlagsAcc>
+struct __segmented_reduce_flagged_sub_group_functor : __segmented_reduce_small_grf_kernel
+{
+    _InRange __input;
+    _OffsetRange __offsets;
+    _OutRange __result;
+    _FlagsAcc __flags;
+    _Size __n;
+    _Size __m;
+    _InitType __init;
+    _BinaryOperation __binary_op;
+
+    void
+    operator()(sycl::nd_item<1> __item) const
+    {
+        _BinaryOperation __op = __binary_op;
+        const __dpl_sycl::__sub_group __sg = __item.get_sub_group();
+        const std::uint32_t __lane = __sg.get_local_linear_id();
+        const std::uint32_t __lanes = __sg.get_local_linear_range();
+        const std::size_t __per_block = std::size_t(__lanes) * __segmented_reduce_flags_per_lane;
+        const std::size_t __num_sub_groups = __item.get_group_range(0) * __sg.get_group_linear_range();
+        const std::uint8_t* __flag = __flags.__data();
+        for (std::size_t __block = __item.get_group_linear_id() * __sg.get_group_linear_range() +
+                                   __sg.get_group_linear_id();
+             __block * __per_block < std::size_t(__m); __block += __num_sub_groups)
+        {
+            const std::size_t __first = __block * __per_block + std::size_t(__lane) * __segmented_reduce_flags_per_lane;
+            std::uint32_t __bits = 0;
+            for (std::uint32_t __k = 0; __k < __segmented_reduce_flags_per_lane; ++__k)
+                if (__first + __k < std::size_t(__m) && __flag[__first + __k] != 0)
+                    __bits |= std::uint32_t{1} << __k;
+            while (__dpl_sycl::__any_of_group(__sg, __bits != 0))
+            {
+                // The lowest lane with a flagged segment and its lowest one
+                const std::uint32_t __leader =
+                    __dpl_sycl::__reduce_over_group(__sg, __bits != 0 ? __lane : __lanes, sycl::minimum<std::uint32_t>());
+                const std::uint32_t __leader_bits = __dpl_sycl::__group_broadcast(__sg, __bits, __leader);
+                std::uint32_t __k = 0;
+                while (((__leader_bits >> __k) & 1) == 0)
+                    ++__k;
+                if (__lane == __leader)
+                    __bits &= __bits - 1;
+                const _Size __segment = _Size(__block * __per_block +
+                                              std::size_t(__leader) * __segmented_reduce_flags_per_lane + __k);
+                const _Size __begin =
+                    oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n);
+                const _Size __end =
+                    oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n);
+                _Acc __acc = __segmented_reduce_by_sub_group<_Acc>(__sg, __begin, __end, /*__is_first=*/true, __init,
+                                                                   __op, __input);
+                if (__lane == 0)
+                    __result[__segment] = std::move(__acc);
+            }
+        }
+    }
+};
+
+template <typename... _Name>
+class __segmented_reduce_short_item_kernel;
+template <typename... _Name>
+class __segmented_reduce_flagged_sub_group_kernel;
+template <typename... _Name>
+class __segmented_reduce_flagged_tile_kernel;
+
+template <typename _Acc, typename _ItemName, typename _SubGroupName, typename _TileName>
+struct __segmented_reduce_hybrid_submitter;
+
+// EXPERIMENT. The short segments by work-items, the longer ones up to __max_length by sub-groups, the longest by the
+// tiles of __max_length elements, in three kernels linked by events, the host waiting only for the last two
+template <typename _Acc, typename... _ItemName, typename... _SubGroupName, typename... _TileName>
+struct __segmented_reduce_hybrid_submitter<_Acc, __internal::__optional_kernel_name<_ItemName...>,
+                                           __internal::__optional_kernel_name<_SubGroupName...>,
+                                           __internal::__optional_kernel_name<_TileName...>>
+{
+    // As in __parallel_transform_reduce
+    static constexpr std::uint8_t __vector_size = 4;
+
+    template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size, typename _InitType,
+              typename _BinaryOperation>
+    void
+    operator()(sycl::queue& __q, _InRange&& __input, _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n,
+               const _Size __m, const _Size __threshold, const std::uint8_t __tile_log, _InitType __init,
+               _BinaryOperation __binary_op) const
+    {
+        auto __op = __segmented_reduce_group_op<_Acc>(__binary_op);
+        using _Op = decltype(__op);
+        using _ReducePattern = unseq_backend::reduce_over_group<_Op, _Acc>;
+        using _LocalMem = __dpl_sycl::__local_accessor<_Acc>;
+
+        const _Size __max_length = _Size{1} << __tile_log;
+        const std::size_t __num_tiles = std::size_t((__n + __max_length - 1) >> __tile_log);
+        __device_storage<std::uint8_t> __flags{__q, std::size_t(__m)};
+        __device_storage<_Size> __maps{__q, 2 * __num_tiles};
+        __device_storage<std::uint32_t> __counts{__q, std::size_t(__m)};
+        __device_storage<_Acc> __partials{__q, 2 * __num_tiles};
+
+        const std::size_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, std::size_t(256));
+        const std::size_t __item_groups =
+            std::min<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(std::size_t(__m), __work_group_size),
+                                  std::size_t(std::numeric_limits<int>::max()) / __work_group_size);
+        sycl::event __item_event = __q.submit([&](sycl::handler& __cgh) {
+            oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
+            auto __flags_acc = __get_accessor(sycl::write_only, __flags, __cgh, __dpl_sycl::__no_init{});
+            auto __maps_acc = __get_accessor(sycl::write_only, __maps, __cgh, __dpl_sycl::__no_init{});
+            auto __counts_acc = __get_accessor(sycl::write_only, __counts, __cgh, __dpl_sycl::__no_init{});
+            __cgh.parallel_for<_ItemName...>(
+                sycl::nd_range<1>(sycl::range<1>(__item_groups * __work_group_size), sycl::range<1>(__work_group_size)),
+                __segmented_reduce_short_item_functor<_Acc, _Size, _InitType, _BinaryOperation, std::decay_t<_InRange>,
+                                                      std::decay_t<_OffsetRange>, std::decay_t<_OutRange>,
+                                                      decltype(__flags_acc), decltype(__maps_acc),
+                                                      decltype(__counts_acc)>{
+                    __input, __offsets, __result, __flags_acc, __maps_acc, __counts_acc, __n, __m, __threshold,
+                    __max_length, __tile_log, __num_tiles, __init, __binary_op});
+        });
+
+        // The flags of four segments per lane, every sub-group taking every so-many-th block of them; as many
+        // sub-groups as the compute units hold several times
+        const char* __exp_k = std::getenv("SEGRED_HYB_K");
+        const std::size_t __per_unit = __exp_k ? std::size_t(std::atoll(__exp_k)) : std::size_t(4);
+        const std::size_t __sub_groups_per_group =
+            std::max<std::size_t>(1, __work_group_size / __segmented_reduce_gpu_sub_group_size);
+        const std::size_t __blocks = oneapi::dpl::__internal::__dpl_ceiling_div(
+            std::size_t(__m), std::size_t(__segmented_reduce_gpu_sub_group_size) * __segmented_reduce_flags_per_lane);
+        const std::size_t __flag_groups = std::max<std::size_t>(
+            1, std::min<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(__blocks, __sub_groups_per_group),
+                                     std::size_t(oneapi::dpl::__internal::__max_compute_units(__q)) * __per_unit));
+        sycl::event __flag_event = __q.submit([&](sycl::handler& __cgh) {
+            oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
+            auto __flags_acc = __get_accessor(sycl::read_only, __flags, __cgh);
+            __cgh.depends_on(__item_event);
+            __cgh.parallel_for<_SubGroupName...>(
+                sycl::nd_range<1>(sycl::range<1>(__flag_groups * __work_group_size), sycl::range<1>(__work_group_size)),
+                __segmented_reduce_flagged_sub_group_functor<_Acc, _Size, _InitType, _BinaryOperation,
+                                                             std::decay_t<_InRange>, std::decay_t<_OffsetRange>,
+                                                             std::decay_t<_OutRange>, decltype(__flags_acc)>{
+                    {}, __input, __offsets, __result, __flags_acc, __n, __m, __init, __binary_op});
+        });
+
+        // The tiles, as in __segmented_reduce_sub_group_submitter
+        const std::size_t __tile_work_group_size = std::min<std::size_t>(
+            oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, std::size_t(sizeof(_Acc) * 2)), 256);
+        const std::size_t __local_mem_size = _ReducePattern{__op}.local_mem_req(__tile_work_group_size);
+        const std::size_t __num_tile_groups =
+            std::min<std::size_t>(__num_tiles, std::size_t(std::numeric_limits<int>::max()) / __tile_work_group_size);
+        sycl::event __tile_event = __q.submit([&](sycl::handler& __cgh) {
+            oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
+            auto __maps_acc = __get_accessor(sycl::read_only, __maps, __cgh);
+            auto __counts_acc = __get_accessor(sycl::read_write, __counts, __cgh);
+            auto __partials_acc = __get_accessor(sycl::read_write, __partials, __cgh, __dpl_sycl::__no_init{});
+            __cgh.depends_on(__item_event);
+            _LocalMem __local_mem(sycl::range<1>(__local_mem_size), __cgh);
+            __cgh.parallel_for<_TileName...>(
+                sycl::nd_range<1>(sycl::range<1>(__num_tile_groups * __tile_work_group_size),
+                                  sycl::range<1>(__tile_work_group_size)),
+                __segmented_reduce_long_tile_functor<_Acc, __vector_size, _Size, _InitType, _Op, std::decay_t<_InRange>,
+                                                     std::decay_t<_OffsetRange>, std::decay_t<_OutRange>,
+                                                     decltype(__maps_acc), decltype(__counts_acc),
+                                                     decltype(__partials_acc), _LocalMem>{
+                    {}, __input, __offsets, __result, __maps_acc, __counts_acc, __partials_acc, __local_mem, __n, __m,
+                    __max_length, __tile_log, __num_tiles, __num_tile_groups, __init, __op});
+        });
+        __flag_event.wait_and_throw();
+        __tile_event.wait_and_throw();
+    }
+};
+
 // The carry of a tile of the reduction by tiles: the partial result of the piece of a segment begun before the tile
 // (__kind 1) or a mark for such a piece of one element (__kind 2), and the segment beginning in the tile and crossing
 // its end (__cross, the number of segments if none) with the partial result of its first piece
@@ -1969,6 +2194,29 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
 
     const __segmented_reduce_variable_brick<_Acc, _Size, _InitType, _BinaryOperation> __short_brick{
         __n, __threshold, __init, __binary_op};
+    // EXPERIMENT: the short segments beside long ones without the host waiting
+    if constexpr (std::is_arithmetic_v<_Acc> &&
+                  std::is_arithmetic_v<oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>>)
+    {
+        if (__is_gpu && !std::getenv("SEGRED_HYB_OFF"))
+        {
+            using _ItemKernel = __internal::__kernel_name_provider<
+                __segmented_reduce_short_item_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+            using _FlagKernel = __internal::__kernel_name_provider<__segmented_reduce_flagged_sub_group_kernel<
+                oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+            using _TileKernel = __internal::__kernel_name_provider<__segmented_reduce_flagged_tile_kernel<
+                oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+            const char* __exp_l = std::getenv("SEGRED_HYB_L");
+            const std::size_t __l = __exp_l ? std::size_t(std::atoll(__exp_l)) : __segmented_reduce_gpu_sub_group_max_length;
+            std::uint8_t __tile_log = 0;
+            while ((std::size_t{1} << __tile_log) < __l)
+                ++__tile_log;
+            sycl::queue __q = __exec.queue();
+            __segmented_reduce_hybrid_submitter<_Acc, _ItemKernel, _FlagKernel, _TileKernel>()(
+                __q, __input, __offsets, __result, __n, __m, __threshold, __tile_log, __init, __binary_op);
+            return;
+        }
+    }
     if (__is_gpu)
     {
         // The short segments, one work-item each, beside a reduction over the offsets for the longest long segment,
