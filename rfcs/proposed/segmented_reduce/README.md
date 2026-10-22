@@ -45,8 +45,9 @@ See [reference implementations](reference_implementations.md) and the
 
 All the proposed segmented algorithms are included from `<oneapi/dpl/numeric>`.
 
-Optionally, the algorithms can also be made available from `<oneapi/dpl/algorithm>`,
-because the existing `reduce_by_segment` allows it due to historical reasons.
+They should also be available from`<oneapi/dpl/algorithm>`,
+because the existing `reduce_by_segment` allows it due to historical reasons,
+but it should not be documented.
 
 ```c++
 // (1) Variable-length segments
@@ -136,14 +137,7 @@ for example, in `{0, 10, 8, 15, ...}`, what are the boundaries of the third segm
 are they `{10, 15}` or `{8, 15}`?
 Supporting them would also rule out using binary search.
 
-> [!WARNING]
-> [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) explicitly requests treating
-> `end_offsets[s] <= begin_offsets[s]` as empty segments.
-> The suggestion could just follow the CUB API,
-> with no real need to treat negatively sized segments as empty.
-> It must be double checked with the author.
-
-**Tentative Strategy**:
+**Strategy**:
 
 - Support empty segments.
 - Treat negatively sized segments as erroneous behavior:
@@ -268,7 +262,7 @@ Its notation:
   or positive `num_segments` and non-negative `segment_length` with `num_segments * segment_length <= N`
   for fixed-length segments.
 
-| Option | Alignment | Enforcement | Communication | Performance |
+| Option | Precedents | Enforcement | Communication | Performance |
 |---|---|---|---|---|
 | (1) No preconditions, partial reduction of the segments crossing the bounds | Binary `std::ranges::transform`, `std::ranges::mismatch`, and `std::ranges::equal`, which process the minimum of two bounds and return the stop positions | Per-segment clamping. | Segments completely beyond the input range receive `init_value` as if the segments are empty, because the intersection of the offsets with the input is empty | Variable-length: a few `min` and `max` operations per segment, negligible; Fixed-length: `min(num_segments, N / segment_length)` (or `num_segments` if `segment_length == 0`) is computed on the host, no performance impact |
 | (2) No preconditions, skip segments crossing and beyond the bounds | No close precedent | Per-segment check | Same as (1) | Same as (1) |
@@ -276,12 +270,7 @@ Its notation:
 | (4) Require valid offsets, unspecified results but no out-of-bounds accesses to the input range if violated | [Erroneous behavior](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p2795r5.html): the behavior is well-defined but incorrect, and implementations may diagnose it | Clamping as in (1) or (2), whichever is cheaper for the backend, not specified | Silent, the output values are unspecified. Optionally, an assertion in debug mode | Same as (1) and (2), without the cost of returning iterators |
 | (5) Require valid offsets, document only | Standard practice for iterator-based algorithms: for example, `std::inplace_merge` requires `middle` to be a valid iterator within the range, otherwise, the behavior is undefined. It also matches the behavior of CUB and rocPRIM | None, except for optional host-side assertions in debug mode | None: out-of-bounds accesses, crashes or garbage results | None, `last` is used only for the workload distribution |
 
-> [!WARNING]
-> [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) does not include
-> `last` in the suggested interface.
-> It should be double checked with the author if adding `last` is acceptable.
-
-**Tentative Strategy**:
+**Strategy**:
 
 - Have a parameter for the `last` input element in both proposed function overloads.
 - Follow option (1): no preconditions, partial reduction of the segments crossing the bounds.
@@ -629,9 +618,7 @@ The same rule is used by [`std::ranges::fold_left`](<https://eel.is/c++draft/alg
 
 The suggested rule allows controlling the accumulator type
 through the binary operation, which alone should handle all needed combinations.
-If the binary operation type is not specified,
-the accumulator type will be deduced automatically based on
-the initial value and input reference types. For example:
+For example:
 
 | Goal | Input | Output | `init` | `binary_op` | `AccT` |
 |---|---|---|---|---|---|
@@ -653,6 +640,7 @@ Therefore the operation imposes the following type requirements:
 - The result of `binary_op(a, b)` for any such combination must be convertible to `AccT`
   and assignable to an `AccT` object.
 - `AccT` must be writable to the output iterator.
+- `InitT` should be convertible to `AccT` (for empty segments)
 
 Comparison with other reductions:
 
@@ -734,10 +722,8 @@ hence a feature macro should be defined for convenience.
 
 For example:
 
-- `ONEDPL_HAS_SEGMENTED_ALGORITHMS 202109L`
-  for the current state as it already has the key-based segmented reduction,
-- `ONEDPL_HAS_SEGMENTED_ALGORITHMS 202611L` with the next version,
-   e.g., including device policy `reduce_by_segment`.
+- `ONEDPL_HAS_SEGMENTED_ALGORITHMS 202611L` for example,
+   after adding  `reduce_by_segment` with device policies.
 - `ONEDPL_HAS_SEGMENTED_ALGORITHMS YYYYMML` for future versions.
 
 `ONEDPL_HAS_SEGMENTED_ALGORITHMS` will also cover
@@ -869,12 +855,13 @@ Possible approaches, not mutually exclusive:
   following the convention of the C++ standard ([algorithms.requirements]).
 - Document only: keep the generic names and list the requirements in the description of the algorithm.
 
-## links
-https://eel.is/c++draft/reduce
-https://eel.is/c++draft/numerics.defns
-https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html#add-declarations-of-reduce-sum-product-and-their-_into-variants
-https://en.cppreference.com/cpp/algorithm/ranges/fold_concepts
-https://cppreference.com/cpp/algorithm/reduce
-
 Note, the answer may depend on [Different `first` and `last` Types](#different-first-and-last-types),
 because a sentinel `last` would require constraining or documenting a sentinel-iterator relationship as well.
+
+## Links
+
+- [C++ draft: `std::reduce`](https://eel.is/c++draft/reduce)
+- [C++ draft: Numeric algorithm definitions](https://eel.is/c++draft/numerics.defns)
+- [P3732R2: Declarations of `reduce`, `sum`, `product`, and their `_into` variants](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html#add-declarations-of-reduce-sum-product-and-their-_into-variants)
+- [cppreference: Fold algorithm concepts](https://en.cppreference.com/cpp/algorithm/ranges/fold_concepts)
+- [cppreference: `std::reduce`](https://cppreference.com/cpp/algorithm/reduce)
