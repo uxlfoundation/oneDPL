@@ -121,15 +121,23 @@ make_offsets(segments kind, std::int64_t n, std::mt19937& gen)
     return offsets;
 }
 
+// The algorithm requires random access iterators, as the RFC does: the forward and bidirectional iterators that the
+// test framework makes for the host policies are skipped
 struct test_reduce_by_segment_offsets
 {
+    template <typename Policy, typename InputIt, typename... Args>
+    std::enable_if_t<!is_base_of_iterator_category_v<std::random_access_iterator_tag, InputIt>>
+    operator()(Policy&&, InputIt, Args&&...)
+    {
+    }
+
     template <typename Policy, typename InputIt, typename OutputIt, typename OffsetIt, typename SegmentNum,
               typename Init, typename BinaryOp, typename Out>
-    void
+    std::enable_if_t<is_base_of_iterator_category_v<std::random_access_iterator_tag, InputIt>>
     operator()(Policy&& exec, InputIt first, InputIt last, OutputIt out_first, OutputIt out_last, OffsetIt offsets,
                SegmentNum num_segments, Init init, BinaryOp op, Out trash)
     {
-        // The reference runs on copies, as the iterators of the host policies may be forward ones
+        // The reference runs on copies of the input and the offsets
         const std::vector<typename std::iterator_traits<InputIt>::value_type> input(first, last);
         std::vector<typename std::iterator_traits<OffsetIt>::value_type> offsets_copy;
         if (num_segments > 0)
@@ -150,9 +158,15 @@ struct test_reduce_by_segment_offsets
 // must not be accessed out of its bounds
 struct test_unordered_offsets
 {
+    template <typename Policy, typename InputIt, typename... Args>
+    std::enable_if_t<!is_base_of_iterator_category_v<std::random_access_iterator_tag, InputIt>>
+    operator()(Policy&&, InputIt, Args&&...)
+    {
+    }
+
     template <typename Policy, typename InputIt, typename OutputIt, typename OffsetIt, typename SegmentNum,
               typename Init, typename BinaryOp>
-    void
+    std::enable_if_t<is_base_of_iterator_category_v<std::random_access_iterator_tag, InputIt>>
     operator()(Policy&& exec, InputIt first, InputIt last, OutputIt out_first, OutputIt /*out_last*/,
                OffsetIt offsets, SegmentNum num_segments, Init init, BinaryOp op)
     {
@@ -372,29 +386,6 @@ test_rfc_example()
     Sequence<int> out(expected.size(), [](std::size_t) { return -1; });
     invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                          out.end(), offsets.begin(), 4, 0, std::plus<int>{}, -1);
-}
-
-// Offsets of a forward iterator type on the host; the test framework wraps the input and the output iterators of the
-// host policies into forward and bidirectional ones by itself, but not the offsets
-void
-test_forward_offsets()
-{
-    using offset_it = TestUtils::ForwardIterator<std::vector<std::int64_t>::const_iterator, std::forward_iterator_tag>;
-
-    std::mt19937 gen(42);
-    for (std::size_t n : {std::size_t(0), std::size_t(1), std::size_t(17), std::size_t(1000)})
-    {
-        Sequence<int> in(n, [](std::size_t i) { return int(i % 101) - 50; });
-        for (segments kind : all_segments)
-        {
-            const std::vector<std::int64_t> offsets = make_offsets<std::int64_t>(kind, n, gen);
-            const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
-            Sequence<std::int64_t> out(std::max<std::size_t>(num_segments, 1), [](std::size_t) { return -1; });
-            invoke_on_all_host_policies()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
-                                          out.end(), offset_it(offsets.cbegin()), num_segments, std::int64_t{5},
-                                          std::plus<std::int64_t>{}, std::int64_t{-1});
-        }
-    }
 }
 
 // Segments of the lengths at the boundaries of the implementations: the longest short segment and the shortest long one
@@ -714,7 +705,6 @@ main()
     test_unordered<39>();
     test_rfc_example<40>();
     test_boundaries<41>();
-    test_forward_offsets();
     test_input_bounds<42>();
 
     test_argmin_on_host();
