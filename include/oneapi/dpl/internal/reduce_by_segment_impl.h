@@ -190,8 +190,9 @@ __segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __
                         _BinaryOperation& __binary_op, /*is_vector=*/std::true_type)
 {
     if (__begin >= __end)
-        return _Acc(std::move(__init));
-    _Acc __start(std::invoke(__binary_op, std::move(__init), __first[__begin]));
+        return __internal::__segmented_reduce_to_acc<_Acc>(std::move(__init));
+    _Acc __start =
+        __internal::__segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, std::move(__init), __first[__begin]));
     return __internal::__brick_transform_reduce(__first + __begin + 1, __first + __end, std::move(__start), __binary_op,
                                                 oneapi::dpl::identity{}, /*is_vector=*/std::true_type{});
 }
@@ -332,8 +333,8 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
                         const _Size __chunk_begin = __begin + __head + (__j - 1) * __chunk_size;
                         ::new (__partials + __chunk) _Acc(__segmented_reduce_host<_Acc>(
                             __first_value, __chunk_begin + 2, __chunk_begin + __chunk_size,
-                            _Acc(std::invoke(__binary_op, __first_value[__chunk_begin],
-                                             __first_value[__chunk_begin + 1])),
+                            __internal::__segmented_reduce_to_acc<_Acc>(std::invoke(
+                                __binary_op, __first_value[__chunk_begin], __first_value[__chunk_begin + 1])),
                             __binary_op, _IsVector{}));
                     }
                 }
