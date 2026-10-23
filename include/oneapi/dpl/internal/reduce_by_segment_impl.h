@@ -42,7 +42,6 @@
 #ifndef _ONEDPL_REDUCE_BY_SEGMENT_IMPL_H
 #define _ONEDPL_REDUCE_BY_SEGMENT_IMPL_H
 
-#include <algorithm>  // std:clamp
 #include <cstdint>
 #include <functional> // std::invoke
 #include <type_traits>
@@ -188,8 +187,8 @@ __reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _
     for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
     {
         __result_value[__segment] = __internal::__segmented_reduce_serial<_Acc>(
-            __first_value, std::clamp(__offsets[__segment], _Size(0), __n),
-            std::clamp(__offsets[__segment + 1], _Size(0), __n), __init, __binary_op);
+            __first_value, __internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n),
+            __internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n), __init, __binary_op);
     }
 }
 

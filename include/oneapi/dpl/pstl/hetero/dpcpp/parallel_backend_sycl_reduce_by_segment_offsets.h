@@ -58,8 +58,8 @@ struct __segmented_reduce_variable_brick
         static_assert(_Params::__vector_size == 1,
                       "The brick operates with tuples which must be excluded from vectorizable types");
 
-        const _Size __begin = std::clamp(__offsets[__idx], _Size(0), __n);
-        const _Size __end = std::clamp(__offsets[__idx + 1], _Size(0), __n);
+        const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__idx], __n);
+        const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__idx + 1], __n);
         if (__end - __begin > __threshold)
         {
             sycl::atomic_ref<std::uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device,
@@ -126,8 +126,8 @@ struct __segmented_reduce_length
     _Size
     operator()(_OffsetEnd __end, _OffsetBegin __begin) const
     {
-        const _Size __b = std::clamp(__begin, _Size(0), __n);
-        const _Size __e = std::clamp(__end, _Size(0), __n);
+        const _Size __b = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__begin, __n);
+        const _Size __e = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__end, __n);
         return __b < __e ? __e - __b : _Size{0};
     }
 };
@@ -187,8 +187,8 @@ struct __segmented_reduce_chunk_brick
                 __lo = __mid + 1;
         }
         const _Size __first_chunk = __lo == 0 ? _Size{0} : _Size(__chunk_ends[__lo - 1]);
-        const _Size __begin = std::clamp(__offsets[__lo], _Size(0), __n);
-        const _Size __end = std::clamp(__offsets[__lo + 1], _Size(0), __n);
+        const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__lo], __n);
+        const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__lo + 1], __n);
         const _Size __head = (__end - __begin) - (_Size(__chunk_ends[__lo]) - __first_chunk - 1) * __chunk_size;
 
         // One loop for every chunk, so that the work-items of a sub-group do not diverge into two long loops
@@ -317,8 +317,10 @@ __segmented_reduce_submit_groups(sycl::queue& __q, _InRange __input, _OffsetRang
                 const std::uint32_t __part = __group % __groups_per_segment;
                 const std::uint32_t __lane = __item.get_local_id(0);
                 const std::uint32_t __lanes = __item.get_local_range(0);
-                const std::size_t __begin = std::clamp(__offsets[__segment], _Size(0), __n);
-                const std::size_t __end = std::clamp(__offsets[__segment + 1], _Size(0), __n);
+                const std::size_t __begin =
+                    oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n);
+                const std::size_t __end =
+                    oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n);
                 const std::size_t __length = __begin < __end ? __end - __begin : 0;
                 // Quotient/remainder partitioning avoids length * part and overflowing round-up expressions.
                 const std::size_t __quotient = __length / __groups_per_segment;
@@ -359,8 +361,8 @@ __parallel_reduce_by_segment_offsets_gpu_impl_thread_per_segment(sycl::queue& __
         oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
         __cgh.parallel_for<_ThreadKernel>(sycl::range<1>(__segments), [=](sycl::id<1> __id) {
             const std::size_t __segment = __id[0];
-            const _Size __begin = std::clamp(__offsets[__segment], _Size(0), __n);
-            const _Size __end = std::clamp(__offsets[__segment + 1], _Size(0), __n);
+            const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n);
+            const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n);
             auto __op = __binary_op;
             // The average does not bound this segment: finish even an arbitrarily long outlier here.
             __result[__segment] =
@@ -423,8 +425,10 @@ __parallel_reduce_by_segment_offsets_gpu_impl_sub_group(sycl::queue& __q, _InRan
                 for (std::uint32_t __s = __sg.get_group_linear_id(); __s < __count; __s += __sg_count)
                 {
                     const std::size_t __segment = __base + __s;
-                    const std::size_t __begin = std::clamp(__offsets[__segment], _Size(0), __n);
-                    const std::size_t __end = std::clamp(__offsets[__segment + 1], _Size(0), __n);
+                    const std::size_t __begin =
+                        oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n);
+                    const std::size_t __end =
+                        oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n);
                     const std::size_t __length = __begin < __end ? __end - __begin : 0;
                     _Acc __value = __identity;
                     for (std::size_t __i = __lane; __i < __length;)
@@ -505,8 +509,8 @@ __segmented_reduce_multiple_work_groups(sycl::queue& __q, _InRange __input, _Off
             __value = __dpl_sycl::__reduce_over_group(__item.get_group(), __value, __binary_op);
             if (__lane == 0)
             {
-                const _Size __begin = std::clamp(__offsets[__segment], _Size(0), __n);
-                const _Size __end = std::clamp(__offsets[__segment + 1], _Size(0), __n);
+                const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n);
+                const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n);
                 __result[__segment] = __begin >= __end ? __init : __binary_op(__init, __value);
             }
         });
