@@ -36,11 +36,44 @@
 #include <random>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 static_assert(ONEDPL_HAS_SEGMENTED_ALGORITHMS >= 202611L);
 
 using namespace TestUtils;
+
+#if TEST_DPCPP_BACKEND_PRESENT && _ONEDPL_BACKEND_SYCL
+constexpr bool
+test_segment_dispatch_selector()
+{
+    using namespace oneapi::dpl::__par_backend_hetero;
+    using strategy = __segmented_reduce_dispatch_strategy;
+    const std::size_t thresholds[] = {__segmented_reduce_dispatch_thread_threshold,
+                                      __segmented_reduce_dispatch_sub_group_threshold,
+                                      __segmented_reduce_dispatch_work_group_threshold,
+                                      __segmented_reduce_dispatch_two_work_groups_threshold,
+                                      __segmented_reduce_dispatch_sixteen_work_groups_threshold};
+    const std::size_t expected_thresholds[] = {16, 256, 8192, 65536, 1048576};
+    const strategy strategies[] = {strategy::__thread_per_segment, strategy::__sub_group, strategy::__work_group,
+                                   strategy::__two_work_groups, strategy::__sixteen_work_groups, strategy::__grid};
+    for (std::size_t i = 0; i < 5; ++i)
+    {
+        if (thresholds[i] != expected_thresholds[i] ||
+            __segmented_reduce_dispatch(thresholds[i], 1) != strategies[i] ||
+            __segmented_reduce_dispatch(thresholds[i] + 1, 1) != strategies[i + 1] ||
+            __segmented_reduce_dispatch(thresholds[i] * 17 + 16, 17) != strategies[i] ||
+            __segmented_reduce_dispatch((thresholds[i] + 1) * 17, 17) != strategies[i + 1])
+            return false;
+    }
+    return __segmented_reduce_dispatch(0, 0) == strategy::__thread_per_segment &&
+           __segmented_reduce_dispatch(100, 0) == strategy::__thread_per_segment &&
+           __segmented_reduce_dispatch(0, 17) == strategy::__thread_per_segment &&
+           __segmented_reduce_dispatch(1, 1) == strategy::__thread_per_segment;
+}
+
+static_assert(test_segment_dispatch_selector(), "wrong segmented reduction dispatch boundary");
+#endif // TEST_DPCPP_BACKEND_PRESENT && _ONEDPL_BACKEND_SYCL
 
 // The ways to split the input [0, n) into segments
 enum class segments
@@ -263,6 +296,45 @@ struct bit_set_union
     }
 };
 
+// An arithmetic accumulator whose value has a different meaning from an input element
+struct bit_mask_union
+{
+    static std::uint64_t
+    bit(int i)
+    {
+        return std::uint64_t{1} << i;
+    }
+    std::uint64_t
+    operator()(std::uint64_t a, int b) const
+    {
+        return a | bit(b);
+    }
+    std::uint64_t
+    operator()(int a, std::uint64_t b) const
+    {
+        return bit(a) | b;
+    }
+    std::uint64_t
+    operator()(int a, int b) const
+    {
+        return bit(a) | bit(b);
+    }
+    std::uint64_t
+    operator()(std::uint64_t a, std::uint64_t b) const
+    {
+        return a | b;
+    }
+};
+
+struct non_const_plus
+{
+    std::int64_t
+    operator()(std::int64_t a, std::int64_t b)
+    {
+        return a + b;
+    }
+};
+
 // An integer accumulator made from a floating-point initial value: an empty segment gets the initial value converted
 // to the accumulator, so without its fraction
 struct int_sum
@@ -388,16 +460,14 @@ test_rfc_example()
                                          out.end(), offsets.begin(), 4, 0, std::plus<int>{}, -1);
 }
 
-// Segments of the lengths at the boundaries of the implementations: the longest short segment and the shortest long one
-// (512 on GPUs, 32768 on CPU devices and on the host), and long segments whose first chunk has one element or the whole
-// chunk length (256 on GPUs for this longest segment, 4096 on CPU devices, 16384 on the host); alone, and among many
-// short segments, which take another path on GPUs
+// Segment lengths at and around powers of two and multiples of 16384, alone and among unit segments.
+// With 100 unit segments after each longer one, the average segment length is below 256.
 template <std::size_t CallNumber>
 void
 test_boundaries()
 {
     const std::int64_t lengths[] = {511, 512, 513, 4096, 4097, 16384, 16385, 32767, 32768, 32769, 49152, 49153};
-    for (std::int64_t short_ones : {0, 42})
+    for (std::int64_t short_ones : {0, 42, 100})
     {
         std::vector<std::int64_t> offsets{0};
         for (std::int64_t length : lengths)
@@ -412,6 +482,160 @@ test_boundaries()
         invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                              out.end(), offsets.begin(), num_segments, std::int64_t{5},
                                              std::plus<std::int64_t>{}, std::int64_t{-1});
+    }
+}
+
+// Segments ending one element past successive powers of two, followed by empty segments at and past the input end
+template <std::size_t CallNumber>
+void
+test_one_past_powers_of_two(std::int64_t max_power)
+{
+    std::vector<std::int64_t> offsets{0};
+    for (std::int64_t power = 4096; power <= max_power; power *= 2)
+        offsets.push_back(power + 1);
+    // ... and two empty segments at and past the end of the input
+    const std::int64_t n = offsets.back();
+    offsets.push_back(n);
+    offsets.push_back(n + 5);
+    const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+    Sequence<int> in(n, [](std::size_t i) { return int(i % 7) + 1; });
+    Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                         out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                         std::plus<std::int64_t>{}, std::int64_t{-1});
+}
+
+// Irregular lengths starting at 257 with 2048 or 2049 segments, and at 1024 with 1024 or 1025 segments
+template <std::size_t CallNumber>
+void
+test_many_segments()
+{
+    for (std::int64_t base_length : {257, 1024})
+    {
+        const std::int64_t local_ends = base_length < 1024 ? 2048 : 1024;
+        for (std::int64_t num_segments : {local_ends, local_ends + 1})
+        {
+            std::vector<std::int64_t> offsets{0};
+            for (std::int64_t i = 0; i < num_segments; ++i)
+                offsets.push_back(offsets.back() + base_length + (i * 37) % 200);
+            Sequence<int> in(offsets.back(), [](std::size_t i) { return int(i % 101) - 50; });
+            Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+            invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                                 out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                                 std::plus<std::int64_t>{}, std::int64_t{-1});
+        }
+    }
+}
+
+// Inputs near 65536 elements and average lengths near 2048, with 99 or 100 irregular segments; then long
+// segments among shorter ones, with starts and ends aligned or misaligned to 8192-element boundaries
+template <std::size_t CallNumber>
+void
+test_large_inputs_by_work_groups()
+{
+    const std::pair<std::int64_t, std::int64_t> sizes[] = {
+        {65536 - 7, 100}, {65536 - 7, 99}, {2048 * 100, 100}, {2048 * 100 - 1, 100}, {2048 * 99, 99}};
+    for (const auto& [n, num_segments] : sizes)
+    {
+        std::vector<std::int64_t> offsets{0};
+        for (std::int64_t i = 1; i < num_segments; ++i)
+            offsets.push_back(n * i / num_segments + (i * 37) % 11);
+        offsets.push_back(n);
+        Sequence<int> in(n, [](std::size_t i) { return int(i % 101) - 50; });
+        Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+        invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                             out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                             std::plus<std::int64_t>{}, std::int64_t{-1});
+    }
+
+    const std::int64_t tile = 8192;
+    std::vector<std::int64_t> offsets{0};
+    auto add = [&offsets](std::int64_t length, std::int64_t count) {
+        for (std::int64_t i = 0; i < count; ++i)
+            offsets.push_back(offsets.back() + length);
+    };
+    // From zero to one element past an 8192-element boundary
+    add(10 * tile + 1, 1);
+    add(1000, 50);
+    // Adjacent long segments with misaligned starts and ends
+    add(70001, 1);
+    add(9 * tile + 5000, 1);
+    add(300, 49);
+    // Align the next start, then end one element past another boundary
+    add(tile - offsets.back() % tile, 1);
+    add(8 * tile + 1, 1);
+    // A shorter segment with the same one-element remainder in its length
+    add(3 * tile + 1, 1);
+    add(17, 3);
+    add(0, 1);
+    const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+    Sequence<int> in(offsets.back(), [](std::size_t i) { return int(i % 101) - 50; });
+    Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                             out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                             std::plus<std::int64_t>{}, std::int64_t{-1});
+}
+
+// Long segments among 800 short ones, with aligned and misaligned offsets and lengths at and just past
+// multiples of 8192, followed by short and empty segments
+template <std::size_t CallNumber>
+void
+test_large_inputs_by_sub_groups()
+{
+    const std::int64_t tile = 8192;
+    std::vector<std::int64_t> offsets{0};
+    auto add = [&offsets](std::int64_t length, std::int64_t count) {
+        for (std::int64_t i = 0; i < count; ++i)
+            offsets.push_back(offsets.back() + length);
+    };
+    // From zero to one element past an 8192-element boundary
+    add(10 * tile + 1, 1);
+    add(100, 400);
+    // Adjacent long segments with misaligned starts and ends
+    add(70001, 1);
+    add(9 * tile + 5000, 1);
+    add(30, 400);
+    // Align the next start, then use lengths one element past multiples of 8192
+    add(tile - offsets.back() % tile, 1);
+    add(3 * tile + 1, 1);
+    add(tile + 1, 1);
+    // A length of exactly 8192
+    add(tile, 1);
+    add(17, 3);
+    add(0, 1);
+    const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+    Sequence<int> in(offsets.back(), [](std::size_t i) { return int(i % 101) - 50; });
+    Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                         out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                         std::plus<std::int64_t>{}, std::int64_t{-1});
+}
+
+// Four long segments with offsets at and just past multiples of 8192 or 16384, ending at 128 times that
+// spacing, followed by empty segments at and past the end of the input
+template <std::size_t CallNumber>
+void
+test_long_chains()
+{
+    for (std::int64_t tile : {std::int64_t(8192), std::int64_t(16384)})
+    {
+        std::vector<std::int64_t> offsets{0};
+        for (std::int64_t end : {20 * tile + 1, 50 * tile + 101, 100 * tile, 128 * tile})
+            offsets.push_back(end);
+        const std::int64_t n = offsets.back();
+        offsets.push_back(n);
+        offsets.push_back(n + 3);
+        const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+        Sequence<int> in(n, [](std::size_t i) { return int(i % 13) - 6; });
+        Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+        if (tile == 8192)
+            invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                                 out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                                 std::plus<std::int64_t>{}, std::int64_t{-1});
+        else
+            invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
+                                                     out.begin(), out.end(), offsets.begin(), num_segments,
+                                                     std::int64_t{5}, std::plus<std::int64_t>{}, std::int64_t{-1});
     }
 }
 
@@ -440,6 +664,110 @@ test_input_bounds()
                                                  offsets.begin(), num_segments, std::int64_t{5},
                                                  std::plus<std::int64_t>{}, std::int64_t{-1});
         }
+    }
+}
+
+// Homogeneous values, accumulator and init enable the GPU dispatch. Dispatch uses N / M, not individual lengths.
+template <std::size_t CallNumber>
+void
+test_dispatch_boundaries()
+{
+    const std::int64_t averages[] = {0, 1, 16, 17, 256, 257, 8192, 8193, 65536, 65537, 1048576, 1048577};
+    for (std::int64_t average : averages)
+    {
+        const std::int64_t num_segments = average <= 256 ? 17 : 5;
+        const std::int64_t n = average * num_segments;
+        Sequence<int> guarded(n + 2 * guard_length, [n](std::size_t i) {
+            return i < guard_length || i >= guard_length + n ? poison : int(i % 13) - 6;
+        });
+        std::vector<std::int64_t> offsets(num_segments + 1);
+        for (std::int64_t i = 0; i <= num_segments; ++i)
+            offsets[i] = i * average;
+        Sequence<int> out(num_segments + 2, [](std::size_t) { return -1; });
+        invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), guarded.begin() + guard_length,
+                                             guarded.begin() + guard_length + n, out.begin(), out.end(),
+                                             offsets.begin(), num_segments, 5, std::plus<int>{}, -1);
+
+        // Empty and singleton segments leave empty partial partitions in the multi-work-group regimes.
+        // A non-identity init must be applied once, even when most partitions are empty.
+        std::fill(offsets.begin(), offsets.end(), 1);
+        offsets[0] = -7;
+        offsets[1] = 0;
+        offsets[num_segments - 1] = n + 3;
+        offsets[num_segments] = n + 7;
+        invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), guarded.begin() + guard_length,
+                                                 guarded.begin() + guard_length + n, out.begin(), out.end(),
+                                                 offsets.begin(), num_segments, 5, std::plus<int>{}, -1);
+
+        // Unsorted offsets have unspecified results, but must remain safe in every dispatch regime.
+        offsets[0] = n + 7;
+        offsets[1] = -7;
+        invoke_on_all_policies<CallNumber + 2>()(test_unordered_offsets(), guarded.begin() + guard_length,
+                                                 guarded.begin() + guard_length + n, out.begin(), out.end(),
+                                                 offsets.begin(), num_segments, 5, std::plus<int>{});
+    }
+}
+
+// A long outlier among unit and empty segments, with a small invocation-wide average and an odd segment count
+template <std::size_t CallNumber>
+void
+test_skewed_dispatch()
+{
+    for (std::int64_t short_ones : {256, 8192})
+    {
+        std::vector<std::int64_t> offsets{0, 0};
+        for (std::int64_t i = 0; i < short_ones; ++i)
+        {
+            if (i == short_ones / 2)
+                offsets.push_back(offsets.back() + 65537);
+            offsets.push_back(offsets.back() + 1);
+        }
+        offsets.push_back(offsets.back());
+        const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+        Sequence<int> in(offsets.back(), [](std::size_t i) { return int(i % 7) + 1; });
+        Sequence<int> out(num_segments + 1, [](std::size_t) { return -1; });
+        invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                             out.end(), offsets.begin(), num_segments, 5, std::plus<int>{}, -1);
+    }
+}
+
+// Positive minima and negative maxima detect a zero used instead of the reduction identity in empty partitions.
+template <std::size_t CallNumber>
+void
+test_long_segments()
+{
+    const std::int64_t lengths[] = {0, 1, 1064, 255, 2053, 300, 4159, 30000, 65537, 70001, 200000, 0};
+    std::vector<std::int64_t> offsets{0};
+    for (std::int64_t length : lengths)
+        offsets.push_back(offsets.back() + length);
+    const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+    Sequence<int> positive(offsets.back(), [](std::size_t i) { return int((i * 7919) % 1000) + 1; });
+    Sequence<int> negative(offsets.back(), [](std::size_t i) { return -int((i * 7919) % 1000) - 1; });
+    Sequence<int> out(num_segments + 1, [](std::size_t) { return 0; });
+    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), positive.begin(), positive.end(),
+                                         out.begin(), out.end(), offsets.begin(), num_segments,
+                                         std::numeric_limits<int>::max(), oneapi::dpl::minimum<int>{}, 0);
+    invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), negative.begin(), negative.end(),
+                                             out.begin(), out.end(), offsets.begin(), num_segments,
+                                             std::numeric_limits<int>::lowest(), oneapi::dpl::maximum<int>{}, 0);
+}
+
+template <std::size_t CallNumber>
+void
+test_fallback_semantics()
+{
+    for (std::int64_t n : {0, 1, 65537})
+    {
+        const std::vector<std::int64_t> offsets{-3, 0, std::min<std::int64_t>(1, n), n, n + 3};
+        Sequence<int> in(n, [](std::size_t i) { return int(32 + (i * 7) % 32); });
+        Sequence<std::uint64_t> masks(5, [](std::size_t) { return 0; });
+        invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), masks.begin(),
+                                             masks.end(), offsets.begin(), 4, std::uint64_t{1}, bit_mask_union{},
+                                             std::uint64_t{0});
+        Sequence<std::int64_t> sums(5, [](std::size_t) { return -1; });
+        invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), sums.begin(),
+                                                 sums.end(), offsets.begin(), 4, std::int64_t{5}, non_const_plus{},
+                                                 std::int64_t{-1});
     }
 }
 
@@ -702,10 +1030,29 @@ main()
     test_segments<12, int, float, std::int64_t, int>(
         2.5f, int_sum_plus{}, [](std::size_t i) { return int(i % 101) - 50; }, -1.f);
 
+    // Set union into an accumulator of an arithmetic type which can be made from an input element, but with another
+    // meaning
+    test_segments<17, int, std::uint64_t, std::uint32_t, std::int64_t>(
+        std::uint64_t{1}, bit_mask_union{}, [](std::size_t i) { return int(32 + (i * 7) % 32); }, std::uint64_t{0});
+
+    // Sum with an operation whose call operator is not const
+    test_segments<18, int, std::int64_t, std::int64_t, int>(
+        std::int64_t{5}, non_const_plus{}, [](std::size_t i) { return int(i % 101) - 50; }, std::int64_t{-1});
+
     test_unordered<39>();
     test_rfc_example<40>();
     test_boundaries<41>();
     test_input_bounds<42>();
+    test_dispatch_boundaries<43>();
+    test_skewed_dispatch<46>();
+    test_long_segments<47>();
+    test_fallback_semantics<49>();
+    test_one_past_powers_of_two<57>(std::int64_t(1) << 19);
+    test_one_past_powers_of_two<58>(std::int64_t(1) << 20);
+    test_many_segments<59>();
+    test_large_inputs_by_work_groups<60>();
+    test_long_chains<62>();
+    test_large_inputs_by_sub_groups<64>();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT
