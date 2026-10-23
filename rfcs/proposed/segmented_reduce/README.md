@@ -37,6 +37,7 @@ Table of contents:
   - [Different `first` and `last` Types](#different-first-and-last-types)
   - [Iterator Requirements](#iterator-requirements)
 - [Links](#links)
+- [References](#References)
 
 See [reference implementations](reference_implementations.md) and the
 [usage pattern study](usage_pattern_study.md) for background.
@@ -866,3 +867,16 @@ because a sentinel `last` would require constraining or documenting a sentinel-i
 - [P3809R0: Should we make std::linalg reductions deduce return types like fold algorithms?](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3809r0.html)
 - [cppreference: Fold algorithm concepts](https://en.cppreference.com/cpp/algorithm/ranges/fold_concepts)
 - [cppreference: `std::reduce`](https://cppreference.com/cpp/algorithm/reduce)
+
+## References
+- [Optimized Parallel Reduction for Regular and Irregular Segments on GPU (2026)](https://doi.org/10.1002/cpe.70715), [implementation](https://github.com/MichelBC/bestReduce)
+- [Advancing Awkward Arrays for High-Performance CPU and GPU Processing (2026)](https://arxiv.org/abs/2607.28145)
+- [GPU Acceleration of Awkward Arrays: Using Python cuda.compute (2026)](https://arxiv.org/abs/2610.08238)
+- [Bridging the Vendor Gap: Enabling AMD GPU Support for Awkward Array via ROCm/HIP (2026)](https://arxiv.org/abs/2609.24628)
+- [AsyncSparse: Accelerating Sparse Matrix-Matrix Multiplication on Asynchronous GPU Architectures (2026)](https://arxiv.org/abs/2604.17834)
+- [GPU-Accelerated Presolving for Linear Programming (2026)](https://www.web.stanford.edu/~boyd/papers/cuPSLP.html)
+- [Efficient Sparse Matrix Kernels based on Adaptive Workload-Balancing and Parallel-Reduction (2021)](https://arxiv.org/abs/2106.16064)
+- [Strategies for Regular Segmented Reductions on GPU (2017)](https://hiperfit.dk/pdf/fhpc17.pdf)
+- [Policy-based Tuning for Performance Portability and Library Co-optimization (2012)](https://research.nvidia.com/index.php/publication/2012-05_policy-based-tuning-performance-portability-and-library-co-optimization)
+- [Merge-based Parallel Sparse Matrix-vector Multiplication (2016)](https://mgarland.org/papers/)
+
