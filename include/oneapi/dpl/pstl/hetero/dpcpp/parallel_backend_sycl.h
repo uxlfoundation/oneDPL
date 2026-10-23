@@ -47,12 +47,12 @@
 #include "parallel_backend_sycl_merge_sort.h"
 #include "parallel_backend_sycl_reduce_by_segment.h"
 #include "parallel_backend_sycl_reduce_then_scan.h"
+#include "parallel_backend_sycl_set_operations.h"
 #include "execution_sycl_defs.h"
 #include "sycl_iterator.h"
 #include "unseq_backend_sycl.h"
 #include "utils_ranges_sycl.h"
 #include "../../functional_impl.h" // for oneapi::dpl::identity
-#include "parallel_backend_sycl_reduce_then_scan_pos_tools.h"
 
 #define _ONEDPL_USE_RADIX_SORT (_ONEDPL_USE_SUB_GROUPS && _ONEDPL_USE_GROUP_ALGOS)
 
