@@ -265,6 +265,46 @@ __parallel_reduce_by_segment_offsets_fill(_BackendTag, _ExecutionPolicy&& __exec
         .__checked_deferrable_wait();
 }
 
+// Reduces the segments longer than __min_length in chunks; __max_segments bounds the number of such segments
+template <typename _Acc, typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
+          typename _OutRange, typename _Size, typename _InitType, typename _BinaryOperation>
+void
+__segmented_reduce_in_chunks(_BackendTag, _ExecutionPolicy&& __exec, _InRange&& __input, _OffsetRange&& __offsets,
+                              _OutRange&& __result, _Size __n, _Size __m, const _InitType& __init,
+                              const _BinaryOperation& __binary_op, bool __is_gpu, _Size __min_length,
+                              bool __write_empty, _Size __max_length, _Size __max_segments)
+{
+    const _Size __chunk_size = __segmented_reduce_chunk_size(__is_gpu, __max_length);
+
+    // The end of the chunks of every segment: an inclusive scan of their numbers, computed from the pairs of
+    // the adjacent offsets. The chunks depend on it through __chunk_ends, so the host does not wait for it; its
+    // future keeps the temporary data of the scan until the partial results are combined.
+    auto __chunk_ends = __buffer<_Size>(__m).get_buffer();
+    auto __scan = __parallel_transform_scan(
+        _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
+        oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
+                                             oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1})),
+        oneapi::dpl::__ranges::views::all_write(__chunk_ends), __m,
+        __segmented_reduce_chunk_count<_Size>{__n, __chunk_size, __min_length},
+        unseq_backend::__no_init_value<_Size>{}, std::plus<_Size>{}, /*_Inclusive=*/std::true_type{});
+
+    // At most n / __chunk_size + 1 chunks per segment, unless the offsets are not ordered
+    const _Size __num_partials = __n / __chunk_size + __max_segments + 1;
+    auto __partials = __buffer<_Acc>(__num_partials).get_buffer();
+    __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec),
+                   __segmented_reduce_chunk_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __m, __chunk_size,
+                                                                                            __init, __binary_op},
+                   __num_partials, oneapi::dpl::__ranges::views::all_read(__chunk_ends), __offsets,
+                   oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::views::all_write(__partials)), __input);
+    __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec),
+                   __segmented_reduce_combine_brick<_Acc, _Size, _InitType, _BinaryOperation>{
+                       __num_partials, __write_empty, __init, __binary_op},
+                   __m, oneapi::dpl::__ranges::views::all_read(__chunk_ends),
+                   oneapi::dpl::__ranges::views::all_read(__partials), oneapi::dpl::__ranges::make_zip_view(__result))
+        .__checked_deferrable_wait();
+    __scan.__checked_deferrable_wait();
+}
+
 // The segments of the input [0, __n) defined by the __m + 1 offsets, reduced into the __m results
 template <typename _Acc, typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
           typename _OutRange, typename _Size, typename _InitType, typename _BinaryOperation>
@@ -275,41 +315,6 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
 {
     const bool __is_gpu = __exec.queue().get_device().is_gpu();
     const _Size __threshold = __is_gpu ? __segmented_reduce_gpu_threshold : __segmented_reduce_cpu_threshold;
-
-    // Reduces the segments longer than __min_length in chunks; __max_segments bounds the number of such segments
-    auto __reduce_in_chunks = [&](_Size __min_length, bool __write_empty, _Size __max_length, _Size __max_segments) {
-        const _Size __chunk_size = __segmented_reduce_chunk_size(__is_gpu, __max_length);
-
-        // The end of the chunks of every segment: an inclusive scan of their numbers, computed from the pairs of
-        // the adjacent offsets. The chunks depend on it through __chunk_ends, so the host does not wait for it; its
-        // future keeps the temporary data of the scan until the partial results are combined.
-        auto __chunk_ends = __buffer<_Size>(__m).get_buffer();
-        auto __scan = __parallel_transform_scan(
-            _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
-            oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
-                                                 oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1})),
-            oneapi::dpl::__ranges::views::all_write(__chunk_ends), __m,
-            __segmented_reduce_chunk_count<_Size>{__n, __chunk_size, __min_length},
-            unseq_backend::__no_init_value<_Size>{}, std::plus<_Size>{}, /*_Inclusive=*/std::true_type{});
-
-        // At most n / __chunk_size + 1 chunks per segment, unless the offsets are not ordered
-        const _Size __num_partials = __n / __chunk_size + __max_segments + 1;
-        auto __partials = __buffer<_Acc>(__num_partials).get_buffer();
-        __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec),
-                       __segmented_reduce_chunk_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __m, __chunk_size,
-                                                                                                __init, __binary_op},
-                       __num_partials, oneapi::dpl::__ranges::views::all_read(__chunk_ends), __offsets,
-                       oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::views::all_write(__partials)),
-                       __input);
-        __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec),
-                       __segmented_reduce_combine_brick<_Acc, _Size, _InitType, _BinaryOperation>{
-                           __num_partials, __write_empty, __init, __binary_op},
-                       __m, oneapi::dpl::__ranges::views::all_read(__chunk_ends),
-                       oneapi::dpl::__ranges::views::all_read(__partials),
-                       oneapi::dpl::__ranges::make_zip_view(__result))
-            .__checked_deferrable_wait();
-        __scan.__checked_deferrable_wait();
-    };
 
     if (__n / __m > __threshold)
     {
@@ -325,7 +330,8 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                       oneapi::dpl::__ranges::take_view_simple(__offsets, __m))
                       .get()
                 : __n;
-        __reduce_in_chunks(_Size{0}, /*__write_empty=*/true, __max_length, __m);
+        __segmented_reduce_in_chunks<_Acc>(_BackendTag{}, __exec, __input, __offsets, __result, __n, __m, __init,
+                                           __binary_op, __is_gpu, _Size{0}, /*__write_empty=*/true, __max_length, __m);
         return;
     }
 
@@ -344,7 +350,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
 
     // The long segments in chunks: at most n / __threshold of them
     if (__max_length > 0)
-        __reduce_in_chunks(__threshold, /*__write_empty=*/false, __max_length, __n / __threshold);
+        __segmented_reduce_in_chunks<_Acc>(_BackendTag{}, __exec, __input, __offsets, __result, __n, __m, __init,
+                                           __binary_op, __is_gpu, __threshold, /*__write_empty=*/false, __max_length,
+                                           __n / __threshold);
 }
 
 } // namespace __par_backend_hetero
