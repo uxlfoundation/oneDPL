@@ -295,6 +295,44 @@ template <typename... _Names>
 class __segmented_reduce_dispatch_group_kernel;
 template <typename... _Names>
 class __segmented_reduce_dispatch_combine_kernel;
+template <typename... _Names>
+class __segmented_reduce_dispatch_scan_kernel;
+template <typename... _Names>
+class __segmented_reduce_dispatch_tile_kernel;
+template <typename... _Names>
+class __segmented_reduce_dispatch_tile_combine_kernel;
+
+// Reduces [__start, __start + __count) of the input over the work-group; the result is valid in every work-item.
+template <typename _Acc, typename _InRange, typename _BinaryOperation>
+_Acc
+__segmented_reduce_group_range(const sycl::nd_item<1>& __item, const _InRange& __input, std::size_t __start,
+                               std::size_t __count, _Acc __value, _BinaryOperation __binary_op)
+{
+    const std::uint32_t __lane = __item.get_local_id(0);
+    const std::uint32_t __lanes = __item.get_local_range(0);
+    // Four independent loads per iteration keep more memory requests in flight; the per-lane
+    // combination order is unchanged. Indices stay below __count + 4 * __lanes.
+    auto __accumulate = [&](auto __limit) {
+        using _Index = decltype(__limit);
+        const _Index __stride = __lanes;
+        _Index __i = __lane;
+        for (; __i + 3 * __stride < __limit; __i += 4 * __stride)
+        {
+            const auto __v0 = __input[__start + __i];
+            const auto __v1 = __input[__start + __i + __stride];
+            const auto __v2 = __input[__start + __i + 2 * __stride];
+            const auto __v3 = __input[__start + __i + 3 * __stride];
+            __value = __binary_op(__binary_op(__binary_op(__binary_op(__value, __v0), __v1), __v2), __v3);
+        }
+        for (; __i < __limit; __i += __stride)
+            __value = __binary_op(__value, __input[__start + __i]);
+    };
+    if (__count <= std::numeric_limits<std::uint32_t>::max() - 4 * std::size_t{__lanes})
+        __accumulate(static_cast<std::uint32_t>(__count));
+    else
+        __accumulate(__count);
+    return __dpl_sycl::__reduce_over_group(__item.get_group(), __value, __binary_op);
+}
 
 // One work-group writes the final result; multiple work-groups write disjoint, init-free partials.
 template <typename _Name, typename _Acc, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size,
@@ -316,7 +354,6 @@ __segmented_reduce_submit_groups(sycl::queue& __q, _InRange __input, _OffsetRang
                 const std::size_t __segment = __group / __groups_per_segment;
                 const std::uint32_t __part = __group % __groups_per_segment;
                 const std::uint32_t __lane = __item.get_local_id(0);
-                const std::uint32_t __lanes = __item.get_local_range(0);
                 const std::size_t __begin =
                     oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n);
                 const std::size_t __end =
@@ -327,30 +364,8 @@ __segmented_reduce_submit_groups(sycl::queue& __q, _InRange __input, _OffsetRang
                 const std::uint32_t __remainder = __length % __groups_per_segment;
                 const std::size_t __start = __begin + __quotient * __part + std::min(__part, __remainder);
                 const std::size_t __count = __quotient + (__part < __remainder);
-                _Acc __value = __identity;
-                // Four independent loads per iteration keep more memory requests in flight; the per-lane
-                // combination order is unchanged. Indices stay below __count + 4 * __lanes.
-                auto __accumulate = [&](auto __limit) {
-                    using _Index = decltype(__limit);
-                    const _Index __stride = __lanes;
-                    _Index __i = __lane;
-                    for (; __i + 3 * __stride < __limit; __i += 4 * __stride)
-                    {
-                        const auto __v0 = __input[__start + __i];
-                        const auto __v1 = __input[__start + __i + __stride];
-                        const auto __v2 = __input[__start + __i + 2 * __stride];
-                        const auto __v3 = __input[__start + __i + 3 * __stride];
-                        __value = __binary_op(
-                            __binary_op(__binary_op(__binary_op(__value, __v0), __v1), __v2), __v3);
-                    }
-                    for (; __i < __limit; __i += __stride)
-                        __value = __binary_op(__value, __input[__start + __i]);
-                };
-                if (__count <= std::numeric_limits<std::uint32_t>::max() - 4 * std::size_t{__lanes})
-                    __accumulate(static_cast<std::uint32_t>(__count));
-                else
-                    __accumulate(__count);
-                __value = __dpl_sycl::__reduce_over_group(__item.get_group(), __value, __binary_op);
+                const _Acc __value = __segmented_reduce_group_range(__item, __input, __start, __count, __identity,
+                                                                    __binary_op);
                 if (__lane == 0)
                 {
                     if constexpr (_WritePartials::value)
@@ -535,6 +550,152 @@ __segmented_reduce_multiple_work_groups(sycl::queue& __q, _InRange __input, _Off
     return true;
 }
 
+// UNTUNED: the shortest tile, in elements per work-item, so that a tile amortizes its group reduction.
+inline constexpr std::size_t __segmented_reduce_min_tile_per_item = 16;
+
+// The total number of work-groups: as many as the fixed per-segment count would give, but enough to fill the device.
+inline std::size_t
+__segmented_reduce_target_groups(sycl::queue& __q, std::size_t __segments, std::size_t __groups_per_segment)
+{
+    const std::size_t __compute_units = __q.get_device().template get_info<sycl::info::device::max_compute_units>();
+    const std::size_t __device_groups = 4 * __compute_units;
+    return __segments > std::numeric_limits<std::size_t>::max() / __groups_per_segment
+               ? std::numeric_limits<std::size_t>::max()
+               : std::max(__segments * __groups_per_segment, __device_groups);
+}
+
+// Every segment gets a number of work-groups proportional to its own length rather than to the average, so that a few
+// long segments among many short ones do not serialize on the critical path: (1) one work-group scans the per-segment
+// tile counts, (2) every work-group finds its segment by a binary search and reduces its part, (3) the partial results
+// of every segment are combined.
+template <typename _Name, typename _Acc, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size,
+          typename _InitType, typename _BinaryOperation>
+bool
+__segmented_reduce_balanced_work_groups(sycl::queue& __q, _InRange __input, _OffsetRange __offsets, _OutRange __result,
+                                        _Size __n, std::size_t __segments, _InitType __init,
+                                        _BinaryOperation __binary_op, std::size_t __target_groups)
+{
+    const std::size_t __wg_size = __segmented_reduce_work_group_size<_Acc>(__q);
+    if (__wg_size == 0 || __target_groups == 0)
+        return false;
+    const std::size_t __size_limit = std::numeric_limits<std::size_t>::max();
+    const std::size_t __n_size = static_cast<std::size_t>(__n);
+    const std::size_t __min_tile = __wg_size * __segmented_reduce_min_tile_per_item;
+    const std::size_t __tile = std::max(__min_tile, __n_size / __target_groups + (__n_size % __target_groups != 0));
+    // Every segment has at most length / tile + 1 tiles, so their total is bounded regardless of the offsets.
+    if (__segments > __size_limit - __n_size / __tile)
+        return false;
+    const std::size_t __max_groups = __n_size / __tile + __segments;
+    if (__max_groups > __size_limit / __wg_size || __max_groups > __size_limit / sizeof(_Acc) ||
+        __max_groups > __q.get_device().template get_info<sycl::info::device::max_mem_alloc_size>() / sizeof(_Acc))
+        return false;
+
+    using _ScanKernel = __internal::__kernel_name_generator<__segmented_reduce_dispatch_scan_kernel, _Name>;
+    using _TileKernel = __internal::__kernel_name_generator<__segmented_reduce_dispatch_tile_kernel, _Name>;
+    using _CombineKernel =
+        __internal::__kernel_name_generator<__segmented_reduce_dispatch_tile_combine_kernel, _Name>;
+    const _Acc __identity = sycl::known_identity<_BinaryOperation, _Acc>::value;
+    auto __tile_ends = __buffer<std::size_t>(__segments).get_buffer();
+    auto __partials = __buffer<_Acc>(__max_groups).get_buffer();
+
+    // (1) The inclusive scan of the tile counts by one work-group; the average segment is long, so they are few.
+    sycl::event __scan_event = __q.submit([&](sycl::handler& __cgh) {
+        oneapi::dpl::__ranges::__require_access(__cgh, __offsets);
+        auto __ends_acc = __tile_ends.template get_access<sycl::access_mode::write>(__cgh);
+        __cgh.parallel_for<_ScanKernel>(sycl::nd_range<1>{__wg_size, __wg_size}, [=](sycl::nd_item<1> __item) {
+            const auto __group = __item.get_group();
+            const std::uint32_t __lane = __item.get_local_id(0);
+            const std::uint32_t __lanes = __item.get_local_range(0);
+            std::size_t __carry = 0;
+            for (std::size_t __base = 0; __base < __segments; __base += __lanes)
+            {
+                const std::size_t __segment = __base + __lane;
+                std::size_t __count = 0;
+                if (__segment < __segments)
+                {
+                    const std::size_t __begin =
+                        oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n);
+                    const std::size_t __end =
+                        oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n);
+                    const std::size_t __length = __begin < __end ? __end - __begin : 0;
+                    __count = __length / __tile + (__length % __tile != 0);
+                }
+                const std::size_t __end_tile =
+                    __carry + __dpl_sycl::__inclusive_scan_over_group(__group, __count, std::plus<std::size_t>{});
+                if (__segment < __segments)
+                    __ends_acc[__segment] = __end_tile;
+                __carry = __dpl_sycl::__group_broadcast(__group, __end_tile, __lanes - 1);
+            }
+        });
+    });
+
+    // (2) The tiles: groups past the total have no work. The condition is uniform within a work-group.
+    sycl::event __tile_event = __q.submit([&](sycl::handler& __cgh) {
+        __cgh.depends_on(__scan_event);
+        oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets);
+        auto __ends_acc = __tile_ends.template get_access<sycl::access_mode::read>(__cgh);
+        auto __partial_acc = __partials.template get_access<sycl::access_mode::write>(__cgh);
+        __cgh.parallel_for<_TileKernel>(
+            sycl::nd_range<1>{__max_groups * __wg_size, __wg_size}, [=](sycl::nd_item<1> __item) {
+                const std::size_t __group = __item.get_group(0);
+                if (__group >= __ends_acc[__segments - 1])
+                    return;
+                // The segment of the tile: the first one whose tiles end after it
+                std::size_t __lo = 0, __hi = __segments - 1;
+                while (__lo < __hi)
+                {
+                    const std::size_t __mid = __lo + (__hi - __lo) / 2;
+                    if (__ends_acc[__mid] > __group)
+                        __hi = __mid;
+                    else
+                        __lo = __mid + 1;
+                }
+                const std::size_t __first = __lo == 0 ? 0 : __ends_acc[__lo - 1];
+                const std::size_t __tiles = __ends_acc[__lo] - __first;
+                const std::size_t __part = __group - __first;
+                const std::size_t __begin =
+                    oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__lo], __n);
+                const std::size_t __end =
+                    oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__lo + 1], __n);
+                const std::size_t __length = __begin < __end ? __end - __begin : 0;
+                // Quotient/remainder partitioning avoids length * part and overflowing round-up expressions.
+                const std::size_t __quotient = __length / __tiles;
+                const std::size_t __remainder = __length % __tiles;
+                const std::size_t __start = __begin + __quotient * __part + std::min(__part, __remainder);
+                const std::size_t __count = __quotient + (__part < __remainder);
+                const _Acc __value =
+                    __segmented_reduce_group_range(__item, __input, __start, __count, __identity, __binary_op);
+                if (__item.get_local_id(0) == 0)
+                    __partial_acc[__group] = __value;
+            });
+    });
+
+    // (3) One work-group per segment combines its partial results; a segment without tiles is empty.
+    sycl::event __event = __q.submit([&](sycl::handler& __cgh) {
+        __cgh.depends_on(__tile_event);
+        auto __ends_acc = __tile_ends.template get_access<sycl::access_mode::read>(__cgh);
+        auto __partial_acc = __partials.template get_access<sycl::access_mode::read>(__cgh);
+        oneapi::dpl::__ranges::__require_access(__cgh, __result);
+        __cgh.parallel_for<_CombineKernel>(
+            sycl::nd_range<1>{__segments * __wg_size, __wg_size}, [=](sycl::nd_item<1> __item) {
+                const std::size_t __segment = __item.get_group(0);
+                const std::uint32_t __lane = __item.get_local_id(0);
+                const std::uint32_t __lanes = __item.get_local_range(0);
+                const std::size_t __first = __segment == 0 ? 0 : __ends_acc[__segment - 1];
+                const std::size_t __last = __ends_acc[__segment];
+                _Acc __value = __identity;
+                for (std::size_t __p = __first + __lane; __p < __last; __p += __lanes)
+                    __value = __binary_op(__value, __partial_acc[__p]);
+                __value = __dpl_sycl::__reduce_over_group(__item.get_group(), __value, __binary_op);
+                if (__lane == 0)
+                    __result[__segment] = __first >= __last ? __init : __binary_op(__init, __value);
+            });
+    });
+    // The temporary buffers must stay alive until all the kernels finish, even in deferred-wait mode.
+    __event.wait_and_throw();
+    return true;
+}
+
 template <typename _Name, typename _Acc, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size,
           typename _InitType, typename _BinaryOperation>
 bool
@@ -543,8 +704,9 @@ __parallel_reduce_by_segment_offsets_gpu_impl_two_work_groups(sycl::queue& __q, 
                                                               std::size_t __segments, _InitType __init,
                                                               _BinaryOperation __binary_op)
 {
-    return __segmented_reduce_multiple_work_groups<_Name, _Acc>(__q, __input, __offsets, __result, __n, __segments,
-                                                                __init, __binary_op, 2);
+    return __segmented_reduce_balanced_work_groups<_Name, _Acc>(__q, __input, __offsets, __result, __n, __segments,
+                                                                __init, __binary_op,
+                                                                __segmented_reduce_target_groups(__q, __segments, 2));
 }
 
 template <typename _Name, typename _Acc, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size,
@@ -555,8 +717,9 @@ __parallel_reduce_by_segment_offsets_gpu_impl_sixteen_work_groups(sycl::queue& _
                                                                   std::size_t __segments, _InitType __init,
                                                                   _BinaryOperation __binary_op)
 {
-    return __segmented_reduce_multiple_work_groups<_Name, _Acc>(__q, __input, __offsets, __result, __n, __segments,
-                                                                __init, __binary_op, 16);
+    return __segmented_reduce_balanced_work_groups<_Name, _Acc>(__q, __input, __offsets, __result, __n, __segments,
+                                                                __init, __binary_op,
+                                                                __segmented_reduce_target_groups(__q, __segments, 16));
 }
 
 template <typename _Name, typename _Acc, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size,
