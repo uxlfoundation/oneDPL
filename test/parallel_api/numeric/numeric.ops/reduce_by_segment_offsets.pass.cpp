@@ -736,20 +736,30 @@ template <std::size_t CallNumber>
 void
 test_long_segments()
 {
-    const std::int64_t lengths[] = {0, 1, 1064, 255, 2053, 300, 4159, 30000, 65537, 70001, 200000, 0};
-    std::vector<std::int64_t> offsets{0};
-    for (std::int64_t length : lengths)
-        offsets.push_back(offsets.back() + length);
-    const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
-    Sequence<int> positive(offsets.back(), [](std::size_t i) { return int((i * 7919) % 1000) + 1; });
-    Sequence<int> negative(offsets.back(), [](std::size_t i) { return -int((i * 7919) % 1000) - 1; });
-    Sequence<int> out(num_segments + 1, [](std::size_t) { return 0; });
-    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), positive.begin(), positive.end(),
-                                         out.begin(), out.end(), offsets.begin(), num_segments,
-                                         std::numeric_limits<int>::max(), oneapi::dpl::minimum<int>{}, 0);
-    invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), negative.begin(), negative.end(),
+    const std::int64_t lengths[] = {1064, 255, 2053, 300, 4159, 30000, 65537, 70001, 200000};
+    for (bool add_short_segments : {false, true})
+    {
+        std::vector<std::int64_t> offsets{0};
+        if (add_short_segments)
+        {
+            offsets.push_back(0);
+            offsets.push_back(1);
+        }
+        for (std::int64_t length : lengths)
+            offsets.push_back(offsets.back() + length);
+        if (add_short_segments)
+            offsets.push_back(offsets.back());
+        const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+        Sequence<int> positive(offsets.back(), [](std::size_t i) { return int((i * 7919) % 1000) + 1; });
+        Sequence<int> negative(offsets.back(), [](std::size_t i) { return -int((i * 7919) % 1000) - 1; });
+        Sequence<int> out(num_segments + 1, [](std::size_t) { return 0; });
+        invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), positive.begin(), positive.end(),
                                              out.begin(), out.end(), offsets.begin(), num_segments,
-                                             std::numeric_limits<int>::lowest(), oneapi::dpl::maximum<int>{}, 0);
+                                             std::numeric_limits<int>::max(), oneapi::dpl::minimum<int>{}, 0);
+        invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), negative.begin(), negative.end(),
+                                                 out.begin(), out.end(), offsets.begin(), num_segments,
+                                                 std::numeric_limits<int>::lowest(), oneapi::dpl::maximum<int>{}, 0);
+    }
 }
 
 template <std::size_t CallNumber>
