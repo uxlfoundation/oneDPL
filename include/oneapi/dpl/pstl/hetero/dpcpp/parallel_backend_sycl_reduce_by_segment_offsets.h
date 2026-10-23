@@ -1661,7 +1661,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                                      _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n, const _Size __m,
                                      _InitType __init, _BinaryOperation __binary_op)
 {
-    const bool __is_gpu = __exec.queue().get_device().is_gpu();
+    sycl::queue __q = __exec.queue();
+
+    const bool __is_gpu = __q.get_device().is_gpu();
     const _Size __threshold = __is_gpu ? __segmented_reduce_gpu_threshold : __segmented_reduce_cpu_threshold;
 
     // Reduces the segments longer than __min_length in chunks; __max_segments bounds the number of such segments, and
@@ -1673,9 +1675,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         bool __by_groups = false;
         if constexpr (std::is_arithmetic_v<_Acc> &&
                       std::is_arithmetic_v<oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>>)
-            __by_groups = __is_gpu && __typical_length >= _Size(__segmented_reduce_gpu_min_group_length) &&
-                          oneapi::dpl::__internal::__supports_sub_group_size(__exec.queue(),
-                                                                             __segmented_reduce_gpu_sub_group_size);
+            __by_groups =
+                __is_gpu && __typical_length >= _Size(__segmented_reduce_gpu_min_group_length) &&
+                oneapi::dpl::__internal::__supports_sub_group_size(__q, __segmented_reduce_gpu_sub_group_size);
 
         // At most n / (the least chunk length) + 1 chunks per segment, unless the offsets are not ordered. On GPUs a
         // segment of length L also has at most sqrt(L / S) + L / (the greatest chunk length) + 1 chunks, with S the
@@ -1701,7 +1703,6 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         if (__is_gpu && __m <= _Size(__by_groups ? __segmented_reduce_gpu_local_ends_segments
                                                  : __segmented_reduce_gpu_local_ends_item_segments))
         {
-            sycl::queue __q = __exec.queue();
             const std::size_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, std::size_t(256));
             const std::size_t __max_groups = oneapi::dpl::__internal::__max_compute_units(__q);
             __device_storage<_Size> __ends_storage{__q, std::size_t(__m)};
@@ -1788,7 +1789,6 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                 using _GroupKernel = __internal::__kernel_name_provider<__segmented_reduce_chunk_group_kernel<
                     oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
 
-                sycl::queue __q = __exec.queue();
                 const std::size_t __work_group_size =
                     oneapi::dpl::__internal::__max_work_group_size(__q, std::size_t(256));
                 const std::size_t __chunks_per_group = __work_group_size / __segmented_reduce_gpu_sub_group_size;
@@ -1842,7 +1842,6 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         using _GroupKernel = __internal::__kernel_name_provider<
             __segmented_reduce_group_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
 
-        sycl::queue __q = __exec.queue();
         // The work-group size as in __parallel_transform_reduce: adjusted to the local memory limit, which is doubled
         // to take into account the memory used by the compiled kernel, and at most 256
         const std::size_t __work_group_size = std::min<std::size_t>(
@@ -1863,7 +1862,6 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                                ? __segmented_reduce_gpu_group_min_average
                                : __segmented_reduce_gpu_large_group_long_average))
     {
-        sycl::queue __q = __exec.queue();
         // As for the medium inputs above
         const std::size_t __work_group_size = std::min<std::size_t>(
             oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, std::size_t(sizeof(_Acc) * 2)), 256);
@@ -1920,7 +1918,6 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             using _TileKernel = __internal::__kernel_name_provider<__segmented_reduce_sub_group_tile_kernel<
                 oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
 
-            sycl::queue __q = __exec.queue();
             // The second kernel as for the work-group path above
             const std::size_t __tile_work_group_size = std::min<std::size_t>(
                 oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, std::size_t(sizeof(_Acc) * 2)), 256);
@@ -1941,7 +1938,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                   std::is_arithmetic_v<oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>>)
     {
         if (__is_gpu && __n / __m >= _Size(__segmented_reduce_gpu_tiles_average) &&
-            oneapi::dpl::__internal::__supports_sub_group_size(__exec.queue(), __segmented_reduce_gpu_sub_group_size))
+            oneapi::dpl::__internal::__supports_sub_group_size(__q, __segmented_reduce_gpu_sub_group_size))
         {
             using _TileKernel = __internal::__kernel_name_provider<
                 __segmented_reduce_tile_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
@@ -1949,7 +1946,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                 __segmented_reduce_tile_fixup_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
             using _GroupFixupKernel = __internal::__kernel_name_provider<__segmented_reduce_tile_group_fixup_kernel<
                 oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
-            sycl::queue __q = __exec.queue();
+
             __segmented_reduce_tile_submitter<_Acc, _TileKernel, _FixupKernel, _GroupFixupKernel>()(
                 __q, __input, __offsets, __result, __n, __m,
                 oneapi::dpl::__internal::__max_work_group_size(__q, std::size_t(256)),
