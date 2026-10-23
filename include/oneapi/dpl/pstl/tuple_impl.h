@@ -675,17 +675,17 @@ struct __get_tuple_type
     using __type = _T;
 };
 
-template <class... _Ts, class... _Us>
-struct __get_tuple_type<oneapi::dpl::__internal::tuple<_Ts...>, oneapi::dpl::__internal::tuple<_Us...>>
-{
-    using __type = typename oneapi::dpl::__internal::tuple<_Ts...>;
-};
+// template <class... _Ts, class... _Us>
+// struct __get_tuple_type<oneapi::dpl::__internal::tuple<_Ts...>, oneapi::dpl::__internal::tuple<_Us...>>
+// {
+    // using __type = typename oneapi::dpl::__internal::tuple<_Ts...>;
+// };
 
-template <class... _Ts, class _Other>
-struct __get_tuple_type<oneapi::dpl::__internal::tuple<_Ts...>, _Other>
-{
-    using __type = typename oneapi::dpl::__internal::tuple<_Ts...>::tuple_type;
-};
+// template <class... _Ts, class _Other>
+// struct __get_tuple_type<oneapi::dpl::__internal::tuple<_Ts...>, _Other>
+// {
+    // using __type = typename oneapi::dpl::__internal::tuple<_Ts...>::tuple_type;
+// };
 
 // Converts std::tuple to the internal tuple
 template <typename T>
