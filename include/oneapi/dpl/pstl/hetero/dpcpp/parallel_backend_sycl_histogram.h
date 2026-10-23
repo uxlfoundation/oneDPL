@@ -309,19 +309,14 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __min_iters_per_work_item);
 
         std::uint64_t __segment_limit = __global_mem_size / __bytes_per_copy;
-        if (__device.is_gpu())
+        const std::uint64_t __cache_size = __device.get_info<sycl::info::device::global_mem_cache_size>();
+        if (__device.is_gpu() && __cache_size > 0)
         {
-            const std::uint32_t __max_compute_units = oneapi::dpl::__internal::__max_compute_units(__q);
-            std::uint64_t __cache_size = __device.get_info<sycl::info::device::global_mem_cache_size>();
-            if (__cache_size == 0)
-            {
-                // No last level cache reported, likely an older device; assume 32K per compute unit
-                __cache_size = std::uint64_t{32} * 1024 * __max_compute_units;
-            }
-            // The merge atomically adds every private copy into the output, so its atomic count is
-            // proportional to the copy count. Half the cache, leaving the rest to the input stream.
+            // Allocating and merging the copies costs time in proportion to their footprint.
+            // empirical: half the last level cache, measured on BMG and PVC with 4-byte bins
             const std::uint64_t __cache_segments = (__cache_size / 2) / __bytes_per_copy;
-            // Intel GPUs report EUs here, 8 per Xe core; keep two work-groups per core.
+            // Intel GPUs report 8 compute units per Xe core; keep at least two work-groups per core.
+            const std::uint32_t __max_compute_units = oneapi::dpl::__internal::__max_compute_units(__q);
             const std::uint64_t __occupancy_segments = 2 * std::max(std::uint32_t{1}, __max_compute_units / 8);
             __segment_limit = std::min(__segment_limit, std::max(__cache_segments, __occupancy_segments));
         }
