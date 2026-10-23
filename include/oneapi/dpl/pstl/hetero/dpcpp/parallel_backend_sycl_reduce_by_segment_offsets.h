@@ -328,13 +328,28 @@ __segmented_reduce_submit_groups(sycl::queue& __q, _InRange __input, _OffsetRang
                 const std::size_t __start = __begin + __quotient * __part + std::min(__part, __remainder);
                 const std::size_t __count = __quotient + (__part < __remainder);
                 _Acc __value = __identity;
-                for (std::size_t __i = __lane; __i < __count;)
-                {
-                    __value = __binary_op(__value, __input[__start + __i]);
-                    if (__count - __i <= __lanes)
-                        break;
-                    __i += __lanes;
-                }
+                // Four independent loads per iteration keep more memory requests in flight; the per-lane
+                // combination order is unchanged. Indices stay below __count + 4 * __lanes.
+                auto __accumulate = [&](auto __limit) {
+                    using _Index = decltype(__limit);
+                    const _Index __stride = __lanes;
+                    _Index __i = __lane;
+                    for (; __i + 3 * __stride < __limit; __i += 4 * __stride)
+                    {
+                        const auto __v0 = __input[__start + __i];
+                        const auto __v1 = __input[__start + __i + __stride];
+                        const auto __v2 = __input[__start + __i + 2 * __stride];
+                        const auto __v3 = __input[__start + __i + 3 * __stride];
+                        __value = __binary_op(
+                            __binary_op(__binary_op(__binary_op(__value, __v0), __v1), __v2), __v3);
+                    }
+                    for (; __i < __limit; __i += __stride)
+                        __value = __binary_op(__value, __input[__start + __i]);
+                };
+                if (__count <= std::numeric_limits<std::uint32_t>::max() - 4 * std::size_t{__lanes})
+                    __accumulate(static_cast<std::uint32_t>(__count));
+                else
+                    __accumulate(__count);
                 __value = __dpl_sycl::__reduce_over_group(__item.get_group(), __value, __binary_op);
                 if (__lane == 0)
                 {
