@@ -77,6 +77,15 @@ namespace dpl
 {
 namespace __internal
 {
+
+template <typename _Tp>
+struct __type_identity
+{
+    using __type = _Tp;
+};
+template <typename _Tp>
+using __type_identity_t = typename __type_identity<_Tp>::__type;
+
 template <typename... Size>
 struct get_value_by_idx;
 
@@ -449,18 +458,16 @@ struct tuple<T1, T...>
     }
 
     // conversion to ::std::tuple with the same template arguments
-    operator ::std::tuple<T1, T...>() const
+    operator std::tuple<T1, T...>() const
     {
-        static constexpr ::std::size_t __tuple_size = sizeof...(T) + 1;
-        return to_std_tuple(*this, ::std::make_index_sequence<__tuple_size>());
+        return to_std_tuple(__type_identity<std::tuple<T1, T...>>{}, std::make_index_sequence<sizeof...(T) + 1>());
     }
 
     // conversion to ::std::tuple with the different template arguments
     template <typename U1, typename... U>
-    operator ::std::tuple<U1, U...>() const
+    operator std::tuple<U1, U...>() const
     {
-        constexpr ::std::size_t __tuple_size = sizeof...(T) + 1;
-        return to_std_tuple(static_cast<tuple<U1, U...>>(*this), ::std::make_index_sequence<__tuple_size>());
+        return to_std_tuple(__type_identity<std::tuple<U1, U...>>{}, std::make_index_sequence<sizeof...(T) + 1>());
     }
 
     // non-const subscript operator with tuple argument
@@ -577,11 +584,11 @@ struct tuple<T1, T...>
         return !oneapi::dpl::__internal::__less(std::forward<_U>(__lhs), std::forward<_V>(__rhs));
     }
 
-    template <typename U1, typename... U, ::std::size_t... _Ip>
-    static ::std::tuple<U1, U...>
-    to_std_tuple(const oneapi::dpl::__internal::tuple<U1, U...>& __t, ::std::index_sequence<_Ip...>)
+    template <typename U1, typename... U, std::size_t... _Ip>
+    std::tuple<U1, U...>
+    to_std_tuple(__type_identity<std::tuple<U1, U...>>, std::index_sequence<_Ip...>) const
     {
-        return ::std::tuple<U1, U...>(oneapi::dpl::__internal::get_impl<_Ip>()(__t)...);
+        return std::tuple<U1, U...>(oneapi::dpl::__internal::get_impl<_Ip>()(*this)...);
     }
 };
 
