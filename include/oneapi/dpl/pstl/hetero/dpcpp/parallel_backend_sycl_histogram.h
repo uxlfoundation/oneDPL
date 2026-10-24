@@ -17,6 +17,7 @@
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_HISTOGRAM_H
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdint>
 #include <type_traits>
 
@@ -315,12 +316,26 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
             // size, so launch only a few waves of the work-groups the device can hold at once.
             // Intel GPUs run at most 8 sub-groups of 32 work-items on each compute unit.
             constexpr std::uint64_t __max_resident_items_per_compute_unit = 256;
-            // provisional: not yet swept
-            constexpr std::uint64_t __waves = 2;
+            // NOT FOR MERGE: sweep arm. Even binning runs 1 wave, custom boundaries run 16.
+            const std::uint64_t __waves = __binhash_manager.get_required_SLM_elements() == 0 ? 1 : 16;
             const std::uint64_t __resident_groups =
                 std::max<std::uint64_t>(1, __max_resident_items_per_compute_unit *
                                                oneapi::dpl::__internal::__max_compute_units(__q) / __work_group_size);
             __segment_limit = std::min(__segment_limit, __waves * __resident_groups);
+            static int __autoperf_prints = 0;
+            if (__autoperf_prints < 4 && __segment_limit < __max_groups)
+            {
+                ++__autoperf_prints;
+                std::fprintf(stderr,
+                             "AUTOPERF_HIST device=%s max_compute_units=%u global_mem_cache_size=%llu "
+                             "wg=%u bins=%zu n=%zu waves=%llu resident_groups=%llu max_groups=%llu limit=%llu\n",
+                             __device.get_info<sycl::info::device::name>().c_str(),
+                             unsigned(oneapi::dpl::__internal::__max_compute_units(__q)),
+                             (unsigned long long)__device.get_info<sycl::info::device::global_mem_cache_size>(),
+                             unsigned(__work_group_size), __num_bins, __n, (unsigned long long)__waves,
+                             (unsigned long long)__resident_groups, (unsigned long long)__max_groups,
+                             (unsigned long long)__segment_limit);
+            }
         }
 #endif
         // __max_segments divides below; the global memory bound floors to zero if no copy fits.
