@@ -313,13 +313,13 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
         {
             // Level Zero makes each private copy resident before the kernel runs, at a cost proportional to its
             // size, so launch only a few waves of the work-groups the device can hold at once.
-            // Intel GPUs run at most 8 sub-groups of 32 work-items on each compute unit.
-            constexpr std::uint64_t __max_resident_items_per_compute_unit = 256;
-            // provisional: not yet swept
+            // Intel GPUs run at most 8 sub-groups on each compute unit.
+            constexpr std::uint64_t __max_sub_groups_per_compute_unit = 8;
+            // empirical: 1, 2 and 16 waves measured on BMG and PVC with 4-byte bins
             constexpr std::uint64_t __waves = 2;
-            const std::uint64_t __resident_groups =
-                std::max<std::uint64_t>(1, __max_resident_items_per_compute_unit *
-                                               oneapi::dpl::__internal::__max_compute_units(__q) / __work_group_size);
+            const std::uint64_t __resident_groups = std::max<std::uint64_t>(
+                1, __max_sub_groups_per_compute_unit * oneapi::dpl::__internal::__max_sub_group_size(__q) *
+                       oneapi::dpl::__internal::__max_compute_units(__q) / __work_group_size);
             __segment_limit = std::min(__segment_limit, __waves * __resident_groups);
         }
 #endif
