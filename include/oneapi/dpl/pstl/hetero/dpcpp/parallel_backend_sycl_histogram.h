@@ -17,7 +17,9 @@
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_HISTOGRAM_H
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdint>
+#include <string>
 #include <type_traits>
 
 #include "sycl_defs.h"
@@ -315,12 +317,29 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
             // size, so launch only a few waves of the work-groups the device can hold at once.
             // Intel GPUs run at most 8 sub-groups on each compute unit.
             constexpr std::uint64_t __max_sub_groups_per_compute_unit = 8;
-            // empirical: 1, 2 and 16 waves measured on BMG and PVC with 4-byte bins
-            constexpr std::uint64_t __waves = 2;
+            // NOT FOR MERGE: sweep arm, 6 waves for both binning families.
+            constexpr std::uint64_t __waves = 6;
             const std::uint64_t __resident_groups = std::max<std::uint64_t>(
                 1, __max_sub_groups_per_compute_unit * oneapi::dpl::__internal::__max_sub_group_size(__q) *
                        oneapi::dpl::__internal::__max_compute_units(__q) / __work_group_size);
             __segment_limit = std::min(__segment_limit, __waves * __resident_groups);
+            static int __autoperf_prints = 0;
+            if (__autoperf_prints < 6 && __segment_limit < __max_groups)
+            {
+                ++__autoperf_prints;
+                std::string __sg_sizes;
+                for (auto __sg : __device.get_info<sycl::info::device::sub_group_sizes>())
+                    __sg_sizes += std::to_string(__sg) + ";";
+                std::fprintf(stderr,
+                             "AUTOPERF_HIST device=%s max_compute_units=%u max_sub_group_size=%u sub_group_sizes=%s "
+                             "wg=%u bins=%zu n=%zu waves=%llu resident_groups=%llu max_groups=%llu limit=%llu\n",
+                             __device.get_info<sycl::info::device::name>().c_str(),
+                             unsigned(oneapi::dpl::__internal::__max_compute_units(__q)),
+                             unsigned(oneapi::dpl::__internal::__max_sub_group_size(__q)), __sg_sizes.c_str(),
+                             unsigned(__work_group_size), std::size_t(__num_bins), std::size_t(__n),
+                             (unsigned long long)__waves, (unsigned long long)__resident_groups,
+                             (unsigned long long)__max_groups, (unsigned long long)__segment_limit);
+            }
         }
 #endif
         // __max_segments divides below; the global memory bound floors to zero if no copy fits.
