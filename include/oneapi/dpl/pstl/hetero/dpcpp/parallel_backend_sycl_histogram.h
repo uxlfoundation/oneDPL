@@ -308,7 +308,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __min_iters_per_work_item);
 
         std::uint64_t __segment_limit = __global_mem_size / (std::uint64_t{__num_bins} * sizeof(_bin_type));
-#if _ONEDPL_SYCL_L0_EXT_PRESENT
+#if _ONEDPL_SYCL_L0_EXT_PRESENT && _ONEDPL_USE_SUB_GROUPS
         if (__device.is_gpu() && __device.get_backend() == __dpl_sycl::__level_zero_backend)
         {
             // Level Zero makes each private copy resident before the kernel runs, at a cost proportional to its
