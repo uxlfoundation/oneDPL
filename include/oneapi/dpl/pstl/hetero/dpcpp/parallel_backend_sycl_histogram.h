@@ -315,7 +315,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
             // size, so launch only a few waves of the work-groups the device can hold at once.
             // Intel GPUs run at most 8 sub-groups on each compute unit.
             constexpr std::uint64_t __max_sub_groups_per_compute_unit = 8;
-            // empirical: 1, 2 and 16 waves measured on BMG and PVC with 4-byte bins
+            // empirical: 1, 2, 6 and 16 waves measured on BMG and PVC with 4-byte bins and 2- and 4-byte input
             constexpr std::uint64_t __waves = 2;
             const std::uint64_t __resident_groups = std::max<std::uint64_t>(
                 1, __max_sub_groups_per_compute_unit * oneapi::dpl::__internal::__max_sub_group_size(__q) *
