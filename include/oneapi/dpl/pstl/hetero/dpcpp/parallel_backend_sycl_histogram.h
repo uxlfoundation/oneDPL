@@ -302,11 +302,29 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
         const ::std::size_t __num_bins = oneapi::dpl::__ranges::__size(__bins);
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
 
-        const std::uint64_t __global_mem_size = __q.get_device().get_info<sycl::info::device::global_mem_size>();
+        const sycl::device __device = __q.get_device();
+        const std::uint64_t __global_mem_size = __device.get_info<sycl::info::device::global_mem_size>();
         const std::uint64_t __max_groups =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __min_iters_per_work_item);
-        const std::uint64_t __max_segments =
-            std::min(__global_mem_size / (__num_bins * sizeof(_bin_type)), __max_groups);
+
+        std::uint64_t __segment_limit = __global_mem_size / (std::uint64_t{__num_bins} * sizeof(_bin_type));
+#if _ONEDPL_SYCL_L0_EXT_PRESENT
+        if (__device.is_gpu() && __device.get_backend() == __dpl_sycl::__level_zero_backend)
+        {
+            // Level Zero makes each private copy resident before the kernel runs, at a cost proportional to its
+            // size, so launch only a few waves of the work-groups the device can hold at once.
+            // Intel GPUs run at most 8 sub-groups of 32 work-items on each compute unit.
+            constexpr std::uint64_t __max_resident_items_per_compute_unit = 256;
+            // provisional: not yet swept
+            constexpr std::uint64_t __waves = 2;
+            const std::uint64_t __resident_groups =
+                std::max<std::uint64_t>(1, __max_resident_items_per_compute_unit *
+                                               oneapi::dpl::__internal::__max_compute_units(__q) / __work_group_size);
+            __segment_limit = std::min(__segment_limit, __waves * __resident_groups);
+        }
+#endif
+        // __max_segments divides below; the global memory bound floors to zero if no copy fits.
+        const std::uint64_t __max_segments = std::max(std::uint64_t{1}, std::min(__segment_limit, __max_groups));
 
         const std::size_t __iters_per_work_item =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __max_segments * __work_group_size);
@@ -442,9 +460,9 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     {
         //Use __iters_per_work_item here as a runtime parameter, because only one kernel is created for
         // private_global_atomics with a variable number of iterations per workitem. __iters_per_work_item is just a
-        // suggestion which but global memory limitations may increase this value to be able to fit the workgroup
-        // private copies of the histogram bins in global memory.  No unrolling is taken advantage of here because it
-        // is a runtime argument.
+        // suggestion, which grows when the number of workgroup private copies of the histogram bins is bounded: to fit
+        // them in global memory, or to limit their footprint on Level Zero GPUs. No unrolling is taken advantage of
+        // here because it is a runtime argument.
         return __future(__histogram_general_private_global_atomics<_CustomName>(
             __q, __init_event, __iters_per_work_item, __work_group_size, std::forward<_Range1>(__input),
             std::forward<_Range2>(__bins), __binhash_manager));
