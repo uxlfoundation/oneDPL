@@ -311,16 +311,17 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
 #if _ONEDPL_SYCL_L0_EXT_PRESENT && _ONEDPL_USE_SUB_GROUPS
         if (__device.is_gpu() && __device.get_backend() == __dpl_sycl::__level_zero_backend)
         {
-            // Level Zero makes each private copy resident before the kernel runs, at a cost proportional to its
+            // Level Zero makes the buffer of private copies resident on each call, at a cost proportional to its
             // size, so launch only a few waves of the work-groups the device can hold at once.
-            // Intel GPUs run at most 8 sub-groups on each compute unit.
-            constexpr std::uint64_t __max_sub_groups_per_compute_unit = 8;
-            // empirical: 1, 2, 6 and 16 waves measured on BMG and PVC with 4-byte bins and 2- and 4-byte input
+            // Hardware threads per compute unit on Xe-HPG, Xe-HPC and Xe2; each runs one sub-group.
+            constexpr std::uint64_t __threads_per_compute_unit = 8;
+            // empirical: 1-16 waves on BMG and PVC, 32768 uint32_t bins, float and uint16_t input
             constexpr std::uint64_t __waves = 2;
-            const std::uint64_t __resident_groups = std::max<std::uint64_t>(
-                1, __max_sub_groups_per_compute_unit * oneapi::dpl::__internal::__max_sub_group_size(__q) *
+            // Counts each thread at the widest sub-group size.
+            const std::uint64_t __groups_per_wave = std::max<std::uint64_t>(
+                1, __threads_per_compute_unit * oneapi::dpl::__internal::__max_sub_group_size(__q) *
                        oneapi::dpl::__internal::__max_compute_units(__q) / __work_group_size);
-            __segment_limit = std::min(__segment_limit, __waves * __resident_groups);
+            __segment_limit = std::min(__segment_limit, __waves * __groups_per_wave);
         }
 #endif
         // __max_segments divides below; the global memory bound floors to zero if no copy fits.
