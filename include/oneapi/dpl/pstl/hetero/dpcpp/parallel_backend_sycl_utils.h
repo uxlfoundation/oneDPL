@@ -613,24 +613,11 @@ class __usm_device_temp
 template <typename _Name>
 struct __temp_buffer_fallback_wrapper;
 
-// Above this size the driver's cost to allocate and free device USM exceeds the host-side cost of a
-// sycl::buffer, so large temporaries keep the buffer path. Measured crossover is between 4 MB and
-// 16 MB on both BMG and PVC.
+// empirical: device USM is faster than a sycl::buffer up to this temporary size on BMG and PVC, 4-byte types
 inline constexpr std::size_t __max_usm_temp_bytes = 4 * 1024 * 1024;
 
-// Calls __f with a policy, the start of an uninitialized temporary range of __n elements, and the
-// wait mode its final write to that range must use.
-//
-// Device USM is preferred over __buffer for small temporaries because constructing and destroying a
-// sycl::buffer costs a fixed ~4.5 us of host-side work per call, which dominates these patterns at
-// small __n.
-//
-// The allocation is released when __f returns, so on the USM branch __f must not leave kernels
-// touching it in flight: hence __sync_mode there, and a drain if __f exits by exception. The buffer
-// branch keeps the deferrable wait it has always had.
-//
-// Both branches instantiate __f, so the fallback is handed a distinctly named policy: without it the
-// two instantiations submit kernels under the same name and collide under -fno-sycl-unnamed-lambda.
+// Calls __f(__policy, __temp_first, __wait_mode) with an uninitialized temporary of __n elements, in device USM
+// when small enough, else in a __buffer. The USM is freed on return, so its __wait_mode is __sync_mode.
 template <typename _T, typename _ExecutionPolicy, typename _F>
 auto
 __with_temp_device_range(_ExecutionPolicy&& __exec, std::size_t __n, _F&& __f)
@@ -654,6 +641,7 @@ __with_temp_device_range(_ExecutionPolicy&& __exec, std::size_t __n, _F&& __f)
         }
     }
 
+    // __f is instantiated twice, so the fallback needs distinct kernel names
     __buffer<_T> __buf(__n);
     return __f(make_wrapped_policy<__temp_buffer_fallback_wrapper>(__exec), __buf.get(), __deferrable_mode{});
 }
