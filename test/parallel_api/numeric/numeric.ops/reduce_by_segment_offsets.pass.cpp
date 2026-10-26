@@ -442,6 +442,39 @@ test_boundaries()
     }
 }
 
+// Segments at the boundaries of the pieces of the input that a sub-group takes on GPUs (512 elements, 16 per
+// work-item): many tiny and empty ones per work-item, ones ending exactly at the end of a work-item and of a piece, a
+// segment of a million elements, empty segments between, one crossing several pieces up to the end of a piece, the
+// first offset above zero and the last one below the end of the input
+template <std::size_t CallNumber>
+void
+test_pieces()
+{
+    const std::int64_t lane = 16, piece = 512;
+    std::vector<std::int64_t> offsets{37};
+    auto add = [&offsets](std::int64_t length) { offsets.push_back(offsets.back() + length); };
+    auto add_tiny = [&add](std::int64_t count) {
+        for (std::int64_t i = 0; i < count; ++i)
+            add(i % 4);
+    };
+    add_tiny(3000);
+    add(lane - offsets.back() % lane);
+    add(piece - offsets.back() % piece);
+    add(1000000);
+    add(0);
+    add(0);
+    add(0);
+    add(7);
+    add(3 * piece + piece - offsets.back() % piece);
+    add_tiny(100);
+    const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+    Sequence<int> in(offsets.back() + 1000, [](std::size_t i) { return int(i % 101) - 50; });
+    Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                         out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                         std::plus<std::int64_t>{}, std::int64_t{-1});
+}
+
 // The input is the middle of a larger sequence, whose other elements are poison: a read out of the bounds of the input
 // changes a result
 constexpr std::size_t guard_length = 1000;
@@ -733,6 +766,7 @@ main()
     test_rfc_example<40>();
     test_boundaries<42>();
     test_input_bounds<43>();
+    test_pieces<44>();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT
