@@ -36,6 +36,14 @@ Algorithms in <oneapi/dpl/numeric>
                       SegmentNumT num_segments, OffsetIt offsets, InitT init_value,
                       BinaryOp binary_op);
 
+    template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT,
+              typename OffsetIt, typename InitT>
+    void
+    reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first,
+                      SegmentNumT num_segments, OffsetIt offsets, InitT init_value);
+
+  As for ``std::reduce``, the operation defaults to ``std::plus<>``. The initial value is always required.
+
   ``SegmentNumT`` must be an integral type, and ``OffsetIt`` must not be one; the offsets must be of an
   integral type other than ``bool``. ``InputIt``, ``OutputIt`` and ``OffsetIt`` must be random access iterators.
 
