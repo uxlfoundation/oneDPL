@@ -74,6 +74,30 @@ struct __segmented_reduce_variable_brick
     }
 };
 
+// One work-item per segment of any length: it reduces the whole segment serially
+template <typename _Acc, typename _Size, typename _InitType, typename _BinaryOperation>
+struct __segmented_reduce_item_brick
+{
+    static constexpr std::uint8_t __iters_per_item = 1;
+
+    _Size __n; // the size of the input
+    _InitType __init;
+    mutable _BinaryOperation __binary_op;
+
+    template <typename _IsFull, typename _Params, typename _Offsets, typename _Result, typename _Input>
+    void
+    operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input) const
+    {
+        static_assert(_Params::__vector_size == 1,
+                      "The brick operates with tuples which must be excluded from vectorizable types");
+
+        const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__idx], __n);
+        const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__idx + 1], __n);
+        std::get<0>(__result[__idx]) =
+            oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(__input, __begin, __end, __init, __binary_op);
+    }
+};
+
 // Writes the initial value into every result: all the segments are empty
 template <typename _Acc, typename _InitType>
 struct __segmented_reduce_init_brick
@@ -242,6 +266,8 @@ struct __segmented_reduce_combine_brick
 };
 
 template <typename _Name>
+class __segmented_reduce_items_wrapper;
+template <typename _Name>
 class __segmented_reduce_length_wrapper;
 template <typename _Name>
 class __segmented_reduce_scan_wrapper;
@@ -275,6 +301,17 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
 {
     const bool __is_gpu = __exec.queue().get_device().is_gpu();
     const _Size __threshold = __is_gpu ? __segmented_reduce_gpu_threshold : __segmented_reduce_cpu_threshold;
+
+    // On GPUs one kernel: every work-item reduces its whole segment serially and writes the result
+    if (__is_gpu)
+    {
+        __parallel_for(
+            _BackendTag{}, make_wrapped_policy<__segmented_reduce_items_wrapper>(__exec),
+            __segmented_reduce_item_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __init, __binary_op}, __m,
+            __offsets, oneapi::dpl::__ranges::make_zip_view(__result), __input)
+            .__checked_deferrable_wait();
+        return;
+    }
 
     // Reduces the segments longer than __min_length in chunks; __max_segments bounds the number of such segments
     auto __reduce_in_chunks = [&](_Size __min_length, bool __write_empty, _Size __max_length, _Size __max_segments) {
