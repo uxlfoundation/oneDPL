@@ -70,10 +70,13 @@ struct __segmented_reduce_variable_brick
             sycl::atomic_ref<std::uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device,
                              sycl::access::address_space::global_space>
                 __ref(__max_length[0]);
+
             __ref.fetch_max(static_cast<std::uint32_t>(
                 std::min<_Size>(__end - __begin, std::numeric_limits<std::uint32_t>::max())));
+
             return;
         }
+
         std::get<0>(__result[__idx]) =
             oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(__input, __begin, __end, __init, __binary_op);
     }
@@ -562,13 +565,18 @@ struct __segmented_reduce_chunk_local_submitter<_ByGroups, __internal::__optiona
         }
         sycl::group_barrier(__group);
         if constexpr (_ByGroups)
+        {
             __brick(__item, __local_ends, __offsets, __partials, __input);
+        }
         else
         {
             const std::size_t __num_chunks = std::min<_Size>(_Size(__local_ends[__m - 1]), __num_partials);
+
             for (std::size_t __idx = __item.get_global_linear_id(); __idx < __num_chunks;
                  __idx += __item.get_global_range(0))
+            {
                 __brick(std::true_type{}, __idx, __pfor_params_simple{}, __local_ends, __offsets, __partials, __input);
+            }
         }
     }
 
@@ -581,27 +589,34 @@ struct __segmented_reduce_chunk_local_submitter<_ByGroups, __internal::__optiona
     {
         return __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __offsets, __input);
+
             auto __ends_acc = __get_accessor(sycl::write_only, __chunk_ends, __cgh, __dpl_sycl::__no_init{});
             auto __partials_acc = __get_accessor(sycl::write_only, __partials, __cgh, __dpl_sycl::__no_init{});
+
             // The ends fit 32 bits: there are fewer chunks than partial results, unless the offsets are not ordered,
             // whose results are unspecified
             __dpl_sycl::__local_accessor<std::uint32_t> __local_ends(sycl::range<1>(__m), __cgh);
             const sycl::nd_range<1> __range(sycl::range<1>(__num_groups * __work_group_size),
                                             sycl::range<1>(__work_group_size));
+
             if constexpr (_ByGroups)
+            {
                 __cgh.parallel_for<_Name...>(__range, [=](sycl::nd_item<1> __item) {
                     __run(__item, __brick, __local_ends, __ends_acc.__data(), __offsets,
                           oneapi::dpl::__ranges::make_zip_view(
                               oneapi::dpl::__ranges::guard_view<_Acc*>(__partials_acc.__data(), __num_partials)),
                           __input, __n, __m, __min_length, __num_partials);
                 });
+            }
             else
+            {
                 __cgh.parallel_for<_Name...>(__range, [=](sycl::nd_item<1> __item) {
                     __run(__item, __brick, __local_ends, __ends_acc.__data(), __offsets,
                           oneapi::dpl::__ranges::make_zip_view(
                               oneapi::dpl::__ranges::guard_view<_Acc*>(__partials_acc.__data(), __num_partials)),
                           __input, __n, __m, __min_length, __num_partials);
                 });
+            }
         });
     }
 };
@@ -633,8 +648,10 @@ struct __segmented_reduce_combine_brick
         {
             if (__write_empty)
                 std::get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init);
+
             return;
         }
+
         std::get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(
             __partials, __first + 1, __last, _Acc(__partials[__first]), __binary_op);
     }
@@ -1395,14 +1412,13 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                 [=](sycl::nd_item<1> __item) {
                     _BinaryOperation __op = __binary_op;
                     _Carry* const __carry = __carry_acc.__data();
+
                     const _Size __lid = __item.get_local_id(0);
                     const __dpl_sycl::__sub_group __sg = __item.get_sub_group();
                     const _Size __lane = __sg.get_local_linear_id();
                     const _Size __lanes = __sg.get_local_linear_range();
                     const _Size __sg_first = _Size(__sg.get_group_linear_id()) * __lanes;
-                    auto __clamp = [&](_Size __s) {
-                        return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s], __n);
-                    };
+
                     // The partial result of [__b, __b + __len), __len >= 2, in work-item 0; with the initial value it
                     // starts from the operation on the initial value and the first element
                     auto __together = [&](_Size __b, _Size __len, bool __with_init) {
@@ -1475,7 +1491,7 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                             while (__lo < __hi)
                             {
                                 const _Size __mid = __lo + (__hi - __lo) / 2;
-                                if (__clamp(__mid) < __v)
+                                if (oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__mid], __n) < __v)
                                     __lo = __mid + 1;
                                 else
                                     __hi = __mid;
@@ -1488,8 +1504,10 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                         // (A) The short segments wholly in the tile, one per work-item
                         for (_Size __s = __sa + __lid; __s < __sb; __s += __wg)
                         {
-                            const _Size __b = __clamp(__s);
-                            const _Size __e = std::max<_Size>(__clamp(__s + 1), __b);
+                            const _Size __b =
+                                oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s], __n);
+                            const _Size __e = std::max<_Size>(
+                                oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n), __b);
                             if (__e <= __te && __e - __b < __wg)
                                 __result[__s] = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(
                                     __input, __b, __e, __init, __op);
@@ -1499,13 +1517,16 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                         _Acc __cin{};
                         if (__sa > 0)
                         {
-                            const _Size __e = std::min<_Size>(__clamp(__sa), __te);
+                            const _Size __e = std::min<_Size>(
+                                oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__sa], __n), __te);
+
                             if (__e - __tb >= 2)
                             {
                                 __cin = __together(__tb, __e - __tb, false);
                                 __k = 1;
                             }
-                            else if (__e - __tb == 1)
+
+                            if (__e - __tb == 1)
                                 __k = 2;
                         }
                         // ... and the long ones and the one crossing the end of the tile
@@ -1513,34 +1534,28 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                         _Acc __cout{};
                         for (_Size __s = __sa; __s < __sb; ++__s)
                         {
-                            const _Size __b = __clamp(__s);
-                            const _Size __e = std::max<_Size>(__clamp(__s + 1), __b);
+                            const _Size __b =
+                                oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s], __n);
+                            const _Size __e = std::max<_Size>(
+                                oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n), __b);
                             if (__e <= __te && __e - __b < __wg)
                                 continue;
                             const _Size __len = std::max<_Size>(std::min<_Size>(__e, __te) - __b, _Size{0});
+                            // The same for every work-item of the work-group, as __together has barriers
+                            const bool __crosses = __e > __te && __len > 0;
+                            _Acc __p{};
                             if (__len >= 2)
-                            {
-                                _Acc __p = __together(__b, __len, true);
-                                if (__lid == 0)
-                                {
-                                    if (__e <= __te)
-                                        __result[__s] = __p;
-                                    else
-                                        __cout = __p;
-                                }
-                            }
-                            else if (__lid == 0)
-                            {
-                                const _Acc __p = __len == 0
-                                                     ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init)
-                                                     : oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                                           std::invoke(__op, __init, __input[__b]));
-                                if (__e <= __te || __len == 0)
-                                    __result[__s] = __p;
-                                else
-                                    __cout = __p;
-                            }
-                            if (__e > __te && __len > 0)
+                                __p = __together(__b, __len, true);
+                            if (__len == 1)
+                                __p = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                    std::invoke(__op, __init, __input[__b]));
+                            if (__len == 0)
+                                __p = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init);
+                            if (__lid == 0 && !__crosses)
+                                __result[__s] = __p;
+                            if (__lid == 0 && __crosses)
+                                __cout = __p;
+                            if (__crosses)
                                 __cs = __s;
                         }
                         if (__lid == 0)
@@ -1624,6 +1639,7 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                 .wait_and_throw();
             return;
         }
+
         // The short chains, one work-item per tile
         __q.submit([&](sycl::handler& __cgh) {
                oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
@@ -1631,22 +1647,27 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                __cgh.depends_on(__tile_event);
                __cgh.parallel_for<_FixupName...>(sycl::range<1>(__num_tiles), [=](sycl::item<1> __it) {
                    _BinaryOperation __op = __binary_op;
+
                    const _Carry* const __carry = __carry_acc.__data();
                    const _Size __t = __it.get_linear_id();
                    const _Size __s = __carry[__t].__cross;
-                   if (__s >= __m)
-                       return;
-                   const _Size __e = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
-                   const _Size __t1 = std::min<_Size>((__e - 1) / __tile, __num_tiles - 1);
-                   _Acc __acc = __carry[__t].__acc_out;
-                   for (_Size __u = __t + 1; __u <= __t1; ++__u)
+
+                   if (__s < __m)
                    {
-                       if (__carry[__u].__kind == 1)
-                           __acc = std::invoke(__op, __acc, __carry[__u].__acc_in);
-                       else if (__carry[__u].__kind == 2)
-                           __acc = std::invoke(__op, __acc, __input[__u * __tile]);
+                       const _Size __e =
+                           oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
+                       const _Size __t1 = std::min<_Size>((__e - 1) / __tile, __num_tiles - 1);
+                       _Acc __acc = __carry[__t].__acc_out;
+                       for (_Size __u = __t + 1; __u <= __t1; ++__u)
+                       {
+                           if (__carry[__u].__kind == 1)
+                               __acc = std::invoke(__op, __acc, __carry[__u].__acc_in);
+                           if (__carry[__u].__kind == 2)
+                               __acc = std::invoke(__op, __acc, __input[__u * __tile]);
+                       }
+
+                       __result[__s] = __acc;
                    }
-                   __result[__s] = __acc;
                });
            })
             .wait_and_throw();
@@ -1923,11 +1944,13 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             std::uint8_t __tile_log = 0;
             while ((std::size_t{1} << __tile_log) < __tile)
                 ++__tile_log;
+
             __event = __segmented_reduce_long_group_submitter<_Acc, _LongGroupKernel, _LongTileKernel>()(
                 __q, __input, __offsets, __result, __n, __m, static_cast<std::uint16_t>(__work_group_size),
                 _Size(__segmented_reduce_gpu_large_group_max_length), __tile_log, __init, __binary_op);
         }
         __event.wait_and_throw();
+
         return;
     }
 
@@ -1952,14 +1975,17 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             // The second kernel as for the work-group path above
             const std::size_t __tile_work_group_size = std::min<std::size_t>(
                 oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, std::size_t(sizeof(_Acc) * 2)), 256);
+
             std::uint8_t __tile_log = 0;
             while ((std::size_t{1} << __tile_log) < __segmented_reduce_gpu_sub_group_max_length)
                 ++__tile_log;
+
             sycl::event __event = __segmented_reduce_sub_group_submitter<_Acc, _SubGroupKernel, _TileKernel>()(
                 __q, __input, __offsets, __result, __n, __m,
                 oneapi::dpl::__internal::__max_work_group_size(__q, std::size_t(256)),
                 static_cast<std::uint16_t>(__tile_work_group_size), __tile_log, __init, __binary_op);
             __event.wait_and_throw();
+
             return;
         }
     }
@@ -1984,6 +2010,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                 _Size(__n <= _Size(__segmented_reduce_gpu_small_tile_input) ? __segmented_reduce_gpu_small_tile
                                                                             : __segmented_reduce_gpu_large_tile),
                 __init, __binary_op);
+
             return;
         }
     }

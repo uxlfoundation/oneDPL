@@ -101,7 +101,8 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
 
     if (n <= 0)
         return std::make_pair(result1, result2);
-    else if (n == 1)
+
+    if (n == 1)
     {
         *result1 = *first1;
         *result2 = *first2;
