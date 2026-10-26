@@ -442,20 +442,6 @@ class __task : public tbb::task
         return new (parent->allocate_child()) __func_task<::std::decay_t<_Fn>>(::std::forward<_Fn>(__f));
     }
 
-    template <typename _Fn>
-    __task*
-    make_additional_child_of(tbb::task* parent, _Fn&& __f)
-    {
-        return new (tbb::task::allocate_additional_child_of(*parent))
-            __func_task<::std::decay_t<_Fn>>(::std::forward<_Fn>(__f));
-    }
-
-    inline void
-    recycle_as_continuation()
-    {
-        tbb::task::recycle_as_continuation();
-    }
-
     inline void
     recycle_as_child_of(__task* parent)
     {
@@ -567,22 +553,6 @@ class __task : public tbb::detail::d1::task
         auto __t = allocate_func_task(::std::forward<_Fn&&>(__f));
         __t->_M_parent = __parent;
         return __t;
-    }
-
-    template <typename _Fn>
-    __task*
-    make_additional_child_of(__task* __parent, _Fn&& __f)
-    {
-        auto __t = make_child_of(__parent, ::std::forward<_Fn>(__f));
-        assert(__parent->_M_refcount.load(::std::memory_order_relaxed) > 0);
-        ++__parent->_M_refcount;
-        return __t;
-    }
-
-    inline void
-    recycle_as_continuation()
-    {
-        _M_recycle = true;
     }
 
     inline void
