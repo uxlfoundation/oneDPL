@@ -154,14 +154,14 @@ struct test_reduce_by_segment_offsets
               typename Init, typename BinaryOp, typename Out>
     std::enable_if_t<is_base_of_iterator_category_v<std::random_access_iterator_tag, InputIt>>
     operator()(Policy&& exec, InputIt first, InputIt last, OutputIt out_first, OutputIt out_last, OffsetIt offsets,
-               SegmentNum num_segments, Init init, BinaryOp op, Out trash)
+               SegmentNum num_segments, Init init, BinaryOp op, Out unwritten)
     {
         // The reference runs on copies of the input and the offsets
         const std::vector<typename std::iterator_traits<InputIt>::value_type> input(first, last);
         std::vector<typename std::iterator_traits<OffsetIt>::value_type> offsets_copy;
         if (num_segments > 0)
             std::copy_n(offsets, num_segments + 1, std::back_inserter(offsets_copy));
-        std::vector<Out> expected(std::distance(out_first, out_last), trash);
+        std::vector<Out> expected(std::distance(out_first, out_last), unwritten);
         reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets_copy.begin(), num_segments, init,
                                          reference_op(op), expected.begin());
 
@@ -173,7 +173,7 @@ struct test_reduce_by_segment_offsets
                                            init, op);
         EXPECT_EQ_N(expected.begin(), out_first, expected.size(), "wrong result from reduce_by_segment with offsets");
 
-        std::fill(out_first, out_last, trash);
+        std::fill(out_first, out_last, unwritten);
     }
 };
 
@@ -326,7 +326,7 @@ struct int_sum_plus
 template <std::size_t CallNumber, typename T, typename Out, typename Offset, typename SegmentNum, typename Init,
           typename BinaryOp, typename Generator>
 void
-test_segments(Init init, BinaryOp op, Generator generator, Out trash)
+test_segments(Init init, BinaryOp op, Generator generator, Out unwritten)
 {
     std::mt19937 gen(42);
     for (std::size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : std::size_t(3.1415 * n))
@@ -336,22 +336,23 @@ test_segments(Init init, BinaryOp op, Generator generator, Out trash)
         {
             const std::vector<Offset> offsets = make_offsets<Offset>(kind, n, gen);
             const SegmentNum num_segments = SegmentNum(offsets.size() - 1);
-            Sequence<Out> out(std::max<std::size_t>(offsets.size() - 1, 1), [trash](std::size_t) { return trash; });
+            Sequence<Out> out(std::max<std::size_t>(offsets.size() - 1, 1),
+                              [unwritten](std::size_t) { return unwritten; });
             invoke_on_all_policies<CallNumber * 3>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
                                                      out.begin(), out.end(), offsets.begin(), num_segments, init, op,
-                                                     trash);
+                                                     unwritten);
         }
 
         // A non-positive number of segments: the output is not written
         const std::vector<Offset> offsets{0, Offset(n)};
-        Sequence<Out> out(1, [trash](std::size_t) { return trash; });
+        Sequence<Out> out(1, [unwritten](std::size_t) { return unwritten; });
         invoke_on_all_policies<CallNumber * 3>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
-                                                 out.end(), offsets.begin(), SegmentNum(0), init, op, trash);
+                                                 out.end(), offsets.begin(), SegmentNum(0), init, op, unwritten);
         if constexpr (std::is_signed_v<SegmentNum>)
         {
             invoke_on_all_policies<CallNumber * 3>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
                                                      out.begin(), out.end(), offsets.begin(), SegmentNum(-1), init,
-                                                     op, trash);
+                                                     op, unwritten);
         }
 
         // Fixed-length segments; the last two ones cross or lie beyond the end of the input
@@ -360,10 +361,10 @@ test_segments(Init init, BinaryOp op, Generator generator, Out trash)
             auto fixed_offsets = oneapi::dpl::make_transform_iterator(
                 oneapi::dpl::counting_iterator<std::int64_t>(0), segment_begin{length});
             const SegmentNum num_segments = SegmentNum(n / length + 2);
-            Sequence<Out> fixed_out(num_segments, [trash](std::size_t) { return trash; });
+            Sequence<Out> fixed_out(num_segments, [unwritten](std::size_t) { return unwritten; });
             invoke_on_all_policies<CallNumber * 3 + 1>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
                                                          fixed_out.begin(), fixed_out.end(), fixed_offsets,
-                                                         num_segments, init, op, trash);
+                                                         num_segments, init, op, unwritten);
         }
 
         // Read-only input
@@ -371,10 +372,10 @@ test_segments(Init init, BinaryOp op, Generator generator, Out trash)
         {
             const std::vector<Offset> random_offsets = make_offsets<Offset>(segments::random, n, gen);
             const SegmentNum num_segments = SegmentNum(random_offsets.size() - 1);
-            Sequence<Out> random_out(num_segments, [trash](std::size_t) { return trash; });
+            Sequence<Out> random_out(num_segments, [unwritten](std::size_t) { return unwritten; });
             invoke_on_all_policies<CallNumber * 3 + 2>()(test_reduce_by_segment_offsets(), in.cbegin(), in.cend(),
                                                          random_out.begin(), random_out.end(),
-                                                         random_offsets.begin(), num_segments, init, op, trash);
+                                                         random_offsets.begin(), num_segments, init, op, unwritten);
         }
     }
 }
