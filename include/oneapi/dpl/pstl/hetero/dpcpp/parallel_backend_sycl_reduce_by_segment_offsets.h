@@ -159,6 +159,11 @@ inline constexpr std::size_t __segmented_reduce_gpu_min_long_tile = 8192;
 inline constexpr std::size_t __segmented_reduce_gpu_sub_group_max_length = 8192;
 inline constexpr std::size_t __segmented_reduce_gpu_sub_group_short_input = std::size_t(1) << 22;
 inline constexpr std::size_t __segmented_reduce_gpu_sub_group_min_long_average = 256;
+// - on GPUs an input of arithmetic types up to this size that the paths above leave, of very short segments on average,
+//   is reduced one work-item per segment, a segment longer than the threshold above by the whole sub-group and one
+//   longer than the longest a sub-group reduces by the second kernel of the sub-group path: the host waits for no
+//   reduction of the lengths. A larger input waits for it, as the work-items then cost less beside it.
+inline constexpr std::size_t __segmented_reduce_gpu_lanes_max_input = std::size_t(1) << 22;
 // - on GPUs the best chunk length of a long segment is close to the square root of its length, which balances the
 //   serial work of its chunks and of their combination; on CPUs the chunk length hardly matters above 1024.
 inline constexpr std::size_t __segmented_reduce_gpu_min_chunk_size = 64;
@@ -1278,19 +1283,99 @@ struct __segmented_reduce_sub_group_functor : __segmented_reduce_small_grf_kerne
     }
 };
 
+// One work-item per segment, the sub-group taking the segments of its work-items: a work-item reduces its segment of
+// at most __serial_length elements alone, the whole sub-group the longer ones of at most __max_length, one after
+// another, and a longer one is left to the second kernel of __segmented_reduce_sub_group_submitter, as
+// __segmented_reduce_sub_group_functor does
+template <typename _Acc, typename _Size, typename _InitType, typename _BinaryOperation, typename _InRange,
+          typename _OffsetRange, typename _OutRange, typename _MapsAcc, typename _CountsAcc>
+struct __segmented_reduce_lanes_functor : __segmented_reduce_small_grf_kernel
+{
+    _InRange __input;
+    _OffsetRange __offsets;
+    _OutRange __result;
+    _MapsAcc __maps;     // the segment covering the start of every tile, then the one beginning inside every tile
+    _CountsAcc __counts; // the number of the reduced pieces of every long segment
+    _Size __n;
+    _Size __m;
+    _Size __max_length;      // the longest segment reduced by its sub-group
+    std::uint8_t __tile_log; // the tiles have 2^__tile_log elements
+    std::size_t __num_tiles; // the number of the tiles
+    _InitType __init;
+    _BinaryOperation __binary_op;
+
+    void
+    operator()(sycl::nd_item<1> __item) const
+    {
+        _BinaryOperation __op = __binary_op;
+        const __dpl_sycl::__sub_group __sg = __item.get_sub_group();
+        const std::size_t __lane = __sg.get_local_linear_id();
+        const std::size_t __lanes = __sg.get_local_linear_range();
+        const _Size __tile = _Size{1} << __tile_log;
+        const _Size __serial_length = _Size(__segmented_reduce_gpu_threshold);
+        // The first segment of the sub-group: the loop is the same for its work-items
+        for (std::size_t __first = __item.get_global_linear_id() - __lane; __first < std::size_t(__m);
+             __first += __item.get_global_range(0))
+        {
+            const std::size_t __s = __first + __lane;
+            const bool __valid = __s < std::size_t(__m);
+            _Size __begin = 0, __end = 0;
+            if (__valid)
+            {
+                __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s], __n);
+                __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
+            }
+            const _Size __length = __begin < __end ? __end - __begin : _Size{0};
+            if (__valid && __length <= __serial_length)
+                __result[__s] =
+                    oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(__input, __begin, __end, __init, __op);
+            // A long segment is left to the second kernel
+            if (__valid && __length > __max_length)
+            {
+                _Size* __map = __maps.__data();
+                __counts.__data()[__s] = 0;
+                if ((__begin & (__tile - 1)) != 0)
+                    __map[__num_tiles + std::size_t(__begin >> __tile_log)] = __s;
+                for (std::size_t __t = std::size_t((__begin + __tile - 1) >> __tile_log);
+                     __t <= std::size_t((__end - 1) >> __tile_log); ++__t)
+                    __map[__t] = __s;
+            }
+            // The other segments of the work-items, each by the whole sub-group, from the first work-item on
+            bool __pending = __valid && __length > __serial_length && __length <= __max_length;
+            while (sycl::any_of_group(__sg, __pending))
+            {
+                const std::size_t __leader =
+                    sycl::reduce_over_group(__sg, __pending ? __lane : __lanes, sycl::minimum<std::size_t>());
+                const _Size __b = sycl::select_from_group(__sg, __begin, __leader);
+                const _Size __e = sycl::select_from_group(__sg, __end, __leader);
+                _Acc __acc =
+                    __segmented_reduce_by_sub_group<_Acc>(__sg, __b, __e, /*__is_first=*/true, __init, __op, __input);
+                if (__lane == 0)
+                    __result[__first + __leader] = std::move(__acc);
+                if (__lane == __leader)
+                    __pending = false;
+            }
+        }
+    }
+};
+
 template <typename... _Name>
 class __segmented_reduce_sub_group_kernel;
 template <typename... _Name>
 class __segmented_reduce_sub_group_tile_kernel;
+template <typename... _Name>
+class __segmented_reduce_lanes_kernel;
+template <typename... _Name>
+class __segmented_reduce_lanes_tile_kernel;
 
-template <typename _Acc, typename _SubGroupName, typename _TileName>
+template <typename _Acc, bool _ByLanes, typename _SubGroupName, typename _TileName>
 struct __segmented_reduce_sub_group_submitter;
 
-// One sub-group per segment, the segments longer than __max_length left to a second kernel, one work-group per tile
-// of __max_length elements, which reduces their pieces as the work-groups of the tiles of
-// __segmented_reduce_long_group_submitter do
-template <typename _Acc, typename... _SubGroupName, typename... _TileName>
-struct __segmented_reduce_sub_group_submitter<_Acc, __internal::__optional_kernel_name<_SubGroupName...>,
+// One sub-group per segment, or with _ByLanes one work-item per segment as __segmented_reduce_lanes_functor does, the
+// segments longer than __max_length left to a second kernel, one work-group per tile of __max_length elements, which
+// reduces their pieces as the work-groups of the tiles of __segmented_reduce_long_group_submitter do
+template <typename _Acc, bool _ByLanes, typename... _SubGroupName, typename... _TileName>
+struct __segmented_reduce_sub_group_submitter<_Acc, _ByLanes, __internal::__optional_kernel_name<_SubGroupName...>,
                                               __internal::__optional_kernel_name<_TileName...>>
 {
     // As in __parallel_transform_reduce
@@ -1315,10 +1400,12 @@ struct __segmented_reduce_sub_group_submitter<_Acc, __internal::__optional_kerne
         __device_storage<std::uint32_t> __counts{__q, std::size_t(__m)};
         __device_storage<_Acc> __partials{__q, 2 * __num_tiles};
 
-        // As many sub-groups as segments, for sub-groups of the size the paths by sub-groups are sized for; a launch
-        // that would not fit the int range of the work-item indices has fewer, each reducing every so-many-th segment
+        // As many sub-groups, or work-items, as segments, for sub-groups of the size the paths by sub-groups are sized
+        // for; a launch that would not fit the int range of the work-item indices has fewer, each reducing every
+        // so-many-th segment
         const std::size_t __segments_per_group =
-            std::max<std::size_t>(1, __work_group_size / __segmented_reduce_gpu_sub_group_size);
+            _ByLanes ? __work_group_size
+                     : std::max<std::size_t>(1, __work_group_size / __segmented_reduce_gpu_sub_group_size);
         const std::size_t __num_groups =
             std::min<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(std::size_t(__m), __segments_per_group),
                                   std::size_t(std::numeric_limits<int>::max()) / __work_group_size);
@@ -1328,21 +1415,26 @@ struct __segmented_reduce_sub_group_submitter<_Acc, __internal::__optional_kerne
             auto __counts_acc = __get_accessor(sycl::write_only, __counts, __cgh, __dpl_sycl::__no_init{});
             __cgh.parallel_for<_SubGroupName...>(
                 sycl::nd_range<1>(sycl::range<1>(__num_groups * __work_group_size), sycl::range<1>(__work_group_size)),
-                __segmented_reduce_sub_group_functor<_Acc, _Size, _InitType, _BinaryOperation, std::decay_t<_InRange>,
+                std::conditional_t<
+                    _ByLanes,
+                    __segmented_reduce_lanes_functor<_Acc, _Size, _InitType, _BinaryOperation, std::decay_t<_InRange>,
                                                      std::decay_t<_OffsetRange>, std::decay_t<_OutRange>,
-                                                     decltype(__maps_acc), decltype(__counts_acc)>{{},
-                                                                                                   __input,
-                                                                                                   __offsets,
-                                                                                                   __result,
-                                                                                                   __maps_acc,
-                                                                                                   __counts_acc,
-                                                                                                   __n,
-                                                                                                   __m,
-                                                                                                   __max_length,
-                                                                                                   __tile_log,
-                                                                                                   __num_tiles,
-                                                                                                   __init,
-                                                                                                   __binary_op});
+                                                     decltype(__maps_acc), decltype(__counts_acc)>,
+                    __segmented_reduce_sub_group_functor<
+                        _Acc, _Size, _InitType, _BinaryOperation, std::decay_t<_InRange>, std::decay_t<_OffsetRange>,
+                        std::decay_t<_OutRange>, decltype(__maps_acc), decltype(__counts_acc)>>{{},
+                                                                                                __input,
+                                                                                                __offsets,
+                                                                                                __result,
+                                                                                                __maps_acc,
+                                                                                                __counts_acc,
+                                                                                                __n,
+                                                                                                __m,
+                                                                                                __max_length,
+                                                                                                __tile_log,
+                                                                                                __num_tiles,
+                                                                                                __init,
+                                                                                                __binary_op});
         });
 
         const std::size_t __local_mem_size = _ReducePattern{__op}.local_mem_req(__tile_work_group_size);
@@ -2001,7 +2093,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             while ((std::size_t{1} << __tile_log) < __segmented_reduce_gpu_sub_group_max_length)
                 ++__tile_log;
 
-            __segmented_reduce_sub_group_submitter<_Acc, _SubGroupKernel, _TileKernel>()(
+            __segmented_reduce_sub_group_submitter<_Acc, /*_ByLanes=*/false, _SubGroupKernel, _TileKernel>()(
                 __q, __input, __offsets, __result, __n, __m,
                 oneapi::dpl::__internal::__max_work_group_size(__q, std::size_t(256)),
                 static_cast<std::uint16_t>(__tile_work_group_size), __tile_log, __init, __binary_op);
@@ -2043,6 +2135,35 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                                                         /*__write_empty=*/true, __m, __n / __m);
 
         return;
+    }
+
+    // On GPUs an input of arithmetic types up to a size one work-item per segment, the longer segments by the
+    // sub-group and the longest by the second kernel of the sub-group path, without waiting for the longest length
+    if constexpr (std::is_arithmetic_v<_Acc> &&
+                  std::is_arithmetic_v<oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>>)
+    {
+        if (__is_gpu && __n <= _Size(__segmented_reduce_gpu_lanes_max_input))
+        {
+            using _LanesKernel = __internal::__kernel_name_provider<
+                __segmented_reduce_lanes_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+            using _TileKernel = __internal::__kernel_name_provider<
+                __segmented_reduce_lanes_tile_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+
+            // As for the sub-group path above
+            const std::size_t __tile_work_group_size = std::min<std::size_t>(
+                oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, std::size_t(sizeof(_Acc) * 2)), 256);
+
+            std::uint8_t __tile_log = 0;
+            while ((std::size_t{1} << __tile_log) < __segmented_reduce_gpu_sub_group_max_length)
+                ++__tile_log;
+
+            __segmented_reduce_sub_group_submitter<_Acc, /*_ByLanes=*/true, _LanesKernel, _TileKernel>()(
+                __q, __input, __offsets, __result, __n, __m,
+                oneapi::dpl::__internal::__max_work_group_size(__q, std::size_t(256)),
+                static_cast<std::uint16_t>(__tile_work_group_size), __tile_log, __init, __binary_op);
+
+            return;
+        }
     }
 
     const __segmented_reduce_variable_brick<_Acc, _Size, _InitType, _BinaryOperation> __short_brick{

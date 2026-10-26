@@ -615,6 +615,49 @@ test_large_inputs_by_sub_groups()
                                          std::plus<std::int64_t>{}, std::int64_t{-1});
 }
 
+// Inputs of very short segments on average, reduced one work-item per segment on GPUs, among them segments reduced by
+// the whole sub-group, two of them of the work-items of one sub-group, and segments longer than a sub-group reduces
+// alone, left to the second kernel with the tiles of 8192 elements: the longest segment a work-item reduces and the
+// shortest one above it, the longest one a sub-group reduces and the shortest one above it, from the start of a tile
+// with a last piece of one element and from inside a tile, and empty segments
+template <std::size_t CallNumber>
+void
+test_short_inputs_by_lanes()
+{
+    const std::int64_t tile = 8192;
+    std::vector<std::int64_t> offsets{0};
+    auto add = [&offsets](std::int64_t length, std::int64_t count) {
+        for (std::int64_t i = 0; i < count; ++i)
+            offsets.push_back(offsets.back() + length);
+    };
+    auto add_short = [&offsets](std::int64_t count) {
+        for (std::int64_t i = 0; i < count; ++i)
+            offsets.push_back(offsets.back() + (i * 7) % 16);
+    };
+    add_short(1000);
+    add(512, 1);
+    add_short(5);
+    add(513, 1);
+    add(1000, 1);
+    add_short(40);
+    add(tile, 1);
+    add_short(31);
+    add(tile + 1, 1);
+    add_short(500);
+    // Up to the start of a tile, then from there a long segment with a last piece of one element
+    add(tile - offsets.back() % tile, 1);
+    add(2 * tile + 1, 1);
+    add_short(3000);
+    add(20000, 1);
+    add_short(3000);
+    const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+    Sequence<int> in(offsets.back(), [](std::size_t i) { return int(i % 101) - 50; });
+    Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                         out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                         std::plus<std::int64_t>{}, std::int64_t{-1});
+}
+
 // The input is the middle of a larger sequence, whose other elements are poison: a read out of the bounds of the input
 // changes a result
 constexpr std::size_t guard_length = 1000;
@@ -951,6 +994,7 @@ main()
     test_large_inputs_by_work_groups<54>();
     test_long_chains<56>();
     test_large_inputs_by_sub_groups<58>();
+    test_short_inputs_by_lanes<59>();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT
