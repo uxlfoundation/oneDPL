@@ -42,7 +42,8 @@ Algorithms in <oneapi/dpl/numeric>
     reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first,
                       SegmentNumT num_segments, OffsetIt offsets, InitT init_value);
 
-  As for ``std::reduce``, the operation defaults to ``std::plus<>``. The initial value is always required.
+  The overload without ``binary_op`` uses ``std::plus<>`` as the operation, as ``std::reduce`` does. The initial
+  value is required by both overloads.
 
   ``SegmentNumT`` must be an integral type, and ``OffsetIt`` must not be one; the offsets must be of an
   integral type other than ``bool``. ``InputIt``, ``OutputIt`` and ``OffsetIt`` must be random access iterators.
