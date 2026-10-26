@@ -1348,8 +1348,8 @@ struct __segmented_reduce_sub_group_submitter<_Acc, __internal::__optional_kerne
 template <typename _Acc, typename _Size>
 struct __segmented_reduce_tile_carry
 {
-    _Acc __in;
-    _Acc __out;
+    _Acc __acc_in;
+    _Acc __acc_out;
     _Size __cross;
     std::uint8_t __kind;
 };
@@ -1591,9 +1591,9 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                                for (_Size __u = __t + 1 + __lane; __u <= __t1; __u += __lanes)
                                {
                                    if (__carry[__u].__kind == 1 && __has)
-                                       __acc = std::invoke(__op, __acc, __carry[__u].__in);
+                                       __acc = std::invoke(__op, __acc, __carry[__u].__acc_in);
                                    if (__carry[__u].__kind == 1 && !__has)
-                                       __acc = __carry[__u].__in;
+                                       __acc = __carry[__u].__acc_in;
                                    __has = __has || __carry[__u].__kind == 1;
                                }
                                // A tree within the sub-group, whatever lanes hold a partial result
@@ -1611,7 +1611,7 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                                }
                                if (__lane == 0)
                                {
-                                   _Acc __total = __carry[__t].__out;
+                                   _Acc __total = __carry[__t].__acc_out;
                                    if (__has)
                                        __total = std::invoke(__op, __total, __acc);
                                    if (__t1 > __t && __carry[__t1].__kind == 2)
@@ -1638,11 +1638,11 @@ struct __segmented_reduce_tile_submitter<_Acc, __internal::__optional_kernel_nam
                        return;
                    const _Size __e = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
                    const _Size __t1 = std::min<_Size>((__e - 1) / __tile, __num_tiles - 1);
-                   _Acc __acc = __carry[__t].__out;
+                   _Acc __acc = __carry[__t].__acc_out;
                    for (_Size __u = __t + 1; __u <= __t1; ++__u)
                    {
                        if (__carry[__u].__kind == 1)
-                           __acc = std::invoke(__op, __acc, __carry[__u].__in);
+                           __acc = std::invoke(__op, __acc, __carry[__u].__acc_in);
                        else if (__carry[__u].__kind == 2)
                            __acc = std::invoke(__op, __acc, __input[__u * __tile]);
                    }
