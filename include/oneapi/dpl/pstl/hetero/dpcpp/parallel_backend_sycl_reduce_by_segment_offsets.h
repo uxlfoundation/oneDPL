@@ -370,7 +370,9 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, _Size __first, const _Siz
 // end is its tail. A second kernel combines the tail of a piece with the heads of the following pieces its segment
 // covers. With segments at least as long as a piece, a piece holds at most two of them.
 inline constexpr std::size_t __segmented_reduce_gpu_flat_lanes = 32;
+// The pieces have this many elements up to this input size, and four times as many above it, as measured
 inline constexpr std::size_t __segmented_reduce_gpu_flat_piece = 512;
+inline constexpr std::size_t __segmented_reduce_gpu_flat_small_input = std::size_t(1) << 20;
 
 // The index of the last of the __m segments that begins at or before __v, or -1
 template <typename _Size, typename _OffsetRange>
@@ -416,7 +418,9 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                const _Size __m, _InitType __init, _BinaryOperation __binary_op) const
     {
         constexpr std::size_t __lanes = __segmented_reduce_gpu_flat_lanes;
-        constexpr std::size_t __piece = __segmented_reduce_gpu_flat_piece;
+        const std::size_t __piece = std::size_t(__n) <= __segmented_reduce_gpu_flat_small_input
+                                        ? __segmented_reduce_gpu_flat_piece
+                                        : 4 * __segmented_reduce_gpu_flat_piece;
         constexpr std::size_t __work_group_size = 256;
         constexpr std::size_t __sub_groups = __work_group_size / __lanes;
         const std::size_t __num_pieces = (std::size_t(__n) + __piece - 1) / __piece;
