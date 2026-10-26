@@ -1111,7 +1111,7 @@ struct __segmented_reduce_long_group_submitter<_Acc, __internal::__optional_kern
 
     template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size, typename _InitType,
               typename _BinaryOperation>
-    sycl::event
+    void
     operator()(sycl::queue& __q, _InRange&& __input, _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n,
                const _Size __m, const std::uint16_t __work_group_size, const _Size __max_length,
                const std::uint8_t __tile_log, _InitType __init, _BinaryOperation __binary_op) const
@@ -1159,7 +1159,7 @@ struct __segmented_reduce_long_group_submitter<_Acc, __internal::__optional_kern
 
         const std::size_t __num_tile_groups =
             std::min<std::size_t>(__num_tiles, std::size_t(std::numeric_limits<int>::max()) / __work_group_size);
-        return __q.submit([&](sycl::handler& __cgh) {
+        sycl::event __tile_event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
             auto __maps_acc = __get_accessor(sycl::read_only, __maps, __cgh);
             auto __counts_acc = __get_accessor(sycl::read_write, __counts, __cgh);
@@ -1189,6 +1189,8 @@ struct __segmented_reduce_long_group_submitter<_Acc, __internal::__optional_kern
                                                                                           __init,
                                                                                           __op});
         });
+        // Waited here, as the temporary data above is released on return
+        __tile_event.wait_and_throw();
     }
 };
 
@@ -1276,7 +1278,7 @@ struct __segmented_reduce_sub_group_submitter<_Acc, __internal::__optional_kerne
 
     template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size, typename _InitType,
               typename _BinaryOperation>
-    sycl::event
+    void
     operator()(sycl::queue& __q, _InRange&& __input, _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n,
                const _Size __m, const std::size_t __work_group_size, const std::uint16_t __tile_work_group_size,
                const std::uint8_t __tile_log, _InitType __init, _BinaryOperation __binary_op) const
@@ -1326,7 +1328,7 @@ struct __segmented_reduce_sub_group_submitter<_Acc, __internal::__optional_kerne
         const std::size_t __local_mem_size = _ReducePattern{__op}.local_mem_req(__tile_work_group_size);
         const std::size_t __num_tile_groups =
             std::min<std::size_t>(__num_tiles, std::size_t(std::numeric_limits<int>::max()) / __tile_work_group_size);
-        return __q.submit([&](sycl::handler& __cgh) {
+        sycl::event __tile_event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
             auto __maps_acc = __get_accessor(sycl::read_only, __maps, __cgh);
             auto __counts_acc = __get_accessor(sycl::read_write, __counts, __cgh);
@@ -1356,6 +1358,8 @@ struct __segmented_reduce_sub_group_submitter<_Acc, __internal::__optional_kerne
                                                                                           __init,
                                                                                           __op});
         });
+        // Waited here, as the temporary data above is released on return
+        __tile_event.wait_and_throw();
     }
 };
 
@@ -1917,15 +1921,15 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         // As for the medium inputs above
         const std::size_t __work_group_size = std::min<std::size_t>(
             oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, std::size_t(sizeof(_Acc) * 2)), 256);
-        sycl::event __event;
         if (__n <= _Size(__segmented_reduce_gpu_large_group_max_length))
         {
             using _GroupKernel = __internal::__kernel_name_provider<
                 __segmented_reduce_group_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
 
-            __event = __segmented_reduce_group_submitter<_Acc, _GroupKernel>()(
-                __q, __input, __offsets, __result, __n, __m, static_cast<std::uint16_t>(__work_group_size), __init,
-                __binary_op);
+            __segmented_reduce_group_submitter<_Acc, _GroupKernel>()(__q, __input, __offsets, __result, __n, __m,
+                                                                     static_cast<std::uint16_t>(__work_group_size),
+                                                                     __init, __binary_op)
+                .wait_and_throw();
         }
         else
         {
@@ -1945,11 +1949,10 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             while ((std::size_t{1} << __tile_log) < __tile)
                 ++__tile_log;
 
-            __event = __segmented_reduce_long_group_submitter<_Acc, _LongGroupKernel, _LongTileKernel>()(
+            __segmented_reduce_long_group_submitter<_Acc, _LongGroupKernel, _LongTileKernel>()(
                 __q, __input, __offsets, __result, __n, __m, static_cast<std::uint16_t>(__work_group_size),
                 _Size(__segmented_reduce_gpu_large_group_max_length), __tile_log, __init, __binary_op);
         }
-        __event.wait_and_throw();
 
         return;
     }
@@ -1980,11 +1983,10 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             while ((std::size_t{1} << __tile_log) < __segmented_reduce_gpu_sub_group_max_length)
                 ++__tile_log;
 
-            sycl::event __event = __segmented_reduce_sub_group_submitter<_Acc, _SubGroupKernel, _TileKernel>()(
+            __segmented_reduce_sub_group_submitter<_Acc, _SubGroupKernel, _TileKernel>()(
                 __q, __input, __offsets, __result, __n, __m,
                 oneapi::dpl::__internal::__max_work_group_size(__q, std::size_t(256)),
                 static_cast<std::uint16_t>(__tile_work_group_size), __tile_log, __init, __binary_op);
-            __event.wait_and_throw();
 
             return;
         }
