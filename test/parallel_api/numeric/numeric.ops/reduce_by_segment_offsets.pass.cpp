@@ -121,8 +121,8 @@ make_offsets(segments kind, std::int64_t n, std::mt19937& gen)
     return offsets;
 }
 
-// Passed in place of the operation, selects the overload without the operation, which is std::plus<> then, as for
-// std::reduce
+// A test tag, not an operation: given in place of the operation, test_reduce_by_segment_offsets calls the overload
+// without the operation, and its reference uses std::plus<>, the default operation
 struct default_op
 {
 };
