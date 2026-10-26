@@ -208,7 +208,7 @@ struct __write_partitioned
 
     template <typename _OutRefType>
     static oneapi::dpl::__internal::__repacked_tuple_t<_OutRefType>
-    __repacked_tuple_type(_OutRefType&& __maybe_tuple)
+    __repacked(_OutRefType&& __maybe_tuple)
     {
         // __repacked_tuple_t is required to resolve conversion issues when assigning from our internal tuple
         // to std::tuple. If the underlying type is not a tuple, then the type will just be passed through.
@@ -223,9 +223,9 @@ struct __write_partitioned
         const auto& [__mask_prefix, __mask, __value] = __v;
         auto& [__out1_rng, __out2_rng] = __out_rng; // unpack the tuple of outputs
         if (__mask)
-            __repacked_tuple_type(__out1_rng[__mask_prefix - 1]) = __value;
+            __repacked(__out1_rng[__mask_prefix - 1]) = __value;
         else
-            __repacked_tuple_type(__out2_rng[__id - __mask_prefix]) = __value;
+            __repacked(__out2_rng[__id - __mask_prefix]) = __value;
     }
 
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
@@ -247,9 +247,9 @@ struct __write_partitioned
             if (__target_idx_in_bound)
             {
                 if (__mask)
-                    __repacked_tuple_type(__out1_rng[__out1_idx]) = __value;
+                    __repacked(__out1_rng[__out1_idx]) = __value;
                 else
-                    __repacked_tuple_type(__out2_rng[__out2_idx]) = __value;
+                    __repacked(__out2_rng[__out2_idx]) = __value;
             }
             // If out-of-bound conditions detected, report stop positions in the input and the 1st output
             if (__oob_reached)
