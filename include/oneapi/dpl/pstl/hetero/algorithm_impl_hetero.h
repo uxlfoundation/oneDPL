@@ -1009,6 +1009,7 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             auto __copy_last =
                 __pattern_copy_if(__tag, __policy, __first, __last, __copy_first, __not_pred<_Predicate>{__pred});
 
+            //TODO: To optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
             return __pattern_hetero_walk2<decltype(__wait_mode), __par_backend_hetero::access_mode::write,
                                           /*_IsOutNoInitRequested=*/true>(
                 __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__policy), __copy_first,
@@ -1030,6 +1031,7 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
         __exec, __last - __first, [&](auto&& __policy, auto __copy_first, auto __wait_mode) {
             auto __copy_last = __pattern_unique_copy(__tag, __policy, __first, __last, __copy_first, __pred);
 
+            //TODO: optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
             return __pattern_hetero_walk2<decltype(__wait_mode), __par_backend_hetero::access_mode::write,
                                           /*_IsOutNoInitRequested=*/true>(
                 __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__policy), __copy_first,
@@ -1232,6 +1234,7 @@ __pattern_inplace_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __ex
         __exec, __n, [&](auto&& __policy, auto __copy_first, auto __wait_mode) {
             __pattern_merge(__tag, __policy, __first, __middle, __middle, __last, __copy_first, __comp);
 
+            //TODO: optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
             __pattern_hetero_walk2<decltype(__wait_mode), __par_backend_hetero::access_mode::write, true>(
                 __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__policy), __copy_first,
                 __copy_first + __n, __first, __brick_move<__hetero_tag<_BackendTag>>{});

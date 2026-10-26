@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <cstdint> // std::uint8_t
 #include <cassert>
+#include <exception> // std::uncaught_exceptions
 
 #include "sycl_defs.h"
 #include "execution_sycl_defs.h"
@@ -584,60 +585,41 @@ struct __deferrable_mode
 {
 };
 
-// RAII owner of an uninitialized temporary device USM allocation. Evaluates to false when the device
-// does not support device USM allocations, in which case callers fall back to __buffer.
-template <typename _T>
-class __usm_device_temp
+// sycl::free does not wait for in-flight kernels, so drain the queue if destroyed by stack unwinding.
+struct __wait_on_unwind
 {
-    std::unique_ptr<_T, __internal::__sycl_usm_free> __ptr;
+    sycl::queue __q;
+    int __exceptions = std::uncaught_exceptions();
 
-  public:
-    __usm_device_temp(const sycl::queue& __q, std::size_t __n)
-        : __ptr(__internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __n), __internal::__sycl_usm_free{__q})
+    ~__wait_on_unwind()
     {
-    }
-
-    _T*
-    get() const
-    {
-        return __ptr.get();
-    }
-
-    explicit
-    operator bool() const
-    {
-        return __ptr != nullptr;
+        if (std::uncaught_exceptions() > __exceptions)
+            __q.wait();
     }
 };
 
 template <typename _Name>
 struct __temp_buffer_fallback_wrapper;
 
-// empirical: device USM is faster than a sycl::buffer up to this temporary size on BMG and PVC, 2-8 byte types
+// empirical: largest size where device USM did not lose to sycl::buffer on BMG and PVC, 2-8 byte types
 inline constexpr std::size_t __max_usm_temp_bytes = 2 * 1024 * 1024;
 
-// Calls __f(__policy, __temp_first, __wait_mode) with an uninitialized temporary of __n elements, in device USM
-// when small enough, else in a __buffer. The USM is freed on return, so its __wait_mode is __sync_mode.
+// Calls __f(__policy, __temp_first, __wait_mode) with an uninitialized temporary of __n elements. A USM temporary
+// has no accessor ordering and is freed on return, so __f must order its kernels and __wait_mode is __sync_mode.
 template <typename _T, typename _ExecutionPolicy, typename _F>
 auto
 __with_temp_device_range(_ExecutionPolicy&& __exec, std::size_t __n, _F&& __f)
 {
     using _TempType = oneapi::dpl::__internal::__repacked_tuple_t<_T>;
-    if (__n * sizeof(_TempType) <= __max_usm_temp_bytes)
+    if (__n <= __max_usm_temp_bytes / sizeof(_TempType))
     {
-        if (__usm_device_temp<_TempType> __usm{__exec.queue(), __n})
+        std::unique_ptr<_TempType, __internal::__sycl_usm_free> __usm(
+            __internal::__allocate_usm<_TempType, sycl::usm::alloc::device>(__exec.queue(), __n),
+            __internal::__sycl_usm_free{__exec.queue()});
+        if (__usm)
         {
-            // Freeing USM does not wait on submitted work the way releasing a sycl::buffer does, so
-            // an exception must not unwind past the deallocation with kernels still in flight.
-            try
-            {
-                return __f(__exec, __usm.get(), __sync_mode{});
-            }
-            catch (...)
-            {
-                __exec.queue().wait();
-                throw;
-            }
+            __wait_on_unwind __guard{__exec.queue()};
+            return __f(__exec, __usm.get(), __sync_mode{});
         }
     }
 
