@@ -327,8 +327,10 @@ struct __write_scan_by_seg
             static_assert(
                 std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__init_value<typename _InitType::__value_type>>,
                 "exclusive_scan_by_segment must have an initial element");
-            _RepackedTp{__out_rng[__id]} =
-                get<1>(__v) ? __init_value.__value : __binary_op(__init_value.__value, get<1>(get<0>(__v)));
+            if (get<1>(__v))
+                _RepackedTp{__out_rng[__id]} = __init_value.__value;
+            else
+                _RepackedTp{__out_rng[__id]} = __binary_op(__init_value.__value, get<1>(get<0>(__v)));
         }
     }
 };
