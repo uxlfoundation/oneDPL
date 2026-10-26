@@ -241,6 +241,280 @@ struct __segmented_reduce_combine_brick
     }
 };
 
+// Whether a range reaches its elements through a pointer returned by its begin(), as the views of USM memory and of
+// buffers do, so that consecutive elements can be loaded as one vector
+template <typename _Range, typename = void>
+struct __segmented_reduce_pointer_input : std::false_type
+{
+};
+template <typename _Range>
+struct __segmented_reduce_pointer_input<
+    _Range, std::enable_if_t<std::is_pointer_v<decltype(std::declval<const _Range&>().begin())>>> : std::true_type
+{
+};
+
+// Reduces the elements [__first, __last), at least one, by a sub-group: the lanes take the elements in turn, so that the
+// loads of the sub-group are coalesced, and a tree combines the results of the lanes. Both reorder the operands, which
+// the required commutativity of the operation allows. A range that begins its segment starts from the operation on the
+// initial value and its first element. The result is on lane 0. Only for arithmetic types, which a sub-group shifts
+// between its lanes.
+template <typename _Acc, typename _SubGroup, typename _Size, typename _InitType, typename _BinaryOperation,
+          typename _Input>
+_Acc
+__segmented_reduce_by_sub_group(const _SubGroup& __sg, _Size __first, const _Size __last, const bool __is_first,
+                                const _InitType& __init, _BinaryOperation& __binary_op, const _Input& __input)
+{
+    const _Size __lane = __sg.get_local_linear_id();
+    const _Size __lanes = __sg.get_local_linear_range();
+    _Acc __head{};
+    if (__is_first)
+        __head = std::invoke(__binary_op, __init, __input[__first++]);
+
+    // Every lane that takes part gets at least two elements: its accumulator starts from the operation on two of them,
+    // never from an element alone, which may mean something else than the element to the operation
+    _Size __active = std::min<_Size>(__lanes, (__last - __first) / 2);
+    _Acc __acc{};
+    // Where the input is reached through a pointer, every lane loads four consecutive elements at once, from the first
+    // address aligned for such a vector on; the elements before it and after the last whole vector go to lane 0. The
+    // pairs of a vector keep the accumulator from being made from an element alone.
+    bool __by_vectors = false;
+    if constexpr (__segmented_reduce_pointer_input<_Input>::value)
+    {
+        using _T = std::remove_cv_t<std::remove_pointer_t<decltype(__input.begin())>>;
+        if constexpr (std::is_arithmetic_v<_T> && !std::is_same_v<_T, bool> &&
+                      (sizeof(_T) == 1 || sizeof(_T) == 2 || sizeof(_T) == 4 || sizeof(_T) == 8))
+        {
+            const _T* const __base = __input.begin();
+            using _V = sycl::vec<_T, 4>;
+            constexpr std::uintptr_t __vb = sizeof(_V);
+            const std::uintptr_t __mis = reinterpret_cast<std::uintptr_t>(__base + __first) % __vb;
+            const _Size __a = std::min<_Size>(__last, __first + _Size(__mis == 0 ? 0 : (__vb - __mis) / sizeof(_T)));
+            const _Size __nv = (__last - __a) / 4;
+            if (__nv >= 1)
+            {
+                __by_vectors = true;
+                __active = std::min<_Size>(__lanes, __nv);
+                auto __load4 = [&](_Size __k) -> _Acc {
+                    const _V __v = *reinterpret_cast<const _V*>(__base + __a + 4 * __k);
+                    return std::invoke(__binary_op,
+                                       oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                           std::invoke(__binary_op, _T(__v[0]), _T(__v[1]))),
+                                       oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                           std::invoke(__binary_op, _T(__v[2]), _T(__v[3]))));
+                };
+                if (__lane < __active)
+                {
+                    _Size __k = __lane;
+                    __acc = __load4(__k);
+                    // Four vector loads in flight
+                    for (__k += __active; __k + 3 * __active < __nv; __k += 4 * __active)
+                        __acc = std::invoke(
+                            __binary_op, __acc,
+                            std::invoke(__binary_op,
+                                        oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                            std::invoke(__binary_op, __load4(__k), __load4(__k + __active))),
+                                        oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(
+                                            __binary_op, __load4(__k + 2 * __active), __load4(__k + 3 * __active)))));
+                    for (; __k < __nv; __k += __active)
+                        __acc = std::invoke(__binary_op, __acc, __load4(__k));
+                }
+                // The unaligned head and the tail, at most three elements each, to lane 0
+                if (__lane == 0)
+                {
+                    for (_Size __i = __first; __i < __a; ++__i)
+                        __acc = std::invoke(__binary_op, __acc, __input[__i]);
+                    for (_Size __i = __a + 4 * __nv; __i < __last; ++__i)
+                        __acc = std::invoke(__binary_op, __acc, __input[__i]);
+                }
+            }
+        }
+    }
+    if (!__by_vectors && __lane < __active)
+    {
+        _Size __i = __first + __lane;
+        __acc = std::invoke(__binary_op, __input[__i], __input[__i + __active]);
+        // Four loads in flight
+        for (__i += 2 * __active; __i + 3 * __active < __last; __i += 4 * __active)
+            __acc =
+                std::invoke(__binary_op, __acc,
+                            std::invoke(__binary_op,
+                                        oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                            std::invoke(__binary_op, __input[__i], __input[__i + __active])),
+                                        oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(
+                                            __binary_op, __input[__i + 2 * __active], __input[__i + 3 * __active]))));
+        for (; __i < __last; __i += __active)
+            __acc = std::invoke(__binary_op, __acc, __input[__i]);
+    }
+    for (_Size __shift = 1; __shift < __active; __shift *= 2)
+    {
+        const _Acc __other = sycl::shift_group_left(__sg, __acc, __shift);
+        if (__lane % (2 * __shift) == 0 && __lane + __shift < __active)
+            __acc = std::invoke(__binary_op, __acc, __other);
+    }
+    // A range of one element more than the initial value takes it alone
+    if (__is_first)
+        __acc = __active > 0
+                    ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __head, __acc))
+                : __first < __last ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                         std::invoke(__binary_op, __head, __input[__first]))
+                                   : __head;
+    return __acc;
+}
+
+// One work-group reduces one segment, as with __work_group_reduce_kernel of the reduction, whose bricks
+// (unseq_backend::transform_reduce and unseq_backend::reduce_over_group) it uses: the operation is required to be
+// commutative, so the work-items load the segment coalesced. The bricks address the input by the global position of
+// a work-item; the work-group of a segment is presented to them as the only one of the kernel, and its segment as the
+// whole input.
+class __segmented_reduce_group_item
+{
+    sycl::nd_item<1> __item;
+
+  public:
+    explicit __segmented_reduce_group_item(const sycl::nd_item<1>& __nd_item) : __item(__nd_item) {}
+
+    std::size_t
+    get_global_id(int) const
+    {
+        return __item.get_local_id(0);
+    }
+    std::size_t
+    get_local_id(int) const
+    {
+        return __item.get_local_id(0);
+    }
+    std::size_t
+    get_local_range(int) const
+    {
+        return __item.get_local_range(0);
+    }
+    sycl::range<1>
+    get_local_range() const
+    {
+        return __item.get_local_range();
+    }
+    std::size_t
+    get_group(int) const
+    {
+        return 0;
+    }
+    std::size_t
+    get_group_linear_id() const
+    {
+        return 0;
+    }
+    sycl::group<1>
+    get_group() const
+    {
+        return __item.get_group();
+    }
+};
+
+// The elements of a range of at least two elements, taken in pairs by the bricks of the reduction. In the first range
+// of a segment the first pair starts from the operation on the initial value and the first element, as in
+// std::ranges::fold_left; every other pair from the operation on its two elements, as a partial result of std::reduce
+// does, so that the accumulator is never made from an element alone, which may mean something else than the element
+// to the operation. With an odd length the last pair also takes the last element.
+template <typename _Acc, typename _Size, typename _InitType, typename _BinaryOperation>
+struct __segmented_reduce_pairs
+{
+    _Size __begin;           // the first element of the range
+    std::size_t __num_pairs; // the number of pairs
+    bool __is_odd;           // whether the length of the range is odd
+    bool __with_init;        // whether the range begins its segment, so that its first pair takes the initial value
+    _InitType __init;
+    _BinaryOperation __binary_op;
+
+    template <typename _Input>
+    _Acc
+    operator()(const std::size_t __idx, const _Input& __input) const
+    {
+        const _Size __first = __begin + 2 * _Size(__idx);
+        const bool __head = __with_init && __idx == 0;
+        _Acc __acc = __head ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                  std::invoke(__binary_op, __init, __input[__first]))
+                            : oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                  std::invoke(__binary_op, __input[__first], __input[__first + 1]));
+        if (__head)
+            __acc = std::invoke(__binary_op, std::move(__acc), __input[__first + 1]);
+        if (__is_odd && __idx + 1 == __num_pairs)
+            __acc = std::invoke(__binary_op, std::move(__acc), __input[__first + 2]);
+        return __acc;
+    }
+};
+
+// The operation for the bricks of the reduction within a work-group, which invoke it as a const object. An operation
+// that the reduction recognizes by its type to use the group algorithm, whose call operator is const, is kept as it is,
+// since it would not be recognized once wrapped; another one, whose call operator may be non-const, is invoked
+// through a mutable copy.
+template <typename _Acc, typename _BinaryOperation>
+auto
+__segmented_reduce_group_op(_BinaryOperation __binary_op)
+{
+    if constexpr (unseq_backend::__can_use_group_reduce_scan<_BinaryOperation, _Acc>::value)
+        return __binary_op;
+    else
+        return oneapi::dpl::__internal::__binary_op<_BinaryOperation, oneapi::dpl::identity, oneapi::dpl::identity>{
+            std::move(__binary_op), {}, {}};
+}
+
+// Reduces the range [__begin, __begin + __length) by the work-group of __nd_item, as __work_group_reduce_kernel of the
+// reduction does with its bricks, and passes the result to __write on work-item 0. A range shorter than two elements
+// begins its segment: it gets the initial value converted to the accumulator type, or the operation on it and its
+// element.
+template <typename _Acc, std::uint8_t __vector_size, typename _Op, typename _Size, typename _InitType, typename _Input,
+          typename _LocalMem, typename _Write>
+void
+__segmented_reduce_by_work_group(const sycl::nd_item<1>& __nd_item, const _Op& __op, const _Size __begin,
+                                 const _Size __length, const bool __with_init, const _InitType& __init,
+                                 const _Input& __input, const _LocalMem& __local_mem, _Write __write)
+{
+    using _Pairs = __segmented_reduce_pairs<_Acc, _Size, _InitType, _Op>;
+    using _TransformPattern =
+        unseq_backend::transform_reduce<_Op, _Pairs, _Acc, /*_Commutative=*/std::true_type, __vector_size>;
+    using _ReducePattern = unseq_backend::reduce_over_group<_Op, _Acc>;
+
+    const std::size_t __local_idx = __nd_item.get_local_id(0);
+    // The same for every work-item of the work-group, so none of them reaches a barrier below
+    if (__length < 2)
+    {
+        if (__local_idx == 0)
+            __write(__length == 0 ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init)
+                                  : oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                        std::invoke(__op, __init, __input[__begin])));
+        return;
+    }
+
+    // The bricks of the reduction take unsigned sizes
+    const std::size_t __work_group_size = __nd_item.get_local_range(0);
+    const std::size_t __num_pairs = __length / 2;
+    const __segmented_reduce_group_item __item(__nd_item);
+    const _TransformPattern __transform_pattern{
+        __op, _Pairs{__begin, __num_pairs, __length % 2 != 0, __with_init, __init, __op}};
+    const _ReducePattern __reduce_pattern{__op};
+
+    // The iterations of a work-item as in __parallel_transform_reduce
+    const std::size_t __iters_per_work_item = __adjust_iters_per_work_item<__vector_size>(
+        oneapi::dpl::__internal::__dpl_ceiling_div(__num_pairs, __work_group_size));
+    const bool __is_full = __num_pairs == __work_group_size * __iters_per_work_item;
+
+    // 1. The partial results of the work-items
+    oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __partial;
+    __transform_pattern(__item, __num_pairs, __iters_per_work_item, /*__global_offset*/ std::size_t{0}, __is_full,
+                        /*__n_groups*/ std::size_t{1}, __partial, __input);
+    const std::size_t __n_items =
+        __transform_pattern.output_size(__num_pairs, __work_group_size, __iters_per_work_item);
+
+    // 2. Their reduction within the work-group
+    _Acc __reduced = __reduce_pattern(__item, __n_items, __partial, __local_mem);
+    if (__local_idx < __n_items)
+    {
+        if (__local_idx == 0)
+            __write(std::move(__reduced));
+        __partial.__destroy();
+    }
+}
+
 template <typename _Name>
 class __segmented_reduce_length_wrapper;
 template <typename _Name>
