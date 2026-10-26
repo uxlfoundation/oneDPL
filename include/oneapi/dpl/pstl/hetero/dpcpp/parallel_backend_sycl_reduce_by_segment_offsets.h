@@ -515,6 +515,121 @@ __segmented_reduce_by_work_group(const sycl::nd_item<1>& __nd_item, const _Op& _
     }
 }
 
+// On GPUs one kernel for arithmetic types: every work-group takes as many consecutive segments as it has sub-groups,
+// every sub-group one of them. A segment of at most this length is reduced by its sub-group, so that several short
+// segments share a work-group; a longer one is then reduced by the whole work-group, one after another.
+inline constexpr std::size_t __segmented_reduce_gpu_packed_group_length = 4096;
+
+template <typename _Acc, std::uint8_t __vector_size, typename _Size, typename _InitType, typename _Op,
+          typename _BinaryOperation, typename _InRange, typename _OffsetRange, typename _OutRange, typename _LocalMem>
+struct __segmented_reduce_packed_functor
+{
+    _InRange __input;
+    _OffsetRange __offsets;
+    _OutRange __result;
+    _LocalMem __local_mem;
+    _Size __n;
+    _Size __m;
+    std::size_t __num_groups; // the number of the work-groups, each taking every __num_groups-th set of segments
+    _InitType __init;
+    _Op __op;
+    _BinaryOperation __binary_op;
+
+    void
+    operator()(sycl::nd_item<1> __nd_item) const
+    {
+        _BinaryOperation __bop = __binary_op;
+        const __dpl_sycl::__sub_group __sg = __nd_item.get_sub_group();
+        const std::size_t __lane = __sg.get_local_linear_id();
+        const std::size_t __per_group = __sg.get_group_linear_range();
+        const _Size __group_length = _Size(__segmented_reduce_gpu_packed_group_length);
+        bool __first_long = true;
+        for (std::size_t __set = __nd_item.get_group(0) * __per_group; __set < std::size_t(__m);
+             __set += __num_groups * __per_group)
+        {
+            // The segment of the sub-group, if short
+            const std::size_t __s = __set + __sg.get_group_linear_id();
+            if (__s < std::size_t(__m))
+            {
+                const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s], __n);
+                const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
+                const _Size __length = __begin < __end ? __end - __begin : _Size{0};
+                if (__length == 0 && __lane == 0)
+                    __result[__s] = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init);
+                if (__length > 0 && __length <= __group_length)
+                {
+                    _Acc __acc = __segmented_reduce_by_sub_group<_Acc>(__sg, __begin, __end, /*__is_first=*/true,
+                                                                       __init, __bop, __input);
+                    if (__lane == 0)
+                        __result[__s] = std::move(__acc);
+                }
+            }
+            // The long segments of the set by the whole work-group; the same for every work-item
+            const std::size_t __set_end = std::min<std::size_t>(__set + __per_group, std::size_t(__m));
+            for (std::size_t __l = __set; __l < __set_end; ++__l)
+            {
+                const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__l], __n);
+                const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__l + 1], __n);
+                if (__end - __begin <= __group_length)
+                    continue;
+                // The local memory is no longer read for the previous long segment
+                if (!__first_long)
+                    sycl::group_barrier(__nd_item.get_group());
+                __first_long = false;
+                __segmented_reduce_by_work_group<_Acc, __vector_size>(
+                    __nd_item, __op, __begin, __end - __begin, /*__with_init=*/true, __init, __input, __local_mem,
+                    [&](_Acc&& __reduced) { __result[__l] = std::move(__reduced); });
+            }
+        }
+    }
+};
+
+template <typename... _Name>
+class __segmented_reduce_packed_kernel;
+
+template <typename _Acc, typename _KernelName>
+struct __segmented_reduce_packed_submitter;
+
+template <typename _Acc, typename... _Name>
+struct __segmented_reduce_packed_submitter<_Acc, __internal::__optional_kernel_name<_Name...>>
+{
+    // As in __parallel_transform_reduce
+    static constexpr std::uint8_t __vector_size = 4;
+
+    template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size, typename _InitType,
+              typename _BinaryOperation>
+    void
+    operator()(sycl::queue& __q, _InRange&& __input, _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n,
+               const _Size __m, const std::uint16_t __work_group_size, _InitType __init,
+               _BinaryOperation __binary_op) const
+    {
+        auto __op = __segmented_reduce_group_op<_Acc>(__binary_op);
+        using _Op = decltype(__op);
+        using _ReducePattern = unseq_backend::reduce_over_group<_Op, _Acc>;
+        using _LocalMem = __dpl_sycl::__local_accessor<_Acc>;
+
+        const std::size_t __local_mem_size = _ReducePattern{__op}.local_mem_req(__work_group_size);
+        // As many sets of segments as the sub-groups of the size the paths by sub-groups are sized for need; a launch
+        // that would not fit the int range of the work-item indices has fewer work-groups
+        const std::size_t __per_group = std::max<std::size_t>(1, __work_group_size / 32);
+        const std::size_t __num_groups =
+            std::min<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(std::size_t(__m), __per_group),
+                                  std::size_t(std::numeric_limits<int>::max()) / __work_group_size);
+        __q.submit([&](sycl::handler& __cgh) {
+               oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
+               _LocalMem __local_mem(sycl::range<1>(__local_mem_size), __cgh);
+               __cgh.parallel_for<_Name...>(
+                   sycl::nd_range<1>(sycl::range<1>(__num_groups * __work_group_size),
+                                     sycl::range<1>(__work_group_size)),
+                   __segmented_reduce_packed_functor<_Acc, __vector_size, _Size, _InitType, _Op, _BinaryOperation,
+                                                     std::decay_t<_InRange>, std::decay_t<_OffsetRange>,
+                                                     std::decay_t<_OutRange>, _LocalMem>{
+                       __input, __offsets, __result, __local_mem, __n, __m, __num_groups, __init, __op, __binary_op});
+           })
+            .wait_and_throw();
+    }
+};
+
 template <typename _Name>
 class __segmented_reduce_length_wrapper;
 template <typename _Name>
@@ -549,6 +664,28 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
 {
     const bool __is_gpu = __exec.queue().get_device().is_gpu();
     const _Size __threshold = __is_gpu ? __segmented_reduce_gpu_threshold : __segmented_reduce_cpu_threshold;
+
+    // On GPUs arithmetic types in one kernel: the short segments by sub-groups, several in a work-group, the long ones
+    // by a work-group each
+    if constexpr (std::is_arithmetic_v<_Acc> &&
+                  std::is_arithmetic_v<oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>>)
+    {
+        if (__is_gpu)
+        {
+            using _PackedKernel = __internal::__kernel_name_provider<
+                __segmented_reduce_packed_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+
+            sycl::queue __q = __exec.queue();
+            // The work-group size as in __parallel_transform_reduce: adjusted to the local memory limit, which is
+            // doubled to take into account the memory used by the compiled kernel, and at most 256
+            const std::size_t __work_group_size = std::min<std::size_t>(
+                oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q, std::size_t(sizeof(_Acc) * 2)), 256);
+            __segmented_reduce_packed_submitter<_Acc, _PackedKernel>()(__q, __input, __offsets, __result, __n, __m,
+                                                                       static_cast<std::uint16_t>(__work_group_size),
+                                                                       __init, __binary_op);
+            return;
+        }
+    }
 
     // Reduces the segments longer than __min_length in chunks; __max_segments bounds the number of such segments
     auto __reduce_in_chunks = [&](_Size __min_length, bool __write_empty, _Size __max_length, _Size __max_segments) {
