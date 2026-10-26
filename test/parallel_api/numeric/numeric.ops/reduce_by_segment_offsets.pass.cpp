@@ -154,6 +154,38 @@ struct test_reduce_by_segment_offsets
     }
 };
 
+// The overload without the operation, which is std::plus<> then, as for std::reduce: the result against the reference
+struct test_reduce_by_segment_offsets_default_op
+{
+    template <typename Policy, typename InputIt, typename... Args>
+    std::enable_if_t<!is_base_of_iterator_category_v<std::random_access_iterator_tag, InputIt>>
+    operator()(Policy&&, InputIt, Args&&...)
+    {
+    }
+
+    template <typename Policy, typename InputIt, typename OutputIt, typename OffsetIt, typename SegmentNum,
+              typename Init, typename Out>
+    std::enable_if_t<is_base_of_iterator_category_v<std::random_access_iterator_tag, InputIt>>
+    operator()(Policy&& exec, InputIt first, InputIt last, OutputIt out_first, OutputIt out_last, OffsetIt offsets,
+               SegmentNum num_segments, Init init, Out trash)
+    {
+        using T = typename std::iterator_traits<InputIt>::value_type;
+
+        const std::vector<T> input(first, last);
+        std::vector<typename std::iterator_traits<OffsetIt>::value_type> offsets_copy;
+        if (num_segments > 0)
+            std::copy_n(offsets, num_segments + 1, std::back_inserter(offsets_copy));
+        std::vector<Out> expected(std::distance(out_first, out_last), trash);
+        reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets_copy.begin(), num_segments, init,
+                                         std::plus<>{}, expected.begin());
+        oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments, offsets, init);
+        EXPECT_EQ_N(expected.begin(), out_first, expected.size(),
+                    "wrong result from reduce_by_segment with offsets and the default operation");
+
+        std::fill(out_first, out_last, trash);
+    }
+};
+
 // Offsets which are not sorted give negatively sized segments: the results are unspecified, but the input
 // must not be accessed out of its bounds
 struct test_unordered_offsets
@@ -386,6 +418,20 @@ test_rfc_example()
     Sequence<int> out(expected.size(), [](std::size_t) { return -1; });
     invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                          out.end(), offsets.begin(), 4, 0, std::plus<int>{}, -1);
+}
+
+// The overload with the default operation only calls the overload with std::plus<>, so its call is checked with the
+// example of the RFC and every policy
+template <std::size_t CallNumber>
+void
+test_default_op()
+{
+    const std::vector<int> input{10, 20, 5, 7, 4};
+    const std::vector<int> offsets{0, 2, 2, 4, 5};
+    Sequence<int> in(input.size(), [&input](std::size_t i) { return input[i]; });
+    Sequence<int> out(offsets.size() - 1, [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets_default_op(), in.begin(), in.end(),
+                                         out.begin(), out.end(), offsets.begin(), 4, 1, -1);
 }
 
 // Segments of the lengths at the boundaries of the implementations: the longest short segment and the shortest long one
@@ -706,6 +752,7 @@ main()
     test_rfc_example<40>();
     test_boundaries<41>();
     test_input_bounds<42>();
+    test_default_op<60>();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT

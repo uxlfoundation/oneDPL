@@ -37,6 +37,12 @@ static_assert(std::is_same_v<pint,
 static_assert(std::is_same_v<void,
     decltype(oneapi::dpl::reduce_by_segment(oneapi::dpl::execution::par, pint{}, pint{}, pdouble{}, int{}, pint{},
                                             double{}, std::plus<>{}))>);
+static_assert(std::is_same_v<void,
+    decltype(oneapi::dpl::reduce_by_segment(oneapi::dpl::execution::par, pint{}, pint{}, pdouble{}, int{}, pint{},
+                                            double{}))>);
+static_assert(std::is_same_v<std::pair<pint, pdouble>,
+    decltype(oneapi::dpl::reduce_by_segment(oneapi::dpl::execution::par, pint{}, pint{}, pfloat{}, pint{}, pdouble{},
+                                            std::equal_to<>{}))>);
 
 #include "support/utils.h"
 
