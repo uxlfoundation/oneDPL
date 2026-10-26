@@ -613,8 +613,8 @@ class __usm_device_temp
 template <typename _Name>
 struct __temp_buffer_fallback_wrapper;
 
-// empirical: device USM is faster than a sycl::buffer up to this temporary size on BMG and PVC, 4-byte types
-inline constexpr std::size_t __max_usm_temp_bytes = 4 * 1024 * 1024;
+// empirical: device USM is faster than a sycl::buffer up to this temporary size on BMG and PVC, 2-8 byte types
+inline constexpr std::size_t __max_usm_temp_bytes = 2 * 1024 * 1024;
 
 // Calls __f(__policy, __temp_first, __wait_mode) with an uninitialized temporary of __n elements, in device USM
 // when small enough, else in a __buffer. The USM is freed on return, so its __wait_mode is __sync_mode.
