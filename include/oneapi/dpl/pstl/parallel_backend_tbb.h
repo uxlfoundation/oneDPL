@@ -717,6 +717,16 @@ class __root_task : public __task
 };
 #endif // TBB_INTERFACE_VERSION <= 12000
 
+// Empty continuation joining the two halves of a split merge.
+struct __empty_func
+{
+    __task*
+    operator()(__task*) const
+    {
+        return nullptr;
+    }
+};
+
 inline constexpr std::size_t __merge_cut_off = 2000;
 
 template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _Compare, typename _Cleanup,
@@ -939,7 +949,7 @@ class __merge_func
             _M_leaf_merge(_M_x_beg + _M_xs, _M_x_beg + _M_xe, _M_x_beg + _M_ys, _M_x_beg + _M_ye, _M_z_beg + _M_zs,
                           _M_comp, __move_value_construct(), __move_value_construct(), __move_range_construct(),
                           __move_range_construct());
-            assert(parent_merge(__self)); //not root merging task
+            assert(!_root); //not root merging task
         }
         //merge to "origin"
         else
@@ -1042,9 +1052,11 @@ class __merge_func
         __merge_func __right_func(__xm, _M_xe, __ym, _M_ye, __zm, _M_comp, _Cleanup(), _M_leaf_merge, _M_nsort,
                                   _M_x_beg, _M_z_beg, _x_orig, _y_orig, _root);
         __right_func._split = true;
-        auto __merge_task = __self->make_additional_child_of(__self->parent(), ::std::move(__right_func));
+        auto __join = __self->make_continuation(__empty_func{});
+        __join->set_ref_count(2);
+        auto __merge_task = __self->make_child_of(__join, ::std::move(__right_func));
         __self->spawn(__merge_task);
-        __self->recycle_as_continuation();
+        __self->recycle_as_child_of(__join);
 
         _M_xe = __xm;
         _M_ye = __ym;
@@ -1245,10 +1257,12 @@ operator()(__task* __self)
         __ym = ::std::lower_bound(_M_ys, _M_ye, *__xm, _M_comp);
     }
     const _RandomAccessIterator3 __zm = _M_zs + ((__xm - _M_xs) + (__ym - _M_ys));
-    auto __right = __self->make_additional_child_of(
-        __self->parent(), __merge_func_static(__xm, _M_xe, __ym, _M_ye, __zm, _M_comp, _M_leaf_merge));
+    auto __join = __self->make_continuation(__empty_func{});
+    __join->set_ref_count(2);
+    auto __right =
+        __self->make_child_of(__join, __merge_func_static(__xm, _M_xe, __ym, _M_ye, __zm, _M_comp, _M_leaf_merge));
     __self->spawn(__right);
-    __self->recycle_as_continuation();
+    __self->recycle_as_child_of(__join);
     _M_xe = __xm;
     _M_ye = __ym;
 
