@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <memory>
 #include <type_traits>
 #include <utility>
 
@@ -307,15 +308,26 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                   std::size_t(std::numeric_limits<int>::max()) / __work_group_size);
         const std::size_t __num_sub_groups = __num_groups * __sub_groups;
 
-        auto __heads = __buffer<_Acc>(__num_pieces).get_buffer();
-        auto __tails = __buffer<_Acc>(__num_pieces).get_buffer();
-        auto __tail_segments = __buffer<_Size>(__num_pieces).get_buffer();
+        // In USM device memory, released when the call returns, after the wait below
+        struct __usm_free
+        {
+            sycl::queue __q;
+            void
+            operator()(void* __ptr) const
+            {
+                sycl::free(__ptr, __q);
+            }
+        };
+        std::unique_ptr<_Acc, __usm_free> __heads(sycl::malloc_device<_Acc>(__num_pieces, __q), __usm_free{__q});
+        std::unique_ptr<_Acc, __usm_free> __tails(sycl::malloc_device<_Acc>(__num_pieces, __q), __usm_free{__q});
+        std::unique_ptr<_Size, __usm_free> __tail_segments(sycl::malloc_device<_Size>(__num_pieces, __q),
+                                                           __usm_free{__q});
+        _Acc* const __head_acc = __heads.get();
+        _Acc* const __tail_acc = __tails.get();
+        _Size* const __tail_segment_acc = __tail_segments.get();
 
         sycl::event __pieces_event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
-            sycl::accessor __head_acc(__heads, __cgh, sycl::write_only, sycl::no_init);
-            sycl::accessor __tail_acc(__tails, __cgh, sycl::write_only, sycl::no_init);
-            sycl::accessor __tail_segment_acc(__tail_segments, __cgh, sycl::write_only, sycl::no_init);
             __cgh.parallel_for<_Name...>(
                 sycl::nd_range<1>(sycl::range<1>(__num_groups * __work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
@@ -352,6 +364,11 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         if (__lane_begin < __lane_end)
                         {
                             _Size __s = __segmented_reduce_flat_last_begin(__offsets, __m, __n, __lane_begin);
+                            // The end of the segment of the walk and the beginning of the next one, read once per
+                            // segment rather than once per element
+                            const _Size __none = __n + 1;
+                            _Size __cur_end = __s >= 0 ? __end_of(__s) : _Size{-1};
+                            _Size __next_begin = __s + 1 < __m ? __begin_of(__s + 1) : __none;
                             _Size __run = -1;
                             _Acc __acc{};
                             bool __starts = false, __first_run = true;
@@ -374,9 +391,13 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                             };
                             for (_Size __i = __lane_begin; __i < __lane_end; ++__i)
                             {
-                                while (__s + 1 < __m && __begin_of(__s + 1) <= __i)
+                                while (__next_begin <= __i)
+                                {
                                     ++__s;
-                                const bool __in = __s >= 0 && __i < __end_of(__s);
+                                    __cur_end = __end_of(__s);
+                                    __next_begin = __s + 1 < __m ? __begin_of(__s + 1) : __none;
+                                }
+                                const bool __in = __s >= 0 && __i < __cur_end;
                                 if (__in && __s == __run)
                                 {
                                     __acc = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
@@ -457,9 +478,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // The tail of every piece with the heads of the following pieces its segment covers, a sub-group per piece
         __q.submit([&](sycl::handler& __cgh) {
                oneapi::dpl::__ranges::__require_access(__cgh, __offsets, __result);
-               sycl::accessor __head_acc(__heads, __cgh, sycl::read_only);
-               sycl::accessor __tail_acc(__tails, __cgh, sycl::read_only);
-               sycl::accessor __tail_segment_acc(__tail_segments, __cgh, sycl::read_only);
                __cgh.depends_on(__pieces_event);
                __cgh.parallel_for<_TailName...>(
                    sycl::nd_range<1>(sycl::range<1>(__num_groups * __work_group_size),
