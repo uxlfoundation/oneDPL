@@ -1043,19 +1043,55 @@ struct __segmented_reduce_long_tile_functor : __segmented_reduce_small_grf_kerne
     }
 };
 
-// The index of the last of the __m segments that begins at or before __v, or -1
+// The index of the last of the __m segments that begins at or before __v, or -1, searched from the segment __guess:
+// steps doubling from it up or down bracket the first segment that begins after __v, and a binary search finds it in
+// the bracket, so that a guess close to the answer takes a few reads of the offsets instead of log2(__m)
 template <typename _Size, typename _OffsetRange>
 _Size
-__segmented_reduce_last_begin(const _OffsetRange& __offsets, const _Size __m, const _Size __n, const _Size __v)
+__segmented_reduce_last_begin(const _OffsetRange& __offsets, const _Size __m, const _Size __n, const _Size __v,
+                              _Size __guess)
 {
+    auto __begins_after = [&](_Size __i) {
+        return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__i], __n) > __v;
+    };
+    __guess = std::min<_Size>(std::max<_Size>(__guess, _Size{0}), __m - 1);
+    // The first segment that begins after __v is in [__lo, __hi]: every one before __lo begins at or before it
     _Size __lo = 0, __hi = __m;
+    if (__begins_after(__guess))
+    {
+        __hi = __guess;
+        for (_Size __step = 1; __hi > 0; __step *= 2)
+        {
+            const _Size __below = std::max<_Size>(_Size{0}, __guess - __step);
+            if (!__begins_after(__below))
+            {
+                __lo = __below + 1;
+                break;
+            }
+            __hi = __below;
+        }
+    }
+    else
+    {
+        __lo = __guess + 1;
+        for (_Size __step = 1; __lo < __m; __step *= 2)
+        {
+            const _Size __above = std::min<_Size>(__m, __guess + __step);
+            if (__above == __m || __begins_after(__above))
+            {
+                __hi = __above;
+                break;
+            }
+            __lo = __above + 1;
+        }
+    }
     while (__lo < __hi)
     {
         const _Size __mid = __lo + (__hi - __lo) / 2;
-        if (oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__mid], __n) <= __v)
-            __lo = __mid + 1;
-        else
+        if (__begins_after(__mid))
             __hi = __mid;
+        else
+            __lo = __mid + 1;
     }
     return __lo - 1;
 }
@@ -1118,10 +1154,13 @@ struct __segmented_reduce_long_group_functor : __segmented_reduce_small_grf_kern
             {
                 const _Size __tile_begin = _Size(__t) << __tile_log;
                 const _Size __tile_last = std::min<_Size>(__n, __tile_begin + (_Size{1} << __tile_log)) - 1;
+                // The first search from the segment of the same share of the segments as the tile of the tiles, the
+                // second one from the result of the first one
+                _Size __segment = _Size(std::uint64_t(__m) * __t / __num_tiles);
                 for (std::size_t __slot = 0; __slot < 2; ++__slot)
                 {
-                    const _Size __segment =
-                        __segmented_reduce_last_begin(__offsets, __m, __n, __slot == 0 ? __tile_begin : __tile_last);
+                    __segment = __segmented_reduce_last_begin(__offsets, __m, __n,
+                                                              __slot == 0 ? __tile_begin : __tile_last, __segment);
                     if (__segment < 0)
                         continue;
                     __segmented_reduce_long_piece<_Acc, __vector_size>(
