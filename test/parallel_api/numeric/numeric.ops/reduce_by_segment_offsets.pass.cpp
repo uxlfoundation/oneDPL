@@ -121,6 +121,25 @@ make_offsets(segments kind, std::int64_t n, std::mt19937& gen)
     return offsets;
 }
 
+// Passed in place of the operation, selects the overload without the operation, which is std::plus<> then, as for
+// std::reduce
+struct default_op
+{
+};
+
+template <typename BinaryOp>
+BinaryOp
+reference_op(BinaryOp op)
+{
+    return op;
+}
+
+std::plus<>
+reference_op(default_op)
+{
+    return {};
+}
+
 // The algorithm requires random access iterators, as the RFC does: the forward and bidirectional iterators that the
 // test framework makes for the host policies are skipped
 struct test_reduce_by_segment_offsets
@@ -143,11 +162,15 @@ struct test_reduce_by_segment_offsets
         if (num_segments > 0)
             std::copy_n(offsets, num_segments + 1, std::back_inserter(offsets_copy));
         std::vector<Out> expected(std::distance(out_first, out_last), trash);
-        reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets_copy.begin(), num_segments, init, op,
-                                         expected.begin());
+        reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets_copy.begin(), num_segments, init,
+                                         reference_op(op), expected.begin());
 
-        oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments, offsets,
-                                       init, op);
+        if constexpr (std::is_same_v<BinaryOp, default_op>)
+            oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments, offsets,
+                                           init);
+        else
+            oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments, offsets,
+                                           init, op);
         EXPECT_EQ_N(expected.begin(), out_first, expected.size(), "wrong result from reduce_by_segment with offsets");
 
         std::fill(out_first, out_last, trash);
@@ -368,7 +391,8 @@ test_unordered()
                                          offsets.begin(), int(offsets.size() - 1), 0, std::plus<int>{});
 }
 
-// The example of the RFC: predefined results for a small input, which also check the reference
+// The example of the RFC: predefined results for a small input, which also check the reference; also with the default
+// operation, which the overload without the operation only passes on, and an initial value which is not the identity
 template <std::size_t CallNumber>
 void
 test_rfc_example()
@@ -386,6 +410,8 @@ test_rfc_example()
     Sequence<int> out(expected.size(), [](std::size_t) { return -1; });
     invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                          out.end(), offsets.begin(), 4, 0, std::plus<int>{}, -1);
+    invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                             out.end(), offsets.begin(), 4, 1, default_op{}, -1);
 }
 
 // Segments of the lengths at the boundaries of the implementations: the longest short segment and the shortest long one
@@ -704,8 +730,8 @@ main()
 
     test_unordered<39>();
     test_rfc_example<40>();
-    test_boundaries<41>();
-    test_input_bounds<42>();
+    test_boundaries<42>();
+    test_input_bounds<43>();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT
