@@ -391,7 +391,8 @@ test_unordered()
                                          offsets.begin(), int(offsets.size() - 1), 0, std::plus<int>{});
 }
 
-// The example of the RFC: predefined results for a small input, which also check the reference
+// The example of the RFC: predefined results for a small input, which also check the reference; also with the default
+// operation, which the overload without the operation only passes on, and an initial value which is not the identity
 template <std::size_t CallNumber>
 void
 test_rfc_example()
@@ -409,20 +410,8 @@ test_rfc_example()
     Sequence<int> out(expected.size(), [](std::size_t) { return -1; });
     invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                          out.end(), offsets.begin(), 4, 0, std::plus<int>{}, -1);
-}
-
-// The overload with the default operation only calls the overload with std::plus<>, so its call is checked with the
-// example of the RFC and every policy
-template <std::size_t CallNumber>
-void
-test_default_op()
-{
-    const std::vector<int> input{10, 20, 5, 7, 4};
-    const std::vector<int> offsets{0, 2, 2, 4, 5};
-    Sequence<int> in(input.size(), [&input](std::size_t i) { return input[i]; });
-    Sequence<int> out(offsets.size() - 1, [](std::size_t) { return -1; });
-    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
-                                         out.end(), offsets.begin(), 4, 1, default_op{}, -1);
+    invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                             out.end(), offsets.begin(), 4, 1, default_op{}, -1);
 }
 
 // Segments of the lengths at the boundaries of the implementations: the longest short segment and the shortest long one
@@ -741,9 +730,8 @@ main()
 
     test_unordered<39>();
     test_rfc_example<40>();
-    test_boundaries<41>();
-    test_input_bounds<42>();
-    test_default_op<60>();
+    test_boundaries<42>();
+    test_input_bounds<43>();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT
