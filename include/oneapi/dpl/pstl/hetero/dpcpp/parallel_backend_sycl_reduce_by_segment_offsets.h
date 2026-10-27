@@ -253,6 +253,10 @@ struct __segmented_reduce_pointer_input<
 {
 };
 
+// A range takes the vector loads below from this many whole vectors on: a shorter one is reduced faster element by
+// element, as the alignment, the head and the tail of the vectors cost more than the vectors save, as measured
+inline constexpr std::size_t __segmented_reduce_sub_group_min_vectors = 8;
+
 // Reduces the elements [__first, __last), at least one, by a sub-group: the lanes take the elements in turn, so that the
 // loads of the sub-group are coalesced, and a tree combines the results of the lanes. Both reorder the operands, which
 // the required commutativity of the operation allows. A range that begins its segment starts from the operation on the
@@ -291,7 +295,7 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, _Size __first, const _Siz
             const std::uintptr_t __mis = reinterpret_cast<std::uintptr_t>(__base + __first) % __vb;
             const _Size __a = std::min<_Size>(__last, __first + _Size(__mis == 0 ? 0 : (__vb - __mis) / sizeof(_T)));
             const _Size __nv = (__last - __a) / 4;
-            if (__nv >= 1)
+            if (__nv >= _Size(__segmented_reduce_sub_group_min_vectors))
             {
                 __by_vectors = true;
                 __active = std::uint32_t(std::min<_Size>(_Size(__lanes), __nv));
