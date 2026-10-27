@@ -201,7 +201,7 @@ class __onesweep_memory_holder
 
     // Places the regions in memory owned by the caller instead of allocating it
     void
-    __assign([[maybe_unused]] void* __mem, [[maybe_unused]] std::size_t __bytes)
+    __assign(void* __mem, [[maybe_unused]] std::size_t __bytes)
     {
         __calculate_raw_memory_amount();
         assert(__mem != nullptr && "The temporary storage must not be null");
