@@ -661,12 +661,13 @@ test_usm()
 
 // USM pointers with segments of the lengths around those that the vector loads of the device implementation take,
 // from unaligned positions, so that the head and the tail of the vectors are reached: lengths 0..7, 31..33, 35..40,
-// 63..65, 127..129 and 250..257, the first offset odd
-template <sycl::usm::alloc alloc_type, typename KernelName>
+// 63..65, 127..129 and 250..257, the first offset odd; for elements of 4 and of 8 bytes, whose vectors differ
+template <sycl::usm::alloc alloc_type, typename T, typename KernelName>
 void
 test_usm_vector_edges()
 {
-    using NewKernelName = TestUtils::unique_kernel_name<KernelName, TestUtils::uniq_kernel_index<alloc_type>()>;
+    using NewKernelName =
+        TestUtils::unique_kernel_name<KernelName, TestUtils::uniq_kernel_index<alloc_type>() + 2 * sizeof(T)>;
 
     auto policy = TestUtils::get_dpcpp_test_policy();
     sycl::queue q = policy.queue();
@@ -678,19 +679,19 @@ test_usm_vector_edges()
             offsets.push_back(offsets.back() + length + round);
     const int num_segments = int(offsets.size() - 1);
     const std::size_t n = offsets.back() + 5;
-    std::vector<int> in(n + 2 * guard_length, poison);
+    std::vector<T> in(n + 2 * guard_length, T(poison));
     for (std::size_t i = 0; i < n; ++i)
-        in[guard_length + i] = int(i % 13) - 6;
-    std::vector<int> expected(num_segments), result(num_segments);
+        in[guard_length + i] = T(int(i % 13) - 6);
+    std::vector<T> expected(num_segments), result(num_segments);
     reduce_by_segment_offsets_serial(in.begin() + guard_length, in.begin() + guard_length + n, offsets.begin(),
-                                     num_segments, 5, std::plus<int>{}, expected.begin());
+                                     num_segments, T(5), std::plus<T>{}, expected.begin());
 
-    TestUtils::usm_data_transfer<alloc_type, int> in_usm(q, in.begin(), in.end());
+    TestUtils::usm_data_transfer<alloc_type, T> in_usm(q, in.begin(), in.end());
     TestUtils::usm_data_transfer<alloc_type, int> offsets_usm(q, offsets.begin(), offsets.end());
-    TestUtils::usm_data_transfer<alloc_type, int> out_usm(q, num_segments);
+    TestUtils::usm_data_transfer<alloc_type, T> out_usm(q, num_segments);
     oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, NewKernelName), in_usm.get_data() + guard_length,
                                    in_usm.get_data() + guard_length + n, out_usm.get_data(), num_segments,
-                                   offsets_usm.get_data(), 5, std::plus<int>{});
+                                   offsets_usm.get_data(), T(5), std::plus<T>{});
     out_usm.retrieve_data(result.begin());
     EXPECT_EQ_N(expected.begin(), result.begin(), num_segments,
                 "wrong result from reduce_by_segment with USM at the vector edges");
@@ -811,7 +812,8 @@ main()
     test_argmin_on_device();
     test_usm<sycl::usm::alloc::shared, KernelNameUSM>();
     test_usm<sycl::usm::alloc::device, KernelNameUSM>();
-    test_usm_vector_edges<sycl::usm::alloc::device, KernelNameUSMVectorEdges>();
+    test_usm_vector_edges<sycl::usm::alloc::device, int, KernelNameUSMVectorEdges>();
+    test_usm_vector_edges<sycl::usm::alloc::device, std::int64_t, KernelNameUSMVectorEdges>();
     test_buffer<KernelNameBuffer>();
 #endif
 
