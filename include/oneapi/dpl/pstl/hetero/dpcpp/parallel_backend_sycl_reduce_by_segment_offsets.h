@@ -377,7 +377,7 @@ inline constexpr std::size_t __segmented_reduce_gpu_flat_lanes = 32;
 inline constexpr std::size_t __segmented_reduce_gpu_flat_min_inputs_per_item = 16;
 inline constexpr std::size_t __segmented_reduce_gpu_flat_small_input = std::size_t(1) << 20;
 // The largest work-group
-inline constexpr std::size_t __segmented_reduce_gpu_flat_max_work_group = 1024;
+inline constexpr std::size_t __segmented_reduce_gpu_flat_max_work_group = 256;
 
 // The index of the last of the __m segments that begins at or before __v, or -1
 template <typename _Size, typename _OffsetRange>
