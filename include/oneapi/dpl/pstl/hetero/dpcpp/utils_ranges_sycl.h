@@ -285,15 +285,14 @@ template <typename _Range, typename... _Ranges>
 void
 __require_access(sycl::handler& __cgh, _Range&& __rng, _Ranges&&... __rest);
 
-template <typename _Cgh>
 struct _require_access_args
 {
-    _Cgh __cgh;
+    sycl::handler& __cgh;
     template <typename... Args>
     void
     operator()(Args&&... args)
     {
-        __require_access(__cgh, ::std::forward<Args>(args)...);
+        __require_access(__cgh, std::forward<Args>(args)...);
     }
 };
 
@@ -301,9 +300,8 @@ template <typename... _Ranges>
 void
 __require_access_zip(sycl::handler& __cgh, _dpl_ranges_zip::zip_view<_Ranges...>& __zip)
 {
-    const ::std::size_t __num_ranges = sizeof...(_Ranges);
-    oneapi::dpl::__ranges::invoke(__zip.base(), _require_access_args<decltype(__cgh)>{__cgh},
-                                  ::std::make_index_sequence<__num_ranges>());
+    const std::size_t __num_ranges = sizeof...(_Ranges);
+    oneapi::dpl::__ranges::invoke(__zip.base(), _require_access_args{__cgh}, std::make_index_sequence<__num_ranges>());
 }
 
 //__require_access utility
@@ -331,9 +329,8 @@ template <typename... _Ranges>
 void
 __require_access_range(sycl::handler& __cgh, oneapi::dpl::__internal::tuple<_Ranges...>& __tuple)
 {
-    const ::std::size_t __num_ranges = sizeof...(_Ranges);
-    oneapi::dpl::__ranges::invoke(__tuple, _require_access_args<decltype(__cgh)>{__cgh},
-                                  ::std::make_index_sequence<__num_ranges>());
+    const std::size_t __num_ranges = sizeof...(_Ranges);
+    oneapi::dpl::__ranges::invoke(__tuple, _require_access_args{__cgh}, std::make_index_sequence<__num_ranges>());
 }
 
 template <typename T>
