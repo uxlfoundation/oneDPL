@@ -346,13 +346,24 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, _Size __first, const _Siz
         for (; __i < __last; __i += __active)
             __acc = std::invoke(__binary_op, __acc, __input[__i]);
     }
-    // Only lane 0 needs the result: a lane combines the one so many lanes after it whenever that one takes part, so
-    // that lane 0 gets the lanes in pairs, then in fours, and so on, without a test of its position
-    for (std::uint32_t __shift = 1; __shift < __active; __shift *= 2)
+    // An operation with an identity the group algorithms know combines the lanes by the sub-group reduction, the lanes
+    // not taking part giving the identity
+    if constexpr (oneapi::dpl::unseq_backend::__can_use_group_reduce_scan<_BinaryOperation, _Acc>::value)
     {
-        const _Acc __other = sycl::shift_group_left(__sg, __acc, __shift);
-        if (__lane + __shift < __active)
-            __acc = std::invoke(__binary_op, __acc, __other);
+        if (__active > 0)
+            __acc = sycl::reduce_over_group(
+                __sg, __lane < __active ? __acc : sycl::known_identity_v<_BinaryOperation, _Acc>, __binary_op);
+    }
+    else
+    {
+        // Only lane 0 needs the result: a lane combines the one so many lanes after it whenever that one takes part,
+        // so that lane 0 gets the lanes in pairs, then in fours, and so on, without a test of its position
+        for (std::uint32_t __shift = 1; __shift < __active; __shift *= 2)
+        {
+            const _Acc __other = sycl::shift_group_left(__sg, __acc, __shift);
+            if (__lane + __shift < __active)
+                __acc = std::invoke(__binary_op, __acc, __other);
+        }
     }
     // A range of one element more than the initial value takes it alone
     if (__is_first)
