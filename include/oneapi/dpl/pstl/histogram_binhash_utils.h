@@ -81,8 +81,8 @@ struct __evenly_divided_binhash_int_base
     // checks compare in. Subtracting in unsigned C is exact even where it overflows C, since the true distance fits
     // in its width.
     template <typename _Lower, typename _Upper>
-    static std::make_unsigned_t<std::enable_if_t<std::is_integral_v<_Lower> && std::is_integral_v<_Upper>,
-                                std::common_type_t<_Lower, _Upper>>>
+    static std::make_unsigned_t<
+        std::enable_if_t<std::is_integral_v<_Lower> && std::is_integral_v<_Upper>, std::common_type_t<_Lower, _Upper>>>
     __unsigned_distance(_Lower __lower, _Upper __upper)
     {
         using _UnsignedT = std::make_unsigned_t<std::common_type_t<_Lower, _Upper>>;
@@ -173,7 +173,7 @@ struct __evenly_divided_binhash_can_overflow : __evenly_divided_binhash_int_base
             const std::uint64_t __bin = __dpl_mul_hi_u64(__offset, __frac);
             // 2^64 * (offset * num_bins / range - bin) is lo(offset * frac) + hi(offset * frac2) plus truncated terms
             // in [0, 2). The bin steps up when that reaches 2^64, which as range < 2^64 happens exactly when the
-            // computed sum reaches 2^64 - 1, i.e. lo(offset * frac) >= ~hi(offset * frac2), since bitwise NOT 
+            // computed sum reaches 2^64 - 1, i.e. lo(offset * frac) >= ~hi(offset * frac2), since bitwise NOT
             // is equivalent to subtracting from 2^64 - 1
             ret = __bin + (__offset * __frac >= ~__dpl_mul_hi_u64(__offset, __frac2));
         }
