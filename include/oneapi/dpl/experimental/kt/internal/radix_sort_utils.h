@@ -61,21 +61,28 @@ struct __radix_sort_histogram_params<__sycl_tag>
 //-----------------------------------------------------------------------------
 // Parameter validation
 //-----------------------------------------------------------------------------
+// The input size limit shared by all SYCL sort KTs
+inline void
+__check_sycl_sort_size([[maybe_unused]] std::size_t __n)
+{
+    assert((__n < (1 << 30)) && "Inputs >= 2^30 are currently unsupported in the SYCL sort KT");
+}
+
 template <std::uint8_t __radix_bits, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size>
 inline void
-__check_sycl_sort_params([[maybe_unused]] std::size_t __n)
+__check_sycl_sort_params(std::size_t __n)
 {
     static_assert(__radix_bits == 8);
     static_assert(__workgroup_size == 1024 || __workgroup_size == 512);
-    assert((__n < (1 << 30)) && "Inputs >= 2^30 are currently unsupported in the SYCL sort KT");
+    __check_sycl_sort_size(__n);
 }
 
 // __segment_size is the signed difference type of the keys sequence
 template <typename _Size>
 inline void
-__check_batched_sort_params([[maybe_unused]] std::size_t __n, [[maybe_unused]] _Size __segment_size)
+__check_batched_sort_params(std::size_t __n, [[maybe_unused]] _Size __segment_size)
 {
-    assert((__n < (1 << 30)) && "Inputs >= 2^30 are currently unsupported in the SYCL sort KT");
+    __check_sycl_sort_size(__n);
     assert(__segment_size > 0 && "The segment size must be greater than zero");
     assert(__n % static_cast<std::size_t>(__segment_size) == 0 &&
            "The number of elements must be a multiple of the segment size");
