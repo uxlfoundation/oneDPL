@@ -775,7 +775,8 @@ __find_subrange(_RandomAccessIterator __first, _RandomAccessIterator __last, _Ra
 
     // The distance is compared with the count in their common type, because narrowing the distance
     // to the type of the count (e.g. std::uint8_t) would wrap it around.
-    using _Common = std::common_type_t<typename std::iterator_traits<_RandomAccessIterator>::difference_type, _Size>;
+    using _Common =
+        std::common_type_t<typename std::iterator_traits<_RandomAccessIterator>::difference_type, decltype(+__count)>;
     const auto __common_count = static_cast<_Common>(__count);
 
     if (static_cast<_Common>(__global_last - __first) < __common_count)
@@ -1000,7 +1001,8 @@ __pattern_search_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                    _RandomAccessIterator __last, _Size __count, const _Tp& __value, _BinaryPredicate __pred)
 {
     // The distance is compared with the count in their common type to not narrow it to the type of the count
-    using _Common = std::common_type_t<typename std::iterator_traits<_RandomAccessIterator>::difference_type, _Size>;
+    using _Common =
+        std::common_type_t<typename std::iterator_traits<_RandomAccessIterator>::difference_type, decltype(+__count)>;
     if (static_cast<_Common>(__last - __first) == static_cast<_Common>(__count))
     {
         const bool __result = !__internal::__pattern_any_of(__tag, std::forward<_ExecutionPolicy>(__exec), __first,

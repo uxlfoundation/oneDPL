@@ -21,6 +21,7 @@
 #include "support/utils.h"
 
 #include <limits>
+#include <vector>
 
 using namespace TestUtils;
 
@@ -137,6 +138,31 @@ test_narrow_count_type()
     }
 }
 
+// A count type that converts implicitly from and to long has no narrowing problem and must still compile
+struct implicit_count
+{
+    implicit_count(long value) : _value(value) {}
+    operator long() const { return _value; }
+
+  private:
+    long _value;
+};
+
+void
+test_wrapper_count_type()
+{
+    std::vector<std::int32_t> in(10, 0);
+    in[3] = in[4] = 1;
+
+    namespace dpl_exec = oneapi::dpl::execution;
+    EXPECT_TRUE(search_n(dpl_exec::par, in.begin(), in.end(), implicit_count(2), 1) == in.begin() + 3,
+                "wrong result of search_n(par) with a count wrapper type");
+    EXPECT_TRUE(search_n(dpl_exec::unseq, in.begin(), in.end(), implicit_count(2), 1) == in.begin() + 3,
+                "wrong result of search_n(unseq) with a count wrapper type");
+    EXPECT_TRUE(search_n(dpl_exec::par_unseq, in.begin(), in.end(), implicit_count(2), 1) == in.begin() + 3,
+                "wrong result of search_n(par_unseq) with a count wrapper type");
+}
+
 template <typename T>
 struct test_non_const
 {
@@ -210,6 +236,7 @@ main()
     test_mixed_types();
     test_narrow_count_type<std::uint8_t, 6>();
     test_narrow_count_type<std::uint16_t, 7>();
+    test_wrapper_count_type();
 
     return done();
 }
