@@ -264,15 +264,16 @@ _Acc
 __segmented_reduce_by_sub_group(const _SubGroup& __sg, _Size __first, const _Size __last, const bool __is_first,
                                 const _InitType& __init, _BinaryOperation& __binary_op, const _Input& __input)
 {
-    const _Size __lane = __sg.get_local_linear_id();
-    const _Size __lanes = __sg.get_local_linear_range();
+    // The lanes in 32 bits, as they are fewer than a sub-group: the indices of the elements alone need _Size
+    const std::uint32_t __lane = __sg.get_local_linear_id();
+    const std::uint32_t __lanes = __sg.get_local_linear_range();
     _Acc __head{};
     if (__is_first)
         __head = std::invoke(__binary_op, __init, __input[__first++]);
 
     // Every lane that takes part gets at least two elements: its accumulator starts from the operation on two of them,
     // never from an element alone, which may mean something else than the element to the operation
-    _Size __active = std::min<_Size>(__lanes, (__last - __first) / 2);
+    std::uint32_t __active = std::uint32_t(std::min<_Size>(_Size(__lanes), (__last - __first) / 2));
     _Acc __acc{};
     // Where the input is reached through a pointer, every lane loads four consecutive elements at once, from the first
     // address aligned for such a vector on; the elements before it and after the last whole vector go to lane 0. The
@@ -293,7 +294,7 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, _Size __first, const _Siz
             if (__nv >= 1)
             {
                 __by_vectors = true;
-                __active = std::min<_Size>(__lanes, __nv);
+                __active = std::uint32_t(std::min<_Size>(_Size(__lanes), __nv));
                 auto __load4 = [&](_Size __k) -> _Acc {
                     const _V __v = *reinterpret_cast<const _V*>(__base + __a + 4 * __k);
                     return std::invoke(__binary_op,
@@ -347,7 +348,7 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, _Size __first, const _Siz
     }
     // Only lane 0 needs the result: a lane combines the one so many lanes after it whenever that one takes part, so
     // that lane 0 gets the lanes in pairs, then in fours, and so on, without a test of its position
-    for (_Size __shift = 1; __shift < __active; __shift *= 2)
+    for (std::uint32_t __shift = 1; __shift < __active; __shift *= 2)
     {
         const _Acc __other = sycl::shift_group_left(__sg, __acc, __shift);
         if (__lane + __shift < __active)
