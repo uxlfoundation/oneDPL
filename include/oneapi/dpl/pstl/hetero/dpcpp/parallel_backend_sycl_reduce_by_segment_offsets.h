@@ -378,7 +378,8 @@ inline constexpr std::size_t __segmented_reduce_gpu_flat_lanes = 32;
 // input is read once, so the cache gains nothing, and the launches of the portions cost time, as measured
 inline constexpr bool __segmented_reduce_gpu_portions_by_cache = false;
 // A work-item takes at least this many elements up to this input size, and four times as many above it, so that the
-// search of a piece and the combination of its parts are paid for, as measured
+// search of a piece and the combination of its parts are paid for; in one portion it takes at most four times as many,
+// so that the larger inputs are spread over more work-groups than the device runs at once, as measured
 inline constexpr std::size_t __segmented_reduce_gpu_flat_min_inputs_per_item = 16;
 inline constexpr std::size_t __segmented_reduce_gpu_flat_small_input = std::size_t(1) << 20;
 
@@ -459,6 +460,27 @@ struct __segmented_reduce_portions
         const std::size_t __target = __cache / 2;
         // Eight compute units per Xe core
         const std::size_t __cores = std::max<std::size_t>(1, __compute_units / 8);
+        __min_inputs_per_item = __n <= __segmented_reduce_gpu_flat_small_input
+                                    ? __segmented_reduce_gpu_flat_min_inputs_per_item
+                                    : 4 * __segmented_reduce_gpu_flat_min_inputs_per_item;
+        if (!__segmented_reduce_gpu_portions_by_cache)
+        {
+            // One portion: the work-groups are made smaller until there are at least two per Xe core, as long as the
+            // input allows it
+            __inputs_per_item = std::clamp<std::size_t>(
+                (__n + 2 * __cores * __work_group_size - 1) / (2 * __cores * __work_group_size), __min_inputs_per_item,
+                4 * __segmented_reduce_gpu_flat_min_inputs_per_item);
+            auto __groups = [&](std::size_t __size) {
+                return (__n + __inputs_per_item * __size - 1) / (__inputs_per_item * __size);
+            };
+            while (__work_group_size > __lanes && __groups(__work_group_size) < 2 * __cores)
+                __work_group_size = std::max(__lanes, __work_group_size / 2 / __lanes * __lanes);
+            __num_groups = __groups(__work_group_size);
+            __num_portions = 1;
+            __portion_size = __n;
+            return;
+        }
+
         const std::size_t __demand = __work_group_size * __bytes;
         std::size_t __budget = __n;
         if (__cores * __demand <= __target)
@@ -474,16 +496,11 @@ struct __segmented_reduce_portions
         else
             // The cache is spilled anyway: one portion
             __num_groups = 2 * __cores;
-        if (!__segmented_reduce_gpu_portions_by_cache)
-            __budget = __n;
 
         const std::size_t __items = __num_groups * __work_group_size;
         if (__items < __budget && __budget < __n)
             __budget = __budget / __items * __items;
         __num_portions = (__n + __budget - 1) / __budget;
-        __min_inputs_per_item = __n <= __segmented_reduce_gpu_flat_small_input
-                                    ? __segmented_reduce_gpu_flat_min_inputs_per_item
-                                    : 4 * __segmented_reduce_gpu_flat_min_inputs_per_item;
         __inputs_per_item = std::max(__min_inputs_per_item,
                                      (__n + __num_portions * __items - 1) / (__num_portions * __items));
         __portion_size = __items * __inputs_per_item;
