@@ -345,10 +345,12 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, _Size __first, const _Siz
         for (; __i < __last; __i += __active)
             __acc = std::invoke(__binary_op, __acc, __input[__i]);
     }
+    // Only lane 0 needs the result: a lane combines the one so many lanes after it whenever that one takes part, so
+    // that lane 0 gets the lanes in pairs, then in fours, and so on, without a test of its position
     for (_Size __shift = 1; __shift < __active; __shift *= 2)
     {
         const _Acc __other = sycl::shift_group_left(__sg, __acc, __shift);
-        if (__lane % (2 * __shift) == 0 && __lane + __shift < __active)
+        if (__lane + __shift < __active)
             __acc = std::invoke(__binary_op, __acc, __other);
     }
     // A range of one element more than the initial value takes it alone
