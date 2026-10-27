@@ -301,22 +301,28 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::
                       (sizeof(_T) == 1 || sizeof(_T) == 2 || sizeof(_T) == 4 || sizeof(_T) == 8))
         {
             const _T* const __p = __input.begin() + __base;
-            using _V = sycl::vec<_T, 4>;
+            // Four elements a vector, two of 8 bytes, so that a vector stays within 16 bytes and is aligned as often
+            constexpr std::uint32_t __w = sizeof(_T) == 8 ? 2 : 4;
+            using _V = sycl::vec<_T, __w>;
             constexpr std::uint32_t __vb = sizeof(_V);
             const std::uint32_t __mis = std::uint32_t(reinterpret_cast<std::uintptr_t>(__p + __first) % __vb);
             const std::uint32_t __a = std::min<std::uint32_t>(__last, __first + (__mis == 0 ? 0 : (__vb - __mis) / sizeof(_T)));
-            const std::uint32_t __nv = (__last - __a) / 4;
+            const std::uint32_t __nv = (__last - __a) / __w;
             if (__nv >= __segmented_reduce_sub_group_min_vectors)
             {
                 __by_vectors = true;
                 __active = std::min<std::uint32_t>(__lanes, __nv);
                 auto __load4 = [&](std::uint32_t __k) -> _Acc {
-                    const _V __v = *reinterpret_cast<const _V*>(__p + __a + 4 * __k);
-                    return std::invoke(__binary_op,
-                                       oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                           std::invoke(__binary_op, _T(__v[0]), _T(__v[1]))),
-                                       oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                           std::invoke(__binary_op, _T(__v[2]), _T(__v[3]))));
+                    const _V __v = *reinterpret_cast<const _V*>(__p + __a + __w * __k);
+                    if constexpr (__w == 2)
+                        return oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                            std::invoke(__binary_op, _T(__v[0]), _T(__v[1])));
+                    else
+                        return std::invoke(__binary_op,
+                                           oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                               std::invoke(__binary_op, _T(__v[0]), _T(__v[1]))),
+                                           oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                               std::invoke(__binary_op, _T(__v[2]), _T(__v[3]))));
                 };
                 if (__lane < __active)
                 {
@@ -334,12 +340,12 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::
                     for (; __k < __nv; __k += __active)
                         __acc = std::invoke(__binary_op, __acc, __load4(__k));
                 }
-                // The unaligned head and the tail, at most three elements each, to lane 0
+                // The unaligned head and the tail, at most three elements each (one of 8 bytes), to lane 0
                 if (__lane == 0)
                 {
                     for (std::uint32_t __i = __first; __i < __a; ++__i)
                         __acc = std::invoke(__binary_op, __acc, __p[__i]);
-                    for (std::uint32_t __i = __a + 4 * __nv; __i < __last; ++__i)
+                    for (std::uint32_t __i = __a + __w * __nv; __i < __last; ++__i)
                         __acc = std::invoke(__binary_op, __acc, __p[__i]);
                 }
             }
