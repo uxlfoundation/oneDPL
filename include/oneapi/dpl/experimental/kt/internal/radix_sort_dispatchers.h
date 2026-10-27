@@ -31,27 +31,16 @@ class __radix_sort_one_wg;
 template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_histogram;
 
-template <typename _KtTag, typename... _Name>
+template <typename _KtTag, std::uint32_t __stage_count, std::uint32_t __bin_count, typename... _Name>
 class __radix_sort_onesweep_scan;
 
+// The range pack types are part of the kernel names, so one custom name serves every data passing mechanism and both
+// keys-only and by-key sorts
 template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep;
 
 template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_copyback;
-
-template <typename _KtTag, typename... _Name>
-class __radix_sort_onesweep_by_key;
-
-template <typename _KtTag, typename... _Name>
-class __radix_sort_onesweep_copyback_by_key;
-
-// The range pack types are part of the kernel names, so one custom name serves every data passing mechanism
-template <typename _KtTag, typename _InRngPack, typename _OutRngPack, typename _KernelName>
-using __onesweep_sweep_kernel_name = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-    std::conditional_t<_InRngPack::__has_values,
-                       __radix_sort_onesweep_by_key<_KtTag, _InRngPack, _OutRngPack, _KernelName>,
-                       __radix_sort_onesweep<_KtTag, _InRngPack, _OutRngPack, _KernelName>>>;
 
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename _KtTag, typename _RngPack>
@@ -115,7 +104,7 @@ class __onesweep_memory_holder
     void
     __appoint_aligned_memory_regions()
     {
-        // Memory provided by the caller may not be aligned for _HistT, unlike a non-typed USM allocation
+        // Memory provided by the caller may not be aligned for _HistT
         void* __base_ptr = __m_raw_mem_ptr;
         std::size_t __remainder = __m_raw_mem_bytes;
         const std::size_t __hist_bytes = __m_global_hist_bytes + __m_group_hist_bytes;
@@ -286,13 +275,13 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     using _RadixSortHistogram = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __radix_sort_onesweep_histogram<_KtTag, std::decay_t<_RngPack1>, _KernelName>>;
     using _RadixSortScan = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __radix_sort_onesweep_scan<_KtTag, _KernelName>>;
-    using _RadixSortSweepInitial =
-        __onesweep_sweep_kernel_name<_KtTag, std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, _KernelName>;
-    using _RadixSortSweepEven =
-        __onesweep_sweep_kernel_name<_KtTag, std::decay_t<_RngPack3>, std::decay_t<_RngPack2>, _KernelName>;
-    using _RadixSortSweepOdd =
-        __onesweep_sweep_kernel_name<_KtTag, std::decay_t<_RngPack2>, std::decay_t<_RngPack3>, _KernelName>;
+        __radix_sort_onesweep_scan<_KtTag, _Layout::__stage_count, _Layout::__bin_count, _KernelName>>;
+    using _RadixSortSweepInitial = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, _KernelName>>;
+    using _RadixSortSweepEven = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack3>, std::decay_t<_RngPack2>, _KernelName>>;
+    using _RadixSortSweepOdd = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack2>, std::decay_t<_RngPack3>, _KernelName>>;
     using _GlobalHistT = ::std::uint32_t;
     constexpr ::std::uint32_t __bin_count = _Layout::__bin_count;
     constexpr ::std::uint32_t __stage_count = _Layout::__stage_count;
@@ -381,10 +370,8 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
     constexpr bool __has_values = ::std::decay_t<_RngPack1>::__has_values;
     constexpr bool __internal_alloc = std::is_same_v<_TempStorage, __internal_temp_storage>;
 
-    using _RadixSortCopyback =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<std::conditional_t<
-            __has_values, __radix_sort_onesweep_copyback_by_key<_KtTag, std::decay_t<_RngPack1>, _KernelName>,
-            __radix_sort_onesweep_copyback<_KtTag, std::decay_t<_RngPack1>, _KernelName>>>;
+    using _RadixSortCopyback = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __radix_sort_onesweep_copyback<_KtTag, std::decay_t<_RngPack1>, _KernelName>>;
 
     using _GlobalHistT = ::std::uint32_t;
 
