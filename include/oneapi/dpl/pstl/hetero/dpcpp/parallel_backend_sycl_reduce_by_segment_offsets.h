@@ -406,6 +406,10 @@ inline constexpr std::size_t __segmented_reduce_gpu_flat_min_inputs_per_item = 1
 inline constexpr std::size_t __segmented_reduce_gpu_flat_small_input = std::size_t(1) << 20;
 // The largest work-group
 inline constexpr std::size_t __segmented_reduce_gpu_flat_max_work_group = 256;
+// A segment of at most this many elements that a piece holds whole is reduced by a lane alone, with the following ones
+// as long as they are such segments too, a lane each: the sub-group would spend more on combining its lanes and on
+// walking the segments one at a time than on the elements, as measured
+inline constexpr std::size_t __segmented_reduce_gpu_flat_tiny_segment = 32;
 
 // The index of the last of the __m segments that begins at or before __v, or -1
 template <typename _Size, typename _OffsetRange>
@@ -550,12 +554,57 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         // work-item of the sub-group
                         _Size __s =
                             std::max<_Size>(0, __segmented_reduce_flat_last_begin(__offsets, __m, __n, __piece_begin));
+                        // A very short segment held whole by the piece
+                        auto __tiny = [&](const _Size __b, const _Size __e) {
+                            return __b >= __piece_begin && __e <= __piece_end &&
+                                   __e - __b <= _Size(__segmented_reduce_gpu_flat_tiny_segment);
+                        };
+                        // The element at a position from the start of the piece
+                        auto __element = [&](const std::uint32_t __i) -> decltype(auto) {
+                            if constexpr (__segmented_reduce_pointer_input<std::decay_t<decltype(__input)>>::value)
+                                return (__input.begin() + __piece_begin)[__i];
+                            else
+                                return __input[__piece_begin + _Size(__i)];
+                        };
                         for (; __s < __m; ++__s)
                         {
                             const _Size __b = __begin_of(__s);
                             if (__b >= __piece_end)
                                 break;
                             const _Size __e = __end_of(__s);
+                            // A run of very short segments, a lane each: the lanes before the first one whose segment
+                            // is not such a segment reduce theirs alone, from the operation on the initial value and
+                            // the first element; the empty ones were written above
+                            if (__tiny(__b, __e))
+                            {
+                                const _Size __mine = __s + _Size(__lane);
+                                _Size __mb = __b, __me = __b;
+                                bool __run = false;
+                                if (__mine < __m)
+                                {
+                                    __mb = __begin_of(__mine);
+                                    __me = __end_of(__mine);
+                                    __run = __tiny(__mb, __me);
+                                }
+                                const std::uint32_t __count = sycl::reduce_over_group(
+                                    __sg, __run ? std::uint32_t(__lanes) : __lane, sycl::minimum<std::uint32_t>());
+                                if (__lane < __count && __mb < __me)
+                                {
+                                    const std::uint32_t __lo = std::uint32_t(__mb - __piece_begin);
+                                    const std::uint32_t __hi = std::uint32_t(__me - __piece_begin);
+                                    _Acc __acc = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                        std::invoke(__op, __init, __element(__lo)));
+                                    for (std::uint32_t __i = __lo + 1; __i < __hi; ++__i)
+                                        __acc = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                            std::invoke(__op, __acc, __element(__i)));
+                                    __result[__mine] = __acc;
+                                }
+                                // The loop goes on after the run; the last segment of the run may end the piece
+                                __s += _Size(__count) - 1;
+                                if (sycl::select_from_group(__sg, __me, __count - 1) >= __piece_end)
+                                    break;
+                                continue;
+                            }
                             // The part of the segment in the piece, in positions from the start of the piece
                             const std::uint32_t __lo = __b > __piece_begin ? std::uint32_t(__b - __piece_begin) : 0;
                             const std::uint32_t __hi =
