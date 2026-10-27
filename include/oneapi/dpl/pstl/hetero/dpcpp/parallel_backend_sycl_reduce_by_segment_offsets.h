@@ -16,6 +16,8 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <mutex>
+#include <optional>
 #include <type_traits>
 #include <utility>
 
@@ -372,8 +374,13 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, _Size __first, const _Siz
 // same for the work-groups: the last work-group of a segment to arrive combines the partial results of all of them. The
 // segment going on past the end of a portion is carried into the next one.
 inline constexpr std::size_t __segmented_reduce_gpu_flat_lanes = 32;
-// Whether the portions are bounded by the cache as the blocks of reduce-then-scan are, or the input is one portion
-inline constexpr bool __segmented_reduce_gpu_portions_by_cache = true;
+// Whether the portions are bounded by the cache as the blocks of reduce-then-scan are, or the input is one portion: the
+// input is read once, so the cache gains nothing, and the launches of the portions cost time, as measured
+inline constexpr bool __segmented_reduce_gpu_portions_by_cache = false;
+// A work-item takes at least this many elements up to this input size, and four times as many above it, so that the
+// search of a piece and the combination of its parts are paid for, as measured
+inline constexpr std::size_t __segmented_reduce_gpu_flat_min_inputs_per_item = 16;
+inline constexpr std::size_t __segmented_reduce_gpu_flat_small_input = std::size_t(1) << 20;
 
 // The index of the last of the __m segments that begins at or before __v, or -1
 template <typename _Size, typename _OffsetRange>
@@ -392,12 +399,40 @@ __segmented_reduce_flat_last_begin(const _OffsetRange& __offsets, const _Size __
     return __lo - 1;
 }
 
-// Whether the device runs sub-groups of the size of the decomposition above
-inline bool
-__segmented_reduce_flat_supported(const sycl::queue& __q)
+// What the decomposition above asks of the device. The queries cost more than a launch of a small input, so the answers
+// for the last device asked about are kept; the holder is never destroyed, as a device must not outlive the runtime.
+struct __segmented_reduce_device_info
 {
-    return oneapi::dpl::__internal::__supports_sub_group_size(__q, __segmented_reduce_gpu_flat_lanes);
-}
+    bool __supported; // whether the device runs sub-groups of the size of the decomposition
+    std::size_t __max_work_group_size;
+    std::size_t __compute_units;
+    std::size_t __cache; // the size of the last-level cache in bytes, 0 if not reported
+
+    static __segmented_reduce_device_info
+    __get(const sycl::queue& __q)
+    {
+        struct __holder
+        {
+            std::mutex __mutex;
+            std::optional<sycl::device> __device; // not constructed by default, which selects a device
+            __segmented_reduce_device_info __info;
+        };
+        static __holder* const __last = new __holder;
+
+        const sycl::device __device = __q.get_device();
+        std::lock_guard<std::mutex> __lock(__last->__mutex);
+        if (!__last->__device || *__last->__device != __device)
+        {
+            __last->__info = {
+                oneapi::dpl::__internal::__supports_sub_group_size(__q, __segmented_reduce_gpu_flat_lanes),
+                oneapi::dpl::__internal::__max_work_group_size(__q, 1024),
+                oneapi::dpl::__internal::__max_compute_units(__q),
+                __device.template get_info<sycl::info::device::global_mem_cache_size>()};
+            __last->__device = __device;
+        }
+        return __last->__info;
+    }
+};
 
 // The launches of the decomposition above for an input of __n elements of __bytes bytes each, as reduce-then-scan
 // computes them for its blocks
@@ -408,14 +443,16 @@ struct __segmented_reduce_portions
     std::size_t __num_portions;
     std::size_t __portion_size;    // the elements of a portion, but the last one
     std::size_t __inputs_per_item; // the elements of a work-item in a portion, but the last one
+    std::size_t __min_inputs_per_item;
 
-    __segmented_reduce_portions(const sycl::queue& __q, const std::size_t __n, const std::size_t __bytes)
+    __segmented_reduce_portions(const __segmented_reduce_device_info& __info, const std::size_t __n,
+                                const std::size_t __bytes)
     {
         constexpr std::size_t __lanes = __segmented_reduce_gpu_flat_lanes;
 
-        __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, 1024) / __lanes * __lanes;
-        const std::size_t __compute_units = oneapi::dpl::__internal::__max_compute_units(__q);
-        std::size_t __cache = __q.get_device().template get_info<sycl::info::device::global_mem_cache_size>();
+        __work_group_size = __info.__max_work_group_size / __lanes * __lanes;
+        const std::size_t __compute_units = __info.__compute_units;
+        std::size_t __cache = __info.__cache;
         // A device that does not report the size of its cache is likely an older one: 32 KiB per compute unit
         if (__cache == 0)
             __cache = std::size_t{32} * 1024 * __compute_units;
@@ -444,8 +481,13 @@ struct __segmented_reduce_portions
         if (__items < __budget && __budget < __n)
             __budget = __budget / __items * __items;
         __num_portions = (__n + __budget - 1) / __budget;
-        __inputs_per_item = (__n + __num_portions * __items - 1) / (__num_portions * __items);
+        __min_inputs_per_item = __n <= __segmented_reduce_gpu_flat_small_input
+                                    ? __segmented_reduce_gpu_flat_min_inputs_per_item
+                                    : 4 * __segmented_reduce_gpu_flat_min_inputs_per_item;
+        __inputs_per_item = std::max(__min_inputs_per_item,
+                                     (__n + __num_portions * __items - 1) / (__num_portions * __items));
         __portion_size = __items * __inputs_per_item;
+        __num_portions = (__n + __portion_size - 1) / __portion_size;
     }
 };
 
@@ -462,14 +504,15 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
               typename _BinaryOperation>
     void
     operator()(sycl::queue& __q, _InRange&& __input, _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n,
-               const _Size __m, _InitType __init, _BinaryOperation __binary_op) const
+               const _Size __m, _InitType __init, _BinaryOperation __binary_op,
+               const __segmented_reduce_device_info& __info) const
     {
         using _AtomicCount = sycl::atomic_ref<std::uint32_t, sycl::memory_order::acq_rel, sycl::memory_scope::device,
                                               sycl::access::address_space::global_space>;
 
         constexpr std::size_t __lanes = __segmented_reduce_gpu_flat_lanes;
         const __segmented_reduce_portions __portions(
-            __q, std::size_t(__n), sizeof(oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>));
+            __info, std::size_t(__n), sizeof(oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>));
         const std::size_t __work_group_size = __portions.__work_group_size;
         const std::size_t __sub_groups = __work_group_size / __lanes;
         const std::size_t __num_groups = __portions.__num_groups;
@@ -498,9 +541,10 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             const bool __is_last = __portion + 1 == __portions.__num_portions;
             // The last portion takes as few elements per work-item as its work-groups allow, and only the work-groups
             // with elements
-            const std::size_t __ipi = __is_last ? (__rest + __num_groups * __work_group_size - 1) /
-                                                      (__num_groups * __work_group_size)
-                                                : __portions.__inputs_per_item;
+            const std::size_t __ipi =
+                __is_last ? std::max(__portions.__min_inputs_per_item, (__rest + __num_groups * __work_group_size - 1) /
+                                                                           (__num_groups * __work_group_size))
+                          : __portions.__inputs_per_item;
             const std::size_t __group_size = __ipi * __work_group_size;
             const std::size_t __launch_groups = __is_last ? (__rest + __group_size - 1) / __group_size : __num_groups;
 
@@ -730,13 +774,15 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                   std::is_arithmetic_v<oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>>)
     {
         sycl::queue __q = __exec.queue();
-        if (__is_gpu && __segmented_reduce_flat_supported(__q))
+        const __segmented_reduce_device_info __info =
+            __is_gpu ? __segmented_reduce_device_info::__get(__q) : __segmented_reduce_device_info{};
+        if (__info.__supported)
         {
             using _FlatKernel = __internal::__kernel_name_provider<
                 __segmented_reduce_flat_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
 
             __segmented_reduce_flat_submitter<_Acc, _FlatKernel>()(__q, __input, __offsets, __result, __n, __m, __init,
-                                                                   __binary_op);
+                                                                   __binary_op, __info);
             return;
         }
     }
