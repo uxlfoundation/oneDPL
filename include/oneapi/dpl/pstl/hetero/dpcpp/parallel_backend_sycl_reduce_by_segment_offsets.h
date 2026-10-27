@@ -16,7 +16,6 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
-#include <memory>
 #include <type_traits>
 #include <utility>
 
@@ -362,17 +361,19 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, _Size __first, const _Siz
     return __acc;
 }
 
-// On GPUs a decomposition of the input that does not depend on the segments, for arithmetic types: every sub-group of
-// this many work-items takes a piece of this many consecutive elements, finds the segment covering its start by a binary
+// On GPUs a decomposition of the input that does not depend on the segments, for arithmetic types, in portions taken
+// one launch after another as the blocks of reduce-then-scan are: every launch has a number of work-groups chosen by
+// the cache of the device, and every work-item of it a number of elements chosen so that the portions are equal. Every
+// sub-group takes a piece of consecutive elements of its work-group, finds the segment covering its start by a binary
 // search over the offsets and reduces the segments of the piece one after another, each by the whole sub-group with
-// coalesced loads. A segment the piece holds whole is written; the partial result of the segment begun before the piece
+// coalesced loads. A segment the piece holds whole is written. The partial result of the segment begun before the piece
 // that covers its start is the head of the piece, and the one of the segment begun in the piece that goes on past its
-// end is its tail. A second kernel combines the tail of a piece with the heads of the following pieces its segment
-// covers. With segments at least as long as a piece, a piece holds at most two of them.
+// end is its tail; the tails are combined with the following heads in the local memory of the work-group, and the
+// same for the work-groups: the last work-group of a segment to arrive combines the partial results of all of them. The
+// segment going on past the end of a portion is carried into the next one.
 inline constexpr std::size_t __segmented_reduce_gpu_flat_lanes = 32;
-// The pieces have this many elements up to this input size, and four times as many above it, as measured
-inline constexpr std::size_t __segmented_reduce_gpu_flat_piece = 512;
-inline constexpr std::size_t __segmented_reduce_gpu_flat_small_input = std::size_t(1) << 20;
+// Whether the portions are bounded by the cache as the blocks of reduce-then-scan are, or the input is one portion
+inline constexpr bool __segmented_reduce_gpu_portions_by_cache = true;
 
 // The index of the last of the __m segments that begins at or before __v, or -1
 template <typename _Size, typename _OffsetRange>
@@ -395,21 +396,67 @@ __segmented_reduce_flat_last_begin(const _OffsetRange& __offsets, const _Size __
 inline bool
 __segmented_reduce_flat_supported(const sycl::queue& __q)
 {
-    const auto __sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
-    return std::find(__sizes.begin(), __sizes.end(), __segmented_reduce_gpu_flat_lanes) != __sizes.end();
+    return oneapi::dpl::__internal::__supports_sub_group_size(__q, __segmented_reduce_gpu_flat_lanes);
 }
+
+// The launches of the decomposition above for an input of __n elements of __bytes bytes each, as reduce-then-scan
+// computes them for its blocks
+struct __segmented_reduce_portions
+{
+    std::size_t __work_group_size; // a multiple of the size of a sub-group
+    std::size_t __num_groups;      // the work-groups of a launch, but the last one
+    std::size_t __num_portions;
+    std::size_t __portion_size;    // the elements of a portion, but the last one
+    std::size_t __inputs_per_item; // the elements of a work-item in a portion, but the last one
+
+    __segmented_reduce_portions(const sycl::queue& __q, const std::size_t __n, const std::size_t __bytes)
+    {
+        constexpr std::size_t __lanes = __segmented_reduce_gpu_flat_lanes;
+
+        __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, 1024) / __lanes * __lanes;
+        const std::size_t __compute_units = oneapi::dpl::__internal::__max_compute_units(__q);
+        std::size_t __cache = __q.get_device().template get_info<sycl::info::device::global_mem_cache_size>();
+        // A device that does not report the size of its cache is likely an older one: 32 KiB per compute unit
+        if (__cache == 0)
+            __cache = std::size_t{32} * 1024 * __compute_units;
+        const std::size_t __target = __cache / 2;
+        // Eight compute units per Xe core
+        const std::size_t __cores = std::max<std::size_t>(1, __compute_units / 8);
+        const std::size_t __demand = __work_group_size * __bytes;
+        std::size_t __budget = __n;
+        if (__cores * __demand <= __target)
+        {
+            __num_groups = 2 * __cores;
+            __budget = std::max(__target / __bytes, __num_groups * __work_group_size);
+        }
+        else if (__cores * __demand <= __cache)
+        {
+            __num_groups = __cores;
+            __budget = __num_groups * __work_group_size;
+        }
+        else
+            // The cache is spilled anyway: one portion
+            __num_groups = 2 * __cores;
+        if (!__segmented_reduce_gpu_portions_by_cache)
+            __budget = __n;
+
+        const std::size_t __items = __num_groups * __work_group_size;
+        if (__items < __budget && __budget < __n)
+            __budget = __budget / __items * __items;
+        __num_portions = (__n + __budget - 1) / __budget;
+        __inputs_per_item = (__n + __num_portions * __items - 1) / (__num_portions * __items);
+        __portion_size = __items * __inputs_per_item;
+    }
+};
 
 template <typename... _Name>
 class __segmented_reduce_flat_kernel;
-template <typename... _Name>
-class __segmented_reduce_flat_tail_kernel;
 
-template <typename _Acc, typename _KernelName, typename _TailKernelName>
+template <typename _Acc, typename _KernelName>
 struct __segmented_reduce_flat_submitter;
 
-template <typename _Acc, typename... _Name, typename... _TailName>
-struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_name<_Name...>,
-                                         __internal::__optional_kernel_name<_TailName...>>
+template <typename _Acc, typename... _Name>
+struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_name<_Name...>>
 {
     template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size, typename _InitType,
               typename _BinaryOperation>
@@ -417,162 +464,229 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     operator()(sycl::queue& __q, _InRange&& __input, _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n,
                const _Size __m, _InitType __init, _BinaryOperation __binary_op) const
     {
+        using _AtomicCount = sycl::atomic_ref<std::uint32_t, sycl::memory_order::acq_rel, sycl::memory_scope::device,
+                                              sycl::access::address_space::global_space>;
+
         constexpr std::size_t __lanes = __segmented_reduce_gpu_flat_lanes;
-        const std::size_t __piece = std::size_t(__n) <= __segmented_reduce_gpu_flat_small_input
-                                        ? __segmented_reduce_gpu_flat_piece
-                                        : 4 * __segmented_reduce_gpu_flat_piece;
-        constexpr std::size_t __work_group_size = 256;
-        constexpr std::size_t __sub_groups = __work_group_size / __lanes;
-        const std::size_t __num_pieces = (std::size_t(__n) + __piece - 1) / __piece;
-        // A sub-group per piece; a launch that would not fit the int range of the work-item indices has fewer, each
-        // taking every so-many-th piece
-        const std::size_t __num_groups =
-            std::min<std::size_t>(std::max<std::size_t>(1, (__num_pieces + __sub_groups - 1) / __sub_groups),
-                                  std::size_t(std::numeric_limits<int>::max()) / __work_group_size);
-        const std::size_t __num_sub_groups = __num_groups * __sub_groups;
+        const __segmented_reduce_portions __portions(
+            __q, std::size_t(__n), sizeof(oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>));
+        const std::size_t __work_group_size = __portions.__work_group_size;
+        const std::size_t __sub_groups = __work_group_size / __lanes;
+        const std::size_t __num_groups = __portions.__num_groups;
 
-        // In USM device memory, released when the call returns, after the wait below
-        struct __usm_free
+        // The number of the work-groups arrived for the segment going on past the end of every work-group, then zeroed
+        // again by the last one; the partial results of the heads of the work-groups, of their tails, and the carries
+        // into the portions, one for the portion in flight and one for the next, so that a launch does not read what
+        // it writes
+        __device_storage<std::uint32_t> __counts{__q, __num_groups};
+        __device_storage<_Acc> __partials{__q, 2 * __num_groups + 2};
+
+        sycl::event __event;
+        if (__counts.__usm_buf)
+            __event = __q.fill(__counts.__usm_buf.get(), std::uint32_t{0}, __num_groups);
+        else
+            __event = __q.submit([&](sycl::handler& __cgh) {
+                sycl::accessor __counts_acc(__counts.__sycl_buf, __cgh, sycl::write_only, sycl::no_init);
+                __cgh.fill(__counts_acc, std::uint32_t{0});
+            });
+
+        for (std::size_t __portion = 0; __portion < __portions.__num_portions; ++__portion)
         {
-            sycl::queue __q;
-            void
-            operator()(void* __ptr) const
-            {
-                sycl::free(__ptr, __q);
-            }
-        };
-        std::unique_ptr<_Acc, __usm_free> __heads(sycl::malloc_device<_Acc>(__num_pieces, __q), __usm_free{__q});
-        std::unique_ptr<_Acc, __usm_free> __tails(sycl::malloc_device<_Acc>(__num_pieces, __q), __usm_free{__q});
-        std::unique_ptr<_Size, __usm_free> __tail_segments(sycl::malloc_device<_Size>(__num_pieces, __q),
-                                                           __usm_free{__q});
-        _Acc* const __head_acc = __heads.get();
-        _Acc* const __tail_acc = __tails.get();
-        _Size* const __tail_segment_acc = __tail_segments.get();
+            const std::size_t __portion_begin = __portion * __portions.__portion_size;
+            const std::size_t __rest = std::size_t(__n) - __portion_begin;
+            const std::size_t __portion_end_index = __portion_begin + std::min(__rest, __portions.__portion_size);
+            const bool __is_last = __portion + 1 == __portions.__num_portions;
+            // The last portion takes as few elements per work-item as its work-groups allow, and only the work-groups
+            // with elements
+            const std::size_t __ipi = __is_last ? (__rest + __num_groups * __work_group_size - 1) /
+                                                      (__num_groups * __work_group_size)
+                                                : __portions.__inputs_per_item;
+            const std::size_t __group_size = __ipi * __work_group_size;
+            const std::size_t __launch_groups = __is_last ? (__rest + __group_size - 1) / __group_size : __num_groups;
 
-        sycl::event __pieces_event = __q.submit([&](sycl::handler& __cgh) {
-            oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
-            __cgh.parallel_for<_Name...>(
-                sycl::nd_range<1>(sycl::range<1>(__num_groups * __work_group_size), sycl::range<1>(__work_group_size)),
-                [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
-                    _BinaryOperation __op = __binary_op;
-                    auto __begin_of = [&](_Size __s) {
-                        return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s], __n);
-                    };
-                    auto __end_of = [&](_Size __s) {
-                        return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
-                    };
-                    // The empty segments get the initial value; the others are written by the pieces
-                    for (std::size_t __s = __item.get_global_linear_id(); __s < std::size_t(__m);
-                         __s += __item.get_global_range(0))
-                    {
-                        if (__end_of(_Size(__s)) <= __begin_of(_Size(__s)))
-                            __result[__s] = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init);
-                    }
+            __event = __q.submit([&](sycl::handler& __cgh) {
+                oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
+                auto __counts_acc = __get_accessor(sycl::read_write, __counts, __cgh);
+                auto __partials_acc = __get_accessor(sycl::read_write, __partials, __cgh);
+                __cgh.depends_on(__event);
+                // The heads and the tails of the pieces of the work-group, and the states of the heads: 0 for none, 1
+                // for a segment ending in the piece, 2 for one going on past it
+                __dpl_sycl::__local_accessor<_Acc> __local_acc(sycl::range<1>(2 * __sub_groups), __cgh);
+                __dpl_sycl::__local_accessor<_Size> __local_segments(sycl::range<1>(2 * __sub_groups), __cgh);
+                __dpl_sycl::__local_accessor<std::uint8_t> __local_states(sycl::range<1>(__sub_groups), __cgh);
+                __cgh.parallel_for<_Name...>(
+                    sycl::nd_range<1>(sycl::range<1>(__launch_groups * __work_group_size),
+                                      sycl::range<1>(__work_group_size)),
+                    [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
+                        _BinaryOperation __op = __binary_op;
+                        std::uint32_t* const __count = __counts_acc.__data();
+                        _Acc* const __heads = __partials_acc.__data();
+                        _Acc* const __tails = __heads + __num_groups;
+                        _Acc* const __carries = __tails + __num_groups;
+                        auto __begin_of = [&](_Size __s) {
+                            return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s], __n);
+                        };
+                        auto __end_of = [&](_Size __s) {
+                            return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
+                        };
+                        auto __combine = [&](const _Acc& __a, const _Acc& __b) {
+                            return oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                std::invoke(__op, __a, __b));
+                        };
 
-                    const auto __sg = __item.get_sub_group();
-                    const std::size_t __lane = __sg.get_local_linear_id();
-                    for (std::size_t __p = __item.get_group(0) * __sub_groups + __sg.get_group_linear_id();
-                         __p < __num_pieces; __p += __num_sub_groups)
-                    {
-                        const _Size __piece_begin = _Size(__p * __piece);
-                        const _Size __piece_end = std::min<_Size>(__n, __piece_begin + _Size(__piece));
-                        if (__lane == 0)
-                            __tail_segment_acc[__p] = __m;
-                        // The segments of the piece in order, from the one covering its start; the same for every
-                        // work-item of the sub-group
-                        _Size __s =
-                            std::max<_Size>(0, __segmented_reduce_flat_last_begin(__offsets, __m, __n, __piece_begin));
-                        for (; __s < __m; ++__s)
+                        // The empty segments get the initial value, in the first portion; the others are written
+                        // by the pieces
+                        if (__portion == 0)
                         {
-                            const _Size __b = __begin_of(__s);
-                            if (__b >= __piece_end)
-                                break;
-                            const _Size __e = __end_of(__s);
-                            const _Size __lo = std::max<_Size>(__b, __piece_begin);
-                            const _Size __hi = std::min<_Size>(__e, __piece_end);
-                            if (__lo < __hi)
+                            for (std::size_t __s = __item.get_global_linear_id(); __s < std::size_t(__m);
+                                 __s += __item.get_global_range(0))
                             {
-                                const bool __first = __lo == __b;
-                                // A range of one element that does not begin its segment is that element
-                                const _Acc __acc =
-                                    !__first && __hi - __lo == 1
-                                        ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__input[__lo])
-                                        : __segmented_reduce_by_sub_group<_Acc>(__sg, __lo, __hi, __first, __init, __op,
-                                                                                __input);
-                                if (__lane == 0)
+                                if (__end_of(_Size(__s)) <= __begin_of(_Size(__s)))
+                                    __result[__s] = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init);
+                            }
+                        }
+
+                        const auto __sg = __item.get_sub_group();
+                        const std::size_t __lane = __sg.get_local_linear_id();
+                        const std::size_t __sg_id = __sg.get_group_linear_id();
+                        const std::size_t __group = __item.get_group(0);
+                        const _Size __portion_end = _Size(__portion_end_index);
+                        const _Size __group_begin = _Size(__portion_begin + __group * __group_size);
+                        const _Size __group_end = std::min<_Size>(__portion_end, __group_begin + _Size(__group_size));
+                        const _Size __piece_begin =
+                            std::min<_Size>(__group_end, __group_begin + _Size(__sg_id * __ipi * __lanes));
+                        const _Size __piece_end =
+                            std::min<_Size>(__group_end, __piece_begin + _Size(__ipi * __lanes));
+
+                        // The head and the tail of the piece, on lane 0
+                        _Acc __head{}, __tail{};
+                        std::uint8_t __head_state = 0;
+                        _Size __head_segment = __m, __tail_segment = __m;
+                        if (__piece_begin < __piece_end)
+                        {
+                            // The segments of the piece in order, from the one covering its start; the same for
+                            // every work-item of the sub-group
+                            _Size __s = std::max<_Size>(
+                                0, __segmented_reduce_flat_last_begin(__offsets, __m, __n, __piece_begin));
+                            for (; __s < __m; ++__s)
+                            {
+                                const _Size __b = __begin_of(__s);
+                                if (__b >= __piece_end)
+                                    break;
+                                const _Size __e = __end_of(__s);
+                                const _Size __lo = std::max<_Size>(__b, __piece_begin);
+                                const _Size __hi = std::min<_Size>(__e, __piece_end);
+                                if (__lo < __hi)
                                 {
+                                    const bool __first = __lo == __b;
+                                    // A range of one element that does not begin its segment is that element
+                                    const _Acc __acc =
+                                        !__first && __hi - __lo == 1
+                                            ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__input[__lo])
+                                            : __segmented_reduce_by_sub_group<_Acc>(__sg, __lo, __hi, __first, __init,
+                                                                                    __op, __input);
                                     if (!__first)
-                                        __head_acc[__p] = __acc;
-                                    else if (__e <= __piece_end)
-                                        __result[__s] = __acc;
-                                    else
                                     {
-                                        __tail_acc[__p] = __acc;
-                                        __tail_segment_acc[__p] = __s;
+                                        __head = __acc;
+                                        __head_state = __e > __piece_end ? 2 : 1;
+                                        __head_segment = __s;
+                                    }
+                                    if (__first && __e <= __piece_end && __lane == 0)
+                                        __result[__s] = __acc;
+                                    if (__first && __e > __piece_end)
+                                    {
+                                        __tail = __acc;
+                                        __tail_segment = __s;
                                     }
                                 }
+                                // A later segment begins at or after the end of this one
+                                if (__e >= __piece_end)
+                                    break;
                             }
-                            // A later segment begins at or after the end of this one
-                            if (__e >= __piece_end)
-                                break;
                         }
-                    }
-                });
-        });
+                        if (__lane == 0)
+                        {
+                            __local_acc[__sg_id] = __head;
+                            __local_acc[__sub_groups + __sg_id] = __tail;
+                            __local_segments[__sg_id] = __head_segment;
+                            __local_segments[__sub_groups + __sg_id] = __tail_segment;
+                            __local_states[__sg_id] = __head_state;
+                        }
+                        sycl::group_barrier(__item.get_group());
+                        if (__sg_id != 0 || __lane >= __sub_groups)
+                            return;
 
-        // The tail of every piece with the heads of the following pieces its segment covers, a sub-group per piece
-        __q.submit([&](sycl::handler& __cgh) {
-               oneapi::dpl::__ranges::__require_access(__cgh, __offsets, __result);
-               __cgh.depends_on(__pieces_event);
-               __cgh.parallel_for<_TailName...>(
-                   sycl::nd_range<1>(sycl::range<1>(__num_groups * __work_group_size),
-                                     sycl::range<1>(__work_group_size)),
-                   [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
-                       _BinaryOperation __op = __binary_op;
-                       const auto __sg = __item.get_sub_group();
-                       const std::size_t __lane = __sg.get_local_linear_id();
-                       for (std::size_t __p = __item.get_group(0) * __sub_groups + __sg.get_group_linear_id();
-                            __p < __num_pieces; __p += __num_sub_groups)
-                       {
-                           // The same for every work-item of the sub-group
-                           const _Size __s = __tail_segment_acc[__p];
-                           if (__s < 0 || __s >= __m)
-                               continue;
-                           const _Size __e =
-                               oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
-                           if (__e <= 0)
-                               continue;
-                           const std::size_t __last =
-                               std::min<std::size_t>(__num_pieces - 1, std::size_t(__e - 1) / __piece);
-                           _Acc __v{};
-                           int __has = 0;
-                           for (std::size_t __q = __p + 1 + __lane; __q <= __last; __q += __lanes)
-                           {
-                               __v = __has ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                                 std::invoke(__op, __v, __head_acc[__q]))
-                                           : _Acc(__head_acc[__q]);
-                               __has = 1;
-                           }
-                           for (std::size_t __o = __lanes / 2; __o > 0; __o /= 2)
-                           {
-                               const _Acc __ov = sycl::shift_group_left(__sg, __v, __o);
-                               const int __oh = sycl::shift_group_left(__sg, __has, __o);
-                               if (__lane + __o < __lanes && __oh)
-                               {
-                                   __v = __has ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                                     std::invoke(__op, __v, __ov))
-                                               : __ov;
-                                   __has = 1;
-                               }
-                           }
-                           if (__lane == 0)
-                               __result[__s] = __has ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                                           std::invoke(__op, _Acc(__tail_acc[__p]), __v))
-                                                     : _Acc(__tail_acc[__p]);
-                       }
-                   });
-           })
-            .wait_and_throw();
+                        // The partial result __acc of segment __s of this work-group, of its tail if the segment
+                        // begins in it, of its head otherwise, combined with those of the other work-groups of the
+                        // portion and with the carry into it; the segment going on past the portion is carried
+                        auto __finish = [&](const _Size __s, _Acc __acc) {
+                            const _Size __b = __begin_of(__s);
+                            const _Size __e = __end_of(__s);
+                            const std::size_t __first_group =
+                                __b > _Size(__portion_begin) ? std::size_t(__b - _Size(__portion_begin)) / __group_size
+                                                             : 0;
+                            const std::size_t __last_group =
+                                std::size_t(std::min<_Size>(__e, __portion_end) - 1 - _Size(__portion_begin)) /
+                                __group_size;
+                            const bool __is_tail = __b >= __group_begin;
+                            if (__first_group != __last_group)
+                            {
+                                (__is_tail ? __tails : __heads)[__group] = __acc;
+                                // The partial results written before are visible to the last work-group arrived
+                                _AtomicCount __arrived(__count[__first_group]);
+                                if (__arrived.fetch_add(1) + 1 != std::uint32_t(__last_group - __first_group + 1))
+                                    return;
+                                __arrived.store(0, sycl::memory_order::relaxed);
+                                __acc = __b >= _Size(__portion_begin + __first_group * __group_size)
+                                            ? __tails[__first_group]
+                                            : __heads[__first_group];
+                                for (std::size_t __g = __first_group + 1; __g <= __last_group; ++__g)
+                                    __acc = __combine(__acc, __heads[__g]);
+                            }
+                            if (__b < _Size(__portion_begin))
+                                __acc = __combine(__carries[__portion % 2], __acc);
+                            if (__e > __portion_end)
+                                __carries[1 - __portion % 2] = __acc;
+                            if (__e <= __portion_end)
+                                __result[__s] = __acc;
+                        };
+
+                        // Lane j combines the tail of piece j with the heads of the following pieces of its segment
+                        const _Size __s = __local_segments[__sub_groups + __lane];
+                        if (__s < __m)
+                        {
+                            _Acc __acc = __local_acc[__sub_groups + __lane];
+                            std::uint8_t __state = 2;
+                            for (std::size_t __k = __lane + 1; __state == 2 && __k < __sub_groups; ++__k)
+                            {
+                                __state = __local_states[__k];
+                                if (__state != 0)
+                                    __acc = __combine(__acc, __local_acc[__k]);
+                            }
+                            // The segment ends in the work-group or goes on past it
+                            if (__state == 1)
+                                __result[__s] = __acc;
+                            if (__state != 1)
+                                __finish(__s, __acc);
+                        }
+                        // Lane 0 the head of the work-group, the segment begun before it
+                        if (__lane == 0 && __local_states[0] != 0)
+                        {
+                            _Acc __acc = __local_acc[0];
+                            std::uint8_t __state = __local_states[0];
+                            for (std::size_t __k = 1; __state == 2 && __k < __sub_groups; ++__k)
+                            {
+                                __state = __local_states[__k];
+                                if (__state != 0)
+                                    __acc = __combine(__acc, __local_acc[__k]);
+                            }
+                            __finish(__local_segments[0], __acc);
+                        }
+                    });
+            });
+        }
+        // Waited here, as the temporary data above is released on return
+        __event.wait_and_throw();
     }
 };
 
@@ -620,11 +734,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         {
             using _FlatKernel = __internal::__kernel_name_provider<
                 __segmented_reduce_flat_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
-            using _FlatTailKernel = __internal::__kernel_name_provider<
-                __segmented_reduce_flat_tail_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
 
-            __segmented_reduce_flat_submitter<_Acc, _FlatKernel, _FlatTailKernel>()(__q, __input, __offsets, __result,
-                                                                                    __n, __m, __init, __binary_op);
+            __segmented_reduce_flat_submitter<_Acc, _FlatKernel>()(__q, __input, __offsets, __result, __n, __m, __init,
+                                                                   __binary_op);
             return;
         }
     }
