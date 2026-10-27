@@ -80,9 +80,9 @@ struct __evenly_divided_binhash_int_base
     // The distance from __lower up to __upper, where __lower <= __upper in their common type C, which the bounds
     // checks compare in. Subtracting in unsigned C is exact even where it overflows C, since the true distance fits
     // in its width.
-    template <typename _Lower, typename _Upper>
-    static std::make_unsigned_t<
-        std::enable_if_t<std::is_integral_v<_Lower> && std::is_integral_v<_Upper>, std::common_type_t<_Lower, _Upper>>>
+    template <typename _Lower, typename _Upper,
+              typename = std::enable_if_t<std::is_integral_v<_Lower> && std::is_integral_v<_Upper>>>
+    static std::make_unsigned_t<std::common_type_t<_Lower, _Upper>>
     __unsigned_distance(_Lower __lower, _Upper __upper)
     {
         using _UnsignedT = std::make_unsigned_t<std::common_type_t<_Lower, _Upper>>;
