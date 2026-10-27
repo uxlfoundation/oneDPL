@@ -773,19 +773,24 @@ __find_subrange(_RandomAccessIterator __first, _RandomAccessIterator __last, _Ra
         return __first; // According to the standard std::search_n shall return first when count < 1
     }
 
-    if (static_cast<_Size>(__global_last - __first) < __count)
+    // The distance is compared with the count in their common type, because narrowing the distance
+    // to the type of the count (e.g. std::uint8_t) would wrap it around.
+    using _Common = std::common_type_t<typename std::iterator_traits<_RandomAccessIterator>::difference_type, _Size>;
+    const auto __common_count = static_cast<_Common>(__count);
+
+    if (static_cast<_Common>(__global_last - __first) < __common_count)
     {
         return __last;
     }
 
     auto __unary_pred =
         [__pred, &__value](auto&& __val) mutable { return __pred(std::forward<decltype(__val)>(__val), __value); };
-    while (__first != __last && (static_cast<_Size>(__global_last - __first) >= __count))
+    while (__first != __last && (static_cast<_Common>(__global_last - __first) >= __common_count))
     {
         __first = __internal::__brick_find_if(__first, __last, __unary_pred, __is_vector);
 
         // check that all of elements in [first+1, first+count) equal to value
-        if (__first != __last && (__global_last - __first >= __count) &&
+        if (__first != __last && (static_cast<_Common>(__global_last - __first) >= __common_count) &&
             !__internal::__brick_any_of(__first + 1, __first + __count,
                                         __not_pred<decltype(__unary_pred)&>(__unary_pred), __is_vector))
         {
@@ -994,7 +999,9 @@ _RandomAccessIterator
 __pattern_search_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
                    _RandomAccessIterator __last, _Size __count, const _Tp& __value, _BinaryPredicate __pred)
 {
-    if (static_cast<_Size>(__last - __first) == __count)
+    // The distance is compared with the count in their common type to not narrow it to the type of the count
+    using _Common = std::common_type_t<typename std::iterator_traits<_RandomAccessIterator>::difference_type, _Size>;
+    if (static_cast<_Common>(__last - __first) == static_cast<_Common>(__count))
     {
         const bool __result = !__internal::__pattern_any_of(__tag, std::forward<_ExecutionPolicy>(__exec), __first,
             __last, [&__value, __pred](auto&& __val) mutable { return !__pred(std::forward<decltype(__val)>(__val),
