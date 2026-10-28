@@ -528,9 +528,8 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
         sycl::group_barrier(__group);
 
-        // 2. Chained scan. Synchronization between work-groups. The first tile of each segment is seeded from the
-        // global histogram and always publishes its prefix as accumulated, so a lookback stops at that tile at the
-        // latest and never reads into the previous segment.
+        // 2. Chained scan. Synchronization between work-groups. For batched scans, each segment lookback stops at the
+        // first tile of the segment.
         if (__sub_group_id < __bin_summary_sub_group_size && __loc.__local_tile != 0)
         {
             __work_group_chained_scan<__bin_process_width, __bin_summary_sub_group_size>(
