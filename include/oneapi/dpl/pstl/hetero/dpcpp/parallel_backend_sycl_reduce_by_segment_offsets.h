@@ -282,14 +282,17 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::
         else
             return [&__input, __base](std::uint32_t __i) -> decltype(auto) { return __input[__base + _Size(__i)]; };
     }();
-    _Acc __head{};
+    auto __to_acc = [](const auto& __x) { return oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__x); };
+    // The accumulators are set up from their first values; a lane not taking part holds none, and what it passes on
+    // to the other lanes is never used
+    oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __head;
     if (__is_first)
-        __head = std::invoke(__binary_op, __init, __at(__first++));
+        __head.__setup(__to_acc(std::invoke(__binary_op, __init, __at(__first++))));
 
     // Every lane that takes part gets at least two elements: its accumulator starts from the operation on two of them,
     // never from an element alone, which may mean something else than the element to the operation
     std::uint32_t __active = std::min<std::uint32_t>(__lanes, (__last - __first) / 2);
-    _Acc __acc{};
+    oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __acc;
     // Where the input is reached through a pointer, every lane loads four consecutive elements at once, from the first
     // address aligned for such a vector on; the elements before it and after the last whole vector go to lane 0. The
     // pairs of a vector keep the accumulator from being made from an element alone.
@@ -327,26 +330,26 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::
                 if (__lane < __active)
                 {
                     std::uint32_t __k = __lane;
-                    __acc = __load4(__k);
+                    __acc.__setup(__load4(__k));
                     // Four vector loads in flight
                     for (__k += __active; __k + 3 * __active < __nv; __k += 4 * __active)
-                        __acc = std::invoke(
-                            __binary_op, __acc,
+                        __acc.__v = std::invoke(
+                            __binary_op, __acc.__v,
                             std::invoke(__binary_op,
                                         oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
                                             std::invoke(__binary_op, __load4(__k), __load4(__k + __active))),
                                         oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(
                                             __binary_op, __load4(__k + 2 * __active), __load4(__k + 3 * __active)))));
                     for (; __k < __nv; __k += __active)
-                        __acc = std::invoke(__binary_op, __acc, __load4(__k));
+                        __acc.__v = std::invoke(__binary_op, __acc.__v, __load4(__k));
                 }
                 // The unaligned head and the tail, at most three elements each (one of 8 bytes), to lane 0
                 if (__lane == 0)
                 {
                     for (std::uint32_t __i = __first; __i < __a; ++__i)
-                        __acc = std::invoke(__binary_op, __acc, __p[__i]);
+                        __acc.__v = std::invoke(__binary_op, __acc.__v, __p[__i]);
                     for (std::uint32_t __i = __a + __w * __nv; __i < __last; ++__i)
-                        __acc = std::invoke(__binary_op, __acc, __p[__i]);
+                        __acc.__v = std::invoke(__binary_op, __acc.__v, __p[__i]);
                 }
             }
         }
@@ -354,25 +357,25 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::
     if (!__by_vectors && __lane < __active)
     {
         std::uint32_t __i = __first + __lane;
-        __acc = std::invoke(__binary_op, __at(__i), __at(__i + __active));
+        __acc.__setup(__to_acc(std::invoke(__binary_op, __at(__i), __at(__i + __active))));
         // Four loads in flight
         for (__i += 2 * __active; __i + 3 * __active < __last; __i += 4 * __active)
-            __acc = std::invoke(__binary_op, __acc,
+            __acc.__v = std::invoke(__binary_op, __acc.__v,
                                 std::invoke(__binary_op,
                                             oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
                                                 std::invoke(__binary_op, __at(__i), __at(__i + __active))),
                                             oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(
                                                 __binary_op, __at(__i + 2 * __active), __at(__i + 3 * __active)))));
         for (; __i < __last; __i += __active)
-            __acc = std::invoke(__binary_op, __acc, __at(__i));
+            __acc.__v = std::invoke(__binary_op, __acc.__v, __at(__i));
     }
     // An operation with an identity the group algorithms know combines the lanes by the sub-group reduction, the lanes
     // not taking part giving the identity
     if constexpr (oneapi::dpl::unseq_backend::__can_use_group_reduce_scan<_BinaryOperation, _Acc>::value)
     {
         if (__active > 0)
-            __acc = sycl::reduce_over_group(
-                __sg, __lane < __active ? __acc : sycl::known_identity_v<_BinaryOperation, _Acc>, __binary_op);
+            __acc.__v = sycl::reduce_over_group(
+                __sg, __lane < __active ? __acc.__v : sycl::known_identity_v<_BinaryOperation, _Acc>, __binary_op);
     }
     else
     {
@@ -380,19 +383,17 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::
         // so that lane 0 gets the lanes in pairs, then in fours, and so on, without a test of its position
         for (std::uint32_t __shift = 1; __shift < __active; __shift *= 2)
         {
-            const _Acc __other = sycl::shift_group_left(__sg, __acc, __shift);
+            const _Acc __other = sycl::shift_group_left(__sg, __acc.__v, __shift);
             if (__lane + __shift < __active)
-                __acc = std::invoke(__binary_op, __acc, __other);
+                __acc.__v = std::invoke(__binary_op, __acc.__v, __other);
         }
     }
     // A range of one element more than the initial value takes it alone
     if (__is_first)
-        __acc = __active > 0
-                    ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __head, __acc))
-                : __first < __last ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                         std::invoke(__binary_op, __head, __at(__first)))
-                                   : __head;
-    return __acc;
+        return __active > 0       ? __to_acc(std::invoke(__binary_op, __head.__v, __acc.__v))
+               : __first < __last ? __to_acc(std::invoke(__binary_op, __head.__v, __at(__first)))
+                                  : __head.__v;
+    return __acc.__v;
 }
 
 // On GPUs a decomposition of the input that does not depend on the segments, for arithmetic types, with the work-groups
@@ -593,6 +594,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     operator()(sycl::queue& __q, _InRange&& __input, _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n,
                const _Size __m, _InitType __init, _BinaryOperation __binary_op) const
     {
+        // The accumulators in __lazy_ctor_storage are never destroyed: the path takes arithmetic types only
+        static_assert(std::is_trivially_destructible_v<_Acc>);
         constexpr std::size_t __lanes = __segmented_reduce_gpu_flat_lanes;
         const __segmented_reduce_flat_geometry __geometry(__q, std::size_t(__n));
         const std::size_t __work_group_size = __geometry.__work_group_size;
@@ -656,7 +659,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         const _Size __piece_end = std::min<_Size>(__n, __piece_begin + _Size(__piece_size));
 
                         // The head and the tail of the piece, on lane 0
-                        _Acc __head{}, __tail{};
+                        oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __head, __tail;
                         std::uint8_t __head_state = 0;
                         _Size __tail_segment = __m;
                         if (__piece_begin < __piece_end)
@@ -752,14 +755,14 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                                                  __sg, __piece_begin, __lo, __hi, __first, __init, __op, __input);
                                     if (!__first)
                                     {
-                                        __head = __acc;
+                                        __head.__setup(__acc);
                                         __head_state = __e > __piece_end ? 2 : 1;
                                     }
                                     if (__first && __e <= __piece_end && __lane == 0)
                                         __result[__s] = __acc;
                                     if (__first && __e > __piece_end)
                                     {
-                                        __tail = __acc;
+                                        __tail.__setup(__acc);
                                         __tail_segment = __s;
                                     }
                                 }
@@ -771,12 +774,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         // A piece covered by a segment begun before it has a head, which only the second kernel reads
                         if constexpr (!__in_group_v)
                         {
+                            if (__lane == 0 && __head_state != 0)
+                                __heads[__piece] = __head.__v;
+                            if (__lane == 0 && __tail_segment < __m)
+                                __tails[__piece] = __tail.__v;
                             if (__lane == 0)
-                            {
-                                __heads[__piece] = __head;
-                                __tails[__piece] = __tail;
                                 __tail_segment_of[__piece] = __tail_segment;
-                            }
                         }
                         else
                         {
@@ -784,8 +787,10 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                             // The same for the work-group in its local memory: the same for every work-item of it
                             if (__lane == 0)
                             {
-                                __local.__acc[__sg_id] = __head;
-                                __local.__acc[__sub_groups + __sg_id] = __tail;
+                                if (__head_state != 0)
+                                    __local.__acc[__sg_id] = __head.__v;
+                                if (__tail_segment < __m)
+                                    __local.__acc[__sub_groups + __sg_id] = __tail.__v;
                                 __local.__segments[__sg_id] = __tail_segment;
                                 __local.__states[__sg_id] = __head_state;
                             }
