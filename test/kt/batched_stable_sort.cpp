@@ -57,13 +57,12 @@ struct BatchedStableSort
     }
     template <typename KernelParam>
     static constexpr std::size_t
-    bytes_req(std::size_t segment_size, std::size_t n, bool in_place)
+    bytes_req(std::size_t segment_size, std::size_t n)
     {
 #if TEST_KEYS_ONLY
-        return kt::gpu::batched_stable_sort_bytes_req<SortConfig, KeyT>(segment_size, n, in_place, KernelParam{});
+        return kt::gpu::batched_stable_sort_bytes_req<SortConfig, KeyT>(segment_size, n, KernelParam{});
 #else
-        return kt::gpu::batched_stable_sort_by_key_bytes_req<SortConfig, KeyT, ValueT>(segment_size, n, in_place,
-                                                                                       KernelParam{});
+        return kt::gpu::batched_stable_sort_by_key_bytes_req<SortConfig, KeyT, ValueT>(segment_size, n, KernelParam{});
 #endif
     }
 };
@@ -93,8 +92,8 @@ main()
     using SorterTempStorage = BatchedStableSort</*UsesTempStorage=*/true>;
     constexpr Param params;
     // The memory requirement can be known at compile time
-    static_assert(SorterTempStorage::bytes_req<Param>(4096, 1 << 20, false) > 0);
-    static_assert(SorterTempStorage::bytes_req<Param>(4096, 0, true) == 0);
+    static_assert(SorterTempStorage::bytes_req<Param>(4096, 1 << 20) > 0);
+    static_assert(SorterTempStorage::bytes_req<Param>(4096, 0) == 0);
     auto q = TestUtils::get_test_queue();
 #    if TEST_KEYS_ONLY
     run_test = can_run_test<Param, KeyT>(q, params);

@@ -13,7 +13,7 @@
 // Shared by the batched sort tests, which define KeyT, ValueT and TEST_KEYS_ONLY before including this header.
 // A Sorter provides static sort<IsAscending>(q, args...) and sort_by_key<IsAscending>(q, args...), forwarding to the
 // keys-only and key-value overloads of the sort under test. A Sorter with uses_temp_storage also provides
-// bytes_req<KernelParam>(segment_size, n, in_place), and its sorts are given temporary storage of that many bytes.
+// bytes_req<KernelParam>(segment_size, n), and its sorts are given temporary storage of that many bytes.
 
 #include <oneapi/dpl/experimental/kernel_templates>
 #include <oneapi/dpl/iterator>
@@ -367,7 +367,7 @@ test_case(sycl::queue q, DataMode mode, std::size_t segment_size, std::size_t se
     if constexpr (Sorter::uses_temp_storage)
     {
         // Exactly the reported number of bytes, at an address only aligned to a byte
-        const std::size_t bytes = Sorter::template bytes_req<KernelParam>(segment_size, n, InPlace);
+        const std::size_t bytes = Sorter::template bytes_req<KernelParam>(segment_size, n);
         std::uint8_t* mem = sycl::malloc_device<std::uint8_t>(bytes + 1, q);
         device_sort<Sorter, IsAscending, InPlace>(q, mode, keys, vals, actual_keys, actual_vals, keys_in_after,
                                                   vals_in_after, segment_size, param, mem + 1, bytes);

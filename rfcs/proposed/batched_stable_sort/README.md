@@ -358,7 +358,7 @@ These are left out of the initial proposal to limit scope.
 ```c++
 template <typename _SortConfig, typename _KeyT, typename _ValT, typename _KernelParam>
 constexpr std::size_t
-batched_stable_sort_by_key_bytes_req(std::size_t __segment_size, std::size_t __total_size, bool __in_place, _KernelParam __param = {});
+batched_stable_sort_by_key_bytes_req(std::size_t __segment_size, std::size_t __total_size, _KernelParam __param = {});
 ```
 
   The memory would then be passed as a pointer and a size in bytes, directly before the

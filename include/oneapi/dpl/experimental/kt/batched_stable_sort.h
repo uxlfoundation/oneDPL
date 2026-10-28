@@ -300,14 +300,13 @@ __batched_stable_sort_by_key_out_iter(sycl::queue __q, _KeysIterator1 __keys_fir
 // Temporary memory requirements
 //-----------------------------------------------------------------------------
 // Bytes of temporary global memory needed to sort __total_size elements in segments of __segment_size elements, to be
-// provided to the overloads which accept a temporary storage pointer and its size in bytes (directly before the
-// kernel_param). The storage is USM device or shared memory with no alignment requirement. The sort does not allocate
-// or free it, and it must stay valid and must not be used otherwise until the returned event completes.
+// provided to the overloads which accept a temporary storage pointer and its size in bytes. The storage is USM device
+// or shared memory with no alignment requirement. The sort does not allocate or free it, and it must stay valid and
+// must not be used otherwise until the returned event completes.
 
 template <typename _SortConfig, typename _KeyT, typename _KernelParam>
 constexpr std::size_t
-batched_stable_sort_bytes_req(std::size_t __segment_size, std::size_t __total_size, [[maybe_unused]] bool __in_place,
-                              _KernelParam = {})
+batched_stable_sort_bytes_req(std::size_t __segment_size, std::size_t __total_size, _KernelParam = {})
 {
     return __impl::__batched_stable_sort_bytes_req<_SortConfig, _KeyT, void, _KernelParam>(__segment_size,
                                                                                            __total_size);
@@ -315,8 +314,7 @@ batched_stable_sort_bytes_req(std::size_t __segment_size, std::size_t __total_si
 
 template <typename _SortConfig, typename _KeyT, typename _ValT, typename _KernelParam>
 constexpr std::size_t
-batched_stable_sort_by_key_bytes_req(std::size_t __segment_size, std::size_t __total_size,
-                                     [[maybe_unused]] bool __in_place, _KernelParam = {})
+batched_stable_sort_by_key_bytes_req(std::size_t __segment_size, std::size_t __total_size, _KernelParam = {})
 {
     return __impl::__batched_stable_sort_bytes_req<_SortConfig, _KeyT, _ValT, _KernelParam>(__segment_size,
                                                                                             __total_size);
