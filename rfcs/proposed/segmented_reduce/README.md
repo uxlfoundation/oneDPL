@@ -31,8 +31,8 @@ Table of contents:
   - [ArgMin and ArgMax semantics](#argmin-and-argmax-semantics)
   - [Accumulator Type](#accumulator-type)
   - [Return Value](#return-value)
-- [Evolution](#evolution)
-- [Feature Macro](#feature-macro)
+  - [Feature Macro](#feature-macro)
+- [Next Steps](#next-steps)
 - [Examples](#examples)
 - [Testing](#testing)
 - [Open Questions](#open-questions)
@@ -788,41 +788,50 @@ by returning the output end.
 
 **Strategy**: return the output end, option (1).
 
-## Evolution
+### Feature Macro
 
-The RFC can be implemented in stages, for example:
+The API is expected to evolve,
+hence a feature macro can be defined for convenience.
 
-1. Implement `reduce_by_segment` with device policies support.
-2. Enable host policies.
+For example:
+
+- `ONEDPL_HAS_SEGMENTED_ALGORITHMS 202611L` after implementing the initial version.
+- `ONEDPL_HAS_SEGMENTED_ALGORITHMS YYYYMML` for future versions.
+
+`ONEDPL_HAS_SEGMENTED_ALGORITHMS` will also cover
+future segmented algorithms beyond `reduce_by_segment`.
+
+**Strategy**: define a feature macro.
+
+## Next Steps
+
+The RFC may be implemented in stages, for example:
+
+1. Implement `reduce_by_segment` with device policies support, and optionally, host policies.
+2. Enable host policies, if not already done.
 3. Optimize fixed-length overloads of `reduce_by_segment` by adding a dedicated implementation,
    and explore/implement tiling strategy for the variable-length overloads.
 4. Support semantics with min/max values and their indices.
 5. Enable identities for the custom binary operations and types.
 
-Stage (1) in detail:
+Suggestion for the initial implementation:
 
-- Implement `reduce_by_segment` for only device policies.
+- Implement `reduce_by_segment` for device policies.
 - Add a dedicated implementation for the variable-length overloads.
-  Follow the approach from `dpct::device::segmented_reduce`, CUB and rocPRIM:
-  assign one segment to a work-group.
-  Consider adapting `__work_group_reduce_kernel` for this purpose.
+  Consider following the approach from `dpct::device::segmented_reduce`, CUB and rocPRIM,
+  which assign one segment to a work-group. Consider adapting `__work_group_reduce_kernel` for this purpose.
+  The performance must not be worse than the existing alternative, `dpct::device::segmented_reduce`.
+  Ideally, the algorithm should be as efficient as CUB and rocPRIM on comparable hardware, or better.
+- For host policies, take one of the following approaches:
+  - Add an optimized implementation for all host policies.
+  - Use a serial implementation for all host policies.
+  - Use a serial implementation for `seq` policy, and issue a static assertion error for other host policies.
 - Enable the fixed-length overloads via the variable-length implementation,
   with offsets `i * segment_length` produced by a transform iterator over a counting iterator.
-- If host policies are used, issue a static assertion error.
-
-## Feature Macro
-
-The API is expected to evolve,
-hence a feature macro should be defined for convenience.
-
-For example:
-
-- `ONEDPL_HAS_SEGMENTED_ALGORITHMS 202611L` for example,
-   after adding  `reduce_by_segment` with device policies.
-- `ONEDPL_HAS_SEGMENTED_ALGORITHMS YYYYMML` for future versions.
-
-`ONEDPL_HAS_SEGMENTED_ALGORITHMS` will also cover
-future segmented algorithms beyond `reduce_by_segment`.
+- Add tests.
+- Update the [specification](../../../documentation/specification/parallel_api/algorithms.rst)
+  and the [library guide](../../../documentation/library_guide/parallel_api/additional_algorithms.rst)
+  with the new overloads.
 
 ## Examples
 
