@@ -233,7 +233,7 @@ reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 fir
 template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt, typename InitT,
           typename BinaryOp>
 oneapi::dpl::__internal::__enable_if_execution_policy<
-    Policy, std::enable_if_t<std::is_integral_v<SegmentNumT> && !std::is_integral_v<OffsetIt>>>
+    Policy, std::enable_if_t<std::is_integral_v<SegmentNumT> && !std::is_integral_v<OffsetIt>, OutputIt>>
 reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first, SegmentNumT num_segments,
                   OffsetIt offsets, InitT init_value, BinaryOp binary_op)
 {
@@ -241,16 +241,18 @@ reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_fir
 
     internal::__reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first, last, out_first,
                                                num_segments, offsets, init_value, binary_op);
+    // The end of the results; a non-positive number of segments writes none
+    return num_segments > 0 ? OutputIt(out_first + num_segments) : out_first;
 }
 
 template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt, typename InitT>
 oneapi::dpl::__internal::__enable_if_execution_policy<
-    Policy, std::enable_if_t<std::is_integral_v<SegmentNumT> && !std::is_integral_v<OffsetIt>>>
+    Policy, std::enable_if_t<std::is_integral_v<SegmentNumT> && !std::is_integral_v<OffsetIt>, OutputIt>>
 reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first, SegmentNumT num_segments,
                   OffsetIt offsets, InitT init_value)
 {
-    reduce_by_segment(std::forward<Policy>(policy), first, last, out_first, num_segments, offsets, init_value,
-                      std::plus<>());
+    return reduce_by_segment(std::forward<Policy>(policy), first, last, out_first, num_segments, offsets, init_value,
+                             std::plus<>());
 }
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
