@@ -57,7 +57,7 @@ template <typename Policy,
           typename OffsetIt,    // to be constrained to a non-integral type
           typename InitT,
           typename BinaryOp>
-void
+OutputIt
 oneapi::dpl::reduce_by_segment(
     Policy&&      policy,
     InputIt       first,
@@ -77,7 +77,7 @@ template <typename Policy,
           typename SegmentLengthT, // to be constrained to an integral type
           typename InitT,
           typename BinaryOp>
-void
+OutputIt
 oneapi::dpl::reduce_by_segment(
     Policy&&        policy,
     InputIt         first,
@@ -690,7 +690,10 @@ so users who need this information can derive it from the arguments, paying the 
 For variable-length segments with device policies,
 returning these values requires a device-to-host copy and a synchronization.
 
-**Strategy**. Return nothing for both variable-length and fixed-length overloads.
+**Strategy**. Return the output end, (1): `out_first + num_segments`, or `out_first` if `num_segments` is not
+positive, for both variable-length and fixed-length overloads. It costs nothing, and it keeps the overloads consistent
+with the other oneDPL algorithms, which return the end of their output; the values that tell where the input ran out,
+(2), (4) and (5), stay derivable from the arguments.
 
 ## Evolution
 
