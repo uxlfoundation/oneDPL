@@ -31,11 +31,9 @@ class __radix_sort_one_wg;
 template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_histogram;
 
-template <typename _KtTag, std::uint32_t __stage_count, std::uint32_t __bin_count, typename... _Name>
+template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_scan;
 
-// The range pack types are part of the kernel names, so one custom name serves every data passing mechanism and both
-// keys-only and by-key sorts
 template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep;
 
@@ -273,9 +271,9 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
                 _RngPack3&& __virt_pack2, const _MemHolder& __mem_holder, std::size_t __n, const _Layout& __layout)
 {
     using _RadixSortHistogram = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __radix_sort_onesweep_histogram<_KtTag, std::decay_t<_RngPack1>, _KernelName>>;
+        __radix_sort_onesweep_histogram<_KtTag, _KernelName>>;
     using _RadixSortScan = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __radix_sort_onesweep_scan<_KtTag, _Layout::__stage_count, _Layout::__bin_count, _KernelName>>;
+        __radix_sort_onesweep_scan<_KtTag, _KernelName>>;
     using _RadixSortSweepInitial = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, _KernelName>>;
     using _RadixSortSweepEven = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -372,7 +370,7 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
     constexpr bool __internal_alloc = std::is_same_v<_TempStorage, __internal_temp_storage>;
 
     using _RadixSortCopyback = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __radix_sort_onesweep_copyback<_KtTag, std::decay_t<_RngPack1>, _KernelName>>;
+        __radix_sort_onesweep_copyback<_KtTag, _KernelName>>;
 
     using _Layout = __onesweep_layout<_KeyT, __radix_bits, __data_per_work_item, __work_group_size>;
     constexpr std::uint32_t __stage_count = _Layout::__stage_count;

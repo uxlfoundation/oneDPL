@@ -244,6 +244,16 @@ invoke_sort([[maybe_unused]] sycl::queue q, [[maybe_unused]] Keys&& keys, [[mayb
 #endif
 }
 
+// Every distinct sort call needs a unique kernel name: the kernel templates only distinguish the kernels submitted
+// within a single call
+template <typename Sorter, bool IsAscending, bool InPlace, DataMode Mode, typename KernelParam>
+constexpr auto
+unique_kernel_param(KernelParam param)
+{
+    constexpr int variant = int(IsAscending) + 2 * int(InPlace) + 4 * int(Sorter::uses_temp_storage);
+    return TestUtils::create_new_kernel_param_idx<4 * variant + int(Mode)>(param);
+}
+
 // Sorts on the device with the given data passing mode. The output vectors are both input and output for
 // in-place sorts.
 template <typename Sorter, bool IsAscending, bool InPlace, typename KernelParam, typename... Extra>
@@ -271,16 +281,19 @@ device_sort(sycl::queue q, DataMode mode, const std::vector<KeyT>& keys_in, cons
         sycl::event e;
         if (mode == DataMode::usm_iterators)
         {
-            e = invoke_sort<Sorter, IsAscending, InPlace>(q, kp, kp + n, vp, kop, vop, segment_size, param,
-                                                          std::true_type{}, extra...);
+            e = invoke_sort<Sorter, IsAscending, InPlace>(
+                q, kp, kp + n, vp, kop, vop, segment_size,
+                unique_kernel_param<Sorter, IsAscending, InPlace, DataMode::usm_iterators>(param), std::true_type{},
+                extra...);
         }
         else
         {
             // USM ranges are passed as subrange views over the pointers
             namespace views = oneapi::dpl::experimental::ranges::views;
-            e = invoke_sort<Sorter, IsAscending, InPlace>(q, views::subrange(kp, kp + n), views::subrange(vp, vp + n),
-                                                          views::subrange(kop, kop + n), views::subrange(vop, vop + n),
-                                                          segment_size, param, extra...);
+            e = invoke_sort<Sorter, IsAscending, InPlace>(
+                q, views::subrange(kp, kp + n), views::subrange(vp, vp + n), views::subrange(kop, kop + n),
+                views::subrange(vop, vop + n), segment_size,
+                unique_kernel_param<Sorter, IsAscending, InPlace, DataMode::usm_ranges>(param), extra...);
         }
         e.wait();
         if constexpr (InPlace)
@@ -308,14 +321,18 @@ device_sort(sycl::queue q, DataMode mode, const std::vector<KeyT>& keys_in, cons
             if (mode == DataMode::buffer_iterators)
             {
                 auto kb = oneapi::dpl::begin(k);
-                invoke_sort<Sorter, IsAscending, InPlace>(q, kb, kb + n, oneapi::dpl::begin(v), oneapi::dpl::begin(ko),
-                                                          oneapi::dpl::begin(vo), segment_size, param, std::true_type{},
-                                                          extra...)
+                invoke_sort<Sorter, IsAscending, InPlace>(
+                    q, kb, kb + n, oneapi::dpl::begin(v), oneapi::dpl::begin(ko), oneapi::dpl::begin(vo), segment_size,
+                    unique_kernel_param<Sorter, IsAscending, InPlace, DataMode::buffer_iterators>(param),
+                    std::true_type{}, extra...)
                     .wait();
             }
             else
             {
-                invoke_sort<Sorter, IsAscending, InPlace>(q, k, v, ko, vo, segment_size, param, extra...).wait();
+                invoke_sort<Sorter, IsAscending, InPlace>(
+                    q, k, v, ko, vo, segment_size,
+                    unique_kernel_param<Sorter, IsAscending, InPlace, DataMode::buffer_ranges>(param), extra...)
+                    .wait();
             }
         }
         if constexpr (InPlace)
@@ -392,17 +409,14 @@ test_special_patterns(sycl::queue q, std::size_t segment_size, KernelParam param
     // Values record the position in the segment, so they must represent it exactly
     if (segment_size > std::size_t(std::numeric_limits<ValueT>::max()))
         return;
-    test_case<Sorter, true, false>(q, DataMode::usm_iterators, segment_size, 5,
-                                   TestUtils::create_new_kernel_param_idx<0>(params), DataPattern::few_distinct);
-    test_case<Sorter, false, true>(q, DataMode::buffer_ranges, segment_size, 5,
-                                   TestUtils::create_new_kernel_param_idx<3>(params), DataPattern::few_distinct);
+    test_case<Sorter, true, false>(q, DataMode::usm_iterators, segment_size, 5, params, DataPattern::few_distinct);
+    test_case<Sorter, false, true>(q, DataMode::buffer_ranges, segment_size, 5, params, DataPattern::few_distinct);
 #endif
     if constexpr (FloatingKey)
     {
-        test_case<Sorter, true, true>(q, DataMode::usm_ranges, segment_size, 5,
-                                      TestUtils::create_new_kernel_param_idx<2>(params), DataPattern::float_specials);
-        test_case<Sorter, false, false>(q, DataMode::buffer_iterators, segment_size, 5,
-                                        TestUtils::create_new_kernel_param_idx<1>(params), DataPattern::float_specials);
+        test_case<Sorter, true, true>(q, DataMode::usm_ranges, segment_size, 5, params, DataPattern::float_specials);
+        test_case<Sorter, false, false>(q, DataMode::buffer_iterators, segment_size, 5, params,
+                                        DataPattern::float_specials);
     }
 }
 
@@ -416,18 +430,20 @@ test_empty_input(sycl::queue q, KernelParam params, Extra... extra)
     KeyT* keys = nullptr;
     ValueT* vals = nullptr;
     invoke_sort<Sorter, true, true>(q, keys, keys, vals, keys, vals, 4,
-                                    TestUtils::create_new_kernel_param_idx<4>(params), std::true_type{}, extra...)
+                                    unique_kernel_param<Sorter, true, true, DataMode::usm_iterators>(params),
+                                    std::true_type{}, extra...)
         .wait();
     invoke_sort<Sorter, true, false>(q, keys, keys, vals, keys, vals, 4,
-                                     TestUtils::create_new_kernel_param_idx<5>(params), std::true_type{}, extra...)
+                                     unique_kernel_param<Sorter, true, false, DataMode::usm_iterators>(params),
+                                     std::true_type{}, extra...)
         .wait();
     invoke_sort<Sorter, true, true>(q, views::subrange(keys, keys), views::subrange(vals, vals),
                                     views::subrange(keys, keys), views::subrange(vals, vals), 4,
-                                    TestUtils::create_new_kernel_param_idx<6>(params), extra...)
+                                    unique_kernel_param<Sorter, true, true, DataMode::usm_ranges>(params), extra...)
         .wait();
     invoke_sort<Sorter, true, false>(q, views::subrange(keys, keys), views::subrange(vals, vals),
                                      views::subrange(keys, keys), views::subrange(vals, vals), 4,
-                                     TestUtils::create_new_kernel_param_idx<7>(params), extra...)
+                                     unique_kernel_param<Sorter, true, false, DataMode::usm_ranges>(params), extra...)
         .wait();
 }
 

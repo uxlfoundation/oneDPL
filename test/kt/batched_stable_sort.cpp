@@ -118,45 +118,36 @@ main()
                 for (std::size_t segment_count : {std::size_t(1), std::size_t(3), many})
                 {
                     const DataMode mode = modes[mode_idx++ % 4];
-                    test_case<Sorter, Ascending, false>(q, mode, segment_size, segment_count,
-                                                        TestUtils::create_new_kernel_param_idx<0>(params));
-                    test_case<Sorter, Descending, false>(q, mode, segment_size, segment_count,
-                                                         TestUtils::create_new_kernel_param_idx<1>(params));
-                    test_case<Sorter, Ascending, true>(q, mode, segment_size, segment_count,
-                                                       TestUtils::create_new_kernel_param_idx<2>(params));
-                    test_case<Sorter, Descending, true>(q, mode, segment_size, segment_count,
-                                                        TestUtils::create_new_kernel_param_idx<3>(params));
+                    test_case<Sorter, Ascending, false>(q, mode, segment_size, segment_count, params);
+                    test_case<Sorter, Descending, false>(q, mode, segment_size, segment_count, params);
+                    test_case<Sorter, Ascending, true>(q, mode, segment_size, segment_count, params);
+                    test_case<Sorter, Descending, true>(q, mode, segment_size, segment_count, params);
                 }
 
                 // Only the segment counts advance the rotation, so each count cycles through all modes
                 const DataMode mode = modes[mode_idx % 4];
-                test_case<Sorter, Ascending, false>(q, mode, segment_size, many,
-                                                    TestUtils::create_new_kernel_param_idx<0>(params),
-                                                    DataPattern::all_equal);
-                test_case<Sorter, Descending, true>(q, mode, segment_size, many,
-                                                    TestUtils::create_new_kernel_param_idx<3>(params),
-                                                    DataPattern::reversed);
+                test_case<Sorter, Ascending, false>(q, mode, segment_size, many, params, DataPattern::all_equal);
+                test_case<Sorter, Descending, true>(q, mode, segment_size, many, params, DataPattern::reversed);
                 test_special_patterns<Sorter>(q, segment_size, params);
 
                 // Temporary storage provided by the caller, for each data mode with in-place and out-of-place sorts
-                test_case<SorterTempStorage, Ascending, false>(q, modes[mode_idx % 4], segment_size, 3,
-                                                               TestUtils::create_new_kernel_param_idx<0>(params));
-                test_case<SorterTempStorage, Descending, true>(q, modes[(mode_idx + 1) % 4], segment_size, 3,
-                                                               TestUtils::create_new_kernel_param_idx<3>(params));
+                test_case<SorterTempStorage, Ascending, false>(q, modes[mode_idx % 4], segment_size, 3, params);
+                test_case<SorterTempStorage, Descending, true>(q, modes[(mode_idx + 1) % 4], segment_size, 3, params);
             }
 
             // More histogram chunks than histogram work-groups, with segments of 3 chunks: work-groups own several
             // chunks and switch segments in the middle of their range
-            test_case<Sorter, Ascending, false>(q, DataMode::usm_iterators, 9000, 600,
-                                                TestUtils::create_new_kernel_param_idx<0>(params));
+            test_case<Sorter, Ascending, false>(q, DataMode::usm_iterators, 9000, 600, params);
 
             test_empty_input<Sorter>(q, params);
             test_empty_input<SorterTempStorage>(q, params, static_cast<void*>(nullptr), std::size_t{0});
 
             // The kernel_param may be given as a template argument instead, also with temporary storage
+            using ParamA = decltype(TestUtils::create_new_kernel_param_idx<32>(params));
+            using ParamB = decltype(TestUtils::create_new_kernel_param_idx<33>(params));
             KeyT* no_keys = nullptr;
-            kt::gpu::batched_stable_sort<SortConfig, Ascending, Param>(q, no_keys, no_keys, 4).wait();
-            kt::gpu::batched_stable_sort<SortConfig, Ascending, Param>(q, no_keys, no_keys, 4, nullptr, 0).wait();
+            kt::gpu::batched_stable_sort<SortConfig, Ascending, ParamA>(q, no_keys, no_keys, 4).wait();
+            kt::gpu::batched_stable_sort<SortConfig, Ascending, ParamB>(q, no_keys, no_keys, 4, nullptr, 0).wait();
         }
         catch (const std::exception& exc)
         {
