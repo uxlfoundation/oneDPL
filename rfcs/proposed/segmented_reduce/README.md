@@ -32,9 +32,9 @@ Table of contents:
   - [Accumulator Type](#accumulator-type)
   - [Return Value](#return-value)
   - [Feature Macro](#feature-macro)
-- [Next Steps](#next-steps)
 - [Examples](#examples)
 - [Testing](#testing)
+- [Next Steps](#next-steps)
 - [Open Questions](#open-questions)
   - [Different `first` and `last` Types](#different-first-and-last-types)
   - [Iterator Requirements](#iterator-requirements)
@@ -728,7 +728,7 @@ Therefore the operation imposes the following type requirements:
 - The result of `binary_op(a, b)` for any such combination must be convertible to `AccT`
   and assignable to an `AccT` object.
 - `AccT` must be writable to the output iterator.
-- `InitT` should be convertible to `AccT` (for empty segments)
+- `InitT` must be convertible to `AccT` (for empty segments).
 
 Comparison with other reductions:
 
@@ -801,37 +801,7 @@ For example:
 `ONEDPL_HAS_SEGMENTED_ALGORITHMS` will also cover
 future segmented algorithms beyond `reduce_by_segment`.
 
-**Strategy**: define a feature macro.
-
-## Next Steps
-
-The RFC may be implemented in stages, for example:
-
-1. Implement `reduce_by_segment` with device policies support, and optionally, host policies.
-2. Enable host policies, if not already done.
-3. Optimize fixed-length overloads of `reduce_by_segment` by adding a dedicated implementation,
-   and explore/implement tiling strategy for the variable-length overloads.
-4. Support semantics with min/max values and their indices.
-5. Enable identities for the custom binary operations and types.
-
-Suggestion for the initial implementation:
-
-- Implement `reduce_by_segment` for device policies.
-- Add a dedicated implementation for the variable-length overloads.
-  Consider following the approach from `dpct::device::segmented_reduce`, CUB and rocPRIM,
-  which assign one segment to a work-group. Consider adapting `__work_group_reduce_kernel` for this purpose.
-  The performance must not be worse than the existing alternative, `dpct::device::segmented_reduce`.
-  Ideally, the algorithm should be as efficient as CUB and rocPRIM on comparable hardware, or better.
-- For host policies, take one of the following approaches:
-  - Add an optimized implementation for all host policies.
-  - Use a serial implementation for all host policies.
-  - Use a serial implementation for `seq` policy, and issue a static assertion error for other host policies.
-- Enable the fixed-length overloads via the variable-length implementation,
-  with offsets `i * segment_length` produced by a transform iterator over a counting iterator.
-- Add tests.
-- Update the [specification](../../../documentation/specification/parallel_api/algorithms.rst)
-  and the [library guide](../../../documentation/library_guide/parallel_api/additional_algorithms.rst)
-  with the new overloads.
+**Strategy**: define the feature macro.
 
 ## Examples
 
@@ -914,6 +884,36 @@ int main()
 The follow the established testing practices for oneDPL algorithms,
 and have comprehensive coverage.
 The exact details are left to the implementer.
+
+## Next Steps
+
+The RFC may be implemented in stages, for example:
+
+1. Implement `reduce_by_segment` with device policies support, and optionally, host policies.
+2. Enable host policies, if not already done.
+3. Optimize fixed-length overloads of `reduce_by_segment` by adding a dedicated implementation,
+   and explore/implement tiling strategy for the variable-length overloads.
+4. Support semantics with min/max values and their indices.
+5. Enable identities for the custom binary operations and types.
+
+Suggestion for the initial implementation:
+
+- Implement `reduce_by_segment` for device policies.
+- Add a dedicated implementation for the variable-length overloads.
+  Consider following the approach from `dpct::device::segmented_reduce`, CUB and rocPRIM,
+  which assign one segment to a work-group. Consider adapting `__work_group_reduce_kernel` for this purpose.
+  The performance must not be worse than the existing alternative, `dpct::device::segmented_reduce`.
+  Ideally, the algorithm should be as efficient as CUB and rocPRIM on comparable hardware, or better.
+- For host policies, take one of the following approaches:
+  - Add an optimized implementation for all host policies.
+  - Use a serial implementation for all host policies.
+  - Use a serial implementation for `seq` policy, and issue a static assertion error for other host policies.
+- Enable the fixed-length overloads via the variable-length implementation,
+  with offsets `i * segment_length` produced by a transform iterator over a counting iterator.
+- Add the tests.
+- Update the [specification](../../../documentation/specification/parallel_api/algorithms.rst)
+  and the [library guide](../../../documentation/library_guide/parallel_api/additional_algorithms.rst)
+  with the new overloads.
 
 ## Open Questions
 
