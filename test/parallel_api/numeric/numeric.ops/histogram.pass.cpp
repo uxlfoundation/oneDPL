@@ -173,6 +173,33 @@ test_bin_arithmetic()
     test_even_bin_arithmetic<11, float>({std::nextafter(29.0f, 0.0f)}, 0.0f, 29.0f, {0, 0, 1});
     test_even_bin_arithmetic<12, float>({std::nextafter(7.0f, 0.0f)}, 0, 7, {0, 0, 0, 0, 0, 0, 0, 0, 0, 1});
 
+    // A sample at or just above the minimum must land in the first bin, and one just below it must be excluded
+    test_even_bin_arithmetic<22, float>({std::nextafter(-1.0f, -2.0f), -1.0f, std::nextafter(-1.0f, 0.0f)}, -1.0f, 1.0f,
+                                        {2, 0});
+    test_even_bin_arithmetic<23, float>({std::nextafter(1000.0f, 0.0f), 1000.0f, std::nextafter(1000.0f, 2000.0f)},
+                                        1000.0f, 1007.0f, {2, 0, 0});
+    test_even_bin_arithmetic<24, float>({std::nextafter(-3.0f, -4.0f), -3.0f, std::nextafter(-3.0f, 0.0f)}, -3, 4,
+                                        {2, 0, 0, 0, 0, 0, 0});
+
+    // The same for double samples, with double, integer, and float bounds
+    test_even_bin_arithmetic<25, double>({-0.25, 0.0, 0.25, 0.5, 0.75, 1.0}, 0, 1, {2, 2});
+    test_even_bin_arithmetic<26, double>({-1.25, -1.0, -0.75, -0.5, -0.25, 0.0}, -1, 0, {2, 2});
+    test_even_bin_arithmetic<27, double>({std::nextafter(7.0, 0.0)}, 0.0, 7.0, {0, 0, 0, 0, 0, 0, 0, 0, 1});
+    test_even_bin_arithmetic<28, double>({std::nextafter(15.0, 0.0)}, 0.0, 15.0, {0, 0, 1});
+    test_even_bin_arithmetic<29, double>({std::nextafter(15.0, 0.0)}, 0, 15, {0, 0, 0, 0, 0, 1});
+    test_even_bin_arithmetic<30, double>({std::nextafter(-1.0, -2.0), -1.0, std::nextafter(-1.0, 0.0)}, -1.0, 1.0,
+                                         {2, 0});
+    test_even_bin_arithmetic<31, double>({std::nextafter(1000.0, 0.0), 1000.0, std::nextafter(1000.0, 2000.0)}, 1000.0,
+                                         1007.0, {2, 0, 0});
+    test_even_bin_arithmetic<32, double>({std::nextafter(-3.0, -4.0), -3.0, std::nextafter(-3.0, 0.0)}, -3, 4,
+                                         {2, 0, 0, 0, 0, 0, 0});
+    // Double samples are compared against float bounds without being narrowed, so those within an ulp of a float
+    // bound are binned by their exact value
+    const double fmin = 0.1f, fmax = 0.7f;
+    test_even_bin_arithmetic<33, double>(
+        {std::nextafter(fmin, 0.0), fmin, std::nextafter(fmin, 1.0), std::nextafter(fmax, 0.0), fmax}, 0.1f, 0.7f,
+        {2, 0, 1});
+
     // offset * num_bins exceeds 64 bits for these ranges
     using U = std::uint64_t;
     const U width = U{1} << 61;
@@ -189,16 +216,47 @@ test_bin_arithmetic()
     const U edge = U{1} << 58;
     test_even_bin_arithmetic<16, U>({0, edge - 1, edge, 6 * edge, 7 * edge - 1, 7 * edge}, U{0}, 7 * edge,
                                     {2, 1, 0, 0, 0, 0, 2});
+    // A sample at or just above a nonzero minimum lands in the first bin, and one just below it is excluded
+    test_even_bin_arithmetic<34, U>({4, 5, 6}, U{5}, 5 + 4 * width, {2, 0, 0, 0});
 
     // The range max - min does not fit in the bound type
     using I = std::int64_t;
     const I imin = std::numeric_limits<I>::min(), imax = std::numeric_limits<I>::max();
     test_even_bin_arithmetic<17, I>({imin, I{-1}, I{0}, imax - 1, imax}, imin, imax, {1, 1, 1, 1});
+    test_even_bin_arithmetic<35, I>({imin, imin + 1, imin + 2}, imin + 1, imax, {2, 0, 0});
     test_even_bin_arithmetic<18, std::int8_t>(
         {std::int8_t(-101), std::int8_t(-100), std::int8_t(-1), std::int8_t(0), std::int8_t(99), std::int8_t(100)},
         std::int8_t(-100), std::int8_t(100), {1, 0, 0, 2, 0, 0, 1});
     // Signed samples with unsigned bounds are compared as unsigned, so -2 is 2^32 - 2 and its offset must match
     test_even_bin_arithmetic<21, std::int32_t>({-2}, std::uint32_t(3) << 30, std::uint32_t(0xffffffff), {0, 0, 1});
+    // -(2^30) is 3 * 2^30, the minimum, and the sample below it is excluded
+    test_even_bin_arithmetic<36, std::int32_t>({-(1 << 30) - 1, -(1 << 30), -(1 << 30) + 1}, std::uint32_t(3) << 30,
+                                               std::uint32_t(0xffffffff), {2, 0, 0});
+
+    // For bounds of at most 32 bits, offset * num_bins exceeds 32 bits here, with samples on either side of each
+    // bin edge, which lie at minimum + ceil(k * range / num_bins)
+    using U32 = std::uint32_t;
+    const U32 umax = std::numeric_limits<U32>::max();
+    test_even_bin_arithmetic<37, U32>(
+        {0, 1073741823, 1073741824, 2147483647, 2147483648u, 3221225471u, 3221225472u, umax - 1, umax}, U32{0}, umax,
+        {2, 2, 2, 2});
+    using I32 = std::int32_t;
+    const I32 i32min = std::numeric_limits<I32>::min(), i32max = std::numeric_limits<I32>::max();
+    test_even_bin_arithmetic<38, I32>({i32min, -715827884, -715827883, 715827881, 715827882, i32max - 1, i32max},
+                                      i32min, i32max, {2, 2, 2});
+    using I16 = std::int16_t;
+    test_even_bin_arithmetic<39, I16>(
+        {I16(-32768), I16(-10924), I16(-10923), I16(10921), I16(10922), I16(32766), I16(32767)}, I16(-32768),
+        I16(32767), {2, 2, 2});
+    // 64-bit samples outside 32-bit bounds are excluded rather than wrapped into the range
+    const std::int64_t two32 = std::int64_t{1} << 32;
+    test_even_bin_arithmetic<40, std::int64_t>({10, 509, 510, 1009, 1010, two32 + 10, two32 + 510, 10 - two32}, U32{10},
+                                               U32{1010}, {2, 2});
+    // Many bins, where offset * num_bins approaches 2^48
+    std::vector<int> many_bins(1 << 16, 0);
+    many_bins[0] = 2;
+    many_bins[1] = many_bins[1 << 15] = many_bins[(1 << 16) - 1] = 1;
+    test_even_bin_arithmetic<41, U32>({0, 65535, 65536, 2147483648u, umax - 1}, U32{0}, umax, many_bins);
 
     // With no bins nothing is written, even for samples within the bounds
     test_even_bin_arithmetic<19, int>({0, 5}, 0, 10, {});
