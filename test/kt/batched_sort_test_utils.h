@@ -180,10 +180,9 @@ reference_sort(std::vector<KeyT>& keys, std::vector<ValueT>& vals, std::size_t s
 template <typename Sorter, bool IsAscending, bool InPlace, typename Keys, typename Vals, typename KeysOut,
           typename ValsOut, typename KernelParam, typename... Extra>
 sycl::event
-invoke_sort([[maybe_unused]] sycl::queue q, [[maybe_unused]] Keys keys_first, [[maybe_unused]] Keys keys_last,
-            [[maybe_unused]] Vals vals, [[maybe_unused]] KeysOut keys_out, [[maybe_unused]] ValsOut vals_out,
-            [[maybe_unused]] std::size_t segment_size, [[maybe_unused]] KernelParam param, std::true_type /*iterators*/,
-            [[maybe_unused]] Extra... extra)
+invoke_sort(sycl::queue q, Keys keys_first, Keys keys_last, [[maybe_unused]] Vals vals, KeysOut keys_out,
+            [[maybe_unused]] ValsOut vals_out, std::size_t segment_size, KernelParam param,
+            std::true_type /*iterators*/, Extra... extra)
 {
 #if TEST_KEYS_ONLY
     if constexpr (InPlace)
@@ -202,10 +201,8 @@ invoke_sort([[maybe_unused]] sycl::queue q, [[maybe_unused]] Keys keys_first, [[
 template <typename Sorter, bool IsAscending, bool InPlace, typename Keys, typename Vals, typename KeysOut,
           typename ValsOut, typename KernelParam, typename... Extra>
 sycl::event
-invoke_sort([[maybe_unused]] sycl::queue q, [[maybe_unused]] Keys&& keys, [[maybe_unused]] Vals&& vals,
-            [[maybe_unused]] KeysOut&& keys_out, [[maybe_unused]] ValsOut&& vals_out,
-            [[maybe_unused]] std::size_t segment_size, [[maybe_unused]] KernelParam param,
-            [[maybe_unused]] Extra... extra)
+invoke_sort(sycl::queue q, Keys&& keys, [[maybe_unused]] Vals&& vals, KeysOut&& keys_out,
+            [[maybe_unused]] ValsOut&& vals_out, std::size_t segment_size, KernelParam param, Extra... extra)
 {
 #if TEST_KEYS_ONLY
     if constexpr (InPlace)
