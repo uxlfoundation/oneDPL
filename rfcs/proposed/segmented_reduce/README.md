@@ -18,12 +18,14 @@ Table of contents:
   - [Kernel Template or Core Algorithm Extension](#kernel-template-or-core-algorithm-extension)
   - [Empty, Overlapping, Negatively Sized, and Unordered Segments](#empty-overlapping-negatively-sized-and-unordered-segments)
   - [`num_segments` and `segment_length`: Types and Negative Values](#num_segments-and-segment_length-types-and-negative-values)
-  - [Initial Value, its Default Value, and Identity](#initial-value-its-default-value-and-identity)
+  - [Binary Operation and Init Value Order](#binary-operation-and-init-value-order)
+  - [Initial Value or Identity](#initial-value-or-identity)
+  - [Default Initial Value and Binary Operation](#default-initial-value-and-binary-operation)
+  - [Identity](#identity)
   - [Bounding Input and Negative Offsets](#bounding-input-and-negative-offsets)
   - [Fixed-Length Segments](#fixed-length-segments)
-  - [Binary Operator](#binary-operator)
+  - [Binary Operation Requirements](#binary-operation-requirements)
   - [Floating Point Determinism](#floating-point-determinism)
-  - [Binary Operation and Init Value Order](#binary-operation-and-init-value-order)
   - [Arguments and Overload Disambiguation](#arguments-and-overload-disambiguation)
   - [Sum, Min, Max semantics](#sum-min-max-semantics)
   - [ArgMin and ArgMax semantics](#argmin-and-argmax-semantics)
@@ -50,7 +52,27 @@ as the existing `reduce_by_segment` overloads, as defined in the
 [specification](../../../documentation/specification/parallel_api/algorithms.rst).
 
 ```c++
-// (1) Variable-length segments
+// (1) Variable-length segments,
+//     std::plus<> as the default binary operation
+template <typename Policy,
+          typename InputIt,
+          typename OutputIt,
+          typename SegmentNumT, // to be constrained to an integral type
+          typename OffsetIt,    // to be constrained to a non-integral type
+          typename InitT>
+OutputIt
+oneapi::dpl::reduce_by_segment(
+    Policy&&      policy,
+    InputIt       first,
+    InputIt       last,
+    OutputIt      out_first,
+    SegmentNumT   num_segments,
+    OffsetIt      offsets,
+    InitT         init_value
+);
+
+// (2) Variable-length segments,
+//     a custom binary operation
 template <typename Policy,
           typename InputIt,
           typename OutputIt,
@@ -70,7 +92,27 @@ oneapi::dpl::reduce_by_segment(
     BinaryOp      binary_op
 );
 
-// (2) Fixed-length segments
+// (3) Fixed-length segments,
+//     std::plus<> as the default binary operation
+template <typename Policy,
+          typename InputIt,
+          typename OutputIt,
+          typename SegmentNumT,    // to be constrained to an integral type
+          typename SegmentLengthT, // to be constrained to an integral type
+          typename InitT>
+OutputIt
+oneapi::dpl::reduce_by_segment(
+    Policy&&        policy,
+    InputIt         first,
+    InputIt         last,
+    OutputIt        out_first,
+    SegmentNumT     num_segments,
+    SegmentLengthT  segment_length,
+    InitT           init_value
+);
+
+// (4) Fixed-length segments,
+//     a custom binary operation
 template <typename Policy,
           typename InputIt,
           typename OutputIt,
@@ -172,16 +214,70 @@ Possible argument types:
 - If `segment_length == 0` (and `num_segments > 0`), treat all segments as empty.
 - Document this behavior.
 
-### Initial Value, its Default Value, and Identity
+### Binary Operation and Init Value Order
+
+In `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`,
+the order is `binary_op, init_value`.
+In `dpl::reduce` and in almost all C++ algorithms, it is the opposite.
+For API consistency, `init_value, binary_op` is preferred.
+If full order compatibility with CUB and rocPRIM equivalents is required,
+wrappers can be added to, for example, `compat` namespace.
+
+**Strategy**: Use `init_value, binary_op` order.
+
+### Initial Value or Identity
 
 The [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) request
 specified an identity as the last argument,
 while in industry practice it is typically if not always an initial value.
 
-What should be provided as an argument in place of the initial value? What should be the default value?
+An initial value applies only once, and an identity can be applied multiple times.
+The initial value may be equal to the identity or not.
 
-Initial value applies only once, and known identity can be applied multiple times.
-The initial value may be equal to the known identity or not. A safe default initial value is the identity.
+The motivation of [#2829](https://github.com/oneapi-src/oneDPL/issues/2829)
+is to initialize empty segments to a value equal to the identity,
+which is achieved by passing the identity as the initial value.
+
+In theory, there can be use cases where the initial value can be different from the identity,
+for example, as a floor for the max operation or a cap for the min operation.
+
+**Strategy**: have an initial value as an argument.
+
+### Default Initial Value and Binary Operation
+
+What should be the default arguments if any?
+
+Precedents:
+
+- `dpl::reduce_by_segment` provides a default binary operation (`std::plus<T>`); there is no initial value argument.
+- `std::reduce` provides a default initial value (`T{}`) and a default binary operation (`std::plus<>`).
+- `std::accumulate` provides only a default binary operation (`std::plus<>`); initial value must be provided explicitly.
+- `std::ranges::fold_left` requires passing both.
+- `cub::DeviceSegmentedReduce` requires passing both with the general `Reduce` interface,
+  and does not provide these arguments at all with `Sum`, `Min`, `Max`.
+- `rocprim::segmented_reduce` provides a default initial value (`T{}`) and a default binary operation (`rocprim::plus<T>`).
+
+The following motivations are considered, in the order of importance:
+
+1. Predictable behavior. Surprises are minimized
+   when the default initial value and the default binary operation form an identity for the input type.
+2. Consistency with the existing `dpl::reduce_by_segment` overloads, and the closest standard algorithm: `std::reduce`.
+
+Both arguments cannot be omitted simultaneously to satisfy (1).
+For example, it is unknown what the initial value is an identity for a user-defined type irrespective of the binary operation; assuming `T{}`, like in `std::reduce`, may lead to unexpected results.
+The initial value, as the first argument, must be explicitly specified.
+It means that only the binary operation can have a default.
+It is consistent with `dpl::reduce_by_segment` (it does not have an initial value argument at all) and `std::accumulate` (it requires an explicit initial value).
+
+Should the binary operation be `std::plus<>` like in `std::reduce` or `std::plus<T>` like in `dpl::reduce_by_segment`?
+It must be `std::plus<>`, because the new overloads also have an initial value besides the input range.
+
+**Strategy**:
+
+- The initial value must be explicitly specified by the user.
+- The binary operation can have a default, which should be `std::plus<>`.
+
+### Identity
 
 Initial value is mandatory when the algorithm's contract is to apply it to each segment,
 or as a result for empty segments, what is done by CUB and rocPRIM.
@@ -214,13 +310,8 @@ should provide a way to specify the identity explicitly. There are many strategi
 The topic is discussed in [p3732r2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html),
 although there is no consensus yet.
 
-**Strategy**. Keep initial value as an argument with an "initial value" semantics.
-Wait until [p3732r2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html) settles,
-and follow it to provide a way to specify the identity
-for better performance with custom types and operations.
-Request the initial value to be passed explicitly by the user.
-Provide a default value when, again,
-[p3732r2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html) settles.
+**Strategy**: wait until [p3732r2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html) settles
+and follow it to provide a way to specify the identity explicitly.
 
 ### Bounding Input and Negative Offsets
 
@@ -295,7 +386,7 @@ to select the optimal reduction strategy before the kernel submission.
 
 **Strategy**: provide the fixed-length segment overloads.
 
-### Binary Operator
+### Binary Operation Requirements
 
 Associativity is essential for parallelization.
 Commutativity lets the implementation reorder the operands, which is used by:
@@ -393,17 +484,6 @@ Potential implementation challenges for run-to-run determinism:
 - Reconsider determinism in the future for specific policies
   if there is demand and
   if the implementation experience suggests that it is feasible.
-
-### Binary Operation and Init Value Order
-
-In `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`,
-the order is `binary_op, init_value`.
-In `dpl::reduce` and in almost all C++ algorithms, it is the opposite.
-For API consistency, `init_value, binary_op` is preferred.
-If full order compatibility with CUB and rocPRIM equivalents is required,
-wrappers can be added to, for example, `compat` namespace.
-
-**Strategy**: Use `init_value, binary_op` order.
 
 ### Arguments and Overload Disambiguation
 
@@ -748,7 +828,6 @@ The following complete programs illustrate the proposed overloads.
 #include <sycl/sycl.hpp>
 
 #include <algorithm>
-#include <functional>
 #include <iostream>
 
 int main()
@@ -770,7 +849,7 @@ int main()
 
     oneapi::dpl::reduce_by_segment(
         policy, values, values + num_elements, result,
-        num_segments, offsets, 0, std::plus<int>{});
+        num_segments, offsets, 0);
 
     for (int i = 0; i < num_segments; ++i)
         std::cout << result[i] << ' ';
