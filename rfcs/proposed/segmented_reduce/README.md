@@ -911,12 +911,9 @@ int main()
 
 ## Testing
 
-Use `std::reduce` with a sequential execution policy
-as a reference implementation with a loop over segments,
-and additionally test this variant against predefined results for small inputs.
-
-The rest should follow the established testing practices for oneDPL algorithms,
+The follow the established testing practices for oneDPL algorithms,
 and have comprehensive coverage.
+The exact details are left to the implementer.
 
 ## Open Questions
 
