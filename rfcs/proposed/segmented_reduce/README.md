@@ -58,7 +58,7 @@ template <typename Policy,
           typename OffsetIt,    // to be constrained to a non-integral type
           typename InitT,
           typename BinaryOp>
-void
+OutputIt
 oneapi::dpl::reduce_by_segment(
     Policy&&      policy,
     InputIt       first,
@@ -78,7 +78,7 @@ template <typename Policy,
           typename SegmentLengthT, // to be constrained to an integral type
           typename InitT,
           typename BinaryOp>
-void
+OutputIt
 oneapi::dpl::reduce_by_segment(
     Policy&&        policy,
     InputIt         first,
@@ -674,11 +674,11 @@ In the new overloads, the usefulness of the returned value depends on the segmen
 
 | Iterator | Variable-length | Fixed-length | Usefulness |
 |---|---|---|---|
-| (1) Output end | `out_first + num_segments` | Same | Low: known in advance |
-| (2) Output: past the last segment within `N` | `out_first + k`, `k` segments with `offsets[s + 1] <= N`; device-to-host copy and sync | `out_first + min(num_segments, N / segment_length)` (`num_segments` if `segment_length == 0`); free | Medium: tells segments beyond `last` from empty ones, both get `init_value` |
+| (1) Output end | `out_first + num_segments` if `num_segments > 0`, otherwise `out_first` | `out_first + num_segments` if `num_segments > 0` and `segment_length >= 0`, otherwise `out_first` | Low: known in advance |
+| (2) Output: past the last segment within `N` | `out_first + k`, `k` segments with `offsets[s + 1] <= N`; device-to-host copy and sync | `out_first + min(num_segments, N / segment_length)` (`num_segments` if `segment_length == 0`); free | Medium: tells how many segments lie entirely within the input |
 | (3) Offsets end | `offsets + num_segments + 1` | — | Low: known in advance |
 | (4) Input: past the last processed | `first + min(offsets[num_segments], N)`; device-to-host copy and sync | `first + min(num_segments * segment_length, N)`; free | Medium: tells where the processing stopped |
-| (5) Continuation point: `{first + offsets[k], offsets + k, out_first + k}` | `k` from (2); device-to-host copy and sync | `k` from (2), input at `first + k * segment_length`; free | Medium: resume the reduction from segment `k` when more input is available |
+| (5) Continuation point: `{first + offsets[k], offsets + k, out_first + k}` | `k` from (2); device-to-host copy and sync | `k` from (2), input at `first + k * segment_length`; free | Medium: tells where both input and output processing stopped, most useful for resuming the reduction |
 
 Notation: `N = last - first`
 
@@ -691,7 +691,14 @@ so users who need this information can derive it from the arguments, paying the 
 For variable-length segments with device policies,
 returning these values requires a device-to-host copy and a synchronization.
 
-**Strategy**. Return nothing for both variable-length and fixed-length overloads.
+Option (2) is only meaningful if segments that do not intersect the input
+are considered uninitialized rather than empty,
+which does not follow the choice from [Bounding Input and Negative Offsets](#bounding-input-and-negative-offsets).
+
+Option (1) has low usefulness but is cheap and aligns with the existing overloads
+by returning the output end.
+
+**Strategy**: return the output end, option (1).
 
 ## Evolution
 
