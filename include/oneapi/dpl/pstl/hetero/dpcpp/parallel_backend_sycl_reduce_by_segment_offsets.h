@@ -642,13 +642,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                             return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
                         };
 
-                        // The empty segments get the initial value; the others are written by the pieces
-                        for (std::size_t __s = __item.get_global_linear_id(); __s < std::size_t(__m);
-                             __s += __item.get_global_range(0))
-                        {
-                            if (__end_of(_Size(__s)) <= __begin_of(_Size(__s)))
-                                __result[__s] = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init);
-                        }
+                        // The value of the empty segments, which the walk writes
+                        const _Acc __init_acc = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init);
 
                         const auto __sg = __item.get_sub_group();
                         const std::uint32_t __lane = __sg.get_local_linear_id();
@@ -666,9 +661,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         {
                             // The segments of the piece in order, from the one covering its start; the same for every
                             // work-item of the sub-group
+                            // From the last segment beginning before the piece, so that the walk meets every one
+                            // beginning at its start, the empty ones too; the last piece also takes the ones at n
+                            const bool __last_piece = __piece_end == __n;
                             const _Size __guess = _Size(float(__piece_begin) * __segments_per_element);
                             _Size __s = std::max<_Size>(
-                                0, __segmented_reduce_flat_last_begin(__offsets, __m, __n, __piece_begin, __guess));
+                                0, __segmented_reduce_flat_last_begin(__offsets, __m, __n, __piece_begin - 1, __guess));
                             // A very short segment held whole by the piece
                             auto __tiny = [&](const _Size __b, const _Size __e) {
                                 return __b >= __piece_begin && __e <= __piece_end &&
@@ -684,7 +682,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                             for (; __s < __m; ++__s)
                             {
                                 const _Size __b = __begin_of(__s);
-                                if (__b >= __piece_end)
+                                if (__b >= __piece_end && !__last_piece)
                                     break;
                                 const _Size __e = __end_of(__s);
                                 // A run of very short segments, a lane each: the lanes before the first one whose segment
@@ -706,6 +704,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                     // A run of one segment is left to the whole sub-group below, faster than a lane alone
                                     if (__count > 1)
                                     {
+                                        if (__lane < __count && __mb == __me)
+                                            __result[__mine] = __init_acc;
                                         if (__lane < __count && __mb < __me)
                                         {
                                             const std::uint32_t __lo = std::uint32_t(__mb - __piece_begin);
@@ -734,7 +734,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                         }
                                         // The loop goes on after the run; the last segment of the run may end the piece
                                         __s += _Size(__count) - 1;
-                                        if (sycl::select_from_group(__sg, __me, __count - 1) >= __piece_end)
+                                        if (sycl::select_from_group(__sg, __me, __count - 1) >= __piece_end &&
+                                            !__last_piece)
                                             break;
                                         continue;
                                     }
@@ -744,6 +745,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                 const std::uint32_t __hi =
                                     std::uint32_t(std::max<_Size>(__piece_begin, std::min<_Size>(__e, __piece_end)) -
                                                   __piece_begin);
+                                if (__b == __e && __b >= __piece_begin && __lane == 0)
+                                    __result[__s] = __init_acc;
                                 if (__lo < __hi)
                                 {
                                     const bool __first = __b >= __piece_begin;
@@ -767,7 +770,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                     }
                                 }
                                 // A later segment begins at or after the end of this one
-                                if (__e >= __piece_end)
+                                if (__e >= __piece_end && !__last_piece)
                                     break;
                             }
                         }
