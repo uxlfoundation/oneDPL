@@ -29,22 +29,71 @@ The four no-policy overloads and their customization behavior are specified in t
 range or an iterator/sentinel pair, an engine, and an optional distribution.
 
 This RFC adds four policy-first overloads using policies from the
-[oneDPL Execution Policies specification][policies-spec]. The extension's callable interface
-is shown as function declarations below. Constraints are omitted from the API and member
-declarations for brevity; range and vector-type support remain open questions.
-`ExecutionPolicy` must be a oneDPL execution policy.
+[oneDPL Execution Policies specification][policies-spec]. The callable interface, both the
+standard overloads and the extensions, is shown as function declarations below. The standard
+overloads are shown with their constraints from `[alg.rand.generate]`. The extensions add an
+execution policy and, like the oneDPL range algorithms, require random-access sized output.
+Constraints are omitted from the member declarations for brevity; range and vector-type
+support remain open questions.
 
 ```cpp
 namespace oneapi::dpl::ranges {
+  // C++26 [alg.rand.generate]
+  template<class R, class G>
+    requires std::ranges::output_range<R, std::invoke_result_t<G&>> &&
+             std::uniform_random_bit_generator<std::remove_cvref_t<G>>
+    constexpr std::ranges::borrowed_iterator_t<R>
+    generate_random(R&& r, G&& g);
+
+  template<class G, std::output_iterator<std::invoke_result_t<G&>> O, std::sentinel_for<O> S>
+    requires std::uniform_random_bit_generator<std::remove_cvref_t<G>>
+    constexpr O
+    generate_random(O first, S last, G&& g);
+
+  template<class R, class G, class D>
+    requires std::ranges::output_range<R, std::invoke_result_t<D&, G&>> &&
+             std::invocable<D&, G&> &&
+             std::uniform_random_bit_generator<std::remove_cvref_t<G>>
+    constexpr std::ranges::borrowed_iterator_t<R>
+    generate_random(R&& r, G&& g, D&& d);
+
+  template<class G, class D, std::output_iterator<std::invoke_result_t<D&, G&>> O,
+           std::sentinel_for<O> S>
+    requires std::invocable<D&, G&> && std::uniform_random_bit_generator<std::remove_cvref_t<G>>
+    constexpr O
+    generate_random(O first, S last, G&& g, D&& d);
+
+
   // oneDPL execution-policy extensions
   template<class ExecutionPolicy, class R, class G>
-    std::ranges::borrowed_iterator_t<R> generate_random(ExecutionPolicy&& exec, R&& r, G&& g);
-  template<class ExecutionPolicy, class O, class S, class G>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<ExecutionPolicy>> &&
+             std::ranges::random_access_range<R> && std::ranges::sized_range<R> &&
+             std::ranges::output_range<R, std::invoke_result_t<G&>> &&
+             std::uniform_random_bit_generator<std::remove_cvref_t<G>>
+    std::ranges::borrowed_iterator_t<R>
+    generate_random(ExecutionPolicy&& exec, R&& r, G&& g);
+
+  template<class ExecutionPolicy, class G, std::random_access_iterator O, std::sized_sentinel_for<O> S>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<ExecutionPolicy>> &&
+             std::indirectly_writable<O, std::invoke_result_t<G&>> &&
+             std::uniform_random_bit_generator<std::remove_cvref_t<G>>
     O generate_random(ExecutionPolicy&& exec, O first, S last, G&& g);
+
   template<class ExecutionPolicy, class R, class G, class D>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<ExecutionPolicy>> &&
+             std::ranges::random_access_range<R> && std::ranges::sized_range<R> &&
+             std::ranges::output_range<R, std::invoke_result_t<D&, G&>> &&
+             std::invocable<D&, G&> &&
+             std::uniform_random_bit_generator<std::remove_cvref_t<G>>
     std::ranges::borrowed_iterator_t<R>
     generate_random(ExecutionPolicy&& exec, R&& r, G&& g, D&& d);
-  template<class ExecutionPolicy, class O, class S, class G, class D>
+
+  template<class ExecutionPolicy, class G, class D, std::random_access_iterator O,
+           std::sized_sentinel_for<O> S>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<ExecutionPolicy>> &&
+             std::indirectly_writable<O, std::invoke_result_t<D&, G&>> &&
+             std::invocable<D&, G&> &&
+             std::uniform_random_bit_generator<std::remove_cvref_t<G>>
     O generate_random(ExecutionPolicy&& exec, O first, S last, G&& g, D&& d);
 }
 ```
@@ -79,15 +128,16 @@ merge state back. These output and state rules also apply to oneDPL device polic
 Add bulk-generation members to `philox_engine`:
 
 ```cpp
-template<class R>
-  constexpr std::ranges::borrowed_iterator_t<R> generate_random(R&& r);
+constexpr void generate_random(std::span<result_type> s);
 
 template<class ExecutionPolicy, class R>
   std::ranges::borrowed_iterator_t<R> generate_random(ExecutionPolicy&& exec, R&& r);
 ```
 
-The no-policy member fills the output range with engine values and advances the engine state.
-`ranges::generate_random(r, g)` selects the engine's member when available.
+The no-policy member fills the span with engine values and advances the engine state.
+`ranges::generate_random(r, g)` calls it directly for contiguous ranges of `result_type`.
+For other sized ranges, it fills them through calls on `span<result_type>` objects, as
+[alg.rand.generate] specifies.
 
 ### Distribution additions
 
@@ -173,21 +223,18 @@ host parallelism, and device offload. Performance measurements are needed before
 - **Provide only the standard overloads.** Pro: a smaller API matching the standard.
   Con: no explicit host parallelism or device offload, which are central to oneDPL's
   execution model.
-- **Use a separate name for parallel generation.** Pro: clearly distinguishes the oneDPL
-  extension from the standard API. Con: introduces another algorithm name for the same
-  operation. Policy-first overloads keep one name and follow existing oneDPL conventions.
 
 ## Open Questions
 
 To resolve at the **proposed** stage:
 
-1. Should we support random-access ranges only or all ranges supported by the standard,
-   including `std::list`?
-2. Should we support distributions returning `sycl::vec`, particularly
-   `normal_distribution<sycl::vec<T, N>>`?
-3. Which compilers should support this functionality?
-4. Should `generate_random` first be released as experimental in
+1. Should `generate_random` first be released as experimental in
    `oneapi::dpl::experimental::ranges` or directly as supported in `oneapi::dpl::ranges`?
+2. Should we support random-access ranges only or all ranges supported by the standard,
+   including `std::list`?
+3. Should we support distributions returning `sycl::vec`, particularly
+   `normal_distribution<sycl::vec<T, N>>`?
+4. Which compilers should support this functionality?
 
 To resolve before release:
 
@@ -197,7 +244,7 @@ To resolve before release:
 ## Next Steps
 
 1. Review the public API and resolve the scope questions.
-2. Add repository tests for conformance, engine and distribution state, and execution-policy
+2. Add implementation, tests for conformance, engine and distribution state, and execution-policy
    behavior; validate device generation on GPU hardware.
 3. Measure performance against current oneDPL usage and oneMKL RNG, and add user documentation.
 
