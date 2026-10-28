@@ -625,9 +625,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // them; with fewer, it is about right and a step only adds a load, as measured
         const int __interpolation_steps = std::size_t(__m) > __num_groups * __sub_groups ? 2 : 0;
 
-        // The partial results of the heads and of the tails of the units, and the segments of the tails
-        __device_storage<_Acc> __partials{__q, 2 * __num_units};
-        __device_storage<_Size> __tail_segments{__q, __num_units};
+        // The segments of the tails of the units and, after them, the partial results of their heads and of their
+        // tails, in one storage, which costs a call less than two, as measured; the arithmetic accumulators are aligned
+        // as _Size is
+        static_assert(alignof(_Acc) <= alignof(_Size));
+        const std::size_t __partial_slots = (2 * __num_units * sizeof(_Acc) + sizeof(_Size) - 1) / sizeof(_Size);
+        __device_storage<_Size> __units_storage{__q, __num_units + __partial_slots};
 
         // The first kernel, with the combination of the pieces of a work-group in its local memory or without it: the
         // two are apart, so that the one without has no local memory to set up
@@ -635,9 +638,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             constexpr bool __in_group_v = decltype(__in_group_tag)::value;
             return __q.submit([&](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
-                auto __partials_acc = __get_accessor(sycl::write_only, __partials, __cgh, __dpl_sycl::__no_init{});
-                auto __segments_acc =
-                    __get_accessor(sycl::write_only, __tail_segments, __cgh, __dpl_sycl::__no_init{});
+                auto __units_acc = __get_accessor(sycl::write_only, __units_storage, __cgh, __dpl_sycl::__no_init{});
                 const __segmented_reduce_flat_local<__in_group_v, _Acc, _Size> __local(__cgh, __sub_groups);
                 __segmented_reduce_parallel_for(
                     __cgh, __kernel_name,
@@ -645,9 +646,9 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                       sycl::range<1>(__work_group_size)),
                     [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
                         _BinaryOperation __op = __binary_op;
-                        _Acc* const __heads = __partials_acc.__data();
+                        _Size* const __tail_segment_of = __units_acc.__data();
+                        _Acc* const __heads = reinterpret_cast<_Acc*>(__tail_segment_of + __num_units);
                         _Acc* const __tails = __heads + __num_units;
-                        _Size* const __tail_segment_of = __segments_acc.__data();
                         auto __begin_of = [&](_Size __s) {
                             return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s], __n);
                         };
@@ -874,15 +875,14 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             const std::size_t __tail_groups = (__num_units + __tail_sub_groups - 1) / __tail_sub_groups;
             __event = __q.submit([&](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __offsets, __result);
-                auto __partials_acc = __get_accessor(sycl::read_only, __partials, __cgh);
-                auto __segments_acc = __get_accessor(sycl::read_only, __tail_segments, __cgh);
+                auto __units_acc = __get_accessor(sycl::read_only, __units_storage, __cgh);
                 __cgh.depends_on(__event);
                 __cgh.parallel_for<_TailName...>(
                     sycl::nd_range<1>(sycl::range<1>(__tail_groups * __tail_work_group_size),
                                       sycl::range<1>(__tail_work_group_size)),
                     [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
                         _BinaryOperation __op = __binary_op;
-                        const _Acc* const __heads = __partials_acc.__data();
+                        const _Acc* const __heads = reinterpret_cast<const _Acc*>(__units_acc.__data() + __num_units);
                         const _Acc* const __tails = __heads + __num_units;
                         const auto __sg = __item.get_sub_group();
                         const std::uint32_t __lane = __sg.get_local_linear_id();
@@ -891,7 +891,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         if (__unit >= __num_units)
                             return;
                         // The same for every work-item of the sub-group
-                        const _Size __s = __segments_acc.__data()[__unit];
+                        const _Size __s = __units_acc.__data()[__unit];
                         if (__s >= __m)
                             return;
                         const _Size __e =
