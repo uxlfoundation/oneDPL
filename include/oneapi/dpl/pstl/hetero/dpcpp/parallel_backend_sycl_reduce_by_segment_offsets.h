@@ -801,7 +801,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 // the loads of every piece of the input as one range, 2 for all the loads and stores of both kernels as the segments
 // are walked, 3 for the reduction, 4 for a plain stream of vector loads over the input. Below 3 the results are wrong.
 #ifndef _ONEDPL_SEGRED_LOADS_ONLY
-#    define _ONEDPL_SEGRED_LOADS_ONLY 0
+#    define _ONEDPL_SEGRED_LOADS_ONLY 1
 #endif
 inline constexpr int __segmented_reduce_loads_only = _ONEDPL_SEGRED_LOADS_ONLY;
 
