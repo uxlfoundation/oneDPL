@@ -547,6 +547,24 @@ struct __segmented_reduce_flat_local<true, _Acc, _Size>
     }
 };
 
+// The heads of the units as a range that the sub-group reduction reads through a pointer
+template <typename _Acc>
+struct __segmented_reduce_flat_heads
+{
+    const _Acc* __p;
+
+    const _Acc*
+    begin() const
+    {
+        return __p;
+    }
+    const _Acc&
+    operator[](std::size_t __i) const
+    {
+        return __p[__i];
+    }
+};
+
 // A kernel under the name a tag stands for
 template <typename _KernelName>
 struct __segmented_reduce_kernel_name_tag
@@ -841,32 +859,22 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                             return;
                         const _Size __e =
                             oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
-                        const std::uint32_t __last = std::uint32_t(std::size_t(__e - 1) / __unit_size);
-                        _Acc __v{};
-                        int __has = 0;
-                        for (std::uint32_t __g = __unit + 1 + __lane; __g <= __last; __g += __lanes)
-                        {
-                            __v = __has ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                              std::invoke(__op, __v, __heads[__g]))
-                                        : __heads[__g];
-                            __has = 1;
-                        }
-                        for (std::size_t __o = __lanes / 2; __o > 0; __o /= 2)
-                        {
-                            const _Acc __ov = sycl::shift_group_left(__sg, __v, __o);
-                            const int __oh = sycl::shift_group_left(__sg, __has, __o);
-                            if (__lane + __o < __lanes && __oh)
-                            {
-                                __v = __has ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                                  std::invoke(__op, __v, __ov))
-                                            : __ov;
-                                __has = 1;
-                            }
-                        }
+                        // The heads of the following units its segment covers, reduced as the elements of a piece
+                        // are, with several loads in flight, so that a long segment does not wait for them one by one
+                        const std::uint32_t __heads_count = std::uint32_t(std::size_t(__e - 1) / __unit_size) - __unit;
+                        if (__heads_count == 0 && __lane == 0)
+                            __result[__s] = __tails[__unit];
+                        if (__heads_count == 0)
+                            return;
+                        // A single head is that head
+                        const _Acc __v = __heads_count == 1
+                                             ? __heads[__unit + 1]
+                                             : __segmented_reduce_by_sub_group<_Acc>(
+                                                   __sg, _Size(__unit + 1), 0, __heads_count, false, __init, __op,
+                                                   __segmented_reduce_flat_heads<_Acc>{__heads});
                         if (__lane == 0)
-                            __result[__s] = __has ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                                        std::invoke(__op, __tails[__unit], __v))
-                                                  : __tails[__unit];
+                            __result[__s] = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                std::invoke(__op, __tails[__unit], __v));
                     });
             });
         }
