@@ -268,7 +268,7 @@ template <typename _Acc, typename _SubGroup, typename _Size, typename _InitType,
 _Acc
 __segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::uint32_t __first,
                                 const std::uint32_t __last, const bool __is_first, const _InitType& __init,
-                                _BinaryOperation& __binary_op, const _Input& __input)
+                                _BinaryOperation __binary_op, const _Input& __input)
 {
     const std::uint32_t __lane = __sg.get_local_linear_id();
     const std::uint32_t __lanes = __sg.get_local_linear_range();
