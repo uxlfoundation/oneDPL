@@ -20,6 +20,7 @@
 #include "../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
 #include "kernel_param.h"
 #include "internal/kt_defs.h"
+#include "internal/kt_utils.h"
 #include "internal/radix_sort_utils.h"
 #include "internal/radix_sort_dispatchers.h"
 
@@ -39,18 +40,6 @@ struct radix_many_groups_tag
 
 namespace __impl
 {
-
-// Constrains the overloads, so that a temporary storage argument is never deduced as the kernel_param
-template <typename _T>
-struct __is_kernel_param : std::false_type
-{
-};
-template <std::uint16_t __data_per_work_item, std::uint16_t __work_group_size, typename _KernelName>
-struct __is_kernel_param<kernel_param<__data_per_work_item, __work_group_size, _KernelName>> : std::true_type
-{
-};
-template <typename _T>
-inline constexpr bool __is_kernel_param_v = __is_kernel_param<_T>::value;
 
 template <typename _SortConfig>
 struct __is_radix_many_groups_tag : std::false_type
