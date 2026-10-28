@@ -429,14 +429,14 @@ inline constexpr std::size_t __segmented_reduce_gpu_flat_group_combine_input = s
 template <typename _Size, typename _OffsetRange>
 _Size
 __segmented_reduce_flat_last_begin(const _OffsetRange& __offsets, const _Size __m, const _Size __n, const _Size __v,
-                                   _Size __guess, const float __segments_per_element)
+                                   _Size __guess, const float __segments_per_element, const int __steps)
 {
     auto __begins_after = [&](_Size __i) {
         return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__i], __n) > __v;
     };
     __guess = std::min<_Size>(std::max<_Size>(__guess, _Size{0}), __m - 1);
     // The guess moved by the distance from its offset to __v, as if the segments around it were of the same length
-    for (int __step = 0; __step < 2; ++__step)
+    for (int __step = 0; __step < __steps; ++__step)
     {
         const _Size __at = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__guess], __n);
         const _Size __next = std::min<_Size>(
@@ -621,6 +621,9 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // The segments per element, from which a piece guesses the segment covering its start as if the segments were
         // of the same length; in single precision, which every GPU computes natively
         const float __segments_per_element = float(__m) / float(__n);
+        // The guess refined by interpolation where there are more segments than pieces, where it misses by many of
+        // them; with fewer, it is about right and a step only adds a load, as measured
+        const int __interpolation_steps = std::size_t(__m) > __num_groups * __sub_groups ? 2 : 0;
 
         // The partial results of the heads and of the tails of the units, and the segments of the tails
         __device_storage<_Acc> __partials{__q, 2 * __num_units};
@@ -677,7 +680,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                             const _Size __guess = _Size(float(__piece_begin) * __segments_per_element);
                             _Size __s = std::max<_Size>(
                                 0, __segmented_reduce_flat_last_begin(__offsets, __m, __n, __piece_begin - 1, __guess,
-                                                                   __segments_per_element));
+                                                                   __segments_per_element, __interpolation_steps));
                             // A very short segment held whole by the piece
                             auto __tiny = [&](const _Size __b, const _Size __e) {
                                 return __b >= __piece_begin && __e <= __piece_end &&
