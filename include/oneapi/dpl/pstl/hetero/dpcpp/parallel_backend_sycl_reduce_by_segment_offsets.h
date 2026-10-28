@@ -429,12 +429,22 @@ inline constexpr std::size_t __segmented_reduce_gpu_flat_group_combine_input = s
 template <typename _Size, typename _OffsetRange>
 _Size
 __segmented_reduce_flat_last_begin(const _OffsetRange& __offsets, const _Size __m, const _Size __n, const _Size __v,
-                                   _Size __guess)
+                                   _Size __guess, const float __segments_per_element)
 {
     auto __begins_after = [&](_Size __i) {
         return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__i], __n) > __v;
     };
     __guess = std::min<_Size>(std::max<_Size>(__guess, _Size{0}), __m - 1);
+    // The guess moved by the distance from its offset to __v, as if the segments around it were of the same length
+    for (int __step = 0; __step < 2; ++__step)
+    {
+        const _Size __at = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__guess], __n);
+        const _Size __next = std::min<_Size>(
+            std::max<_Size>(__guess + _Size(float(__v - __at) * __segments_per_element), _Size{0}), __m - 1);
+        if (__next == __guess)
+            break;
+        __guess = __next;
+    }
     // The first segment that begins after __v is in [__lo, __hi]: every one before __lo begins at or before it
     _Size __lo = 0, __hi = __m;
     if (__begins_after(__guess))
@@ -666,7 +676,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                             const bool __last_piece = __piece_end == __n;
                             const _Size __guess = _Size(float(__piece_begin) * __segments_per_element);
                             _Size __s = std::max<_Size>(
-                                0, __segmented_reduce_flat_last_begin(__offsets, __m, __n, __piece_begin - 1, __guess));
+                                0, __segmented_reduce_flat_last_begin(__offsets, __m, __n, __piece_begin - 1, __guess,
+                                                                   __segments_per_element));
                             // A very short segment held whole by the piece
                             auto __tiny = [&](const _Size __b, const _Size __e) {
                                 return __b >= __piece_begin && __e <= __piece_end &&
