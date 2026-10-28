@@ -44,11 +44,9 @@ See [reference implementations](reference_implementations.md) and the
 
 ## Synopsis
 
-All the proposed segmented algorithms are included from `<oneapi/dpl/numeric>`.
-
-They should also be available from`<oneapi/dpl/algorithm>`,
-because the existing `reduce_by_segment` allows it due to historical reasons,
-but it should not be documented.
+The new overloads must be added to the same namespace and headers
+as the existing `reduce_by_segment` overloads, as defined in the
+[specification](../../../documentation/specification/parallel_api/algorithms.rst).
 
 ```c++
 // (1) Variable-length segments
