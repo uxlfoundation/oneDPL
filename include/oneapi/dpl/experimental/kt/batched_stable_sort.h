@@ -99,8 +99,8 @@ __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack
                       _KernelParam __param, _TempStorage __temp_storage)
 {
     return __batched_onesweep<__is_ascending, _SortConfig::radix_bits, __in_place>(
-        __sycl_tag{}, __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __segment_size,
-        __param, __temp_storage);
+        __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __segment_size, __param,
+        __temp_storage);
 }
 
 // The bodies of the public overloads below. _TempStorage is __internal_temp_storage or __external_temp_storage.

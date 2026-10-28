@@ -484,19 +484,18 @@ __radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&
 }
 
 // Batched sort: each consecutive run of __segment_size elements is sorted independently in one onesweep pass
-template <bool __is_ascending, std::uint8_t __radix_bits, bool __in_place, typename _KtTag, typename _RngPack1,
-          typename _RngPack2, typename _KernelParam, typename _TempStorage>
+template <bool __is_ascending, std::uint8_t __radix_bits, bool __in_place, typename _RngPack1, typename _RngPack2,
+          typename _KernelParam, typename _TempStorage>
 sycl::event
-__batched_onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out,
-                   std::size_t __segment_size, _KernelParam, _TempStorage __temp_storage)
+__batched_onesweep(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __segment_size,
+                   _KernelParam, _TempStorage __temp_storage)
 {
-    static_assert(std::is_same_v<_KtTag, __sycl_tag>, "The batched radix sort is only implemented in SYCL");
     const std::size_t __n = __pack_in.__keys_rng().size();
     assert(__n > 0);
 
     _PRINT_INFO_IN_DEBUG_MODE(__q);
     return __onesweep<typename _KernelParam::kernel_name, __is_ascending, __radix_bits, _KernelParam::data_per_workitem,
-                      _KernelParam::workgroup_size, __in_place>(__kt_tag, __q, std::forward<_RngPack1>(__pack_in),
+                      _KernelParam::workgroup_size, __in_place>(__sycl_tag{}, __q, std::forward<_RngPack1>(__pack_in),
                                                                 std::forward<_RngPack2>(__pack_out), __n,
                                                                 __segment_size, __temp_storage);
 }
