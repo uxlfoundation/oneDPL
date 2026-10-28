@@ -95,36 +95,6 @@ struct __onesweep_segments
     std::uint32_t __tiles_per_segment;
 };
 
-// Unsigned 32-bit division by a divisor fixed for the kernel's lifetime, computed with a multiply-high and two shifts
-// instead of an emulated integer division (Granlund and Montgomery, "Division by Invariant Integers using
-// Multiplication", 1994)
-class __invariant_divisor
-{
-    std::uint32_t __multiplier;
-    std::uint32_t __shift1;
-    std::uint32_t __shift2;
-
-  public:
-    explicit __invariant_divisor(std::uint32_t __divisor)
-    {
-        assert(__divisor > 0);
-        std::uint32_t __log2_ceil = 0;
-        while ((std::uint64_t{1} << __log2_ceil) < __divisor)
-            ++__log2_ceil;
-        __multiplier = static_cast<std::uint32_t>(
-            ((std::uint64_t{1} << 32) * ((std::uint64_t{1} << __log2_ceil) - __divisor)) / __divisor + 1);
-        __shift1 = std::min<std::uint32_t>(__log2_ceil, 1);
-        __shift2 = __log2_ceil > 0 ? __log2_ceil - 1 : 0;
-    }
-
-    std::uint32_t
-    __divide(std::uint32_t __n) const
-    {
-        const std::uint32_t __t = sycl::mul_hi(__multiplier, __n);
-        return (__t + ((__n - __t) >> __shift1)) >> __shift2;
-    }
-};
-
 template <typename _T>
 constexpr void
 __sycl_radix_sort_unsupported_msg()
