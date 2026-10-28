@@ -163,7 +163,7 @@ support overlapping and unordered segments,
 which is possible because of providing two ranges with segment boundaries (`begin_offsets` and `end_offsets`).
 However, according to the [usage study](usage_pattern_study.md),
 the overwhelming majority of the cases involve one consecutive sequence with offsets,
-which are expected to be sorted in ascending order with no overlaps nor gaps.
+which are expected to be sorted in ascending (non-decreasing) order with no overlaps nor gaps.
 Consecutive segments are also the target use-case in [#2829](https://github.com/oneapi-src/oneDPL/issues/2829).
 Therefore, it is suggested to provide the offsets as a
 single sequence to support consecutive segments directly, and require that it is sorted in ascending order.
@@ -917,11 +917,7 @@ The exact details are left to the implementer.
 
 ## Open Questions
 
-> [!NOTE]
-> Besides the questions in this section,
-> some topics from the [Design Considerations](#design-considerations) section
-> are partially unresolved or have no clear resolution.
-> They can be found using the "Tentative Strategy" keyword.
+These questions are not blocking the initial implementation.
 
 ### Different `first` and `last` Types
 
