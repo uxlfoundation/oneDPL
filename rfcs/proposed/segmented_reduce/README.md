@@ -37,7 +37,8 @@ Table of contents:
   - [Different `first` and `last` Types](#different-first-and-last-types)
   - [Iterator Requirements](#iterator-requirements)
 - [Links](#links)
-- [References](#References)
+  - [C++ Standard References](#c-standard-references)
+  - [Performance Studies](#performance-studies)
 
 See [reference implementations](reference_implementations.md) and the
 [usage pattern study](usage_pattern_study.md) for background.
@@ -859,14 +860,19 @@ because a sentinel `last` would require constraining or documenting a sentinel-i
 
 ## Links
 
+### C++ Standard References
+
 - [C++ draft: `std::reduce`](https://eel.is/c++draft/reduce)
 - [C++ draft: Numeric algorithm definitions](https://eel.is/c++draft/numerics.defns)
-- [P3732R2: Declarations of `reduce`, `sum`, `product`, and their `_into` variants](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html#add-declarations-of-reduce-sum-product-and-their-_into-variants)
+- [P3732R2: Numeric range algorithms](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html)
 - [P3809R0: Should we make std::linalg reductions deduce return types like fold algorithms?](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3809r0.html)
 - [cppreference: Fold algorithm concepts](https://en.cppreference.com/cpp/algorithm/ranges/fold_concepts)
 - [cppreference: `std::reduce`](https://cppreference.com/cpp/algorithm/reduce)
 
-## References
+### Performance Studies
+
+These papers may be useful when implementing the algorithm efficiently.
+
 - [Optimized Parallel Reduction for Regular and Irregular Segments on GPU (2026)](https://doi.org/10.1002/cpe.70715), [implementation](https://github.com/MichelBC/bestReduce)
 - [Advancing Awkward Arrays for High-Performance CPU and GPU Processing (2026)](https://arxiv.org/abs/2607.28145)
 - [GPU Acceleration of Awkward Arrays: Using Python cuda.compute (2026)](https://arxiv.org/abs/2610.08238)
@@ -877,4 +883,3 @@ because a sentinel `last` would require constraining or documenting a sentinel-i
 - [Strategies for Regular Segmented Reductions on GPU (2017)](https://hiperfit.dk/pdf/fhpc17.pdf)
 - [Policy-based Tuning for Performance Portability and Library Co-optimization (2012)](https://research.nvidia.com/index.php/publication/2012-05_policy-based-tuning-performance-portability-and-library-co-optimization)
 - [Merge-based Parallel Sparse Matrix-vector Multiplication (2016)](https://mgarland.org/papers/)
-
