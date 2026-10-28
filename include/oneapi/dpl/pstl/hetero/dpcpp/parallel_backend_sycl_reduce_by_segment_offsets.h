@@ -707,11 +707,26 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                         {
                                             const std::uint32_t __lo = std::uint32_t(__mb - __piece_begin);
                                             const std::uint32_t __hi = std::uint32_t(__me - __piece_begin);
-                                            _Acc __acc = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                                std::invoke(__op, __init, __element(__lo)));
-                                            for (std::uint32_t __i = __lo + 1; __i < __hi; ++__i)
-                                                __acc = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                                    std::invoke(__op, __acc, __element(__i)));
+                                            auto __to_acc = [](const auto& __x) {
+                                                return oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__x);
+                                            };
+                                            _Acc __acc = __to_acc(std::invoke(__op, __init, __element(__lo)));
+                                            std::uint32_t __i = __lo + 1;
+                                            // Four loads at once: a load the loop issues after the operation on
+                                            // the previous one would wait for it
+                                            for (; __i + 3 < __hi; __i += 4)
+                                            {
+                                                const auto __a = __element(__i);
+                                                const auto __b = __element(__i + 1);
+                                                const auto __c = __element(__i + 2);
+                                                const auto __d = __element(__i + 3);
+                                                __acc = __to_acc(std::invoke(
+                                                    __op, __acc,
+                                                    std::invoke(__op, __to_acc(std::invoke(__op, __a, __b)),
+                                                                __to_acc(std::invoke(__op, __c, __d)))));
+                                            }
+                                            for (; __i < __hi; ++__i)
+                                                __acc = __to_acc(std::invoke(__op, __acc, __element(__i)));
                                             __result[__mine] = __acc;
                                         }
                                         // The loop goes on after the run; the last segment of the run may end the piece
