@@ -401,8 +401,10 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::
 // reduces the segments of the piece one after another, each by the whole sub-group with coalesced loads. A segment the
 // piece holds whole is written. The partial result of the segment begun before the piece that covers its start is the
 // head of the piece, and the one of the segment begun in the piece that goes on past its end is its tail; a second
-// kernel combines the tail of every piece with the heads of the following ones its segment covers. The pieces do not
-// wait for each other in the work-group, which costs more than the second kernel spends on the heads, as measured.
+// kernel combines the tail of every piece with the heads of the following ones its segment covers. Up to a size the
+// pieces do not wait for each other in the work-group, which costs more than the second kernel spends on the heads, as
+// measured; above it the tails of a work-group are combined with its following heads in its local memory first, so
+// that the second kernel combines the tail of every work-group with the heads of the following ones.
 inline constexpr std::size_t __segmented_reduce_gpu_flat_lanes = 32;
 // A work-item takes at least this many elements up to this input size, and four times as many above it, so that the
 // search of a piece and the combination of its parts are paid for, and at most four times as many, so that the larger
@@ -415,6 +417,10 @@ inline constexpr std::size_t __segmented_reduce_gpu_flat_max_work_group = 256;
 // as long as they are such segments too, a lane each: the sub-group would spend more on combining its lanes and on
 // walking the segments one at a time than on the elements, as measured
 inline constexpr std::size_t __segmented_reduce_gpu_flat_tiny_segment = 32;
+// Above this input the pieces of a work-group are combined in its local memory before the second kernel: there the
+// stores of every piece and the second kernel over them cost more than the wait of the work-group for its slowest
+// sub-group, which the many work-groups hide, as measured
+inline constexpr std::size_t __segmented_reduce_gpu_flat_group_combine_input = std::size_t(1) << 24;
 
 // The index of the last of the __m segments that begins at or before __v, or -1
 template <typename _Size, typename _OffsetRange>
@@ -500,22 +506,31 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         const std::size_t __num_groups = __geometry.__num_groups;
         const std::size_t __ipi = __geometry.__inputs_per_item;
         const std::size_t __piece_size = __ipi * __lanes;
-        const std::size_t __num_pieces = __num_groups * __sub_groups;
+        // The units the second kernel combines: the work-groups where their pieces are combined in the local memory
+        // first, else the pieces
+        const bool __in_group = std::size_t(__n) > __segmented_reduce_gpu_flat_group_combine_input;
+        const std::size_t __num_units = __in_group ? __num_groups : __num_groups * __sub_groups;
+        const std::size_t __unit_size = __in_group ? __piece_size * __sub_groups : __piece_size;
 
-        // The partial results of the heads and of the tails of the pieces, and the segments of the tails
-        __device_storage<_Acc> __partials{__q, 2 * __num_pieces};
-        __device_storage<_Size> __tail_segments{__q, __num_pieces};
+        // The partial results of the heads and of the tails of the units, and the segments of the tails
+        __device_storage<_Acc> __partials{__q, 2 * __num_units};
+        __device_storage<_Size> __tail_segments{__q, __num_units};
 
         sycl::event __event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
             auto __partials_acc = __get_accessor(sycl::write_only, __partials, __cgh, __dpl_sycl::__no_init{});
             auto __segments_acc = __get_accessor(sycl::write_only, __tail_segments, __cgh, __dpl_sycl::__no_init{});
+            // The heads and the tails of the pieces of the work-group, and the states of the heads: 0 for none, 1 for a
+            // segment ending in the piece, 2 for one going on past it
+            __dpl_sycl::__local_accessor<_Acc> __local_acc(sycl::range<1>(2 * __sub_groups), __cgh);
+            __dpl_sycl::__local_accessor<_Size> __local_segments(sycl::range<1>(__sub_groups), __cgh);
+            __dpl_sycl::__local_accessor<std::uint8_t> __local_states(sycl::range<1>(__sub_groups), __cgh);
             __cgh.parallel_for<_Name...>(
                 sycl::nd_range<1>(sycl::range<1>(__num_groups * __work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
                     _BinaryOperation __op = __binary_op;
                     _Acc* const __heads = __partials_acc.__data();
-                    _Acc* const __tails = __heads + __num_pieces;
+                    _Acc* const __tails = __heads + __num_units;
                     _Size* const __tail_segment_of = __segments_acc.__data();
                     auto __begin_of = [&](_Size __s) {
                         return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s], __n);
@@ -534,13 +549,15 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
                     const auto __sg = __item.get_sub_group();
                     const std::uint32_t __lane = __sg.get_local_linear_id();
-                    const std::uint32_t __piece =
-                        __item.get_group(0) * std::uint32_t(__sub_groups) + __sg.get_group_linear_id();
+                    const std::uint32_t __sg_id = __sg.get_group_linear_id();
+                    const std::uint32_t __group = __item.get_group(0);
+                    const std::uint32_t __piece = __group * std::uint32_t(__sub_groups) + __sg_id;
                     const _Size __piece_begin = std::min<_Size>(__n, _Size(std::size_t(__piece) * __piece_size));
                     const _Size __piece_end = std::min<_Size>(__n, __piece_begin + _Size(__piece_size));
 
                     // The head and the tail of the piece, on lane 0
                     _Acc __head{}, __tail{};
+                    std::uint8_t __head_state = 0;
                     _Size __tail_segment = __m;
                     if (__piece_begin < __piece_end)
                     {
@@ -618,7 +635,10 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                                        : __segmented_reduce_by_sub_group<_Acc>(
                                                              __sg, __piece_begin, __lo, __hi, __first, __init, __op, __input);
                                 if (!__first)
+                                {
                                     __head = __acc;
+                                    __head_state = __e > __piece_end ? 2 : 1;
+                                }
                                 if (__first && __e <= __piece_end && __lane == 0)
                                     __result[__s] = __acc;
                                 if (__first && __e > __piece_end)
@@ -633,22 +653,79 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         }
                     }
                     // A piece covered by a segment begun before it has a head, which only the second kernel reads
+                    if (!__in_group)
+                    {
+                        if (__lane == 0)
+                        {
+                            __heads[__piece] = __head;
+                            __tails[__piece] = __tail;
+                            __tail_segment_of[__piece] = __tail_segment;
+                        }
+                        return;
+                    }
+
+                    // The same for the work-group in its local memory: the same for every work-item of it
                     if (__lane == 0)
                     {
-                        __heads[__piece] = __head;
-                        __tails[__piece] = __tail;
-                        __tail_segment_of[__piece] = __tail_segment;
+                        __local_acc[__sg_id] = __head;
+                        __local_acc[__sub_groups + __sg_id] = __tail;
+                        __local_segments[__sg_id] = __tail_segment;
+                        __local_states[__sg_id] = __head_state;
+                    }
+                    // No tail unless found below; the barrier orders this before the writes after it
+                    if (__sg_id == 0 && __lane == 0)
+                        __tail_segment_of[__group] = __m;
+                    sycl::group_barrier(__item.get_group());
+                    if (__sg_id != 0 || __lane >= __sub_groups)
+                        return;
+                    auto __combine = [&](const _Acc& __a, const _Acc& __b) {
+                        return oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(__op, __a, __b));
+                    };
+
+                    // Lane j combines the tail of piece j with the heads of the following pieces of its segment; the
+                    // segment going on past the work-group is its tail
+                    const _Size __s = __local_segments[__lane];
+                    if (__s < __m)
+                    {
+                        _Acc __acc = __local_acc[__sub_groups + __lane];
+                        std::uint8_t __state = 2;
+                        for (std::size_t __k = __lane + 1; __state == 2 && __k < __sub_groups; ++__k)
+                        {
+                            __state = __local_states[__k];
+                            if (__state != 0)
+                                __acc = __combine(__acc, __local_acc[__k]);
+                        }
+                        if (__state == 1)
+                            __result[__s] = __acc;
+                        if (__state != 1)
+                        {
+                            __tails[__group] = __acc;
+                            __tail_segment_of[__group] = __s;
+                        }
+                    }
+                    // Lane 0 the head of the work-group, the part of the segment begun before it
+                    if (__lane == 0 && __local_states[0] != 0)
+                    {
+                        _Acc __acc = __local_acc[0];
+                        std::uint8_t __state = __local_states[0];
+                        for (std::size_t __k = 1; __state == 2 && __k < __sub_groups; ++__k)
+                        {
+                            __state = __local_states[__k];
+                            if (__state != 0)
+                                __acc = __combine(__acc, __local_acc[__k]);
+                        }
+                        __heads[__group] = __acc;
                     }
                 });
         });
 
-        // The tail of every piece with the heads of the following pieces its segment covers, a sub-group per piece; a
-        // single piece has none
-        if (__num_pieces > 1)
+        // The tail of every unit with the heads of the following units its segment covers, a sub-group per unit; a
+        // single unit has none
+        if (__num_units > 1)
         {
             constexpr std::size_t __tail_work_group_size = 256;
             constexpr std::size_t __tail_sub_groups = __tail_work_group_size / __lanes;
-            const std::size_t __tail_groups = (__num_pieces + __tail_sub_groups - 1) / __tail_sub_groups;
+            const std::size_t __tail_groups = (__num_units + __tail_sub_groups - 1) / __tail_sub_groups;
             __event = __q.submit([&](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __offsets, __result);
                 auto __partials_acc = __get_accessor(sycl::read_only, __partials, __cgh);
@@ -660,23 +737,23 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                     [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
                         _BinaryOperation __op = __binary_op;
                         const _Acc* const __heads = __partials_acc.__data();
-                        const _Acc* const __tails = __heads + __num_pieces;
+                        const _Acc* const __tails = __heads + __num_units;
                         const auto __sg = __item.get_sub_group();
                         const std::uint32_t __lane = __sg.get_local_linear_id();
-                        const std::uint32_t __piece =
+                        const std::uint32_t __unit =
                             __item.get_group(0) * __tail_sub_groups + __sg.get_group_linear_id();
-                        if (__piece >= __num_pieces)
+                        if (__unit >= __num_units)
                             return;
                         // The same for every work-item of the sub-group
-                        const _Size __s = __segments_acc.__data()[__piece];
+                        const _Size __s = __segments_acc.__data()[__unit];
                         if (__s >= __m)
                             return;
                         const _Size __e =
                             oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
-                        const std::uint32_t __last = std::uint32_t(std::size_t(__e - 1) / __piece_size);
+                        const std::uint32_t __last = std::uint32_t(std::size_t(__e - 1) / __unit_size);
                         _Acc __v{};
                         int __has = 0;
-                        for (std::uint32_t __g = __piece + 1 + __lane; __g <= __last; __g += __lanes)
+                        for (std::uint32_t __g = __unit + 1 + __lane; __g <= __last; __g += __lanes)
                         {
                             __v = __has ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
                                               std::invoke(__op, __v, __heads[__g]))
@@ -697,8 +774,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         }
                         if (__lane == 0)
                             __result[__s] = __has ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                                        std::invoke(__op, __tails[__piece], __v))
-                                                  : __tails[__piece];
+                                                        std::invoke(__op, __tails[__unit], __v))
+                                                  : __tails[__unit];
                     });
             });
         }
