@@ -105,17 +105,17 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
             std::min(__max_histograms,
                      std::uint32_t(__max_slm_bytes / (_GlobalHistKernelT::__hist_buffer_size * sizeof(std::uint32_t))));
 
-        // Each work-group owns a contiguous range of segment-aligned chunks. __hist_work_group_count bounds the grid,
-        // and it is reduced so that every work-group has at least one chunk.
+        // Each work-group owns a contiguous range of segment-aligned chunks. __hist_work_group_count is a maximum,
+        // but is reduced so that groups are balanced in chunks across the work-groups
         const std::uint32_t __chunks_per_segment =
             oneapi::dpl::__internal::__dpl_ceiling_div(__segments.__segment_size, _GlobalHistKernelT::__chunk_size);
         const std::uint32_t __chunk_count = __segments.__segment_count * __chunks_per_segment;
         const std::uint32_t __chunks_per_group =
             oneapi::dpl::__internal::__dpl_ceiling_div(__chunk_count, __hist_work_group_count);
-        const std::uint32_t __group_count =
+        const std::uint32_t __actual_group_count =
             oneapi::dpl::__internal::__dpl_ceiling_div(__chunk_count, __chunks_per_group);
 
-        sycl::nd_range<1> __nd_range(std::size_t(__group_count) * __hist_work_group_size, __hist_work_group_size);
+        sycl::nd_range<1> __nd_range(std::size_t(__actual_group_count) * __hist_work_group_size, __hist_work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
             sycl::local_accessor<std::uint32_t, 1> __slm_accessor(
                 _GlobalHistKernelT::__hist_buffer_size * __num_histograms, __cgh);
