@@ -72,9 +72,9 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
                                         oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
     // ESIMD version of histogram does not support multiple segments, it ignores the segment argument
-    template <typename _KeysRng, typename _GlobalOffsetData>
+    template <typename _KeysRng>
     sycl::event
-    operator()(__esimd_tag, sycl::queue& __q, const _KeysRng& __keys_rng, const _GlobalOffsetData& __global_offset_data,
+    operator()(__esimd_tag, sycl::queue& __q, const _KeysRng& __keys_rng, __onesweep_hist_t* __global_offset_data,
                std::size_t __n, const __onesweep_segments&, const sycl::event& __e) const
     {
         sycl::nd_range<1> __nd_range(__hist_work_group_count * __hist_work_group_size, __hist_work_group_size);
@@ -92,7 +92,7 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
     // Per-segment histograms, laid out as [stage][segment][bin]
     template <typename _KeysRng>
     sycl::event
-    operator()(__sycl_tag, sycl::queue& __q, const _KeysRng& __keys_rng, std::uint32_t* __global_offset_data,
+    operator()(__sycl_tag, sycl::queue& __q, const _KeysRng& __keys_rng, __onesweep_hist_t* __global_offset_data,
                std::size_t, const __onesweep_segments& __segments, const sycl::event& __e) const
     {
         using _GlobalHistKernelT = __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_group_count,
@@ -137,9 +137,9 @@ struct __radix_sort_onesweep_scan_submitter<
     __stage_count, __bin_count, oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
     // One work-group scans each histogram of __bin_count bins, laid out as [stage][segment][bin]
-    template <typename _KtTag, typename _GlobalOffsetData>
+    template <typename _KtTag>
     sycl::event
-    operator()(_KtTag, sycl::queue& __q, const _GlobalOffsetData& __global_offset_data, std::uint32_t __segment_count,
+    operator()(_KtTag, sycl::queue& __q, __onesweep_hist_t* __global_offset_data, std::uint32_t __segment_count,
                const sycl::event& __e) const
     {
         //scan kernel is pure sycl for esimd_sort, so no need to dispatch from tag
@@ -186,11 +186,12 @@ template <bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_p
 struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
                                        oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _InRngPack, typename _OutRngPack, typename _GlobalHistT>
+    template <typename _InRngPack, typename _OutRngPack>
     sycl::event
     operator()(__esimd_tag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack,
-               _GlobalHistT* __p_global_hist, _GlobalHistT* __p_group_hists, std::uint32_t __sweep_work_group_count,
-               std::size_t __n, std::uint32_t __stage, const __onesweep_segments&, const sycl::event& __e) const
+               __onesweep_hist_t* __p_global_hist, __onesweep_hist_t* __p_group_hists,
+               std::uint32_t __sweep_work_group_count, std::size_t __n, std::uint32_t __stage,
+               const __onesweep_segments&, const sycl::event& __e) const
     {
         sycl::nd_range<1> __nd_range(__sweep_work_group_count * __work_group_size, __work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
@@ -209,11 +210,12 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
     }
 
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-    template <typename _InRngPack, typename _OutRngPack, typename _GlobalHistT>
+    template <typename _InRngPack, typename _OutRngPack>
     sycl::event
     operator()(__sycl_tag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack,
-               _GlobalHistT* __p_global_hist, _GlobalHistT* __p_group_hists, std::uint32_t __sweep_work_group_count,
-               std::size_t, std::uint32_t __stage, const __onesweep_segments& __segments, const sycl::event& __e) const
+               __onesweep_hist_t* __p_global_hist, __onesweep_hist_t* __p_group_hists,
+               std::uint32_t __sweep_work_group_count, std::size_t, std::uint32_t __stage,
+               const __onesweep_segments& __segments, const sycl::event& __e) const
     {
         using _KernelType =
             __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item,

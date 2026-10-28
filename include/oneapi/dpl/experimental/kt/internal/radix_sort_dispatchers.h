@@ -265,7 +265,7 @@ struct __onesweep_layout
 };
 
 // Segments are described by __layout. The non-batched sort is a single segment of __n elements.
-template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
+template <typename _KernelName, bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename _KtTag, typename _RngPack1, typename _RngPack2, typename _RngPack3,
           typename _MemHolder, typename _Layout>
 sycl::event
@@ -282,9 +282,8 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
         __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack3>, std::decay_t<_RngPack2>, _KernelName>>;
     using _RadixSortSweepOdd = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack2>, std::decay_t<_RngPack3>, _KernelName>>;
-    using _GlobalHistT = ::std::uint32_t;
-    constexpr ::std::uint32_t __bin_count = _Layout::__bin_count;
-    constexpr ::std::uint32_t __stage_count = _Layout::__stage_count;
+    constexpr std::uint32_t __bin_count = _Layout::__bin_count;
+    constexpr std::uint32_t __stage_count = _Layout::__stage_count;
     const __onesweep_segments& __segments = __layout.__segments;
     const std::uint32_t __sweep_work_group_count = __layout.__sweep_work_group_count();
 
@@ -292,7 +291,7 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     // This line assumes that global and group histograms are stored sequentially
     sycl::event __event_chain =
         __q.memset(__mem_holder.__global_hist_ptr(), 0,
-                   (__layout.__global_hist_item_count + __layout.__group_hist_item_count) * sizeof(_GlobalHistT));
+                   (__layout.__global_hist_item_count + __layout.__group_hist_item_count) * sizeof(__onesweep_hist_t));
 
     // TODO: consider adding a more versatile API, e.g. passing special kernel_config parameters for histogram computation
     constexpr std::uint32_t __hist_work_group_count = __radix_sort_histogram_params<_KtTag>::__work_group_count;
@@ -311,8 +310,10 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
 
     for (::std::uint32_t __stage = 1; __stage < __stage_count; __stage++)
     {
-        _GlobalHistT* __p_global_hist = __mem_holder.__global_hist_ptr() + __layout.__global_hist_stage_offset(__stage);
-        _GlobalHistT* __p_group_hists = __mem_holder.__group_hist_ptr() + __layout.__group_hist_stage_offset(__stage);
+        __onesweep_hist_t* __p_global_hist =
+            __mem_holder.__global_hist_ptr() + __layout.__global_hist_stage_offset(__stage);
+        __onesweep_hist_t* __p_group_hists =
+            __mem_holder.__group_hist_ptr() + __layout.__group_hist_stage_offset(__stage);
 
         if (__stage % 2 != 0)
         {
@@ -340,7 +341,7 @@ constexpr std::size_t
 __onesweep_temp_bytes(std::size_t __n, std::size_t __segment_size)
 {
     const __onesweep_layout<_KeyT, __radix_bits, __data_per_work_item, __work_group_size> __layout(__n, __segment_size);
-    return __onesweep_memory_holder<std::uint32_t, _KeyT, _ValT>::__raw_memory_bytes(
+    return __onesweep_memory_holder<__onesweep_hist_t, _KeyT, _ValT>::__raw_memory_bytes(
         __n, __layout.__global_hist_item_count, __layout.__group_hist_item_count);
 }
 
@@ -358,30 +359,28 @@ struct __external_temp_storage
 
 // The input is sorted as independent segments of __segment_size elements. The temporary memory is either allocated
 // internally (__internal_temp_storage) or provided by the caller (__external_temp_storage).
-template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
+template <typename _KernelName, bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, bool __in_place, typename _KtTag, typename _RngPack1, typename _RngPack2,
           typename _TempStorage = __internal_temp_storage>
 sycl::event
 __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __pack_out, std::size_t __n,
            std::size_t __segment_size, _TempStorage __temp_storage = {})
 {
-    using _KeyT = typename ::std::decay_t<_RngPack1>::_KeyT;
-    using _ValT = typename ::std::decay_t<_RngPack1>::_ValT;
-    constexpr bool __has_values = ::std::decay_t<_RngPack1>::__has_values;
+    using _KeyT = typename std::decay_t<_RngPack1>::_KeyT;
+    using _ValT = typename std::decay_t<_RngPack1>::_ValT;
+    constexpr bool __has_values = std::decay_t<_RngPack1>::__has_values;
     constexpr bool __internal_alloc = std::is_same_v<_TempStorage, __internal_temp_storage>;
 
     using _RadixSortCopyback = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __radix_sort_onesweep_copyback<_KtTag, std::decay_t<_RngPack1>, _KernelName>>;
 
-    using _GlobalHistT = ::std::uint32_t;
-
     using _Layout = __onesweep_layout<_KeyT, __radix_bits, __data_per_work_item, __work_group_size>;
-    constexpr ::std::uint32_t __stage_count = _Layout::__stage_count;
+    constexpr std::uint32_t __stage_count = _Layout::__stage_count;
     const _Layout __layout(__n, __segment_size);
 
     // Memory is not going to be allocated for void value type
     // TODO: make this more explicit to reduce coupling between __onesweep_memory_holder and __rng_pack
-    __onesweep_memory_holder<_GlobalHistT, _KeyT, _ValT> __mem_holder(__q);
+    __onesweep_memory_holder<__onesweep_hist_t, _KeyT, _ValT> __mem_holder(__q);
 
     __mem_holder.__keys_alloc_count(__n);
     if constexpr (__has_values)

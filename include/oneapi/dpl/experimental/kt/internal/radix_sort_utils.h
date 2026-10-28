@@ -101,6 +101,9 @@ struct __onesweep_segments
     std::uint32_t __tiles_per_segment;
 };
 
+// Element type of the global and group histograms. The kernels pack two flag bits above a 30-bit count into it.
+using __onesweep_hist_t = std::uint32_t;
+
 // Unsigned 32-bit division by a divisor fixed for the kernel's lifetime, computed with a multiply-high and two shifts
 // instead of an emulated integer division (Granlund and Montgomery, "Division by Invariant Integers using
 // Multiplication", 1994)
