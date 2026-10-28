@@ -22,7 +22,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <numeric>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -36,6 +35,8 @@
 
 #include "../support/utils.h"
 #include "../support/sycl_alloc_utils.h"
+
+#include "radix_sort_utils.h"
 
 enum class DataMode
 {
@@ -164,38 +165,14 @@ generate_data(std::vector<KeyT>& keys, std::vector<ValueT>& vals, std::size_t se
     }
 }
 
-// The ordering of kt sorts: the radix order-preserving transformation (-0.0 == +0.0)
-template <bool IsAscending>
-struct KtOrder
-{
-    bool
-    operator()(const KeyT& a, const KeyT& b) const
-    {
-        return oneapi::dpl::__internal::__order_preserving_cast<IsAscending>(a) <
-               oneapi::dpl::__internal::__order_preserving_cast<IsAscending>(b);
-    }
-};
-
+// The generated keys contain no NaNs, so comparing with < or > matches the ordering of kt sorts (-0.0 == +0.0)
 template <bool IsAscending>
 void
 reference_sort(std::vector<KeyT>& keys, std::vector<ValueT>& vals, std::size_t segment_size)
 {
-    std::vector<std::size_t> idx(segment_size);
-    std::vector<KeyT> k(segment_size);
-    std::vector<ValueT> v(segment_size);
+    auto zip_first = oneapi::dpl::make_zip_iterator(keys.begin(), vals.begin());
     for (std::size_t first = 0; first < keys.size(); first += segment_size)
-    {
-        std::iota(idx.begin(), idx.end(), first);
-        std::stable_sort(idx.begin(), idx.end(),
-                         [&](std::size_t a, std::size_t b) { return KtOrder<IsAscending>{}(keys[a], keys[b]); });
-        for (std::size_t i = 0; i < segment_size; ++i)
-        {
-            k[i] = keys[idx[i]];
-            v[i] = vals[idx[i]];
-        }
-        std::copy(k.begin(), k.end(), keys.begin() + first);
-        std::copy(v.begin(), v.end(), vals.begin() + first);
-    }
+        std::stable_sort(zip_first + first, zip_first + first + segment_size, CompareKey<IsAscending>{});
 }
 
 // Calls the in-place or out-of-place overload of the sort under test with the given keys, values and outputs: either
@@ -368,10 +345,9 @@ test_case(sycl::queue q, DataMode mode, std::size_t segment_size, std::size_t se
     {
         // Exactly the reported number of bytes, at an address only aligned to a byte
         const std::size_t bytes = Sorter::template bytes_req<KernelParam>(segment_size, n);
-        std::uint8_t* mem = sycl::malloc_device<std::uint8_t>(bytes + 1, q);
+        TestUtils::usm_data_transfer<sycl::usm::alloc::device, std::uint8_t> mem(q, bytes + 1);
         device_sort<Sorter, IsAscending, InPlace>(q, mode, keys, vals, actual_keys, actual_vals, keys_in_after,
-                                                  vals_in_after, segment_size, param, mem + 1, bytes);
-        sycl::free(mem, q);
+                                                  vals_in_after, segment_size, param, mem.get_data() + 1, bytes);
     }
     else
     {
