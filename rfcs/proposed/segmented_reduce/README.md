@@ -249,9 +249,11 @@ What should be the default arguments if any?
 
 Precedents:
 
-- `dpl::reduce_by_segment` provides a default binary operation (`std::plus<T>`); there is no initial value argument.
+- `dpl::reduce_by_segment` provides a default binary operation (`std::plus<T>`, where `T` is the input value type);
+  there is no initial value argument.
 - `std::reduce` provides a default initial value (`T{}`) and a default binary operation (`std::plus<>`).
-- `std::accumulate` provides only a default binary operation (`std::plus<>`); initial value must be provided explicitly.
+- `std::accumulate` provides only a default binary operation (`operator+`, equivalent to `std::plus<>`);
+  the initial value must be provided explicitly.
 - `std::ranges::fold_left` requires passing both.
 - `cub::DeviceSegmentedReduce` requires passing both with the general `Reduce` interface,
   and does not provide these arguments at all with `Sum`, `Min`, `Max`.
@@ -264,13 +266,16 @@ The following motivations are considered, in the order of importance:
 2. Consistency with the existing `dpl::reduce_by_segment` overloads, and the closest standard algorithm: `std::reduce`.
 
 Both arguments cannot be omitted simultaneously to satisfy (1).
-For example, it is unknown what the initial value is an identity for a user-defined type irrespective of the binary operation; assuming `T{}`, like in `std::reduce`, may lead to unexpected results.
-The initial value, as the first argument, must be explicitly specified.
-It means that only the binary operation can have a default.
-It is consistent with `dpl::reduce_by_segment` (it does not have an initial value argument at all) and `std::accumulate` (it requires an explicit initial value).
+For example, with `std::plus<>`, `T{}` is an identity for arithmetic types,
+but not necessarily for a user-defined type; assuming `T{}`, like in `std::reduce`, may lead to unexpected results.
+The initial value argument precedes the binary operation argument,
+so the initial value must be specified and the binary operation can be defaulted.
+It is consistent with `dpl::reduce_by_segment` (it does not have an initial value argument at all)
+and `std::accumulate` (it requires an explicit initial value).
 
 Should the binary operation be `std::plus<>` like in `std::reduce` or `std::plus<T>` like in `dpl::reduce_by_segment`?
-It must be `std::plus<>`, because the new overloads also have an initial value besides the input range.
+Unlike `dpl::reduce_by_segment`, the new overloads have an initial value besides the input range.
+Using `std::plus<>` allows the type to be deduced as `AccT` following the rules from [Accumulator Type](#accumulator-type).
 
 **Strategy**:
 
@@ -282,7 +287,7 @@ It must be `std::plus<>`, because the new overloads also have an initial value b
 Initial value is mandatory when the algorithm's contract is to apply it to each segment,
 or as a result for empty segments, what is done by CUB and rocPRIM.
 Identity value is optional. It is needed for the SIMD and the group reductions,
-and to get a safe default initial value.
+and it would be a safe default initial value, should one be introduced in the future.
 
 The identity may be inferred from the most typical operations and data types, for example:
 
@@ -490,7 +495,7 @@ Potential implementation challenges for run-to-run determinism:
 The algorithm can be positioned as a sibling of `dpl::reduce_by_segment`,
 which means that it should have the same naming if possible.
 It should be kept in mind that the proposed overloads
-may introduce default values for the binary operation and the initial value.
+have a default value for the binary operation, which makes the number of arguments vary.
 Overload resolution should be carefully considered to avoid ambiguity.
 
 The table below shows the suggested argument order:
@@ -504,14 +509,15 @@ The table below shows the suggested argument order:
 | `num_segments` | `num_segments` | 4 | `val_first` | `out_first` | `out_first` |
 | `d_begin_offsets` | `segment_size` | 5 | `out_key_first` | `num_segments` | `num_segments` |
 | `d_end_offsets` | `reduction_op` | 6 | `out_val_first` | `offsets` | `segment_length` |
-| `reduction_op` | `initial_value` | 7 | `binary_pred` (opt) | `init_value` (opt) | `init_value` (opt) |
+| `reduction_op` | `initial_value` | 7 | `binary_pred` (opt) | `init_value` | `init_value` |
 | `initial_value` | `stream` (opt) | 8 | `binary_op` (opt) | `binary_op` (opt) | `binary_op` (opt) |
 | `stream` (opt) | — | 9 | — | — | — |
 
 `(opt)` means that the argument is optional or can be made optional in the future.
 `—` is padding for better mapping of the relevant arguments.
 
-The overloads overlap in the number of arguments (6 to 8),
+The key-based overloads take 6 to 8 arguments, and the new overloads take 7 or 8,
+so they overlap in the number of arguments (7 and 8),
 and only the 5th and 6th arguments differ in kind (iterator vs integer),
 which can be constrained using SFINAE:
 
@@ -708,8 +714,10 @@ For example:
 | No overflow | `int` | `int64_t` | `0` | `std::plus<int64_t>` | `int64_t` |
 | Pitfall: overflow | `int` | `int64_t` | `0` | `std::plus<>` | `int` |
 
-The pitfall is the same as in `std::reduce`,
-and documenting the accumulator type helps users avoid it.
+The pitfalls are the same as in `std::reduce`,
+and documenting the accumulator type helps users avoid them.
+They also apply when `binary_op` is omitted, because the default is `std::plus<>`
+(see [Default Initial Value and Binary Operation](#default-initial-value-and-binary-operation)).
 
 A parallel reduction combines the operands in an unspecified order and grouping:
 a partial result may start from an input element rather than from the initial value,
