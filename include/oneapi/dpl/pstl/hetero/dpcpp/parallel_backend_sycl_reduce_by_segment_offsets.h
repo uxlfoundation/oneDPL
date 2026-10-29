@@ -1133,6 +1133,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         // At most n / __chunk_size + 1 chunks per segment, unless the offsets are not ordered
         const _Size __num_partials = __n / __chunk_size + __max_segments + 1;
         auto __partials = __buffer<_Acc>(__num_partials).get_buffer();
+
         __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec),
                        __segmented_reduce_chunk_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __m, __chunk_size,
                                                                                                 __init, __binary_op},
@@ -1141,6 +1142,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                        __input)
             .event()
             .wait_and_throw();
+
         __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec),
                        __segmented_reduce_combine_brick<_Acc, _Size, _InitType, _BinaryOperation>{
                            __num_partials, __write_empty, __init, __binary_op},
