@@ -65,7 +65,6 @@ struct __batched_one_wg_radix_sort_kernel
     static constexpr std::uint32_t __tile_size = __data_per_work_item * __work_group_size;
 
     static constexpr std::uint32_t __bin_count = 1 << __radix_bits;
-    static constexpr _LocOffsetT __mask = __bin_count - 1;
     static constexpr std::uint32_t __stage_count =
         oneapi::dpl::__internal::__dpl_ceiling_div(sizeof(_KeyT) * 8, __radix_bits);
 
@@ -139,19 +138,13 @@ struct __batched_one_wg_radix_sort_kernel
 
         auto __pack = __make_key_value_pack<__data_per_work_item, _KeyT, _ValT>();
         if (__is_active)
-            __load(__pack, __segment_begin, __lane_offset);
+            __load(__pack, __segment_begin, __sg_in_segment, __sg_local_id);
 
         for (std::uint32_t __stage = 0; __stage < __stage_count; ++__stage)
         {
             _LocOffsetT __bins[__data_per_work_item];
             _LocOffsetT __ranks[__data_per_work_item];
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
-            {
-                __bins[__i] = __get_bucket_scalar<__mask>(
-                    oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(__pack.__keys[__i]),
-                    __stage * __radix_bits);
-            }
+            __extract_bins<__is_ascending, __radix_bits>(__pack.__keys, __bins, __stage * __radix_bits);
 
             // 1. Rank within the sub-group
             if (__is_active)
@@ -170,31 +163,15 @@ struct __batched_one_wg_radix_sort_kernel
             sycl::group_barrier(__group);
 
             if (__is_active)
-            {
-                const _LocOffsetT* __bin_offsets = __segment_last_row(__local_segment, __slm_hists);
-                _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
-                {
-                    const _LocOffsetT __bin = __bins[__i];
-                    const _LocOffsetT __offset_in_bin =
-                        __sg_in_segment == 0 ? 0 : __slm_hists[(__sg_id - 1) * __bin_count + __bin];
-                    __ranks[__i] += __slm_segment_offset + __bin_offsets[__bin] + __offset_in_bin;
-                }
-            }
+                __propagate_ranks_across_sub_groups(
+                    __ranks, __bins, __sg_in_segment == 0 ? nullptr : __slm_hists + (__sg_id - 1) * __bin_count,
+                    __segment_last_row(__local_segment, __slm_hists), _LocOffsetT(__slm_segment_offset));
             // The reorder buffer overlaps the histograms
             sycl::group_barrier(__group);
 
             // 3. Reorder through SLM
             if (__is_active)
-            {
-                _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
-                {
-                    __slm_keys[__ranks[__i]] = __pack.__keys[__i];
-                    if constexpr (__has_values)
-                        __slm_vals[__ranks[__i]] = __pack.__vals[__i];
-                }
-            }
+                __scatter_to_slm(__pack, __ranks, __slm_keys, __slm_vals);
             sycl::group_barrier(__group);
             if (__is_active)
             {
@@ -218,23 +195,17 @@ struct __batched_one_wg_radix_sort_kernel
   private:
     template <typename _KVPack>
     void
-    __load(_KVPack& __pack, _GlobOffsetT __segment_begin, std::uint32_t __lane_offset) const
+    __load(_KVPack& __pack, _GlobOffsetT __segment_begin, std::uint32_t __sg_in_segment,
+           std::uint32_t __sg_local_id) const
     {
-        const auto& __keys_in = __m_in_pack.__keys_rng();
-        _ONEDPL_PRAGMA_UNROLL
-        for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
+        const _GlobOffsetT __block_begin = __segment_begin + __sg_in_segment * __data_per_sub_group;
+        const _GlobOffsetT __segment_end = __segment_begin + __m_segment_size;
+        __load_sub_group_block<__is_ascending, /*__sort_identity_residual=*/true>(
+            __pack.__keys, __m_in_pack.__keys_rng(), __block_begin, __sg_local_id, __segment_end);
+        if constexpr (__has_values)
         {
-            const std::uint32_t __idx = __lane_offset + __i * __sub_group_size;
-            if (__idx < __m_segment_size)
-            {
-                __pack.__keys[__i] = __keys_in[__segment_begin + __idx];
-                if constexpr (__has_values)
-                    __pack.__vals[__i] = __m_in_pack.__vals_rng()[__segment_begin + __idx];
-            }
-            else
-            {
-                __pack.__keys[__i] = __sort_identity<_KeyT, __is_ascending>();
-            }
+            __load_sub_group_block<__is_ascending, /*__sort_identity_residual=*/false>(
+                __pack.__vals, __m_in_pack.__vals_rng(), __block_begin, __sg_local_id, __segment_end);
         }
     }
 
