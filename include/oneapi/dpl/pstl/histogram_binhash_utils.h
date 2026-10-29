@@ -209,7 +209,10 @@ __custom_boundary_get_bin_helper(_Acc __acc, __bin_idx_t __size, _T2 __value, _T
     if (__value >= __min && __value < __max)
     {
         _T2* __value_ptr = &__value;
-        ret = oneapi::dpl::__internal::__pstl_upper_bound(__acc, __bin_idx_t{0}, __size, __value_ptr, std::less<_T2>{},
+        // Compare boundaries to the sample as the bounds check above does, without converting them to the sample
+        // type, which could wrap or round boundaries that do not fit in it
+        ret = oneapi::dpl::__internal::__pstl_upper_bound(__acc, __bin_idx_t{0}, __size, __value_ptr,
+                                                          oneapi::dpl::__internal::__pstl_less{},
                                                           oneapi::dpl::identity{}, oneapi::dpl::identity{}) -
               1;
     }
