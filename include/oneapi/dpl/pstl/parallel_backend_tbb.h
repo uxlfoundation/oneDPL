@@ -875,13 +875,8 @@ class __merge_func
 
         if (_x_orig)
         {
-            assert(::std::is_sorted(_M_x_beg + _M_xs, _M_x_beg + _M_xs + __kx, _M_comp));
-            assert(::std::is_sorted(_M_x_beg + _M_ys, _M_x_beg + _M_ys + __ky, _M_comp));
             return !std::invoke(_M_comp, *(_M_x_beg + _M_ys), *(_M_x_beg + _M_xs + __kx - 1));
         }
-
-        assert(::std::is_sorted(_M_z_beg + _M_xs, _M_z_beg + _M_xs + __kx, _M_comp));
-        assert(::std::is_sorted(_M_z_beg + _M_ys, _M_z_beg + _M_ys + __ky, _M_comp));
         return !std::invoke(_M_comp, *(_M_z_beg + _M_zs + __nx), *(_M_z_beg + _M_zs + __kx - 1));
     }
     void

@@ -25,16 +25,26 @@ Algorithms in <oneapi/dpl/numeric>
 * ``reduce_by_segment`` with segments defined by offsets: reduces every segment of a sequence independently.
   ``num_segments + 1`` offsets define ``num_segments`` consecutive segments: the segment ``s`` is
   ``[first + offsets[s], first + offsets[s + 1])``, and its reduction, which starts from the initial value,
-  is written to ``out_first[s]``. The algorithm returns nothing. It is defined in the
+  is written to ``out_first[s]``. The algorithm returns ``out_first + num_segments``, the end of the results, or
+  ``out_first`` if ``num_segments`` is not positive. It is defined in the
   ``<oneapi/dpl/numeric>`` header, and is present if ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` is ``202611L`` or higher,
   see :ref:`Feature Macros <feature-macros>`::
 
     template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT,
               typename OffsetIt, typename InitT, typename BinaryOp>
-    void
+    OutputIt
     reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first,
                       SegmentNumT num_segments, OffsetIt offsets, InitT init_value,
                       BinaryOp binary_op);
+
+    template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT,
+              typename OffsetIt, typename InitT>
+    OutputIt
+    reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first,
+                      SegmentNumT num_segments, OffsetIt offsets, InitT init_value);
+
+  The overload without ``binary_op`` uses ``std::plus<>`` as the operation, as ``std::reduce`` does. The initial
+  value is required by both overloads.
 
   ``SegmentNumT`` must be an integral type, and ``OffsetIt`` must not be one; the offsets must be of an
   integral type other than ``bool``. ``InputIt``, ``OutputIt`` and ``OffsetIt`` must be random access iterators.

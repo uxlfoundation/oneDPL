@@ -121,6 +121,25 @@ make_offsets(segments kind, std::int64_t n, std::mt19937& gen)
     return offsets;
 }
 
+// A test tag, not an operation: given in place of the operation, test_reduce_by_segment_offsets calls the overload
+// without the operation, and its reference uses std::plus<>, the default operation
+struct default_op
+{
+};
+
+template <typename BinaryOp>
+BinaryOp
+reference_op(BinaryOp op)
+{
+    return op;
+}
+
+std::plus<>
+reference_op(default_op)
+{
+    return {};
+}
+
 // The algorithm requires random access iterators, as the RFC does: the forward and bidirectional iterators that the
 // test framework makes for the host policies are skipped
 struct test_reduce_by_segment_offsets
@@ -135,22 +154,31 @@ struct test_reduce_by_segment_offsets
               typename Init, typename BinaryOp, typename Out>
     std::enable_if_t<is_base_of_iterator_category_v<std::random_access_iterator_tag, InputIt>>
     operator()(Policy&& exec, InputIt first, InputIt last, OutputIt out_first, OutputIt out_last, OffsetIt offsets,
-               SegmentNum num_segments, Init init, BinaryOp op, Out trash)
+               SegmentNum num_segments, Init init, BinaryOp op, Out unwritten)
     {
         // The reference runs on copies of the input and the offsets
         const std::vector<typename std::iterator_traits<InputIt>::value_type> input(first, last);
         std::vector<typename std::iterator_traits<OffsetIt>::value_type> offsets_copy;
         if (num_segments > 0)
             std::copy_n(offsets, num_segments + 1, std::back_inserter(offsets_copy));
-        std::vector<Out> expected(std::distance(out_first, out_last), trash);
-        reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets_copy.begin(), num_segments, init, op,
-                                         expected.begin());
+        std::vector<Out> expected(std::distance(out_first, out_last), unwritten);
+        reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets_copy.begin(), num_segments, init,
+                                         reference_op(op), expected.begin());
 
-        oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments, offsets,
-                                       init, op);
+        auto res = [&] {
+            if constexpr (std::is_same_v<BinaryOp, default_op>)
+                return oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
+                                                      offsets, init);
+            else
+                return oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
+                                                      offsets, init, op);
+        }();
         EXPECT_EQ_N(expected.begin(), out_first, expected.size(), "wrong result from reduce_by_segment with offsets");
+        // The end of the results, which a non-positive number of segments leaves at the start
+        EXPECT_EQ(num_segments > 0 ? out_first + num_segments : out_first, res,
+                  "wrong iterator returned by reduce_by_segment with offsets");
 
-        std::fill(out_first, out_last, trash);
+        std::fill(out_first, out_last, unwritten);
     }
 };
 
@@ -170,8 +198,10 @@ struct test_unordered_offsets
     operator()(Policy&& exec, InputIt first, InputIt last, OutputIt out_first, OutputIt /*out_last*/,
                OffsetIt offsets, SegmentNum num_segments, Init init, BinaryOp op)
     {
-        oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments, offsets,
-                                       init, op);
+        auto res = oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
+                                                  offsets, init, op);
+        EXPECT_EQ(num_segments > 0 ? out_first + num_segments : out_first, res,
+                  "wrong iterator returned by reduce_by_segment with unordered offsets");
     }
 };
 
@@ -303,7 +333,7 @@ struct int_sum_plus
 template <std::size_t CallNumber, typename T, typename Out, typename Offset, typename SegmentNum, typename Init,
           typename BinaryOp, typename Generator>
 void
-test_segments(Init init, BinaryOp op, Generator generator, Out trash)
+test_segments(Init init, BinaryOp op, Generator generator, Out unwritten)
 {
     std::mt19937 gen(42);
     for (std::size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : std::size_t(3.1415 * n))
@@ -313,22 +343,23 @@ test_segments(Init init, BinaryOp op, Generator generator, Out trash)
         {
             const std::vector<Offset> offsets = make_offsets<Offset>(kind, n, gen);
             const SegmentNum num_segments = SegmentNum(offsets.size() - 1);
-            Sequence<Out> out(std::max<std::size_t>(offsets.size() - 1, 1), [trash](std::size_t) { return trash; });
+            Sequence<Out> out(std::max<std::size_t>(offsets.size() - 1, 1),
+                              [unwritten](std::size_t) { return unwritten; });
             invoke_on_all_policies<CallNumber * 3>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
                                                      out.begin(), out.end(), offsets.begin(), num_segments, init, op,
-                                                     trash);
+                                                     unwritten);
         }
 
         // A non-positive number of segments: the output is not written
         const std::vector<Offset> offsets{0, Offset(n)};
-        Sequence<Out> out(1, [trash](std::size_t) { return trash; });
+        Sequence<Out> out(1, [unwritten](std::size_t) { return unwritten; });
         invoke_on_all_policies<CallNumber * 3>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
-                                                 out.end(), offsets.begin(), SegmentNum(0), init, op, trash);
+                                                 out.end(), offsets.begin(), SegmentNum(0), init, op, unwritten);
         if constexpr (std::is_signed_v<SegmentNum>)
         {
             invoke_on_all_policies<CallNumber * 3>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
                                                      out.begin(), out.end(), offsets.begin(), SegmentNum(-1), init,
-                                                     op, trash);
+                                                     op, unwritten);
         }
 
         // Fixed-length segments; the last two ones cross or lie beyond the end of the input
@@ -337,10 +368,10 @@ test_segments(Init init, BinaryOp op, Generator generator, Out trash)
             auto fixed_offsets = oneapi::dpl::make_transform_iterator(
                 oneapi::dpl::counting_iterator<std::int64_t>(0), segment_begin{length});
             const SegmentNum num_segments = SegmentNum(n / length + 2);
-            Sequence<Out> fixed_out(num_segments, [trash](std::size_t) { return trash; });
+            Sequence<Out> fixed_out(num_segments, [unwritten](std::size_t) { return unwritten; });
             invoke_on_all_policies<CallNumber * 3 + 1>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
                                                          fixed_out.begin(), fixed_out.end(), fixed_offsets,
-                                                         num_segments, init, op, trash);
+                                                         num_segments, init, op, unwritten);
         }
 
         // Read-only input
@@ -348,10 +379,10 @@ test_segments(Init init, BinaryOp op, Generator generator, Out trash)
         {
             const std::vector<Offset> random_offsets = make_offsets<Offset>(segments::random, n, gen);
             const SegmentNum num_segments = SegmentNum(random_offsets.size() - 1);
-            Sequence<Out> random_out(num_segments, [trash](std::size_t) { return trash; });
+            Sequence<Out> random_out(num_segments, [unwritten](std::size_t) { return unwritten; });
             invoke_on_all_policies<CallNumber * 3 + 2>()(test_reduce_by_segment_offsets(), in.cbegin(), in.cend(),
                                                          random_out.begin(), random_out.end(),
-                                                         random_offsets.begin(), num_segments, init, op, trash);
+                                                         random_offsets.begin(), num_segments, init, op, unwritten);
         }
     }
 }
@@ -368,7 +399,8 @@ test_unordered()
                                          offsets.begin(), int(offsets.size() - 1), 0, std::plus<int>{});
 }
 
-// The example of the RFC: predefined results for a small input, which also check the reference
+// The example of the RFC: predefined results for a small input, which also check the reference; also with the default
+// operation, which the overload without the operation only passes on, and an initial value which is not the identity
 template <std::size_t CallNumber>
 void
 test_rfc_example()
@@ -386,6 +418,8 @@ test_rfc_example()
     Sequence<int> out(expected.size(), [](std::size_t) { return -1; });
     invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                          out.end(), offsets.begin(), 4, 0, std::plus<int>{}, -1);
+    invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                             out.end(), offsets.begin(), 4, 1, default_op{}, -1);
 }
 
 // Segments of the lengths at the boundaries of the implementations: the longest short segment and the shortest long one
@@ -523,17 +557,25 @@ test_argmin(Policy&& exec, float* values, argmin_idx_t n, argmin_idx_t* offsets,
     };
 
     // Index-value pairs
-    oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_IDX(exec, 0), in, in + n,
-                                   oneapi::dpl::make_zip_iterator(local_idx_out, val_out), num_segments, offsets,
-                                   init, argmin{});
-    check(true);
+    {
+        const auto out = oneapi::dpl::make_zip_iterator(local_idx_out, val_out);
+        auto res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_IDX(exec, 0), in, in + n, out, num_segments,
+                                                  offsets, init, argmin{});
+        check(true);
+        EXPECT_EQ(out + num_segments, res,
+                  "wrong iterator returned by reduce_by_segment for ArgMin of index-value pairs");
+    }
 
     // Only the index
     std::fill(idx_out, idx_out + num_segments, argmin_idx_t(0));
-    oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_IDX(exec, 1), in, in + n,
-                                   oneapi::dpl::make_zip_iterator(local_idx_out, oneapi::dpl::discard_iterator()),
-                                   num_segments, offsets, init, argmin{});
-    check(false);
+    {
+        const auto out = oneapi::dpl::make_zip_iterator(local_idx_out, oneapi::dpl::discard_iterator());
+        auto res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_IDX(exec, 1), in, in + n, out, num_segments,
+                                                  offsets, init, argmin{});
+        check(false);
+        EXPECT_EQ(out + num_segments, res,
+                  "wrong iterator returned by reduce_by_segment for ArgMin of the index only");
+    }
 }
 
 void
@@ -591,9 +633,11 @@ test_usm()
         TestUtils::usm_data_transfer<alloc_type, int> in_usm(q, in.begin(), in.end());
         TestUtils::usm_data_transfer<alloc_type, int> offsets_usm(q, offsets.begin(), offsets.end());
         TestUtils::usm_data_transfer<alloc_type, int> out_usm(q, num_segments);
-        oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, NewKernelName),
-                                       in_usm.get_data() + guard_length, in_usm.get_data() + guard_length + n,
-                                       out_usm.get_data(), num_segments, offsets_usm.get_data(), 5, std::plus<int>{});
+        auto res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, NewKernelName),
+                                                  in_usm.get_data() + guard_length,
+                                                  in_usm.get_data() + guard_length + n, out_usm.get_data(),
+                                                  num_segments, offsets_usm.get_data(), 5, std::plus<int>{});
+        EXPECT_EQ(out_usm.get_data() + num_segments, res, "wrong iterator returned by reduce_by_segment with USM");
         out_usm.retrieve_data(result.begin());
         EXPECT_EQ_N(expected.begin(), result.begin(), num_segments, "wrong result from reduce_by_segment with USM");
     }
@@ -620,10 +664,13 @@ test_buffer()
             sycl::buffer<int> in_buf(in.data(), in.size());
             sycl::buffer<int> offsets_buf(offsets.data(), offsets.size());
             sycl::buffer<int> out_buf(result.data(), result.size());
-            oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, KernelName),
-                                           oneapi::dpl::begin(in_buf) + guard_length,
-                                           oneapi::dpl::begin(in_buf) + guard_length + n, oneapi::dpl::begin(out_buf),
-                                           num_segments, oneapi::dpl::begin(offsets_buf), 5, std::plus<int>{});
+            auto res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, KernelName),
+                                                      oneapi::dpl::begin(in_buf) + guard_length,
+                                                      oneapi::dpl::begin(in_buf) + guard_length + n,
+                                                      oneapi::dpl::begin(out_buf), num_segments,
+                                                      oneapi::dpl::begin(offsets_buf), 5, std::plus<int>{});
+            EXPECT_EQ(oneapi::dpl::begin(out_buf) + num_segments, res,
+                      "wrong iterator returned by reduce_by_segment with sycl::buffer");
         }
         EXPECT_EQ_N(expected.begin(), result.begin(), num_segments,
                     "wrong result from reduce_by_segment with sycl::buffer");
@@ -704,8 +751,8 @@ main()
 
     test_unordered<39>();
     test_rfc_example<40>();
-    test_boundaries<41>();
-    test_input_bounds<42>();
+    test_boundaries<42>();
+    test_input_bounds<43>();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT

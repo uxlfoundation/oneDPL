@@ -37,17 +37,16 @@ Table of contents:
   - [Different `first` and `last` Types](#different-first-and-last-types)
   - [Iterator Requirements](#iterator-requirements)
 - [Links](#links)
+- [References](#References)
 
 See [reference implementations](reference_implementations.md) and the
 [usage pattern study](usage_pattern_study.md) for background.
 
 ## Synopsis
 
-All the proposed segmented algorithms are included from `<oneapi/dpl/numeric>`.
-
-They should also be available from`<oneapi/dpl/algorithm>`,
-because the existing `reduce_by_segment` allows it due to historical reasons,
-but it should not be documented.
+The new overloads must be added to the same namespace and headers
+as the existing `reduce_by_segment` overloads, as defined in the
+[specification](../../../documentation/specification/parallel_api/algorithms.rst).
 
 ```c++
 // (1) Variable-length segments
@@ -58,7 +57,7 @@ template <typename Policy,
           typename OffsetIt,    // to be constrained to a non-integral type
           typename InitT,
           typename BinaryOp>
-void
+OutputIt
 oneapi::dpl::reduce_by_segment(
     Policy&&      policy,
     InputIt       first,
@@ -78,7 +77,7 @@ template <typename Policy,
           typename SegmentLengthT, // to be constrained to an integral type
           typename InitT,
           typename BinaryOp>
-void
+OutputIt
 oneapi::dpl::reduce_by_segment(
     Policy&&        policy,
     InputIt         first,
@@ -691,7 +690,10 @@ so users who need this information can derive it from the arguments, paying the 
 For variable-length segments with device policies,
 returning these values requires a device-to-host copy and a synchronization.
 
-**Strategy**. Return nothing for both variable-length and fixed-length overloads.
+**Strategy**. Return the output end, (1): `out_first + num_segments`, or `out_first` if `num_segments` is not
+positive, for both variable-length and fixed-length overloads. It costs nothing, and it keeps the overloads consistent
+with the other oneDPL algorithms, which return the end of their output; the values that tell where the input ran out,
+(2), (4) and (5), stay derivable from the arguments.
 
 ## Evolution
 
@@ -863,5 +865,19 @@ because a sentinel `last` would require constraining or documenting a sentinel-i
 - [C++ draft: `std::reduce`](https://eel.is/c++draft/reduce)
 - [C++ draft: Numeric algorithm definitions](https://eel.is/c++draft/numerics.defns)
 - [P3732R2: Declarations of `reduce`, `sum`, `product`, and their `_into` variants](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html#add-declarations-of-reduce-sum-product-and-their-_into-variants)
+- [P3809R0: Should we make std::linalg reductions deduce return types like fold algorithms?](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3809r0.html)
 - [cppreference: Fold algorithm concepts](https://en.cppreference.com/cpp/algorithm/ranges/fold_concepts)
 - [cppreference: `std::reduce`](https://cppreference.com/cpp/algorithm/reduce)
+
+## References
+- [Optimized Parallel Reduction for Regular and Irregular Segments on GPU (2026)](https://doi.org/10.1002/cpe.70715), [implementation](https://github.com/MichelBC/bestReduce)
+- [Advancing Awkward Arrays for High-Performance CPU and GPU Processing (2026)](https://arxiv.org/abs/2607.28145)
+- [GPU Acceleration of Awkward Arrays: Using Python cuda.compute (2026)](https://arxiv.org/abs/2610.08238)
+- [Bridging the Vendor Gap: Enabling AMD GPU Support for Awkward Array via ROCm/HIP (2026)](https://arxiv.org/abs/2609.24628)
+- [AsyncSparse: Accelerating Sparse Matrix-Matrix Multiplication on Asynchronous GPU Architectures (2026)](https://arxiv.org/abs/2604.17834)
+- [GPU-Accelerated Presolving for Linear Programming (2026)](https://www.web.stanford.edu/~boyd/papers/cuPSLP.html)
+- [Efficient Sparse Matrix Kernels based on Adaptive Workload-Balancing and Parallel-Reduction (2021)](https://arxiv.org/abs/2106.16064)
+- [Strategies for Regular Segmented Reductions on GPU (2017)](https://hiperfit.dk/pdf/fhpc17.pdf)
+- [Policy-based Tuning for Performance Portability and Library Co-optimization (2012)](https://research.nvidia.com/index.php/publication/2012-05_policy-based-tuning-performance-portability-and-library-co-optimization)
+- [Merge-based Parallel Sparse Matrix-vector Multiplication (2016)](https://mgarland.org/papers/)
+

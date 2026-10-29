@@ -323,7 +323,6 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                       unseq_backend::__init_value<_Size>{_Size{0}},
                       oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1}),
                       oneapi::dpl::__ranges::take_view_simple(__offsets, __m))
-                      .get()
                 : __n;
         __reduce_in_chunks(_Size{0}, /*__write_empty=*/true, __max_length, __m);
         return;
