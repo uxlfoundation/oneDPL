@@ -257,6 +257,17 @@ struct __segmented_reduce_pointer_input<
 // element, as the alignment, the head and the tail of the vectors cost more than the vectors save, as measured
 inline constexpr std::size_t __segmented_reduce_sub_group_min_vectors = 8;
 
+// The operation on four values in two pairs, each made an accumulator; taken by value, so that the four are loaded
+// before the operation waits for any of them
+template <typename _Acc, typename _BinaryOperation, typename _A, typename _B, typename _C, typename _D>
+_Acc
+__segmented_reduce_four(_BinaryOperation& __binary_op, _A __a, _B __b, _C __c, _D __d)
+{
+    return std::invoke(__binary_op,
+                       oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __a, __b)),
+                       oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __c, __d)));
+}
+
 // Combines the accumulators of the first __active lanes of a sub-group on lane 0. An operation with an identity the
 // group algorithms know combines them by the sub-group reduction, the other lanes giving the identity. Otherwise a lane
 // combines the one so many lanes after it whenever that one takes part, so that lane 0 gets the lanes in pairs, then
@@ -367,13 +378,11 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::
                     __acc.__setup(__load4(__k));
                     // Four vector loads in flight
                     for (__k += __active; __k + 3 * __active < __nv; __k += 4 * __active)
-                        __acc.__v = std::invoke(
-                            __binary_op, __acc.__v,
-                            std::invoke(__binary_op,
-                                        oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                            std::invoke(__binary_op, __load4(__k), __load4(__k + __active))),
-                                        oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(
-                                            __binary_op, __load4(__k + 2 * __active), __load4(__k + 3 * __active)))));
+                        __acc.__v = std::invoke(__binary_op, __acc.__v,
+                                                __segmented_reduce_four<_Acc>(__binary_op, __load4(__k),
+                                                                              __load4(__k + __active),
+                                                                              __load4(__k + 2 * __active),
+                                                                              __load4(__k + 3 * __active)));
                     for (; __k < __nv; __k += __active)
                         __acc.__v = std::invoke(__binary_op, __acc.__v, __load4(__k));
                 }
@@ -395,11 +404,8 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::
         // Four loads in flight
         for (__i += 2 * __active; __i + 3 * __active < __last; __i += 4 * __active)
             __acc.__v = std::invoke(__binary_op, __acc.__v,
-                                std::invoke(__binary_op,
-                                            oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                                std::invoke(__binary_op, __at(__i), __at(__i + __active))),
-                                            oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(
-                                                __binary_op, __at(__i + 2 * __active), __at(__i + 3 * __active)))));
+                                    __segmented_reduce_four<_Acc>(__binary_op, __at(__i), __at(__i + __active),
+                                                                  __at(__i + 2 * __active), __at(__i + 3 * __active)));
         for (; __i < __last; __i += __active)
             __acc.__v = std::invoke(__binary_op, __acc.__v, __at(__i));
     }
@@ -740,16 +746,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                             // Four loads at once: a load the loop issues after the operation on
                                             // the previous one would wait for it
                                             for (; __i + 3 < __hi; __i += 4)
-                                            {
-                                                const auto __a = __element(__i);
-                                                const auto __b = __element(__i + 1);
-                                                const auto __c = __element(__i + 2);
-                                                const auto __d = __element(__i + 3);
                                                 __acc = __to_acc(std::invoke(
                                                     __op, __acc,
-                                                    std::invoke(__op, __to_acc(std::invoke(__op, __a, __b)),
-                                                                __to_acc(std::invoke(__op, __c, __d)))));
-                                            }
+                                                    __segmented_reduce_four<_Acc>(__op, __element(__i),
+                                                                                  __element(__i + 1),
+                                                                                  __element(__i + 2),
+                                                                                  __element(__i + 3))));
                                             for (; __i < __hi; ++__i)
                                                 __acc = __to_acc(std::invoke(__op, __acc, __element(__i)));
                                             __result[__mine] = __acc;
@@ -919,16 +921,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         if (__lane < __heads_count)
                             __acc.__setup(__first_head[__lane]);
                         std::uint32_t __k = __lane + __lanes;
-                        auto __to_acc = [](const auto& __x) {
-                            return oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__x);
-                        };
                         for (; __k + 3 * __lanes < __heads_count; __k += 4 * __lanes)
                             __acc.__v = std::invoke(
                                 __op, __acc.__v,
-                                std::invoke(__op,
-                                            __to_acc(std::invoke(__op, __first_head[__k], __first_head[__k + __lanes])),
-                                            __to_acc(std::invoke(__op, __first_head[__k + 2 * __lanes],
-                                                                 __first_head[__k + 3 * __lanes]))));
+                                __segmented_reduce_four<_Acc>(__op, __first_head[__k], __first_head[__k + __lanes],
+                                                              __first_head[__k + 2 * __lanes],
+                                                              __first_head[__k + 3 * __lanes]));
                         for (; __k < __heads_count; __k += __lanes)
                             __acc.__v = std::invoke(__op, __acc.__v, __first_head[__k]);
                         __acc.__v = __segmented_reduce_lanes(__sg, __acc.__v,
