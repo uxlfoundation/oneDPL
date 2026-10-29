@@ -62,9 +62,11 @@ struct __segmented_reduce_variable_brick
         const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__idx + 1], __n);
         if (__end - __begin > __threshold)
         {
-            sycl::atomic_ref<std::uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                             sycl::access::address_space::global_space>
-                __ref(__max_length[0]);
+            using __atomic_ref_t =
+                sycl::atomic_ref<std::uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                 sycl::access::address_space::global_space>;
+
+            __atomic_ref_t __ref(__max_length[0]);
             __ref.fetch_max(static_cast<std::uint32_t>(std::min<std::uint64_t>(
                 static_cast<std::uint64_t>(__end - __begin), std::numeric_limits<std::uint32_t>::max())));
             return;
@@ -88,8 +90,7 @@ struct __segmented_reduce_init_brick
     {
         static_assert(_Params::__vector_size == 1,
                       "The brick operates with tuples which must be excluded from vectorizable types");
-        using std::get;
-        get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init);
+        std::get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init);
     }
 };
 
