@@ -257,30 +257,38 @@ struct __segmented_reduce_pointer_input<
 // element, as the alignment, the head and the tail of the vectors cost more than the vectors save, as measured
 inline constexpr std::size_t __segmented_reduce_sub_group_min_vectors = 8;
 
-// Combines the accumulators of the first __active lanes of a sub-group on lane 0 without an identity: a lane combines
-// the one so many lanes after it whenever that one takes part, so that lane 0 gets the lanes in pairs, then in fours,
-// and so on, without a test of its position. The shifts are known at compile time: a shift known only at run time
-// reaches the registers of the other lanes indirectly, which costs several times more, as measured.
+// Combines the accumulators of the first __active lanes of a sub-group on lane 0. An operation with an identity the
+// group algorithms know combines them by the sub-group reduction, the other lanes giving the identity. Otherwise a lane
+// combines the one so many lanes after it whenever that one takes part, so that lane 0 gets the lanes in pairs, then
+// in fours, and so on, without a test of its position; the shifts are known at compile time: a shift known only at
+// run time reaches the registers of the other lanes indirectly, which costs several times more, as measured.
 template <typename _SubGroup, typename _Acc, typename _BinaryOperation>
 _Acc
-__segmented_reduce_lanes_by_shifts(const _SubGroup& __sg, _Acc __acc, const std::uint32_t __active,
-                                   _BinaryOperation& __binary_op)
+__segmented_reduce_lanes(const _SubGroup& __sg, _Acc __acc, const std::uint32_t __active, _BinaryOperation& __binary_op)
 {
     const std::uint32_t __lane = __sg.get_local_linear_id();
-    auto __step = [&](auto __shift) {
-        if (__shift < __active)
-        {
-            const _Acc __other = sycl::shift_group_left(__sg, __acc, __shift);
-            if (__lane + __shift < __active)
-                __acc = std::invoke(__binary_op, __acc, __other);
-        }
-    };
-    __step(std::integral_constant<std::uint32_t, 1>{});
-    __step(std::integral_constant<std::uint32_t, 2>{});
-    __step(std::integral_constant<std::uint32_t, 4>{});
-    __step(std::integral_constant<std::uint32_t, 8>{});
-    __step(std::integral_constant<std::uint32_t, 16>{});
-    return __acc;
+    if constexpr (oneapi::dpl::unseq_backend::__can_use_group_reduce_scan<_BinaryOperation, _Acc>::value)
+    {
+        return sycl::reduce_over_group(
+            __sg, __lane < __active ? __acc : sycl::known_identity_v<_BinaryOperation, _Acc>, __binary_op);
+    }
+    else
+    {
+        auto __step = [&](auto __shift) {
+            if (__shift < __active)
+            {
+                const _Acc __other = sycl::shift_group_left(__sg, __acc, __shift);
+                if (__lane + __shift < __active)
+                    __acc = std::invoke(__binary_op, __acc, __other);
+            }
+        };
+        __step(std::integral_constant<std::uint32_t, 1>{});
+        __step(std::integral_constant<std::uint32_t, 2>{});
+        __step(std::integral_constant<std::uint32_t, 4>{});
+        __step(std::integral_constant<std::uint32_t, 8>{});
+        __step(std::integral_constant<std::uint32_t, 16>{});
+        return __acc;
+    }
 }
 
 // Reduces the elements [__base + __first, __base + __last), at least one, by a sub-group: the lanes take the elements in
@@ -395,19 +403,9 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::
         for (; __i < __last; __i += __active)
             __acc.__v = std::invoke(__binary_op, __acc.__v, __at(__i));
     }
-    // An operation with an identity the group algorithms know combines the lanes by the sub-group reduction, the lanes
-    // not taking part giving the identity
-    if constexpr (oneapi::dpl::unseq_backend::__can_use_group_reduce_scan<_BinaryOperation, _Acc>::value)
-    {
-        if (__active > 0)
-            __acc.__v = sycl::reduce_over_group(
-                __sg, __lane < __active ? __acc.__v : sycl::known_identity_v<_BinaryOperation, _Acc>, __binary_op);
-    }
-    else
-    {
-        // Only lane 0 needs the result
-        __acc.__v = __segmented_reduce_lanes_by_shifts(__sg, __acc.__v, __active, __binary_op);
-    }
+    // Only lane 0 needs the result
+    if (__active > 0)
+        __acc.__v = __segmented_reduce_lanes(__sg, __acc.__v, __active, __binary_op);
     // A range of one element more than the initial value takes it alone
     if (__is_first)
         return __active > 0       ? __to_acc(std::invoke(__binary_op, __head.__v, __acc.__v))
@@ -918,8 +916,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         // is already an accumulator, so a lane may start from one alone
                         const _Acc* const __first_head = __heads + (__unit + 1);
                         oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __acc;
-                        const bool __has = __lane < __heads_count;
-                        if (__has)
+                        if (__lane < __heads_count)
                             __acc.__setup(__first_head[__lane]);
                         std::uint32_t __k = __lane + __lanes;
                         auto __to_acc = [](const auto& __x) {
@@ -934,20 +931,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                                                  __first_head[__k + 3 * __lanes]))));
                         for (; __k < __heads_count; __k += __lanes)
                             __acc.__v = std::invoke(__op, __acc.__v, __first_head[__k]);
-                        // An operation with an identity the group algorithms know combines the lanes by the sub-group
-                        // reduction, the lanes without a head giving the identity; else lane 0 gets the lanes in
-                        // pairs, then in fours, and so on
-                        if constexpr (oneapi::dpl::unseq_backend::__can_use_group_reduce_scan<_BinaryOperation,
-                                                                                               _Acc>::value)
-                        {
-                            __acc.__v = sycl::reduce_over_group(
-                                __sg, __has ? __acc.__v : sycl::known_identity_v<_BinaryOperation, _Acc>, __op);
-                        }
-                        else
-                        {
-                            __acc.__v = __segmented_reduce_lanes_by_shifts(
-                                __sg, __acc.__v, std::min<std::uint32_t>(__heads_count, __lanes), __op);
-                        }
+                        __acc.__v = __segmented_reduce_lanes(__sg, __acc.__v,
+                                                             std::min<std::uint32_t>(__heads_count, __lanes), __op);
                         if (__lane == 0)
                             __result[__s] = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
                                 std::invoke(__op, __tail, __acc.__v));
