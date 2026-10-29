@@ -285,7 +285,7 @@ __segmented_reduce_four(_BinaryOperation __binary_op, _A __a, _B __b, _C __c, _D
 // compile time, as a shift known only at run time reaches the registers of the other lanes indirectly
 template <typename _SubGroup, typename _Acc, typename _BinaryOperation>
 _Acc
-__segmented_reduce_lanes(const _SubGroup& __sg, _Acc __acc, const std::uint32_t __active, _BinaryOperation __binary_op)
+__segmented_reduce_lanes(const _SubGroup __sg, _Acc __acc, const std::uint32_t __active, _BinaryOperation __binary_op)
 {
     const std::uint32_t __lane = __sg.get_local_linear_id();
 
@@ -322,9 +322,9 @@ __segmented_reduce_lanes(const _SubGroup& __sg, _Acc __acc, const std::uint32_t 
 template <typename _Acc, typename _SubGroup, typename _Size, typename _InitType, typename _BinaryOperation,
           typename _Input>
 _Acc
-__segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::uint32_t __first,
+__segmented_reduce_by_sub_group(const _SubGroup __sg, const _Size __base, std::uint32_t __first,
                                 const std::uint32_t __last, const bool __is_first, const _InitType __init,
-                                _BinaryOperation __binary_op, const _Input& __input)
+                                _BinaryOperation __binary_op, const _Input __input)
 {
     const std::uint32_t __lane = __sg.get_local_linear_id();
     const std::uint32_t __lanes = __sg.get_local_linear_range();
@@ -463,7 +463,7 @@ inline constexpr std::size_t __segmented_reduce_gpu_flat_group_combine_input = s
 // the bracket, so that a guess close to the answer takes a few reads of the offsets instead of log2(__m)
 template <typename _Size, typename _OffsetRange>
 _Size
-__segmented_reduce_flat_last_begin(const _OffsetRange& __offsets, const _Size __m, const _Size __n, const _Size __v,
+__segmented_reduce_flat_last_begin(const _OffsetRange __offsets, const _Size __m, const _Size __n, const _Size __v,
                                    _Size __guess, const float __segments_per_element, const int __steps)
 {
     auto __begins_after = [&](_Size __i) {
