@@ -44,8 +44,8 @@ struct __segmented_reduce_variable_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
 
-    _Size __n;         // the size of the input
-    _Size __threshold; // the length of the longest short segment
+    _Size __n = {};         // the size of the input
+    _Size __threshold = {}; // the length of the longest short segment
     _InitType __init;
     mutable _BinaryOperation __binary_op;
 
@@ -118,7 +118,7 @@ __segmented_reduce_chunk_size(bool __is_gpu, std::size_t __max_length)
 template <typename _Size>
 struct __segmented_reduce_length
 {
-    _Size __n; // the size of the input
+    _Size __n = {}; // the size of the input
 
     template <typename _OffsetEnd, typename _OffsetBegin>
     _Size
@@ -133,9 +133,9 @@ struct __segmented_reduce_length
 template <typename _Size>
 struct __segmented_reduce_chunk_count
 {
-    _Size __n;          // the size of the input
-    _Size __chunk_size; // the length of a chunk
-    _Size __min_length; // the segments not longer than this have no chunks
+    _Size __n = {};          // the size of the input
+    _Size __chunk_size = {}; // the length of a chunk
+    _Size __min_length = {}; // the segments not longer than this have no chunks
 
     template <typename _Bounds>
     _Size
@@ -154,9 +154,9 @@ struct __segmented_reduce_chunk_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
 
-    _Size __n;            // the size of the input
-    _Size __num_segments; // the number of segments
-    _Size __chunk_size;   // the length of a chunk
+    _Size __n = {};            // the size of the input
+    _Size __num_segments = {}; // the number of segments
+    _Size __chunk_size = {};   // the length of a chunk
     _InitType __init;
     mutable _BinaryOperation __binary_op;
 
@@ -209,8 +209,8 @@ struct __segmented_reduce_combine_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
 
-    _Size __num_partials; // the number of the computed partial results
-    bool __write_empty;   // whether a segment without chunks gets the initial value; otherwise it is left as is
+    _Size __num_partials = {};  // the number of the computed partial results
+    bool __write_empty = false; // whether a segment without chunks gets the initial value; otherwise it is left as is
     _InitType __init;
     mutable _BinaryOperation __binary_op;
 
@@ -505,9 +505,9 @@ __segmented_reduce_flat_supported(const sycl::queue& __q)
 // and the work-groups halved, down to one sub-group, until there are at least two per Xe core
 struct __segmented_reduce_flat_geometry
 {
-    std::size_t __work_group_size; // a multiple of the size of a sub-group
-    std::size_t __num_groups;
-    std::size_t __inputs_per_item;
+    std::size_t __work_group_size = {}; // a multiple of the size of a sub-group
+    std::size_t __num_groups = {};
+    std::size_t __inputs_per_item = {};
 
     __segmented_reduce_flat_geometry(const sycl::queue& __q, const std::size_t __n, const std::size_t __m)
     {
