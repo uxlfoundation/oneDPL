@@ -48,8 +48,8 @@ __segmented_reduce_serial(const _Source& __src, _Index __begin, _Index __end, _I
                           _BinaryOperation& __binary_op)
 {
     if (__begin >= __end)
-        return __segmented_reduce_to_acc<_Acc>(std::move(__init));
-    _Acc __acc = __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, std::move(__init), __src[__begin]));
+        return std::move(__init);
+    _Acc __acc = std::invoke(__binary_op, std::move(__init), __src[__begin]);
     // Unrolled on a device, where a work-item reducing alone would wait for every load
 #if defined(__SYCL_DEVICE_ONLY__)
     _ONEDPL_PRAGMA(unroll 16)
