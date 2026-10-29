@@ -1000,12 +1000,12 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         sycl::queue __q = __exec.queue();
         if (__is_gpu && __segmented_reduce_flat_supported(__q))
         {
-            using _FlatKernel = __internal::__kernel_name_provider<
-                __segmented_reduce_flat_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
-            using _FlatGroupKernel = __internal::__kernel_name_provider<
-                __segmented_reduce_flat_group_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
-            using _FlatTailKernel = __internal::__kernel_name_provider<
-                __segmented_reduce_flat_tail_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+            using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+            using _FlatKernel = __internal::__kernel_name_provider<__segmented_reduce_flat_kernel<_CustomName>>;
+            using _FlatGroupKernel =
+                __internal::__kernel_name_provider<__segmented_reduce_flat_group_kernel<_CustomName>>;
+            using _FlatTailKernel =
+                __internal::__kernel_name_provider<__segmented_reduce_flat_tail_kernel<_CustomName>>;
 
             __segmented_reduce_flat_submitter<_Acc, _FlatKernel, _FlatGroupKernel, _FlatTailKernel>()(
                 __q, __input, __offsets, __result, __n, __m, __init, __binary_op);
