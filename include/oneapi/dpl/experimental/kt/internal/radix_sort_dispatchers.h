@@ -43,6 +43,9 @@ class __radix_sort_onesweep;
 template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_copyback;
 
+template <typename... _Name>
+class __batched_radix_sort_one_wg;
+
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename _KtTag, typename _RngPack>
 sycl::event
@@ -524,13 +527,11 @@ __batched_onesweep(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_ou
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
 // Batched sort: each consecutive run of __segment_size elements, which must fit in a work-group tile, is sorted
 // independently by the one work-group kernel
-template <bool __is_ascending, std::uint8_t __radix_bits, typename _KtTag, typename _RngPack1, typename _RngPack2,
-          typename _KernelParam>
+template <bool __is_ascending, std::uint8_t __radix_bits, typename _RngPack1, typename _RngPack2, typename _KernelParam>
 sycl::event
-__batched_single_group(_KtTag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out,
-                       std::size_t __segment_size, _KernelParam)
+__batched_single_group(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __segment_size,
+                       _KernelParam)
 {
-    static_assert(std::is_same_v<_KtTag, __sycl_tag>, "The batched radix sort is only implemented in SYCL");
     const std::size_t __n = __pack_in.__keys_rng().size();
     assert(__n > 0);
     assert(__segment_size <= std::size_t(_KernelParam::data_per_workitem) * _KernelParam::workgroup_size &&
