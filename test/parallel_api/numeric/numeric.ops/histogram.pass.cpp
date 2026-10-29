@@ -174,6 +174,7 @@ struct test_histogram_range_bins_exact
             const int sentinel = -1;
             std::fill(bin_first, bin_last, sentinel);
             const auto num_bins = expected.size();
+            EXPECT_TRUE(boundaries.size() == num_bins + 1, "test setup: expected must have one entry per bin");
             auto orr = oneapi::dpl::histogram(std::forward<Policy>(exec), in_first, in_last, boundaries.begin(),
                                               boundaries.end(), bin_first);
             EXPECT_TRUE(bin_first + num_bins == orr, "histogram returned wrong iterator");
