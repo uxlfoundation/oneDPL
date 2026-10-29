@@ -412,6 +412,9 @@ inline constexpr std::size_t __segmented_reduce_gpu_flat_lanes = 32;
 // inputs are spread over more work-groups than the device runs at once, as measured
 inline constexpr std::size_t __segmented_reduce_gpu_flat_min_inputs_per_item = 16;
 inline constexpr std::size_t __segmented_reduce_gpu_flat_small_input = std::size_t(1) << 20;
+// Segments of at most this many elements on average make the walk of a piece cost more than its loads: there the
+// elements of a work-item are chosen so that the pieces about fill the hardware threads of the device, as measured
+inline constexpr std::size_t __segmented_reduce_gpu_flat_short_average_segment = 2048;
 // The largest work-group
 inline constexpr std::size_t __segmented_reduce_gpu_flat_max_work_group = 256;
 // A segment of at most this many elements that a piece holds whole is reduced by a lane alone, with the following ones
@@ -493,32 +496,35 @@ __segmented_reduce_flat_supported(const sycl::queue& __q)
     return oneapi::dpl::__internal::__supports_sub_group_size(__q, __segmented_reduce_gpu_flat_lanes);
 }
 
-// The launch of the decomposition above for an input of __n elements: twice as many work-groups as Xe cores, as
-// reduce-then-scan has when they fit the cache, the elements of a work-item spread evenly over them within the bounds
-// above, and the work-groups halved, down to one sub-group, until there are at least two per Xe core, as far as the
-// input allows
+// The launch of the decomposition above for an input of __n elements in __m segments: twice as many work-groups as Xe
+// cores, as reduce-then-scan has when they fit the cache, the elements of a work-item spread evenly over them within
+// the bounds above, or, with short segments on average, over a piece per hardware thread, and the work-groups halved,
+// down to one sub-group, until there are at least two per Xe core, as far as the input allows
 struct __segmented_reduce_flat_geometry
 {
     std::size_t __work_group_size; // a multiple of the size of a sub-group
     std::size_t __num_groups;
     std::size_t __inputs_per_item;
 
-    __segmented_reduce_flat_geometry(const sycl::queue& __q, const std::size_t __n)
+    __segmented_reduce_flat_geometry(const sycl::queue& __q, const std::size_t __n, const std::size_t __m)
     {
         constexpr std::size_t __lanes = __segmented_reduce_gpu_flat_lanes;
 
         __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__q, __segmented_reduce_gpu_flat_max_work_group) / __lanes *
             __lanes;
+        const std::size_t __compute_units = oneapi::dpl::__internal::__max_compute_units(__q);
         // Eight compute units per Xe core
-        const std::size_t __min_groups =
-            2 * std::max<std::size_t>(1, oneapi::dpl::__internal::__max_compute_units(__q) / 8);
-        const std::size_t __min_inputs = __n <= __segmented_reduce_gpu_flat_small_input
+        const std::size_t __min_groups = 2 * std::max<std::size_t>(1, __compute_units / 8);
+        // Eight hardware threads per compute unit, a sub-group each
+        const bool __short_segments = __n <= __m * __segmented_reduce_gpu_flat_short_average_segment;
+        const std::size_t __items = __short_segments ? 8 * std::max<std::size_t>(1, __compute_units) * __lanes
+                                                     : __min_groups * __work_group_size;
+        const std::size_t __min_inputs = __short_segments || __n <= __segmented_reduce_gpu_flat_small_input
                                              ? __segmented_reduce_gpu_flat_min_inputs_per_item
                                              : 4 * __segmented_reduce_gpu_flat_min_inputs_per_item;
-        __inputs_per_item =
-            std::clamp<std::size_t>((__n + __min_groups * __work_group_size - 1) / (__min_groups * __work_group_size),
-                                    __min_inputs, 4 * __segmented_reduce_gpu_flat_min_inputs_per_item);
+        __inputs_per_item = std::clamp<std::size_t>((__n + __items - 1) / __items, __min_inputs,
+                                                    4 * __segmented_reduce_gpu_flat_min_inputs_per_item);
         auto __groups = [&](std::size_t __size) {
             return (__n + __inputs_per_item * __size - 1) / (__inputs_per_item * __size);
         };
@@ -607,7 +613,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // The accumulators in __lazy_ctor_storage are never destroyed: the path takes arithmetic types only
         static_assert(std::is_trivially_destructible_v<_Acc>);
         constexpr std::size_t __lanes = __segmented_reduce_gpu_flat_lanes;
-        const __segmented_reduce_flat_geometry __geometry(__q, std::size_t(__n));
+        const __segmented_reduce_flat_geometry __geometry(__q, std::size_t(__n), std::size_t(__m));
         const std::size_t __work_group_size = __geometry.__work_group_size;
         const std::size_t __sub_groups = __work_group_size / __lanes;
         const std::size_t __num_groups = __geometry.__num_groups;
