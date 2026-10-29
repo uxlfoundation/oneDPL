@@ -1119,8 +1119,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         const _Size __chunk_size = __segmented_reduce_chunk_size(__is_gpu, __max_length);
 
         // The end of the chunks of every segment: an inclusive scan of their numbers, computed from the pairs of
-        // the adjacent offsets. The chunks depend on it through __chunk_ends, so the host does not wait for it; its
-        // future keeps the temporary data of the scan until the partial results are combined.
+        // the adjacent offsets. Each step below is waited for before the next one is submitted.
         auto __chunk_ends = __buffer<_Size>(__m).get_buffer();
         auto __scan = __parallel_transform_scan(
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
@@ -1129,6 +1128,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             oneapi::dpl::__ranges::views::all_write(__chunk_ends), __m,
             __segmented_reduce_chunk_count<_Size>{__n, __chunk_size, __min_length},
             unseq_backend::__no_init_value<_Size>{}, std::plus<_Size>{}, /*_Inclusive=*/std::true_type{});
+        __scan.event().wait_and_throw();
 
         // At most n / __chunk_size + 1 chunks per segment, unless the offsets are not ordered
         const _Size __num_partials = __n / __chunk_size + __max_segments + 1;
@@ -1147,8 +1147,8 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                        __m, oneapi::dpl::__ranges::views::all_read(__chunk_ends),
                        oneapi::dpl::__ranges::views::all_read(__partials),
                        oneapi::dpl::__ranges::make_zip_view(__result))
-            .event().wait_and_throw();
-        __scan.event().wait_and_throw();
+            .event()
+            .wait_and_throw();
     };
 
     if (__n / __m > __threshold)
