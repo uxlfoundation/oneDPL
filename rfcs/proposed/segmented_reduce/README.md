@@ -18,26 +18,29 @@ Table of contents:
   - [Kernel Template or Core Algorithm Extension](#kernel-template-or-core-algorithm-extension)
   - [Empty, Overlapping, Negatively Sized, and Unordered Segments](#empty-overlapping-negatively-sized-and-unordered-segments)
   - [`num_segments` and `segment_length`: Types and Negative Values](#num_segments-and-segment_length-types-and-negative-values)
-  - [Initial Value, its Default Value, and Identity](#initial-value-its-default-value-and-identity)
+  - [Binary Operation and Init Value Order](#binary-operation-and-init-value-order)
+  - [Initial Value or Identity](#initial-value-or-identity)
+  - [Default Initial Value and Binary Operation](#default-initial-value-and-binary-operation)
+  - [Identity](#identity)
   - [Bounding Input and Negative Offsets](#bounding-input-and-negative-offsets)
   - [Fixed-Length Segments](#fixed-length-segments)
-  - [Binary Operator](#binary-operator)
+  - [Binary Operation Requirements](#binary-operation-requirements)
   - [Floating Point Determinism](#floating-point-determinism)
-  - [Binary Operation and Init Value Order](#binary-operation-and-init-value-order)
   - [Arguments and Overload Disambiguation](#arguments-and-overload-disambiguation)
   - [Sum, Min, Max semantics](#sum-min-max-semantics)
   - [ArgMin and ArgMax semantics](#argmin-and-argmax-semantics)
   - [Accumulator Type](#accumulator-type)
   - [Return Value](#return-value)
-- [Evolution](#evolution)
-- [Feature Macro](#feature-macro)
+  - [Feature Macro](#feature-macro)
 - [Examples](#examples)
 - [Testing](#testing)
+- [Next Steps](#next-steps)
 - [Open Questions](#open-questions)
   - [Different `first` and `last` Types](#different-first-and-last-types)
   - [Iterator Requirements](#iterator-requirements)
 - [Links](#links)
-- [References](#References)
+  - [C++ Standard References](#c-standard-references)
+  - [Performance Studies](#performance-studies)
 
 See [reference implementations](reference_implementations.md) and the
 [usage pattern study](usage_pattern_study.md) for background.
@@ -49,7 +52,27 @@ as the existing `reduce_by_segment` overloads, as defined in the
 [specification](../../../documentation/specification/parallel_api/algorithms.rst).
 
 ```c++
-// (1) Variable-length segments
+// (1) Variable-length segments,
+//     std::plus<> as the default binary operation
+template <typename Policy,
+          typename InputIt,
+          typename OutputIt,
+          typename SegmentNumT, // to be constrained to an integral type
+          typename OffsetIt,    // to be constrained to a non-integral type
+          typename InitT>
+OutputIt
+oneapi::dpl::reduce_by_segment(
+    Policy&&      policy,
+    InputIt       first,
+    InputIt       last,
+    OutputIt      out_first,
+    SegmentNumT   num_segments,
+    OffsetIt      offsets,
+    InitT         init_value
+);
+
+// (2) Variable-length segments,
+//     a custom binary operation
 template <typename Policy,
           typename InputIt,
           typename OutputIt,
@@ -69,7 +92,27 @@ oneapi::dpl::reduce_by_segment(
     BinaryOp      binary_op
 );
 
-// (2) Fixed-length segments
+// (3) Fixed-length segments,
+//     std::plus<> as the default binary operation
+template <typename Policy,
+          typename InputIt,
+          typename OutputIt,
+          typename SegmentNumT,    // to be constrained to an integral type
+          typename SegmentLengthT, // to be constrained to an integral type
+          typename InitT>
+OutputIt
+oneapi::dpl::reduce_by_segment(
+    Policy&&        policy,
+    InputIt         first,
+    InputIt         last,
+    OutputIt        out_first,
+    SegmentNumT     num_segments,
+    SegmentLengthT  segment_length,
+    InitT           init_value
+);
+
+// (4) Fixed-length segments,
+//     a custom binary operation
 template <typename Policy,
           typename InputIt,
           typename OutputIt,
@@ -120,7 +163,7 @@ support overlapping and unordered segments,
 which is possible because of providing two ranges with segment boundaries (`begin_offsets` and `end_offsets`).
 However, according to the [usage study](usage_pattern_study.md),
 the overwhelming majority of the cases involve one consecutive sequence with offsets,
-which are expected to be sorted in ascending order with no overlaps nor gaps.
+which are expected to be sorted in ascending (non-decreasing) order with no overlaps nor gaps.
 Consecutive segments are also the target use-case in [#2829](https://github.com/oneapi-src/oneDPL/issues/2829).
 Therefore, it is suggested to provide the offsets as a
 single sequence to support consecutive segments directly, and require that it is sorted in ascending order.
@@ -171,21 +214,80 @@ Possible argument types:
 - If `segment_length == 0` (and `num_segments > 0`), treat all segments as empty.
 - Document this behavior.
 
-### Initial Value, its Default Value, and Identity
+### Binary Operation and Init Value Order
+
+In `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`,
+the order is `binary_op, init_value`.
+In `dpl::reduce` and in almost all C++ algorithms, it is the opposite.
+For API consistency, `init_value, binary_op` is preferred.
+If full order compatibility with CUB and rocPRIM equivalents is required,
+wrappers can be added to, for example, `compat` namespace.
+
+**Strategy**: Use `init_value, binary_op` order.
+
+### Initial Value or Identity
 
 The [#2829](https://github.com/oneapi-src/oneDPL/issues/2829) request
 specified an identity as the last argument,
 while in industry practice it is typically if not always an initial value.
 
-What should be provided as an argument in place of the initial value? What should be the default value?
+An initial value applies only once, and an identity can be applied multiple times.
+The initial value may be equal to the identity or not.
 
-Initial value applies only once, and known identity can be applied multiple times.
-The initial value may be equal to the known identity or not. A safe default initial value is the identity.
+The motivation of [#2829](https://github.com/oneapi-src/oneDPL/issues/2829)
+is to initialize empty segments to a value equal to the identity,
+which is achieved by passing the identity as the initial value.
+
+In theory, there can be use cases where the initial value can be different from the identity,
+for example, as a floor for the max operation or a cap for the min operation.
+
+**Strategy**: have an initial value as an argument.
+
+### Default Initial Value and Binary Operation
+
+What should be the default arguments if any?
+
+Precedents:
+
+- `dpl::reduce_by_segment` provides a default binary operation (`std::plus<T>`, where `T` is the input value type);
+  there is no initial value argument.
+- `std::reduce` provides a default initial value (`T{}`) and a default binary operation (`std::plus<>`).
+- `std::accumulate` provides only a default binary operation (`operator+`, equivalent to `std::plus<>`);
+  the initial value must be provided explicitly.
+- `std::ranges::fold_left` requires passing both.
+- `cub::DeviceSegmentedReduce` requires passing both with the general `Reduce` interface,
+  and does not provide these arguments at all with `Sum`, `Min`, `Max`.
+- `rocprim::segmented_reduce` provides a default initial value (`T{}`) and a default binary operation (`rocprim::plus<T>`).
+
+The following motivations are considered, in the order of importance:
+
+1. Predictable behavior. Surprises are minimized
+   when the default initial value and the default binary operation form an identity for the input type.
+2. Consistency with the existing `dpl::reduce_by_segment` overloads, and the closest standard algorithm: `std::reduce`.
+
+Both arguments cannot be omitted simultaneously to satisfy (1).
+For example, with `std::plus<>`, `T{}` is an identity for arithmetic types,
+but not necessarily for a user-defined type; assuming `T{}`, like in `std::reduce`, may lead to unexpected results.
+The initial value argument precedes the binary operation argument,
+so the initial value must be specified and the binary operation can be defaulted.
+It is consistent with `dpl::reduce_by_segment` (it does not have an initial value argument at all)
+and `std::accumulate` (it requires an explicit initial value).
+
+Should the binary operation be `std::plus<>` like in `std::reduce` or `std::plus<T>` like in `dpl::reduce_by_segment`?
+Unlike `dpl::reduce_by_segment`, the new overloads have an initial value besides the input range.
+Using `std::plus<>` allows the type to be deduced as `AccT` following the rules from [Accumulator Type](#accumulator-type).
+
+**Strategy**:
+
+- The initial value must be explicitly specified by the user.
+- The binary operation can have a default, which should be `std::plus<>`.
+
+### Identity
 
 Initial value is mandatory when the algorithm's contract is to apply it to each segment,
 or as a result for empty segments, what is done by CUB and rocPRIM.
 Identity value is optional. It is needed for the SIMD and the group reductions,
-and to get a safe default initial value.
+and it would be a safe default initial value, should one be introduced in the future.
 
 The identity may be inferred from the most typical operations and data types, for example:
 
@@ -213,13 +315,8 @@ should provide a way to specify the identity explicitly. There are many strategi
 The topic is discussed in [p3732r2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html),
 although there is no consensus yet.
 
-**Strategy**. Keep initial value as an argument with an "initial value" semantics.
-Wait until [p3732r2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html) settles,
-and follow it to provide a way to specify the identity
-for better performance with custom types and operations.
-Request the initial value to be passed explicitly by the user.
-Provide a default value when, again,
-[p3732r2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html) settles.
+**Strategy**: wait until [p3732r2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html) settles
+and follow it to provide a way to specify the identity explicitly.
 
 ### Bounding Input and Negative Offsets
 
@@ -294,7 +391,7 @@ to select the optimal reduction strategy before the kernel submission.
 
 **Strategy**: provide the fixed-length segment overloads.
 
-### Binary Operator
+### Binary Operation Requirements
 
 Associativity is essential for parallelization.
 Commutativity lets the implementation reorder the operands, which is used by:
@@ -393,23 +490,12 @@ Potential implementation challenges for run-to-run determinism:
   if there is demand and
   if the implementation experience suggests that it is feasible.
 
-### Binary Operation and Init Value Order
-
-In `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce`,
-the order is `binary_op, init_value`.
-In `dpl::reduce` and in almost all C++ algorithms, it is the opposite.
-For API consistency, `init_value, binary_op` is preferred.
-If full order compatibility with CUB and rocPRIM equivalents is required,
-wrappers can be added to, for example, `compat` namespace.
-
-**Strategy**: Use `init_value, binary_op` order.
-
 ### Arguments and Overload Disambiguation
 
 The algorithm can be positioned as a sibling of `dpl::reduce_by_segment`,
 which means that it should have the same naming if possible.
 It should be kept in mind that the proposed overloads
-may introduce default values for the binary operation and the initial value.
+have a default value for the binary operation, which makes the number of arguments vary.
 Overload resolution should be carefully considered to avoid ambiguity.
 
 The table below shows the suggested argument order:
@@ -423,14 +509,15 @@ The table below shows the suggested argument order:
 | `num_segments` | `num_segments` | 4 | `val_first` | `out_first` | `out_first` |
 | `d_begin_offsets` | `segment_size` | 5 | `out_key_first` | `num_segments` | `num_segments` |
 | `d_end_offsets` | `reduction_op` | 6 | `out_val_first` | `offsets` | `segment_length` |
-| `reduction_op` | `initial_value` | 7 | `binary_pred` (opt) | `init_value` (opt) | `init_value` (opt) |
+| `reduction_op` | `initial_value` | 7 | `binary_pred` (opt) | `init_value` | `init_value` |
 | `initial_value` | `stream` (opt) | 8 | `binary_op` (opt) | `binary_op` (opt) | `binary_op` (opt) |
 | `stream` (opt) | — | 9 | — | — | — |
 
 `(opt)` means that the argument is optional or can be made optional in the future.
 `—` is padding for better mapping of the relevant arguments.
 
-The overloads overlap in the number of arguments (6 to 8),
+The key-based overloads take 6 to 8 arguments, and the new overloads take 7 or 8,
+so they overlap in the number of arguments (7 and 8),
 and only the 5th and 6th arguments differ in kind (iterator vs integer),
 which can be constrained using SFINAE:
 
@@ -627,8 +714,10 @@ For example:
 | No overflow | `int` | `int64_t` | `0` | `std::plus<int64_t>` | `int64_t` |
 | Pitfall: overflow | `int` | `int64_t` | `0` | `std::plus<>` | `int` |
 
-The pitfall is the same as in `std::reduce`,
-and documenting the accumulator type helps users avoid it.
+The pitfalls are the same as in `std::reduce`,
+and documenting the accumulator type helps users avoid them.
+They also apply when `binary_op` is omitted, because the default is `std::plus<>`
+(see [Default Initial Value and Binary Operation](#default-initial-value-and-binary-operation)).
 
 A parallel reduction combines the operands in an unspecified order and grouping:
 a partial result may start from an input element rather than from the initial value,
@@ -639,7 +728,7 @@ Therefore the operation imposes the following type requirements:
 - The result of `binary_op(a, b)` for any such combination must be convertible to `AccT`
   and assignable to an `AccT` object.
 - `AccT` must be writable to the output iterator.
-- `InitT` should be convertible to `AccT` (for empty segments)
+- `InitT` must be convertible to `AccT` (for empty segments).
 
 Comparison with other reductions:
 
@@ -673,11 +762,11 @@ In the new overloads, the usefulness of the returned value depends on the segmen
 
 | Iterator | Variable-length | Fixed-length | Usefulness |
 |---|---|---|---|
-| (1) Output end | `out_first + num_segments` | Same | Low: known in advance |
-| (2) Output: past the last segment within `N` | `out_first + k`, `k` segments with `offsets[s + 1] <= N`; device-to-host copy and sync | `out_first + min(num_segments, N / segment_length)` (`num_segments` if `segment_length == 0`); free | Medium: tells segments beyond `last` from empty ones, both get `init_value` |
+| (1) Output end | `out_first + num_segments` if `num_segments > 0`, otherwise `out_first` | `out_first + num_segments` if `num_segments > 0` and `segment_length >= 0`, otherwise `out_first` | Low: known in advance |
+| (2) Output: past the last segment within `N` | `out_first + k`, `k` segments with `offsets[s + 1] <= N`; device-to-host copy and sync | `out_first + min(num_segments, N / segment_length)` (`num_segments` if `segment_length == 0`); free | Medium: tells how many segments lie entirely within the input |
 | (3) Offsets end | `offsets + num_segments + 1` | — | Low: known in advance |
 | (4) Input: past the last processed | `first + min(offsets[num_segments], N)`; device-to-host copy and sync | `first + min(num_segments * segment_length, N)`; free | Medium: tells where the processing stopped |
-| (5) Continuation point: `{first + offsets[k], offsets + k, out_first + k}` | `k` from (2); device-to-host copy and sync | `k` from (2), input at `first + k * segment_length`; free | Medium: resume the reduction from segment `k` when more input is available |
+| (5) Continuation point: `{first + offsets[k], offsets + k, out_first + k}` | `k` from (2); device-to-host copy and sync | `k` from (2), input at `first + k * segment_length`; free | Medium: tells where both input and output processing stopped, most useful for resuming the reduction |
 
 Notation: `N = last - first`
 
@@ -690,46 +779,29 @@ so users who need this information can derive it from the arguments, paying the 
 For variable-length segments with device policies,
 returning these values requires a device-to-host copy and a synchronization.
 
-**Strategy**. Return the output end, (1): `out_first + num_segments`, or `out_first` if `num_segments` is not
-positive, for both variable-length and fixed-length overloads. It costs nothing, and it keeps the overloads consistent
-with the other oneDPL algorithms, which return the end of their output; the values that tell where the input ran out,
-(2), (4) and (5), stay derivable from the arguments.
+Option (2) is only meaningful if segments that do not intersect the input
+are considered uninitialized rather than empty,
+which does not follow the choice from [Bounding Input and Negative Offsets](#bounding-input-and-negative-offsets).
 
-## Evolution
+Option (1) has low usefulness but is cheap and aligns with the existing overloads
+by returning the output end.
 
-The RFC can be implemented in stages, for example:
+**Strategy**: return the output end, option (1).
 
-1. Implement `reduce_by_segment` with device policies support.
-2. Enable host policies.
-3. Optimize fixed-length overloads of `reduce_by_segment` by adding a dedicated implementation,
-   and explore/implement tiling strategy for the variable-length overloads.
-4. Support semantics with min/max values and their indices.
-5. Enable identities for the custom binary operations and types.
-
-Stage (1) in detail:
-
-- Implement `reduce_by_segment` for only device policies.
-- Add a dedicated implementation for the variable-length overloads.
-  Follow the approach from `dpct::device::segmented_reduce`, CUB and rocPRIM:
-  assign one segment to a work-group.
-  Consider adapting `__work_group_reduce_kernel` for this purpose.
-- Enable the fixed-length overloads via the variable-length implementation,
-  with offsets `i * segment_length` produced by a transform iterator over a counting iterator.
-- If host policies are used, issue a static assertion error.
-
-## Feature Macro
+### Feature Macro
 
 The API is expected to evolve,
-hence a feature macro should be defined for convenience.
+hence a feature macro can be defined for convenience.
 
 For example:
 
-- `ONEDPL_HAS_SEGMENTED_ALGORITHMS 202611L` for example,
-   after adding  `reduce_by_segment` with device policies.
+- `ONEDPL_HAS_SEGMENTED_ALGORITHMS 202611L` after implementing the initial version.
 - `ONEDPL_HAS_SEGMENTED_ALGORITHMS YYYYMML` for future versions.
 
 `ONEDPL_HAS_SEGMENTED_ALGORITHMS` will also cover
 future segmented algorithms beyond `reduce_by_segment`.
+
+**Strategy**: define the feature macro.
 
 ## Examples
 
@@ -743,7 +815,6 @@ The following complete programs illustrate the proposed overloads.
 #include <sycl/sycl.hpp>
 
 #include <algorithm>
-#include <functional>
 #include <iostream>
 
 int main()
@@ -765,7 +836,7 @@ int main()
 
     oneapi::dpl::reduce_by_segment(
         policy, values, values + num_elements, result,
-        num_segments, offsets, 0, std::plus<int>{});
+        num_segments, offsets, 0);
 
     for (int i = 0; i < num_segments; ++i)
         std::cout << result[i] << ' ';
@@ -810,20 +881,43 @@ int main()
 
 ## Testing
 
-Use `std::reduce` with a sequential execution policy
-as a reference implementation with a loop over segments,
-and additionally test this variant against predefined results for small inputs.
-
-The rest should follow the established testing practices for oneDPL algorithms,
+The follow the established testing practices for oneDPL algorithms,
 and have comprehensive coverage.
+The exact details are left to the implementer.
+
+## Next Steps
+
+The RFC may be implemented in stages, for example:
+
+1. Implement `reduce_by_segment` with device policies support, and optionally, host policies.
+2. Enable host policies, if not already done.
+3. Optimize fixed-length overloads of `reduce_by_segment` by adding a dedicated implementation,
+   and explore/implement tiling strategy for the variable-length overloads.
+4. Support semantics with min/max values and their indices.
+5. Enable identities for the custom binary operations and types.
+
+Suggestion for the initial implementation:
+
+- Implement `reduce_by_segment` for device policies.
+- Add a dedicated implementation for the variable-length overloads.
+  Consider following the approach from `dpct::device::segmented_reduce`, CUB and rocPRIM,
+  which assign one segment to a work-group. Consider adapting `__work_group_reduce_kernel` for this purpose.
+  The performance must not be worse than the existing alternative, `dpct::device::segmented_reduce`.
+  Ideally, the algorithm should be as efficient as CUB and rocPRIM on comparable hardware, or better.
+- For host policies, take one of the following approaches:
+  - Add an optimized implementation for all host policies.
+  - Use a serial implementation for all host policies.
+  - Use a serial implementation for `seq` policy, and issue a static assertion error for other host policies.
+- Enable the fixed-length overloads via the variable-length implementation,
+  with offsets `i * segment_length` produced by a transform iterator over a counting iterator.
+- Add the tests.
+- Update the [specification](../../../documentation/specification/parallel_api/algorithms.rst)
+  and the [library guide](../../../documentation/library_guide/parallel_api/additional_algorithms.rst)
+  with the new overloads.
 
 ## Open Questions
 
-> [!NOTE]
-> Besides the questions in this section,
-> some topics from the [Design Considerations](#design-considerations) section
-> are partially unresolved or have no clear resolution.
-> They can be found using the "Tentative Strategy" keyword.
+These questions are not blocking the initial implementation.
 
 ### Different `first` and `last` Types
 
@@ -862,14 +956,19 @@ because a sentinel `last` would require constraining or documenting a sentinel-i
 
 ## Links
 
+### C++ Standard References
+
 - [C++ draft: `std::reduce`](https://eel.is/c++draft/reduce)
 - [C++ draft: Numeric algorithm definitions](https://eel.is/c++draft/numerics.defns)
-- [P3732R2: Declarations of `reduce`, `sum`, `product`, and their `_into` variants](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html#add-declarations-of-reduce-sum-product-and-their-_into-variants)
+- [P3732R2: Numeric range algorithms](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p3732r2.html)
 - [P3809R0: Should we make std::linalg reductions deduce return types like fold algorithms?](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3809r0.html)
 - [cppreference: Fold algorithm concepts](https://en.cppreference.com/cpp/algorithm/ranges/fold_concepts)
 - [cppreference: `std::reduce`](https://cppreference.com/cpp/algorithm/reduce)
 
-## References
+### Performance Studies
+
+These papers may be useful when implementing the algorithm efficiently.
+
 - [Optimized Parallel Reduction for Regular and Irregular Segments on GPU (2026)](https://doi.org/10.1002/cpe.70715), [implementation](https://github.com/MichelBC/bestReduce)
 - [Advancing Awkward Arrays for High-Performance CPU and GPU Processing (2026)](https://arxiv.org/abs/2607.28145)
 - [GPU Acceleration of Awkward Arrays: Using Python cuda.compute (2026)](https://arxiv.org/abs/2610.08238)
@@ -880,4 +979,3 @@ because a sentinel `last` would require constraining or documenting a sentinel-i
 - [Strategies for Regular Segmented Reductions on GPU (2017)](https://hiperfit.dk/pdf/fhpc17.pdf)
 - [Policy-based Tuning for Performance Portability and Library Co-optimization (2012)](https://research.nvidia.com/index.php/publication/2012-05_policy-based-tuning-performance-portability-and-library-co-optimization)
 - [Merge-based Parallel Sparse Matrix-vector Multiplication (2016)](https://mgarland.org/papers/)
-
