@@ -338,13 +338,13 @@ __segmented_reduce_by_sub_group(const _SubGroup __sg, const _Size __base, std::u
         else
             return [&__input, __base](std::uint32_t __i) -> decltype(auto) { return __input[__base + _Size(__i)]; };
     }();
-    auto __to_acc = [](const auto& __x) { return oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__x); };
 
     // The accumulators are set up from their first values; a lane not taking part holds none, and what it passes on
     // to the other lanes is never used
     oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __head;
     if (__is_first)
-        __head.__setup(__to_acc(std::invoke(__binary_op, __init, __at(__first++))));
+        __head.__setup(oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+            std::invoke(__binary_op, __init, __at(__first++))));
 
     // Every lane that takes part gets at least two elements: its accumulator starts from the operation on two of them,
     // never from an element alone, which may mean something else than the element to the operation
@@ -414,7 +414,8 @@ __segmented_reduce_by_sub_group(const _SubGroup __sg, const _Size __base, std::u
     if (!__by_vectors && __lane < __active)
     {
         std::uint32_t __i = __first + __lane;
-        __acc.__setup(__to_acc(std::invoke(__binary_op, __at(__i), __at(__i + __active))));
+        __acc.__setup(oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+            std::invoke(__binary_op, __at(__i), __at(__i + __active))));
         for (__i += 2 * __active; __i + 3 * __active < __last; __i += 4 * __active)
             __acc.__v = std::invoke(__binary_op, __acc.__v,
                                     __segmented_reduce_four<_Acc>(__binary_op, __at(__i), __at(__i + __active),
@@ -428,8 +429,10 @@ __segmented_reduce_by_sub_group(const _SubGroup __sg, const _Size __base, std::u
 
     // A range of one element more than the initial value takes it alone
     if (__is_first)
-        return __active > 0       ? __to_acc(std::invoke(__binary_op, __head.__v, __acc.__v))
-               : __first < __last ? __to_acc(std::invoke(__binary_op, __head.__v, __at(__first)))
+        return __active > 0       ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                        std::invoke(__binary_op, __head.__v, __acc.__v))
+               : __first < __last ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                                        std::invoke(__binary_op, __head.__v, __at(__first)))
                                   : __head.__v;
     return __acc.__v;
 }
@@ -697,23 +700,20 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             __result[__mine] = __init_acc;
         if (__lane < __count && __mb < __me)
         {
-            auto __to_acc = [](const auto __x) {
-                return oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__x);
-            };
-
             const std::uint32_t __lo = std::uint32_t(__mb - __piece_begin);
             const std::uint32_t __hi = std::uint32_t(__me - __piece_begin);
-            _Acc __acc = __to_acc(std::invoke(__op, __init, __element(__input, __piece_begin, __lo)));
+            _Acc __acc = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                std::invoke(__op, __init, __element(__input, __piece_begin, __lo)));
             std::uint32_t __i = __lo + 1;
             for (; __i + 3 < __hi; __i += 4)
-                __acc = __to_acc(std::invoke(
+                __acc = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(
                     __op, __acc,
-                    __segmented_reduce_four<_Acc>(__op, __element(__input, __piece_begin, __i),
-                                                  __element(__input, __piece_begin, __i + 1),
-                                                  __element(__input, __piece_begin, __i + 2),
-                                                  __element(__input, __piece_begin, __i + 3))));
+                    __segmented_reduce_four<_Acc>(
+                        __op, __element(__input, __piece_begin, __i), __element(__input, __piece_begin, __i + 1),
+                        __element(__input, __piece_begin, __i + 2), __element(__input, __piece_begin, __i + 3))));
             for (; __i < __hi; ++__i)
-                __acc = __to_acc(std::invoke(__op, __acc, __element(__input, __piece_begin, __i)));
+                __acc = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
+                    std::invoke(__op, __acc, __element(__input, __piece_begin, __i)));
             __result[__mine] = __acc;
         }
 
