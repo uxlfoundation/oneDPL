@@ -330,7 +330,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                                                             std::forward<_OutRange>(__result), __m, __init);
             return;
         }
-        __reduce_in_chunks(
+        __reduce_in_chunks(_Size{0}, /*__write_empty=*/true, __max_length, __m);
         return;
     }
 
