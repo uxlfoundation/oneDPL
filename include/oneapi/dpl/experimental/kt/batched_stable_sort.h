@@ -76,6 +76,8 @@ __check_batched_sort_config()
                   "implemented");
     if constexpr (__is_radix_single_group_tag<_SortConfig>::value)
     {
+        // There is no fundamental limitation here, 4 bits works but is rarely beneficial, so we enforce 8 bits for now,
+        // for consistency with onesweep, and to encourage settings which are most performant.
         static_assert(_SortConfig::radix_bits == 8, "radix_single_group_tag currently requires 8 radix bits");
         static_assert(_KernelParam::workgroup_size % 32 == 0 && _KernelParam::workgroup_size <= 1024,
                       "radix_single_group_tag requires a multiple of 32 and at most 1024 work-items in a work-group");
