@@ -746,18 +746,24 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                 !__first && __hi - __lo == 1
                     ? oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__input[__piece_begin + _Size(__lo)])
                     : __reduce_by_sub_group(__sg, __piece_begin, __lo, __hi, __first, __init, __op, __input);
+
             const bool __ends_in_piece = __e <= __piece_end;
-            if (!__first)
+
+            if (__first)
+            {
+                if (__ends_in_piece && __lane == 0)
+                    __result[__s] = __acc;
+
+                if (!__ends_in_piece)
+                {
+                    __parts.__tail.__setup(__acc);
+                    __parts.__tail_segment = __s;
+                }
+            }
+            else
             {
                 __parts.__head.__setup(__acc);
                 __parts.__head_state = __ends_in_piece ? 1 : 2;
-            }
-            if (__first && __ends_in_piece && __lane == 0)
-                __result[__s] = __acc;
-            if (__first && !__ends_in_piece)
-            {
-                __parts.__tail.__setup(__acc);
-                __parts.__tail_segment = __s;
             }
         }
     }
