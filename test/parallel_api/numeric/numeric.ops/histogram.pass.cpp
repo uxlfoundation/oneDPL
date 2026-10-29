@@ -272,9 +272,9 @@ main()
 
 #if !ONEDPL_FPGA_DEVICE
     test_histogram<1, std::int32_t, uint64_t>(-50000, 50000, 10000, uint64_t(5), uint64_t(99999));
-#endif //!ONEDPL_FPGA_DEVICE
 
     test_bin_arithmetic();
+#endif //!ONEDPL_FPGA_DEVICE
 
     return done();
 }
