@@ -685,9 +685,24 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                             // beginning at its start, the empty ones too; the last piece also takes the ones at n
                             const bool __last_piece = __piece_end == __n;
                             const _Size __guess = _Size(float(__piece_begin) * __segments_per_element);
-                            _Size __s = std::max<_Size>(
-                                0, __segmented_reduce_flat_last_begin(__offsets, __m, __n, __piece_begin - 1, __guess,
-                                                                   __segments_per_element, __interpolation_steps));
+                            // A window of segments around the guess, an offset a lane: the last of them beginning
+                            // at or before the start of the piece where the window holds it, else the search
+                            const _Size __window = std::max<_Size>(
+                                0, std::min<_Size>(__guess, __m - 1) - _Size(__lanes / 2 - 1));
+                            const _Size __probe = __window + _Size(__lane);
+                            const bool __before = __probe < __m && __begin_of(__probe) <= __piece_begin - 1;
+                            const std::uint32_t __count =
+                                sycl::reduce_over_group(__sg, __before ? 1u : 0u, sycl::plus<std::uint32_t>());
+                            const bool __first_before = sycl::select_from_group(__sg, __before, 0);
+                            const bool __last_before = sycl::select_from_group(__sg, __before, __lanes - 1);
+                            const bool __held = (__window == 0 || __first_before) &&
+                                                (__window + _Size(__lanes) >= __m || !__last_before);
+                            _Size __s = __window + _Size(__count) - 1;
+                            if (!__held)
+                                __s = __segmented_reduce_flat_last_begin(__offsets, __m, __n, __piece_begin - 1,
+                                                                         __guess, __segments_per_element,
+                                                                         __interpolation_steps);
+                            __s = std::max<_Size>(0, __s);
                             // A very short segment held whole by the piece
                             auto __tiny = [&](const _Size __b, const _Size __e) {
                                 return __b >= __piece_begin && __e <= __piece_end &&
