@@ -53,30 +53,10 @@ struct __custom_boundary_range_binhash
     }
 };
 
-// Baseline wrapper which provides no acceleration via SLM memory, but still
-// allows generic calls to a wrapped binhash structure from within the kernels
-template <typename _BinHash, typename _ExtraMemAccessor>
-struct __binhash_SLM_wrapper
-{
-    _BinHash __bin_hash;
-    __binhash_SLM_wrapper(_BinHash __bin_hash_, _ExtraMemAccessor /*__slm_mem_*/,
-                          const sycl::nd_item<1>& /*__self_item*/)
-        : __bin_hash(__bin_hash_)
-    {
-    }
-
-    template <typename _T>
-    oneapi::dpl::__internal::__bin_idx_t
-    get_bin(_T __value) const
-    {
-        return __bin_hash.get_bin(__value);
-    }
-};
-
-// Specialization for custom range binhash function which stores boundary data
+// Wrapper for the custom range binhash function which stores boundary data
 // into SLM for quick repeated usage
 template <typename _Range, typename _ExtraMemAccessor>
-struct __binhash_SLM_wrapper<__custom_boundary_range_binhash<_Range>, _ExtraMemAccessor>
+struct __binhash_SLM_wrapper
 {
     using _bin_hash_type = typename oneapi::dpl::__par_backend_hetero::__custom_boundary_range_binhash<_Range>;
 
@@ -111,11 +91,57 @@ struct __binhash_SLM_wrapper<__custom_boundary_range_binhash<_Range>, _ExtraMemA
     }
 };
 
+// Binhashes other than the custom range binhash gain nothing from SLM and are used as they are
 template <typename _BinHash, typename _ExtraMemAccessor>
-auto
-__make_SLM_binhash(_BinHash __bin_hash, _ExtraMemAccessor __slm_mem, const sycl::nd_item<1>& __self_item)
+_BinHash
+__make_SLM_binhash(_BinHash __bin_hash, _ExtraMemAccessor /*__slm_mem*/, const sycl::nd_item<1>& /*__self_item*/)
 {
-    return __binhash_SLM_wrapper(__bin_hash, __slm_mem, __self_item);
+    return __bin_hash;
+}
+
+template <typename _Range, typename _ExtraMemAccessor>
+__binhash_SLM_wrapper<_Range, _ExtraMemAccessor>
+__make_SLM_binhash(__custom_boundary_range_binhash<_Range> __bin_hash, _ExtraMemAccessor __slm_mem,
+                   const sycl::nd_item<1>& __self_item)
+{
+    return __binhash_SLM_wrapper<_Range, _ExtraMemAccessor>(__bin_hash, __slm_mem, __self_item);
+}
+
+// A view of an evenly divided binhash whose bin regime is fixed at compile time, so a loop of get_bin calls carries
+// no regime branch
+template <typename _T1, bool _LargeRange>
+struct __fixed_regime_binhash
+{
+    const oneapi::dpl::__internal::__evenly_divided_binhash_can_overflow<_T1>& __bin_hash;
+
+    template <typename _T2>
+    oneapi::dpl::__internal::__bin_idx_t
+    get_bin(_T2 __value) const
+    {
+        if constexpr (_LargeRange)
+            return __bin_hash.__get_bin_by_fraction(__value);
+        else
+            return __bin_hash.__get_bin_by_division(__value);
+    }
+};
+
+// Calls __f with __bin_hash. Binhashes with a runtime bin regime are instead passed as a view whose regime is fixed,
+// so callers binning many samples select the regime once rather than per sample.
+template <typename _BinHash, typename _F>
+void
+__with_bin_regime(const _BinHash& __bin_hash, _F&& __f)
+{
+    __f(__bin_hash);
+}
+
+template <typename _T1, typename _F>
+void
+__with_bin_regime(const oneapi::dpl::__internal::__evenly_divided_binhash_can_overflow<_T1>& __bin_hash, _F&& __f)
+{
+    if (__bin_hash.__large_range)
+        __f(__fixed_regime_binhash<_T1, true>{__bin_hash});
+    else
+        __f(__fixed_regime_binhash<_T1, false>{__bin_hash});
 }
 
 template <typename... _Name>
@@ -220,30 +246,33 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
 
                     __clear_wglocal_histograms(__local_histogram, 0, __num_slm_copies * __num_bins, __self_item);
 
-                    if (__seg_start + __work_group_size * __iters_per_work_item < __n)
-                    {
-                        _ONEDPL_PRAGMA_UNROLL
-                        for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
+                    // Select the binhash regime once, outside the loops over samples
+                    __with_bin_regime(__SLM_binhash, [&](const auto& __bin_func) {
+                        if (__seg_start + __work_group_size * __iters_per_work_item < __n)
                         {
-                            __accum_local_atomics_iter<_atomic_address_space>(
-                                __input[__seg_start + __idx * __work_group_size + __self_lidx], __local_histogram,
-                                __copy_slot, __num_slm_copies, __SLM_binhash);
-                        }
-                    }
-                    else
-                    {
-                        _ONEDPL_PRAGMA_UNROLL
-                        for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
-                        {
-                            std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
-                            if (__val_idx < __n)
+                            _ONEDPL_PRAGMA_UNROLL
+                            for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
                             {
-                                __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __local_histogram,
-                                                                                  __copy_slot, __num_slm_copies,
-                                                                                  __SLM_binhash);
+                                __accum_local_atomics_iter<_atomic_address_space>(
+                                    __input[__seg_start + __idx * __work_group_size + __self_lidx], __local_histogram,
+                                    __copy_slot, __num_slm_copies, __bin_func);
                             }
                         }
-                    }
+                        else
+                        {
+                            _ONEDPL_PRAGMA_UNROLL
+                            for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
+                            {
+                                std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
+                                if (__val_idx < __n)
+                                {
+                                    __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx],
+                                                                                      __local_histogram, __copy_slot,
+                                                                                      __num_slm_copies, __bin_func);
+                                }
+                            }
+                        }
+                    });
 
                     sycl::group_barrier(__self_item.get_group());
 
@@ -331,29 +360,30 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
 
                     __clear_wglocal_histograms(__hacc_private, __wgroup_idx * __num_bins, __num_bins, __self_item);
 
-                    if (__seg_start + __work_group_size * __iters_per_work_item < __n)
-                    {
-                        for (::std::size_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
+                    // Select the binhash regime once, outside the loops over samples
+                    __with_bin_regime(_device_copyable_func, [&](const auto& __bin_func) {
+                        if (__seg_start + __work_group_size * __iters_per_work_item < __n)
                         {
-                            ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
-                            __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __hacc_private,
-                                                                              __wgroup_idx * __num_bins, 1u,
-                                                                              _device_copyable_func);
-                        }
-                    }
-                    else
-                    {
-                        for (::std::size_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
-                        {
-                            ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
-                            if (__val_idx < __n)
+                            for (::std::size_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
                             {
-                                __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __hacc_private,
-                                                                                  __wgroup_idx * __num_bins, 1u,
-                                                                                  _device_copyable_func);
+                                ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
+                                __accum_local_atomics_iter<_atomic_address_space>(
+                                    __input[__val_idx], __hacc_private, __wgroup_idx * __num_bins, 1u, __bin_func);
                             }
                         }
-                    }
+                        else
+                        {
+                            for (::std::size_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
+                            {
+                                ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
+                                if (__val_idx < __n)
+                                {
+                                    __accum_local_atomics_iter<_atomic_address_space>(
+                                        __input[__val_idx], __hacc_private, __wgroup_idx * __num_bins, 1u, __bin_func);
+                                }
+                            }
+                        }
+                    });
 
                     sycl::group_barrier(__self_item.get_group());
                     const std::size_t __offset = __wgroup_idx * __num_bins;
