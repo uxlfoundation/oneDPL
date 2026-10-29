@@ -65,8 +65,8 @@ struct __segmented_reduce_variable_brick
             sycl::atomic_ref<std::uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device,
                              sycl::access::address_space::global_space>
                 __ref(__max_length[0]);
-            __ref.fetch_max(static_cast<std::uint32_t>(
-                std::min<_Size>(__end - __begin, std::numeric_limits<std::uint32_t>::max())));
+            __ref.fetch_max(static_cast<std::uint32_t>(std::min<std::uint64_t>(
+                static_cast<std::uint64_t>(__end - __begin), std::numeric_limits<std::uint32_t>::max())));
             return;
         }
         std::get<0>(__result[__idx]) =
@@ -145,7 +145,7 @@ struct __segmented_reduce_chunk_count
     operator()(const _Bounds& __bounds) const
     {
         const _Size __length = __segmented_reduce_length<_Size>{__n}(std::get<1>(__bounds), std::get<0>(__bounds));
-        return __length > __min_length ? (__length + __chunk_size - 1) / __chunk_size : _Size{0};
+        return __length > __min_length ? __length / __chunk_size + (__length % __chunk_size != 0) : _Size{0};
     }
 };
 
@@ -324,6 +324,12 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                       oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1}),
                       oneapi::dpl::__ranges::take_view_simple(__offsets, __m))
                 : __n;
+        if (__max_length == 0)
+        {
+            __parallel_reduce_by_segment_offsets_fill<_Acc>(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                            std::forward<_OutRange>(__result), __m, __init);
+            return;
+        }
         __reduce_in_chunks(_Size{0}, /*__write_empty=*/true, __max_length, __m);
         return;
     }
