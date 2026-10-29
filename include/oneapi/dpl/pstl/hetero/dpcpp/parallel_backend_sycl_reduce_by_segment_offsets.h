@@ -702,38 +702,34 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                     }
                                     const std::uint32_t __count = sycl::reduce_over_group(
                                         __sg, __run ? std::uint32_t(__lanes) : __lane, sycl::minimum<std::uint32_t>());
-                                    // A run of one segment is left to the whole sub-group below, faster than a lane alone
-                                    if (__count > 1)
+                                    if (__lane < __count && __mb == __me)
+                                        __result[__mine] = __init_acc;
+                                    if (__lane < __count && __mb < __me)
                                     {
-                                        if (__lane < __count && __mb == __me)
-                                            __result[__mine] = __init_acc;
-                                        if (__lane < __count && __mb < __me)
-                                        {
-                                            const std::uint32_t __lo = std::uint32_t(__mb - __piece_begin);
-                                            const std::uint32_t __hi = std::uint32_t(__me - __piece_begin);
-                                            auto __to_acc = [](const auto& __x) {
-                                                return oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__x);
-                                            };
-                                            _Acc __acc = __to_acc(std::invoke(__op, __init, __element(__lo)));
-                                            std::uint32_t __i = __lo + 1;
-                                            for (; __i + 3 < __hi; __i += 4)
-                                                __acc = __to_acc(std::invoke(
-                                                    __op, __acc,
-                                                    __segmented_reduce_four<_Acc>(__op, __element(__i),
-                                                                                  __element(__i + 1),
-                                                                                  __element(__i + 2),
-                                                                                  __element(__i + 3))));
-                                            for (; __i < __hi; ++__i)
-                                                __acc = __to_acc(std::invoke(__op, __acc, __element(__i)));
-                                            __result[__mine] = __acc;
-                                        }
-                                        // The loop goes on after the run; the last segment of the run may end the piece
-                                        __s += _Size(__count) - 1;
-                                        if (sycl::select_from_group(__sg, __me, __count - 1) >= __piece_end &&
-                                            !__last_piece)
-                                            break;
-                                        continue;
+                                        const std::uint32_t __lo = std::uint32_t(__mb - __piece_begin);
+                                        const std::uint32_t __hi = std::uint32_t(__me - __piece_begin);
+                                        auto __to_acc = [](const auto& __x) {
+                                            return oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__x);
+                                        };
+                                        _Acc __acc = __to_acc(std::invoke(__op, __init, __element(__lo)));
+                                        std::uint32_t __i = __lo + 1;
+                                        for (; __i + 3 < __hi; __i += 4)
+                                            __acc = __to_acc(std::invoke(
+                                                __op, __acc,
+                                                __segmented_reduce_four<_Acc>(__op, __element(__i),
+                                                                              __element(__i + 1),
+                                                                              __element(__i + 2),
+                                                                              __element(__i + 3))));
+                                        for (; __i < __hi; ++__i)
+                                            __acc = __to_acc(std::invoke(__op, __acc, __element(__i)));
+                                        __result[__mine] = __acc;
                                     }
+                                    // The loop goes on after the run; the last segment of the run may end the piece
+                                    __s += _Size(__count) - 1;
+                                    if (sycl::select_from_group(__sg, __me, __count - 1) >= __piece_end &&
+                                        !__last_piece)
+                                        break;
+                                    continue;
                                 }
                                 const std::uint32_t __lo = __b > __piece_begin ? std::uint32_t(__b - __piece_begin) : 0;
                                 const std::uint32_t __hi =
