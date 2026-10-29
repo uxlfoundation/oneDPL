@@ -564,24 +564,6 @@ struct __segmented_reduce_flat_local<true, _Acc, _Size>
     }
 };
 
-// The heads of the units as a range that the sub-group reduction reads through a pointer
-template <typename _Acc>
-struct __segmented_reduce_flat_heads
-{
-    const _Acc* __p;
-
-    const _Acc*
-    begin() const
-    {
-        return __p;
-    }
-    const _Acc&
-    operator[](std::size_t __i) const
-    {
-        return __p[__i];
-    }
-};
-
 // A kernel under the name a tag stands for
 template <typename _KernelName>
 struct __segmented_reduce_kernel_name_tag
@@ -900,24 +882,46 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         const _Size __s = __units_acc.__data()[__unit];
                         if (__s >= __m)
                             return;
+                        // The tail is loaded together with the end of its segment: neither waits for the other
+                        const _Acc __tail = __tails[__unit];
                         const _Size __e =
                             oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
-                        // The heads of the following units its segment covers, reduced as the elements of a piece
-                        // are, with several loads in flight, so that a long segment does not wait for them one by one
                         const std::uint32_t __heads_count = std::uint32_t(std::size_t(__e - 1) / __unit_size) - __unit;
                         if (__heads_count == 0 && __lane == 0)
-                            __result[__s] = __tails[__unit];
+                            __result[__s] = __tail;
                         if (__heads_count == 0)
                             return;
-                        // A single head is that head
-                        const _Acc __v = __heads_count == 1
-                                             ? __heads[__unit + 1]
-                                             : __segmented_reduce_by_sub_group<_Acc>(
-                                                   __sg, _Size(__unit + 1), 0, __heads_count, false, __init, __op,
-                                                   __segmented_reduce_flat_heads<_Acc>{__heads});
+                        // The heads of the following units its segment covers, a head a lane at once and the rest of
+                        // a long segment in turn: a head is already an accumulator, so a lane may start from one alone
+                        const _Acc* const __first_head = __heads + (__unit + 1);
+                        oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __acc;
+                        const bool __has = __lane < __heads_count;
+                        if (__has)
+                            __acc.__setup(__first_head[__lane]);
+                        for (std::uint32_t __k = __lane + __lanes; __k < __heads_count; __k += __lanes)
+                            __acc.__v = std::invoke(__op, __acc.__v, __first_head[__k]);
+                        // An operation with an identity the group algorithms know combines the lanes by the sub-group
+                        // reduction, the lanes without a head giving the identity; else lane 0 gets the lanes in
+                        // pairs, then in fours, and so on
+                        if constexpr (oneapi::dpl::unseq_backend::__can_use_group_reduce_scan<_BinaryOperation,
+                                                                                               _Acc>::value)
+                        {
+                            __acc.__v = sycl::reduce_over_group(
+                                __sg, __has ? __acc.__v : sycl::known_identity_v<_BinaryOperation, _Acc>, __op);
+                        }
+                        else
+                        {
+                            const std::uint32_t __active = std::min<std::uint32_t>(__heads_count, __lanes);
+                            for (std::uint32_t __shift = 1; __shift < __active; __shift *= 2)
+                            {
+                                const _Acc __other = sycl::shift_group_left(__sg, __acc.__v, __shift);
+                                if (__lane + __shift < __active)
+                                    __acc.__v = std::invoke(__op, __acc.__v, __other);
+                            }
+                        }
                         if (__lane == 0)
                             __result[__s] = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
-                                std::invoke(__op, __tails[__unit], __v));
+                                std::invoke(__op, __tail, __acc.__v));
                     });
             });
         }
