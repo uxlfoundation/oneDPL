@@ -194,10 +194,12 @@ test_bin_arithmetic()
     test_even_bin_arithmetic<32, double>({std::nextafter(-3.0, -4.0), -3.0, std::nextafter(-3.0, 0.0)}, -3, 4,
                                          {2, 0, 0, 0, 0, 0, 0});
     // Double samples are compared against float bounds without being narrowed, so those within an ulp of a float
-    // bound are binned by their exact value
-    const double fmin = 0.1f, fmax = 0.7f;
+    // bound are binned by their exact value. The bounds are rounded to float through variables, since with excess
+    // precision (e.g. x87) a float literal converted directly to double may keep its unrounded value
+    const float fmin_f = 0.1f, fmax_f = 0.7f;
+    const double fmin = fmin_f, fmax = fmax_f;
     test_even_bin_arithmetic<33, double>(
-        {std::nextafter(fmin, 0.0), fmin, std::nextafter(fmin, 1.0), std::nextafter(fmax, 0.0), fmax}, 0.1f, 0.7f,
+        {std::nextafter(fmin, 0.0), fmin, std::nextafter(fmin, 1.0), std::nextafter(fmax, 0.0), fmax}, fmin_f, fmax_f,
         {2, 0, 1});
 
     // offset * num_bins exceeds 64 bits for these ranges
