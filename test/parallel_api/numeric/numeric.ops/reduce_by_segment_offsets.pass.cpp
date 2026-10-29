@@ -679,7 +679,42 @@ test_buffer()
 
 class KernelNameUSM;
 class KernelNameBuffer;
+class KernelNameCounting;
 #endif // TEST_DPCPP_BACKEND_PRESENT
+
+// A counting input of a 32-bit difference type, with long segments among many short ones: the short segments and
+// the long ones are reduced by different kernels into the same output, the length of a long one is reported in
+// 32 bits, and its chunks are counted in the difference type
+void
+test_counting_input()
+{
+    std::vector<int> offsets{0};
+    for (int length : {100000, 70000})
+    {
+        offsets.push_back(offsets.back() + length);
+        for (int i = 0; i < 500; ++i)
+            offsets.push_back(offsets.back() + 1 + i % 3);
+    }
+    const int num_segments = int(offsets.size() - 1);
+    const oneapi::dpl::counting_iterator<int> first(0);
+    std::vector<std::int64_t> out(num_segments, -1);
+    test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, first, first + offsets.back(), out.begin(),
+                                     out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                     std::plus<std::int64_t>{}, std::int64_t{-1});
+#if TEST_DPCPP_BACKEND_PRESENT
+    std::fill(out.begin(), out.end(), -1);
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameCounting),
+                                     first, first + offsets.back(), out.begin(), out.end(), offsets.begin(),
+                                     num_segments, std::int64_t{5}, std::plus<std::int64_t>{}, std::int64_t{-1});
+#endif
+
+    // A bool number of segments, which the host implementation does not increment
+    const auto res = oneapi::dpl::reduce_by_segment(oneapi::dpl::execution::seq, first, first + 1, out.begin(), true,
+                                                    offsets.begin(), std::int64_t{5});
+    EXPECT_EQ(out.begin() + 1, res, "wrong iterator returned by reduce_by_segment with a bool number of segments");
+    EXPECT_EQ(std::int64_t{5}, out[0], "wrong result from reduce_by_segment with a bool number of segments");
+}
 
 int
 main()
@@ -753,6 +788,7 @@ main()
     test_rfc_example<40>();
     test_boundaries<42>();
     test_input_bounds<43>();
+    test_counting_input();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT
