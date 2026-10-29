@@ -892,13 +892,25 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         if (__heads_count == 0)
                             return;
                         // The heads of the following units its segment covers, a head a lane at once and the rest of
-                        // a long segment in turn: a head is already an accumulator, so a lane may start from one alone
+                        // a long segment four heads a lane at a time, so that they do not wait for each other: a head
+                        // is already an accumulator, so a lane may start from one alone
                         const _Acc* const __first_head = __heads + (__unit + 1);
                         oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __acc;
                         const bool __has = __lane < __heads_count;
                         if (__has)
                             __acc.__setup(__first_head[__lane]);
-                        for (std::uint32_t __k = __lane + __lanes; __k < __heads_count; __k += __lanes)
+                        std::uint32_t __k = __lane + __lanes;
+                        auto __to_acc = [](const auto& __x) {
+                            return oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__x);
+                        };
+                        for (; __k + 3 * __lanes < __heads_count; __k += 4 * __lanes)
+                            __acc.__v = std::invoke(
+                                __op, __acc.__v,
+                                std::invoke(__op,
+                                            __to_acc(std::invoke(__op, __first_head[__k], __first_head[__k + __lanes])),
+                                            __to_acc(std::invoke(__op, __first_head[__k + 2 * __lanes],
+                                                                 __first_head[__k + 3 * __lanes]))));
+                        for (; __k < __heads_count; __k += __lanes)
                             __acc.__v = std::invoke(__op, __acc.__v, __first_head[__k]);
                         // An operation with an identity the group algorithms know combines the lanes by the sub-group
                         // reduction, the lanes without a head giving the identity; else lane 0 gets the lanes in
