@@ -215,7 +215,8 @@ __brick_reduce_by_segment_offsets(_RandomAccessInputIt __first_value, _RandomAcc
     const _Size __n = __last_value - __first_value;
 
     _RandomAccessOutputIt __this_segment = __result_value;
-    for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
+    // Promoted, so that a bool or a narrow number of segments counts as well
+    for (decltype(+__num_segments) __segment = 0; __segment < __num_segments; ++__segment)
     {
         *__this_segment = __segmented_reduce_host<_Acc>(
             __first_value, __internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n),
@@ -258,7 +259,10 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
 {
     using __backend_tag = typename __internal::__parallel_tag<_IsVector>::__backend_tag;
     using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _RandomAccessInputIt, _BinaryOperation>;
-    using _Size = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
+    using _Diff = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
+    // Promoted, so that the index arithmetic keeps the type, and covering the number of segments, which may exceed
+    // the size of the input, as on a device
+    using _Size = std::make_signed_t<std::common_type_t<decltype(+_Diff{}), decltype(+__num_segments)>>;
 
     if (__num_segments <= 0)
         return __result_value;
