@@ -30,15 +30,6 @@ template <typename _InitType, typename _InputIterator, typename _BinaryOperation
 using __segmented_reduce_acc_t = std::decay_t<
     std::invoke_result_t<_BinaryOperation&, _InitType, typename std::iterator_traits<_InputIterator>::reference>>;
 
-// The accumulator made from the initial value of an empty segment or from a result of the operation: by an implicit
-// conversion, as the RFC requires both to be convertible to the accumulator type
-template <typename _Acc, typename _Value>
-_Acc
-__segmented_reduce_to_acc(_Value&& __value)
-{
-    return std::forward<_Value>(__value);
-}
-
 // Reduces the elements [__begin, __end) of a random access iterator or a range as std::ranges::fold_left does: the
 // initial value itself is combined with the first element, so that the result is a generalized sum of the initial
 // value and the elements; an empty range gives the initial value converted to the accumulator type
@@ -49,13 +40,16 @@ __segmented_reduce_serial(const _Source& __src, _Index __begin, _Index __end, _I
 {
     if (__begin >= __end)
         return std::move(__init);
+
     _Acc __acc = std::invoke(__binary_op, std::move(__init), __src[__begin]);
+
     // Unrolled on a device, where a work-item reducing alone would wait for every load
 #if defined(__SYCL_DEVICE_ONLY__)
     _ONEDPL_PRAGMA(unroll 16)
 #endif
     for (++__begin; __begin < __end; ++__begin)
         __acc = std::invoke(__binary_op, std::move(__acc), __src[__begin]);
+
     return __acc;
 }
 
@@ -72,6 +66,7 @@ __segmented_reduce_clamp_offset(_Offset __offset, _Size __n)
 
     if (__offset <= 0)
         return 0;
+
     return static_cast<_Unsigned>(__offset) < static_cast<_Unsigned>(__n) ? static_cast<_Size>(__offset) : __n;
 }
 
