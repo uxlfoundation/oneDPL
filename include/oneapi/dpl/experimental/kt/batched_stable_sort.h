@@ -48,33 +48,31 @@ struct radix_many_groups_tag
 namespace __impl
 {
 
-template <typename _SortConfig>
-struct __is_radix_single_group_tag : std::false_type
+// Whether _SortConfig is _Tag<__radix_bits> for some __radix_bits
+template <template <std::uint8_t> class _Tag, typename _SortConfig>
+struct __is_radix_tag : std::false_type
 {
 };
-template <std::uint8_t __radix_bits>
-struct __is_radix_single_group_tag<radix_single_group_tag<__radix_bits>> : std::true_type
+template <template <std::uint8_t> class _Tag, std::uint8_t __radix_bits>
+struct __is_radix_tag<_Tag, _Tag<__radix_bits>> : std::true_type
 {
 };
 
 template <typename _SortConfig>
-struct __is_radix_many_groups_tag : std::false_type
-{
-};
-template <std::uint8_t __radix_bits>
-struct __is_radix_many_groups_tag<radix_many_groups_tag<__radix_bits>> : std::true_type
-{
-};
+inline constexpr bool __is_radix_single_group_tag_v = __is_radix_tag<radix_single_group_tag, _SortConfig>::value;
+
+template <typename _SortConfig>
+inline constexpr bool __is_radix_many_groups_tag_v = __is_radix_tag<radix_many_groups_tag, _SortConfig>::value;
 
 // Rejects unsupported combinations of _SortConfig and kernel_param at compile time
 template <typename _SortConfig, typename _KernelParam>
 constexpr void
 __check_batched_sort_config()
 {
-    static_assert(__is_radix_single_group_tag<_SortConfig>::value || __is_radix_many_groups_tag<_SortConfig>::value,
+    static_assert(__is_radix_single_group_tag_v<_SortConfig> || __is_radix_many_groups_tag_v<_SortConfig>,
                   "Unsupported _SortConfig: only radix_single_group_tag and radix_many_groups_tag are currently "
                   "implemented");
-    if constexpr (__is_radix_single_group_tag<_SortConfig>::value)
+    if constexpr (__is_radix_single_group_tag_v<_SortConfig>)
     {
         // There is no fundamental limitation here, 4 bits works but is rarely beneficial, so we enforce 8 bits for now,
         // for consistency with onesweep, and to encourage settings which are most performant.
@@ -82,7 +80,7 @@ __check_batched_sort_config()
         static_assert(_KernelParam::workgroup_size % 32 == 0 && _KernelParam::workgroup_size <= 1024,
                       "radix_single_group_tag requires a multiple of 32 and at most 1024 work-items in a work-group");
     }
-    if constexpr (__is_radix_many_groups_tag<_SortConfig>::value)
+    if constexpr (__is_radix_many_groups_tag_v<_SortConfig>)
     {
         static_assert(_SortConfig::radix_bits == 8, "radix_many_groups_tag currently requires 8 radix bits");
         static_assert(_KernelParam::workgroup_size == 512 || _KernelParam::workgroup_size == 1024,
@@ -100,7 +98,7 @@ __batched_stable_sort_bytes_req(std::size_t __segment_size, std::size_t __total_
 {
     __check_batched_sort_config<_SortConfig, _KernelParam>();
     // The one work-group radix sort needs no temporary global memory
-    if (__total_size == 0 || __is_radix_single_group_tag<_SortConfig>::value)
+    if (__total_size == 0 || __is_radix_single_group_tag_v<_SortConfig>)
         return 0;
     assert(__segment_size > 0 && "The segment size must be greater than zero");
     assert(__total_size % __segment_size == 0 && "The number of elements must be a multiple of the segment size");
@@ -115,7 +113,7 @@ __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack
                       _KernelParam __param, _TempStorage __temp_storage)
 {
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-    if constexpr (__is_radix_single_group_tag<_SortConfig>::value)
+    if constexpr (__is_radix_single_group_tag_v<_SortConfig>)
     {
         return __batched_single_group<__is_ascending, _SortConfig::radix_bits>(
             __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out),
