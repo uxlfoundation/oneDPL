@@ -1138,7 +1138,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                                                                                                 __init, __binary_op},
                        __num_partials, oneapi::dpl::__ranges::views::all_read(__chunk_ends), __offsets,
                        oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::views::all_write(__partials)),
-                       __input);
+                       __input)
+            .event()
+            .wait_and_throw();
         __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec),
                        __segmented_reduce_combine_brick<_Acc, _Size, _InitType, _BinaryOperation>{
                            __num_partials, __write_empty, __init, __binary_op},
