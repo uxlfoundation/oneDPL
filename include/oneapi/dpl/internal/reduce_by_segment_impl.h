@@ -175,7 +175,7 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
 // The host policies, the segments one after another, each one from its own offsets clamped to the input, as on a device
 template <typename _Tag, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
           typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
-void
+_OutputValueIt
 __reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _InputValueIt __last_value,
                                  _OutputValueIt __result_value, _SegmentNum __num_segments, _OffsetIt __offsets,
                                  _InitType __init, _BinaryOperation __binary_op)
@@ -184,13 +184,19 @@ __reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _
     using _Size = typename std::iterator_traits<_InputValueIt>::difference_type;
 
     const _Size __n = __last_value - __first_value;
+
+    _OutputValueIt __this_segment = __result_value;
+
     // Promoted, as ++ is ill-formed for bool
     for (decltype(+__num_segments) __segment = 0; __segment < __num_segments; ++__segment)
     {
-        __result_value[__segment] = __internal::__segmented_reduce_serial<_Acc>(
+        *__this_segment = __internal::__segmented_reduce_serial<_Acc>(
             __first_value, __internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n),
             __internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n), __init, __binary_op);
+        ++__this_segment;
     }
+
+    return __this_segment;
 }
 
 } // namespace internal
@@ -240,10 +246,8 @@ reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_fir
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first, offsets, out_first);
 
-    internal::__reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first, last, out_first,
-                                               num_segments, offsets, init_value, binary_op);
-    // The end of the results; a non-positive number of segments writes none
-    return num_segments > 0 ? OutputIt(out_first + num_segments) : out_first;
+    return internal::__reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first, last,
+                                                      out_first, num_segments, offsets, init_value, binary_op);
 }
 
 template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt, typename InitT>

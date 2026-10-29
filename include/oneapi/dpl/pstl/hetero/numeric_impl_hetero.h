@@ -277,14 +277,14 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _RandomAccessInputIt, typename _SegmentNum,
           typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
-void
+_RandomAccessOutputIt
 __pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _RandomAccessInputIt __first,
                                     _RandomAccessInputIt __last, _RandomAccessOutputIt __result,
                                     _SegmentNum __num_segments, _RandomAccessOffsetIt __offsets, _InitType __init,
                                     _BinaryOperation __binary_op)
 {
     if (__num_segments <= 0)
-        return;
+        return __result;
 
     using _Acc = __segmented_reduce_acc_t<_InitType, _RandomAccessInputIt, _BinaryOperation>;
     using _Diff = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
@@ -301,7 +301,7 @@ __pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&
         __par_backend_hetero::__parallel_reduce_by_segment_offsets_fill<_Acc>(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __result_buf.all_view(), _Size(__num_segments),
             __init);
-        return;
+        return __result + __num_segments;
     }
 
     auto __keep_input = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
@@ -312,6 +312,8 @@ __pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&
     __par_backend_hetero::__parallel_reduce_by_segment_offsets<_Acc>(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __input_buf.all_view(), __offsets_buf.all_view(),
         __result_buf.all_view(), _Size(__last - __first), _Size(__num_segments), __init, __binary_op);
+
+    return __result + __num_segments;
 }
 
 template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
