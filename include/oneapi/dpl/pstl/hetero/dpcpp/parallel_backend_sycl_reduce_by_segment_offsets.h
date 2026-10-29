@@ -273,7 +273,7 @@ inline constexpr std::size_t __segmented_reduce_sub_group_min_vectors = 8;
 // before the operation waits for any of them
 template <typename _Acc, typename _BinaryOperation, typename _A, typename _B, typename _C, typename _D>
 _Acc
-__segmented_reduce_four(_BinaryOperation& __binary_op, _A __a, _B __b, _C __c, _D __d)
+__segmented_reduce_four(_BinaryOperation __binary_op, _A __a, _B __b, _C __c, _D __d)
 {
     return std::invoke(__binary_op,
                        oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __a, __b)),
@@ -285,7 +285,7 @@ __segmented_reduce_four(_BinaryOperation& __binary_op, _A __a, _B __b, _C __c, _
 // compile time, as a shift known only at run time reaches the registers of the other lanes indirectly
 template <typename _SubGroup, typename _Acc, typename _BinaryOperation>
 _Acc
-__segmented_reduce_lanes(const _SubGroup& __sg, _Acc __acc, const std::uint32_t __active, _BinaryOperation& __binary_op)
+__segmented_reduce_lanes(const _SubGroup& __sg, _Acc __acc, const std::uint32_t __active, _BinaryOperation __binary_op)
 {
     const std::uint32_t __lane = __sg.get_local_linear_id();
 
