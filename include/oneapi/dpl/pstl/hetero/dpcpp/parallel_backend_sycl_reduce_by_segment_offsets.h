@@ -1001,11 +1001,11 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                             __reduce_piece(__sg, __input, __offsets, __result, __n, __m, __piece_begin, __piece_end,
                                            __init, __op, __segments_per_element, __interpolation_steps, __parts);
 
-                        if constexpr (!__in_group_v)
-                            __store_piece_parts(__lane, __piece, __m, __parts, __heads, __tails, __tail_segment_of);
-                        else
+                        if constexpr (__in_group_v)
                             __combine_pieces_in_group(__item, __sg_id, __lane, __group, __sub_groups, __m, __parts,
                                                       __local, __result, __heads, __tails, __tail_segment_of, __op);
+                        else
+                            __store_piece_parts(__lane, __piece, __m, __parts, __heads, __tails, __tail_segment_of);
                     });
             });
         };
