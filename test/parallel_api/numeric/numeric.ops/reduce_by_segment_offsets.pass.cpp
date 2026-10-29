@@ -680,6 +680,7 @@ test_buffer()
 class KernelNameUSM;
 class KernelNameBuffer;
 class KernelNameCounting;
+class KernelNameNarrowCounting;
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 // A counting input of a 32-bit difference type, with long segments among many short ones: the short segments and
@@ -714,6 +715,28 @@ test_counting_input()
                                                     offsets.begin(), std::int64_t{5});
     EXPECT_EQ(out.begin() + 1, res, "wrong iterator returned by reduce_by_segment with a bool number of segments");
     EXPECT_EQ(std::int64_t{5}, out[0], "wrong result from reduce_by_segment with a bool number of segments");
+}
+
+// A counting input of a 16-bit difference type: a long segment, reduced in chunks, among more empty segments than
+// the difference type can count
+void
+test_narrow_counting_input()
+{
+    const int n = 1000, num_segments = 40000;
+    std::vector<int> offsets(num_segments + 1, n);
+    offsets[0] = 0;
+    const oneapi::dpl::counting_iterator<std::int16_t> first(0);
+    std::vector<std::int64_t> out(num_segments, -1);
+    test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, first, first + n, out.begin(), out.end(),
+                                     offsets.begin(), num_segments, std::int64_t{5}, std::plus<std::int64_t>{},
+                                     std::int64_t{-1});
+#if TEST_DPCPP_BACKEND_PRESENT
+    std::fill(out.begin(), out.end(), -1);
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameNarrowCounting), first, first + n,
+                                     out.begin(), out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                     std::plus<std::int64_t>{}, std::int64_t{-1});
+#endif
 }
 
 int
@@ -789,6 +812,7 @@ main()
     test_boundaries<42>();
     test_input_bounds<43>();
     test_counting_input();
+    test_narrow_counting_input();
 
     test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT

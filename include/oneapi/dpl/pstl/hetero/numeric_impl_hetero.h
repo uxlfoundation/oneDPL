@@ -287,7 +287,10 @@ __pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&
         return;
 
     using _Acc = __segmented_reduce_acc_t<_InitType, _RandomAccessInputIt, _BinaryOperation>;
-    using _Size = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
+    using _Diff = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
+    // Promoted, so that the index arithmetic keeps the type, and covering the number of segments, which may exceed
+    // the size of the input
+    using _Size = std::make_signed_t<std::common_type_t<decltype(+_Diff{}), decltype(+__num_segments)>>;
 
     // Not no_init: the short and the long segments are written by different kernels
     auto __keep_result = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write>();
