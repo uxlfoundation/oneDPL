@@ -257,6 +257,32 @@ struct __segmented_reduce_pointer_input<
 // element, as the alignment, the head and the tail of the vectors cost more than the vectors save, as measured
 inline constexpr std::size_t __segmented_reduce_sub_group_min_vectors = 8;
 
+// Combines the accumulators of the first __active lanes of a sub-group on lane 0 without an identity: a lane combines
+// the one so many lanes after it whenever that one takes part, so that lane 0 gets the lanes in pairs, then in fours,
+// and so on, without a test of its position. The shifts are known at compile time: a shift known only at run time
+// reaches the registers of the other lanes indirectly, which costs several times more, as measured.
+template <typename _SubGroup, typename _Acc, typename _BinaryOperation>
+_Acc
+__segmented_reduce_lanes_by_shifts(const _SubGroup& __sg, _Acc __acc, const std::uint32_t __active,
+                                   _BinaryOperation& __binary_op)
+{
+    const std::uint32_t __lane = __sg.get_local_linear_id();
+    auto __step = [&](auto __shift) {
+        if (__shift < __active)
+        {
+            const _Acc __other = sycl::shift_group_left(__sg, __acc, __shift);
+            if (__lane + __shift < __active)
+                __acc = std::invoke(__binary_op, __acc, __other);
+        }
+    };
+    __step(std::integral_constant<std::uint32_t, 1>{});
+    __step(std::integral_constant<std::uint32_t, 2>{});
+    __step(std::integral_constant<std::uint32_t, 4>{});
+    __step(std::integral_constant<std::uint32_t, 8>{});
+    __step(std::integral_constant<std::uint32_t, 16>{});
+    return __acc;
+}
+
 // Reduces the elements [__base + __first, __base + __last), at least one, by a sub-group: the lanes take the elements in
 // turn, so that the loads of the sub-group are coalesced, and a tree combines the results of the lanes. Both reorder the
 // operands, which the required commutativity of the operation allows. A range that begins its segment starts from the
@@ -379,14 +405,8 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::
     }
     else
     {
-        // Only lane 0 needs the result: a lane combines the one so many lanes after it whenever that one takes part,
-        // so that lane 0 gets the lanes in pairs, then in fours, and so on, without a test of its position
-        for (std::uint32_t __shift = 1; __shift < __active; __shift *= 2)
-        {
-            const _Acc __other = sycl::shift_group_left(__sg, __acc.__v, __shift);
-            if (__lane + __shift < __active)
-                __acc.__v = std::invoke(__binary_op, __acc.__v, __other);
-        }
+        // Only lane 0 needs the result
+        __acc.__v = __segmented_reduce_lanes_by_shifts(__sg, __acc.__v, __active, __binary_op);
     }
     // A range of one element more than the initial value takes it alone
     if (__is_first)
@@ -923,13 +943,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         }
                         else
                         {
-                            const std::uint32_t __active = std::min<std::uint32_t>(__heads_count, __lanes);
-                            for (std::uint32_t __shift = 1; __shift < __active; __shift *= 2)
-                            {
-                                const _Acc __other = sycl::shift_group_left(__sg, __acc.__v, __shift);
-                                if (__lane + __shift < __active)
-                                    __acc.__v = std::invoke(__op, __acc.__v, __other);
-                            }
+                            __acc.__v = __segmented_reduce_lanes_by_shifts(
+                                __sg, __acc.__v, std::min<std::uint32_t>(__heads_count, __lanes), __op);
                         }
                         if (__lane == 0)
                             __result[__s] = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(
