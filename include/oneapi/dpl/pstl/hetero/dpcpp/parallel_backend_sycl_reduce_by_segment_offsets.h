@@ -368,20 +368,6 @@ struct __segmented_reduce_flat_local<true, _Acc, _Size>
     }
 };
 
-template <typename _KernelName>
-struct __segmented_reduce_kernel_name_tag
-{
-};
-
-template <typename... _KernelName, typename _Range, typename _Kernel>
-void
-__segmented_reduce_parallel_for(sycl::handler& __cgh,
-                                __segmented_reduce_kernel_name_tag<__internal::__optional_kernel_name<_KernelName...>>,
-                                const _Range& __range, const _Kernel& __kernel)
-{
-    __cgh.parallel_for<_KernelName...>(__range, __kernel);
-}
-
 template <typename _Acc, typename _KernelName, typename _GroupKernelName, typename _TailKernelName>
 struct __segmented_reduce_flat_submitter;
 
@@ -389,6 +375,22 @@ template <typename _Acc, typename... _Name, typename _GroupKernelName, typename.
 struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_name<_Name...>, _GroupKernelName,
                                          __internal::__optional_kernel_name<_TailName...>>
 {
+    // The name of a kernel carried by a tag, so that the two instances of the first kernel take their names through one
+    // generic lambda
+    template <typename _KernelName>
+    struct __kernel_name_tag
+    {
+    };
+
+    template <typename... _KernelName, typename _Range, typename _Kernel>
+    static void
+    __parallel_for_with_name(sycl::handler& __cgh,
+                             __kernel_name_tag<__internal::__optional_kernel_name<_KernelName...>>,
+                             const _Range& __range, const _Kernel& __kernel)
+    {
+        __cgh.parallel_for<_KernelName...>(__range, __kernel);
+    }
+
     // The operation on four values in two pairs, each made an accumulator; taken by value, so that the four are loaded
     // before the operation waits for any of them
     template <typename _BinaryOperation, typename _A, typename _B, typename _C, typename _D>
@@ -985,7 +987,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                 oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
                 auto __units_acc = __get_accessor(sycl::write_only, __units_storage, __cgh, __dpl_sycl::__no_init{});
                 const __segmented_reduce_flat_local<__in_group_v, _Acc, _Size> __local(__cgh, __sub_groups);
-                __segmented_reduce_parallel_for(
+                __parallel_for_with_name(
                     __cgh, __kernel_name,
                     sycl::nd_range<1>(sycl::range<1>(__num_groups * __work_group_size),
                                       sycl::range<1>(__work_group_size)),
@@ -1018,10 +1020,9 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         };
 
         sycl::event __event =
-            __in_group ? __pieces(/*__in_group_tag = */ std::true_type{},
-                                  __segmented_reduce_kernel_name_tag<_GroupKernelName>{})
+            __in_group ? __pieces(/*__in_group_tag = */ std::true_type{}, __kernel_name_tag<_GroupKernelName>{})
                        : __pieces(/*__in_group_tag = */ std::false_type{},
-                                  __segmented_reduce_kernel_name_tag<__internal::__optional_kernel_name<_Name...>>{});
+                                  __kernel_name_tag<__internal::__optional_kernel_name<_Name...>>{});
 
         // The tail of every unit with the heads of the following units its segment covers, a sub-group per unit; a
         // single unit has none
