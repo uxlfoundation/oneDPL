@@ -424,6 +424,11 @@ class __func_task;
 template <typename _Func>
 class __root_task;
 
+// In oneDPL versions up to 2022.14, class __task had two more methods:
+// make_additional_child_of and recycle_as_continuation.
+// They mirrored tbb::task::allocate_additional_child_of and
+// tbb::task::recycle_as_continuation from TBB 2020 and earlier.
+
 #if TBB_INTERFACE_VERSION <= 12000
 class __task : public tbb::task
 {
@@ -1024,7 +1029,7 @@ class __merge_func
         __right_func._split = true;
         auto __join = __self->make_continuation(__empty_func{});
         __join->set_ref_count(2);
-        auto __merge_task = __self->make_child_of(__join, ::std::move(__right_func));
+        auto __merge_task = __self->make_child_of(__join, std::move(__right_func));
         __self->spawn(__merge_task);
         __self->recycle_as_child_of(__join);
 
