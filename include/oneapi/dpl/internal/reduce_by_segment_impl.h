@@ -186,9 +186,7 @@ __reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _
     const _Size __n = __last_value - __first_value;
 
     _OutputValueIt __this_segment = __result_value;
-
-    // Promoted, as ++ is ill-formed for bool
-    for (decltype(+__num_segments) __segment = 0; __segment < __num_segments; ++__segment)
+    for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
     {
         *__this_segment = __internal::__segmented_reduce_serial<_Acc>(
             __first_value, __internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n),
