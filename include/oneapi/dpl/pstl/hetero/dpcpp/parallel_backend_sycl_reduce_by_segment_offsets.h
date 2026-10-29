@@ -407,10 +407,12 @@ __segmented_reduce_by_sub_group(const _SubGroup& __sg, const _Size __base, std::
 // measured; above it the tails of a work-group are combined with its following heads in its local memory first, so
 // that the second kernel combines the tail of every work-group with the heads of the following ones.
 inline constexpr std::size_t __segmented_reduce_gpu_flat_lanes = 32;
-// A work-item takes at least this many elements up to this input size, and four times as many above it, so that the
-// search of a piece and the combination of its parts are paid for, and at most four times as many, so that the larger
-// inputs are spread over more work-groups than the device runs at once, as measured
+// A work-item takes at least this many elements up to this input size, and twice as many above it, so that the
+// search of a piece and the combination of its parts are paid for, and at most twice as many, so that the inputs are
+// spread over more sub-groups than the device runs at once
 inline constexpr std::size_t __segmented_reduce_gpu_flat_min_inputs_per_item = 16;
+inline constexpr std::size_t __segmented_reduce_gpu_flat_large_inputs_per_item =
+    2 * __segmented_reduce_gpu_flat_min_inputs_per_item;
 inline constexpr std::size_t __segmented_reduce_gpu_flat_small_input = std::size_t(1) << 20;
 // The largest work-group
 inline constexpr std::size_t __segmented_reduce_gpu_flat_max_work_group = 256;
@@ -515,10 +517,10 @@ struct __segmented_reduce_flat_geometry
             2 * std::max<std::size_t>(1, oneapi::dpl::__internal::__max_compute_units(__q) / 8);
         const std::size_t __min_inputs = __n <= __segmented_reduce_gpu_flat_small_input
                                              ? __segmented_reduce_gpu_flat_min_inputs_per_item
-                                             : 4 * __segmented_reduce_gpu_flat_min_inputs_per_item;
+                                             : __segmented_reduce_gpu_flat_large_inputs_per_item;
         __inputs_per_item =
             std::clamp<std::size_t>((__n + __min_groups * __work_group_size - 1) / (__min_groups * __work_group_size),
-                                    __min_inputs, 4 * __segmented_reduce_gpu_flat_min_inputs_per_item);
+                                    __min_inputs, __segmented_reduce_gpu_flat_large_inputs_per_item);
         auto __groups = [&](std::size_t __size) {
             return (__n + __inputs_per_item * __size - 1) / (__inputs_per_item * __size);
         };
