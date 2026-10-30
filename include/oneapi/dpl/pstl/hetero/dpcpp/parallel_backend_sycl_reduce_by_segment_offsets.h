@@ -435,16 +435,18 @@ struct __segmented_reduce_flat_submitter<
         const __segmented_reduce_flat_geometry __geometry =
             _Tuning::__geometry(__q, std::size_t(__n), std::size_t(__m));
         const std::size_t __work_group_size = __geometry.__work_group_size;
-        const std::size_t __sub_groups = __work_group_size / __lanes;
+        // The values the kernels take in 32 bits: they are counted in pieces and work-groups, so that the arguments
+        // of a kernel stay within the part of them passed in registers
+        const std::uint32_t __sub_groups = __work_group_size / __lanes;
         const std::size_t __num_groups = __geometry.__num_groups;
         const std::size_t __ipi = __geometry.__inputs_per_item;
-        const std::size_t __piece_size = __ipi * __lanes;
+        const std::uint32_t __piece_size = __ipi * __lanes;
 
         // The units of the second kernel: the work-groups where their pieces are combined in local memory, else the
         // pieces
         const bool __in_group = _Tuning::__combines_in_group(std::size_t(__n));
-        const std::size_t __num_units = __in_group ? __num_groups : __num_groups * __sub_groups;
-        const std::size_t __unit_size = __in_group ? __piece_size * __sub_groups : __piece_size;
+        const std::uint32_t __num_units = __in_group ? __num_groups : __num_groups * __sub_groups;
+        const std::uint32_t __unit_size = __in_group ? __piece_size * __sub_groups : __piece_size;
 
         // The segments per element, from which a piece guesses the segment covering its start as if the segments were
         // of the same length, in fixed point: 32 fraction bits, or 16 for 2^31 segments and more, keep the product with
@@ -459,7 +461,7 @@ struct __segmented_reduce_flat_submitter<
         // tails, in one storage, which costs a call less than two, as measured; of the more aligned of the two types,
         // so that both arrays start aligned
         using _Unit = std::conditional_t<(alignof(_Acc) > alignof(_Size)), _Acc, _Size>;
-        const std::size_t __segment_slots =
+        const std::uint32_t __segment_slots =
             oneapi::dpl::__internal::__dpl_ceiling_div(__num_units * sizeof(_Size), sizeof(_Unit));
         const std::size_t __partial_slots =
             oneapi::dpl::__internal::__dpl_ceiling_div(2 * __num_units * sizeof(_Acc), sizeof(_Unit));
