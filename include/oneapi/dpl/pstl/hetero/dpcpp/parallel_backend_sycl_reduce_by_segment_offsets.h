@@ -263,7 +263,8 @@ __parallel_reduce_by_segment_offsets_fill(_BackendTag, _ExecutionPolicy&& __exec
                    make_wrapped_policy<__segmented_reduce_fill_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
                    __segmented_reduce_init_brick<_Acc, _InitType>{__init}, __m,
                    oneapi::dpl::__ranges::make_zip_view(std::forward<_Range>(__result)))
-        .__checked_deferrable_wait();
+        .event()
+        .wait_and_throw();
 }
 
 // The segments of the input [0, __n) defined by the __m + 1 offsets, reduced into the __m results
@@ -308,8 +309,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                        __m, oneapi::dpl::__ranges::views::all_read(__chunk_ends),
                        oneapi::dpl::__ranges::views::all_read(__partials),
                        oneapi::dpl::__ranges::make_zip_view(__result))
-            .__checked_deferrable_wait();
-        __scan.__checked_deferrable_wait();
+            .event()
+            .wait_and_throw();
+        __scan.event().wait_and_throw();
     };
 
     if (__n / __m > __threshold)
@@ -345,7 +347,8 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                                                                                                __binary_op},
                    __m, __offsets, oneapi::dpl::__ranges::make_zip_view(__result), __input,
                    oneapi::dpl::__ranges::views::all(__report_buf))
-        .__checked_deferrable_wait();
+        .event()
+        .wait_and_throw();
     const _Size __max_length = __report_buf.get_host_access(sycl::read_only)[0];
 
     // The long segments in chunks: at most n / __threshold of them
