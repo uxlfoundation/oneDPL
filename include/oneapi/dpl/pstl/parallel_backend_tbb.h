@@ -170,7 +170,9 @@ struct __par_trans_red_body
         if (!_M_has_sum)
         {
             __TBB_ASSERT(__range.size() > 1, "there should be at least 2 elements");
-            __lazy_sum.emplace(_M_combine(_M_u(__i), _M_u(__i + 1)));
+            // Convert the first element to _Tp before combining, so that the accumulation happens in _Tp
+            __lazy_sum.emplace(_M_u(__i));
+            __lazy_sum.value() = _M_combine(std::move(__lazy_sum.value()), _M_u(__i + 1));
             _M_has_sum = true;
             ::std::advance(__i, 2);
             if (__i == __j)

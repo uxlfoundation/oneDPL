@@ -39,7 +39,7 @@ template <class _InputIterator, class _Tp>
 _Tp
 reduce(_InputIterator __first, _InputIterator __last, _Tp __init)
 {
-    return oneapi::dpl::reduce(__first, __last, std::move(__init), ::std::plus<_Tp>());
+    return oneapi::dpl::reduce(__first, __last, std::move(__init), std::plus<>());
 }
 
 template <class _InputIterator>
