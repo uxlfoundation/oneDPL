@@ -48,7 +48,8 @@ struct SpinBarrierKernel
     {
         namespace syclex = sycl::ext::oneapi::experimental;
         return syclex::properties{syclex::work_group_progress<syclex::forward_progress_guarantee::concurrent,
-                                                              syclex::execution_scope::root_group>};
+                                                              syclex::execution_scope::root_group>,
+                                  syclex::sub_group_size<32>};
     }
 
     void
@@ -70,9 +71,9 @@ struct SpinBarrierKernel
                 arrived(*arrived_count);
             arrived.fetch_add(val);
             // Wait for all other work-group leaders to signal
-            while (arrived.load(sycl::memory_order::acquire) != num_groups)
-                ;
+            while (arrived.load(sycl::memory_order::acquire) != num_groups);
         }
+        sycl::group_barrier(item.get_group());
     }
 };
 

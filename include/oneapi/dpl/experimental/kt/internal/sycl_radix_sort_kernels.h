@@ -11,7 +11,6 @@
 #define _ONEDPL_KT_SYCL_RADIX_SORT_KERNELS_H
 
 #include <cstdint>
-#include <limits>
 #include <type_traits>
 
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"

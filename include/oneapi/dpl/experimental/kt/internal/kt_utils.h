@@ -61,9 +61,9 @@ __get_num_cooperative_groups(const _Kernel& __kernel, sycl::queue& __q, std::uin
         64 * __kib, 96 * __kib, 128 * __kib, 192 * __kib, 256 * __kib, 320 * __kib, 384 * __kib};
     const std::uint32_t* __slm_granularity_it =
         std::lower_bound(std::cbegin(__slm_granularity_table), std::cend(__slm_granularity_table), __slm_size_bytes);
-    assert(__slm_granularity_it != std::cend(__slm_granularity_table));
-    const std::uint32_t __true_slm_size_bytes =
-        (__slm_granularity_it != std::cend(__slm_granularity_table)) ? *__slm_granularity_it : __slm_size_bytes;
+    const std::uint32_t __true_slm_size_bytes = (__slm_granularity_it != std::cend(__slm_granularity_table))
+                                                    ? std::min(*__slm_granularity_it, __max_slm_xe)
+                                                    : __slm_size_bytes;
 
     const std::uint32_t __groups_per_xe_slm_adj = std::min(__max_groups_per_xe, __max_slm_xe / __true_slm_size_bytes);
     const std::uint32_t __concurrent_groups_est = __groups_per_xe_slm_adj * __xes_on_device;
