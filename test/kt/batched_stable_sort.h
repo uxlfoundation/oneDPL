@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <type_traits>
 #include <vector>
 
 #if __has_include(<sycl/sycl.hpp>)
@@ -93,6 +94,9 @@ segment_sizes(std::size_t tile, std::size_t sub_group_tile, std::size_t work_ite
     return sizes;
 }
 
+template <typename Config>
+constexpr bool IsMergeConfig = std::is_same_v<Config, kt::gpu::merge_single_group_tag>;
+
 // WgResidentOnly: the sort configuration supports only segments which fit in a work-group tile
 template <template <bool> class SortConfig, bool WgResidentOnly>
 int
@@ -113,8 +117,11 @@ test()
 #else
     using SlmValueT = ValueT;
 #endif
-    const bool run_test =
-        can_run_test<Param, KeyT, SlmValueT, WgResidentOnly, SortConfig<Ascending>::radix_bits>(q, params);
+    bool run_test = false;
+    if constexpr (IsMergeConfig<SortConfig<Ascending>>)
+        run_test = can_run_merge_test<Param, KeyT, SlmValueT>(q, params);
+    else
+        run_test = can_run_test<Param, KeyT, SlmValueT, WgResidentOnly, SortConfig<Ascending>::radix_bits>(q, params);
 
     if (run_test)
     {
