@@ -35,32 +35,38 @@ Feature Macros
 ==============
 Use these macros to test presence of specific |onedpl_short| functionality.
 
-================================== ===============================================
-Macro                              Macro values and the functionality
-================================== ===============================================
-``ONEDPL_HAS_DEVICE_CONTAINERS``   Device containers and the allocator they use.
+===================================== ===============================================
+Macro                                 Macro values and the functionality
+===================================== ===============================================
+``ONEDPL_HAS_DEVICE_CONTAINERS``      Device containers and the allocator they use.
 
-                                   The macro is only defined when device execution policies are enabled,
-                                   see ``ONEDPL_USE_DPCPP_BACKEND``.
+                                      The macro is only defined when device execution policies are enabled,
+                                      see ``ONEDPL_USE_DPCPP_BACKEND``.
 
-                                   * ``202608L`` - added ``oneapi::dpl::experimental::device_array``
-                                     (requires ``std::span`` or ``sycl::span`` to be available)
-                                     and a baseline ``oneapi::dpl::experimental::device_allocator``.
----------------------------------- -----------------------------------------------
-``ONEDPL_HAS_RANDOM_NUMBERS``      Pseudo-random number generators and distributions.
+                                      * ``202608L`` - added ``oneapi::dpl::experimental::device_array``
+                                        (requires ``std::span`` or ``sycl::span`` to be available)
+                                        and a baseline ``oneapi::dpl::experimental::device_allocator``.
+------------------------------------- -----------------------------------------------
+``ONEDPL_HAS_RANDOM_NUMBERS``         Pseudo-random number generators and distributions.
 
-                                   * ``202409L`` - added support of comparison and I/O stream operators and an experimental Philox engine.
-                                   * ``202603L`` - finalized the Philox engine and moved it to the ``oneapi::dpl`` namespace.
----------------------------------- -----------------------------------------------
-``ONEDPL_HAS_RANGE_ALGORITHMS``    Parallel range algorithms.
+                                      * ``202409L`` - added support of comparison and I/O stream operators and an experimental Philox engine.
+                                      * ``202603L`` - finalized the Philox engine and moved it to the ``oneapi::dpl`` namespace.
+------------------------------------- -----------------------------------------------
+``ONEDPL_HAS_RANGE_ALGORITHMS``       Parallel range algorithms.
 
-                                   * ``202409L`` - see :ref:`available algorithms <range-algorithms-202409L>`.
-                                   * ``202505L`` - see :ref:`available algorithms <range-algorithms-202505L>`.
-                                   * ``202509L`` - see :ref:`available algorithms <range-algorithms-202509L>`.
-                                   * ``202604L`` - see :ref:`available algorithms <range-algorithms-202604L>`.
-                                   * ``202605L`` - see :ref:`available algorithms <range-algorithms-202605L>`.
-                                   * ``202608L`` - see :ref:`available algorithms <range-algorithms-202608L>`.
-================================== ===============================================
+                                      * ``202409L`` - see :ref:`available algorithms <range-algorithms-202409L>`.
+                                      * ``202505L`` - see :ref:`available algorithms <range-algorithms-202505L>`.
+                                      * ``202509L`` - see :ref:`available algorithms <range-algorithms-202509L>`.
+                                      * ``202604L`` - see :ref:`available algorithms <range-algorithms-202604L>`.
+                                      * ``202605L`` - see :ref:`available algorithms <range-algorithms-202605L>`.
+                                      * ``202608L`` - see :ref:`available algorithms <range-algorithms-202608L>`.
+------------------------------------- -----------------------------------------------
+``ONEDPL_HAS_SEGMENTED_ALGORITHMS``   Algorithms that process the segments of a sequence independently.
+
+                                      * ``202611L`` - the macro is introduced: added ``oneapi::dpl::reduce_by_segment`` with
+                                        variable-length segments defined by offsets. The algorithms with segments defined
+                                        by keys are available regardless of the macro.
+===================================== ===============================================
 
 Additional Macros
 ==================
