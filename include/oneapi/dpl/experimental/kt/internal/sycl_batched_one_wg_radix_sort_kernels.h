@@ -180,8 +180,9 @@ struct __batched_one_wg_radix_sort_kernel
                         __pack.__vals[__i] = __slm_vals[__slm_idx];
                 }
             }
-            // The next stage's histograms overlap the reorder buffer
-            sycl::group_barrier(__group);
+            // The next stage's histograms overlap the reorder buffer. After the last stage, SLM is not used again.
+            if (__stage + 1 < __stage_count)
+                sycl::group_barrier(__group);
         }
 
         if (__is_active)
