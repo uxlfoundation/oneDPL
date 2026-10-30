@@ -37,13 +37,18 @@ using KeyT = TEST_KEY_TYPE;
 #ifndef TEST_SINGLE_GROUP
 #    define TEST_SINGLE_GROUP 0
 #endif
-#if TEST_SINGLE_GROUP
+#ifndef TEST_MERGE_SINGLE_GROUP
+#    define TEST_MERGE_SINGLE_GROUP 0
+#endif
+#if TEST_MERGE_SINGLE_GROUP
+using SortConfig = kt::gpu::merge_single_group_tag;
+#elif TEST_SINGLE_GROUP
 using SortConfig = kt::gpu::radix_single_group_tag<TestRadixBits>;
 #else
 using SortConfig = kt::gpu::radix_many_groups_tag<TestRadixBits>;
 #endif
-// radix_single_group_tag sorts only segments which fit in a tile
-constexpr bool OneWorkGroupOnly = TEST_SINGLE_GROUP;
+// merge_single_group_tag and radix_single_group_tag sort only segments which fit in a tile
+constexpr bool OneWorkGroupOnly = TEST_SINGLE_GROUP || TEST_MERGE_SINGLE_GROUP;
 #if TEST_SINGLE_GROUP
 #    define TEST_SORT_CONFIG_AVAILABLE TEST_SYCL_ONE_WG_RADIX_SORT_KT_AVAILABLE
 #else
@@ -84,15 +89,17 @@ struct BatchedStableSort
 // Segment sizes around the tile size (data_per_workitem * workgroup_size) and the global histogram chunk (4096), plus
 // segments smaller than a tile, multi-tile segments and segments that are not multiples of the sub-group size.
 // Segments that fit in a tile are owned by whole sub-groups of 32 * data_per_workitem elements, several per
-// work-group, so sizes around multiples of a sub-group's elements are covered too.
+// work-group, so sizes around multiples of a sub-group's elements are covered too. Sizes around a work-item's
+// elements cover the merge sort's leaf sort and first merge round.
 std::vector<std::size_t>
-segment_sizes(std::size_t tile, std::size_t sub_group_tile)
+segment_sizes(std::size_t tile, std::size_t sub_group_tile, std::size_t work_item_tile)
 {
     std::vector<std::size_t> sizes = {
         1,        2,      7,        100,      317,          1000,           4095,         4097,
         tile - 1, tile,   tile + 1, 2 * tile, 2 * tile + 1, 3 * tile + 333, 7 * tile - 5, 50'000,
         1 << 17,  300'007,
-        sub_group_tile - 1, sub_group_tile, sub_group_tile + 1, 2 * sub_group_tile + 3, tile / 2 + 1, tile / 3};
+        sub_group_tile - 1, sub_group_tile, sub_group_tile + 1, 2 * sub_group_tile + 3, tile / 2 + 1, tile / 3,
+        work_item_tile, work_item_tile + 1, 2 * work_item_tile - 1};
     sizes.erase(std::remove(sizes.begin(), sizes.end(), std::size_t(0)), sizes.end());
     if (OneWorkGroupOnly)
         sizes.erase(std::remove_if(sizes.begin(), sizes.end(), [tile](std::size_t s) { return s > tile; }),
@@ -106,7 +113,8 @@ int
 main()
 {
     bool run_test = false;
-#if TEST_SORT_CONFIG_AVAILABLE
+    // merge_single_group_tag requires none of the extensions of the radix sorts
+#if TEST_SORT_CONFIG_AVAILABLE || TEST_MERGE_SINGLE_GROUP
     using Param = kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE>;
     using Sorter = BatchedStableSort</*UsesTempStorage=*/false>;
     using SorterTempStorage = BatchedStableSort</*UsesTempStorage=*/true>;
@@ -118,9 +126,14 @@ main()
     static_assert(SorterTempStorage::bytes_req<Param>(4096, 0) == 0);
     auto q = TestUtils::get_test_queue();
 #    if TEST_KEYS_ONLY
-    run_test = can_run_test<Param, KeyT, void, OneWorkGroupOnly, SortConfig::radix_bits>(q, params);
+    using SlmValueT = void;
 #    else
-    run_test = can_run_test<Param, KeyT, ValueT, OneWorkGroupOnly, SortConfig::radix_bits>(q, params);
+    using SlmValueT = ValueT;
+#    endif
+#    if TEST_MERGE_SINGLE_GROUP
+    run_test = can_run_merge_test<Param, KeyT, SlmValueT>(q, params);
+#    else
+    run_test = can_run_test<Param, KeyT, SlmValueT, OneWorkGroupOnly, SortConfig::radix_bits>(q, params);
 #    endif
 
     if (run_test)
@@ -131,7 +144,8 @@ main()
             const DataMode modes[] = {DataMode::usm_iterators, DataMode::usm_ranges, DataMode::buffer_iterators,
                                       DataMode::buffer_ranges};
             std::size_t mode_idx = 0;
-            for (std::size_t segment_size : segment_sizes(tile, std::size_t(Param::data_per_workitem) * 32))
+            const std::size_t sub_group_tile = std::size_t(Param::data_per_workitem) * 32;
+            for (std::size_t segment_size : segment_sizes(tile, sub_group_tile, Param::data_per_workitem))
             {
                 // A single segment (segment_size == n), a few segments, and many segments. The count of the
                 // smallest segments is capped: global scratch memory grows with the number of tiles and segments.
@@ -177,7 +191,7 @@ main()
             return EXIT_FAILURE;
         }
     }
-#endif // TEST_SORT_CONFIG_AVAILABLE
+#endif // TEST_SORT_CONFIG_AVAILABLE || TEST_MERGE_SINGLE_GROUP
 
     return TestUtils::done(run_test);
 }
