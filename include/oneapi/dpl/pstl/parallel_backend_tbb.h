@@ -424,6 +424,11 @@ class __func_task;
 template <typename _Func>
 class __root_task;
 
+// In oneDPL versions up to 2022.14, class __task had two more methods:
+// make_additional_child_of and recycle_as_continuation.
+// They mirrored tbb::task::allocate_additional_child_of and
+// tbb::task::recycle_as_continuation from TBB 2020 and earlier.
+
 #if TBB_INTERFACE_VERSION <= 12000
 class __task : public tbb::task
 {
@@ -440,20 +445,6 @@ class __task : public tbb::task
     make_child_of(__task* parent, _Fn&& __f)
     {
         return new (parent->allocate_child()) __func_task<::std::decay_t<_Fn>>(::std::forward<_Fn>(__f));
-    }
-
-    template <typename _Fn>
-    __task*
-    make_additional_child_of(tbb::task* parent, _Fn&& __f)
-    {
-        return new (tbb::task::allocate_additional_child_of(*parent))
-            __func_task<::std::decay_t<_Fn>>(::std::forward<_Fn>(__f));
-    }
-
-    inline void
-    recycle_as_continuation()
-    {
-        tbb::task::recycle_as_continuation();
     }
 
     inline void
@@ -567,22 +558,6 @@ class __task : public tbb::detail::d1::task
         auto __t = allocate_func_task(::std::forward<_Fn&&>(__f));
         __t->_M_parent = __parent;
         return __t;
-    }
-
-    template <typename _Fn>
-    __task*
-    make_additional_child_of(__task* __parent, _Fn&& __f)
-    {
-        auto __t = make_child_of(__parent, ::std::forward<_Fn>(__f));
-        assert(__parent->_M_refcount.load(::std::memory_order_relaxed) > 0);
-        ++__parent->_M_refcount;
-        return __t;
-    }
-
-    inline void
-    recycle_as_continuation()
-    {
-        _M_recycle = true;
     }
 
     inline void
@@ -716,6 +691,16 @@ class __root_task : public __task
     friend class __task;
 };
 #endif // TBB_INTERFACE_VERSION <= 12000
+
+// Empty continuation joining the two halves of a split merge.
+struct __empty_func
+{
+    __task*
+    operator()(__task*) const
+    {
+        return nullptr;
+    }
+};
 
 inline constexpr std::size_t __merge_cut_off = 2000;
 
@@ -934,7 +919,7 @@ class __merge_func
             _M_leaf_merge(_M_x_beg + _M_xs, _M_x_beg + _M_xe, _M_x_beg + _M_ys, _M_x_beg + _M_ye, _M_z_beg + _M_zs,
                           _M_comp, __move_value_construct(), __move_value_construct(), __move_range_construct(),
                           __move_range_construct());
-            assert(parent_merge(__self)); //not root merging task
+            assert(!_root); //not root merging task
         }
         //merge to "origin"
         else
@@ -1037,9 +1022,11 @@ class __merge_func
         __merge_func __right_func(__xm, _M_xe, __ym, _M_ye, __zm, _M_comp, _Cleanup(), _M_leaf_merge, _M_nsort,
                                   _M_x_beg, _M_z_beg, _x_orig, _y_orig, _root);
         __right_func._split = true;
-        auto __merge_task = __self->make_additional_child_of(__self->parent(), ::std::move(__right_func));
+        auto __join = __self->make_continuation(__empty_func{});
+        __join->set_ref_count(2);
+        auto __merge_task = __self->make_child_of(__join, std::move(__right_func));
         __self->spawn(__merge_task);
-        __self->recycle_as_continuation();
+        __self->recycle_as_child_of(__join);
 
         _M_xe = __xm;
         _M_ye = __ym;
@@ -1240,10 +1227,12 @@ operator()(__task* __self)
         __ym = ::std::lower_bound(_M_ys, _M_ye, *__xm, _M_comp);
     }
     const _RandomAccessIterator3 __zm = _M_zs + ((__xm - _M_xs) + (__ym - _M_ys));
-    auto __right = __self->make_additional_child_of(
-        __self->parent(), __merge_func_static(__xm, _M_xe, __ym, _M_ye, __zm, _M_comp, _M_leaf_merge));
+    auto __join = __self->make_continuation(__empty_func{});
+    __join->set_ref_count(2);
+    auto __right =
+        __self->make_child_of(__join, __merge_func_static(__xm, _M_xe, __ym, _M_ye, __zm, _M_comp, _M_leaf_merge));
     __self->spawn(__right);
-    __self->recycle_as_continuation();
+    __self->recycle_as_child_of(__join);
     _M_xe = __xm;
     _M_ye = __ym;
 
