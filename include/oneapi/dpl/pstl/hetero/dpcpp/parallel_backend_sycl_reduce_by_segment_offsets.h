@@ -432,15 +432,13 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     __last_begin(const _OffsetRange __offsets, const _Size __m, const _Size __n, const _Size __v, _Size __guess,
                  const float __segments_per_element, const int __steps)
     {
-        auto __begins_after = [&](_Size __i) {
-            return oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__i], __n) > __v;
-        };
+        auto __begins_after = [&](_Size __i) { return __segment_begin(__offsets, __i, __n) > __v; };
         __guess = std::min<_Size>(std::max<_Size>(__guess, _Size{0}), __m - 1);
 
         // The guess moved by the distance from its offset to __v, as if the segments around it were of the same length
         for (int __step = 0; __step < __steps; ++__step)
         {
-            const _Size __at = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__guess], __n);
+            const _Size __at = __segment_begin(__offsets, __guess, __n);
             const _Size __next = std::min<_Size>(
                 std::max<_Size>(__guess + _Size(float(__v - __at) * __segments_per_element), _Size{0}), __m - 1);
 
