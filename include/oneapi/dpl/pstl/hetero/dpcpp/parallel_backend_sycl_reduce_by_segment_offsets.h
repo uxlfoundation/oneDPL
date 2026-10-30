@@ -302,12 +302,6 @@ inline constexpr std::size_t __segmented_reduce_gpu_flat_tiny_segment = 32;
 // sub-group, which the many work-groups hide, as measured
 inline constexpr std::size_t __segmented_reduce_gpu_flat_group_combine_input = std::size_t(1) << 24;
 
-inline bool
-__segmented_reduce_flat_supported(const sycl::queue& __q)
-{
-    return oneapi::dpl::__internal::__supports_sub_group_size(__q, __segmented_reduce_gpu_flat_lanes);
-}
-
 // The launch for __n elements in __m segments: twice as many work-groups as Xe cores, as reduce-then-scan has, or
 // with short segments on average a piece per hardware thread, the elements of a work-item within the bounds above,
 // and the work-groups halved, down to one sub-group, until there are at least two per Xe core
@@ -1089,7 +1083,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                   std::is_arithmetic_v<oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>>)
     {
         sycl::queue __q = __exec.queue();
-        if (__is_gpu && __segmented_reduce_flat_supported(__q))
+        if (__is_gpu && oneapi::dpl::__internal::__supports_sub_group_size(__q, __segmented_reduce_gpu_flat_lanes))
         {
             using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
             using _FlatKernel = __internal::__kernel_name_provider<__segmented_reduce_flat_kernel<_CustomName>>;
