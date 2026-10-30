@@ -111,8 +111,10 @@ main()
     using Sorter = BatchedStableSort</*UsesTempStorage=*/false>;
     using SorterTempStorage = BatchedStableSort</*UsesTempStorage=*/true>;
     constexpr Param params;
-    // The memory requirement can be known at compile time
-    static_assert((SorterTempStorage::bytes_req<Param>(4096, 1 << 20) > 0) != OneWorkGroupOnly);
+    // The memory requirement can be known at compile time. The one work-group sort needs no temporary storage,
+    // onesweep does unless the input is empty.
+    constexpr std::size_t temp_bytes = SorterTempStorage::bytes_req<Param>(4096, 1 << 20);
+    static_assert(OneWorkGroupOnly ? temp_bytes == 0 : temp_bytes > 0);
     static_assert(SorterTempStorage::bytes_req<Param>(4096, 0) == 0);
     auto q = TestUtils::get_test_queue();
 #    if TEST_KEYS_ONLY
