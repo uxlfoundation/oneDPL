@@ -704,8 +704,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                 using _V = sycl::vec<_T, __w>;
                 constexpr std::uint32_t __vb = sizeof(_V);
                 const std::uint32_t __mis = std::uint32_t(reinterpret_cast<std::uintptr_t>(__p + __first) % __vb);
-                const std::uint32_t __a =
-                    std::min<std::uint32_t>(__last, __first + (__mis == 0 ? 0 : (__vb - __mis) / sizeof(_T)));
+                const std::uint32_t __a = std::min<std::uint32_t>(__last, __first + (__vb - __mis) % __vb / sizeof(_T));
                 const std::uint32_t __nv = (__last - __a) / __w;
                 if (__nv >= __segmented_reduce_sub_group_min_vectors)
                 {
