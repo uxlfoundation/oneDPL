@@ -152,12 +152,6 @@ __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack
         __sycl_radix_sort_unsupported_msg<_SortConfig>();
 #endif
     }
-#else
-    else
-    {
-        __sycl_radix_sort_unsupported_msg<_SortConfig>();
-    }
-#endif
 }
 
 // The bodies of the public overloads below. _TempStorage is __internal_temp_storage or __external_temp_storage.
