@@ -384,6 +384,124 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     _InitType __init;
     mutable _BinaryOperation __binary_op;
 
+    template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size>
+    void
+    operator()(sycl::queue& __q, _InRange&& __input, _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n,
+               const _Size __m) const
+    {
+        // The accumulators in __lazy_ctor_storage are never destroyed: the path takes arithmetic types only
+        static_assert(std::is_trivially_destructible_v<_Acc>);
+        constexpr std::size_t __lanes = __segmented_reduce_gpu_flat_lanes;
+        const __segmented_reduce_flat_geometry __geometry(__q, std::size_t(__n), std::size_t(__m));
+        const std::size_t __work_group_size = __geometry.__work_group_size;
+        const std::size_t __sub_groups = __work_group_size / __lanes;
+        const std::size_t __num_groups = __geometry.__num_groups;
+        const std::size_t __ipi = __geometry.__inputs_per_item;
+        const std::size_t __piece_size = __ipi * __lanes;
+
+        // The units of the second kernel: the work-groups where their pieces are combined in local memory, else the
+        // pieces
+        const bool __in_group = std::size_t(__n) > __segmented_reduce_gpu_flat_group_combine_input;
+        const std::size_t __num_units = __in_group ? __num_groups : __num_groups * __sub_groups;
+        const std::size_t __unit_size = __in_group ? __piece_size * __sub_groups : __piece_size;
+
+        // The segments per element, from which a piece guesses the segment covering its start as if the segments were
+        // of the same length; in single precision, which every GPU computes natively
+        const float __segments_per_element = float(__m) / float(__n);
+
+        // The guess refined by interpolation where there are more segments than pieces, where it misses by many of
+        // them; with fewer, it is about right and a step only adds a load, as measured
+        const int __interpolation_steps = std::size_t(__m) > __num_groups * __sub_groups ? 2 : 0;
+
+        // The segments of the tails of the units and, after them, the partial results of their heads and of their
+        // tails, in one storage, which costs a call less than two, as measured; of the more aligned of the two types,
+        // so that both arrays start aligned
+        using _Unit = std::conditional_t<(alignof(_Acc) > alignof(_Size)), _Acc, _Size>;
+        const std::size_t __segment_slots = (__num_units * sizeof(_Size) + sizeof(_Unit) - 1) / sizeof(_Unit);
+        const std::size_t __partial_slots = (2 * __num_units * sizeof(_Acc) + sizeof(_Unit) - 1) / sizeof(_Unit);
+        __device_storage<_Unit> __units_storage{__q, __segment_slots + __partial_slots};
+
+        // The first kernel, with the combination of the pieces of a work-group in its local memory or without it: the
+        // two are apart, so that the one without has no local memory to set up
+        auto __pieces = [&](auto __in_group_tag) {
+            constexpr bool __in_group_v = decltype(__in_group_tag)::value;
+            return __q.submit([&](sycl::handler& __cgh) {
+                oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
+                auto __units_acc = __get_accessor(sycl::write_only, __units_storage, __cgh, __dpl_sycl::__no_init{});
+
+                const __segmented_reduce_flat_local<__in_group_v, _Acc, _Size> __local(__cgh, __sub_groups);
+
+                const sycl::nd_range<1> __range(sycl::range<1>(__num_groups * __work_group_size),
+                                                sycl::range<1>(__work_group_size));
+                auto __kernel = [=, *this](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
+                    _Size* const __tail_segment_of = reinterpret_cast<_Size*>(__units_acc.__data());
+                    _Acc* const __heads = reinterpret_cast<_Acc*>(__units_acc.__data() + __segment_slots);
+                    _Acc* const __tails = __heads + __num_units;
+
+                    const auto __sg = __item.get_sub_group();
+                    const std::uint32_t __lane = __sg.get_local_linear_id();
+                    const std::uint32_t __sg_id = __sg.get_group_linear_id();
+                    const std::uint32_t __group = __item.get_group(0);
+                    const std::uint32_t __piece = __group * std::uint32_t(__sub_groups) + __sg_id;
+                    const _Size __piece_begin = std::min<_Size>(__n, _Size(std::size_t(__piece) * __piece_size));
+                    const _Size __piece_end = std::min<_Size>(__n, __piece_begin + _Size(__piece_size));
+
+                    __piece_parts<_Size> __parts{__m};
+
+                    if (__piece_begin < __piece_end)
+                        __reduce_piece(__sg, __input, __offsets, __result, __n, __m, __piece_begin, __piece_end,
+                                       __segments_per_element, __interpolation_steps, __parts);
+
+                    if constexpr (__in_group_v)
+                        __combine_pieces_in_group(__item, __sg_id, __lane, __group, __sub_groups, __m, __parts, __local,
+                                                  __result, __heads, __tails, __tail_segment_of);
+                    else
+                        __store_piece_parts(__lane, __piece, __m, __parts, __heads, __tails, __tail_segment_of);
+                };
+
+                __cgh.parallel_for<std::conditional_t<__in_group_v, _GroupName, _Name>...>(__range, __kernel);
+            });
+        };
+
+        sycl::event __event = __in_group ? __pieces(/*__in_group_tag = */ std::true_type{})
+                                         : __pieces(/*__in_group_tag = */ std::false_type{});
+
+        // The tail of every unit with the heads of the following units its segment covers, a sub-group per unit;
+        // a single unit has none
+        if (__num_units > 1)
+        {
+            constexpr std::size_t __tail_work_group_size = 256;
+            constexpr std::size_t __tail_sub_groups = __tail_work_group_size / __lanes;
+            const std::size_t __tail_groups = (__num_units + __tail_sub_groups - 1) / __tail_sub_groups;
+
+            __event = __q.submit([&](sycl::handler& __cgh) {
+                oneapi::dpl::__ranges::__require_access(__cgh, __offsets, __result);
+                auto __units_acc = __get_accessor(sycl::read_only, __units_storage, __cgh);
+
+                __cgh.depends_on(__event);
+
+                __cgh.parallel_for<_TailName...>(
+                    sycl::nd_range<1>(sycl::range<1>(__tail_groups * __tail_work_group_size),
+                                      sycl::range<1>(__tail_work_group_size)),
+                    [=, *this](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
+                        const auto __sg = __item.get_sub_group();
+                        const std::uint32_t __unit =
+                            __item.get_group(0) * __tail_sub_groups + __sg.get_group_linear_id();
+
+                        if (__unit < __num_units)
+                            __combine_tail_with_heads(
+                                __sg, __offsets, __result, __n, __m, __unit, __num_units, __unit_size,
+                                reinterpret_cast<const _Size*>(__units_acc.__data()),
+                                reinterpret_cast<const _Acc*>(__units_acc.__data() + __segment_slots));
+                    });
+            });
+        }
+
+        // Waited here, as the temporary data above is released on return
+        __event.wait_and_throw();
+    }
+
+  private:
     // The operation on four values in two pairs, each made an accumulator; taken by value, so that the four are loaded
     // before the operation waits for any of them
     template <typename _A, typename _B, typename _C, typename _D>
@@ -899,123 +1017,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         __acc.__v = __reduce_lanes(__sg, __acc.__v, std::min<std::uint32_t>(__heads_count, __lanes));
         if (__lane == 0)
             __result[__s] = __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __tail, __acc.__v));
-    }
-
-    template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size>
-    void
-    operator()(sycl::queue& __q, _InRange&& __input, _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n,
-               const _Size __m) const
-    {
-        // The accumulators in __lazy_ctor_storage are never destroyed: the path takes arithmetic types only
-        static_assert(std::is_trivially_destructible_v<_Acc>);
-        constexpr std::size_t __lanes = __segmented_reduce_gpu_flat_lanes;
-        const __segmented_reduce_flat_geometry __geometry(__q, std::size_t(__n), std::size_t(__m));
-        const std::size_t __work_group_size = __geometry.__work_group_size;
-        const std::size_t __sub_groups = __work_group_size / __lanes;
-        const std::size_t __num_groups = __geometry.__num_groups;
-        const std::size_t __ipi = __geometry.__inputs_per_item;
-        const std::size_t __piece_size = __ipi * __lanes;
-
-        // The units of the second kernel: the work-groups where their pieces are combined in local memory, else the
-        // pieces
-        const bool __in_group = std::size_t(__n) > __segmented_reduce_gpu_flat_group_combine_input;
-        const std::size_t __num_units = __in_group ? __num_groups : __num_groups * __sub_groups;
-        const std::size_t __unit_size = __in_group ? __piece_size * __sub_groups : __piece_size;
-
-        // The segments per element, from which a piece guesses the segment covering its start as if the segments were
-        // of the same length; in single precision, which every GPU computes natively
-        const float __segments_per_element = float(__m) / float(__n);
-
-        // The guess refined by interpolation where there are more segments than pieces, where it misses by many of
-        // them; with fewer, it is about right and a step only adds a load, as measured
-        const int __interpolation_steps = std::size_t(__m) > __num_groups * __sub_groups ? 2 : 0;
-
-        // The segments of the tails of the units and, after them, the partial results of their heads and of their
-        // tails, in one storage, which costs a call less than two, as measured; of the more aligned of the two types,
-        // so that both arrays start aligned
-        using _Unit = std::conditional_t<(alignof(_Acc) > alignof(_Size)), _Acc, _Size>;
-        const std::size_t __segment_slots = (__num_units * sizeof(_Size) + sizeof(_Unit) - 1) / sizeof(_Unit);
-        const std::size_t __partial_slots = (2 * __num_units * sizeof(_Acc) + sizeof(_Unit) - 1) / sizeof(_Unit);
-        __device_storage<_Unit> __units_storage{__q, __segment_slots + __partial_slots};
-
-        // The first kernel, with the combination of the pieces of a work-group in its local memory or without it: the
-        // two are apart, so that the one without has no local memory to set up
-        auto __pieces = [&](auto __in_group_tag) {
-            constexpr bool __in_group_v = decltype(__in_group_tag)::value;
-            return __q.submit([&](sycl::handler& __cgh) {
-                oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
-                auto __units_acc = __get_accessor(sycl::write_only, __units_storage, __cgh, __dpl_sycl::__no_init{});
-
-                const __segmented_reduce_flat_local<__in_group_v, _Acc, _Size> __local(__cgh, __sub_groups);
-
-                const sycl::nd_range<1> __range(sycl::range<1>(__num_groups * __work_group_size),
-                                                sycl::range<1>(__work_group_size));
-                auto __kernel = [=, *this](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
-                    _Size* const __tail_segment_of = reinterpret_cast<_Size*>(__units_acc.__data());
-                    _Acc* const __heads = reinterpret_cast<_Acc*>(__units_acc.__data() + __segment_slots);
-                    _Acc* const __tails = __heads + __num_units;
-
-                    const auto __sg = __item.get_sub_group();
-                    const std::uint32_t __lane = __sg.get_local_linear_id();
-                    const std::uint32_t __sg_id = __sg.get_group_linear_id();
-                    const std::uint32_t __group = __item.get_group(0);
-                    const std::uint32_t __piece = __group * std::uint32_t(__sub_groups) + __sg_id;
-                    const _Size __piece_begin = std::min<_Size>(__n, _Size(std::size_t(__piece) * __piece_size));
-                    const _Size __piece_end = std::min<_Size>(__n, __piece_begin + _Size(__piece_size));
-
-                    __piece_parts<_Size> __parts{__m};
-
-                    if (__piece_begin < __piece_end)
-                        __reduce_piece(__sg, __input, __offsets, __result, __n, __m, __piece_begin, __piece_end,
-                                       __segments_per_element, __interpolation_steps, __parts);
-
-                    if constexpr (__in_group_v)
-                        __combine_pieces_in_group(__item, __sg_id, __lane, __group, __sub_groups, __m, __parts, __local,
-                                                  __result, __heads, __tails, __tail_segment_of);
-                    else
-                        __store_piece_parts(__lane, __piece, __m, __parts, __heads, __tails, __tail_segment_of);
-                };
-
-                __cgh.parallel_for<std::conditional_t<__in_group_v, _GroupName, _Name>...>(__range, __kernel);
-            });
-        };
-
-        sycl::event __event = __in_group ? __pieces(/*__in_group_tag = */ std::true_type{})
-                                         : __pieces(/*__in_group_tag = */ std::false_type{});
-
-        // The tail of every unit with the heads of the following units its segment covers, a sub-group per unit;
-        // a single unit has none
-        if (__num_units > 1)
-        {
-            constexpr std::size_t __tail_work_group_size = 256;
-            constexpr std::size_t __tail_sub_groups = __tail_work_group_size / __lanes;
-            const std::size_t __tail_groups = (__num_units + __tail_sub_groups - 1) / __tail_sub_groups;
-
-            __event = __q.submit([&](sycl::handler& __cgh) {
-                oneapi::dpl::__ranges::__require_access(__cgh, __offsets, __result);
-                auto __units_acc = __get_accessor(sycl::read_only, __units_storage, __cgh);
-
-                __cgh.depends_on(__event);
-
-                __cgh.parallel_for<_TailName...>(
-                    sycl::nd_range<1>(sycl::range<1>(__tail_groups * __tail_work_group_size),
-                                      sycl::range<1>(__tail_work_group_size)),
-                    [=, *this](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
-                        const auto __sg = __item.get_sub_group();
-                        const std::uint32_t __unit =
-                            __item.get_group(0) * __tail_sub_groups + __sg.get_group_linear_id();
-
-                        if (__unit < __num_units)
-                            __combine_tail_with_heads(
-                                __sg, __offsets, __result, __n, __m, __unit, __num_units, __unit_size,
-                                reinterpret_cast<const _Size*>(__units_acc.__data()),
-                                reinterpret_cast<const _Acc*>(__units_acc.__data() + __segment_slots));
-                    });
-            });
-        }
-
-        // Waited here, as the temporary data above is released on return
-        __event.wait_and_throw();
     }
 };
 
