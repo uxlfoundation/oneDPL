@@ -709,12 +709,6 @@ test_counting_input()
                                      first, first + offsets.back(), out.begin(), out.end(), offsets.begin(),
                                      num_segments, std::int64_t{5}, std::plus<std::int64_t>{}, std::int64_t{-1});
 #endif
-
-    // A bool number of segments, which the host implementation does not increment
-    const auto res = oneapi::dpl::reduce_by_segment(oneapi::dpl::execution::seq, first, first + 1, out.begin(), true,
-                                                    offsets.begin(), std::int64_t{5});
-    EXPECT_EQ(out.begin() + 1, res, "wrong iterator returned by reduce_by_segment with a bool number of segments");
-    EXPECT_EQ(std::int64_t{5}, out[0], "wrong result from reduce_by_segment with a bool number of segments");
 }
 
 // A counting input of a 16-bit difference type: a long segment, reduced in chunks, among more empty segments than

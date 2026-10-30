@@ -244,9 +244,13 @@ reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_fir
 {
     static_assert(oneapi::dpl::__internal::__is_random_access_iterator_v<InputIt, OutputIt, OffsetIt>,
                   "reduce_by_segment with offsets requires random access iterators");
+    static_assert(std::is_integral_v<SegmentNumT> && !std::is_same_v<SegmentNumT, bool>,
+                  "The number of segments of reduce_by_segment must be of an integral type other than bool");
+
     using _Offset = typename std::iterator_traits<OffsetIt>::value_type;
     static_assert(std::is_integral_v<_Offset> && !std::is_same_v<_Offset, bool>,
                   "The offsets of reduce_by_segment must be of an integral type other than bool");
+
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first, offsets, out_first);
 
     return internal::__reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first, last,
