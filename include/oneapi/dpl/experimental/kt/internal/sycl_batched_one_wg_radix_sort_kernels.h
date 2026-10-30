@@ -154,6 +154,8 @@ struct __batched_one_wg_radix_sort_kernel
                 __scan_rows_per_bin(__idx.get_local_linear_id(), __group_segment_count, __slm_hists);
                 sycl::group_barrier(__group);
             }
+            // One sub-group per segment scans its bins: sub-group i takes segment i, which need not be its own
+            // segment, since the histograms are shared by the work-group
             if (__sg_id < __group_segment_count)
                 __scan_segment_bins(__sub_group, __sg_local_id, __segment_last_row(__sg_id, __slm_hists));
             sycl::group_barrier(__group);
