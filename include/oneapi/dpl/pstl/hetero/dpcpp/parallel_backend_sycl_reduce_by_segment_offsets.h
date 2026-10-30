@@ -108,10 +108,12 @@ inline constexpr std::size_t __segmented_reduce_cpu_chunk_size = 4096;
 inline std::size_t
 __segmented_reduce_chunk_size(bool __is_gpu, std::size_t __max_length)
 {
-    if (!__is_gpu)
-        return __segmented_reduce_cpu_chunk_size;
-    const auto __root = static_cast<std::size_t>(std::sqrt(static_cast<double>(__max_length)));
-    return std::clamp<std::size_t>(oneapi::dpl::__internal::__dpl_bit_ceil(__root), 64, 16384);
+    if (__is_gpu)
+    {
+        const auto __root = static_cast<std::size_t>(std::sqrt(static_cast<double>(__max_length)));
+        return std::clamp<std::size_t>(oneapi::dpl::__internal::__dpl_bit_ceil(__root), 64, 16384);
+    }
+    return __segmented_reduce_cpu_chunk_size;
 }
 
 // The length of a segment within the input; a negatively sized segment is empty
