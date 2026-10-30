@@ -380,26 +380,11 @@ struct __segmented_reduce_flat_local<true, _Acc, _Size>
 template <typename _Acc, typename _KernelName, typename _GroupKernelName, typename _TailKernelName>
 struct __segmented_reduce_flat_submitter;
 
-template <typename _Acc, typename... _Name, typename _GroupKernelName, typename... _TailName>
-struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_name<_Name...>, _GroupKernelName,
+template <typename _Acc, typename... _Name, typename... _GroupName, typename... _TailName>
+struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_name<_Name...>,
+                                         __internal::__optional_kernel_name<_GroupName...>,
                                          __internal::__optional_kernel_name<_TailName...>>
 {
-    // The name of a kernel carried by a tag, so that the two instances of the first kernel take their names through one
-    // generic lambda
-    template <typename _KernelName>
-    struct __kernel_name_tag
-    {
-    };
-
-    template <typename... _KernelName, typename _Range, typename _Kernel>
-    static void
-    __parallel_for_with_name(sycl::handler& __cgh,
-                             __kernel_name_tag<__internal::__optional_kernel_name<_KernelName...>>,
-                             const _Range& __range, const _Kernel& __kernel)
-    {
-        __cgh.parallel_for<_KernelName...>(__range, __kernel);
-    }
-
     // The operation on four values in two pairs, each made an accumulator; taken by value, so that the four are loaded
     // before the operation waits for any of them
     template <typename _BinaryOperation, typename _A, typename _B, typename _C, typename _D>
@@ -983,48 +968,46 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
         // The first kernel, with the combination of the pieces of a work-group in its local memory or without it: the
         // two are apart, so that the one without has no local memory to set up
-        auto __pieces = [&](auto __in_group_tag, auto __kernel_name) {
+        auto __pieces = [&](auto __in_group_tag) {
             constexpr bool __in_group_v = decltype(__in_group_tag)::value;
             return __q.submit([&](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
                 auto __units_acc = __get_accessor(sycl::write_only, __units_storage, __cgh, __dpl_sycl::__no_init{});
                 const __segmented_reduce_flat_local<__in_group_v, _Acc, _Size> __local(__cgh, __sub_groups);
-                __parallel_for_with_name(
-                    __cgh, __kernel_name,
-                    sycl::nd_range<1>(sycl::range<1>(__num_groups * __work_group_size),
-                                      sycl::range<1>(__work_group_size)),
-                    [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
-                        _BinaryOperation __op = __binary_op;
-                        _Size* const __tail_segment_of = reinterpret_cast<_Size*>(__units_acc.__data());
-                        _Acc* const __heads = reinterpret_cast<_Acc*>(__units_acc.__data() + __segment_slots);
-                        _Acc* const __tails = __heads + __num_units;
+                const sycl::nd_range<1> __range(sycl::range<1>(__num_groups * __work_group_size),
+                                                sycl::range<1>(__work_group_size));
+                auto __kernel = [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
+                    _BinaryOperation __op = __binary_op;
+                    _Size* const __tail_segment_of = reinterpret_cast<_Size*>(__units_acc.__data());
+                    _Acc* const __heads = reinterpret_cast<_Acc*>(__units_acc.__data() + __segment_slots);
+                    _Acc* const __tails = __heads + __num_units;
 
-                        const auto __sg = __item.get_sub_group();
-                        const std::uint32_t __lane = __sg.get_local_linear_id();
-                        const std::uint32_t __sg_id = __sg.get_group_linear_id();
-                        const std::uint32_t __group = __item.get_group(0);
-                        const std::uint32_t __piece = __group * std::uint32_t(__sub_groups) + __sg_id;
-                        const _Size __piece_begin = std::min<_Size>(__n, _Size(std::size_t(__piece) * __piece_size));
-                        const _Size __piece_end = std::min<_Size>(__n, __piece_begin + _Size(__piece_size));
+                    const auto __sg = __item.get_sub_group();
+                    const std::uint32_t __lane = __sg.get_local_linear_id();
+                    const std::uint32_t __sg_id = __sg.get_group_linear_id();
+                    const std::uint32_t __group = __item.get_group(0);
+                    const std::uint32_t __piece = __group * std::uint32_t(__sub_groups) + __sg_id;
+                    const _Size __piece_begin = std::min<_Size>(__n, _Size(std::size_t(__piece) * __piece_size));
+                    const _Size __piece_end = std::min<_Size>(__n, __piece_begin + _Size(__piece_size));
 
-                        __piece_parts<_Size> __parts{__m};
-                        if (__piece_begin < __piece_end)
-                            __reduce_piece(__sg, __input, __offsets, __result, __n, __m, __piece_begin, __piece_end,
-                                           __init, __op, __segments_per_element, __interpolation_steps, __parts);
+                    __piece_parts<_Size> __parts{__m};
+                    if (__piece_begin < __piece_end)
+                        __reduce_piece(__sg, __input, __offsets, __result, __n, __m, __piece_begin, __piece_end, __init,
+                                       __op, __segments_per_element, __interpolation_steps, __parts);
 
-                        if constexpr (__in_group_v)
-                            __combine_pieces_in_group(__item, __sg_id, __lane, __group, __sub_groups, __m, __parts,
-                                                      __local, __result, __heads, __tails, __tail_segment_of, __op);
-                        else
-                            __store_piece_parts(__lane, __piece, __m, __parts, __heads, __tails, __tail_segment_of);
-                    });
+                    if constexpr (__in_group_v)
+                        __combine_pieces_in_group(__item, __sg_id, __lane, __group, __sub_groups, __m, __parts, __local,
+                                                  __result, __heads, __tails, __tail_segment_of, __op);
+                    else
+                        __store_piece_parts(__lane, __piece, __m, __parts, __heads, __tails, __tail_segment_of);
+                };
+
+                __cgh.parallel_for<std::conditional_t<__in_group_v, _GroupName, _Name>...>(__range, __kernel);
             });
         };
 
-        sycl::event __event =
-            __in_group ? __pieces(/*__in_group_tag = */ std::true_type{}, __kernel_name_tag<_GroupKernelName>{})
-                       : __pieces(/*__in_group_tag = */ std::false_type{},
-                                  __kernel_name_tag<__internal::__optional_kernel_name<_Name...>>{});
+        sycl::event __event = __in_group ? __pieces(/*__in_group_tag = */ std::true_type{})
+                                         : __pieces(/*__in_group_tag = */ std::false_type{});
 
         // The tail of every unit with the heads of the following units its segment covers, a sub-group per unit;
         // a single unit has none
