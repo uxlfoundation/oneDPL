@@ -106,13 +106,13 @@ __batched_stable_sort_bytes_req(std::size_t __segment_size, std::size_t __total_
                                  _KernelParam::workgroup_size>(__total_size, __segment_size);
 }
 
+#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
 template <typename _SortConfig, bool __is_ascending, bool __in_place, typename _RngPack1, typename _RngPack2,
           typename _KernelParam, typename _TempStorage>
 sycl::event
 __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __segment_size,
                       _KernelParam __param, _TempStorage __temp_storage)
 {
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
     if constexpr (__is_radix_single_group_tag_v<_SortConfig>)
     {
         return __batched_single_group<__is_ascending, _SortConfig::radix_bits>(
@@ -120,13 +120,13 @@ __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack
             __segment_size, __param);
     }
     else
-#endif
     {
         return __batched_onesweep<__is_ascending, _SortConfig::radix_bits, __in_place>(
             __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out),
             __segment_size, __param, __temp_storage);
     }
 }
+#endif // _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
 
 // The bodies of the public overloads below. _TempStorage is __internal_temp_storage or __external_temp_storage.
 
