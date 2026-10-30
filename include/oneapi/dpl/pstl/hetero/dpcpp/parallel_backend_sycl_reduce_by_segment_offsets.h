@@ -607,10 +607,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         if constexpr (__w == 2)
                             return __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, _T(__v[0]), _T(__v[1])));
                         else
-                            return std::invoke(
-                                __binary_op,
-                                __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, _T(__v[0]), _T(__v[1]))),
-                                __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, _T(__v[2]), _T(__v[3]))));
+                            return __reduce_four(__binary_op, _T(__v[0]), _T(__v[1]), _T(__v[2]), _T(__v[3]));
                     };
                     if (__lane < __active)
                     {
