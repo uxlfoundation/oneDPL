@@ -94,6 +94,18 @@ pattern_name(DataPattern pattern)
     }
 }
 
+// merge_single_group_tag holds up to one tile of keys and of values in SLM
+template <typename KernelParam, typename KeyT, typename ValueT = void>
+bool
+can_run_merge_test(sycl::queue q, KernelParam param)
+{
+    const std::size_t tile = std::size_t(param.data_per_workitem) * param.workgroup_size;
+    std::size_t slm_alloc_size = tile * sizeof(KeyT);
+    if constexpr (!std::is_void_v<ValueT>)
+        slm_alloc_size += tile * sizeof(ValueT);
+    return slm_alloc_size <= q.get_device().template get_info<sycl::info::device::local_mem_size>();
+}
+
 constexpr bool FloatingKey = !std::is_integral_v<KeyT>;
 
 // Floating-point keys are compared by bit pattern: the sort moves keys unchanged, and TestUtils compares floating-point
