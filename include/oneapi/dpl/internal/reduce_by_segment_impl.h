@@ -171,7 +171,7 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
 }
 
 //------------------------------------------------------------------------
-// reduce_by_segment with segments defined by offsets or by a fixed length
+// reduce_by_segment with segments defined by offsets
 //------------------------------------------------------------------------
 
 // Reduces the elements [__begin, __end) of a random access iterator on the host as __segmented_reduce_serial does
@@ -421,6 +421,13 @@ oneapi::dpl::__internal::__enable_if_execution_policy<
 reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first, SegmentNumT num_segments,
                   OffsetIt offsets, InitT init_value, BinaryOp binary_op)
 {
+    static_assert(std::is_integral_v<SegmentNumT> && !std::is_same_v<SegmentNumT, bool>,
+                  "The number of segments of reduce_by_segment must be of an integral type other than bool");
+
+    using _Offset = typename std::iterator_traits<OffsetIt>::value_type;
+    static_assert(std::is_integral_v<_Offset> && !std::is_same_v<_Offset, bool>,
+                  "The offsets of reduce_by_segment must be of an integral type other than bool");
+
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first, offsets, out_first);
 
     return internal::__reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first, last,

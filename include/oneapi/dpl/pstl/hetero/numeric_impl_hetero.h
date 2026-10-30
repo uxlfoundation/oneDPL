@@ -119,7 +119,7 @@ __iterators_possibly_equal(const sycl_iterator<_Mode1, _T, _Allocator>& __it1,
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
           typename _UnaryOperation, typename _InitType, typename _BinaryOperation, typename _Inclusive>
 _Iterator2
-__pattern_transform_scan_base(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first,
+__pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __first,
                               _Iterator1 __last, _Iterator2 __result, _UnaryOperation __unary_op, _InitType __init,
                               _BinaryOperation __binary_op, _Inclusive)
 {

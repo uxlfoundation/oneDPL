@@ -89,8 +89,7 @@ struct __segmented_reduce_init_brick
     {
         static_assert(_Params::__vector_size == 1,
                       "The brick operates with tuples which must be excluded from vectorizable types");
-        using std::get;
-        get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init);
+        std::get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_to_acc<_Acc>(__init);
     }
 };
 
@@ -98,8 +97,7 @@ template <typename _Name>
 class __segmented_reduce_fill_wrapper;
 
 // A short segment is reduced by one work-item. A long segment is split into chunks, each reduced by one work-item, and
-// the partial results of the segment are combined by one work-item. The values below were measured on Intel GPUs
-// (Data Center GPU Max 1100, integrated graphics) and CPUs (Xeon Platinum 8480+, Xeon 696X, Core Ultra 7 165U):
+// the partial results of the segment are combined by one work-item. The values below were measured on GPUs and CPUs:
 // - a segment up to this length is short;
 inline constexpr std::size_t __segmented_reduce_gpu_threshold = 512;
 inline constexpr std::size_t __segmented_reduce_cpu_threshold = 32768;
@@ -110,10 +108,12 @@ inline constexpr std::size_t __segmented_reduce_cpu_chunk_size = 4096;
 inline std::size_t
 __segmented_reduce_chunk_size(bool __is_gpu, std::size_t __max_length)
 {
-    if (!__is_gpu)
-        return __segmented_reduce_cpu_chunk_size;
-    const auto __root = static_cast<std::size_t>(std::sqrt(static_cast<double>(__max_length)));
-    return std::clamp<std::size_t>(oneapi::dpl::__internal::__dpl_bit_ceil(__root), 64, 16384);
+    if (__is_gpu)
+    {
+        const auto __root = static_cast<std::size_t>(std::sqrt(static_cast<double>(__max_length)));
+        return std::clamp<std::size_t>(oneapi::dpl::__internal::__dpl_bit_ceil(__root), 64, 16384);
+    }
+    return __segmented_reduce_cpu_chunk_size;
 }
 
 // The length of a segment within the input; a negatively sized segment is empty
@@ -250,7 +250,8 @@ class __segmented_reduce_chunk_wrapper;
 template <typename _Name>
 class __segmented_reduce_combine_wrapper;
 
-// Writes the initial value into every result: the input is empty
+// Writes the initial value into every result: every segment is empty, because the input is or because the offsets
+// give no element to any segment
 template <typename _Acc, typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Size,
           typename _InitType>
 void
@@ -262,7 +263,8 @@ __parallel_reduce_by_segment_offsets_fill(_BackendTag, _ExecutionPolicy&& __exec
                    make_wrapped_policy<__segmented_reduce_fill_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
                    __segmented_reduce_init_brick<_Acc, _InitType>{__init}, __m,
                    oneapi::dpl::__ranges::make_zip_view(std::forward<_Range>(__result)))
-        .__checked_deferrable_wait();
+        .event()
+        .wait_and_throw();
 }
 
 // The segments of the input [0, __n) defined by the __m + 1 offsets, reduced into the __m results
@@ -307,8 +309,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                        __m, oneapi::dpl::__ranges::views::all_read(__chunk_ends),
                        oneapi::dpl::__ranges::views::all_read(__partials),
                        oneapi::dpl::__ranges::make_zip_view(__result))
-            .__checked_deferrable_wait();
-        __scan.__checked_deferrable_wait();
+            .event()
+            .wait_and_throw();
+        __scan.event().wait_and_throw();
     };
 
     if (__n / __m > __threshold)
@@ -335,7 +338,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     }
 
     // The short segments, one work-item each; the long ones only report the longest length. The report is in a buffer,
-    // which costs less on GPUs than copying it from device USM (0.08 ms vs 0.33 ms on integrated graphics).
+    // which costs less on GPUs than copying it from device USM.
     auto __report_buf = __buffer<std::uint32_t>(1).get_buffer();
     // The buffer has no host data: the atomic maximum starts from the zero written here
     __report_buf.get_host_access(sycl::write_only)[0] = 0;
@@ -344,7 +347,8 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                                                                                                __binary_op},
                    __m, __offsets, oneapi::dpl::__ranges::make_zip_view(__result), __input,
                    oneapi::dpl::__ranges::views::all(__report_buf))
-        .__checked_deferrable_wait();
+        .event()
+        .wait_and_throw();
     const _Size __max_length = __report_buf.get_host_access(sycl::read_only)[0];
 
     // The long segments in chunks: at most n / __threshold of them

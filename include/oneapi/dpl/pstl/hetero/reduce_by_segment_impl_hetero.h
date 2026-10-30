@@ -22,8 +22,8 @@ namespace internal
 {
 
 // The device overloads of reduce_by_segment: the key-based one and the one of the segments defined by offsets. The
-// overloads of the host policies are in internal/reduce_by_segment_impl.h, which calls them all by the qualified name
-// and includes this header first.
+// overloads of the host policies are in internal/reduce_by_segment_impl.h, which includes this header before them and
+// calls them all by the qualified name.
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator1, typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
 std::pair<OutputIterator1, OutputIterator2>

@@ -40,8 +40,8 @@ __segmented_reduce_to_acc(_Value&& __value)
 }
 
 // Reduces the elements [__begin, __end) of a random access iterator or a range as std::ranges::fold_left does: the
-// initial value itself is combined with the first element, so that the result is a generalized sum of the initial
-// value and the elements; an empty range gives the initial value converted to the accumulator type
+// initial value itself is the first operand of the first operation, so that it takes part in the result as one of its
+// operands; an empty range gives the initial value converted to the accumulator type
 template <typename _Acc, typename _Source, typename _Index, typename _InitType, typename _BinaryOperation>
 _Acc
 __segmented_reduce_serial(const _Source& __src, _Index __begin, _Index __end, _InitType __init,
