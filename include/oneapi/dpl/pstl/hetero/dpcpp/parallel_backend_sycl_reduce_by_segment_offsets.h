@@ -979,7 +979,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                 const sycl::nd_range<1> __range(sycl::range<1>(__num_groups * __work_group_size),
                                                 sycl::range<1>(__work_group_size));
                 auto __kernel = [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
-                    _BinaryOperation __op = __binary_op;
                     _Size* const __tail_segment_of = reinterpret_cast<_Size*>(__units_acc.__data());
                     _Acc* const __heads = reinterpret_cast<_Acc*>(__units_acc.__data() + __segment_slots);
                     _Acc* const __tails = __heads + __num_units;
@@ -996,11 +995,11 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
                     if (__piece_begin < __piece_end)
                         __reduce_piece(__sg, __input, __offsets, __result, __n, __m, __piece_begin, __piece_end, __init,
-                                       __op, __segments_per_element, __interpolation_steps, __parts);
+                                       __binary_op, __segments_per_element, __interpolation_steps, __parts);
 
                     if constexpr (__in_group_v)
                         __combine_pieces_in_group(__item, __sg_id, __lane, __group, __sub_groups, __m, __parts, __local,
-                                                  __result, __heads, __tails, __tail_segment_of, __op);
+                                                  __result, __heads, __tails, __tail_segment_of, __binary_op);
                     else
                         __store_piece_parts(__lane, __piece, __m, __parts, __heads, __tails, __tail_segment_of);
                 };
@@ -1030,7 +1029,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                     sycl::nd_range<1>(sycl::range<1>(__tail_groups * __tail_work_group_size),
                                       sycl::range<1>(__tail_work_group_size)),
                     [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
-                        _BinaryOperation __op = __binary_op;
                         const auto __sg = __item.get_sub_group();
                         const std::uint32_t __unit =
                             __item.get_group(0) * __tail_sub_groups + __sg.get_group_linear_id();
@@ -1039,7 +1037,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                             __combine_tail_with_heads(
                                 __sg, __offsets, __result, __n, __m, __unit, __num_units, __unit_size,
                                 reinterpret_cast<const _Size*>(__units_acc.__data()),
-                                reinterpret_cast<const _Acc*>(__units_acc.__data() + __segment_slots), __op);
+                                reinterpret_cast<const _Acc*>(__units_acc.__data() + __segment_slots), __binary_op);
                     });
             });
         }
