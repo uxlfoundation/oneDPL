@@ -371,19 +371,24 @@ struct __segmented_reduce_flat_local<true, _Acc, _Size>
     }
 };
 
-template <typename _Acc, typename _KernelName, typename _GroupKernelName, typename _TailKernelName>
+template <typename _Acc, typename _KernelName, typename _GroupKernelName, typename _TailKernelName, typename _InitType,
+          typename _BinaryOperation>
 struct __segmented_reduce_flat_submitter;
 
-template <typename _Acc, typename... _Name, typename... _GroupName, typename... _TailName>
+template <typename _Acc, typename... _Name, typename... _GroupName, typename... _TailName, typename _InitType,
+          typename _BinaryOperation>
 struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_name<_Name...>,
                                          __internal::__optional_kernel_name<_GroupName...>,
-                                         __internal::__optional_kernel_name<_TailName...>>
+                                         __internal::__optional_kernel_name<_TailName...>, _InitType, _BinaryOperation>
 {
+    _InitType __init;
+    mutable _BinaryOperation __binary_op;
+
     // The operation on four values in two pairs, each made an accumulator; taken by value, so that the four are loaded
     // before the operation waits for any of them
-    template <typename _BinaryOperation, typename _A, typename _B, typename _C, typename _D>
-    static _Acc
-    __reduce_four(_BinaryOperation __binary_op, _A __a, _B __b, _C __c, _D __d)
+    template <typename _A, typename _B, typename _C, typename _D>
+    _Acc
+    __reduce_four(_A __a, _B __b, _C __c, _D __d) const
     {
         return std::invoke(__binary_op, __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __a, __b)),
                            __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __c, __d)));
@@ -392,9 +397,9 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     // Combines the accumulators of the first __active lanes of a sub-group on lane 0: by the sub-group reduction for an
     // operation with an identity the group algorithms know, the other lanes giving it; else by a tree of shifts known
     // at compile time, as a shift known only at run time reaches the registers of the other lanes indirectly
-    template <typename _SubGroup, typename _BinaryOperation>
-    static _Acc
-    __reduce_lanes(const _SubGroup __sg, _Acc __acc, const std::uint32_t __active, _BinaryOperation __binary_op)
+    template <typename _SubGroup>
+    _Acc
+    __reduce_lanes(const _SubGroup __sg, _Acc __acc, const std::uint32_t __active) const
     {
         const std::uint32_t __lane = __sg.get_local_linear_id();
 
@@ -540,11 +545,10 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     // take the elements in turn, so that the loads are coalesced, which reorders the operands as the required
     // commutativity allows. A range that begins its segment starts from the operation on the initial value and its
     // first element. Arithmetic types only; the positions are counted in 32 bits from __base, the start of a piece.
-    template <typename _SubGroup, typename _Size, typename _InitType, typename _BinaryOperation, typename _Input>
-    static _Acc
+    template <typename _SubGroup, typename _Size, typename _Input>
+    _Acc
     __reduce_by_sub_group(const _SubGroup __sg, const _Size __base, std::uint32_t __first, const std::uint32_t __last,
-                          const bool __is_first, const _InitType __init, _BinaryOperation __binary_op,
-                          const _Input __input)
+                          const bool __is_first, const _Input __input) const
     {
         const std::uint32_t __lane = __sg.get_local_linear_id();
         const std::uint32_t __lanes = __sg.get_local_linear_range();
@@ -591,7 +595,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         if constexpr (__w == 2)
                             return __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, _T(__v[0]), _T(__v[1])));
                         else
-                            return __reduce_four(__binary_op, _T(__v[0]), _T(__v[1]), _T(__v[2]), _T(__v[3]));
+                            return __reduce_four(_T(__v[0]), _T(__v[1]), _T(__v[2]), _T(__v[3]));
                     };
                     if (__lane < __active)
                     {
@@ -600,7 +604,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         for (__k += __active; __k + 3 * __active < __nv; __k += 4 * __active)
                             __acc.__v =
                                 std::invoke(__binary_op, __acc.__v,
-                                            __reduce_four(__binary_op, __load4(__k), __load4(__k + __active),
+                                            __reduce_four(__load4(__k), __load4(__k + __active),
                                                           __load4(__k + 2 * __active), __load4(__k + 3 * __active)));
                         for (; __k < __nv; __k += __active)
                             __acc.__v = std::invoke(__binary_op, __acc.__v, __load4(__k));
@@ -623,15 +627,15 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             std::uint32_t __i = __first + __lane;
             __acc.__setup(__segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __at(__i), __at(__i + __active))));
             for (__i += 2 * __active; __i + 3 * __active < __last; __i += 4 * __active)
-                __acc.__v = std::invoke(__binary_op, __acc.__v,
-                                        __reduce_four(__binary_op, __at(__i), __at(__i + __active),
-                                                      __at(__i + 2 * __active), __at(__i + 3 * __active)));
+                __acc.__v = std::invoke(
+                    __binary_op, __acc.__v,
+                    __reduce_four(__at(__i), __at(__i + __active), __at(__i + 2 * __active), __at(__i + 3 * __active)));
             for (; __i < __last; __i += __active)
                 __acc.__v = std::invoke(__binary_op, __acc.__v, __at(__i));
         }
 
         if (__active > 0)
-            __acc.__v = __reduce_lanes(__sg, __acc.__v, __active, __binary_op);
+            __acc.__v = __reduce_lanes(__sg, __acc.__v, __active);
 
         // A range of one element more than the initial value takes it alone
         if (__is_first)
@@ -645,13 +649,11 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     // A run of very short segments from the segment __s on, a lane each: the lanes before the first one whose segment
     // is not such a segment reduce theirs alone, from the operation on the initial value and the first element, and
     // write the empty ones. Returns the number of the segments of the run and the end of its last one.
-    template <typename _SubGroup, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size,
-              typename _InitType, typename _BinaryOperation>
-    static std::pair<std::uint32_t, _Size>
+    template <typename _SubGroup, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size>
+    std::pair<std::uint32_t, _Size>
     __reduce_tiny_run(const _SubGroup __sg, const _InRange __input, const _OffsetRange __offsets,
                       const _OutRange __result, const _Size __n, const _Size __m, const _Size __s, const _Size __b,
-                      const _Size __piece_begin, const _Size __piece_end, const _InitType __init, const _Acc __init_acc,
-                      _BinaryOperation __op)
+                      const _Size __piece_begin, const _Size __piece_end, const _Acc __init_acc) const
     {
         const std::uint32_t __lane = __sg.get_local_linear_id();
         const _Size __mine = __s + _Size(__lane);
@@ -672,18 +674,18 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         {
             const std::uint32_t __lo = std::uint32_t(__mb - __piece_begin);
             const std::uint32_t __hi = std::uint32_t(__me - __piece_begin);
-            _Acc __acc =
-                __segmented_reduce_to_acc<_Acc>(std::invoke(__op, __init, __element(__input, __piece_begin, __lo)));
+            _Acc __acc = __segmented_reduce_to_acc<_Acc>(
+                std::invoke(__binary_op, __init, __element(__input, __piece_begin, __lo)));
             std::uint32_t __i = __lo + 1;
             for (; __i + 3 < __hi; __i += 4)
                 __acc = __segmented_reduce_to_acc<_Acc>(std::invoke(
-                    __op, __acc,
-                    __reduce_four(
-                        __op, __element(__input, __piece_begin, __i), __element(__input, __piece_begin, __i + 1),
-                        __element(__input, __piece_begin, __i + 2), __element(__input, __piece_begin, __i + 3))));
+                    __binary_op, __acc,
+                    __reduce_four(__element(__input, __piece_begin, __i), __element(__input, __piece_begin, __i + 1),
+                                  __element(__input, __piece_begin, __i + 2),
+                                  __element(__input, __piece_begin, __i + 3))));
             for (; __i < __hi; ++__i)
-                __acc =
-                    __segmented_reduce_to_acc<_Acc>(std::invoke(__op, __acc, __element(__input, __piece_begin, __i)));
+                __acc = __segmented_reduce_to_acc<_Acc>(
+                    std::invoke(__binary_op, __acc, __element(__input, __piece_begin, __i)));
             __result[__mine] = __acc;
         }
 
@@ -693,13 +695,11 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     // The part of the segment __s, [__b, __e), in the piece by the sub-group: an empty segment begun in the piece and
     // a segment the piece holds whole are written; the part of one begun before the piece is its head and the part of
     // one going on past its end its tail
-    template <typename _SubGroup, typename _InRange, typename _OutRange, typename _Size, typename _InitType,
-              typename _BinaryOperation>
-    static void
+    template <typename _SubGroup, typename _InRange, typename _OutRange, typename _Size>
+    void
     __reduce_segment_part(const _SubGroup __sg, const _InRange __input, const _OutRange __result, const _Size __s,
                           const _Size __b, const _Size __e, const _Size __piece_begin, const _Size __piece_end,
-                          const _InitType __init, const _Acc __init_acc, _BinaryOperation __op,
-                          __piece_parts<_Size>& __parts)
+                          const _Acc __init_acc, __piece_parts<_Size>& __parts) const
     {
         const std::uint32_t __lane = __sg.get_local_linear_id();
         const std::uint32_t __lo = __b > __piece_begin ? std::uint32_t(__b - __piece_begin) : 0;
@@ -713,10 +713,9 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         {
             const bool __first = __b >= __piece_begin;
             // A range of one element that does not begin its segment is that element
-            const _Acc __acc =
-                !__first && __hi - __lo == 1
-                    ? __segmented_reduce_to_acc<_Acc>(__element(__input, __piece_begin, __lo))
-                    : __reduce_by_sub_group(__sg, __piece_begin, __lo, __hi, __first, __init, __op, __input);
+            const _Acc __acc = !__first && __hi - __lo == 1
+                                   ? __segmented_reduce_to_acc<_Acc>(__element(__input, __piece_begin, __lo))
+                                   : __reduce_by_sub_group(__sg, __piece_begin, __lo, __hi, __first, __input);
 
             const bool __ends_in_piece = __e <= __piece_end;
 
@@ -741,13 +740,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
     // The segments of the piece in order, the same for every lane: from the last one beginning before the piece, so
     // that the walk meets the empty ones at its start too; the last piece also takes the ones at n
-    template <typename _SubGroup, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size,
-              typename _InitType, typename _BinaryOperation>
-    static void
+    template <typename _SubGroup, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size>
+    void
     __reduce_piece(const _SubGroup __sg, const _InRange __input, const _OffsetRange __offsets, const _OutRange __result,
                    const _Size __n, const _Size __m, const _Size __piece_begin, const _Size __piece_end,
-                   const _InitType __init, _BinaryOperation __op, const float __segments_per_element,
-                   const int __interpolation_steps, __piece_parts<_Size>& __parts)
+                   const float __segments_per_element, const int __interpolation_steps,
+                   __piece_parts<_Size>& __parts) const
     {
         const _Acc __init_acc = __segmented_reduce_to_acc<_Acc>(__init);
         const bool __last_piece = __piece_end == __n;
@@ -764,9 +762,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             const _Size __e = __segment_end(__offsets, __s, __n);
             if (__is_tiny(__b, __e, __piece_begin, __piece_end))
             {
-                const auto [__count, __run_end] =
-                    __reduce_tiny_run(__sg, __input, __offsets, __result, __n, __m, __s, __b, __piece_begin,
-                                      __piece_end, __init, __init_acc, __op);
+                const auto [__count, __run_end] = __reduce_tiny_run(__sg, __input, __offsets, __result, __n, __m, __s,
+                                                                    __b, __piece_begin, __piece_end, __init_acc);
                 // The walk goes on after the run; the last segment of the run may end the piece
                 __s += _Size(__count) - 1;
                 if (__run_end >= __piece_end && !__last_piece)
@@ -774,8 +771,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                 continue;
             }
 
-            __reduce_segment_part(__sg, __input, __result, __s, __b, __e, __piece_begin, __piece_end, __init,
-                                  __init_acc, __op, __parts);
+            __reduce_segment_part(__sg, __input, __result, __s, __b, __e, __piece_begin, __piece_end, __init_acc,
+                                  __parts);
 
             // A later segment begins at or after the end of this one
             if (__e >= __piece_end && !__last_piece)
@@ -801,13 +798,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     // The parts of the pieces of a work-group combined in its local memory: lane j of sub-group 0 combines the tail of
     // piece j with the heads of the following pieces of its segment, and lane 0 the heads of the work-group; a segment
     // going on past the work-group leaves its tail and the head of the work-group to the second kernel
-    template <typename _Size, typename _Local, typename _OutRange, typename _BinaryOperation>
-    static void
+    template <typename _Size, typename _Local, typename _OutRange>
+    void
     __combine_pieces_in_group(const sycl::nd_item<1> __item, const std::uint32_t __sg_id, const std::uint32_t __lane,
                               const std::uint32_t __group, const std::size_t __sub_groups, const _Size __m,
                               const __piece_parts<_Size>& __parts, const _Local __local, const _OutRange __result,
-                              _Acc* const __heads, _Acc* const __tails, _Size* const __tail_segment_of,
-                              _BinaryOperation __op)
+                              _Acc* const __heads, _Acc* const __tails, _Size* const __tail_segment_of) const
     {
         if (__lane == 0)
         {
@@ -836,7 +832,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             {
                 __state = __local.__states[__k];
                 if (__state != 0)
-                    __acc = __segmented_reduce_to_acc<_Acc>(std::invoke(__op, __acc, __local.__acc[__k]));
+                    __acc = __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __acc, __local.__acc[__k]));
             }
             if (__state == 1)
                 __result[__s] = __acc;
@@ -855,7 +851,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             {
                 __state = __local.__states[__k];
                 if (__state != 0)
-                    __acc = __segmented_reduce_to_acc<_Acc>(std::invoke(__op, __acc, __local.__acc[__k]));
+                    __acc = __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __acc, __local.__acc[__k]));
             }
             __heads[__group] = __acc;
         }
@@ -863,12 +859,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
     // The second kernel for the unit __unit, by its sub-group: the tail of the unit with the heads of the following
     // units its segment covers
-    template <typename _SubGroup, typename _OffsetRange, typename _OutRange, typename _Size, typename _BinaryOperation>
-    static void
+    template <typename _SubGroup, typename _OffsetRange, typename _OutRange, typename _Size>
+    void
     __combine_tail_with_heads(const _SubGroup __sg, const _OffsetRange __offsets, const _OutRange __result,
                               const _Size __n, const _Size __m, const std::uint32_t __unit,
                               const std::size_t __num_units, const std::size_t __unit_size,
-                              const _Size* const __tail_segment_of, const _Acc* const __heads, _BinaryOperation __op)
+                              const _Size* const __tail_segment_of, const _Acc* const __heads) const
     {
         constexpr std::uint32_t __lanes = __segmented_reduce_gpu_flat_lanes;
         const std::uint32_t __lane = __sg.get_local_linear_id();
@@ -895,21 +891,20 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             __acc.__setup(__first_head[__lane]);
         std::uint32_t __k = __lane + __lanes;
         for (; __k + 3 * __lanes < __heads_count; __k += 4 * __lanes)
-            __acc.__v = std::invoke(__op, __acc.__v,
-                                    __reduce_four(__op, __first_head[__k], __first_head[__k + __lanes],
+            __acc.__v = std::invoke(__binary_op, __acc.__v,
+                                    __reduce_four(__first_head[__k], __first_head[__k + __lanes],
                                                   __first_head[__k + 2 * __lanes], __first_head[__k + 3 * __lanes]));
         for (; __k < __heads_count; __k += __lanes)
-            __acc.__v = std::invoke(__op, __acc.__v, __first_head[__k]);
-        __acc.__v = __reduce_lanes(__sg, __acc.__v, std::min<std::uint32_t>(__heads_count, __lanes), __op);
+            __acc.__v = std::invoke(__binary_op, __acc.__v, __first_head[__k]);
+        __acc.__v = __reduce_lanes(__sg, __acc.__v, std::min<std::uint32_t>(__heads_count, __lanes));
         if (__lane == 0)
-            __result[__s] = __segmented_reduce_to_acc<_Acc>(std::invoke(__op, __tail, __acc.__v));
+            __result[__s] = __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __tail, __acc.__v));
     }
 
-    template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size, typename _InitType,
-              typename _BinaryOperation>
+    template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size>
     void
     operator()(sycl::queue& __q, _InRange&& __input, _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n,
-               const _Size __m, _InitType __init, _BinaryOperation __binary_op) const
+               const _Size __m) const
     {
         // The accumulators in __lazy_ctor_storage are never destroyed: the path takes arithmetic types only
         static_assert(std::is_trivially_destructible_v<_Acc>);
@@ -955,7 +950,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
                 const sycl::nd_range<1> __range(sycl::range<1>(__num_groups * __work_group_size),
                                                 sycl::range<1>(__work_group_size));
-                auto __kernel = [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
+                auto __kernel = [=, *this](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
                     _Size* const __tail_segment_of = reinterpret_cast<_Size*>(__units_acc.__data());
                     _Acc* const __heads = reinterpret_cast<_Acc*>(__units_acc.__data() + __segment_slots);
                     _Acc* const __tails = __heads + __num_units;
@@ -971,12 +966,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                     __piece_parts<_Size> __parts{__m};
 
                     if (__piece_begin < __piece_end)
-                        __reduce_piece(__sg, __input, __offsets, __result, __n, __m, __piece_begin, __piece_end, __init,
-                                       __binary_op, __segments_per_element, __interpolation_steps, __parts);
+                        __reduce_piece(__sg, __input, __offsets, __result, __n, __m, __piece_begin, __piece_end,
+                                       __segments_per_element, __interpolation_steps, __parts);
 
                     if constexpr (__in_group_v)
                         __combine_pieces_in_group(__item, __sg_id, __lane, __group, __sub_groups, __m, __parts, __local,
-                                                  __result, __heads, __tails, __tail_segment_of, __binary_op);
+                                                  __result, __heads, __tails, __tail_segment_of);
                     else
                         __store_piece_parts(__lane, __piece, __m, __parts, __heads, __tails, __tail_segment_of);
                 };
@@ -1005,7 +1000,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                 __cgh.parallel_for<_TailName...>(
                     sycl::nd_range<1>(sycl::range<1>(__tail_groups * __tail_work_group_size),
                                       sycl::range<1>(__tail_work_group_size)),
-                    [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
+                    [=, *this](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
                         const auto __sg = __item.get_sub_group();
                         const std::uint32_t __unit =
                             __item.get_group(0) * __tail_sub_groups + __sg.get_group_linear_id();
@@ -1014,7 +1009,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                             __combine_tail_with_heads(
                                 __sg, __offsets, __result, __n, __m, __unit, __num_units, __unit_size,
                                 reinterpret_cast<const _Size*>(__units_acc.__data()),
-                                reinterpret_cast<const _Acc*>(__units_acc.__data() + __segment_slots), __binary_op);
+                                reinterpret_cast<const _Acc*>(__units_acc.__data() + __segment_slots));
                     });
             });
         }
@@ -1081,9 +1076,10 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                 __internal::__kernel_name_provider<__segmented_reduce_flat_group_kernel<_CustomName>>;
             using _FlatTailKernel =
                 __internal::__kernel_name_provider<__segmented_reduce_flat_tail_kernel<_CustomName>>;
+            using _FlatSubmitter = __segmented_reduce_flat_submitter<_Acc, _FlatKernel, _FlatGroupKernel,
+                                                                     _FlatTailKernel, _InitType, _BinaryOperation>;
 
-            __segmented_reduce_flat_submitter<_Acc, _FlatKernel, _FlatGroupKernel, _FlatTailKernel>()(
-                __q, __input, __offsets, __result, __n, __m, __init, __binary_op);
+            _FlatSubmitter{__init, __binary_op}(__q, __input, __offsets, __result, __n, __m);
 
             return;
         }
