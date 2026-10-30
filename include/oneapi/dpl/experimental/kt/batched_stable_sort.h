@@ -141,7 +141,7 @@ __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack
     if constexpr (__is_merge_single_group_tag_v<_SortConfig>)
     {
         return __batched_merge_sort<__is_ascending>(__q, std::forward<_RngPack1>(__pack_in),
-        std::forward<_RngPack2>(__pack_out), __segment_size, __param);
+                                                    std::forward<_RngPack2>(__pack_out), __segment_size, __param);
     }
     else if constexpr (__is_radix_single_group_tag_v<_SortConfig>)
     {
