@@ -879,6 +879,14 @@ main()
     test_segments<12, int, float, std::int64_t, int>(
         2.5f, int_sum_plus{}, [](std::size_t i) { return int(i % 101) - 50; }, -1.f);
 
+    // Results of 1 and 2 bytes, which the writes of the initial value for an empty input take in vectors
+    test_segments<20, std::uint8_t, std::uint8_t, int, int>(
+        std::uint8_t{3}, std::plus<std::uint8_t>{}, [](std::size_t i) { return std::uint8_t(i % 7); },
+        std::uint8_t{255});
+    test_segments<21, std::uint16_t, std::uint16_t, std::int64_t, int>(
+        std::uint16_t{3}, std::plus<std::uint16_t>{}, [](std::size_t i) { return std::uint16_t(i % 1000); },
+        std::uint16_t{65535});
+
     test_unordered<39>();
     test_rfc_example<40>();
     test_boundaries<42>();
