@@ -846,10 +846,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         if (__sg_id != 0 || __lane >= __sub_groups)
             return;
 
-        auto __combine = [&](const _Acc __a, const _Acc __b) {
-            return __segmented_reduce_to_acc<_Acc>(std::invoke(__op, __a, __b));
-        };
-
         const _Size __s = __local.__segments[__lane];
         if (__s < __m)
         {
@@ -859,7 +855,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             {
                 __state = __local.__states[__k];
                 if (__state != 0)
-                    __acc = __combine(__acc, __local.__acc[__k]);
+                    __acc = __segmented_reduce_to_acc<_Acc>(std::invoke(__op, __acc, __local.__acc[__k]));
             }
             if (__state == 1)
                 __result[__s] = __acc;
@@ -878,7 +874,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             {
                 __state = __local.__states[__k];
                 if (__state != 0)
-                    __acc = __combine(__acc, __local.__acc[__k]);
+                    __acc = __segmented_reduce_to_acc<_Acc>(std::invoke(__op, __acc, __local.__acc[__k]));
             }
             __heads[__group] = __acc;
         }
