@@ -88,22 +88,17 @@ struct __segmented_reduce_variable_brick
     }
 };
 
-template <typename _Acc, typename _InitType>
-struct __segmented_reduce_init_brick
+// The initial value of an empty segment written to its result, which may be a proxy, as of a zip iterator
+template <typename _Acc>
+struct __segmented_reduce_assign_init
 {
-    static constexpr std::uint8_t __iters_per_item = 1;
+    _Acc __init_acc;
 
-    _InitType __init;
-
-    // __result is a zip view of the result only, so that the segments are not vectorized over
-    template <typename _IsFull, typename _Params, typename _Result>
+    template <typename _Result>
     void
-    operator()(_IsFull, const std::size_t __idx, _Params, _Result __result) const
+    operator()(_Result&& __result) const
     {
-        static_assert(_Params::__vector_size == 1,
-                      "The brick operates with tuples which must be excluded from vectorizable types");
-
-        std::get<0>(__result[__idx]) = __segmented_reduce_to_acc<_Acc>(__init);
+        __result = __init_acc;
     }
 };
 
@@ -1110,9 +1105,11 @@ __parallel_reduce_by_segment_offsets_fill(_BackendTag, _ExecutionPolicy&& __exec
     // A separate kernel name: the reduction kernel of the same call is instantiated too
     __parallel_for(_BackendTag{},
                    make_wrapped_policy<__segmented_reduce_fill_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-                   __segmented_reduce_init_brick<_Acc, _InitType>{__init}, __m,
-                   oneapi::dpl::__ranges::make_zip_view(std::forward<_Range>(__result)))
-        .event().wait_and_throw();
+                   unseq_backend::walk_n_vectors_or_scalars<__segmented_reduce_assign_init<_Acc>>{
+                       __segmented_reduce_assign_init<_Acc>{__segmented_reduce_to_acc<_Acc>(__init)}, std::size_t(__m)},
+                   __m, std::forward<_Range>(__result))
+        .event()
+        .wait_and_throw();
 }
 
 // The segments of the input [0, __n) defined by the __m + 1 offsets, reduced into the __m results
