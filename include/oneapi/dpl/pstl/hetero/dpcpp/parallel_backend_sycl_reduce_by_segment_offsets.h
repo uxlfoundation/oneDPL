@@ -406,8 +406,11 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         const std::size_t __unit_size = __in_group ? __piece_size * __sub_groups : __piece_size;
 
         // The segments per element, from which a piece guesses the segment covering its start as if the segments were
-        // of the same length; in single precision, which every GPU computes natively
-        const float __segments_per_element = float(__m) / float(__n);
+        // of the same length, in fixed point: 32 fraction bits, or 16 for 2^31 segments and more, keep the product with
+        // up to 2 * __n elements within 64 bits
+        const std::uint32_t __fraction_bits = std::uint64_t(__m) < (std::uint64_t(1) << 31) ? 32 : 16;
+        const __segment_estimate __estimate{(std::uint64_t(__m) << __fraction_bits) / std::uint64_t(__n),
+                                            __fraction_bits};
 
         // The guess refined by interpolation where there are more segments than pieces, where it misses by many of
         // them; with fewer, it is about right and a step only adds a load, as measured
@@ -452,7 +455,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
                     if (__piece_begin < __piece_end)
                         __reduce_piece(__sg, __input, __offsets, __result, __n, __m, __piece_begin, __piece_end,
-                                       __segments_per_element, __interpolation_steps, __parts);
+                                       __estimate, __interpolation_steps, __parts);
 
                     if constexpr (__in_group_v)
                         __combine_pieces_in_group(__item, __sg_id, __lane, __group, __sub_groups, __m, __parts, __local,
@@ -505,6 +508,19 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     }
 
   private:
+    // The number of segments in __x elements as if the segments were of the same length, __x * __m / __n rounded down
+    struct __segment_estimate
+    {
+        std::uint64_t __per_element;
+        std::uint32_t __fraction_bits;
+
+        std::uint64_t
+        operator()(const std::uint64_t __x) const
+        {
+            return __x * __per_element >> __fraction_bits;
+        }
+    };
+
     // The operation on four values in two pairs, each made an accumulator; taken by value, so that the four are loaded
     // before the operation waits for any of them
     template <typename _A, typename _B, typename _C, typename _D>
@@ -550,23 +566,25 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         }
     }
 
-    // The index of the last of the __m segments that begins at or before __v, or -1, searched from the segment __guess:
+    // The index of the last of the __m segments that begins at or before __v, or -1, searched from the segment __guess
+    // in [0, __m - 1]:
     // steps doubling from it up or down bracket the first segment that begins after __v, and a binary search finds it
     // in the bracket, so that a guess close to the answer takes a few reads of the offsets instead of log2(__m)
     template <typename _Size, typename _OffsetRange>
     static _Size
     __last_begin(const _OffsetRange __offsets, const _Size __m, const _Size __n, const _Size __v, _Size __guess,
-                 const float __segments_per_element, const int __steps)
+                 const __segment_estimate __estimate, const int __steps)
     {
         auto __begins_after = [&](_Size __i) { return __segment_begin(__offsets, __i, __n) > __v; };
-        __guess = std::min<_Size>(std::max<_Size>(__guess, _Size{0}), __m - 1);
 
-        // The guess moved by the distance from its offset to __v, as if the segments around it were of the same length
+        // The guess moved by the segments in the distance from its offset to __v, as if the segments around it were of
+        // the same length, and kept in [0, __m - 1]; the distance is at most __n + 1 elements
         for (int __step = 0; __step < __steps; ++__step)
         {
             const _Size __at = __segment_begin(__offsets, __guess, __n);
-            const _Size __next = std::min<_Size>(
-                std::max<_Size>(__guess + _Size(float(__v - __at) * __segments_per_element), _Size{0}), __m - 1);
+            const std::uint64_t __g = __guess;
+            const _Size __next = _Size(__v >= __at ? std::min<std::uint64_t>(__g + __estimate(__v - __at), __m - 1)
+                                                   : __g - std::min<std::uint64_t>(__g, __estimate(__at - __v)));
 
             if (__next == __guess)
                 break;
@@ -864,14 +882,15 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     void
     __reduce_piece(const _SubGroup __sg, const _InRange __input, const _OffsetRange __offsets, const _OutRange __result,
                    const _Size __n, const _Size __m, const _Size __piece_begin, const _Size __piece_end,
-                   const float __segments_per_element, const int __interpolation_steps,
+                   const __segment_estimate __estimate, const int __interpolation_steps,
                    __piece_parts<_Size>& __parts) const
     {
         const _Acc __init_acc = __segmented_reduce_to_acc<_Acc>(__init);
         const bool __last_piece = __piece_end == __n;
-        const _Size __guess = _Size(float(__piece_begin) * __segments_per_element);
-        _Size __s = std::max<_Size>(0, __last_begin(__offsets, __m, __n, __piece_begin - 1, __guess,
-                                                    __segments_per_element, __interpolation_steps));
+        // Below __m, as __piece_begin is below __n
+        const _Size __guess = _Size(__estimate(__piece_begin));
+        _Size __s = std::max<_Size>(
+            0, __last_begin(__offsets, __m, __n, __piece_begin - 1, __guess, __estimate, __interpolation_steps));
 
         for (; __s < __m; ++__s)
         {
