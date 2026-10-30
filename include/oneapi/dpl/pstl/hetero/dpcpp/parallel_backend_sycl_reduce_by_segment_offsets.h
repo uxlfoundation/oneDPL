@@ -523,7 +523,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
         if constexpr (oneapi::dpl::unseq_backend::__can_use_group_reduce_scan<_BinaryOperation, _Acc>::value)
         {
-            return sycl::reduce_over_group(
+            return __dpl_sycl::__reduce_over_group(
                 __sg, __lane < __active ? __acc : sycl::known_identity_v<_BinaryOperation, _Acc>, __binary_op);
         }
         else
@@ -783,7 +783,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             __me = __segment_end(__offsets, __mine, __n);
             __run = __is_tiny(__mb, __me, __piece_begin, __piece_end);
         }
-        const std::uint32_t __count = sycl::reduce_over_group(
+        const std::uint32_t __count = __dpl_sycl::__reduce_over_group(
             __sg, __run ? std::uint32_t(__segmented_reduce_gpu_flat_lanes) : __lane, sycl::minimum<std::uint32_t>());
 
         if (__lane < __count && __mb == __me)
