@@ -144,12 +144,14 @@ struct __batched_one_wg_radix_sort_kernel
         {
             _LocOffsetT __bins[__data_per_work_item];
             _LocOffsetT __ranks[__data_per_work_item];
-            __extract_bins<__is_ascending, __radix_bits>(__pack.__keys, __bins, __stage * __radix_bits);
 
             // 1. Rank within the sub-group
             if (__is_active)
+            {
+                __extract_bins<__is_ascending, __radix_bits>(__pack.__keys, __bins, __stage * __radix_bits);
                 __sub_group_rank<__radix_bits>(__sub_group, __ranks, __bins, __slm_hists + __sg_id * __bin_count,
                                                __sg_local_id);
+            }
             sycl::group_barrier(__group);
 
             // 2. Offsets of each sub-group and bin within its segment
