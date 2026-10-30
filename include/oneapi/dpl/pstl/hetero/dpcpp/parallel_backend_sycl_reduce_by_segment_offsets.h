@@ -1026,8 +1026,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                        : __pieces(/*__in_group_tag = */ std::false_type{},
                                   __kernel_name_tag<__internal::__optional_kernel_name<_Name...>>{});
 
-        // The tail of every unit with the heads of the following units its segment covers, a sub-group per unit; a
-        // single unit has none
+        // The tail of every unit with the heads of the following units its segment covers, a sub-group per unit;
+        // a single unit has none
         if (__num_units > 1)
         {
             constexpr std::size_t __tail_work_group_size = 256;
