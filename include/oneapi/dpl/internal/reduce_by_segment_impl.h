@@ -306,6 +306,7 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
                 }
             },
             /*__grainsize=*/1);
+
         const _Size __num_long = std::min(__num_listed.load(), __capacity);
         if (__num_long == 0)
             return;
@@ -368,12 +369,14 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
                 }
             },
             /*__grainsize=*/1);
+
         if constexpr (!std::is_trivially_destructible_v<_Acc>)
         {
             for (_Size __chunk = 0; __chunk < __num_chunks; ++__chunk)
                 __partials[__chunk].~_Acc();
         }
     });
+
     return __result_value + __m;
 }
 
