@@ -1,6 +1,6 @@
 
 // -*- C++ -*-
-//===-- esimd_radix_sort_test_utils.h -----------------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Copyright (C) 2023 Intel Corporation
 //
@@ -8,8 +8,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _ESIMD_RADIX_SORT_TEST_UTILS_H
-#define _ESIMD_RADIX_SORT_TEST_UTILS_H
+#ifndef _RADIX_SORT_TEST_UTILS_H
+#define _RADIX_SORT_TEST_UTILS_H
 
 #include <string>
 #include <tuple>
@@ -37,6 +37,11 @@
 #    define TEST_SYCL_RADIX_SORT_KT_AVAILABLE 1
 #endif
 
+// The SYCL one work-group radix sort needs only sub-group ballots, with no forward progress between work-groups
+#if defined(SYCL_EXT_ONEAPI_SUB_GROUP_MASK)
+#    define TEST_SYCL_ONE_WG_RADIX_SORT_KT_AVAILABLE 1
+#endif
+
 // Namespace aliases for kernel template APIs
 #ifdef TEST_KT_BACKEND_ESIMD
 namespace kt_ns = oneapi::dpl::experimental::kt::gpu::esimd;
@@ -45,8 +50,10 @@ namespace kt_deprecated_ns = oneapi::dpl::experimental::kt::esimd;
 namespace kt_ns = oneapi::dpl::experimental::kt::gpu;
 #endif
 
+constexpr std::uint8_t TestRadixBits = 8;
+
 // Helper to calculate SLM usage based on backend
-template <typename KernelParam, typename KeyT, typename ValueT = void>
+template <typename KernelParam, typename KeyT, typename ValueT = void, std::uint8_t RadixBits = TestRadixBits>
 std::size_t
 calculate_slm_size(KernelParam param)
 {
@@ -59,8 +66,7 @@ calculate_slm_size(KernelParam param)
     using LocOffsetT = std::uint16_t;
     using GlobOffsetT = std::uint32_t;
 
-    constexpr std::uint32_t radix_bits = 8;
-    constexpr std::uint32_t bin_count = 1 << radix_bits;
+    constexpr std::uint32_t bin_count = 1 << RadixBits;
     constexpr std::uint32_t sub_group_size = 32;
 
     const std::uint32_t num_sub_groups = param.workgroup_size / sub_group_size;
@@ -79,12 +85,29 @@ calculate_slm_size(KernelParam param)
 #endif
 }
 
-template <typename KernelParam, typename KeyT, typename ValueT = void>
+// SLM usage of the SYCL one work-group batched radix sort: the reorder buffer overlaps the sub-group histograms
+template <typename KernelParam, typename KeyT, typename ValueT = void, std::uint8_t RadixBits = TestRadixBits>
+std::size_t
+calculate_one_wg_slm_size(KernelParam param)
+{
+    constexpr std::uint32_t bin_count = 1 << RadixBits;
+    constexpr std::uint32_t sub_group_size = 32;
+
+    const std::size_t hists_size = (param.workgroup_size / sub_group_size) * bin_count * sizeof(std::uint16_t);
+    std::size_t reorder_size = sizeof(KeyT) * param.data_per_workitem * param.workgroup_size;
+    if constexpr (!std::is_void_v<ValueT>)
+        reorder_size += sizeof(ValueT) * param.data_per_workitem * param.workgroup_size;
+    return std::max(hists_size, reorder_size);
+}
+
+template <typename KernelParam, typename KeyT, typename ValueT = void, bool OneWorkGroup = false,
+          std::uint8_t RadixBits = TestRadixBits>
 bool
 can_run_test(sycl::queue q, KernelParam param)
 {
     const auto max_slm_size = q.get_device().template get_info<sycl::info::device::local_mem_size>();
-    std::size_t slm_alloc_size = calculate_slm_size<KernelParam, KeyT, ValueT>(param);
+    std::size_t slm_alloc_size = OneWorkGroup ? calculate_one_wg_slm_size<KernelParam, KeyT, ValueT, RadixBits>(param)
+                                              : calculate_slm_size<KernelParam, KeyT, ValueT, RadixBits>(param);
 
     // skip tests with error: LLVM ERROR: SLM size exceeds target limits
     // TODO: get rid of that check: it is useless for AOT case. Proper configuration must be provided at compile time.
@@ -131,7 +154,6 @@ struct CompareKey<false>
 
 constexpr bool Ascending = true;
 constexpr bool Descending = false;
-constexpr std::uint8_t TestRadixBits = 8;
 
 #if LOG_TEST_INFO
 struct TypeInfo
@@ -302,4 +324,4 @@ print_data(const Container1& expected, const Container2& actual, std::size_t fir
         std::cout << std::dec << std::endl;
 }
 
-#endif // _ESIMD_RADIX_SORT_TEST_UTILS_H
+#endif // _RADIX_SORT_TEST_UTILS_H

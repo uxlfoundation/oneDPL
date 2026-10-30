@@ -22,7 +22,7 @@
 
 #include "kt_utils.h"
 #include "radix_sort_utils.h"
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
 #    include "sycl_radix_sort_kernels.h"
 #endif
 #if __has_include(<sycl/ext/intel/esimd.hpp>)
@@ -88,7 +88,7 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
         });
     }
 
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
     // Per-segment histograms, laid out as [stage][segment][bin]
     template <typename _KeysRng>
     sycl::event
@@ -126,7 +126,7 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
             __cgh.parallel_for<_Name...>(__nd_range, __kernel);
         });
     }
-#endif // _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#endif // _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
 };
 
 template <std::uint32_t __stage_count, std::uint16_t __bin_count, typename _KernelName>
@@ -209,7 +209,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
         });
     }
 
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
     template <typename _InRngPack, typename _OutRngPack>
     sycl::event
     operator()(__sycl_tag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack,
@@ -248,7 +248,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
             __cgh.parallel_for<_KernelName>(__nd_range, __kernel);
         });
     }
-#endif // _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#endif // _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
 };
 
 template <typename _KernelName>

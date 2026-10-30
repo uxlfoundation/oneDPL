@@ -22,6 +22,9 @@
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
 
 #include "radix_sort_submitters.h"
+#if _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
+#    include "sycl_batched_one_wg_radix_sort_kernels.h"
+#endif
 
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
@@ -39,6 +42,9 @@ class __radix_sort_onesweep;
 
 template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_copyback;
+
+template <typename... _Name>
+class __batched_radix_sort_one_wg;
 
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename _KtTag, typename _RngPack>
@@ -480,6 +486,7 @@ __radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&
     }
 }
 
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
 // Batched sort: each consecutive run of __segment_size elements is sorted independently in one onesweep pass
 template <bool __is_ascending, std::uint8_t __radix_bits, bool __in_place, typename _RngPack1, typename _RngPack2,
           typename _KernelParam, typename _TempStorage>
@@ -496,6 +503,31 @@ __batched_onesweep(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_ou
                                                                 std::forward<_RngPack2>(__pack_out), __n,
                                                                 __segment_size, __temp_storage);
 }
+#endif // _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
+
+#if _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
+// Batched sort: each consecutive run of __segment_size elements, which must fit in a work-group tile, is sorted
+// independently by the one work-group kernel
+template <bool __is_ascending, std::uint8_t __radix_bits, typename _RngPack1, typename _RngPack2, typename _KernelParam>
+sycl::event
+__batched_single_group(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __segment_size,
+                       _KernelParam)
+{
+    const std::size_t __n = __pack_in.__keys_rng().size();
+    assert(__n > 0);
+    assert(__segment_size <= std::size_t(_KernelParam::data_per_workitem) * _KernelParam::workgroup_size &&
+           "radix_single_group_tag requires the segment size not to exceed data_per_workitem * workgroup_size");
+
+    _PRINT_INFO_IN_DEBUG_MODE(__q);
+    using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __batched_radix_sort_one_wg<std::decay_t<_RngPack1>, std::decay_t<_RngPack2>,
+                                    typename _KernelParam::kernel_name>>;
+    return __batched_one_wg_radix_sort_submitter<__is_ascending, __radix_bits, _KernelParam::data_per_workitem,
+                                                 _KernelParam::workgroup_size, _KernelName>()(
+        __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n,
+        static_cast<std::uint32_t>(__segment_size));
+}
+#endif // _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
 

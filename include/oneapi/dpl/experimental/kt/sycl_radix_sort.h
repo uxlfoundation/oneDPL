@@ -25,7 +25,7 @@ template <bool __is_ascending = true, std::uint8_t __radix_bits = 8, typename _K
 std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysRng>, sycl::event>
 radix_sort(sycl::queue __q, _KeysRng&& __keys_rng, _KernelParam __param = {})
 {
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
     auto __n = __keys_rng.size();
     __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
 
@@ -44,7 +44,7 @@ template <bool __is_ascending = true, std::uint8_t __radix_bits = 8, typename _K
 std::enable_if_t<oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysIterator>, sycl::event>
 radix_sort(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __keys_last, _KernelParam __param = {})
 {
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
     auto __n = __keys_last - __keys_first;
     __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
 
@@ -66,7 +66,7 @@ template <bool __is_ascending = true, std::uint8_t __radix_bits = 8, typename _K
 std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysRng>, sycl::event>
 radix_sort_by_key(sycl::queue __q, _KeysRng&& __keys_rng, _ValsRng&& __vals_rng, _KernelParam __param = {})
 {
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
     auto __n = __keys_rng.size();
     __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
 
@@ -88,7 +88,7 @@ std::enable_if_t<oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_Keys
 radix_sort_by_key(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __keys_last, _ValsIterator __vals_first,
                   _KernelParam __param = {})
 {
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
     auto __n = __keys_last - __keys_first;
     __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
 
@@ -113,7 +113,7 @@ template <bool __is_ascending = true, std::uint8_t __radix_bits = 8, typename _K
 std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysRng1>, sycl::event>
 radix_sort(sycl::queue __q, _KeysRng1&& __keys_rng, _KeysRng2&& __keys_rng_out, _KernelParam __param = {})
 {
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
     auto __n = __keys_rng.size();
     __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
     if (__n == 0)
@@ -136,7 +136,7 @@ std::enable_if_t<oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_Keys
 radix_sort(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 __keys_last, _KeysIterator2 __keys_out_first,
            _KernelParam __param = {})
 {
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
     auto __n = __keys_last - __keys_first;
     __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
 
@@ -163,7 +163,7 @@ std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_Key
 radix_sort_by_key(sycl::queue __q, _KeysRng1&& __keys_rng, _ValsRng1&& __vals_rng, _KeysRng2&& __keys_out_rng,
                   _ValsRng2&& __vals_out_rng, _KernelParam __param = {})
 {
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
     auto __n = __keys_rng.size();
     __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
     if (__n == 0)
@@ -187,7 +187,7 @@ std::enable_if_t<oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_Keys
 radix_sort_by_key(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 __keys_last, _ValsIterator1 __vals_first,
                   _KeysIterator2 __keys_out_first, _ValsIterator2 __vals_out_first, _KernelParam __param = {})
 {
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
     auto __n = __keys_last - __keys_first;
     __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
 
