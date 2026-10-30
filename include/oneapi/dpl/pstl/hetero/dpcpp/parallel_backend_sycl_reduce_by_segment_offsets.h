@@ -973,7 +973,9 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             return __q.submit([&](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
                 auto __units_acc = __get_accessor(sycl::write_only, __units_storage, __cgh, __dpl_sycl::__no_init{});
+
                 const __segmented_reduce_flat_local<__in_group_v, _Acc, _Size> __local(__cgh, __sub_groups);
+
                 const sycl::nd_range<1> __range(sycl::range<1>(__num_groups * __work_group_size),
                                                 sycl::range<1>(__work_group_size));
                 auto __kernel = [=](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(32)]] {
@@ -991,6 +993,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                     const _Size __piece_end = std::min<_Size>(__n, __piece_begin + _Size(__piece_size));
 
                     __piece_parts<_Size> __parts{__m};
+
                     if (__piece_begin < __piece_end)
                         __reduce_piece(__sg, __input, __offsets, __result, __n, __m, __piece_begin, __piece_end, __init,
                                        __op, __segments_per_element, __interpolation_steps, __parts);
@@ -1020,7 +1023,9 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             __event = __q.submit([&](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __offsets, __result);
                 auto __units_acc = __get_accessor(sycl::read_only, __units_storage, __cgh);
+
                 __cgh.depends_on(__event);
+
                 __cgh.parallel_for<_TailName...>(
                     sycl::nd_range<1>(sycl::range<1>(__tail_groups * __tail_work_group_size),
                                       sycl::range<1>(__tail_work_group_size)),
@@ -1029,6 +1034,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         const auto __sg = __item.get_sub_group();
                         const std::uint32_t __unit =
                             __item.get_group(0) * __tail_sub_groups + __sg.get_group_linear_id();
+
                         if (__unit < __num_units)
                             __combine_tail_with_heads(
                                 __sg, __offsets, __result, __n, __m, __unit, __num_units, __unit_size,
