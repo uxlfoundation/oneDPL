@@ -82,10 +82,6 @@
 #    define _ONEDPL_CLANG_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 #endif
 
-// This macro represents the "latest" version of the intel llvm compiler, and is used in workarounds gated to the compiler version.
-// We must update this with the compiler and re-evaluate if the workarounds are still necessary each time.
-#define _ONEDPL_LATEST_INTEL_LLVM_COMPILER 20260200
-
 // Enable SIMD for compilers that support OpenMP 4.0
 #if (_OPENMP >= 201307) || __INTEL_LLVM_COMPILER || (__INTEL_COMPILER >= 1600) ||                                      \
     (!defined(__INTEL_LLVM_COMPILER) && !defined(__INTEL_COMPILER) && _ONEDPL_GCC_VERSION >= 40900)
@@ -350,8 +346,7 @@
 
 // sycl::property::no_init on a ranged accessor (one covering only a sub-range of its buffer) discards the contents
 // of the whole buffer in the DPC++ runtime, rather than only the elements within the accessor's range as specified.
-// Known broken in all released icpx versions to date.
-#if __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER <= _ONEDPL_LATEST_INTEL_LLVM_COMPILER
+#if __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER < 20260300
 #    define _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN 1
 #else
 #    define _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN 0
