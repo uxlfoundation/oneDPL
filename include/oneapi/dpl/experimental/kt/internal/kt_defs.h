@@ -21,8 +21,14 @@
 #    define _ONEDPL_KT_COOPERATIVE_KERNELS_PRESENT 1
 #endif
 
+// Onesweep radix sort uses sub-group ballots and relies on forward progress between work-groups for its lookback
 #if _ONEDPL_KT_COOPERATIVE_KERNELS_PRESENT && _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT
-#    define _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT 1
+#    define _ONEDPL_ENABLE_SYCL_ONESWEEP_KT 1
+#endif
+
+// One work-group radix sort uses sub-group ballots, with no communication between work-groups
+#if _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT
+#    define _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT 1
 #endif
 
 #endif

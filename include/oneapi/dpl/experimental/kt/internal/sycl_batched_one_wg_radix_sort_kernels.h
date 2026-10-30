@@ -101,13 +101,7 @@ struct __batched_one_wg_radix_sort_kernel
     {
     }
 
-    auto
-    get(syclex::properties_tag) const
-    {
-        return syclex::properties{syclex::sub_group_size<__sub_group_size>};
-    }
-
-    void
+    [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(__sub_group_size)]] void
     operator()(sycl::nd_item<1> __idx) const
     {
         const sycl::group<1> __group = __idx.get_group();

@@ -25,6 +25,7 @@
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
 
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
 //-----------------------------------------------------------------------------
 // SYCL global histogram kernel implementation
 //-----------------------------------------------------------------------------
@@ -221,6 +222,7 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
         __flush_segment(__slm, __local_id, __segment);
     }
 };
+#endif // _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
 
 //-----------------------------------------------------------------------------
 // Building blocks shared by the onesweep and the one work-group kernels
@@ -382,6 +384,7 @@ __scatter_to_slm(const _KVPack& __pack, const _LocOffsetT (&__ranks)[__data_per_
     }
 }
 
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
 template <bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
 struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
@@ -903,6 +906,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         }
     }
 };
+#endif // _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
 
