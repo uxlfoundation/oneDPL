@@ -98,8 +98,7 @@ template <typename _Name>
 class __segmented_reduce_fill_wrapper;
 
 // A short segment is reduced by one work-item. A long segment is split into chunks, each reduced by one work-item, and
-// the partial results of the segment are combined by one work-item. The values below were measured on Intel GPUs
-// (Data Center GPU Max 1100, integrated graphics) and CPUs (Xeon Platinum 8480+, Xeon 696X, Core Ultra 7 165U):
+// the partial results of the segment are combined by one work-item. The values below were measured on GPUs and CPUs:
 // - a segment up to this length is short;
 inline constexpr std::size_t __segmented_reduce_gpu_threshold = 512;
 inline constexpr std::size_t __segmented_reduce_cpu_threshold = 32768;
@@ -250,7 +249,8 @@ class __segmented_reduce_chunk_wrapper;
 template <typename _Name>
 class __segmented_reduce_combine_wrapper;
 
-// Writes the initial value into every result: the input is empty
+// Writes the initial value into every result: every segment is empty, because the input is or because the offsets
+// give no element to any segment
 template <typename _Acc, typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Size,
           typename _InitType>
 void
@@ -335,7 +335,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     }
 
     // The short segments, one work-item each; the long ones only report the longest length. The report is in a buffer,
-    // which costs less on GPUs than copying it from device USM (0.08 ms vs 0.33 ms on integrated graphics).
+    // which costs less on GPUs than copying it from device USM.
     auto __report_buf = __buffer<std::uint32_t>(1).get_buffer();
     // The buffer has no host data: the atomic maximum starts from the zero written here
     __report_buf.get_host_access(sycl::write_only)[0] = 0;

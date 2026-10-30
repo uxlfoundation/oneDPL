@@ -169,7 +169,7 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
 }
 
 //------------------------------------------------------------------------
-// reduce_by_segment with segments defined by offsets or by a fixed length
+// reduce_by_segment with segments defined by offsets
 //------------------------------------------------------------------------
 
 // The host policies, the segments one after another, each one from its own offsets clamped to the input, as on a device
