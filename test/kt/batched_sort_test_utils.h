@@ -379,9 +379,15 @@ void
 test_special_patterns(sycl::queue q, std::size_t segment_size, KernelParam params)
 {
 #if !TEST_KEYS_ONLY
-    // Values record the position in the segment, so they must represent it exactly
-    if (segment_size > std::size_t(std::numeric_limits<ValueT>::max()))
-        return;
+    // Values record positions in the segment and must represent them exactly. Conservatively cap the segment
+    // size at 2^digits - 1 for both integer and binary floating-point types.
+    // If ValueT has at least as many precision bits as size_t, no cap is needed and the shift is avoided.
+    constexpr int digits = std::numeric_limits<ValueT>::digits;
+    if constexpr (digits < std::numeric_limits<std::size_t>::digits)
+    {
+        if (segment_size > (std::size_t{1} << digits) - 1)
+            return;
+    }
     test_case<Sorter, true, false>(q, DataMode::usm_iterators, segment_size, 5, params, DataPattern::few_distinct);
     test_case<Sorter, false, true>(q, DataMode::buffer_ranges, segment_size, 5, params, DataPattern::few_distinct);
 #endif
