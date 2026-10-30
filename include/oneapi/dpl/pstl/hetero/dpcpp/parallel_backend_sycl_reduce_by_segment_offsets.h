@@ -549,15 +549,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         const std::uint32_t __lane = __sg.get_local_linear_id();
         const std::uint32_t __lanes = __sg.get_local_linear_range();
 
-        auto __at = [&]() {
-            if constexpr (__segmented_reduce_pointer_input<_Input>::value)
-            {
-                const auto __p = __input.begin() + __base;
-                return [__p](std::uint32_t __i) -> decltype(auto) { return __p[__i]; };
-            }
-            else
-                return [&__input, __base](std::uint32_t __i) -> decltype(auto) { return __input[__base + _Size(__i)]; };
-        }();
+        auto __at = [&](std::uint32_t __i) -> decltype(auto) { return __element(__input, __base, __i); };
 
         // The accumulators are set up from their first values; a lane not taking part holds none, and what it passes on
         // to the other lanes is never used
@@ -723,7 +715,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             // A range of one element that does not begin its segment is that element
             const _Acc __acc =
                 !__first && __hi - __lo == 1
-                    ? __segmented_reduce_to_acc<_Acc>(__input[__piece_begin + _Size(__lo)])
+                    ? __segmented_reduce_to_acc<_Acc>(__element(__input, __piece_begin, __lo))
                     : __reduce_by_sub_group(__sg, __piece_begin, __lo, __hi, __first, __init, __op, __input);
 
             const bool __ends_in_piece = __e <= __piece_end;
