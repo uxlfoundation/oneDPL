@@ -1176,6 +1176,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                        __segmented_reduce_chunk_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __m, __chunk_size,
                                                                                                 __init, __binary_op},
                        __num_partials, oneapi::dpl::__ranges::views::all_read(__chunk_ends), __offsets,
+                       // A zip view, not vectorizable, so that a work-item reduces one chunk, not several in a row
                        oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::views::all_write(__partials)),
                        __input);
 
@@ -1184,6 +1185,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                            __num_partials, __write_empty, __init, __binary_op},
                        __m, oneapi::dpl::__ranges::views::all_read(__chunk_ends),
                        oneapi::dpl::__ranges::views::all_read(__partials),
+                       // A zip view, not vectorizable, so that a work-item combines one segment, not several in a row
                        oneapi::dpl::__ranges::make_zip_view(__result))
             .event()
             .wait_and_throw();
@@ -1217,9 +1219,11 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     __parallel_for(_BackendTag{}, __exec,
                    __segmented_reduce_variable_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __threshold, __init,
                                                                                                __binary_op},
+                   // A zip view, not vectorizable, so that a work-item reduces one segment, not several in a row
                    __m, __offsets, oneapi::dpl::__ranges::make_zip_view(__result), __input,
                    oneapi::dpl::__ranges::views::all(__report_buf))
-        .event().wait_and_throw();
+        .event()
+        .wait_and_throw();
     const _Size __max_length = __report_buf.get_host_access(sycl::read_only)[0];
 
     if (__max_length > 0)
