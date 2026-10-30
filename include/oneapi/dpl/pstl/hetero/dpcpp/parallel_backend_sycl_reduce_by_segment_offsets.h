@@ -163,7 +163,7 @@ struct __segmented_reduce_chunk_count
     {
         const _Size __length = __segmented_reduce_length<_Size>{__n}(std::get<1>(__bounds), std::get<0>(__bounds));
 
-        return __length > __min_length ? __length / __chunk_size + (__length % __chunk_size != 0) : _Size{0};
+        return __length > __min_length ? (__length - 1) / __chunk_size + 1 : _Size{0};
     }
 };
 
