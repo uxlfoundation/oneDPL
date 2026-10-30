@@ -114,22 +114,26 @@ __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack
                       _KernelParam __param, _TempStorage __temp_storage)
 {
     __check_batched_sort_config<_SortConfig, _KernelParam>();
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
     if constexpr (__is_radix_single_group_tag_v<_SortConfig>)
     {
+#if _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
         return __batched_single_group<_SortConfig::is_ascending, _SortConfig::radix_bits>(
             __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out),
             __segment_size, __param);
+#else
+        __sycl_one_wg_radix_sort_unsupported_msg<_SortConfig>();
+#endif
     }
     else
     {
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
         return __batched_onesweep<_SortConfig::is_ascending, _SortConfig::radix_bits, __in_place>(
             __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out),
             __segment_size, __param, __temp_storage);
-    }
 #else
-    __sycl_radix_sort_unsupported_msg<_SortConfig>();
+        __sycl_radix_sort_unsupported_msg<_SortConfig>();
 #endif
+    }
 }
 
 // The bodies of the public overloads below. _TempStorage is __internal_temp_storage or __external_temp_storage.
