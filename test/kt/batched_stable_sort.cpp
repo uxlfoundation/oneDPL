@@ -44,6 +44,11 @@ using SortConfig = kt::gpu::radix_many_groups_tag<TestRadixBits>;
 #endif
 // radix_single_group_tag sorts only segments which fit in a tile
 constexpr bool OneWorkGroupOnly = TEST_SINGLE_GROUP;
+#if TEST_SINGLE_GROUP
+#    define TEST_SORT_CONFIG_AVAILABLE TEST_SYCL_ONE_WG_RADIX_SORT_KT_AVAILABLE
+#else
+#    define TEST_SORT_CONFIG_AVAILABLE TEST_SYCL_RADIX_SORT_KT_AVAILABLE
+#endif
 
 #include "batched_sort_test_utils.h"
 
@@ -101,7 +106,7 @@ int
 main()
 {
     bool run_test = false;
-#if TEST_SYCL_RADIX_SORT_KT_AVAILABLE
+#if TEST_SORT_CONFIG_AVAILABLE
     using Param = kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE>;
     using Sorter = BatchedStableSort</*UsesTempStorage=*/false>;
     using SorterTempStorage = BatchedStableSort</*UsesTempStorage=*/true>;
@@ -111,9 +116,9 @@ main()
     static_assert(SorterTempStorage::bytes_req<Param>(4096, 0) == 0);
     auto q = TestUtils::get_test_queue();
 #    if TEST_KEYS_ONLY
-    run_test = can_run_test<Param, KeyT>(q, params);
+    run_test = can_run_test<Param, KeyT, void, OneWorkGroupOnly, SortConfig::radix_bits>(q, params);
 #    else
-    run_test = can_run_test<Param, KeyT, ValueT>(q, params);
+    run_test = can_run_test<Param, KeyT, ValueT, OneWorkGroupOnly, SortConfig::radix_bits>(q, params);
 #    endif
 
     if (run_test)
@@ -170,7 +175,7 @@ main()
             return EXIT_FAILURE;
         }
     }
-#endif // TEST_SYCL_RADIX_SORT_KT_AVAILABLE
+#endif // TEST_SORT_CONFIG_AVAILABLE
 
     return TestUtils::done(run_test);
 }
