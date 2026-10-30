@@ -1206,13 +1206,8 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                       oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1}),
                       oneapi::dpl::__ranges::take_view_simple(__offsets, __m))
                 : __n;
-        if (__max_length == 0)
-        {
-            __parallel_reduce_by_segment_offsets_fill<_Acc>(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                            std::forward<_OutRange>(__result), __m, __init);
-            return;
-        }
 
+        // Every segment without chunks, and so every one where all are empty, gets the initial value
         __reduce_in_chunks(_Size{0}, /*__write_empty=*/true, __max_length, __m);
         return;
     }
