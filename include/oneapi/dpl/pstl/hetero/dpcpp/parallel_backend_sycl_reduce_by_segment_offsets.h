@@ -328,10 +328,10 @@ struct __segmented_reduce_flat_geometry
         const std::size_t __min_inputs = __short_segments || __n <= __segmented_reduce_gpu_flat_small_input
                                              ? __segmented_reduce_gpu_flat_min_inputs_per_item
                                              : 4 * __segmented_reduce_gpu_flat_min_inputs_per_item;
-        __inputs_per_item = std::clamp<std::size_t>((__n + __items - 1) / __items, __min_inputs,
-                                                    4 * __segmented_reduce_gpu_flat_min_inputs_per_item);
+        __inputs_per_item = std::clamp<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(__n, __items),
+                                                    __min_inputs, 4 * __segmented_reduce_gpu_flat_min_inputs_per_item);
         auto __groups = [&](std::size_t __size) {
-            return (__n + __inputs_per_item * __size - 1) / (__inputs_per_item * __size);
+            return oneapi::dpl::__internal::__dpl_ceiling_div(__n, __inputs_per_item * __size);
         };
 
         while (__work_group_size > __lanes && __groups(__work_group_size) < __min_groups)
@@ -417,8 +417,10 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // tails, in one storage, which costs a call less than two, as measured; of the more aligned of the two types,
         // so that both arrays start aligned
         using _Unit = std::conditional_t<(alignof(_Acc) > alignof(_Size)), _Acc, _Size>;
-        const std::size_t __segment_slots = (__num_units * sizeof(_Size) + sizeof(_Unit) - 1) / sizeof(_Unit);
-        const std::size_t __partial_slots = (2 * __num_units * sizeof(_Acc) + sizeof(_Unit) - 1) / sizeof(_Unit);
+        const std::size_t __segment_slots =
+            oneapi::dpl::__internal::__dpl_ceiling_div(__num_units * sizeof(_Size), sizeof(_Unit));
+        const std::size_t __partial_slots =
+            oneapi::dpl::__internal::__dpl_ceiling_div(2 * __num_units * sizeof(_Acc), sizeof(_Unit));
         __device_storage<_Unit> __units_storage{__q, __segment_slots + __partial_slots};
 
         // The first kernel, with the combination of the pieces of a work-group in its local memory or without it: the
@@ -472,7 +474,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         {
             constexpr std::size_t __tail_work_group_size = 256;
             constexpr std::size_t __tail_sub_groups = __tail_work_group_size / __lanes;
-            const std::size_t __tail_groups = (__num_units + __tail_sub_groups - 1) / __tail_sub_groups;
+            const std::size_t __tail_groups =
+                oneapi::dpl::__internal::__dpl_ceiling_div(__num_units, __tail_sub_groups);
 
             __event = __q.submit([&](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __offsets, __result);
