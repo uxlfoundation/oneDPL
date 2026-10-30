@@ -191,13 +191,14 @@ __segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __
 {
     if (__begin >= __end)
         return std::move(__init);
-    _Acc __start = std::invoke(__binary_op, std::move(__init), __first[__begin]);
+
     // An operation returning the accumulator type keeps the implicit conversion of its results and the operation itself
-    auto __acc_op = [&__binary_op](auto&& __x, auto&& __y) -> _Acc {
-        return std::invoke(__binary_op, std::forward<decltype(__x)>(__x), std::forward<decltype(__y)>(__y));
-    };
-    return __internal::__brick_transform_reduce(__first + __begin + 1, __first + __end, std::move(__start), __acc_op,
-                                                oneapi::dpl::identity{}, /*is_vector=*/std::true_type{});
+    return __internal::__brick_transform_reduce(
+        __first + __begin + 1, __first + __end, std::invoke(__binary_op, std::move(__init), __first[__begin]),
+        [&__binary_op](auto&& __x, auto&& __y) -> _Acc {
+            return std::invoke(__binary_op, std::forward<decltype(__x)>(__x), std::forward<decltype(__y)>(__y));
+        },
+        oneapi::dpl::identity{}, /*is_vector=*/std::true_type{});
 }
 
 // The segments one after another, each one from its own offsets clamped to the input, as on a device, and vectorized
