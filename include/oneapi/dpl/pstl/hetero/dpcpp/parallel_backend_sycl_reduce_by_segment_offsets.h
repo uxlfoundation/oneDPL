@@ -347,24 +347,70 @@ struct __segmented_reduce_flat_tuning
         return __m > __pieces ? 2 : 0;
     }
 
-    // The launch for __n elements in __m segments: twice as many work-groups as Xe cores, as reduce-then-scan has, or
-    // with short segments on average a piece per hardware thread, the elements of a work-item within the bounds above,
-    // and the work-groups halved, down to one sub-group, until there are at least two per Xe core
+    // The bands of the average segment length, which the host takes as __n / __m: with short segments on average a
+    // piece per hardware thread, and fewer elements of a work-item up to these inputs, so that more sub-groups share a
+    // small input
+    struct __short_segments
+    {
+        static constexpr std::size_t __tiny_input = std::size_t(1) << 18;
+        static constexpr std::size_t __tiny_min_inputs_per_item = 4;
+        static constexpr std::size_t __small_min_inputs_per_item = 8;
+
+        static std::size_t
+        __items(const std::size_t __compute_units, const std::size_t /*__min_groups*/,
+                const std::size_t /*__work_group_size*/)
+        {
+            return __threads_per_compute_unit * std::max<std::size_t>(1, __compute_units) * __lanes;
+        }
+
+        static std::size_t
+        __min_inputs(const std::size_t __n)
+        {
+            return __n <= __tiny_input    ? __tiny_min_inputs_per_item
+                   : __n <= __small_input ? __small_min_inputs_per_item
+                                          : __min_inputs_per_item;
+        }
+    };
+
+    // With longer segments on average twice as many work-groups as Xe cores, as reduce-then-scan has
+    struct __long_segments
+    {
+        static std::size_t
+        __items(const std::size_t /*__compute_units*/, const std::size_t __min_groups,
+                const std::size_t __work_group_size)
+        {
+            return __min_groups * __work_group_size;
+        }
+
+        static std::size_t
+        __min_inputs(const std::size_t __n)
+        {
+            return __n <= __small_input ? __min_inputs_per_item : __large_min_inputs_per_item;
+        }
+    };
+
+    // The launch for __n elements in __m segments: the work-items of the band of the average segment, the elements of
+    // a work-item within the bounds of the band and above, and the work-groups halved, down to one sub-group, until
+    // there are at least two per Xe core
     static __segmented_reduce_flat_geometry
     __geometry(const sycl::queue& __q, const std::size_t __n, const std::size_t __m)
+    {
+        if (__n <= __m * __short_average_segment)
+            return __geometry_of<__short_segments>(__q, __n);
+        return __geometry_of<__long_segments>(__q, __n);
+    }
+
+    template <typename _Band>
+    static __segmented_reduce_flat_geometry
+    __geometry_of(const sycl::queue& __q, const std::size_t __n)
     {
         std::size_t __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__q, __max_work_group) / __lanes * __lanes;
         const std::size_t __compute_units = oneapi::dpl::__internal::__max_compute_units(__q);
         const std::size_t __min_groups = 2 * std::max<std::size_t>(1, __compute_units / __compute_units_per_core);
-        const bool __short_segments = __n <= __m * __short_average_segment;
-        const std::size_t __items =
-            __short_segments ? __threads_per_compute_unit * std::max<std::size_t>(1, __compute_units) * __lanes
-                             : __min_groups * __work_group_size;
-        const std::size_t __min_inputs =
-            __short_segments || __n <= __small_input ? __min_inputs_per_item : __large_min_inputs_per_item;
+        const std::size_t __items = _Band::__items(__compute_units, __min_groups, __work_group_size);
         const std::size_t __inputs_per_item = std::clamp<std::size_t>(
-            oneapi::dpl::__internal::__dpl_ceiling_div(__n, __items), __min_inputs, __max_inputs_per_item);
+            oneapi::dpl::__internal::__dpl_ceiling_div(__n, __items), _Band::__min_inputs(__n), __max_inputs_per_item);
         auto __groups = [&](std::size_t __size) {
             return oneapi::dpl::__internal::__dpl_ceiling_div(__n, __inputs_per_item * __size);
         };
