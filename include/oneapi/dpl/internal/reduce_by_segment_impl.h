@@ -242,6 +242,8 @@ oneapi::dpl::__internal::__enable_if_execution_policy<
 reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first, SegmentNumT num_segments,
                   OffsetIt offsets, InitT init_value, BinaryOp binary_op)
 {
+    static_assert(oneapi::dpl::__internal::__is_random_access_iterator_v<InputIt, OutputIt, OffsetIt>,
+                  "reduce_by_segment with offsets requires random access iterators");
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first, offsets, out_first);
 
     return internal::__reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first, last,

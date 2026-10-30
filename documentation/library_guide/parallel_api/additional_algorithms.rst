@@ -44,8 +44,8 @@ Algorithms in <oneapi/dpl/numeric>
   The overload without ``binary_op`` uses ``std::plus<>`` as the operation, as ``std::reduce`` does. The initial
   value is required by both overloads.
 
-  ``SegmentNumT`` must be an integral type, and ``OffsetIt`` must not be one; the offsets must be of an
-  integral type other than ``bool``. ``InputIt``, ``OutputIt`` and ``OffsetIt`` must be random access iterators.
+  ``SegmentNumT`` must be an integral type. ``InputIt``, ``OutputIt`` and ``OffsetIt`` must be random access
+  iterators, and the value type of ``OffsetIt`` must be an integral type other than ``bool``.
 
   Every segment is clamped to the input ``[first, last)``: a segment crossing a bound of the input is reduced
   partially, and a segment that is empty or lies beyond the input gets the initial value converted to the
