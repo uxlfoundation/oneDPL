@@ -216,8 +216,8 @@ __brick_reduce_by_segment_offsets(_RandomAccessInputIt __first_value, _RandomAcc
     const _Size __n = __last_value - __first_value;
 
     _RandomAccessOutputIt __this_segment = __result_value;
-    // Promoted, so that a bool or a narrow number of segments counts as well
-    for (decltype(+__num_segments) __segment = 0; __segment < __num_segments; ++__segment)
+
+    for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
     {
         *__this_segment = __segmented_reduce_host<_Acc>(
             __first_value, __internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n),
