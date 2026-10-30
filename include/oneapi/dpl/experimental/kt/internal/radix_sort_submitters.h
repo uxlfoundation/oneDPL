@@ -87,13 +87,16 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
         });
     }
 
-    template <typename _KeysRng, typename _GlobalOffsetData>
+    // __clear_pack1 / __clear_pack2 are zeroed at the positions of the keys when __clear1 / __clear2 are set
+    template <typename _KeysRng, typename _GlobalOffsetData, typename _ClearPack1, typename _ClearPack2>
     sycl::event
     operator()(__sycl_tag, sycl::queue& __q, const _KeysRng& __keys_rng, const _GlobalOffsetData& __global_offset_data,
-               std::size_t __n, const sycl::event& __e) const
+               std::size_t __n, const _ClearPack1& __clear_pack1, const _ClearPack2& __clear_pack2, bool __clear1,
+               bool __clear2, const sycl::event& __e) const
     {
-        using _GlobalHistKernelT = __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_group_count,
-                                                      __hist_work_group_size, std::decay_t<_KeysRng>>;
+        using _GlobalHistKernelT =
+            __global_histogram_sycl<__is_ascending, __radix_bits, __hist_work_group_count, __hist_work_group_size,
+                                    std::decay_t<_KeysRng>, std::decay_t<_ClearPack1>, std::decay_t<_ClearPack2>>;
 
         // Calculate number of histograms based on SLM capacity
         constexpr std::uint32_t __max_histograms = 16;
@@ -106,9 +109,15 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
         return __q.submit([&](sycl::handler& __cgh) {
             sycl::local_accessor<std::uint32_t, 1> __slm_accessor(
                 _GlobalHistKernelT::__hist_buffer_size * __num_histograms, __cgh);
-            oneapi::dpl::__ranges::__require_access(__cgh, __keys_rng);
+            oneapi::dpl::__ranges::__require_access(__cgh, __keys_rng, __clear_pack1.__keys_rng(),
+                                                    __clear_pack2.__keys_rng());
+            if constexpr (std::decay_t<_ClearPack1>::__has_values)
+            {
+                oneapi::dpl::__ranges::__require_access(__cgh, __clear_pack1.__vals_rng(), __clear_pack2.__vals_rng());
+            }
             __cgh.depends_on(__e);
-            _GlobalHistKernelT __kernel(__n, __keys_rng, __slm_accessor, __global_offset_data, __num_histograms);
+            _GlobalHistKernelT __kernel(__n, __keys_rng, __slm_accessor, __global_offset_data, __num_histograms,
+                                        __clear_pack1, __clear_pack2, __clear1, __clear2);
             __cgh.parallel_for<_Name...>(__nd_range, __kernel);
         });
     }
@@ -173,7 +182,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
     sycl::event
     operator()(__esimd_tag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack,
                _GlobalHistT* __p_global_hist, _GlobalHistT* __p_group_hists, std::uint32_t __sweep_work_group_count,
-               std::size_t __n, std::uint32_t __stage, const sycl::event& __e) const
+               std::size_t __n, std::uint32_t __stage, bool /*__clear_input*/, const sycl::event& __e) const
     {
         sycl::nd_range<1> __nd_range(__sweep_work_group_count * __work_group_size, __work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
@@ -196,7 +205,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
     sycl::event
     operator()(__sycl_tag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack,
                _GlobalHistT* __p_global_hist, _GlobalHistT* __p_group_hists, std::uint32_t __sweep_work_group_count,
-               std::size_t __n, std::uint32_t __stage, const sycl::event& __e) const
+               std::size_t __n, std::uint32_t __stage, bool __clear_input, const sycl::event& __e) const
     {
         using _KernelType =
             __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item,
@@ -224,7 +233,8 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
             }
             __cgh.depends_on(__e);
             _KernelType __kernel(__n, __stage, __p_global_hist, __p_group_hists, std::forward<_InRngPack>(__in_pack),
-                                 std::forward<_OutRngPack>(__out_pack), __slm_accessor, __sweep_work_group_count);
+                                 std::forward<_OutRngPack>(__out_pack), __slm_accessor, __sweep_work_group_count,
+                                 __clear_input);
             __cgh.parallel_for<_KernelName>(__nd_range, __kernel);
         });
     }

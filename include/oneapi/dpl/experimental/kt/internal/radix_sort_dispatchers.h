@@ -40,6 +40,7 @@ class __radix_sort_onesweep;
 template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_copyback;
 
+
 template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_by_key;
 
@@ -201,9 +202,33 @@ class __onesweep_memory_holder
     }
 };
 
+// Zero the scatter destinations ahead of time on BMG for large inputs
+template <typename _KtTag, typename _KeyT>
+bool
+__use_zeroed_scatter_destinations(const sycl::queue& __q, std::size_t __n)
+{
+    if constexpr (!std::is_same_v<_KtTag, __sycl_tag>)
+    {
+        return false;
+    }
+    else
+    {
+#if defined(SYCL_EXT_ONEAPI_DEVICE_ARCHITECTURE)
+        // Checked first to skip the device query for small inputs
+        constexpr std::size_t __min_bytes = std::size_t{32} << 20;
+        if (__n * sizeof(_KeyT) < __min_bytes)
+            return false;
+        const auto __arch = __q.get_device().get_info<syclex::info::device::architecture>();
+        return __arch == syclex::architecture::intel_gpu_bmg_g21 || __arch == syclex::architecture::intel_gpu_bmg_g31;
+#else
+        return false;
+#endif
+    }
+}
+
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          std::uint16_t __work_group_size, typename _KtTag, typename _RngPack1, typename _RngPack2, typename _RngPack3,
-          typename _MemHolder>
+          std::uint16_t __work_group_size, bool __in_place, typename _KtTag, typename _RngPack1, typename _RngPack2,
+          typename _RngPack3, typename _MemHolder>
 sycl::event
 __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pack1,
                 _RngPack3&& __virt_pack2, const _MemHolder& __mem_holder, std::size_t __n)
@@ -239,7 +264,10 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     constexpr ::std::uint32_t __stage_count = oneapi::dpl::__internal::__dpl_ceiling_div(__bit_count, __radix_bits);
 
     constexpr ::std::uint32_t __global_hist_item_count = __bin_count * __stage_count;
-    const ::std::uint32_t __group_hist_item_count = __bin_count * __stage_count * __sweep_work_group_count;
+    // Each stage's group histograms are followed by the stage's tile counter (padded to 64 bytes)
+    const ::std::uint32_t __stage_group_hist_item_count =
+        __bin_count * __sweep_work_group_count + __onesweep_tile_counter_items;
+    const ::std::uint32_t __group_hist_item_count = __stage_group_hist_item_count * __stage_count;
 
     // TODO: check if it is more performant to fill it inside the histogram kernel
     // This line assumes that global and group histograms are stored sequentially
@@ -249,9 +277,26 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     // TODO: consider adding a more versatile API, e.g. passing special kernel_config parameters for histogram computation
     constexpr std::uint32_t __hist_work_group_count = __radix_sort_histogram_params<_KtTag>::__work_group_count;
     constexpr std::uint32_t __hist_work_group_size = __radix_sort_histogram_params<_KtTag>::__work_group_size;
-    __event_chain = __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_work_group_count,
-                                                     __hist_work_group_size, _RadixSortHistogram>()(
-        __kt_tag, __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __n, __event_chain);
+    // Zero the stage outputs that no earlier stage zeroes (see __radix_sort_onesweep_kernel::__clear_pack): the
+    // histogram kernel zeroes them while reading the input. A stage zeroes its input when the next stage writes to it,
+    // unless the input is the user's input data.
+    const bool __use_clear = __use_zeroed_scatter_destinations<_KtTag, _KeyT>(__q, __n);
+    auto __clear_input = [__use_clear](std::uint32_t __stage) {
+        return __use_clear && __stage + 1 < __stage_count && (__stage > 0 || __in_place);
+    };
+    if constexpr (std::is_same_v<_KtTag, __sycl_tag>)
+    {
+        __event_chain = __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_work_group_count,
+                                                         __hist_work_group_size, _RadixSortHistogram>()(
+            __kt_tag, __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __n, __virt_pack1,
+            __virt_pack2, __use_clear, __use_clear && !__in_place && __stage_count > 1, __event_chain);
+    }
+    else
+    {
+        __event_chain = __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_work_group_count,
+                                                         __hist_work_group_size, _RadixSortHistogram>()(
+            __kt_tag, __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __n, __event_chain);
+    }
 
     __event_chain = __radix_sort_onesweep_scan_submitter<__stage_count, __bin_count, _RadixSortScan>()(
         __kt_tag, __q, __mem_holder.__global_hist_ptr(), __event_chain);
@@ -259,27 +304,26 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     __event_chain = __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item,
                                                     __work_group_size, _RadixSortSweepInitial>()(
         __kt_tag, __q, __input_pack, __virt_pack1, __mem_holder.__global_hist_ptr(), __mem_holder.__group_hist_ptr(),
-        __sweep_work_group_count, __n, 0, __event_chain);
+        __sweep_work_group_count, __n, 0, __clear_input(0), __event_chain);
 
     for (::std::uint32_t __stage = 1; __stage < __stage_count; __stage++)
     {
         _GlobalHistT* __p_global_hist = __mem_holder.__global_hist_ptr() + __bin_count * __stage;
-        _GlobalHistT* __p_group_hists =
-            __mem_holder.__group_hist_ptr() + __sweep_work_group_count * __bin_count * __stage;
+        _GlobalHistT* __p_group_hists = __mem_holder.__group_hist_ptr() + __stage_group_hist_item_count * __stage;
 
         if (__stage % 2 != 0)
         {
             __event_chain = __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item,
                                                             __work_group_size, _RadixSortSweepOdd>()(
                 __kt_tag, __q, __virt_pack1, __virt_pack2, __p_global_hist, __p_group_hists, __sweep_work_group_count,
-                __n, __stage, __event_chain);
+                __n, __stage, __clear_input(__stage), __event_chain);
         }
         else
         {
             __event_chain = __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item,
                                                             __work_group_size, _RadixSortSweepEven>()(
                 __kt_tag, __q, __virt_pack2, __virt_pack1, __p_global_hist, __p_group_hists, __sweep_work_group_count,
-                __n, __stage, __event_chain);
+                __n, __stage, __clear_input(__stage), __event_chain);
         }
     }
 
@@ -309,7 +353,8 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
     const ::std::uint32_t __sweep_work_group_count =
         oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __data_per_work_item);
 
-    const ::std::uint32_t __group_hist_item_count = __bin_count * __stage_count * __sweep_work_group_count;
+    const ::std::uint32_t __group_hist_item_count =
+        (__bin_count * __sweep_work_group_count + __onesweep_tile_counter_items) * __stage_count;
 
     // Memory is not going to be allocated for void value type
     // TODO: make this more explicit to reduce coupling between __onesweep_memory_holder and __rng_pack
@@ -351,7 +396,7 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
     const auto& __virt_pack1 = __select_pack(__tmp_pack, __pack_out);
     const auto& __virt_pack2 = __select_pack(__pack_out, __tmp_pack);
     sycl::event __event_chain =
-        __onesweep_impl<_KernelName, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size>(
+        __onesweep_impl<_KernelName, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size, __in_place>(
             __kt_tag, __q, __pack, __virt_pack1, __virt_pack2, __mem_holder, __n);
 
     if constexpr (__in_place && (__stage_count % 2 != 0))

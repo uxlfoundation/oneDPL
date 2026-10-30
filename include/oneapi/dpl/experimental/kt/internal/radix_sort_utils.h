@@ -57,6 +57,53 @@ struct __radix_sort_histogram_params<__sycl_tag>
     static constexpr std::uint32_t __work_group_size = 1024;
 };
 
+// Number of 32-bit items reserved after each onesweep stage's group histograms for the stage's tile counter
+inline constexpr std::uint32_t __onesweep_tile_counter_items = 16;
+
+// Value of a trivially copyable type with all bits zero
+template <typename _T>
+_T
+__zero_bits()
+{
+    struct __bytes
+    {
+        unsigned char __b[sizeof(_T)] = {};
+    };
+    return sycl::bit_cast<_T>(__bytes{});
+}
+
+// Zeroes __count elements starting at __p, shared by __num_lanes lanes (__num_lanes >= 4). The 16-byte aligned middle
+// is written with 16-byte stores per lane, which need 4x fewer store messages than one 4-byte element per lane.
+template <typename _T>
+void
+__zero_range(_T* __p, std::size_t __count, std::uint32_t __lane, std::uint32_t __num_lanes)
+{
+    if constexpr (sizeof(_T) % sizeof(std::uint32_t) != 0)
+    {
+        for (std::size_t __i = __lane; __i < __count; __i += __num_lanes)
+            __p[__i] = __zero_bits<_T>();
+    }
+    else
+    {
+        using _VecT = sycl::vec<std::uint32_t, 4>;
+        std::uint32_t* __words = reinterpret_cast<std::uint32_t*>(__p);
+        const std::size_t __word_count = __count * (sizeof(_T) / sizeof(std::uint32_t));
+        const std::size_t __misalignment = reinterpret_cast<std::uintptr_t>(__p) % sizeof(_VecT);
+        const std::size_t __head = std::min<std::size_t>(
+            __word_count, (sizeof(_VecT) - __misalignment) % sizeof(_VecT) / sizeof(std::uint32_t));
+        const std::size_t __vec_count = (__word_count - __head) / 4;
+        const std::size_t __tail_start = __head + __vec_count * 4;
+
+        if (__lane < __head)
+            __words[__lane] = 0;
+        _VecT* __vecs = reinterpret_cast<_VecT*>(__words + __head);
+        for (std::size_t __i = __lane; __i < __vec_count; __i += __num_lanes)
+            __vecs[__i] = _VecT(0);
+        if (__tail_start + __lane < __word_count)
+            __words[__tail_start + __lane] = 0;
+    }
+}
+
 //-----------------------------------------------------------------------------
 // Parameter validation
 //-----------------------------------------------------------------------------
