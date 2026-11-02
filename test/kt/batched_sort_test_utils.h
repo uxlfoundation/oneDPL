@@ -103,7 +103,7 @@ can_run_merge_test(sycl::queue q, KernelParam param)
     std::size_t slm_alloc_size = tile * sizeof(KeyT);
     if constexpr (!std::is_void_v<ValueT>)
         slm_alloc_size += tile * sizeof(ValueT);
-    return slm_alloc_size <= q.get_device().template get_info<sycl::info::device::local_mem_size>();
+    return slm_alloc_size < q.get_device().template get_info<sycl::info::device::local_mem_size>();
 }
 
 constexpr bool FloatingKey = !std::is_integral_v<KeyT>;
