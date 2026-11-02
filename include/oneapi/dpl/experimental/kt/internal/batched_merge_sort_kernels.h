@@ -35,16 +35,12 @@ class __batched_merge_sort_kernel_name;
 // Key ordering
 //-----------------------------------------------------------------------------
 
-// The unsigned integer type a key is encoded into: the result type of __order_preserving_cast, except for bool
+// The unsigned integer type a key is encoded into: the result type of __order_preserving_cast. As for the radix sorts,
+// bool keys are not supported.
 template <typename _KeyT, typename = void>
 struct __merge_sort_key_bits
 {
     using type = std::make_unsigned_t<_KeyT>;
-};
-template <>
-struct __merge_sort_key_bits<bool>
-{
-    using type = std::uint8_t;
 };
 template <typename _KeyT>
 struct __merge_sort_key_bits<_KeyT, std::enable_if_t<oneapi::dpl::__internal::__is_radix_sort_float_v<_KeyT>>>
@@ -84,10 +80,6 @@ struct __merge_sort_key_codec
             else
                 return _Bits(__u ^ (__is_negative ? _Bits(0) : _Bits(__sign_mask - 1)));
         }
-        else if constexpr (std::is_same_v<_KeyT, bool>)
-        {
-            return _Bits(__key == __is_ascending);
-        }
         else
         {
             return _Bits(oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(__key));
@@ -107,10 +99,6 @@ struct __merge_sort_key_codec
             else
                 __u = _Bits(__bits ^ (__was_positive ? _Bits(__sign_mask - 1) : _Bits(0)));
             return oneapi::dpl::__internal::__dpl_bit_cast<_KeyT>(__u);
-        }
-        else if constexpr (std::is_same_v<_KeyT, bool>)
-        {
-            return (__bits != 0) == __is_ascending;
         }
         else if constexpr (std::is_signed_v<_KeyT>)
         {
