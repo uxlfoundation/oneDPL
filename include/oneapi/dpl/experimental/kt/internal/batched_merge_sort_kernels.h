@@ -48,15 +48,8 @@ struct __merge_sort_key_bits<_KeyT, std::enable_if_t<oneapi::dpl::__internal::__
     using type = oneapi::dpl::__internal::__uint_for_size_t<sizeof(_KeyT)>;
 };
 
-// Keys are encoded once when loaded into SLM and decoded once when stored, so that the sort itself only compares
-// unsigned integers. The order must match radix sort's __order_preserving_cast, so that both batched sorts produce
-// the same order, but that cast cannot be used as the encoding: it maps -0.0 and +0.0 to the same bits and so cannot
-// be inverted. Instead, floating-point keys use the invertible variant of that transformation. It agrees with
-// __order_preserving_cast everywhere except -0.0, which it maps to 0x7f..f, directly below +0.0 at 0x80..0, so
-// __rank only has to move 0x7f..f up by one to make -0.0 and +0.0 equal. For the other key types the cast is already
-// invertible and __rank is the identity. The encoding does no floating-point comparisons, so unlike
-// __order_preserving_cast, which compares with zero, it orders subnormal keys by value even when they are flushed to
-// zero.
+// Keys are encoded into order-preserving unsigned bits once on load and decoded once on store, so the sort only
+// compares integers. Compared through __rank, keys order exactly as with radix sort's __order_preserving_cast.
 template <typename _KeyT, bool __is_ascending>
 struct __merge_sort_key_codec
 {
@@ -73,11 +66,12 @@ struct __merge_sort_key_codec
     {
         if constexpr (__is_float)
         {
+            // Invertible variant of __order_preserving_cast: it does not map -0.0 onto +0.0
             const _Bits __u = oneapi::dpl::__internal::__dpl_bit_cast<_Bits>(__key);
             const bool __is_negative = (__u & __sign_mask) != 0;
-            if constexpr (__is_ascending)
+            if constexpr (__is_ascending) // negative: flip all bits; positive: flip the sign bit
                 return _Bits(__u ^ (__is_negative ? __all_ones : __sign_mask));
-            else
+            else // negative: unchanged; positive: flip the magnitude bits
                 return _Bits(__u ^ (__is_negative ? _Bits(0) : _Bits(__sign_mask - 1)));
         }
         else
@@ -91,7 +85,8 @@ struct __merge_sort_key_codec
     {
         if constexpr (__is_float)
         {
-            // Positive keys are encoded with the sign bit set when ascending and clear when descending
+            // The encoded sign bit tells which mask __encode applied: set for positive keys when ascending, clear
+            // when descending
             const bool __was_positive = ((__bits & __sign_mask) != 0) == __is_ascending;
             _Bits __u;
             if constexpr (__is_ascending)
@@ -102,13 +97,19 @@ struct __merge_sort_key_codec
         }
         else if constexpr (std::is_signed_v<_KeyT>)
         {
-            // Inverse of the xor in __order_preserving_cast
-            constexpr _Bits __mask = __is_ascending ? __sign_mask : _Bits(__all_ones >> 1);
-            return oneapi::dpl::__internal::__dpl_bit_cast<_KeyT>(_Bits(__bits ^ __mask));
+            // The cast is an xor with a mask, its own inverse
+            if constexpr (__is_ascending)
+                return oneapi::dpl::__internal::__dpl_bit_cast<_KeyT>(_Bits(__bits ^ __sign_mask));
+            else
+                return oneapi::dpl::__internal::__dpl_bit_cast<_KeyT>(_Bits(__bits ^ _Bits(__all_ones >> 1)));
         }
         else
         {
-            return __is_ascending ? __bits : _Bits(~__bits);
+            // The cast is the identity or ~, its own inverse
+            if constexpr (__is_ascending)
+                return __bits;
+            else
+                return _Bits(~__bits);
         }
     }
 
@@ -116,6 +117,8 @@ struct __merge_sort_key_codec
     static _Bits
     __rank(_Bits __bits)
     {
+        // The zeros encode to the adjacent 0x7f..f and 0x80..0, and nothing else encodes to 0x7f..f: move it up so
+        // -0.0 and +0.0 compare equal
         if constexpr (__is_float)
             return _Bits(__bits + _Bits(__bits == _Bits(__all_ones >> 1)));
         else
