@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <utility>
 #include <type_traits>
+#include <limits>
 
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
@@ -34,17 +35,103 @@ class __batched_merge_sort_kernel_name;
 // Key ordering
 //-----------------------------------------------------------------------------
 
-// Compares keys through the same order-preserving bit transformation as radix sort, so that both batched sorts
-// produce the same order, including for floating-point keys (-0.0 and +0.0 are equal).
-template <bool __is_ascending>
-struct __radix_order_less
+// The unsigned integer type a key is encoded into: the result type of __order_preserving_cast, except for bool
+template <typename _KeyT, typename = void>
+struct __merge_sort_key_bits
 {
-    template <typename _T>
-    bool
-    operator()(const _T& __a, const _T& __b) const
+    using type = std::make_unsigned_t<_KeyT>;
+};
+template <>
+struct __merge_sort_key_bits<bool>
+{
+    using type = std::uint8_t;
+};
+template <typename _KeyT>
+struct __merge_sort_key_bits<_KeyT, std::enable_if_t<oneapi::dpl::__internal::__is_radix_sort_float_v<_KeyT>>>
+{
+    using type = oneapi::dpl::__internal::__uint_for_size_t<sizeof(_KeyT)>;
+};
+
+// Keys are encoded once when loaded into SLM and decoded once when stored, so that the sort itself only compares
+// unsigned integers. The order must match radix sort's __order_preserving_cast, so that both batched sorts produce
+// the same order, but that cast cannot be used as the encoding: it maps -0.0 and +0.0 to the same bits and so cannot
+// be inverted. Instead, floating-point keys use the invertible variant of that transformation. It agrees with
+// __order_preserving_cast everywhere except -0.0, which it maps to 0x7f..f, directly below +0.0 at 0x80..0, so
+// __rank only has to move 0x7f..f up by one to make -0.0 and +0.0 equal. For the other key types the cast is already
+// invertible and __rank is the identity. The encoding does no floating-point comparisons, so unlike
+// __order_preserving_cast, which compares with zero, it orders subnormal keys by value even when they are flushed to
+// zero.
+template <typename _KeyT, bool __is_ascending>
+struct __merge_sort_key_codec
+{
+    static constexpr bool __is_float = oneapi::dpl::__internal::__is_radix_sort_float_v<_KeyT>;
+    using _Bits = typename __merge_sort_key_bits<_KeyT>::type;
+
+    static constexpr _Bits __sign_mask = _Bits(_Bits(1) << (std::numeric_limits<_Bits>::digits - 1));
+    static constexpr _Bits __all_ones = std::numeric_limits<_Bits>::max();
+    // Bits which sort after every encoded key; used to pad the registers of the leaf sort
+    static constexpr _Bits __padding = __all_ones;
+
+    static _Bits
+    __encode(_KeyT __key)
     {
-        return oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(__a) <
-               oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(__b);
+        if constexpr (__is_float)
+        {
+            const _Bits __u = oneapi::dpl::__internal::__dpl_bit_cast<_Bits>(__key);
+            const bool __is_negative = (__u & __sign_mask) != 0;
+            if constexpr (__is_ascending)
+                return _Bits(__u ^ (__is_negative ? __all_ones : __sign_mask));
+            else
+                return _Bits(__u ^ (__is_negative ? _Bits(0) : _Bits(__sign_mask - 1)));
+        }
+        else if constexpr (std::is_same_v<_KeyT, bool>)
+        {
+            return _Bits(__key == __is_ascending);
+        }
+        else
+        {
+            return _Bits(oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(__key));
+        }
+    }
+
+    static _KeyT
+    __decode(_Bits __bits)
+    {
+        if constexpr (__is_float)
+        {
+            // Positive keys are encoded with the sign bit set when ascending and clear when descending
+            const bool __was_positive = ((__bits & __sign_mask) != 0) == __is_ascending;
+            _Bits __u;
+            if constexpr (__is_ascending)
+                __u = _Bits(__bits ^ (__was_positive ? __sign_mask : __all_ones));
+            else
+                __u = _Bits(__bits ^ (__was_positive ? _Bits(__sign_mask - 1) : _Bits(0)));
+            return oneapi::dpl::__internal::__dpl_bit_cast<_KeyT>(__u);
+        }
+        else if constexpr (std::is_same_v<_KeyT, bool>)
+        {
+            return (__bits != 0) == __is_ascending;
+        }
+        else if constexpr (std::is_signed_v<_KeyT>)
+        {
+            // Inverse of the xor in __order_preserving_cast
+            constexpr _Bits __mask = __is_ascending ? __sign_mask : _Bits(__all_ones >> 1);
+            return oneapi::dpl::__internal::__dpl_bit_cast<_KeyT>(_Bits(__bits ^ __mask));
+        }
+        else
+        {
+            return __is_ascending ? __bits : _Bits(~__bits);
+        }
+    }
+
+    // The value to compare: equal to __order_preserving_cast of the decoded key
+    static _Bits
+    __rank(_Bits __bits)
+    {
+        if constexpr (__is_float)
+            return _Bits(__bits + _Bits(__bits == _Bits(__all_ones >> 1)));
+        else
+            return __bits;
     }
 };
 
@@ -90,8 +177,8 @@ __work_item_stable_sort(_KeyT (&__keys)[_N], _ValT (&__vals)[_N], _Less __less)
 // the group own no elements but take part in every barrier.
 //
 // 1. The group's segments (contiguous in memory) are copied global -> SLM with coalesced accesses.
-// 2. Each work-item loads its elements into registers, pads unused slots with the sort identity and stable sorts
-//    them.
+// 2. Each work-item loads its elements into registers, encoded, pads unused slots with bits ordered after every key
+//    and stable sorts them.
 // 3. Merge rounds: registers -> SLM, barrier, each work-item finds the start of its output with a merge path
 //    (co-rank) binary search, then merges data_per_workitem elements from SLM back into registers. Ties are taken
 //    from the left run, which keeps the sort stable. Runs are clamped to the segment, so padding never takes part.
@@ -107,7 +194,10 @@ struct __batched_merge_sort_kernel
     using _ValT = typename _InRngPack::_ValT;
     static constexpr bool __has_values = _InRngPack::__has_values;
     using _ValStorageT = std::conditional_t<__has_values, _ValT, __no_values>;
-    using _KeysSlmAcc = sycl::local_accessor<_KeyT, 1>;
+    using _Codec = __merge_sort_key_codec<_KeyT, __is_ascending>;
+    // Keys are held in SLM and registers in their encoded form
+    using _Bits = typename _Codec::_Bits;
+    using _KeysSlmAcc = sycl::local_accessor<_Bits, 1>;
     using _ValsSlmAcc = std::conditional_t<__has_values, sycl::local_accessor<_ValStorageT, 1>, __no_values>;
 
     std::size_t __m_segment_count;
@@ -131,7 +221,6 @@ struct __batched_merge_sort_kernel
     void
     operator()(sycl::nd_item<1> __item) const
     {
-        const __radix_order_less<__is_ascending> __less{};
         const auto __group = __item.get_group();
         const std::uint32_t __lid = __item.get_local_linear_id();
         const std::uint32_t __items_per_segment =
@@ -156,13 +245,13 @@ struct __batched_merge_sort_kernel
 
         for (std::uint32_t __i = __lid; __i < __group_size; __i += __work_group_size)
         {
-            __m_slm_keys[__i] = __keys_in[__group_offset + __i];
+            __m_slm_keys[__i] = _Codec::__encode(__keys_in[__group_offset + __i]);
             if constexpr (__has_values)
                 __m_slm_vals[__i] = __m_in_pack.__vals_rng()[__group_offset + __i];
         }
         sycl::group_barrier(__group);
 
-        _KeyT __keys[__data_per_work_item];
+        _Bits __keys[__data_per_work_item];
         _ValStorageT __vals[__data_per_work_item];
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __s = 0; __s < __data_per_work_item; ++__s)
@@ -175,11 +264,12 @@ struct __batched_merge_sort_kernel
             }
             else
             {
-                __keys[__s] = __sort_identity<_KeyT, __is_ascending>();
+                __keys[__s] = _Codec::__padding;
             }
         }
 
-        __work_item_stable_sort<__has_values>(__keys, __vals, __less);
+        __work_item_stable_sort<__has_values>(__keys, __vals,
+                                              [](_Bits __a, _Bits __b) { return __less(__a, __b); });
 
         for (std::uint32_t __run = __data_per_work_item; __run < __m_segment_size; __run <<= 1)
         {
@@ -189,7 +279,7 @@ struct __batched_merge_sort_kernel
             sycl::group_barrier(__group);
 
             if (__count > 0)
-                __merge_from_slm(__keys, __vals, __slm_segment_offset, __start, __count, __run, __less);
+                __merge_from_slm(__keys, __vals, __slm_segment_offset, __start, __count, __run);
         }
 
         sycl::group_barrier(__group);
@@ -198,15 +288,21 @@ struct __batched_merge_sort_kernel
 
         for (std::uint32_t __i = __lid; __i < __group_size; __i += __work_group_size)
         {
-            __keys_out[__group_offset + __i] = __m_slm_keys[__i];
+            __keys_out[__group_offset + __i] = _Codec::__decode(__m_slm_keys[__i]);
             if constexpr (__has_values)
                 __m_out_pack.__vals_rng()[__group_offset + __i] = __m_slm_vals[__i];
         }
     }
 
   private:
+    static bool
+    __less(_Bits __a, _Bits __b)
+    {
+        return _Codec::__rank(__a) < _Codec::__rank(__b);
+    }
+
     void
-    __store_to_slm(const _KeyT (&__keys)[__data_per_work_item], const _ValStorageT (&__vals)[__data_per_work_item],
+    __store_to_slm(const _Bits (&__keys)[__data_per_work_item], const _ValStorageT (&__vals)[__data_per_work_item],
                    std::uint32_t __offset, std::uint32_t __count) const
     {
         _ONEDPL_PRAGMA_UNROLL
@@ -223,11 +319,10 @@ struct __batched_merge_sort_kernel
 
     // Merges __count elements, starting at output position __start of the segment, from the pair of sorted runs of
     // length __run which contains that position.
-    template <typename _Less>
     void
-    __merge_from_slm(_KeyT (&__keys)[__data_per_work_item], _ValStorageT (&__vals)[__data_per_work_item],
+    __merge_from_slm(_Bits (&__keys)[__data_per_work_item], _ValStorageT (&__vals)[__data_per_work_item],
                      std::uint32_t __slm_segment_offset, std::uint32_t __start, std::uint32_t __count,
-                     std::uint32_t __run, _Less __less) const
+                     std::uint32_t __run) const
     {
         const std::uint32_t __a_begin = (__start / (2 * __run)) * (2 * __run);
         const std::uint32_t __a_end = std::min(__a_begin + __run, __m_segment_size);
@@ -249,22 +344,45 @@ struct __batched_merge_sort_kernel
             else
                 __hi = __mid;
         }
-        std::uint32_t __ia = __lo;
-        std::uint32_t __ib = __diag - __lo;
+
+        // SLM positions of the heads of A and B, and one past their last elements
+        std::uint32_t __ia = __a_slm + __lo;
+        std::uint32_t __ib = __b_slm + (__diag - __lo);
+        const std::uint32_t __a_last = __a_slm + __len_a;
+        const std::uint32_t __b_last = __b_slm + __len_b;
+        // A is never empty, so both clamped positions are valid elements of the segment. A head read from a clamped
+        // position belongs to an exhausted run and is never taken.
+        auto __load_head = [&](std::uint32_t __pos, std::uint32_t __last) {
+            return __m_slm_keys[std::min(__pos, __last - 1)];
+        };
+
+        // The heads of A and B are kept in registers with their ranks, so each output reads one key from SLM: the
+        // one replacing the head that was taken
+        _Bits __a = __load_head(__ia, __a_last);
+        _Bits __b = __load_head(__ib, __b_last);
+        _Bits __a_rank = _Codec::__rank(__a);
+        _Bits __b_rank = _Codec::__rank(__b);
 
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __s = 0; __s < __data_per_work_item; ++__s)
         {
             if (__s < __count)
             {
-                const bool __take_a = __ia < __len_a && (__ib >= __len_b || !__less(__m_slm_keys[__b_slm + __ib],
-                                                                                    __m_slm_keys[__a_slm + __ia]));
-                const std::uint32_t __src = __take_a ? __a_slm + __ia : __b_slm + __ib;
-                __keys[__s] = __m_slm_keys[__src];
+                const bool __take_a = __ia < __a_last && (__ib >= __b_last || !(__b_rank < __a_rank));
+                __keys[__s] = __take_a ? __a : __b;
                 if constexpr (__has_values)
-                    __vals[__s] = __m_slm_vals[__src];
+                    __vals[__s] = __m_slm_vals[__take_a ? __ia : __ib];
                 __ia += __take_a;
                 __ib += !__take_a;
+                if (__s + 1 < __data_per_work_item)
+                {
+                    const _Bits __next = __take_a ? __load_head(__ia, __a_last) : __load_head(__ib, __b_last);
+                    const _Bits __next_rank = _Codec::__rank(__next);
+                    __a = __take_a ? __next : __a;
+                    __a_rank = __take_a ? __next_rank : __a_rank;
+                    __b = __take_a ? __b : __next;
+                    __b_rank = __take_a ? __b_rank : __next_rank;
+                }
             }
         }
     }
@@ -288,7 +406,6 @@ struct __batched_merge_sort_submitter<__is_ascending, __data_per_work_item, __wo
     {
         using _KernelType = __batched_merge_sort_kernel<__is_ascending, __data_per_work_item, __work_group_size,
                                                         std::decay_t<_InRngPack>, std::decay_t<_OutRngPack>>;
-        using _KeyT = typename _KernelType::_KeyT;
         using _ValStorageT = typename _KernelType::_ValStorageT;
         constexpr bool __has_values = _KernelType::__has_values;
 
@@ -308,7 +425,7 @@ struct __batched_merge_sort_submitter<__is_ascending, __data_per_work_item, __wo
             {
                 oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__vals_rng(), __out_pack.__vals_rng());
             }
-            sycl::local_accessor<_KeyT, 1> __slm_keys(__slm_count, __cgh);
+            typename _KernelType::_KeysSlmAcc __slm_keys(__slm_count, __cgh);
             auto __slm_vals = [&]() {
                 if constexpr (__has_values)
                     return sycl::local_accessor<_ValStorageT, 1>(__slm_count, __cgh);
