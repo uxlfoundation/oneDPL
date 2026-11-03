@@ -312,20 +312,18 @@ struct __batched_merge_sort_kernel
         const std::uint32_t __diag = __start - __a_begin;
         const std::uint32_t __a_slm = __slm_segment_offset + __a_begin;
         const std::uint32_t __b_slm = __slm_segment_offset + __a_end;
-
-        // Co-rank: how many of the first __diag outputs come from A, the first __i at which B's candidate is
-        // strictly less than A's. Ties go to A.
+        // find work item's merge path starting point along it's diagonal
         using _CountIt = oneapi::dpl::counting_iterator<std::uint32_t>;
         const _CountIt __first(__diag > __len_b ? __diag - __len_b : 0);
         const _CountIt __last(std::min(__diag, __len_a));
         auto __a_precedes = [&](std::uint32_t __i) {
             return !__less(__m_slm_keys[__b_slm + (__diag - __i - 1)], __m_slm_keys[__a_slm + __i]);
         };
-        const std::uint32_t __lo = *std::partition_point(__first, __last, __a_precedes);
+        const std::uint32_t __starting_point = *std::partition_point(__first, __last, __a_precedes);
 
         // SLM positions of the heads of A and B, and one past their last elements
-        std::uint32_t __ia = __a_slm + __lo;
-        std::uint32_t __ib = __b_slm + (__diag - __lo);
+        std::uint32_t __index_a = __a_slm + __starting_point;
+        std::uint32_t __index_b = __b_slm + (__diag - __starting_point);
         const std::uint32_t __a_last = __a_slm + __len_a;
         const std::uint32_t __b_last = __b_slm + __len_b;
         // A is never empty, so both clamped positions are valid elements of the segment. A head read from a clamped
@@ -336,8 +334,8 @@ struct __batched_merge_sort_kernel
 
         // The heads of A and B are kept in registers with their ranks, so each output reads one key from SLM: the
         // one replacing the head that was taken
-        _Bits __a = __load_head(__ia, __a_last);
-        _Bits __b = __load_head(__ib, __b_last);
+        _Bits __a = __load_head(__index_a, __a_last);
+        _Bits __b = __load_head(__index_b, __b_last);
         _Bits __a_rank = _Codec::__rank(__a);
         _Bits __b_rank = _Codec::__rank(__b);
 
@@ -346,15 +344,15 @@ struct __batched_merge_sort_kernel
         {
             if (__s < __count)
             {
-                const bool __take_a = __ia < __a_last && (__ib >= __b_last || !(__b_rank < __a_rank));
+                const bool __take_a = __index_a < __a_last && (__index_b >= __b_last || !(__b_rank < __a_rank));
                 __keys[__s] = __take_a ? __a : __b;
                 if constexpr (__has_values)
-                    __vals[__s] = __m_slm_vals[__take_a ? __ia : __ib];
-                __ia += __take_a;
-                __ib += !__take_a;
+                    __vals[__s] = __m_slm_vals[__take_a ? __index_a : __index_b];
+                __index_a += __take_a;
+                __index_b += !__take_a;
                 if (__s + 1 < __data_per_work_item)
                 {
-                    const _Bits __next = __take_a ? __load_head(__ia, __a_last) : __load_head(__ib, __b_last);
+                    const _Bits __next = __take_a ? __load_head(__index_a, __a_last) : __load_head(__index_b, __b_last);
                     const _Bits __next_rank = _Codec::__rank(__next);
                     __a = __take_a ? __next : __a;
                     __a_rank = __take_a ? __next_rank : __a_rank;
