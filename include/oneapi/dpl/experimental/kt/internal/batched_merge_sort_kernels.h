@@ -58,7 +58,7 @@ struct __merge_sort_key_codec
 
     static constexpr _Bits __sign_mask = _Bits(_Bits(1) << (std::numeric_limits<_Bits>::digits - 1));
     static constexpr _Bits __all_ones = std::numeric_limits<_Bits>::max();
-    // Bits which sort after every encoded key; used to pad the registers of the leaf sort
+    // Pads the unused register slots of the leaf sort. With stability, these must stay at the end of a segment.
     static constexpr _Bits __padding = __all_ones;
 
     static _Bits
