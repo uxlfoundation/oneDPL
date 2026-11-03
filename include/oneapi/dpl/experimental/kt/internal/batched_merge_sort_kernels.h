@@ -352,7 +352,7 @@ struct __batched_merge_sort_kernel
                 __index_b += !__take_a;
                 if (__s + 1 < __data_per_work_item)
                 {
-                    const _Bits __next = __take_a ? __load_head(__index_a, __a_last) : __load_head(__index_b, __b_last);
+                    const _Bits __next = __load_head(__take_a ? __index_a : __index_b, __take_a ? __a_last : __b_last);
                     const _Bits __next_rank = _Codec::__rank(__next);
                     __a = __take_a ? __next : __a;
                     __a_rank = __take_a ? __next_rank : __a_rank;
