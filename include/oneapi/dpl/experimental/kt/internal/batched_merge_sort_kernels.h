@@ -35,26 +35,14 @@ class __batched_merge_sort_kernel_name;
 // Key ordering
 //-----------------------------------------------------------------------------
 
-// The unsigned integer type a key is encoded into: the result type of __order_preserving_cast. As for the radix sorts,
-// bool keys are not supported.
-template <typename _KeyT, typename = void>
-struct __merge_sort_key_bits
-{
-    using type = std::make_unsigned_t<_KeyT>;
-};
-template <typename _KeyT>
-struct __merge_sort_key_bits<_KeyT, std::enable_if_t<oneapi::dpl::__internal::__is_radix_sort_float_v<_KeyT>>>
-{
-    using type = oneapi::dpl::__internal::__uint_for_size_t<sizeof(_KeyT)>;
-};
-
 // Keys are encoded into order-preserving unsigned bits once on load and decoded once on store, so the sort only
 // compares integers. Compared through __rank, keys order exactly as with radix sort's __order_preserving_cast.
 template <typename _KeyT, bool __is_ascending>
 struct __merge_sort_key_codec
 {
+    static_assert(!std::is_same_v<_KeyT, bool>, "bool keys are not supported");
     static constexpr bool __is_float = oneapi::dpl::__internal::__is_radix_sort_float_v<_KeyT>;
-    using _Bits = typename __merge_sort_key_bits<_KeyT>::type;
+    using _Bits = decltype(oneapi::dpl::__internal::__order_preserving_cast<__is_ascending>(std::declval<_KeyT>()));
 
     static constexpr _Bits __sign_mask = _Bits(_Bits(1) << (std::numeric_limits<_Bits>::digits - 1));
     static constexpr _Bits __all_ones = std::numeric_limits<_Bits>::max();
