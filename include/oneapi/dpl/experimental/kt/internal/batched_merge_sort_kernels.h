@@ -157,11 +157,11 @@ __work_item_stable_sort(_KeyT (&__keys)[_N], _ValT (&__vals)[_N], _Less __less)
 //
 // 1. The group's segments (contiguous in memory) are copied global -> SLM with coalesced accesses.
 // 2. Each work-item loads its elements into registers, encoded, pads unused slots with bits ordered after every key
-//    and stable sorts them.
-// 3. Merge rounds: registers -> SLM, barrier, each work-item finds the start of its output with a merge path
-//    (co-rank) binary search, then merges data_per_workitem elements from SLM back into registers. Ties are taken
+//    and stable sorts them, then stores them back to SLM.
+// 3. Merge rounds: each work-item finds the start of its output with a merge path (co-rank) binary search, merges
+//    data_per_workitem elements from SLM into registers, barrier, then stores them back to SLM. Ties are taken
 //    from the left run, which keeps the sort stable. Runs are clamped to the segment, so padding never takes part.
-// 4. Registers -> SLM -> coalesced global stores.
+// 4. SLM -> coalesced global stores.
 //
 // Every element of a group is loaded before any is stored, and groups only touch their own segments, so the
 // input and output may alias (in-place sort).
@@ -250,20 +250,21 @@ struct __batched_merge_sort_kernel
         __work_item_stable_sort<__has_values>(__keys, __vals,
                                               [](_Bits __a, _Bits __b) { return __less(__a, __b); });
 
-        for (std::uint32_t __run = __data_per_work_item; __run < __m_segment_size; __run <<= 1)
-        {
-            // The previous round's reads from SLM are complete
-            sycl::group_barrier(__group);
-            __store_to_slm(__keys, __vals, __slm_segment_offset + __start, __count);
-            sycl::group_barrier(__group);
-
-            if (__count > 0)
-                __merge_from_slm(__keys, __vals, __slm_segment_offset, __start, __count, __run);
-        }
-
-        sycl::group_barrier(__group);
+        // data stays within work-item so no barrier required before storing
         __store_to_slm(__keys, __vals, __slm_segment_offset + __start, __count);
         sycl::group_barrier(__group);
+
+        for (std::uint32_t __run = __data_per_work_item; __run < __m_segment_size; __run <<= 1)
+        {
+            if (__count > 0)
+                __merge_from_slm(__keys, __vals, __slm_segment_offset, __start, __count, __run);
+            // All work-items have finished reading from SLM before any stores
+            sycl::group_barrier(__group);
+
+            __store_to_slm(__keys, __vals, __slm_segment_offset + __start, __count);
+            // after storing, synchronize so that work-items can safely read the updated data
+            sycl::group_barrier(__group);
+        }
 
         for (std::uint32_t __i = __lid; __i < __group_size; __i += __work_group_size)
         {
