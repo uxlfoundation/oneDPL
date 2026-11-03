@@ -324,17 +324,15 @@ struct __batched_merge_sort_kernel
         const std::uint32_t __a_slm = __slm_segment_offset + __a_begin;
         const std::uint32_t __b_slm = __slm_segment_offset + __a_end;
 
-        // Co-rank: how many of the first __diag outputs come from A. Ties go to A.
-        std::uint32_t __lo = __diag > __len_b ? __diag - __len_b : 0;
-        std::uint32_t __hi = std::min(__diag, __len_a);
-        while (__lo < __hi)
-        {
-            const std::uint32_t __mid = (__lo + __hi) / 2;
-            if (!__less(__m_slm_keys[__b_slm + (__diag - __mid - 1)], __m_slm_keys[__a_slm + __mid]))
-                __lo = __mid + 1;
-            else
-                __hi = __mid;
-        }
+        // Co-rank: how many of the first __diag outputs come from A, the first __i at which B's candidate is
+        // strictly less than A's. Ties go to A.
+        using _CountIt = oneapi::dpl::counting_iterator<std::uint32_t>;
+        const _CountIt __first(__diag > __len_b ? __diag - __len_b : 0);
+        const _CountIt __last(std::min(__diag, __len_a));
+        auto __a_precedes = [&](std::uint32_t __i) {
+            return !__less(__m_slm_keys[__b_slm + (__diag - __i - 1)], __m_slm_keys[__a_slm + __i]);
+        };
+        const std::uint32_t __lo = *std::partition_point(__first, __last, __a_precedes);
 
         // SLM positions of the heads of A and B, and one past their last elements
         std::uint32_t __ia = __a_slm + __lo;
