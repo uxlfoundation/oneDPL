@@ -29,6 +29,7 @@ with the implementation optimized for GPU devices:
 
 * :doc:`radix_sort <sycl/radix_sort>`
 * :doc:`radix_sort_by_key <sycl/radix_sort_by_key>`
+* :doc:`batched_stable_sort, batched_stable_sort_by_key <sycl/batched_stable_sort>`
 * :doc:`inclusive_scan <sycl/single_pass_scan>`
 
 .. toctree::
@@ -38,5 +39,6 @@ with the implementation optimized for GPU devices:
 
    sycl/radix_sort
    sycl/radix_sort_by_key
+   sycl/batched_stable_sort
    sycl/single_pass_scan
 
