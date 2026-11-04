@@ -23,12 +23,17 @@ Every configuration orders keys in the same way, so the output does not depend o
 chosen for performance alone (see :ref:`Selecting a Sort Configuration <batched-sort-by-key-selecting-config>`).
 
 .. note::
-   ``batched_stable_sort_by_key`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max
-   Series. ``radix_many_groups_tag`` has the same requirements as :doc:`radix_sort_by_key <radix_sort_by_key>`:
-   the Intel® oneAPI DPC++/C++ Compiler 2025.1.0 or greater is required, and the Unified Runtime adapter over
-   Level Zero must be used (which is the default adapter for Intel GPUs). For more information, please refer to
-   |dpcpp_device_selection|_. ``radix_single_group_tag`` requires a compiler with ``SYCL_EXT_ONEAPI_SUB_GROUP_MASK``
-   support, and a device which supports a sub-group size of `32`.
+   The requirements of ``batched_stable_sort_by_key`` depend on the sort configuration:
+
+   - ``merge_single_group_tag`` has no additional requirements.
+   - ``radix_single_group_tag`` requires a compiler with ``SYCL_EXT_ONEAPI_SUB_GROUP_MASK`` support, and a device
+     which supports a sub-group size of `32`.
+   - ``radix_many_groups_tag`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max Series.
+     The Intel® oneAPI DPC++/C++ Compiler 2025.1.0 or greater is required, and the Unified Runtime adapter over
+     Level Zero must be used (which is the default adapter for Intel GPUs). For more information, please refer to
+     |dpcpp_device_selection|_.
+
+   Using a radix configuration with a compiler which does not meet its requirements results in a compilation error.
 
 A synopsis of the ``batched_stable_sort_by_key`` function is provided below:
 
