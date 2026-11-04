@@ -1072,6 +1072,16 @@ __is_backward_tag(_TagType)
 // early_exit (find_or)
 //------------------------------------------------------------------------
 
+template <typename _Pred>
+struct __is_adjacent_match : std::false_type
+{
+};
+
+template <typename _Pred>
+struct __is_adjacent_match<oneapi::dpl::unseq_backend::adjacent_match_pred<_Pred>> : std::true_type
+{
+};
+
 // With __wide, each work item reads several contiguous elements per iteration and votes less often: fewer,
 // wider loads per element, at the cost of more registers and of scanning a little past a match.
 template <typename _Pred, bool __wide>
@@ -1090,6 +1100,13 @@ struct __early_exit_find_or
 
     static_assert(__max_iters_per_vote > 0 && (__max_iters_per_vote & (__max_iters_per_vote - 1)) == 0,
                   "the batch length doubles, so it must reach __max_iters_per_vote exactly");
+
+    template <typename _Range, std::size_t... __j>
+    static auto
+    __load_elems(const _Range& __rng, std::size_t __base, std::index_sequence<__j...>)
+    {
+        return std::array<std::decay_t<decltype(__rng[__base])>, sizeof...(__j)>{__rng[__base + __j]...};
+    }
 
     template <typename _NDItemId, typename _LocalFoundState, typename _BrickTag, typename... _Ranges>
     void
@@ -1137,31 +1154,68 @@ struct __early_exit_find_or
                 const std::size_t __band = __backward ? __iters - 1 - __i : __i;
                 return __global_id * __elems_per_iter + __band * __stride;
             };
-            auto __scan = [&](std::size_t __idx) {
-                if (__pred(__idx, __rngs...))
+            // Records the match nearest the scan's start among an iteration's hits, bit __j being __base + __j.
+            // Recording only after every predicate has run keeps the iteration's loads adjacent, so they merge.
+            auto __record = [&](std::size_t __base, std::uint32_t __hits) {
+                if (__hits == 0)
+                    return false;
+                if constexpr (std::is_same_v<_BrickTag, __parallel_or_tag>)
                 {
-                    _BrickTag::__save_state_to(__found_local, __idx);
+                    _BrickTag::__save_state_to(__found_local, __base);
                     return true;
                 }
-                return false;
+                std::size_t __j = 0;
+                if constexpr (__backward)
+                {
+                    __j = __elems_per_iter - 1;
+                    while (!((__hits >> __j) & 1u))
+                        --__j;
+                }
+                else
+                {
+                    while (!((__hits >> __j) & 1u))
+                        ++__j;
+                }
+                _BrickTag::__save_state_to(__found_local, __base + __j);
+                return true;
             };
             auto __scan_iter = [&](std::size_t __i) {
                 const std::size_t __base = __iter_base(__i);
-                bool __found = false;
-                _ONEDPL_PRAGMA_UNROLL
-                for (std::size_t __j = 0; __j < __elems_per_iter; ++__j)
-                    __found |= __scan(__base + (__backward ? __elems_per_iter - 1 - __j : __j));
-                return __found;
+                std::uint32_t __hits = 0;
+                if constexpr (__is_adjacent_match<_Pred>::value)
+                {
+                    // One read of __elems_per_iter + 1 elements covers every pair of the iteration.
+                    const auto __v = __load_elems(__rngs..., __base, std::make_index_sequence<__elems_per_iter + 1>{});
+                    _ONEDPL_PRAGMA_UNROLL
+                    for (std::size_t __j = 0; __j < __elems_per_iter; ++__j)
+                        __hits |= std::uint32_t{__pred.__pred(__v[__j], __v[__j + 1])} << __j;
+                }
+                else
+                {
+                    // Each range is read before any predicate runs: interleaved reads of several ranges do not
+                    // merge. The wide scan admits only single_match_pred here, whose walk_n applies __f to element
+                    // __idx of each range.
+                    const auto __vals =
+                        std::make_tuple(__load_elems(__rngs, __base, std::make_index_sequence<__elems_per_iter>{})...);
+                    std::apply(
+                        [&](const auto&... __v) {
+                            _ONEDPL_PRAGMA_UNROLL
+                            for (std::size_t __j = 0; __j < __elems_per_iter; ++__j)
+                                __hits |= std::uint32_t{__pred.__pred.__f(__v[__j]...)} << __j;
+                        },
+                        __vals);
+                }
+                return __record(__base, __hits);
             };
             auto __scan_iter_guarded = [&](std::size_t __i) {
                 const std::size_t __base = __iter_base(__i);
-                bool __found = false;
+                std::uint32_t __hits = 0;
                 for (std::size_t __j = 0; __j < __elems_per_iter; ++__j)
                 {
-                    const std::size_t __idx = __base + (__backward ? __elems_per_iter - 1 - __j : __j);
-                    __found |= __idx < __source_data_size && __scan(__idx);
+                    const std::size_t __idx = __base + __j;
+                    __hits |= std::uint32_t{__idx < __source_data_size && __pred(__idx, __rngs...)} << __j;
                 }
-                return __found;
+                return __record(__base, __hits);
             };
 
             bool __something_was_found = false;
@@ -1238,27 +1292,19 @@ inline constexpr std::size_t __find_or_wide_scan_never = std::numeric_limits<std
 inline constexpr std::size_t __find_or_wide_scan_min_size = __find_or_wide_scan_never;
 #else
 // Smallest input that takes the wide scan.
-// empirical: below it the wide scan was not faster on both BMG and PVC, 2-4 byte types
+// empirical: below it the wide scan was not faster on both BMG and PVC, 2-4 byte types, one range
 inline constexpr std::size_t __find_or_wide_scan_min_size = std::size_t{1} << 18;
 #endif
 
-// The same, when each index reads several elements, e.g. equal or mismatch reading two sequences.
-// empirical: crossover measured on BMG and PVC, 4-byte types
-inline constexpr std::size_t __find_or_wide_scan_multi_elem_min_size = std::size_t{1} << 26;
-
-// Narrowest element type the wide scan accepts, except in a presence check (__parallel_or_tag) over one range.
-// empirical: 2-byte searches for a match position were slower on BMG
-inline constexpr std::size_t __find_or_wide_scan_min_elem_size = 4;
-
-// Narrowest element type that presence check accepts; 1-byte types were not measured.
-inline constexpr std::size_t __find_or_wide_scan_or_tag_min_elem_size = 2;
+// Narrowest element type the wide scan accepts; 1-byte types were not measured.
+inline constexpr std::size_t __find_or_wide_scan_min_elem_size = 2;
 
 // Widest element type the wide scan accepts.
 // empirical: 8-byte types were slower at all but the largest inputs on BMG and PVC
 inline constexpr std::size_t __find_or_wide_scan_max_elem_size = 4;
 
-// Whether the brick's predicate reads one element of each range at the scanned index -- the loads the wide
-// scan makes fewer and wider. A gather, or a loop over a second sequence, gains nothing from being unrolled.
+// Whether the brick reads elements of each range at the scanned index that the wide scan can read in contiguous
+// blocks. A gather, or a loop over a second sequence, gains nothing from being unrolled.
 template <typename _Brick>
 struct __brick_reads_one_elem_per_range : std::false_type
 {
@@ -1270,39 +1316,21 @@ struct __brick_reads_one_elem_per_range<oneapi::dpl::unseq_backend::single_match
 {
 };
 
-template <typename... _Ranges>
-using __find_or_value_types = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
+// adjacent_match_pred reads elements __idx and __idx + 1 of its one range: still contiguous.
+template <typename _Pred>
+struct __brick_reads_one_elem_per_range<oneapi::dpl::unseq_backend::adjacent_match_pred<_Pred>> : std::true_type
+{
+};
 
-// A zip range, or a value type that is itself a tuple, reads one element per member.
-template <typename... _Ranges>
-inline constexpr bool __find_or_reads_one_elem_per_index =
-    oneapi::dpl::__internal::__nested_type_count<__find_or_value_types<_Ranges...>>::value == 1;
-
-template <typename _Brick, typename _BrickTag, typename... _Ranges>
+template <typename _Brick, typename... _Ranges>
 constexpr bool
 __find_or_wide_scan_profitable()
 {
-    using _ValueTypes = __find_or_value_types<_Ranges...>;
+    using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
     constexpr std::size_t __min_elem_size = oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value;
     constexpr std::size_t __max_elem_size = oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value;
-    constexpr bool __elems_wide_enough = __min_elem_size >= __find_or_wide_scan_min_elem_size;
-    constexpr bool __elems_narrow_enough = __max_elem_size <= __find_or_wide_scan_max_elem_size;
-    constexpr bool __elems_above_or_tag_floor = __min_elem_size >= __find_or_wide_scan_or_tag_min_elem_size;
-    constexpr bool __or_tag = std::is_same_v<_BrickTag, __parallel_or_tag>;
-    return __brick_reads_one_elem_per_range<_Brick>::value && __elems_narrow_enough &&
-           (__elems_wide_enough ||
-            (__or_tag && __find_or_reads_one_elem_per_index<_Ranges...> && __elems_above_or_tag_floor));
-}
-
-// The smallest input the wide scan pays for on these ranges: reading several elements per index needs more of
-// them.
-template <typename... _Ranges>
-constexpr std::size_t
-__find_or_wide_scan_min_size_for()
-{
-    return __find_or_reads_one_elem_per_index<_Ranges...>
-               ? __find_or_wide_scan_min_size
-               : std::max(__find_or_wide_scan_min_size, __find_or_wide_scan_multi_elem_min_size);
+    return __brick_reads_one_elem_per_range<_Brick>::value && __min_elem_size >= __find_or_wide_scan_min_elem_size &&
+           __max_elem_size <= __find_or_wide_scan_max_elem_size;
 }
 
 template <typename Tag>
@@ -1583,9 +1611,8 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     // Whether the multiple work-group path scans wide here.
     constexpr bool __wide_scan_possible = __find_or_wide_scan_min_size != __find_or_wide_scan_never &&
-                                          __find_or_wide_scan_profitable<_Brick, _BrickTag, _Ranges...>();
-    constexpr std::size_t __wide_scan_min_size = __find_or_wide_scan_min_size_for<_Ranges...>();
-    const bool __wide_scan = __wide_scan_possible && static_cast<std::size_t>(__rng_n) >= __wide_scan_min_size;
+                                          __find_or_wide_scan_profitable<_Brick, _Ranges...>();
+    const bool __wide_scan = __wide_scan_possible && static_cast<std::size_t>(__rng_n) >= __find_or_wide_scan_min_size;
 
     // Evaluate the amount of work-groups and work-group size
     const auto __params = __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(
