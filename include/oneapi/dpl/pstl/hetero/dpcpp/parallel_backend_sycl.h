@@ -1289,9 +1289,7 @@ __find_or_wide_scan_profitable()
     constexpr bool __elems_narrow_enough = __max_elem_size <= __find_or_wide_scan_max_elem_size;
     constexpr bool __elems_above_or_tag_floor = __min_elem_size >= __find_or_wide_scan_or_tag_min_elem_size;
     constexpr bool __or_tag = std::is_same_v<_BrickTag, __parallel_or_tag>;
-    constexpr bool __loads_contiguously =
-        std::conjunction_v<oneapi::dpl::__ranges::__range_loads_contiguously<std::decay_t<_Ranges>>...>;
-    return __brick_reads_one_elem_per_range<_Brick>::value && __loads_contiguously && __elems_narrow_enough &&
+    return __brick_reads_one_elem_per_range<_Brick>::value && __elems_narrow_enough &&
            (__elems_wide_enough ||
             (__or_tag && __find_or_reads_one_elem_per_index<_Ranges...> && __elems_above_or_tag_floor));
 }
