@@ -85,7 +85,7 @@ void
 test_mismatch_by_type()
 {
     using namespace std;
-    for (size_t size = 0; size <= 100000; size = size <= 16 ? size + 1 : size_t(3.1415 * size))
+    for (size_t size : get_find_test_sizes())
     {
         const T val = T(-1);
         Sequence<T> in(size, [](size_t v) -> T { return T(v % 100); });
@@ -121,6 +121,20 @@ test_mismatch_by_type()
                                              in2.cend());
 #endif
                 invoke_on_all_policies<11>()(test_mismatch_predicate<T>(), in.cbegin(), in.cend(), in2.cbegin());
+            }
+        }
+        // One difference, at an index that ends a block of four, then at the last index
+        if (size > 3)
+        {
+            Sequence<T> a(size, [](size_t v) -> T { return T(v % 100); });
+            Sequence<T> b(a);
+            for (size_t idx : {(size / 2) | 3, size - 1})
+            {
+                const T saved = b[idx];
+                b[idx] = val;
+                invoke_on_all_policies<26>()(test_mismatch<T>(), a.begin(), a.end(), b.begin(), b.end());
+                invoke_on_all_policies<27>()(test_mismatch<T>(), a.begin(), a.end(), b.begin());
+                b[idx] = saved;
             }
         }
         {

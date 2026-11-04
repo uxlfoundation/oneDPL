@@ -139,13 +139,14 @@ template <typename T, typename Compare>
 void
 test(size_t bits, Compare comp)
 {
-    constexpr ::std::size_t max_size = 100000;
+    const std::vector<std::size_t> sizes = get_find_test_sizes();
+    const std::size_t max_size = sizes.back();
 
     // Sequence of odd values
     Sequence<T> in(max_size, [bits](size_t k) { return T(2 * HashBits(k, bits - 1) ^ 1); });
     Sequence<T> inCopy(in);
 
-    for (size_t n = 0; n <= max_size; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : sizes)
     {
         const bool ex_res_true = true;
         invoke_on_all_policies<0>()(test_with_3_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), comp, ex_res_true);
@@ -160,6 +161,15 @@ test(size_t bits, Compare comp)
         invoke_on_all_policies<4>()(test_with_4_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), inCopy.cbegin() + n, comp, ex_res_false);
         invoke_on_all_policies<5>()(test_with_3_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), ex_res_false);
         inCopy[0] = original;
+
+        if (n > 1)
+        {
+            original = inCopy[n - 1];
+            inCopy[n - 1] = !original;
+            invoke_on_all_policies<8>()(test_with_4_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(),
+                                        inCopy.begin() + n, false);
+            inCopy[n - 1] = original;
+        }
     }
     // check different sized sequences
     invoke_on_all_policies<6>()(test_with_4_iters<T>(), in.begin(), in.begin() + max_size - 1, inCopy.begin(), inCopy.begin() + max_size, false);
