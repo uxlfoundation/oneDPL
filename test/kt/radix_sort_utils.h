@@ -27,18 +27,27 @@
 #    include <CL/sycl.hpp>
 #endif
 
+#include "../support/utils_sycl_defs.h"
+
 #ifndef LOG_TEST_INFO
 #    define LOG_TEST_INFO 0
 #endif
 
-// Check if SYCL radix sort KT is available (matches criteria from radix_sort_utils.h in include/)
-#if defined(SYCL_EXT_ONEAPI_FORWARD_PROGRESS) && defined(SYCL_EXT_ONEAPI_ROOT_GROUP) &&                                \
-    (!defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250100)
+// Availability of the SYCL radix sort KT (matches the criteria from kt_defs.h in include/)
+
+// Sub-group ballots, used by both the onesweep and the one work-group kernels
+#if SYCL_EXT_ONEAPI_SUB_GROUP_MASK >= 1 && TEST_LIBSYCL_VERSION >= 50700
+#    define TEST_SYCL_SUB_GROUP_MASK_PRESENT 1
+#endif
+
+// Onesweep also relies on forward progress between work-groups
+#if TEST_SYCL_SUB_GROUP_MASK_PRESENT && defined(SYCL_EXT_ONEAPI_FORWARD_PROGRESS) &&                                \
+    defined(SYCL_EXT_ONEAPI_ROOT_GROUP) && (!defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250100)
 #    define TEST_SYCL_RADIX_SORT_KT_AVAILABLE 1
 #endif
 
 // The SYCL one work-group radix sort needs only sub-group ballots, with no forward progress between work-groups
-#if defined(SYCL_EXT_ONEAPI_SUB_GROUP_MASK)
+#if TEST_SYCL_SUB_GROUP_MASK_PRESENT
 #    define TEST_SYCL_ONE_WG_RADIX_SORT_KT_AVAILABLE 1
 #endif
 

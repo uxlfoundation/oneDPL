@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <iterator>
+#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -79,8 +80,16 @@ __check_batched_sort_config()
         // There is no fundamental limitation here, 4 bits works but is rarely beneficial, so we enforce 8 bits for now,
         // for consistency with onesweep, and to encourage settings which are most performant.
         static_assert(_SortConfig::radix_bits == 8, "radix_single_group_tag currently requires 8 radix bits");
-        static_assert(_KernelParam::workgroup_size % 32 == 0 && _KernelParam::workgroup_size <= 1024,
-                      "radix_single_group_tag requires a multiple of 32 and at most 1024 work-items in a work-group");
+        static_assert(_KernelParam::workgroup_size > 0 && _KernelParam::workgroup_size % 32 == 0 &&
+                          _KernelParam::workgroup_size <= 1024,
+                      "radix_single_group_tag requires a positive multiple of 32 and at most 1024 work-items in a "
+                      "work-group");
+        static_assert(_KernelParam::data_per_workitem > 0,
+                      "radix_single_group_tag requires a positive number of elements per work-item");
+        // Bin counts and local offsets within the one work-group kernel use 16-bit integers
+        static_assert(std::uint32_t{_KernelParam::workgroup_size} * _KernelParam::data_per_workitem <=
+                          std::numeric_limits<std::uint16_t>::max(),
+                      "The work-group tile size (workgroup_size * data_per_workitem) must not exceed 65535");
     }
     if constexpr (__is_radix_many_groups_tag_v<_SortConfig>)
     {
