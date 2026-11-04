@@ -1,15 +1,14 @@
 Batched Stable Sort
 ###################
 
----------------------------------------------------------------------
-batched_stable_sort and batched_stable_sort_by_key Function Templates
----------------------------------------------------------------------
+--------------------------------------
+batched_stable_sort Function Templates
+--------------------------------------
 
 The ``batched_stable_sort`` function sorts a batch of equally sized, contiguous segments, each independently of the
-others, in a single call. The ``batched_stable_sort_by_key`` function sorts keys in the same way, applying the same
-order to the corresponding values.
-The sorting is stable, preserving the relative order of elements with equal keys within a segment.
-Both in-place and out-of-place overloads are provided. Out-of-place overloads do not alter the input sequences.
+others, in a single call.
+The sorting is stable, preserving the relative order of equal elements within a segment.
+Both in-place and out-of-place overloads are provided. Out-of-place overloads do not alter the input sequence.
 
 The algorithm is selected at compile time with a sort configuration type:
 
@@ -24,14 +23,14 @@ Every configuration orders keys in the same way, so the output does not depend o
 chosen for performance alone (see :ref:`Selecting a Sort Configuration <batched-sort-selecting-config>`).
 
 .. note::
-   ``batched_stable_sort`` and ``batched_stable_sort_by_key`` are currently available for Intel® Arc™ B-Series and
-   Intel® Data Center GPU Max Series. ``radix_many_groups_tag`` has the same requirements as
-   :doc:`radix_sort <radix_sort>`: the Intel® oneAPI DPC++/C++ Compiler 2025.1.0 or greater is required, and the
-   Unified Runtime adapter over Level Zero must be used (which is the default adapter for Intel GPUs). For more
-   information, please refer to |dpcpp_device_selection|_. ``radix_single_group_tag`` requires a compiler with
-   ``SYCL_EXT_ONEAPI_SUB_GROUP_MASK`` support, and a device which supports a sub-group size of `32`.
+   ``batched_stable_sort`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max Series.
+   ``radix_many_groups_tag`` has the same requirements as :doc:`radix_sort <radix_sort>`: the Intel® oneAPI
+   DPC++/C++ Compiler 2025.1.0 or greater is required, and the Unified Runtime adapter over Level Zero must be used
+   (which is the default adapter for Intel GPUs). For more information, please refer to |dpcpp_device_selection|_.
+   ``radix_single_group_tag`` requires a compiler with ``SYCL_EXT_ONEAPI_SUB_GROUP_MASK`` support, and a device
+   which supports a sub-group size of `32`.
 
-A synopsis of the ``batched_stable_sort`` and ``batched_stable_sort_by_key`` functions is provided below:
+A synopsis of the ``batched_stable_sort`` function is provided below:
 
 .. code:: cpp
 
@@ -63,56 +62,22 @@ A synopsis of the ``batched_stable_sort`` and ``batched_stable_sort_by_key`` fun
                         /*difference type of Range*/ segment_size,
                         KernelParam param = {}); // (2)
 
-   template <typename SortConfig, bool IsAscending = true,
-             typename KernelParam, typename Iterator1, typename Iterator2>
-   sycl::event
-   batched_stable_sort_by_key (sycl::queue q, Iterator1 keys_first, Iterator1 keys_last,
-                               Iterator2 values_first,
-                               typename std::iterator_traits<Iterator1>::difference_type segment_size,
-                               KernelParam param = {}); // (3)
-
-   template <typename SortConfig, bool IsAscending = true,
-             typename KernelParam, typename KeysRng, typename ValuesRng>
-   sycl::event
-   batched_stable_sort_by_key (sycl::queue q, KeysRng&& keys, ValuesRng&& values,
-                               /*difference type of KeysRng*/ segment_size,
-                               KernelParam param = {}); // (4)
-
    // Sort out-of-place
    template <typename SortConfig, bool IsAscending = true,
              typename KernelParam, typename Iterator1, typename Iterator2>
    sycl::event
    batched_stable_sort (sycl::queue q, Iterator1 first, Iterator1 last, Iterator2 first_out,
                         typename std::iterator_traits<Iterator1>::difference_type segment_size,
-                        KernelParam param = {}); // (5)
+                        KernelParam param = {}); // (3)
 
    template <typename SortConfig, bool IsAscending = true,
              typename KernelParam, typename Range1, typename Range2>
    sycl::event
    batched_stable_sort (sycl::queue q, Range1&& r, Range2&& r_out,
                         /*difference type of Range1*/ segment_size,
-                        KernelParam param = {}); // (6)
+                        KernelParam param = {}); // (4)
 
-   template <typename SortConfig, bool IsAscending = true,
-             typename KernelParam, typename KeysIterator1, typename ValuesIterator1,
-             typename KeysIterator2, typename ValuesIterator2>
-   sycl::event
-   batched_stable_sort_by_key (sycl::queue q, KeysIterator1 keys_first, KeysIterator1 keys_last,
-                               ValuesIterator1 values_first, KeysIterator2 keys_out_first,
-                               ValuesIterator2 values_out_first,
-                               typename std::iterator_traits<KeysIterator1>::difference_type segment_size,
-                               KernelParam param = {}); // (7)
-
-   template <typename SortConfig, bool IsAscending = true,
-             typename KernelParam, typename KeysRng1, typename ValuesRng1,
-             typename KeysRng2, typename ValuesRng2>
-   sycl::event
-   batched_stable_sort_by_key (sycl::queue q, KeysRng1&& keys, ValuesRng1&& values,
-                               KeysRng2&& keys_out, ValuesRng2&& values_out,
-                               /*difference type of KeysRng1*/ segment_size,
-                               KernelParam param = {}); // (8)
-
-   // Each of (1)-(8) has a counterpart which accepts caller-provided temporary storage
+   // Each of (1)-(4) has a counterpart which accepts caller-provided temporary storage
    // directly before param, for example:
    template <typename SortConfig, bool IsAscending = true,
              typename KernelParam, typename Iterator>
@@ -126,12 +91,7 @@ A synopsis of the ``batched_stable_sort`` and ``batched_stable_sort_by_key`` fun
    template <typename SortConfig, typename KeyT, typename KernelParam>
    constexpr std::size_t
    batched_stable_sort_bytes_req (std::size_t segment_size, std::size_t total_size,
-                                  KernelParam param = {}); // (9)
-
-   template <typename SortConfig, typename KeyT, typename ValueT, typename KernelParam>
-   constexpr std::size_t
-   batched_stable_sort_by_key_bytes_req (std::size_t segment_size, std::size_t total_size,
-                                         KernelParam param = {}); // (10)
+                                  KernelParam param = {}); // (5)
    }
 
 Template Parameters
@@ -148,8 +108,7 @@ Template Parameters
 | ``std::uint8_t RadixBits``  | The number of bits to sort for each radix sort algorithm pass                         |
 |                             | (``radix_single_group_tag`` and ``radix_many_groups_tag`` only).                      |
 +-----------------------------+---------------------------------------------------------------------------------------+
-| ``typename KeyT``,          | The key and value types of the sort to query the temporary storage requirements of    |
-| ``typename ValueT``         | (9,10).                                                                               |
+| ``typename KeyT``           | The element type of the sort to query the temporary storage requirements of (5).      |
 +-----------------------------+---------------------------------------------------------------------------------------+
 
 
@@ -165,26 +124,24 @@ Parameters
 |                                               | The sequences to apply the algorithm to.                            |
 | - ``first``, ``last`` (1),                    | Supported sequence types:                                           |
 | - ``r`` (2),                                  |                                                                     |
-| - ``keys_first``, ``keys_last``,              | - :ref:`USM pointers <use-usm>` (1,3,5,7),                          |
-|   ``values_first`` (3),                       | - :ref:`oneapi::dpl::begin and oneapi::dpl::end                     |
-| - ``keys``, ``values`` (4),                   |   <use-buffer-wrappers>` (1,3,5,7).                                 |
-| - ``first``, ``last``, ``first_out`` (5),     | - ``sycl::buffer`` (2,4,6,8),                                       |
-| - ``r``, ``r_out`` (6),                       | - :ref:`oneapi::dpl::experimental::ranges::views::all               |
-| - ``keys_first``, ``keys_last``,              |   <viewable-ranges>` (2,4,6,8),                                     |
-|   ``values_first``, ``keys_out_first``,       | - :ref:`oneapi::dpl::experimental::ranges::views::subrange          |
-|   ``values_out_first`` (7),                   |   <viewable-ranges>` (2,4,6,8).                                     |
-| - ``keys``, ``values``,                       |                                                                     |
-|   ``keys_out``, ``values_out`` (8).           |                                                                     |
+| - ``first``, ``last``, ``first_out`` (3),     | - :ref:`USM pointers <use-usm>` (1,3),                              |
+| - ``r``, ``r_out`` (4).                       | - :ref:`oneapi::dpl::begin and oneapi::dpl::end                     |
+|                                               |   <use-buffer-wrappers>` (1,3).                                     |
+|                                               | - ``sycl::buffer`` (2,4),                                           |
+|                                               | - :ref:`oneapi::dpl::experimental::ranges::views::all               |
+|                                               |   <viewable-ranges>` (2,4),                                         |
+|                                               | - :ref:`oneapi::dpl::experimental::ranges::views::subrange          |
+|                                               |   <viewable-ranges>` (2,4).                                         |
 |                                               |                                                                     |
 +-----------------------------------------------+---------------------------------------------------------------------+
-| ``segment_size``                              | The number of elements in each segment. The keys sequence holds     |
+| ``segment_size``                              | The number of elements in each segment. The input sequence holds    |
 |                                               | ``n / segment_size`` consecutive segments, where ``n`` is the       |
-|                                               | number of keys.                                                     |
+|                                               | number of elements.                                                 |
 +-----------------------------------------------+---------------------------------------------------------------------+
 | ``temp_storage``, ``temp_storage_bytes``      | Caller-provided temporary storage and its size in bytes.            |
 |                                               | See :ref:`Temporary Storage <batched-sort-temporary-storage>`.      |
 +-----------------------------------------------+---------------------------------------------------------------------+
-| ``total_size``                                | The total number of elements to sort, ``n`` (9,10).                 |
+| ``total_size``                                | The total number of elements to sort, ``n`` (5).                    |
 +-----------------------------------------------+---------------------------------------------------------------------+
 | ``param``                                     | A :doc:`kernel_param <../kernel_configuration>` object.             |
 |                                               |                                                                     |
@@ -193,14 +150,14 @@ Parameters
 
 **Type Requirements**:
 
-- The element type of the keys sequence(s) must be one of the following:
+- The element type of sequence(s) to sort must be one of the following:
 
    - A C++ integral or floating-point type other than ``bool`` with a width of up to 64 bits.
    - ``sycl::half``.
    - ``sycl::ext::oneapi::bfloat16`` (requires Intel® oneAPI DPC++/C++ Compiler 2026.0 or greater).
 
-**Ordering**: keys are ordered as by :doc:`radix_sort <radix_sort>`. For floating-point keys, ``-0.0`` and ``+0.0``
-are equal, so their relative order is preserved, and NaNs are ordered by their sign and payload, after
+**Ordering**: elements are ordered as by :doc:`radix_sort <radix_sort>`. For floating-point elements, ``-0.0`` and
+``+0.0`` are equal, so their relative order is preserved, and NaNs are ordered by their sign and payload, after
 ``+infinity`` for positive NaNs and before ``-infinity`` for negative NaNs in ascending order.
 
 **Preconditions**: the behavior is undefined if any of the following are violated. In debug builds, the violations
@@ -209,7 +166,7 @@ are reported with an assertion.
 - ``segment_size > 0``, and ``n`` is a multiple of ``segment_size``. If ``n`` is `0`, the call has no effect.
 - For ``merge_single_group_tag`` and ``radix_single_group_tag``,
   ``segment_size <= param.data_per_workitem * param.workgroup_size``.
-- The values and output sequences hold at least ``n`` elements.
+- The output sequence holds at least ``n`` elements.
 - The input and output sequences of the out-of-place overloads do not overlap.
 
 .. note::
@@ -226,72 +183,14 @@ are reported with an assertion.
 Return Value
 ------------
 
-(1)-(8): a ``sycl::event`` object representing the status of the algorithm execution.
+(1)-(4): a ``sycl::event`` object representing the status of the algorithm execution.
 
-(9,10): the number of bytes of temporary storage required for ``total_size`` elements in segments of
+(5): the number of bytes of temporary storage required for ``total_size`` elements in segments of
 ``segment_size`` elements. It is `0` for ``merge_single_group_tag`` and ``radix_single_group_tag``.
 
 --------------
 Usage Examples
 --------------
-
-
-Out-of-Place By Key Example
----------------------------
-
-.. code:: cpp
-
-   // possible build and run commands:
-   //    icpx -fsycl batched_stable_sort.cpp -o batched_stable_sort -I /path/to/oneDPL/include && ./batched_stable_sort
-
-   #include <cstdint>
-   #include <iostream>
-   #include <sycl/sycl.hpp>
-
-   #include <oneapi/dpl/experimental/kernel_templates>
-
-   namespace kt = oneapi::dpl::experimental::kt;
-
-   int main()
-   {
-      std::size_t n = 8;
-      std::ptrdiff_t segment_size = 4;
-      sycl::queue q{sycl::gpu_selector_v};
-      std::uint32_t* keys = sycl::malloc_shared<std::uint32_t>(n, q);
-      char* values = sycl::malloc_shared<char>(n, q);
-      std::uint32_t* keys_out = sycl::malloc_shared<std::uint32_t>(n, q);
-      char* values_out = sycl::malloc_shared<char>(n, q);
-
-      // initialize: two segments of four elements
-      keys[0] = 3, keys[1] = 1, keys[2] = 2, keys[3] = 1, keys[4] = 5, keys[5] = 5, keys[6] = 4, keys[7] = 6;
-      values[0] = 'a', values[1] = 'b', values[2] = 'c', values[3] = 'd',
-      values[4] = 'e', values[5] = 'f', values[6] = 'g', values[7] = 'h';
-
-      // sort each segment in descending order
-      using config_t = kt::gpu::radix_single_group_tag<8>;
-      auto e = kt::gpu::batched_stable_sort_by_key<config_t, false>(q, keys, keys + n, values, keys_out, values_out,
-                                                                    segment_size, kt::kernel_param<4, 64>{}); // (7)
-      e.wait();
-
-      // print
-      for(std::size_t i = 0; i < n; ++i)
-         std::cout << keys_out[i] << ' ';
-      std::cout << '\n';
-      for(std::size_t i = 0; i < n; ++i)
-         std::cout << values_out[i] << ' ';
-      std::cout << '\n';
-
-      sycl::free(keys, q);
-      sycl::free(values, q);
-      sycl::free(keys_out, q);
-      sycl::free(values_out, q);
-      return 0;
-   }
-
-**Output**::
-
-   3 2 1 1 6 5 5 4
-   a c b d h e f g
 
 
 In-Place Example with Temporary Storage
@@ -322,7 +221,7 @@ In-Place Example with Temporary Storage
 
       // allocate temporary storage once; it may be reused by sorts with the same requirements
       std::size_t temp_bytes = kt::gpu::batched_stable_sort_bytes_req<config_t, std::uint32_t>(segment_size, n,
-                                                                                               param_t{}); // (9)
+                                                                                               param_t{}); // (5)
       void* temp = sycl::malloc_device(temp_bytes, q);
 
       // initialize: two segments of three elements
@@ -348,6 +247,58 @@ In-Place Example with Temporary Storage
    1 2 3 3 3 5
 
 
+Out-of-Place Example
+--------------------
+
+.. code:: cpp
+
+   // possible build and run commands:
+   //    icpx -fsycl batched_stable_sort.cpp -o batched_stable_sort -I /path/to/oneDPL/include && ./batched_stable_sort
+
+   #include <cstdint>
+   #include <iostream>
+   #include <sycl/sycl.hpp>
+
+   #include <oneapi/dpl/experimental/kernel_templates>
+
+   namespace kt = oneapi::dpl::experimental::kt;
+
+   int main()
+   {
+      std::size_t n = 6;
+      std::ptrdiff_t segment_size = 3;
+      sycl::queue q{sycl::gpu_selector_v};
+      std::uint32_t* keys = sycl::malloc_shared<std::uint32_t>(n, q);
+      std::uint32_t* keys_out = sycl::malloc_shared<std::uint32_t>(n, q);
+
+      // initialize: two segments of three elements
+      keys[0] = 1, keys[1] = 3, keys[2] = 2, keys[3] = 3, keys[4] = 5, keys[5] = 3;
+
+      // sort each segment in descending order
+      using config_t = kt::gpu::merge_single_group_tag;
+      auto e = kt::gpu::batched_stable_sort<config_t, false>(q, keys, keys + n, keys_out, segment_size,
+                                                             kt::kernel_param<4, 64>{}); // (3)
+      e.wait();
+
+      // print
+      for(std::size_t i = 0; i < n; ++i)
+         std::cout << keys[i] << ' ';
+      std::cout << '\n';
+      for(std::size_t i = 0; i < n; ++i)
+         std::cout << keys_out[i] << ' ';
+      std::cout << '\n';
+
+      sycl::free(keys, q);
+      sycl::free(keys_out, q);
+      return 0;
+   }
+
+**Output**::
+
+   1 3 2 3 5 3
+   3 2 1 5 3 3
+
+
 .. _batched-sort-memory-requirements:
 
 -------------------
@@ -365,33 +316,32 @@ Global Memory Requirements
 
 ``merge_single_group_tag`` and ``radix_single_group_tag`` use no temporary global memory.
 
-``radix_many_groups_tag`` uses global memory for copying the input sequence(s) and for radix value counters,
+``radix_many_groups_tag`` uses global memory for copying the input sequence and for radix value counters,
 which are kept for each segment and for each work-group tile of a segment:
 
-   N\ :sub:`keys` + N\ :sub:`values` + 4 * 2\ :sup:`RadixBits` * S * (G + T)
+   N\ :sub:`keys` + 4 * 2\ :sup:`RadixBits` * S * (G + T)
 
-where the sequences with keys and values take N\ :sub:`keys` and N\ :sub:`values` space,
+where the sequence with keys takes N\ :sub:`keys` space,
 `S` is the number of radix sort passes, ``ceil(sizeof(key_type) * 8 / RadixBits)``,
 `G` is the number of segments, ``n / segment_size``,
 and `T` is the total number of tiles, ``G * ceil(segment_size / (param.data_per_workitem * param.workgroup_size))``.
 For example, with ``std::uint32_t`` keys and ``RadixBits`` set to `8`, each segment and each tile take `4KB`.
-``batched_stable_sort_bytes_req`` and ``batched_stable_sort_by_key_bytes_req`` return the exact amount.
+``batched_stable_sort_bytes_req`` returns the exact amount.
 
 .. warning::
 
    ``radix_many_groups_tag`` is not recommended for small segments. The counters are kept for every segment
-   regardless of its length, so as segments get shorter, they take more memory and time than the keys and values.
+   regardless of its length, so as segments get shorter, they take more memory and time than the keys.
    Use ``merge_single_group_tag`` or ``radix_single_group_tag`` for segments which fit into a work-group.
 
 Local Memory Requirements
 -------------------------
 
-All configurations use local memory to hold a work-group tile of keys and values:
+All configurations use local memory to hold a work-group tile of keys:
 
-   N\ :sub:`keys_per_workgroup` + N\ :sub:`values_per_workgroup` + C
+   N\ :sub:`keys_per_workgroup` + C
 
-where N\ :sub:`keys_per_workgroup` is equal to ``sizeof(key_type) * param.data_per_workitem * param.workgroup_size``,
-and N\ :sub:`values_per_workgroup` is equal to ``sizeof(value_type) * param.data_per_workitem * param.workgroup_size``.
+where N\ :sub:`keys_per_workgroup` is equal to ``sizeof(key_type) * param.data_per_workitem * param.workgroup_size``.
 
 - For ``merge_single_group_tag``, `C` is `0`. Only the segments which are packed into a work-group are held,
   so the requirement is lower when ``param.data_per_workitem * param.workgroup_size`` is not a multiple of
@@ -401,8 +351,7 @@ and N\ :sub:`values_per_workgroup` is equal to ``sizeof(value_type) * param.data
   bytes (`16KB` for ``param.workgroup_size`` set to `1024` and ``RadixBits`` set to `8`).
 - For ``radix_many_groups_tag``, `C` does not exceed `4KB`, as for :doc:`radix_sort <radix_sort>`.
 
-For example, at `64KB` of local memory, a tile is limited to 16K ``std::uint32_t`` keys,
-8K ``std::uint32_t`` key-value pairs, or 4K ``std::uint64_t`` key-value pairs.
+For example, at `64KB` of local memory, a tile is limited to 16K ``std::uint32_t`` keys or 8K ``std::uint64_t`` keys.
 
 .. _batched-sort-temporary-storage:
 
@@ -415,10 +364,9 @@ The behavior is undefined unless all of the following are satisfied:
 
 - ``temp_storage`` is a USM device or shared allocation, made on the same context as ``q``,
   and accessible from the device of ``q``. There is no alignment requirement; the size returned by
-  ``batched_stable_sort_bytes_req`` and ``batched_stable_sort_by_key_bytes_req`` accounts for any internal alignment.
-- ``temp_storage_bytes`` is no less than the value returned by ``batched_stable_sort_bytes_req`` (for
-  ``batched_stable_sort``) or ``batched_stable_sort_by_key_bytes_req`` (for ``batched_stable_sort_by_key``)
-  for the same ``SortConfig``, key and value types, ``KernelParam``, ``segment_size``, and ``n``.
+  ``batched_stable_sort_bytes_req`` accounts for any internal alignment.
+- ``temp_storage_bytes`` is no less than the value returned by ``batched_stable_sort_bytes_req``
+  for the same ``SortConfig``, key type, ``KernelParam``, ``segment_size``, and ``n``.
 - The memory is not accessed otherwise until the returned event completes.
 
 When no temporary storage is required, ``temp_storage`` may be ``nullptr`` with ``temp_storage_bytes`` set to `0`.
@@ -446,20 +394,19 @@ with ``kernel_param`` tuned independently for each:
 
    namespace kt = oneapi::dpl::experimental::kt;
 
-   template <bool IsAscending, typename KeyT, typename ValueT>
+   template <bool IsAscending, typename KeyT>
    sycl::event
-   my_batched_sort_by_key(sycl::queue q, KeyT* keys, ValueT* values, KeyT* keys_out, ValueT* values_out,
-                          std::ptrdiff_t n, std::ptrdiff_t segment_size)
+   my_batched_sort(sycl::queue q, KeyT* keys, KeyT* keys_out, std::ptrdiff_t n, std::ptrdiff_t segment_size)
    {
       // Thresholds and kernel_params are illustrative; tune them for the target device and types.
       if (segment_size <= 256)
-         return kt::gpu::batched_stable_sort_by_key<kt::gpu::merge_single_group_tag, IsAscending>(
-            q, keys, keys + n, values, keys_out, values_out, segment_size, kt::kernel_param<4, 64>{});
+         return kt::gpu::batched_stable_sort<kt::gpu::merge_single_group_tag, IsAscending>(
+            q, keys, keys + n, keys_out, segment_size, kt::kernel_param<4, 64>{});
       if (segment_size <= 4096)
-         return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_single_group_tag<8>, IsAscending>(
-            q, keys, keys + n, values, keys_out, values_out, segment_size, kt::kernel_param<8, 512>{});
-      return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_many_groups_tag<8>, IsAscending>(
-         q, keys, keys + n, values, keys_out, values_out, segment_size, kt::kernel_param<8, 512>{});
+         return kt::gpu::batched_stable_sort<kt::gpu::radix_single_group_tag<8>, IsAscending>(
+            q, keys, keys + n, keys_out, segment_size, kt::kernel_param<8, 512>{});
+      return kt::gpu::batched_stable_sort<kt::gpu::radix_many_groups_tag<8>, IsAscending>(
+         q, keys, keys + n, keys_out, segment_size, kt::kernel_param<8, 512>{});
    }
 
 Selecting Kernel Parameters
