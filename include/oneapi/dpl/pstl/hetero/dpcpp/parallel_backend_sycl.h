@@ -1296,9 +1296,6 @@ inline constexpr std::size_t __find_or_wide_scan_min_size = __find_or_wide_scan_
 inline constexpr std::size_t __find_or_wide_scan_min_size = std::size_t{1} << 18;
 #endif
 
-// Narrowest element type the wide scan accepts; 1-byte types were not measured.
-inline constexpr std::size_t __find_or_wide_scan_min_elem_size = 2;
-
 // Widest element type the wide scan accepts.
 // empirical: 8-byte types were slower at all but the largest inputs on BMG and PVC
 inline constexpr std::size_t __find_or_wide_scan_max_elem_size = 4;
@@ -1327,10 +1324,8 @@ constexpr bool
 __find_or_wide_scan_profitable()
 {
     using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
-    constexpr std::size_t __min_elem_size = oneapi::dpl::__internal::__min_nested_type_size<_ValueTypes>::value;
-    constexpr std::size_t __max_elem_size = oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value;
-    return __brick_reads_one_elem_per_range<_Brick>::value && __min_elem_size >= __find_or_wide_scan_min_elem_size &&
-           __max_elem_size <= __find_or_wide_scan_max_elem_size;
+    return __brick_reads_one_elem_per_range<_Brick>::value &&
+           oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value <= __find_or_wide_scan_max_elem_size;
 }
 
 template <typename Tag>
