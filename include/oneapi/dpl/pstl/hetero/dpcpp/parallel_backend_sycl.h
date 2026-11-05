@@ -1300,22 +1300,22 @@ inline constexpr std::size_t __find_or_wide_scan_min_size = std::size_t{1} << 18
 // empirical: 8-byte types were slower at all but the largest inputs on BMG and PVC
 inline constexpr std::size_t __find_or_wide_scan_max_elem_size = 4;
 
-// Whether the brick reads elements of each range at the scanned index that the wide scan can read in contiguous
+// Whether the brick reads only elements at or next to the scanned index, which the wide scan reads in contiguous
 // blocks. A gather, or a loop over a second sequence, gains nothing from being unrolled.
 template <typename _Brick>
-struct __brick_reads_one_elem_per_range : std::false_type
+struct __brick_reads_at_scanned_index : std::false_type
 {
 };
 
 // single_match_pred applies its predicate through walk_n, i.e. to element __idx of each range.
 template <typename _Pred>
-struct __brick_reads_one_elem_per_range<oneapi::dpl::unseq_backend::single_match_pred<_Pred>> : std::true_type
+struct __brick_reads_at_scanned_index<oneapi::dpl::unseq_backend::single_match_pred<_Pred>> : std::true_type
 {
 };
 
-// adjacent_match_pred reads elements __idx and __idx + 1 of its one range: still contiguous.
+// adjacent_match_pred reads elements __idx and __idx + 1 of its one range.
 template <typename _Pred>
-struct __brick_reads_one_elem_per_range<oneapi::dpl::unseq_backend::adjacent_match_pred<_Pred>> : std::true_type
+struct __brick_reads_at_scanned_index<oneapi::dpl::unseq_backend::adjacent_match_pred<_Pred>> : std::true_type
 {
 };
 
@@ -1324,7 +1324,7 @@ constexpr bool
 __find_or_wide_scan_profitable()
 {
     using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
-    return __brick_reads_one_elem_per_range<_Brick>::value &&
+    return __brick_reads_at_scanned_index<_Brick>::value &&
            oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value <= __find_or_wide_scan_max_elem_size;
 }
 
