@@ -292,9 +292,9 @@ struct __batched_one_wg_radix_sort_submitter<
     operator()(sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack, std::size_t __n,
                std::uint32_t __segment_size) const
     {
-        using _KernelType = __batched_one_wg_radix_sort_kernel<__is_ascending, __radix_bits, __data_per_work_item,
-                                                               __work_group_size, std::decay_t<_InRngPack>,
-                                                               std::decay_t<_OutRngPack>>;
+        using _KernelType =
+            __batched_one_wg_radix_sort_kernel<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
+                                               std::decay_t<_InRngPack>, std::decay_t<_OutRngPack>>;
         constexpr bool __has_values = _KernelType::__has_values;
 
         const std::uint32_t __segment_count = __n / __segment_size;
