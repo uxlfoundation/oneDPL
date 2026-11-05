@@ -1082,15 +1082,16 @@ struct __is_adjacent_match<oneapi::dpl::unseq_backend::adjacent_match_pred<_Pred
 {
 };
 
-// With __wide, each work item reads several contiguous elements per iteration and votes less often: fewer,
+// With __width > 1, each work item reads __width contiguous elements per iteration and votes less often: fewer,
 // wider loads per element, at the cost of more registers and of scanning a little past a match.
-template <typename _Pred, bool __wide>
+template <typename _Pred, std::size_t __width>
 struct __early_exit_find_or
 {
     _Pred __pred;
 
-    // Contiguous elements a work item reads per iteration: 16 bytes per lane at 4-byte types. Not swept.
-    static constexpr std::size_t __elems_per_iter = __wide ? 4 : 1;
+    static constexpr bool __wide = __width > 1;
+    // Contiguous elements a work item reads per iteration.
+    static constexpr std::size_t __elems_per_iter = __width;
     // Most iterations a work item scans between sub-group votes on whether a match was found. Fewer votes
     // cost less, but a batch runs to its end after a match. Not tuned.
     static constexpr std::size_t __max_iters_per_vote = __wide ? 8 : 1;
@@ -1296,9 +1297,13 @@ inline constexpr std::size_t __find_or_wide_scan_min_size = __find_or_wide_scan_
 inline constexpr std::size_t __find_or_wide_scan_min_size = std::size_t{1} << 18;
 #endif
 
-// Widest element type the wide scan accepts.
-// empirical: 8-byte types were slower at all but the largest inputs on BMG and PVC
-inline constexpr std::size_t __find_or_wide_scan_max_elem_size = 4;
+// Widest element type the wide scan accepts; wider types were not measured.
+inline constexpr std::size_t __find_or_wide_scan_max_elem_size = 8;
+
+// Most elements, and most bytes of the widest range, a work item reads per wide-scan iteration.
+// empirical: on BMG 4 elements beat 8 at 2 bytes, and 2 beat 4 at 8 bytes; PVC agreed at 8 bytes
+inline constexpr std::size_t __find_or_wide_scan_max_elems_per_iter = 4;
+inline constexpr std::size_t __find_or_wide_scan_max_bytes_per_iter = 16;
 
 // Whether the brick reads only elements at or next to the scanned index, which the wide scan reads in contiguous
 // blocks. A gather, or a loop over a second sequence, gains nothing from being unrolled.
@@ -1326,6 +1331,17 @@ __find_or_wide_scan_profitable()
     using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
     return __brick_reads_at_scanned_index<_Brick>::value &&
            oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value <= __find_or_wide_scan_max_elem_size;
+}
+
+// Elements a work item reads per wide-scan iteration.
+template <typename... _Ranges>
+constexpr std::size_t
+__find_or_wide_scan_width()
+{
+    using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
+    constexpr std::size_t __max_elem_size = oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value;
+    return std::max<std::size_t>(
+        1, std::min(__find_or_wide_scan_max_elems_per_iter, __find_or_wide_scan_max_bytes_per_iter / __max_elem_size));
 }
 
 template <typename Tag>
@@ -1621,7 +1637,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         // We shouldn't have any restrictions for _AtomicType type here
         // because we have a single work-group and we don't need to use atomics for inter-work-group communication.
 
-        const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, false>{__f};
+        const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, 1>{__f};
 
         using __find_or_one_wg_kernel_name =
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_one_wg<_CustomName>>;
@@ -1639,9 +1655,10 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using __find_or_kernel_name_init =
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_init<_CustomName>>;
 
+        constexpr std::size_t __wide_width = __find_or_wide_scan_width<_Ranges...>();
         auto __launch = [&](auto __wide_c) {
-            using _EarlyExit =
-                oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, decltype(__wide_c)::value>;
+            using _EarlyExit = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<
+                _Brick, decltype(__wide_c)::value ? __wide_width : std::size_t{1}>;
             const auto __pred = _EarlyExit{__f};
 
             // The scan kernel's name carries the scan width: this lambda is instantiated once per width, so
