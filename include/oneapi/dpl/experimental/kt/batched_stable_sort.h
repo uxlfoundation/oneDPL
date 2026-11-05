@@ -127,8 +127,7 @@ __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack
     {
 #if _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
         return __batched_single_group<_SortConfig::is_ascending, _SortConfig::radix_bits>(
-            __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out),
-            __segment_size, __param);
+            __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __segment_size, __param);
 #else
         __sycl_one_wg_radix_sort_unsupported_msg<_SortConfig>();
 #endif
@@ -137,8 +136,8 @@ __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack
     {
 #if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
         return __batched_onesweep<_SortConfig::is_ascending, _SortConfig::radix_bits, __in_place>(
-            __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out),
-            __segment_size, __param, __temp_storage);
+            __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __segment_size, __param,
+            __temp_storage);
 #else
         __sycl_radix_sort_unsupported_msg<_SortConfig>();
 #endif

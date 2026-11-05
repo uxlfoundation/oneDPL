@@ -95,7 +95,6 @@ class __onesweep_memory_holder
 
     sycl::queue __m_q;
 
-
     void
     __allocate_raw_memory()
     {
@@ -519,9 +518,9 @@ __batched_single_group(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pac
            "radix_single_group_tag requires the segment size not to exceed data_per_workitem * workgroup_size");
 
     _PRINT_INFO_IN_DEBUG_MODE(__q);
-    using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __batched_radix_sort_one_wg<std::decay_t<_RngPack1>, std::decay_t<_RngPack2>,
-                                    typename _KernelParam::kernel_name>>;
+    using _KernelName =
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__batched_radix_sort_one_wg<
+            std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, typename _KernelParam::kernel_name>>;
     return __batched_one_wg_radix_sort_submitter<__is_ascending, __radix_bits, _KernelParam::data_per_workitem,
                                                  _KernelParam::workgroup_size, _KernelName>()(
         __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n,
