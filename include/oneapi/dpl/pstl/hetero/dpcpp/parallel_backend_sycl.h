@@ -1277,34 +1277,6 @@ struct __find_or_nd_range_params
     std::size_t __wgroup_size;
 };
 
-// Work-group size cap for the wide kernel. Its higher register use lowers the work-group size a device accepts
-// for it below the advertised maximum (768 on Xe3).
-inline constexpr std::size_t __find_or_wgroup_size_cap = 512;
-
-// Inputs of up to this many elements per work item of one full-size work group are scanned by a single work
-// group, which needs no atomics across work groups.
-inline constexpr std::size_t __find_or_one_wg_max_elems_per_item = 32;
-
-// A floor of this is unreachable, which is how a configuration declines the wide scan outright.
-inline constexpr std::size_t __find_or_wide_scan_never = std::numeric_limits<std::size_t>::max();
-
-#if _ONEDPL_FPGA_DEVICE || _ONEDPL_FPGA_EMU
-// Never scan wide on FPGA: unrolling the predicate costs area. The emulator declines it too.
-inline constexpr std::size_t __find_or_wide_scan_min_size = __find_or_wide_scan_never;
-#else
-// Smallest input that takes the wide scan.
-// empirical: below it the wide scan was not faster on both BMG and PVC, 2-4 byte types, one range
-inline constexpr std::size_t __find_or_wide_scan_min_size = std::size_t{1} << 18;
-#endif
-
-// Widest element type the wide scan accepts; wider types were not measured.
-inline constexpr std::size_t __find_or_wide_scan_max_elem_size = 8;
-
-// Most elements, and most bytes of the widest range, a work item reads per wide-scan iteration.
-// empirical: on BMG 4 elements beat 8 at 2 bytes, and 2 beat 4 at 8 bytes; PVC agreed at 8 bytes
-inline constexpr std::size_t __find_or_wide_scan_max_elems_per_iter = 4;
-inline constexpr std::size_t __find_or_wide_scan_max_bytes_per_iter = 16;
-
 // Whether the brick reads only elements at or next to the scanned index, which the wide scan reads in contiguous
 // blocks. A gather, or a loop over a second sequence, gains nothing from being unrolled.
 template <typename _Brick>
@@ -1328,9 +1300,16 @@ template <typename _Brick, typename... _Ranges>
 constexpr bool
 __find_or_wide_scan_profitable()
 {
+#if _ONEDPL_FPGA_DEVICE || _ONEDPL_FPGA_EMU
+    return false;
+#else
     using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
+    // Widest element type the wide scan accepts
+    constexpr std::size_t __max_elem_size_bytes = 8;
+
     return __brick_reads_at_scanned_index<_Brick>::value &&
-           oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value <= __find_or_wide_scan_max_elem_size;
+           oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value <= __max_elem_size_bytes;
+#endif
 }
 
 // Elements a work item reads per wide-scan iteration.
@@ -1340,8 +1319,10 @@ __find_or_wide_scan_width()
 {
     using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
     constexpr std::size_t __max_elem_size = oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value;
-    return std::max<std::size_t>(
-        1, std::min(__find_or_wide_scan_max_elems_per_iter, __find_or_wide_scan_max_bytes_per_iter / __max_elem_size));
+    constexpr std::size_t __max_elements = 4;
+    constexpr std::size_t __max_bytes = 16;
+
+    return std::max<std::size_t>(1, std::min(__max_elements, __max_bytes / __max_elem_size));
 }
 
 template <typename Tag>
@@ -1351,19 +1332,23 @@ struct __parallel_find_or_nd_range_tuner
     __find_or_nd_range_params
     operator()(const sycl::queue& __q, const std::size_t __rng_n, const bool __wide_scan) const
     {
+        // Inputs of up to this many elements per work item of one full-size work group are scanned by a single work
+        // group, which needs no atomics across work groups.
+        constexpr std::size_t __max_elems_per_item = 32;
+
         // TODO: find a way to generalize getting of reliable work-group size
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the
         // future.
         const std::size_t __wgroup_size_limit = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
         // The single work-group path never launches the wide kernel, so the cap below does not apply to it.
-        if (__rng_n <= __wgroup_size_limit * __find_or_one_wg_max_elems_per_item)
+        if (__rng_n <= __wgroup_size_limit * __max_elems_per_item)
             return {/*__n_groups=*/1, __wgroup_size_limit};
 
         // Only the wide scan's kernel carries the register demand the cap exists for. Where the cap applies,
         // scale the group count by the same factor so the launch keeps the item count an uncapped group had.
         const std::size_t __wgroup_size =
-            __wide_scan ? std::min(__wgroup_size_limit, __find_or_wgroup_size_cap) : __wgroup_size_limit;
+            __wide_scan ? std::min<std::size_t>(__wgroup_size_limit, 512) : __wgroup_size_limit;
         const std::size_t __group_count_scale =
             oneapi::dpl::__internal::__dpl_ceiling_div(__wgroup_size_limit, __wgroup_size);
         // Compute the number of groups and limit by the work capacity of the compute units
@@ -1621,9 +1606,10 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
 
     // Whether the multiple work-group path scans wide here.
-    constexpr bool __wide_scan_possible = __find_or_wide_scan_min_size != __find_or_wide_scan_never &&
-                                          __find_or_wide_scan_profitable<_Brick, _Ranges...>();
-    const bool __wide_scan = __wide_scan_possible && static_cast<std::size_t>(__rng_n) >= __find_or_wide_scan_min_size;
+    constexpr bool __wide_scan_possible = __find_or_wide_scan_profitable<_Brick, _Ranges...>();
+
+    // empirical: only ranges larger provided profit on BMG and PVC
+    const bool __wide_scan = __wide_scan_possible && static_cast<std::size_t>(__rng_n) >= std::size_t{1} << 18;
 
     // Evaluate the amount of work-groups and work-group size
     const auto __params = __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(
