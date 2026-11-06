@@ -531,22 +531,25 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _I
     if (__n < 2)
         return __last;
 
-    using _Predicate = oneapi::dpl::unseq_backend::adjacent_match_pred<_BinaryPredicate>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_BinaryPredicate>;
 
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last); //a scope lifetime of this instance should be.
 
     auto __view = __buf.all_view();
+    auto __view1 = oneapi::dpl::__ranges::take_view_simple(__view, __view.size() - 1);
+    auto __view2 = oneapi::dpl::__ranges::drop_view_simple(__view, 1);
 
-    // Element pairs (__idx, __idx + 1): one fewer than the elements.
-    auto __size_calc = [](const auto& __r) { return oneapi::dpl::__ranges::__size(__r) - 1; };
+    assert(__view1.size() == __view2.size());
+
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
     using _IndexType = std::make_unsigned_t<typename std::iterator_traits<_Iterator>::difference_type>;
     using _TagType = std::conditional_t<__is_or_semantic(), oneapi::dpl::__par_backend_hetero::__parallel_or_tag,
                                         oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_IndexType>>;
 
     auto result =
         __par_backend_hetero::__parallel_find_or(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                                 _Predicate{__pred}, _TagType{}, __size_calc, __view);
+                                                 _Predicate{__pred}, _TagType{}, __size_calc{}, __view1, __view2);
 
     // inverted conditional because of
     // reorder_predicate in glue_algorithm_impl.h

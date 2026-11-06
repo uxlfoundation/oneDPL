@@ -583,7 +583,7 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     if (__n < 2)
         return __n;
 
-    using _Predicate = oneapi::dpl::unseq_backend::adjacent_match_pred<_BinaryPredicate>;
+    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<_BinaryPredicate>;
     using _IndexType = std::make_unsigned_t<oneapi::dpl::__internal::__difference_t<_Range>>;
     using _TagType = std::conditional_t<__is_or_semantic(), oneapi::dpl::__par_backend_hetero::__parallel_or_tag,
                                         oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_IndexType>>;
@@ -595,11 +595,16 @@ __pattern_adjacent_find(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R
     //C++ standard libraries (f.e libstdc++ 10), where the implementation might throw C++ exceptions, that is an issue,
     //because "SYCL kernel cannot use exceptions".
 
-    // Element pairs (__idx, __idx + 1): one fewer than the elements.
-    auto __size_calc = [](const auto& __r) { return oneapi::dpl::__ranges::__size(__r) - 1; };
+    auto __rng1 = oneapi::dpl::__ranges::take_view_simple(__rng, __n - 1);
+    auto __rng2 = oneapi::dpl::__ranges::drop_view_simple(__rng, 1);
+
+    using __size_calc = oneapi::dpl::__ranges::__first_size_calc;
+
+    assert(oneapi::dpl::__ranges::__size(__rng1) == oneapi::dpl::__ranges::__size(__rng2));
 
     auto result = oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred}, _TagType{}, __size_calc, __rng);
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), _Predicate{__pred}, _TagType{}, __size_calc{}, __rng1,
+        __rng2);
 
     // inverted conditional because of
     // reorder_predicate in glue_algorithm_impl.h

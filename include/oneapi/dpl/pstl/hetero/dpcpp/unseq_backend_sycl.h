@@ -564,23 +564,6 @@ struct single_match_pred : single_match_pred_by_idx<walk_n<_Pred>>
     single_match_pred(_Pred __p) : single_match_pred_by_idx<walk_n<_Pred>>{__p} {}
 };
 
-// Applies a binary predicate to elements __idx and __idx + 1 of one range.
-template <typename _Pred>
-struct adjacent_match_pred
-{
-    _Pred __pred;
-    // Always 1. Held at run time so the two reads stay separate: for 2-byte elements a compiler that sees
-    // them adjacent merges them into one misaligned 4-byte load.
-    std::size_t __next = 1;
-
-    template <typename _Idx, typename _Range>
-    bool
-    operator()(const _Idx __idx, const _Range& __rng) const
-    {
-        return __pred(__rng[__idx], __rng[__idx + __next]);
-    }
-};
-
 template <typename _Pred>
 struct multiple_match_pred
 {
