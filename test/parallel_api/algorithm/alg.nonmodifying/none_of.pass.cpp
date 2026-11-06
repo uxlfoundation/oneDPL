@@ -63,6 +63,12 @@ test(size_t bits)
         invoke_on_all_policies<1>()(test_none_of<T>(), in.cbegin(), in.cend(), is_equal_to<T>(spike), true);
         if (n > 0)
         {
+            // A single hit in the last element
+            const T last = in[n - 1];
+            in[n - 1] = spike;
+            invoke_on_all_policies<6>()(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike), false);
+            in[n - 1] = last;
+
             // Sprinkle in a hit
             in[2 * n / 3] = spike;
             invoke_on_all_policies<2>()(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike), false);

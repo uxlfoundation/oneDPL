@@ -44,6 +44,13 @@ test(Value value, Hit hit, Miss miss)
     for (size_t n : get_find_test_sizes())
     {
         Sequence<T> in(n, [&](size_t k) -> T { return miss(n ^ k); });
+        // A single match in the last element
+        if (n > 0)
+        {
+            in[n - 1] = hit(n ^ (n - 1));
+            invoke_on_all_policies<2>()(test_find<T>(), in.begin(), in.end(), value);
+            in[n - 1] = miss(n ^ (n - 1));
+        }
         // Try different find positions, including not found.
         // By going backwards, we can add extra matches that are *not* supposed to be found.
         // The decreasing exponential gives us O(n) total work for the loop since each find takes O(m) time.

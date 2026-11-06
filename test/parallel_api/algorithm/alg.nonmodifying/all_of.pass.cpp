@@ -81,6 +81,11 @@ test(size_t bits)
         EXPECT_EQ(in, inCopy, "all_of modified input sequence");
         if (n > 0)
         {
+            // A single miss in the last element
+            in[n - 1] = spike;
+            invoke_on_all_policies<6>()(test_all_of<T>(), in.begin(), in.end(), Parity<T>(1), false);
+            in[n - 1] = inCopy[n - 1];
+
             // Sprinkle in a miss
             in[2 * n / 3] = spike;
             invoke_on_all_policies<2>()(test_all_of<T>(), in.begin(), in.end(), Parity<T>(1), false);

@@ -67,6 +67,11 @@ test(size_t bits)
         EXPECT_EQ(in, inCopy, "any_of modified input sequence");
         if (n > 0)
         {
+            // A single hit in the last element
+            in[n - 1] = spike;
+            invoke_on_all_policies<6>()(test_any_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike), true);
+            in[n - 1] = inCopy[n - 1];
+
             // Sprinkle in a hit
             in[2 * n / 3] = spike;
             invoke_on_all_policies<2>()(test_any_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike), true);

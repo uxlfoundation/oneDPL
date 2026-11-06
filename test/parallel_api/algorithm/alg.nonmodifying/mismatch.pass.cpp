@@ -98,6 +98,15 @@ test_mismatch_by_type()
 #endif
             invoke_on_all_policies<3>()(test_mismatch_predicate<T>(), in.begin(), in.end(), in2.begin());
 
+            // A single difference in the last element
+            if (size > 0)
+            {
+                in2[size - 1] = val;
+                invoke_on_all_policies<26>()(test_mismatch<T>(), in.begin(), in.end(), in2.begin(), in2.end());
+                invoke_on_all_policies<27>()(test_mismatch_predicate<T>(), in.begin(), in.end(), in2.begin());
+                in2[size - 1] = in[size - 1];
+            }
+
             const size_t min_size = 3;
             if (size > min_size)
             {
@@ -121,20 +130,6 @@ test_mismatch_by_type()
                                              in2.cend());
 #endif
                 invoke_on_all_policies<11>()(test_mismatch_predicate<T>(), in.cbegin(), in.cend(), in2.cbegin());
-            }
-        }
-        // At the wide-scan sizes, one difference at an index that ends a block of four, then at the last index
-        if (size >= (std::size_t(1) << 18))
-        {
-            Sequence<T> a(size, [](size_t v) -> T { return T(v % 100); });
-            Sequence<T> b(a);
-            for (size_t idx : {(size / 2) | 3, size - 1})
-            {
-                const T saved = b[idx];
-                b[idx] = val;
-                invoke_on_all_policies<26>()(test_mismatch<T>(), a.begin(), a.end(), b.begin(), b.end());
-                invoke_on_all_policies<27>()(test_mismatch<T>(), a.begin(), a.end(), b.begin());
-                b[idx] = saved;
             }
         }
         {
