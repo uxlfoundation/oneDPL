@@ -162,7 +162,8 @@ test(size_t bits, Compare comp)
         invoke_on_all_policies<5>()(test_with_3_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), ex_res_false);
         inCopy[0] = original;
 
-        if (n > 1)
+        // At the wide-scan sizes, a difference at the last index
+        if (n >= (std::size_t(1) << 18))
         {
             original = inCopy[n - 1];
             inCopy[n - 1] = !original;

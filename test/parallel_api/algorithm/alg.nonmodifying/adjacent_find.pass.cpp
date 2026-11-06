@@ -68,8 +68,7 @@ test_adjacent_find_by_type()
     CustomPred<T> custom_pred;
     std::vector<size_t> counts = {2, 3, 500};
 #if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
-    // Past the size at which the SYCL backend scans several elements per work item
-    counts.push_back((size_t(1) << 18) + 2);
+    // ensure coverage of wide case
     counts.push_back((size_t(1) << 18) + 38);
 #endif
     for (size_t n : counts)

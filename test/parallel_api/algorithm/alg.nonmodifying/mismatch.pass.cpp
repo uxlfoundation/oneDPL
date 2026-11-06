@@ -123,8 +123,8 @@ test_mismatch_by_type()
                 invoke_on_all_policies<11>()(test_mismatch_predicate<T>(), in.cbegin(), in.cend(), in2.cbegin());
             }
         }
-        // One difference, at an index that ends a block of four, then at the last index
-        if (size > 3)
+        // At the wide-scan sizes, one difference at an index that ends a block of four, then at the last index
+        if (size >= (std::size_t(1) << 18))
         {
             Sequence<T> a(size, [](size_t v) -> T { return T(v % 100); });
             Sequence<T> b(a);

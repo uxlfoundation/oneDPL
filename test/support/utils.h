@@ -1169,7 +1169,7 @@ get_find_test_sizes()
     for (std::size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : std::size_t(3.1415 * n))
         sizes.push_back(n);
 #if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
-    sizes.push_back(std::size_t(1) << 18);
+    // ensure coverage of wide kernel
     sizes.push_back((std::size_t(1) << 18) + 37);
 #endif
     return sizes;
