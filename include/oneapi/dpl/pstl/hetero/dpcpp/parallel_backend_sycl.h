@@ -1622,8 +1622,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     // Whether the multiple work-group path scans wide here.
     constexpr bool __wide_scan_possible = __find_or_wide_scan_profitable<_Brick, _Ranges...>();
 
-    // empirical: only ranges larger provided profit on BMG and PVC
-    const bool __wide_scan = __wide_scan_possible && static_cast<std::size_t>(__rng_n) >= std::size_t{1} << 18;
+    const bool __wide_scan = __wide_scan_possible;
 
     // Evaluate the amount of work-groups and work-group size
     const auto __params = __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(
