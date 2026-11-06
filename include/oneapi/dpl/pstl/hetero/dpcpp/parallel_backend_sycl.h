@@ -1341,12 +1341,12 @@ __find_or_wide_scan_width()
     return std::max<std::size_t>(1, std::min(__max_elements, __max_bytes / __max_elem_size));
 }
 
-template <typename Tag>
+template <typename Tag, bool __wide_scan>
 struct __parallel_find_or_nd_range_tuner
 {
     // Tune the amount of work-groups and work-group size
     __find_or_nd_range_params
-    operator()(const sycl::queue& __q, const std::size_t __rng_n, const bool __wide_scan) const
+    operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
         // Inputs of up to this many elements per work item of one full-size work group are scanned by a single work
         // group, which needs no atomics across work groups.
@@ -1377,15 +1377,15 @@ struct __parallel_find_or_nd_range_tuner
 
 // No tuning for FPGA_EMU because we are not going to tune here the performance for FPGA emulation.
 #if !_ONEDPL_FPGA_EMU
-template <>
-struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>
+template <bool __wide_scan>
+struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag, __wide_scan>
 {
     // Tune the amount of work-groups and work-group size
     __find_or_nd_range_params
-    operator()(const sycl::queue& __q, const std::size_t __rng_n, const bool __wide_scan) const
+    operator()(const sycl::queue& __q, const std::size_t __rng_n) const
     {
         // Call common tuning function to get the work-group size
-        auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<int>{}(__q, __rng_n, __wide_scan);
+        auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<int, __wide_scan>{}(__q, __rng_n);
 
         if (__n_groups > 1)
         {
@@ -1480,30 +1480,6 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
     }
 };
 
-template <typename KernelName>
-struct __find_or_init_scratch;
-
-// Initialization of the result storage, used for both wide and narrow implementations.
-template <typename... KernelName>
-struct __find_or_init_scratch<__internal::__optional_kernel_name<KernelName...>>
-{
-    template <typename _AtomicType>
-    sycl::event
-    operator()(sycl::queue& __q, __device_storage<_AtomicType>& __scratch, const _AtomicType __init_value) const
-    {
-        return __q.submit([&](sycl::handler& __cgh) {
-            auto __scratch_acc_w = __get_accessor(sycl::write_only, __scratch, __cgh, __dpl_sycl::__no_init{});
-
-            __cgh.single_task<KernelName...>([__scratch_acc_w, __init_value]() {
-                _AtomicType* __scratch_ptr = __scratch_acc_w.__data();
-                // The found state the work-groups combine into, then the group counter that elects the writeback.
-                __scratch_ptr[0] = __init_value;
-                __scratch_ptr[1] = 0;
-            });
-        });
-    }
-};
-
 template <bool __or_tag_check, typename KernelNameInit, typename KernelName>
 struct __parallel_find_or_impl_multiple_wgs;
 
@@ -1530,8 +1506,19 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         const auto __iters_per_work_item =
             oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __n_groups * __wgroup_size);
 
-        sycl::event __event_init = __find_or_init_scratch<__internal::__optional_kernel_name<KernelNameInit...>>{}(
-            __q, __scratch_atomic_storage, __init_value);
+        // Initialization of the result storage
+        sycl::event __event_init = __q.submit([&](sycl::handler& __cgh) {
+            auto __scratch_acc_w =
+                __get_accessor(sycl::write_only, __scratch_atomic_storage, __cgh, __dpl_sycl::__no_init{});
+
+            __cgh.single_task<KernelNameInit...>([__scratch_acc_w, __init_value]() {
+                // Initialize the scratch storage with the initial value
+                _AtomicType* __scratch_ptr = __scratch_acc_w.__data();
+                __scratch_ptr[0] = __init_value;
+                // Initialize the scratch storage for group counter with zero value
+                __scratch_ptr[1] = 0;
+            });
+        });
 
         // main parallel_for
         __q.submit([&](sycl::handler& __cgh) {
@@ -1620,13 +1607,11 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
 
     // Whether the multiple work-group path scans wide here.
-    constexpr bool __wide_scan_possible = __find_or_wide_scan_profitable<_Brick, _Ranges...>();
-
-    const bool __wide_scan = __wide_scan_possible;
+    constexpr bool __wide_scan = __find_or_wide_scan_profitable<_Brick, _Ranges...>();
 
     // Evaluate the amount of work-groups and work-group size
-    const auto __params = __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag>{}(
-        __q_local, __rng_n, __wide_scan);
+    using _Tuner = __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag, __wide_scan>;
+    const auto __params = _Tuner{}(__q_local, __rng_n);
 
     _PRINT_INFO_IN_DEBUG_MODE(__q_local, __params.__wgroup_size);
 
@@ -1654,29 +1639,17 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using __find_or_kernel_name_init =
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_init<_CustomName>>;
 
-        constexpr std::size_t __wide_width = __find_or_wide_scan_width<_Ranges...>();
-        // Launch the appropriate kernel depending on whether wide scan is used
-        auto __launch = [&](auto __wide_c) {
-            using _EarlyExit = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<
-                _Brick, decltype(__wide_c)::value ? __wide_width : std::size_t{1}>;
-            const auto __pred = _EarlyExit{__f};
+        using __find_or_kernel_name =
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel<_CustomName>>;
 
-            // The scan kernel's name carries the scan width: this lambda is instantiated once per width, so
-            // each width submits its own closure type and a shared name would be two definitions of one kernel.
-            using __find_or_kernel_name = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-                __find_or_kernel<_CustomName, std::integral_constant<std::size_t, _EarlyExit::__elems_per_iter>>>;
-
-            return __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name_init,
-                                                        __find_or_kernel_name>()(
-                __q_local, __brick_tag, __rng_n, __params.__n_groups, __params.__wgroup_size, __init_value, __pred,
-                std::forward<_Ranges>(__rngs)...);
-        };
+        constexpr std::size_t __width = __wide_scan ? __find_or_wide_scan_width<_Ranges...>() : 1;
+        const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, __width>{__f};
 
         // Multiple WG implementation
-        if constexpr (__wide_scan_possible)
-            __result = __wide_scan ? __launch(std::true_type{}) : __launch(std::false_type{});
-        else
-            __result = __launch(std::false_type{});
+        __result = __parallel_find_or_impl_multiple_wgs<__or_tag_check, __find_or_kernel_name_init,
+                                                        __find_or_kernel_name>()(
+            __q_local, __brick_tag, __rng_n, __params.__n_groups, __params.__wgroup_size, __init_value, __pred,
+            std::forward<_Ranges>(__rngs)...);
     }
 
     if constexpr (__or_tag_check)
