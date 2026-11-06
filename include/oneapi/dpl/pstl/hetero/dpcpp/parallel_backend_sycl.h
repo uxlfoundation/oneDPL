@@ -1082,15 +1082,6 @@ struct __early_exit_find_or
     static constexpr bool __wide = __width > 1;
     // Contiguous elements a work item reads per iteration.
     static constexpr std::size_t __elems_per_iter = __width;
-    // Most iterations a work item scans between sub-group votes on whether a match was found. Fewer votes
-    // cost less, but a batch runs to its end after a match. Not tuned.
-    static constexpr std::size_t __max_iters_per_vote = __wide ? 8 : 1;
-    // A batch doubles only once this many batches of the new length have been scanned, so the work done past a
-    // match stays under 1 / this of the work before it. Not tuned.
-    static constexpr std::size_t __batch_growth_delay = 32;
-
-    static_assert(__max_iters_per_vote > 0 && (__max_iters_per_vote & (__max_iters_per_vote - 1)) == 0,
-                  "the batch length doubles, so it must reach __max_iters_per_vote exactly");
 
     template <typename _Range, std::size_t... __j>
     static auto
@@ -1204,15 +1195,9 @@ struct __early_exit_find_or
         }
         else 
         {
-            // Wide kernel implementation - two directions to increase bandwidth
-            // 1) vector loads into registers per iteration to maximize memory throughput, this includes
-            //    detecting when a predicate compares adjacent elements of the same underlying range, and
-            //    consolidating the loads to a single set of width + 1 loads, rather than 2 sets of width loads.
-            // 2) batching iterations together between voting synchronizations between work-items.
-            //    This allows more reads blocks to be in flight at once as we read more and more data.
-            //    Batchlength increases as we process more data to avoid overshooting early detection in
-            //    sequences where early matches may occur.
-
+            // Wide kernel implementation: vector loads into registers per iteration to maximize memory throughput.
+            // This includes detecting when a predicate compares adjacent elements of the same underlying range, and
+            // consolidating the loads to a single set of width + 1 loads, rather than 2 sets of width loads.
             const std::size_t __iters =
                 oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item, __elems_per_iter);
             constexpr bool __may_fuse = __may_be_offset_pair<_Ranges...>();
@@ -1278,61 +1263,28 @@ struct __early_exit_find_or
                 return __record(__base, __hits);
             };
 
-            bool __something_was_found = false;
-            std::size_t __iter = 0;
-
-            // Bands are visited in the tag's direction, so exiting on the shared vote, and overshooting within
-            // a batch, can only skip indices past the match.
-            auto __scan_batches = [&](auto __len_c, std::size_t __until) {
-                constexpr std::size_t __len = decltype(__len_c)::value;
-                const std::size_t __end = std::min<std::size_t>(__until, __iters);
-                for (; !__something_was_found && __iter + __len <= __end; __iter += __len)
+            // Bands are visited in the tag's direction, so exiting on the shared vote can only skip indices past
+            // the match.
+            auto __scan = [&](auto __offset_pair_c) {
+                bool __something_was_found = false;
+                for (std::size_t __i = 0; !__something_was_found && __i < __iters; ++__i)
                 {
-                    // A batch scans in one direction, so its highest index bounds all of the others and
-                    // one check covers the whole batch, leaving the loads unconditional.
-                    if (__iter_base(__backward ? __iter : __iter + __len - 1) + __elems_per_iter - 1 <
-                        __source_data_size)
-                    {
-                        auto __scan_unrolled = [&](auto __offset_pair_c) {
-                            _ONEDPL_PRAGMA_UNROLL
-                            for (std::size_t __j = 0; __j < __len; ++__j)
-                                __something_was_found |= __scan_iter(__offset_pair_c, __iter + __j);
-                        };
-                        if constexpr (__may_fuse)
-                        {
-                            if (__offset_pair)
-                                __scan_unrolled(std::true_type{});
-                            else
-                                __scan_unrolled(std::false_type{});
-                        }
-                        else
-                            __scan_unrolled(std::false_type{});
-                    }
+                    if (__iter_base(__i) + __elems_per_iter - 1 < __source_data_size)
+                        __something_was_found = __scan_iter(__offset_pair_c, __i);
                     else
-                    {
-                        for (std::size_t __j = 0; __j < __len; ++__j)
-                            __something_was_found |= __scan_iter_guarded(__iter + __j);
-                    }
-
+                        __something_was_found = __scan_iter_guarded(__i);
                     __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
                 }
             };
-
-            // Grow the batch length once __batch_growth_delay times the next length is behind the item.
-            // An item that exits early enough never leaves length 1.
-            auto __scan_growing = [&](auto __self, auto __len_c) {
-                constexpr std::size_t __len = decltype(__len_c)::value;
-                if constexpr (__len < __max_iters_per_vote)
-                {
-                    __scan_batches(__len_c, __batch_growth_delay * 2 * __len);
-                    __self(__self, std::integral_constant<std::size_t, 2 * __len>{});
-                }
+            if constexpr (__may_fuse)
+            {
+                if (__offset_pair)
+                    __scan(std::true_type{});
                 else
-                    __scan_batches(__len_c, __iters);
-            };
-            __scan_growing(__scan_growing, std::integral_constant<std::size_t, 1>{});
-            // The incomplete final batch.
-            __scan_batches(std::integral_constant<std::size_t, 1>{}, __iters);
+                    __scan(std::false_type{});
+            }
+            else
+                __scan(std::false_type{});
         }
     }
 };
