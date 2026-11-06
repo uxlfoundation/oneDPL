@@ -1180,6 +1180,20 @@ struct __early_exit_find_or
                 if (__src_data_idx_current < __source_data_size && __pred(__src_data_idx_current, __rngs...))
                 {
                     _BrickTag::__save_state_to(__found_local, __src_data_idx_current);
+
+                    // This break is mandatory from the performance point of view.
+                    // This break is safe for all our cases:
+                    // 1) __parallel_find_forward_tag : when we search for the first matching data entry,
+                    //    we process data from start to end (forward direction).
+                    //    This means that after first found entry there is no reason to process data anymore.
+                    // 2) __parallel_find_backward_tag : when we search for the last matching data entry,
+                    //    we process data from end to start (backward direction).
+                    //    This means that after the first found entry there is no reason to process data anymore too.
+                    // 3) __parallel_or_tag : when we search for any matching data entry,
+                    //    we process data from start to end (forward direction).
+                    //    This means that after the first found entry there is no reason to process data anymore too.
+                    // But break statement here shows poor perf in some cases.
+                    // So we use bool variable state check in the for-loop header.
                     __something_was_found = true;
                 }
 
@@ -1188,8 +1202,17 @@ struct __early_exit_find_or
                 __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
             }
         }
-        else
+        else 
         {
+            // Wide kernel implementation - two directions to increase bandwidth
+            // 1) vector loads into registers per iteration to maximize memory throughput, this includes
+            //    detecting when a predicate compares adjacent elements of the same underlying range, and
+            //    consolidating the loads to a single set of width + 1 loads, rather than 2 sets of width loads.
+            // 2) batching iterations together between voting synchronizations between work-items.
+            //    This allows more reads blocks to be in flight at once as we read more and more data.
+            //    Batchlength increases as we process more data to avoid overshooting early detection in
+            //    sequences where early matches may occur.
+
             const std::size_t __iters =
                 oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item, __elems_per_iter);
             constexpr bool __may_fuse = __may_be_offset_pair<_Ranges...>();
@@ -1386,8 +1409,7 @@ struct __parallel_find_or_nd_range_tuner
         if (__rng_n <= __wgroup_size_limit * __max_elems_per_item)
             return {/*__n_groups=*/1, __wgroup_size_limit};
 
-        // Only the wide scan's kernel carries the register demand the cap exists for. Where the cap applies,
-        // scale the group count by the same factor so the launch keeps the item count an uncapped group had.
+        // For wide kernels, we must limit the workgroup size to 512, to avoid excessive register usage on GPUs.
         const std::size_t __wgroup_size =
             __wide_scan ? std::min<std::size_t>(__wgroup_size_limit, 512) : __wgroup_size_limit;
         const std::size_t __group_count_scale =
@@ -1509,8 +1531,7 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
 template <typename KernelName>
 struct __find_or_init_scratch;
 
-// Seeds the two scratch elements the multiple work-group kernel combines into. Independent of the scan width,
-// so one definition serves both widths and its kernel name does not collide between them.
+// Initialization of the result storage, used for both wide and narrow implementations.
 template <typename... KernelName>
 struct __find_or_init_scratch<__internal::__optional_kernel_name<KernelName...>>
 {
@@ -1683,6 +1704,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_init<_CustomName>>;
 
         constexpr std::size_t __wide_width = __find_or_wide_scan_width<_Ranges...>();
+        // Launch the appropriate kernel depending on whether wide scan is used
         auto __launch = [&](auto __wide_c) {
             using _EarlyExit = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<
                 _Brick, decltype(__wide_c)::value ? __wide_width : std::size_t{1}>;
