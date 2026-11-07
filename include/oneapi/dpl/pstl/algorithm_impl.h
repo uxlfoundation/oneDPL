@@ -2835,18 +2835,17 @@ __pattern_generate(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardI
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Generator>
-_RandomAccessIterator
+void
 __pattern_generate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
                    _RandomAccessIterator __last, _Generator __g)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    return __internal::__except_handler([&]() {
+    __internal::__except_handler([&]() {
         __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
                                       [__g](_RandomAccessIterator __begin, _RandomAccessIterator __end) {
                                           __internal::__brick_generate(__begin, __end, __g, _IsVector{});
                                       });
-        return __last;
     });
 }
 
@@ -2881,8 +2880,8 @@ __pattern_generate_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 {
     static_assert(__is_random_access_iterator_v<_RandomAccessIterator>,
                   "Pattern-brick error. Should be a random access iterator.");
-    return __internal::__pattern_generate(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __count,
-                                          __g);
+    __internal::__pattern_generate(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __count, __g);
+    return __first + __count;
 }
 
 //------------------------------------------------------------------------
