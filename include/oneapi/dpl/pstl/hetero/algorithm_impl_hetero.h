@@ -356,13 +356,12 @@ struct generate_functor
 };
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Generator>
-_ForwardIterator
+void
 __pattern_generate(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                    _ForwardIterator __last, _Generator __g)
 {
     __pattern_hetero_walk1<__par_backend_hetero::access_mode::write, /*_IsNoInitRequested=*/true>(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, generate_functor<_Generator>{__g});
-    return __last;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, class _Size, typename _Generator>
@@ -370,7 +369,8 @@ _ForwardIterator
 __pattern_generate_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                      _Size __count, _Generator __g)
 {
-    return __pattern_generate(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __count, __g);
+    __pattern_generate(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __count, __g);
+    return __first + __count;
 }
 
 //------------------------------------------------------------------------
