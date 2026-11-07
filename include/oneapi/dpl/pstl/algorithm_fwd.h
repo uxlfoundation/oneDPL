@@ -890,7 +890,7 @@ void
 __pattern_generate(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator, _Generator) noexcept;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Generator>
-_RandomAccessIterator
+void
 __pattern_generate(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator, _RandomAccessIterator,
                    _Generator);
 
