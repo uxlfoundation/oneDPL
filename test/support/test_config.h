@@ -163,6 +163,21 @@
 #   define TEST_CPP20_SPAN_PRESENT 0
 #endif // TEST_STD_FEATURE_MACROS_PRESENT
 
+// AdaptiveCpp does not provide sycl::span, although SYCL 2020 section 3.9.2 requires it.
+// This mirrors _ONEDPL_SYCL2020_SPAN_BROKEN in the library, but detects AdaptiveCpp via the macros its
+// compiler driver predefines, since this header is included before any SYCL header which would provide
+// ACPP_VERSION_MAJOR.
+#if defined(__ACPP__) || defined(__HIPSYCL__)
+#    define TEST_SYCL2020_SPAN_BROKEN 1
+#else
+#    define TEST_SYCL2020_SPAN_BROKEN 0
+#endif
+
+// oneapi::dpl::span is an alias for std::span where the standard library provides it, and for sycl::span
+// otherwise. Where neither is available there is no way to express the interface of the device containers,
+// so they are not defined. This mirrors _ONEDPL_SPAN_PRESENT in the library.
+#define TEST_SPAN_PRESENT (TEST_CPP20_SPAN_PRESENT || (TEST_DPCPP_BACKEND_PRESENT && !TEST_SYCL2020_SPAN_BROKEN))
+
 #define TEST_HAS_NO_INT128
 #define _PSTL_TEST_COMPLEX_NON_FLOAT_AVAILABLE (_MSVC_STL_VERSION < 143)
 
@@ -227,6 +242,12 @@
 #define _PSTL_TEST_COMPLEX_TIMES_COMPLEX_BROKEN (_PSTL_TEST_COMPLEX_OP_BROKEN || _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER)
 #define _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN _PSTL_TEST_COMPLEX_OP_BROKEN
 #define _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
+
+// MSVC STL implements the std::complex transcendentals log/log10/pow for double (and long double)
+// that reads the non-const global variable __isa_available. SYCL device code cannot reference non-const global
+// variables, so these operations fail to compile in the device pass.
+#define _PSTL_TEST_COMPLEX_MSVC_LOG_POW_SYCL_DEVICE_BROKEN                                                             \
+    (_MSVC_STL_VERSION && _MSVC_STL_UPDATE >= 202509L && __SYCL_DEVICE_ONLY__)
 
 #define _PSTL_ICC_TEST_UNDERLYING_TYPE_BROKEN (_GLIBCXX_RELEASE && _GLIBCXX_RELEASE < 9)
 
@@ -329,6 +350,14 @@
         (_MSVC_STL_VERSION < 143 || (_MSVC_STL_VERSION == 143 && _MSVC_STL_UPDATE < 202111))
 #else
 #    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE 0
+#endif
+
+// -- Check for C++20 requires-clause support --
+// This is the concepts language feature (a requires-clause, e.g. on a constrained partial specialization)
+#if __cpp_concepts >= 201907L
+#    define _TEST_CPP20_REQUIRES_CLAUSE_PRESENT 1
+#else
+#    define _TEST_CPP20_REQUIRES_CLAUSE_PRESENT 0
 #endif
 
 // P2325R3 also removed default_initializable from weakly_incrementable, which breaks

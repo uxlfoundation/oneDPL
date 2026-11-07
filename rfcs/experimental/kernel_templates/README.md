@@ -146,6 +146,10 @@ and sorting algorithms are divided into radix, merge, and by-key categories for 
 Specialized namespaces may contain a different set algorithms,
 based on user demand and performance considerations.
 
+Proposals for additional algorithms:
+- [Batched Stable Sort](../../proposed/batched_stable_sort/README.md):
+  `batched_stable_sort` and `batched_stable_sort_by_key` for batches of fixed size segments.
+
 ### Example
 
 The example demonstrates the use of a kernel template
@@ -270,6 +274,17 @@ Additionally, it reduces the number of interfaces that need to be supported.
 This should be done in conjunction with the
 [Global and Local Memory Requirements](#reporting-global-and-local-memory-requirements) interface.
 
+The extension proposed in
+[sycl_ext_oneapi_async_memory_alloc](<https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/proposed/sycl_ext_oneapi_async_memory_alloc.asciidoc>)
+introduces asynchronous memory management and device USM memory pools.
+Asynchronous memory operations avoid host-side waits and associated overheads.
+A memory pool object may be passed to an algorithm instead of preallocated memory
+for the algorithm to manage its own temporary memory.
+With this approach, a caller will not need to query the memory requirements,
+and allocation failures will be reported as SYCL exceptions.
+It simplifies the interface, although it is not a replacement of the preallocated memory
+because the asynchronous memory may not be supported across all targeted devices.
+
 ### Asynchronous Execution and Dependency Chaining
 
 The algorithms return a `sycl::event` but do not accept any input events.
@@ -282,6 +297,10 @@ and if so, how to implement it correctly.
 
 Different approaches may be more effective when processing different number of elements.
 For example, a small number of elements can be processed by a single work-group.
+
+Segmented algorithms may also have different specializations depending on
+a segment size, for example, sub-group, work-group or even multi-work-group
+processing of a segment.
 
 Separating such cases would reduce compilation time.
 

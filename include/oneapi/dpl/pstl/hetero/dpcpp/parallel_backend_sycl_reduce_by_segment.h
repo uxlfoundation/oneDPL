@@ -122,9 +122,9 @@ using _SegReducePrefixPhase = __seg_reduce_prefix_kernel<_Name...>;
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
-__parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
-                                                         _Range3&& __out_keys, _Range4&& __out_values,
-                                                         _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
+__parallel_reduce_by_segment_fallback_with_group_algorithms(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
+                                                            _Range3&& __out_keys, _Range4&& __out_values,
+                                                            _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
 {
     using _SegReduceCountKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
         _SegReduceCountPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
@@ -201,7 +201,7 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                 std::size_t __global_id = __item.get_global_id(0);
 
                 std::size_t __start = __global_id * __vals_per_item;
-                std::size_t __end = __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
+                std::size_t __end = sycl::minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
                 std::size_t __item_segments = 0;
 
                 // 1a. Work item scan to identify segment ends
@@ -210,8 +210,8 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                         ++__item_segments;
 
                 // 1b. Work group reduction
-                std::size_t __num_segs = __dpl_sycl::__reduce_over_group(
-                    __group, __item_segments, __dpl_sycl::__plus<decltype(__item_segments)>());
+                std::size_t __num_segs =
+                    __dpl_sycl::__reduce_over_group(__group, __item_segments, sycl::plus<decltype(__item_segments)>());
 
                 // 1c. First work item writes segment count to global memory
                 if (__local_id == 0)
@@ -268,11 +268,11 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                 // 2b. Perform a serial scan within the work item over assigned elements. Store partial
                 // reductions in work group local memory.
                 std::size_t __start = __global_id * __vals_per_item;
-                std::size_t __end = __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
+                std::size_t __end = sycl::minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
 
                 std::size_t __max_end = 0;
                 std::size_t __item_segments = 0;
-                auto __identity = unseq_backend::__known_identity<_BinaryOperator, __val_type>;
+                auto __identity = sycl::known_identity<_BinaryOperator, __val_type>::value;
 
                 __val_type __accumulator = __identity;
                 for (std::size_t __i = __start; __i < __end; ++__i)
@@ -288,13 +288,13 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                 }
 
                 // 2c. Count the number of prior work segments cooperatively over group
-                std::size_t __prior_segs_in_wg = __dpl_sycl::__exclusive_scan_over_group(
-                    __group, __item_segments, __dpl_sycl::__plus<std::size_t>());
+                std::size_t __prior_segs_in_wg =
+                    __dpl_sycl::__exclusive_scan_over_group(__group, __item_segments, sycl::plus<std::size_t>());
                 std::size_t __start_idx = __wg_num_prior_segs + __prior_segs_in_wg;
 
                 // 2d. Find the greatest segment end less than the current index (inclusive)
-                std::size_t __closest_seg_id = __dpl_sycl::__inclusive_scan_over_group(
-                    __group, __max_end, __dpl_sycl::__maximum<std::size_t>());
+                std::size_t __closest_seg_id =
+                    __dpl_sycl::__inclusive_scan_over_group(__group, __max_end, sycl::maximum<std::size_t>());
 
                 // __wg_segmented_scan is a derivative work and responsible for the third header copyright
                 __val_type __carry_in = oneapi::dpl::__par_backend_hetero::__wg_segmented_scan(
@@ -384,11 +384,11 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                     std::size_t __local_id = __item.get_local_id(0);
 
                     std::size_t __start = __global_id * __vals_per_item;
-                    std::size_t __end = __dpl_sycl::__minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
+                    std::size_t __end = sycl::minimum<decltype(__n)>{}(__start + __vals_per_item, __n);
                     std::size_t __item_segments = 0;
 
                     std::int64_t __wg_agg_idx = __group_id - 1;
-                    __val_type __agg_collector = unseq_backend::__known_identity<_BinaryOperator, __val_type>;
+                    __val_type __agg_collector = sycl::known_identity<_BinaryOperator, __val_type>::value;
 
                     bool __ag_exists = false;
                     // 3a. Check to see if an aggregate exists and compute that value in the first
@@ -400,14 +400,14 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                         constexpr std::int32_t __vals_to_explore = 16;
                         bool __last_it = false;
                         __loc_seg_ends_acc[__local_id] = false;
-                        __loc_partials_acc[__local_id] = unseq_backend::__known_identity<_BinaryOperator, __val_type>;
+                        __loc_partials_acc[__local_id] = sycl::known_identity<_BinaryOperator, __val_type>::value;
                         for (std::int32_t __i = __wg_agg_idx - __vals_to_explore * __local_id; !__last_it;
                              __i -= __wgroup_size * __vals_to_explore)
                         {
-                            __val_type __local_collector = unseq_backend::__known_identity<_BinaryOperator, __val_type>;
+                            __val_type __local_collector = sycl::known_identity<_BinaryOperator, __val_type>::value;
                             // exploration phase
                             for (std::int32_t __j = __i;
-                                 __j > __dpl_sycl::__maximum<std::int32_t>{}(-1L, __i - __vals_to_explore); --__j)
+                                 __j > sycl::maximum<std::int32_t>{}(-1L, __i - __vals_to_explore); --__j)
                             {
                                 __local_collector = __binary_op(__partials_acc[__j], __local_collector);
                                 if (__seg_ends_acc[__j] || __j == 0)
@@ -447,7 +447,7 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                             ++__item_segments;
 
                     std::size_t __prior_segs_in_wg = __dpl_sycl::__exclusive_scan_over_group(
-                        __group, __item_segments, __dpl_sycl::__plus<decltype(__item_segments)>());
+                        __group, __item_segments, sycl::plus<decltype(__item_segments)>());
 
                     // 3c. Determine prior index
                     std::size_t __wg_num_prior_segs = __seg_ends_scan_acc[__group_id];
@@ -487,13 +487,13 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                       _Range1&& __keys, _Range2&& __values, _Range3&& __out_keys,
                                       _Range4&& __out_values, _BinaryPredicate __binary_pred,
                                       _BinaryOperator __binary_op,
-                                      /*known_identity=*/std::true_type)
+                                      /*__can_use_group_reduce_scan=*/std::true_type)
 {
     using __CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
 
-    return __parallel_reduce_by_segment_fallback_has_known_identity<__CustomName>(
+    return __parallel_reduce_by_segment_fallback_with_group_algorithms<__CustomName>(
         __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
         std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
 }

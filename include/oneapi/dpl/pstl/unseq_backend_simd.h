@@ -16,7 +16,13 @@
 #ifndef _ONEDPL_UNSEQ_BACKEND_SIMD_H
 #define _ONEDPL_UNSEQ_BACKEND_SIMD_H
 
-#include <type_traits>
+#include <algorithm>   // for std::min
+#include <functional>  // for std::invoke
+#include <iterator>    // for std::iterator_traits
+#include <limits>      // for std::numeric_limits
+#include <memory>      // for std::addressof
+#include <type_traits> // for std::true_type, std::is_copy_constructible_v
+#include <utility>     // for std::pair, std::make_pair
 
 #include "utils.h"
 
@@ -612,12 +618,22 @@ __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryO
     return ::std::make_pair(__result + __n, __init_.__value);
 }
 
-// [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
+template <typename _Iterator, typename _ValueType = typename std::iterator_traits<_Iterator>::value_type,
+          typename _ReferenceType = typename std::iterator_traits<_Iterator>::reference>
+inline constexpr bool __is_indirectly_storable_v =
+    std::is_copy_constructible_v<_ValueType> && std::is_copy_assignable_v<_ValueType> &&
+    std::is_convertible_v<_ReferenceType, _ValueType>;
+
+// [restriction] - the restrictions are formulated in the trait __is_indirectly_storable_v
 // complexity [violation] - We will have at most (__n-1 + number_of_lanes) comparisons instead of at most __n-1.
 template <typename _ForwardIterator, typename _Size, typename _Compare>
 _ForwardIterator
 __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
+    static_assert(__is_indirectly_storable_v<_ForwardIterator>,
+                  "The value type of the iterator must be copy-constructible, copy-assignable and copy-initializable "
+                  "from the iterator's reference type");
+
     if (__n == 0)
     {
         return __first;
@@ -629,14 +645,8 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         _ValueType __min_val;
         _Size __min_ind;
         _Compare* __min_comp;
-        // The default constructor is not used during the algorithm, so it is not required for it.
-        // However, some compilers may require it.
 
-        _ComplexType() : __min_val{}, __min_ind{}, __min_comp(nullptr) {}
-        _ComplexType(const _ValueType& val, const _Compare* comp)
-            : __min_val(val), __min_ind(0), __min_comp(const_cast<_Compare*>(comp))
-        {
-        }
+        _ComplexType(const _ValueType& val, _Compare* comp) : __min_val(val), __min_ind(0), __min_comp(comp) {}
         _ComplexType(const _ComplexType& __obj) = default;
 
         _ONEDPL_PRAGMA_DECLARE_SIMD
@@ -652,16 +662,15 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         }
     };
 
-    _ComplexType __init{*__first, &__comp};
+    _ComplexType __init(*__first, std::addressof(__comp));
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType)
 
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        const _ValueType __min_val = __init.__min_val;
         const _ValueType __current = __first[__i];
-        if (std::invoke(__comp, __current, __min_val))
+        if (std::invoke(__comp, __current, __init.__min_val))
         {
             __init.__min_val = __current;
             __init.__min_ind = __i;
@@ -670,12 +679,16 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     return __first + __init.__min_ind;
 }
 
-// [restriction] - ::std::iterator_traits<_ForwardIterator>::value_type should be DefaultConstructible.
+// [restriction] - the restrictions are formulated in the trait __is_indirectly_storable_v
 // complexity [violation] - We will have at most (2*(__n-1) + 4*number_of_lanes) comparisons instead of at most [1.5*(__n-1)].
 template <typename _ForwardIterator, typename _Size, typename _Compare>
-::std::pair<_ForwardIterator, _ForwardIterator>
+std::pair<_ForwardIterator, _ForwardIterator>
 __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcept
 {
+    static_assert(__is_indirectly_storable_v<_ForwardIterator>,
+                  "The value type of the iterator must be copy-constructible, copy-assignable and copy-initializable "
+                  "from the iterator's reference type");
+
     if (__n == 0)
     {
         return ::std::make_pair(__first, __first);
@@ -689,13 +702,9 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         _Size __min_ind;
         _Size __max_ind;
         _Compare* __minmax_comp;
-        // The default constructor is not used during the algorithm, so it is not required for it.
-        // However, some compilers may require it.
 
-        _ComplexType() : __min_val{}, __max_val{}, __min_ind{}, __max_ind{}, __minmax_comp(nullptr) {}
-        _ComplexType(const _ValueType& min_val, const _ValueType& max_val, const _Compare* comp)
-            : __min_val(min_val), __max_val(max_val), __min_ind(0), __max_ind(0),
-              __minmax_comp(const_cast<_Compare*>(comp))
+        _ComplexType(const _ValueType& min_val, const _ValueType& max_val, _Compare* comp)
+            : __min_val(min_val), __max_val(max_val), __min_ind(0), __max_ind(0), __minmax_comp(comp)
         {
         }
         _ComplexType(const _ComplexType& __obj) = default;
@@ -730,22 +739,20 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         }
     };
 
-    _ComplexType __init{*__first, *__first, &__comp};
+    _ComplexType __init(*__first, *__first, std::addressof(__comp));
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__min_func, _ComplexType);
 
     _ONEDPL_PRAGMA_SIMD_REDUCTION(__min_func : __init)
     for (_Size __i = 1; __i < __n; ++__i)
     {
-        auto __min_val = __init.__min_val;
-        auto __max_val = __init.__max_val;
-        auto __current = __first[__i];
-        if (std::invoke(__comp, __current, __min_val))
+        const _ValueType __current = __first[__i];
+        if (std::invoke(__comp, __current, __init.__min_val))
         {
             __init.__min_val = __current;
             __init.__min_ind = __i;
         }
-        else if (!std::invoke(__comp, __current, __max_val))
+        else if (!std::invoke(__comp, __current, __init.__max_val))
         {
             __init.__max_val = __current;
             __init.__max_ind = __i;
@@ -780,49 +787,86 @@ __simd_partition_copy(_InputIterator __first, _DifferenceType __n, _OutputIterat
     return ::std::make_pair(__out_true + __cnt_true, __out_false + __cnt_false);
 }
 
+// Finds the first element of the block [__first, __last) that matches any element of the second sequence.
+// The block is not split any further, so its size is fully controlled by the caller.
+template <class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
+_ForwardIterator1
+__simd_find_first_of_block(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
+                           _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
+{
+    using _DifferenceType1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_ForwardIterator2>::difference_type;
+
+    const _DifferenceType1 __n1 = __last - __first;
+    const _DifferenceType2 __n2 = __s_last - __s_first;
+
+    if (__n1 < __n2)
+    {
+        for (; __first != __last; ++__first)
+        {
+            auto __simd_pred = [&__pred, __first](auto&& __val) {
+                return __pred(*__first, std::forward<decltype(__val)>(__val));
+            };
+
+            if (__unseq_backend::__simd_or(__s_first, __n2, __simd_pred))
+                return __first;
+        }
+
+        return __last;
+    }
+
+    _DifferenceType1 __min_i = __n1;
+    for (; __s_first != __s_last && __min_i > 0; ++__s_first)
+    {
+        auto __simd_pred = [__s_first, &__pred](_ForwardIterator1 __it, _DifferenceType1 __i) {
+            return __pred(__it[__i], *__s_first);
+        };
+
+        __min_i = __unseq_backend::__simd_first(__first, _DifferenceType1(0), __min_i, __simd_pred) - __first;
+    }
+
+    return __first + __min_i;
+}
+
 template <class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
 _ForwardIterator1
 __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
                      _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
 {
-    using _DifferencType = typename std::iterator_traits<_ForwardIterator1>::difference_type;
+    using _ValueT1 = typename std::iterator_traits<_ForwardIterator1>::value_type;
+    using _DifferenceType1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
 
-    const _DifferencType __n1 = __last - __first;
-    const _DifferencType __n2 = __s_last - __s_first;
-    if (__n1 == 0 || __n2 == 0)
-    {
+    // The first sequence is searched in blocks, so that an early match costs O(__n2 * __block_size) comparisons
+    // instead of O(__n2 * __n1). The block starts small and doubles, which amortizes the overhead of the small
+    // leading blocks, up to a size that stays in the L1 cache together with the second sequence.
+    constexpr std::size_t __target_block_bytes_min = __lane_size * 4; // 256 bytes
+    constexpr std::size_t __target_block_bytes_max = 16 * 1024;       // half of the smallest common L1d (32KB)
+
+    // A narrow difference type (e.g. of counting_iterator<std::int8_t>) cannot hold such a block: limit it
+    constexpr auto __bytes_to_block_size = [](std::size_t __bytes) -> std::size_t {
+        return std::min<std::size_t>(__internal::__dpl_ceiling_div(__bytes, sizeof(_ValueT1)),
+                                     std::numeric_limits<_DifferenceType1>::max());
+    };
+    constexpr std::size_t __block_size_min = __bytes_to_block_size(__target_block_bytes_min);
+    constexpr std::size_t __block_size_max = __bytes_to_block_size(__target_block_bytes_max);
+
+    if (__first == __last || __s_first == __s_last)
         return __last; // according to the standard
+
+    std::size_t __block_size = __block_size_min;
+    for (_ForwardIterator1 __block_begin = __first; __block_begin != __last;)
+    {
+        const _ForwardIterator1 __block_end =
+            __block_begin + std::min<_DifferenceType1>(__last - __block_begin, __block_size);
+        const _ForwardIterator1 __res =
+            __simd_find_first_of_block(__block_begin, __block_end, __s_first, __s_last, __pred);
+        if (__res != __block_end)
+            return __res;
+
+        __block_begin = __block_end;
+        __block_size = std::min(__block_size * 2, __block_size_max);
     }
 
-    // Common case
-    // If first sequence larger than second then we'll run simd_first with parameters of first sequence.
-    // Otherwise, vice versa.
-    if (__n1 < __n2)
-    {
-        auto __u_pred =
-            [__pred, __first](auto&& __val) mutable { return __pred(std::forward<decltype(__val)>(__val), *__first); };
-        for (; __first != __last; ++__first)
-        {
-            if (__unseq_backend::__simd_or(__s_first, __n2, __u_pred))
-            {
-                return __first;
-            }
-        }
-    }
-    else
-    {
-        for (; __s_first != __s_last; ++__s_first)
-        {
-            const auto __result = __unseq_backend::__simd_first(
-                __first, _DifferencType(0), __n1, [__s_first, &__pred](_ForwardIterator1 __it, _DifferencType __i) {
-                    return __pred(__it[__i], *__s_first);
-                });
-            if (__result != __last)
-            {
-                return __result;
-            }
-        }
-    }
     return __last;
 }
 

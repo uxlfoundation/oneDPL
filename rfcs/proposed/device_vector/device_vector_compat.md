@@ -1,0 +1,372 @@
+# `device_vector<T>` Compatibility Layer
+
+A Thrust-compatible device-memory vector, living in a
+compatibility namespace. Adds `device_pointer`, `device_reference`, and
+implicit host-access semantics on top of `device_array`'s explicit API.
+
+See the [usage study](usage_pattern_study.md) for evidence on which Thrust APIs
+are actually used, and [device_array](device_array.md) for the underlying
+container.
+
+The goal is a near drop-in replacement for `thrust::device_vector`, covering
+the functionality that is actually used in practice, adapted to fit within SYCL.
+
+## Relationship to the shared base
+
+`compat::device_vector<T, Alloc>` and [`device_array`](device_array.md) share
+their implementation through a non-public base,
+`oneapi::dpl::__internal::__device_storage_base<T, Alloc>`, which
+owns the device allocation and its lifetime, the size, the associated
+`sycl::context` / `sycl::device`, the allocator instance, resizing, and the
+host-device transfer helpers. `device_vector` **privately inherits** from it and
+re-exposes the full resizable, allocator-aware interface, adding the Thrust
+proxy layer on top.
+
+It uses an iterator/pointer type, `device_pointer`, as a wrapper for USM memory, and reference type, `device_reference`, as a reference proxy type to enable host-side usage with implicit memory transfers. These types hold a pointer to a `sycl::context` to facilitate creation of a queue for memcpy.
+
+## Differences from Thrust
+
+1. **Context + device (or queue) always required** — no implicit default device.
+2. **No default constructor** — a device association is always required.
+3. **No `push_back`, `insert`, `erase`** — rarely used, unnecessary complexity.
+4. **No `host_vector` type** — use `std::vector<T>` directly.
+5. **No system tag dispatch** — execution policies determine where algorithms run.
+6. **No copy-initialization from a host vector** — `device_vector<T> d = h_v;` cannot be
+   supported, because every constructor additionally requires a context + device (or queue)
+   and so is never a candidate for copy-initialization. Assignment from a host
+   vector to an already-constructed `device_vector` (`d = h_v;`) is supported.
+7. **Conversion to `std::vector` is explicit** — `std::vector<T> h = d;` will not compile;
+   use `static_cast<std::vector<T>>(d)`. `dpct::device_vector` provides this conversion
+   implicitly. Made explicit here because the conversion is a blocking bulk device-to-host
+   transfer, which is worth making visible at the call site.
+
+## Namespace
+We are using `oneapi::dpl::compat` for these compatibility classes.  Other elements which graduate from SYCLomatic, but don't belong in oneDPL proper may end up living
+in this `compat` namespace in the future.
+
+## API
+
+```cpp
+namespace oneapi::dpl::compat {
+
+// =========================================================================
+// Initialization tags
+// =========================================================================
+// Empty tags selecting the initialization behavior of a constructor or
+// resize(). Migration targets for thrust::no_init / thrust::default_init.
+
+// No initialization: elements are left with indeterminate values. Requires std::is_trivially_default_constructible_v<T>
+struct no_init_t {};
+inline constexpr no_init_t no_init{};
+
+// Default-initialization: elements are default-initialized. Requires std::is_default_constructible_v<T>
+struct default_init_t {};
+inline constexpr default_init_t default_init{};
+
+// =========================================================================
+// device_pointer<T>
+// =========================================================================
+// Wraps a raw T* from device_array. Dereference provides device_reference.
+
+template <typename T>
+class device_pointer {
+    T* __ptr = nullptr;
+    const sycl::context* __ctx = nullptr;  // non-owning, from device_vector
+
+public:
+    using iterator_category = std::random_access_iterator_tag;
+    using iterator_concept  = std::random_access_iterator_tag;
+    using value_type        = std::remove_cv_t<T>;
+    using difference_type   = std::ptrdiff_t;
+    using pointer           = T*;
+    using reference         = device_reference<T>;
+
+    device_pointer() = default;
+    explicit device_pointer(T* ptr, const sycl::context* ctx = nullptr);
+
+    // Raw pointer access — unwraps back to the T* that device_array uses
+    T* get() const;
+
+    reference operator*() const;
+    reference operator[](difference_type n) const;
+
+    /* Full random access iterator arithmetic + comparison*/
+
+    // Opt in to oneDPL's device-accessibility customization point, so that
+    // device_pointer are passed to kernels directly
+    friend std::true_type
+    is_onedpl_indirectly_device_accessible(device_pointer)
+    {
+        return {};
+    }
+};
+
+// =========================================================================
+// device_reference<T>
+// =========================================================================
+
+template <typename T>
+class device_reference {
+    T* __ptr = nullptr;
+    const sycl::context* __ctx = nullptr;  // non-owning, from device_pointer
+
+public:
+    device_reference(T* ptr, const sycl::context* ctx);
+
+    operator T() const;                                       // read
+    const device_reference& operator=(const T& val) const;    // write
+    const device_reference& operator=(const device_reference&) const;
+
+    // Compound assignment (each is a synchronous read-modify-write)
+    const device_reference& operator+=(const T&) const;
+    /* all other compound assignments... */
+
+    const device_reference& operator++() const;
+    T operator++(int) const;
+    const device_reference& operator--() const;
+    T operator--(int) const;
+
+    device_pointer<T> operator&() const;
+
+    friend void swap(const device_reference& a, const device_reference& b);
+};
+
+// =========================================================================
+// device_vector<T, Alloc>
+// =========================================================================
+
+template <typename T, typename Alloc = device_allocator<T>>
+class device_vector : private internal::__device_storage_base<T, Alloc> {
+    // base stores context + device + allocator + allocation + size
+public:
+    using value_type      = T;
+    using allocator_type  = Alloc;
+    using size_type       = std::size_t;
+    using difference_type = std::ptrdiff_t;
+    using reference       = device_reference<T>;
+    using const_reference = device_reference<const T>;
+    using pointer         = device_pointer<T>;
+    using const_pointer   = device_pointer<const T>;
+    using iterator        = device_pointer<T>;
+    using const_iterator  = device_pointer<const T>;
+
+
+    // construction from size
+    device_vector(size_type count, sycl::context ctx, sycl::device dev);
+    // construction from size and value
+    device_vector(size_type count, const T& value,
+                  sycl::context ctx, sycl::device dev);
+
+    //construction from iterators
+    template <typename InputIt>
+    device_vector(InputIt first, InputIt last,
+                  sycl::context ctx, sycl::device dev);
+    //construction from initializer_list
+    device_vector(std::initializer_list<T> init,
+                  sycl::context ctx, sycl::device dev);
+    // construction from std::vector
+    explicit device_vector(const std::vector<T>& src,
+                           sycl::context ctx, sycl::device dev);
+
+    /* Copy of all above constructors for `sycl::queue` (extracts context + device),
+       using no_init_t / default_init_t to select initialization behavior where
+       applicable (tags impose type requirements; see their definition), and with
+       explicit allocator */
+
+
+    // Copy / move
+    device_vector(const device_vector&);
+    device_vector(device_vector&&) noexcept;
+    device_vector& operator=(const device_vector&);
+    device_vector& operator=(device_vector&&) noexcept;
+
+    ~device_vector();
+
+    // Assign from host vector (bulk upload)
+    device_vector& operator=(const std::vector<T>& src);
+
+    // Convert to host vector (bulk download).
+    // Additionally requires std::is_default_constructible_v<T>
+    explicit operator std::vector<T>() const;
+
+    // --- Element access (proxy references) ---
+    reference       operator[](size_type pos);
+    const_reference operator[](size_type pos) const;
+    reference       front();
+    const_reference front() const;
+    reference       back();
+    const_reference back() const;
+
+    // --- Pointer access (device_pointer wrapping device_array's T*) ---
+    pointer       data();
+    const_pointer data() const;
+
+    // --- Iterators (device_pointer wrapping the underlying T*) ---
+    iterator       begin();
+    const_iterator begin() const;
+    iterator       end();
+    const_iterator end() const;
+
+    // --- Capacity ---
+    size_type size()     const;
+    size_type capacity() const;
+    bool      empty()    const;
+
+    void resize(size_type count);
+    void resize(size_type count, const T& value);
+    void resize(size_type count, no_init_t);
+    void resize(size_type count, default_init_t);
+    void reserve(size_type new_cap);
+    void clear();
+
+    // --- Swap ---
+    void swap(device_vector& other);
+
+    // --- Allocator ---
+    allocator_type get_allocator() const;
+
+    // --- Context / device ---
+    sycl::context get_context() const;
+    sycl::device  get_device()  const;
+};
+
+} // namespace oneapi::dpl::compat
+```
+
+## Usage Example
+
+```cpp
+#include <oneapi/dpl/compat/device_vector>
+#include <oneapi/dpl/algorithm>
+#include <oneapi/dpl/execution>
+#include <sycl/sycl.hpp>
+
+namespace compat = oneapi::dpl::compat;
+
+sycl::queue q{sycl::property::queue::in_order{}};
+
+// --- Thrust-like construction ---
+std::vector<float> host_data(1024, 3.14f);
+compat::device_vector<float> d(host_data, q);
+
+// --- Thrust-like algorithm use ---
+auto policy = oneapi::dpl::execution::make_device_policy(q);
+oneapi::dpl::sort(policy, d.begin(), d.end());
+
+// --- Thrust-like element access (proxy, synchronous) ---
+float val = d[0];          // implicit device-to-host
+d[0] = 42.0f;              // implicit host-to-device
+d[1] += 10.0f;             // read-modify-write round-trip
+
+// --- Raw pointer for kernels ---
+float* ptr = d.data().get();
+q.parallel_for(sycl::range<1>(d.size()), [=](sycl::id<1> i) {
+    ptr[i] *= 2.0f;
+}).wait();
+
+// --- Device-to-device copy via device_pointer ---
+compat::device_vector<float> d2(d.begin(), d.end(), q);  // D2D copy
+
+// --- Bulk copy back to host ---
+std::vector<float> result = static_cast<std::vector<float>>(d);
+
+// --- Construction from context + device (no queue needed) ---
+sycl::context ctx = q.get_context();
+sycl::device  dev = q.get_device();
+compat::device_vector<float> d3(1024, ctx, dev);
+```
+
+## Allocator
+
+`compat::device_vector` accepts an optional allocator template parameter for
+device memory allocation. The default allocator wraps `sycl::malloc_device` /
+`sycl::free`. (`device_array` fixes this to the default and does not expose it;
+pluggable allocation is a `device_vector` feature.)
+
+The default `device_allocator` deliberately mirrors `sycl::usm_allocator`. It is
+stateful, carrying the `sycl::context`, `sycl::device` and `sycl::property_list` to
+allocate against, so `allocate()` takes only an element count. It also matches
+`usm_allocator`'s alignment template parameter, its `rebind` and
+`propagate_on_container_*` members, and its converting constructor.
+
+`sycl::usm_allocator` itself cannot serve this role: it contains
+`static_assert(AllocKind != sycl::usm::alloc::device)`, because device memory is not
+host-accessible and so cannot satisfy the `std::allocator` named requirements that
+`usm_allocator` is built to satisfy. `device_allocator` provides only
+`allocate`/`deallocate` and imposes none of those requirements.
+
+### Allocator Requirements
+
+A type `Alloc` satisfies `DeviceAllocator` for type `T` if, given an instance
+`a` of type `Alloc`, a pointer `p` of type `T*`, and a `std::size_t n`, the following
+expressions are valid:
+
+| Expression | Return type | Semantics |
+|---|---|---|
+| `a.allocate(n)` | `T*` | Allocate uninitialized device memory for `n` objects of type `T` |
+| `a.deallocate(p, n)` | `void` | Free device memory previously allocated by `allocate` |
+
+The allocator is not required to be default constructible, and the default
+`device_allocator` deliberately is not. An allocation needs a context and a device, and
+there is no meaningful default for either.
+
+The allocator is not required to support `construct`, `destroy`, or any of the
+`std::allocator` named requirements beyond `allocate`/`deallocate`. Device
+memory is not host-accessible, so construction and destruction happen via
+kernel launches or memcpy, managed by the container itself.
+
+The allocator must be copy-constructible and copy-assignable.
+```cpp
+// Default allocator
+template <typename T, std::size_t Alignment = 0>
+class device_allocator {
+public:
+    using value_type = T;
+
+    // Device memory is never host-accessible, so a container can never relocate
+    // elements on the host; propagating on all three operations keeps a container's
+    // allocator consistent with the memory it holds. Matches sycl::usm_allocator.
+    using propagate_on_container_copy_assignment = std::true_type;
+    using propagate_on_container_move_assignment = std::true_type;
+    using propagate_on_container_swap            = std::true_type;
+
+    template <typename U> struct rebind { using other = device_allocator<U, Alignment>; };
+
+    // Not default constructible: an allocation needs a context and a device.
+    device_allocator() = delete;
+
+    explicit device_allocator(sycl::context ctx, sycl::device dev,
+                              const sycl::property_list& prop_list = {});
+    explicit device_allocator(sycl::queue q,
+                              const sycl::property_list& prop_list = {});
+
+    // Rebinding conversion; carries the allocation target over.
+    template <typename U>
+    device_allocator(const device_allocator<U, Alignment>& other) noexcept;
+
+    // Alignment == 0 uses sycl::malloc_device; otherwise sycl::aligned_alloc_device,
+    // which itself raises the alignment to max(Alignment, alignof(T)).
+    T*   allocate(std::size_t count) const;
+    void deallocate(T* ptr, std::size_t count) const;
+
+    sycl::context get_context() const;
+    sycl::device  get_device()  const;
+
+    template <typename Property> bool     has_property() const noexcept;
+    template <typename Property> Property get_property() const;
+
+};
+```
+
+Allocation failure surfaces as the `sycl::exception` thrown by the underlying USM `sycl::malloc_device` or `sycl::aligned_alloc_device`.
+
+
+### C++20 Concept (informational; enforced via SFINAE on C++17)
+
+```cpp
+template <typename Alloc, typename T>
+concept DeviceAllocator = requires(Alloc a, T* p, std::size_t n) {
+    { a.allocate(n) }      -> std::same_as<T*>;
+    { a.deallocate(p, n) } -> std::same_as<void>;
+};
+```

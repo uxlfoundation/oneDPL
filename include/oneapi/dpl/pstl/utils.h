@@ -17,12 +17,13 @@
 #define _ONEDPL_UTILS_H
 
 #include "onedpl_config.h"
-#include "tuple_impl.h" // Internal tuple and get specializations needed by __segmented_scan_fun
+#include "tuple_impl.h" // __internal::tuple
 
 #include <new>
 #include <tuple>
 #include <utility>
-#include <climits>
+#include <limits>
+#include <climits> // for CHAR_BIT
 #include <iterator>
 #include <functional>
 #include <type_traits>
@@ -212,56 +213,6 @@ class __reorder_pred<__binary_op<_Pred, _Proj1, _Proj2>> : public __binary_op<__
     using __base = __binary_op<__reorder_pred<_Pred>, _Proj1, _Proj2>;
     explicit __reorder_pred(__binary_op<_Pred, _Proj1, _Proj2> __op)
         : __base(__reorder_pred<_Pred>{__op.__f}, __op.__proj1, __op.__proj2) {}
-};
-
-//! "==" comparison.
-/** Not called "equal" to avoid (possibly unfounded) concerns about accidental invocation via
-    argument-dependent name lookup by code expecting to find the usual ::std::equal. */
-class __pstl_equal
-{
-  public:
-    template <typename _Xp, typename _Yp>
-    bool
-    operator()(_Xp&& __x, _Yp&& __y) const
-    {
-        return ::std::forward<_Xp>(__x) == ::std::forward<_Yp>(__y);
-    }
-};
-
-//! "<" comparison.
-class __pstl_less
-{
-  public:
-    template <typename _Xp, typename _Yp>
-    bool
-    operator()(_Xp&& __x, _Yp&& __y) const
-    {
-        return ::std::forward<_Xp>(__x) < ::std::forward<_Yp>(__y);
-    }
-};
-
-//! ">" comparison.
-class __pstl_greater
-{
-  public:
-    template <typename _Xp, typename _Yp>
-    bool
-    operator()(_Xp&& __x, _Yp&& __y) const
-    {
-        return ::std::forward<_Xp>(__x) > ::std::forward<_Yp>(__y);
-    }
-};
-
-//! General "+" operation
-class __pstl_plus
-{
-  public:
-    template <typename _Xp, typename _Yp>
-    auto
-    operator()(_Xp&& __x, _Yp&& __y) const -> decltype(::std::forward<_Xp>(__x) + ::std::forward<_Yp>(__y))
-    {
-        return ::std::forward<_Xp>(__x) + ::std::forward<_Yp>(__y);
-    }
 };
 
 //! min calculation.
@@ -464,6 +415,22 @@ class __replace_copy_functor
     }
 };
 
+template <typename _T, typename _Predicate>
+struct __replace_if_fun
+{
+    using __result_of = _T;
+
+    template <typename _T1, typename _T2>
+    _T
+    operator()(_T1&& __a, _T2&& __s) const
+    {
+        return __pred(std::forward<_T2>(__s)) ? __new_value : __a;
+    }
+
+    _Predicate __pred;
+    const _T __new_value;
+};
+
 //! Like ::std::next, but with specialization for dpcpp case
 template <typename _Iter>
 _Iter
@@ -569,9 +536,6 @@ struct __next_to_last
     }
 };
 
-template <typename _T, class _Enable = void>
-class __future;
-
 // empty base class for type erasure
 struct __lifetime_keeper_base
 {
@@ -647,7 +611,24 @@ template <typename _T1, typename _T2>
 constexpr auto
 __dpl_ceiling_div(_T1 __number, _T2 __divisor)
 {
-    return (__number - 1) / __divisor + 1;
+    return (__number + __divisor - 1) / __divisor;
+}
+
+// The high 64 bits of the 128-bit product of two 64-bit unsigned integers
+inline std::uint64_t
+__dpl_mul_hi_u64(std::uint64_t __a, std::uint64_t __b) noexcept
+{
+#if _ONEDPL_BACKEND_SYCL && !_ONEDPL_SYCL2020_MUL_HI_BROKEN
+    return sycl::mul_hi(__a, __b);
+#else
+    const std::uint64_t __a_lo = __a & 0xffffffffu, __a_hi = __a >> 32;
+    const std::uint64_t __b_lo = __b & 0xffffffffu, __b_hi = __b >> 32;
+    const std::uint64_t __lo_lo = __a_lo * __b_lo;
+    const std::uint64_t __hi_lo = __a_hi * __b_lo;
+    const std::uint64_t __lo_hi = __a_lo * __b_hi;
+    const std::uint64_t __mid = (__lo_lo >> 32) + (__hi_lo & 0xffffffffu) + (__lo_hi & 0xffffffffu);
+    return __a_hi * __b_hi + (__hi_lo >> 32) + (__lo_hi >> 32) + (__mid >> 32);
+#endif
 }
 
 template <typename _T>
@@ -666,6 +647,98 @@ __dpl_signbit(const _T& __x)
     static_assert(std::is_signed_v<_T>, "Only signed types have a signbit.");
     constexpr __unsigned_type __mask = (__unsigned_type{1} << (sizeof(_T) * 8 - 1));
     return (__x & __mask) != 0;
+}
+
+//-----------------------------------------------------------------------
+// Order-preserving bitwise casts to unsigned integrals, used by radix sort
+//-----------------------------------------------------------------------
+
+template <std::size_t __size>
+struct __uint_for_size;
+template <>
+struct __uint_for_size<2>
+{
+    using type = std::uint16_t;
+};
+template <>
+struct __uint_for_size<4>
+{
+    using type = std::uint32_t;
+};
+template <>
+struct __uint_for_size<8>
+{
+    using type = std::uint64_t;
+};
+template <std::size_t __size>
+using __uint_for_size_t = typename __uint_for_size<__size>::type;
+
+// The floating-point types __order_preserving_cast is defined for: the ones with an unsigned integer of the same
+// size to map onto. A wider type, e.g. a 128-bit long double, is not supported.
+template <typename _T>
+inline constexpr bool __is_radix_sort_float_v =
+#if _ONEDPL_BACKEND_SYCL
+    std::is_same_v<_T, sycl::half> ||
+#    if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+    std::is_same_v<_T, sycl::ext::oneapi::bfloat16> ||
+#    endif // defined(SYCL_EXT_ONEAPI_BFLOAT16)
+#endif     // _ONEDPL_BACKEND_SYCL
+    (std::is_floating_point_v<_T> && (sizeof(_T) == sizeof(std::uint32_t) || sizeof(_T) == sizeof(std::uint64_t)));
+
+// Do not use bool directly - other unsupported types may be implicitly converted to bool
+template <bool __is_ascending, typename _BoolT, std::enable_if_t<std::is_same_v<_BoolT, bool>, int> = 0>
+bool
+__order_preserving_cast(_BoolT __val)
+{
+    if constexpr (__is_ascending)
+        return __val;
+    else
+        return !__val;
+}
+
+template <bool __is_ascending, typename _UInt,
+          std::enable_if_t<std::is_unsigned_v<_UInt> && !std::is_same_v<_UInt, bool>, int> = 0>
+_UInt
+__order_preserving_cast(_UInt __val)
+{
+    if constexpr (__is_ascending)
+        return __val;
+    else
+        return ~__val; //bitwise inversion
+}
+
+template <bool __is_ascending, typename _Int,
+          std::enable_if_t<std::is_integral_v<_Int> && std::is_signed_v<_Int>, int> = 0>
+std::make_unsigned_t<_Int>
+__order_preserving_cast(_Int __val)
+{
+    using _UInt = std::make_unsigned_t<_Int>;
+    // mask: 100..0 for ascending, 011..1 for descending
+    constexpr _UInt __mask =
+        (__is_ascending) ? _UInt(1) << std::numeric_limits<_Int>::digits : std::numeric_limits<_UInt>::max() >> 1;
+    return __val ^ __mask;
+}
+
+template <bool __is_ascending, typename _Float, std::enable_if_t<__is_radix_sort_float_v<_Float>, int> = 0>
+__uint_for_size_t<sizeof(_Float)>
+__order_preserving_cast(_Float __val)
+{
+    using _UInt = __uint_for_size_t<sizeof(_Float)>;
+    constexpr int __bits = std::numeric_limits<_UInt>::digits;
+    constexpr _UInt __sign_mask = _UInt(1) << (__bits - 1);
+    constexpr _UInt __magnitude_mask = _UInt(__sign_mask - 1);
+
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation.
+    if (__val == _Float{0})
+        return __sign_mask;
+
+    _UInt __uint_val = __dpl_bit_cast<_UInt>(__val);
+    _UInt __mask;
+    if constexpr (__is_ascending)
+        __mask = ((__uint_val & __sign_mask) == 0) ? __sign_mask : std::numeric_limits<_UInt>::max();
+    else
+        __mask = ((__uint_val & __sign_mask) == 0) ? __magnitude_mask : _UInt(0);
+    return __uint_val ^ __mask;
 }
 
 template <typename _Size, typename _Comparator>
@@ -1125,12 +1198,6 @@ struct __ignore_call_op
     }
 };
 
-// To implement __min_nested_type_size, a general utility with an internal tuple
-// specialization, we need to forward declare our internal tuple first as tuple_impl.h
-// already includes this header.
-template <typename... T>
-struct tuple;
-
 // Returns the smallest type within a set of potentially nested template types. This function
 // recursively explores std::tuple and oneapi::dpl::__internal::tuple for the smallest type.
 // For all other types, its size is used directly.
@@ -1181,7 +1248,7 @@ __get_last_arg(_T, _Rest... __args)
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _T, typename _Proj>
-struct __count_fn_pred
+struct __ranges_equal_value
 {
     _T __value;
     _Proj __proj;
@@ -1194,39 +1261,6 @@ struct __count_fn_pred
     }
 };
 #endif
-
-template <typename _ValueType, typename _FlagType, typename _BinaryOp>
-struct __segmented_scan_fun
-{
-    template <typename _T1, typename _T2>
-    _T1
-    operator()(const _T1& __x, const _T2& __y) const
-    {
-        using std::get;
-        using __x_t = std::tuple_element_t<0, _T1>;
-        auto __new_x = get<1>(__y) ? __x_t(get<0>(__y)) : __x_t(__binary_op(get<0>(__x), get<0>(__y)));
-        auto __new_y = get<1>(__x) | get<1>(__y);
-        return _T1(__new_x, __new_y);
-    }
-
-    _BinaryOp __binary_op;
-};
-
-template <typename _T, typename _Predicate>
-struct __replace_if_fun
-{
-    using __result_of = _T;
-
-    template <typename _T1, typename _T2>
-    _T
-    operator()(_T1&& __a, _T2&& __s) const
-    {
-        return __pred(std::forward<_T2>(__s)) ? __new_value : __a;
-    }
-
-    _Predicate __pred;
-    const _T __new_value;
-};
 
 template <typename _OutValueType, typename _OutRefType, typename _InRefType>
 inline constexpr bool __trivial_uninitialized_copy =

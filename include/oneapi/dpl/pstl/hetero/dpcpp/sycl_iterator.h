@@ -163,6 +163,30 @@ struct __access_mode_resolver<std::decay_t<decltype(sycl::read_write)>, _IsNoIni
 template <typename _ModeTagT, typename _IsNoInitRequestedT = void>
 constexpr access_mode __access_mode_resolver_v = __access_mode_resolver<_ModeTagT, _IsNoInitRequestedT>::__value;
 
+// Inverse of __access_mode_resolver: unpack an access mode (as carried by a sycl_iterator's embedded
+// user hint) back into a {mode, no_init} pair. The discard_* modes map to their non-discard counterpart
+// with __no_init = true.
+template <access_mode _Mode>
+struct __extracted_access_mode
+{
+    static constexpr access_mode __value = _Mode;
+    static constexpr bool __no_init = false;
+};
+
+template <>
+struct __extracted_access_mode<access_mode::discard_write>
+{
+    static constexpr access_mode __value = access_mode::write;
+    static constexpr bool __no_init = true;
+};
+
+template <>
+struct __extracted_access_mode<access_mode::discard_read_write>
+{
+    static constexpr access_mode __value = access_mode::read_write;
+    static constexpr bool __no_init = true;
+};
+
 template <typename Iter, typename ValueType = std::decay_t<typename std::iterator_traits<Iter>::value_type>>
 using __default_alloc_vec_iter = typename std::vector<ValueType>::iterator;
 

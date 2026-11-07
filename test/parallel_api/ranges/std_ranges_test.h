@@ -26,7 +26,7 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202605L);
+static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202608L);
 
 #if TEST_CPP20_SPAN_PRESENT
 #include <span>
@@ -105,7 +105,8 @@ enum TestDataMode
     data_in_out_lim,
     data_in_in,
     data_in_in_out,
-    data_in_in_out_lim
+    data_in_in_out_lim,
+    data_in_out_out_lim
 };
 
 auto f_mutuable = [](auto&& val) { return val *= val; };
@@ -116,6 +117,7 @@ auto binary_f = [](auto&& val1, auto&& val2) { return val1 * val2; };
 auto proj = [](auto&& val){ return val * 2; };
 auto pred = [](auto&& val) { return val == 5; };
 auto select_many = [](int val) { return (val % 29) > 1; };
+auto even_odd = [](int val) { return (val % 2) == 0; };
 
 auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; };
 auto binary_pred_const = [](const auto& val1, const auto& val2) { return val1 == val2; };
@@ -159,6 +161,7 @@ struct B
 {
     int b;
     operator int() const { return b; }
+    B& operator=(const A& a) { b = int(a); return *this; }
 };
 
 auto proj_a = [](const A& a) { return a.a; };
@@ -215,7 +218,21 @@ static constexpr
 bool check_out<T, std::void_t<decltype(std::declval<T>().out)>> = true;
 
 template<typename, typename = void>
-static constexpr bool is_range{};
+static constexpr bool check_out1{};
+
+template<typename T>
+static constexpr
+bool check_out1<T, std::void_t<decltype(std::declval<T>().out1)>> = true;
+
+template<typename, typename = void>
+static constexpr bool check_out2{};
+
+template<typename T>
+static constexpr
+bool check_out2<T, std::void_t<decltype(std::declval<T>().out2)>> = true;
+
+template<typename, typename = void>
+static constexpr bool is_range = false;
 
 template<typename T>
 static constexpr
@@ -232,7 +249,7 @@ template<typename>
 constexpr int trivial_size{0};
 
 template<typename>
-constexpr int calc_res_size(int n, int) { return n; }
+constexpr std::pair<int, int> range_to_verify(int total_size, int /*result_size*/) { return {0, total_size}; }
 
 // If in1 range is empty, then the out range is always empty
 // Can be specialized with an algorithm type if the behaviour is different, e.g. see set_union test.
@@ -264,6 +281,12 @@ static constexpr bool check_in_in_out_result{};
 
 template <typename I1, typename I2, typename O>
 static constexpr bool check_in_in_out_result<std::ranges::in_in_out_result<I1, I2, O>> = true;
+
+template <typename T>
+static constexpr bool check_in_out_out_result{};
+
+template <typename I1, typename O1, typename O2>
+static constexpr bool check_in_out_out_result<std::ranges::in_out_out_result<I1, O1, O2>> = true;
 
 template <typename _ReturnType>
 struct all_dangling_in_result : std::false_type
@@ -374,12 +397,14 @@ private:
                        typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
         }
 
-        //check result
-        auto n = std::ranges::size(expected_view);
+        // check data
+        int total_size = std::ranges::size(expected_view);
+        int result_size = total_size;
         if constexpr(is_range<std::remove_cvref_t<decltype(res)>>)
-            n = calc_res_size<std::remove_cvref_t<Algo>>(n, std::ranges::size(res));
+            result_size = std::ranges::size(res);
+        auto [start, n] = range_to_verify<std::remove_cvref_t<Algo>>(total_size, result_size);
 
-        EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("data mismatch with ")
+        EXPECT_EQ_N(cont_exp().begin() + start, cont_in().begin() + start, n, (std::string("data mismatch with ")
             + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
 
         if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
@@ -704,6 +729,74 @@ private:
         }
     }
 
+    template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut,
+             TestDataMode mode = test_mode>
+    void
+    process_data_in_out_out(int max_n, int n_in, int n_out1, int n_out2, Policy&& exec, Algo algo, Checker& checker,
+                            TransIn tr_in, TransOut tr_out, auto... args)
+    {
+        static_assert(mode == data_in_out_out_lim);
+        assert(n_in <= max_n);
+
+        std::string names{typeid(Algo).name()};
+        names += "<" + std::string{typeid(Policy).name()} + ">";
+        std::string sizes{" for "};
+        sizes += std::to_string(n_in) + " elements, " + std::to_string(n_out1) + " and " + std::to_string(n_out2) + " space";
+
+        Container cont_in(exec, n_in, DataGen1{});
+        Container cont_out1(exec, n_out1, data_gen_unprocessed);
+        Container cont_out1_exp(exec, n_out1, data_gen_unprocessed);
+        Container cont_out2(exec, n_out2, data_gen_unprocessed);
+        Container cont_out2_exp(exec, n_out2, data_gen_unprocessed);
+
+        auto src_view = tr_in(std::views::all(cont_in()));
+        auto out1_exp_view = tr_out(std::views::all(cont_out1_exp()));
+        auto out2_exp_view = tr_out(std::views::all(cont_out2_exp()));
+        auto expected_res = checker(src_view, out1_exp_view, out2_exp_view, args...);
+
+        typename Container::type& A = cont_in();
+        typename Container::type& B = cont_out1();
+        typename Container::type& C = cont_out2();
+
+        auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), tr_out(C), args...);
+
+        // check result types
+        static_assert(check_in_out_out_result<decltype(expected_res)>);
+        static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
+
+        EXPECT_EQ(ret_in_val(expected_res, src_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                  (std::string("wrong input stop position with ") + names + sizes).c_str());
+
+        EXPECT_EQ(ret_out_val<1>(expected_res, out1_exp_view.begin()), ret_out_val<1>(res, tr_out(B).begin()),
+                  (std::string("wrong 1st output stop position with ") + names + sizes).c_str());
+        EXPECT_EQ(ret_out_val<2>(expected_res, out2_exp_view.begin()), ret_out_val<2>(res, tr_out(C).begin()),
+                  (std::string("wrong 2nd output stop position with ") + names + sizes).c_str());
+
+        //check elements in the output
+        EXPECT_EQ_N(cont_out1_exp().begin(), cont_out1().begin(), std::ranges::size(out1_exp_view), 
+                    (std::string("1st output mismatch with ") + names + sizes).c_str());
+        EXPECT_EQ_N(cont_out2_exp().begin(), cont_out2().begin(), std::ranges::size(out2_exp_view), 
+                    (std::string("2nd output mismatch with ") + names + sizes).c_str());
+
+        if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT // Otherwise, `tr_in = std::views::all` leads to a compile error for `rvalue_container_t`.
+            // Check dangling iterators in return types for call with r-value ranges; 
+            // TransIn and TransOut may modify the non-borrowed range to a borrowed one, so we need to check it.
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
+                         && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
+            {
+                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
+                                                tr_out(std::declval<rvalue_container_t&&>()),
+                                                tr_out(std::declval<rvalue_container_t&&>()), args...));
+                static_assert(all_dangling_in_result_v<res_ret_t>,
+                              "res_ret_t is expected to be or consist of std::ranges::dangling");
+            }
+#endif //_ONEDPL_CPP20_OWNING_VIEW_PRESENT
+        }
+    }
+
+
 public:
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
     std::enable_if_t<mode == data_in_in_out>
@@ -737,6 +830,35 @@ public:
         process_data_in_in_out(max_n, 0, r_size / 2, r_size / 4, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, r_size / 2, 0, r_size / 4, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
+
+    template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
+    std::enable_if_t<mode == data_in_out_out_lim>
+    operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
+    {
+        const int r_size = max_n;
+        process_data_in_out_out(max_n, r_size, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+
+        //test case size of input range is less than size of output and vice-versa
+        process_data_in_out_out(max_n, r_size/2, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out_out(max_n, r_size, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out_out(max_n, r_size, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out_out(max_n, r_size, r_size/3, r_size/3, CLONE_TEST_POLICY(exec), algo, checker, args...);
+
+        //test cases with an empty sequence and/or zero output capacity
+        process_data_in_out_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out_out(max_n, 0, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out_out(max_n, r_size, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out_out(max_n, r_size, 0, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out_out(max_n, r_size, 0, r_size / 4, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out_out(max_n, r_size, r_size / 4, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+
+        //test cases with only one element and/or output capacity
+        process_data_in_out_out(max_n, r_size, 1, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out_out(max_n, r_size, r_size, 1, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out_out(max_n, 1, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+    }
+
+
 private:
 
     template <std::size_t InIdx = 0, typename Ret, typename Begin>
@@ -782,16 +904,20 @@ private:
         }
     }
 
-    template<typename Ret, typename Begin>
+    template <std::size_t OutIdx = 0, typename Ret, typename Begin>
     auto ret_out_val(Ret&& ret, Begin&& begin)
     {
-        if constexpr (check_out<Ret>)
+        if constexpr (check_out<Ret> && OutIdx == 0)
             return std::distance(begin, ret.out);
-        else if constexpr (is_iterator<Ret>)
+        else if constexpr (check_out1<Ret> && OutIdx == 1)
+            return std::distance(begin, ret.out1);
+        else if constexpr (check_out2<Ret> && OutIdx == 2)
+            return std::distance(begin, ret.out2);
+        else if constexpr (is_iterator<Ret> && OutIdx == 0)
             return std::distance(begin, ret);
-        else if constexpr (check_in2<Ret>)
+        else if constexpr (check_in2<Ret> && OutIdx == 0)
             return std::distance(begin, ret.in2);
-        else if constexpr(is_range<Ret>)
+        else if constexpr(is_range<Ret> && OutIdx == 0)
             return std::pair{std::distance(begin, ret.begin()), std::ranges::distance(ret.begin(), ret.end())};
         else
             return ret;

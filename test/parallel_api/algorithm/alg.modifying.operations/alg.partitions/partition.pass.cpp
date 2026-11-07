@@ -89,7 +89,7 @@ struct test_partition
     }
 };
 
-template <typename T, typename Generator, typename UnaryPred>
+template <std::size_t CallNumber, typename T, typename Generator, typename UnaryPred>
 void
 test_by_type(Generator generator, UnaryPred pred)
 {
@@ -101,8 +101,8 @@ test_by_type(Generator generator, UnaryPred pred)
 
     for (size_t n = 0; n <= max_size; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
-        invoke_on_all_policies<0>()(test_partition<T>(), in.begin(), in.begin() + n, exp.begin(), exp.begin() + n, n,
-                                    pred, generator);
+        invoke_on_all_policies<CallNumber>()(test_partition<T>(), in.begin(), in.begin() + n, exp.begin(),
+                                             exp.begin() + n, n, pred, generator);
     }
 }
 
@@ -120,14 +120,17 @@ struct test_non_const_partition
 int
 main()
 {
-    test_by_type<std::int32_t>([](std::int32_t i) { return i; }, [](std::int32_t) { return true; });
-    test_by_type<float64_t>([](std::int32_t i) { return -i; }, [](const float64_t x) { return x < 0; });
+    test_by_type<0, std::int32_t>([](std::int32_t i) { return i; }, [](std::int32_t) { return true; });
+    // Adversarial patterns for the parallel implementation: no element matches, and strictly alternating
+    test_by_type<1, std::int32_t>([](std::int32_t i) { return i; }, [](std::int32_t) { return false; });
+    test_by_type<2, std::int32_t>([](std::int32_t i) { return i; }, [](std::int32_t x) { return x % 2 == 0; });
+    test_by_type<3, float64_t>([](std::int32_t i) { return -i; }, [](const float64_t x) { return x < 0; });
 #if !ONEDPL_FPGA_DEVICE
-    test_by_type<std::int64_t>([](std::int32_t i) { return i + 1; }, [](std::int64_t x) { return x % 3 == 0; });
+    test_by_type<4, std::int64_t>([](std::int32_t i) { return i + 1; }, [](std::int64_t x) { return x % 3 == 0; });
 #endif
 
 #if !TEST_DPCPP_BACKEND_PRESENT
-    test_by_type<DataType<float32_t>>([](std::int32_t i) { return DataType<float32_t>(2 * i + 1); },
+    test_by_type<5, DataType<float32_t>>([](std::int32_t i) { return DataType<float32_t>(2 * i + 1); },
                                       [](const DataType<float32_t>& x) { return x.get_val() < 0; });
 #endif
 

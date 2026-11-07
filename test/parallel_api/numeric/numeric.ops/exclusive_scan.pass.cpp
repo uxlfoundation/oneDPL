@@ -23,6 +23,7 @@
 #include "support/scan_serial_impl.h"
 
 #include <iostream>
+#include <complex>
 #include <cstdint>
 #include <vector>
 
@@ -204,6 +205,48 @@ test_usm_impl(Policy&& exec)
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
+void
+test_with_complex(std::size_t n)
+{
+    using T = std::complex<float>;
+    std::vector<T> in(n), out_seq(n), out_unseq(n), out_par(n), out_parunseq(n), expected(n);
+
+    for (std::size_t i = 0; i < n; ++i)
+        in[i] = T(float(i % 5 + 1), float(i % 3 + 1));
+
+    exclusive_scan_serial(in.begin(), in.end(), expected.begin(), T(0, 0), std::plus<T>());
+
+    oneapi::dpl::exclusive_scan(oneapi::dpl::execution::seq, in.begin(), in.end(), out_seq.begin(), T(0, 0),
+                                std::plus<T>());
+    EXPECT_EQ_N(expected.begin(), out_seq.begin(), n, "wrong effect with seq, std::complex<float> and std::plus");
+
+    oneapi::dpl::exclusive_scan(oneapi::dpl::execution::unseq, in.begin(), in.end(), out_unseq.begin(), T(0, 0),
+                                std::plus<T>());
+    EXPECT_EQ_N(expected.begin(), out_unseq.begin(), n, "wrong effect with unseq, std::complex<float> and std::plus");
+
+    oneapi::dpl::exclusive_scan(oneapi::dpl::execution::par, in.begin(), in.end(), out_par.begin(), T(0, 0),
+                                std::plus<T>());
+    EXPECT_EQ_N(expected.begin(), out_par.begin(), n, "wrong effect with par, std::complex<float> and std::plus");
+
+    oneapi::dpl::exclusive_scan(oneapi::dpl::execution::par_unseq, in.begin(), in.end(), out_parunseq.begin(), T(0, 0),
+                                std::plus<T>());
+    EXPECT_EQ_N(expected.begin(), out_parunseq.begin(), n, "wrong effect with par_unseq, std::complex<float> and std::plus");
+
+#if TEST_DPCPP_BACKEND_PRESENT && defined(SYCL_EXT_ONEAPI_COMPLEX_ALGORITHMS)
+    auto q = TestUtils::get_test_queue();
+    T* in_d = sycl::malloc_shared<T>(n, q);
+    T* out_d = sycl::malloc_shared<T>(n, q);
+    std::copy(in.begin(), in.end(), in_d);
+
+    auto policy = oneapi::dpl::execution::make_device_policy(q);
+    oneapi::dpl::exclusive_scan(policy, in_d, in_d + n, out_d, T(0, 0), std::plus<T>());
+
+    EXPECT_EQ_N(expected.begin(), out_d, n, "wrong effect with device, std::complex<float> and std::plus");
+    sycl::free(in_d, q);
+    sycl::free(out_d, q);
+#endif // TEST_DPCPP_BACKEND_PRESENT && defined(SYCL_EXT_ONEAPI_COMPLEX_ALGORITHMS)
+}
+
 int
 main()
 {
@@ -217,6 +260,9 @@ main()
     // When testing from bool to uint32_t, we must give a uint32_t init type to scan over integers
     test_with_plus<bool, std::uint32_t, std::uint32_t>(0, 123456,
                                                        [](std::uint32_t k) { return std::uint32_t{k % 2 == 0}; });
+
+    test_with_complex(1000);
+    test_with_complex(35000);
 
 #if TEST_DPCPP_BACKEND_PRESENT
     auto policy = TestUtils::get_dpcpp_test_policy();

@@ -86,25 +86,28 @@ struct test_one_policy
     {
         using namespace std;
         using T = typename iterator_traits<Iterator>::value_type;
-        Iterator actual_m = ::std::next(actual_b, shift);
+        Iterator actual_m = std::next(actual_b, shift);
 
         copy(data_b, data_e, actual_b);
         Iterator actual_return = rotate(CLONE_TEST_POLICY(exec), actual_b, actual_m, actual_e);
 
-        EXPECT_TRUE(actual_return == ::std::next(actual_b, ::std::distance(actual_m, actual_e)), "wrong result of rotate");
+        EXPECT_TRUE(actual_return == std::next(actual_b, std::distance(actual_m, actual_e)), "wrong result of rotate");
         auto comparator = compare<T>();
-        bool check = ::std::equal(actual_return, actual_e, data_b, comparator);
-        check = check && ::std::equal(actual_b, actual_return, ::std::next(data_b, shift), comparator);
 
-        EXPECT_TRUE(check, "wrong effect of rotate");
+        auto mismatch = std::distance(actual_b, std::mismatch(actual_return, actual_e, data_b, comparator).first);
+        EXPECT_EQ(std::distance(actual_b, actual_e), mismatch, "wrong effect of rotate: mismatch at position");
+        mismatch = std::distance(actual_b,
+                                 std::mismatch(actual_b, actual_return, std::next(data_b, shift), comparator).first);
+        EXPECT_EQ(std::distance(actual_b, actual_return), mismatch, "wrong effect of rotate: mismatch at position");
+
         EXPECT_TRUE(check_move(CLONE_TEST_POLICY(exec), actual_b, actual_e, shift), "wrong move test of rotate");
     }
 
     template <typename ExecutionPolicy, typename Iterator, typename Size>
-    ::std::enable_if_t<
-        is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator> &&
-        !::std::is_same_v<ExecutionPolicy, oneapi::dpl::execution::sequenced_policy> &&
-        ::std::is_same_v<typename ::std::iterator_traits<Iterator>::value_type, wrapper<float32_t>>,
+    std::enable_if_t<
+        is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator> &&
+        !std::is_same_v<ExecutionPolicy, oneapi::dpl::execution::sequenced_policy> &&
+        std::is_same_v<typename std::iterator_traits<Iterator>::value_type, wrapper<float32_t>>,
         bool>
     check_move(ExecutionPolicy&& /* exec */, Iterator b, Iterator e, Size shift)
     {
@@ -117,10 +120,10 @@ struct test_one_policy
     }
 
     template <typename ExecutionPolicy, typename Iterator, typename Size>
-    ::std::enable_if_t<
-        !(is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator> &&
-        !::std::is_same_v<ExecutionPolicy, oneapi::dpl::execution::sequenced_policy> &&
-        ::std::is_same_v<typename ::std::iterator_traits<Iterator>::value_type, wrapper<float32_t>>),
+    std::enable_if_t<
+        !(is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator> &&
+          !std::is_same_v<ExecutionPolicy, oneapi::dpl::execution::sequenced_policy> &&
+          std::is_same_v<typename std::iterator_traits<Iterator>::value_type, wrapper<float32_t>>),
         bool>
     check_move(ExecutionPolicy&& /* exec */, Iterator /* b */, Iterator /* e */, Size /* shift */)
     {
@@ -135,15 +138,19 @@ test()
     const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
     const std::int32_t max_len = test_sizes.back();
 
-    Sequence<T> actual(max_len, [](::std::size_t i) { return T(i); });
-    Sequence<T> data(max_len, [](::std::size_t i) { return T(i); });
+    Sequence<T> actual(max_len, [](std::size_t i) { return T(i); });
+    Sequence<T> data(max_len, [](std::size_t i) { return T(i); });
 
     for (std::int32_t len : test_sizes)
     {
-        std::int32_t shifts[] = {0, 1, 2, len / 3, (2 * len) / 3, len - 1};
+        std::int32_t shifts[] = {0, 1, 2, -1, -1, -1, -1};
+        if (len > 2) shifts[6] = len;
+        if (len > 3) shifts[5] = len - 1;
+        if (len > 4) shifts[4] = (2 * len) / 3;
+        if (len > 8) shifts[3] = len / 3;
         for (auto shift : shifts)
         {
-            if (shift >= 0 && shift < len)
+            if (shift >= 0 && shift <= len)
             {
                 invoke_on_all_policies<>()(test_one_policy<T>(), data.begin(), data.begin() + len, actual.begin(),
                                            actual.begin() + len, shift);
@@ -155,9 +162,9 @@ test()
 int
 main()
 {
+    test<std::int32_t>();
     test<std::int8_t>();
     test<std::int16_t>();
-    test<std::int32_t>();
 #if !TEST_DPCPP_BACKEND_PRESENT
     test<wrapper<float64_t>>();
     test<MemoryChecker>();

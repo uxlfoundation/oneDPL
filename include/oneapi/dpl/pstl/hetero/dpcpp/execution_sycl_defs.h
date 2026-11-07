@@ -56,13 +56,20 @@ class alignas(sycl::queue) __queue_holder
         std::pair<std::uintptr_t, __queue_factory> __flag_and_factory;
     };
 
+#if _ONEDPL_PREDEFINED_POLICIES
+    // Avoid using 0: some implementations may leave the first bytes of sycl::queue uninitialized.
+    // Those bytes may also hold a pointer (e.g. to the queue implementation), so the value is chosen to never be
+    // a valid address: its topmost bits mix 0 and 1 (non-canonical), and it is odd (not properly aligned).
+    static constexpr std::uintptr_t __no_queue_flag = static_cast<std::uintptr_t>(0x5EA1ED005EA1ED01);
+#endif
+
     bool
     __has_queue() const
     {
         bool res = true;
 #if _ONEDPL_PREDEFINED_POLICIES
-        // If the first size-of-pointer bytes are zeros, we consider there is no valid queue.
-        res = (__flag_and_factory.first != 0);
+        // If the first size-of-pointer bytes hold the flag, we consider there is no valid queue.
+        res = (__flag_and_factory.first != __no_queue_flag);
         std::atomic_signal_fence(std::memory_order_acq_rel); // to prevent possible reordering due to type punning
 #endif
         return res;
@@ -74,9 +81,9 @@ class alignas(sycl::queue) __queue_holder
 
 #if _ONEDPL_PREDEFINED_POLICIES
     // The ctor for predefined policy instances does not create a queue but stores a queue factory.
-    // The first size-of-pointer bytes - the "flag" - are nullified to indicate that there is no valid queue.
+    // The first size-of-pointer bytes - the "flag" - are set to indicate that there is no valid queue.
     // Then a pointer to a factory function is stored.
-    __queue_holder(__global_instance_tag, __queue_factory __f) : __flag_and_factory(0, __f) {}
+    __queue_holder(__global_instance_tag, __queue_factory __f) : __flag_and_factory(__no_queue_flag, __f) {}
 #endif
 
     ~__queue_holder()

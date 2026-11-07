@@ -38,6 +38,15 @@ Use these macros to test presence of specific |onedpl_short| functionality.
 ================================== ===============================================
 Macro                              Macro values and the functionality
 ================================== ===============================================
+``ONEDPL_HAS_DEVICE_CONTAINERS``   Device containers and the allocator they use.
+
+                                   The macro is only defined when device execution policies are enabled,
+                                   see ``ONEDPL_USE_DPCPP_BACKEND``.
+
+                                   * ``202608L`` - added ``oneapi::dpl::experimental::device_array``
+                                     (requires ``std::span`` or ``sycl::span`` to be available)
+                                     and a baseline ``oneapi::dpl::experimental::device_allocator``.
+---------------------------------- -----------------------------------------------
 ``ONEDPL_HAS_RANDOM_NUMBERS``      Pseudo-random number generators and distributions.
 
                                    * ``202409L`` - added support of comparison and I/O stream operators and an experimental Philox engine.
@@ -50,6 +59,7 @@ Macro                              Macro values and the functionality
                                    * ``202509L`` - see :ref:`available algorithms <range-algorithms-202509L>`.
                                    * ``202604L`` - see :ref:`available algorithms <range-algorithms-202604L>`.
                                    * ``202605L`` - see :ref:`available algorithms <range-algorithms-202605L>`.
+                                   * ``202608L`` - see :ref:`available algorithms <range-algorithms-202608L>`.
 ================================== ===============================================
 
 Additional Macros
@@ -141,10 +151,10 @@ Macro                                Description
                                      which might be incompatible with the earlier versions of |onedpl_short|.
 
                                      .. Warning:: This behavior is not yet supported for device execution policies. If such policy
-                                     is used with a ``ranges::set_*`` algorithm when the macro is set, you will get a compilation error.
+                                        is used with a ``ranges::set_*`` algorithm when the macro is set, you will get a compilation error.
 
                                      .. Note:: The standard conformant behavior for these algorithms will be fully enabled
-                                     in a future release, at which point any value of the macro will have no effect.
+                                        in a future release, at which point any value of the macro will have no effect.
 ------------------------------------ ------------------------------
 ``ONEDPL_FPGA_DEVICE``               Use this macro to build your code containing |onedpl_short| parallel
                                      algorithms for FPGA devices. (Disabled by default.)

@@ -8,6 +8,73 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
+New in 2022.14.0
+================
+New Features
+------------
+- Added remaining parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``inplace_merge``,
+  ``is_heap``, ``is_heap_until``, ``is_partitioned``, ``nth_element``, ``partial_sort``, ``partial_sort_copy``,
+  ``partition``, ``partition_copy``, ``rotate``, ``rotate_copy``, ``shift_left,``, ``shift_right``,
+  ``stable_partition``. With that, support for the oneDPL specification v1.5 is complete.
+- ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` algorithms with device policies
+  now use Radix sort [#fnote1]_ for ``sycl::ext::oneapi::bfloat16`` elements.
+- Added support for ``sycl::half`` and ``sycl::ext::oneapi::bfloat16`` as key types in ``kt::gpu::radix_sort`` and
+  ``kt::gpu::radix_sort_by_key`` functions, and also for ``sycl::half`` in their counterparts in ``kt::gpu::esimd``.
+- Added experimental ``device_array`` class template in ``namespace oneapi::dpl::experimental``:
+  a fixed-size RAII container which simplifies device memory allocation, deallocation, and transfers.
+- Added the ``oneapi::dpl::span`` type alias, used in the ``device_array`` interface. It is defined as ``std::span``
+  where available (C++20 and later), or to ``sycl::span`` as a fallback if that is available.
+- Improved performance of multiple algorithms (including ``copy_if``, ``remove``, ``remove_if``, ``unique_copy``,
+  scan algorithms, and set operations) for input sizes below approximately 8000 elements per thread
+  when the oneTBB backend is used for ``par`` and ``par_unseq`` execution policies.
+- Improved performance of ``partition`` algorithm when used with ``par`` and ``par_unseq`` policies.  
+- Improved performance of ``rotate`` algorithm when used with device policies.
+- Enabled use of native SYCL group reduce and scan algorithms with compilers other than Intel® oneAPI DPC++/C++
+  Compiler, which might improve performance of some algorithms in ``<oneapi/dpl/numeric>``.
+- Aligned the order of constraints in requires-clauses of parallel range algorithms 
+  with the oneDPL specification.
+
+Fixed Issues
+------------
+- Removed requirement that the output range has sufficient size to hold all resulting elements for ``set_union``,
+  ``set_intersection``, ``set_difference``, and ``set_symmetric_difference`` algorithms when used with device policies.
+- Fixed a compilation error in ``reduce``, ``transform_reduce``, ``inclusive_scan``, ``exclusive_scan``,
+  ``transform_inclusive_scan``, and ``transform_exclusive_scan`` algorithms when using a device policy to
+  process ``sycl::ext::oneapi::bfloat16`` elements.
+- Fixed a data race in ``reverse`` algorithm when used with device policies and 1- or 2-byte data types.
+- Fixed an issue causing unnecessary host to device data transfers for SYCL buffers passed to algorithms with device
+  policies through ``oneapi::dpl::begin`` and ``oneapi::dpl::end`` for write only sequences which are fully overwritten.
+- Fixed sporadic crashes with AdaptiveCpp when an algorithm was called with a device execution policy,
+  related to the logic of getting a queue from the policy.
+
+Known Issues and Limitations
+----------------------------
+Existing Issues
+^^^^^^^^^^^^^^^
+See oneDPL Guide for other `restrictions and known limitations`_.
+
+- ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
+  when used with a device policy on hardware that does not support 64-bit atomic operations.
+- For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
+  it is required that the provided input and destination iterators are equality comparable.
+  Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
+  If these conditions are not met, the result of these algorithm calls is undefined.
+- ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
+  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
+  to the device compiler.
+- Some algorithms in ``oneapi::dpl::ranges`` require more than their ``requires`` clauses specify:
+
+  * ``min``, ``max``, ``minmax``, ``min_element``, ``max_element``, ``minmax_element`` with host policies
+    require a default-initializable value type and an addressable comparator; ``min_element``,
+    ``max_element``, ``minmax_element`` also require a copyable value type, and
+    ``minmax_element`` also requires it to be constructible from and assignable from
+    the type obtained by dereferencing the range's iterator.
+  * ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union`` with both host
+    and device policies require an output value type constructible from input reference types and
+    a non-proxy output iterator.
+ 
+
 New in 2022.13.0
 ================
 
@@ -1176,9 +1243,10 @@ Known Issues and Limitations
   (including ``std::ldexp``, ``std::frexp``, ``std::sqrt(std::complex<float>)``) require device support
   for double precision.
 
-.. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types and
-  ``sycl::half`` (since oneDPL 2022.6) compared with ``less`` or ``greater`` from
-  the ``std`` and ``std::ranges`` (since oneDPL 2022.13) namespaces, otherwise Merge sort.
+.. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types,
+  ``sycl::half`` (since oneDPL 2022.6), and ``sycl::ext::oneapi::bfloat16`` (since oneDPL 2022.14)
+  compared with ``less`` or ``greater`` from the ``std`` and ``std::ranges`` (since oneDPL 2022.13)
+  namespaces, otherwise Merge sort.
 .. _`oneDPL Guide`: https://uxlfoundation.github.io/oneDPL/library_guide/index.html
 .. _`Intel® oneAPI Threading Building Blocks (oneTBB) Release Notes`: https://www.intel.com/content/www/us/en/developer/articles/release-notes/intel-oneapi-threading-building-blocks-release-notes.html
 .. _`restrictions and known limitations`: https://uxlfoundation.github.io/oneDPL/library_guide/introduction.html#restrictions.

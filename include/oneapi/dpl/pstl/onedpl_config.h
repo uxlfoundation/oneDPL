@@ -40,23 +40,7 @@
 
 // -- Check availability of heterogeneous backends --
 
-// If DPCPP backend is explicitly requested, optimistically assume SYCL availability;
-// otherwise, make sure that it is definitely available additionally checking SYCL_LANGUAGE_VERSION
-#if __has_include(<sycl/sycl.hpp>) || __has_include(<CL/sycl.hpp>)
-#    if SYCL_LANGUAGE_VERSION || CL_SYCL_LANGUAGE_VERSION || ONEDPL_USE_DPCPP_BACKEND
-#        define _ONEDPL_SYCL_AVAILABLE 1
-#    endif
-#else
-#    if ONEDPL_USE_DPCPP_BACKEND
-#        error "Device execution policies are requested, but SYCL* headers are not found"
-#    endif
-#endif
-
-// If DPCPP backend is not explicitly turned off and SYCL is available, enable it
-#if (ONEDPL_USE_DPCPP_BACKEND || !defined(ONEDPL_USE_DPCPP_BACKEND)) && _ONEDPL_SYCL_AVAILABLE
-#    define _ONEDPL_BACKEND_SYCL 1
-#endif
-
+// Due to the use in feature test macros, _ONEDPL_BACKEND_SYCL is defined in version_impl.h
 // If at least one heterogeneous backend is available, enable them
 #if _ONEDPL_BACKEND_SYCL
 #    if _ONEDPL_HETERO_BACKEND
@@ -97,6 +81,10 @@
 // according to clang documentation, version can be vendor specific
 #    define _ONEDPL_CLANG_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 #endif
+
+// This macro represents the "latest" version of the intel llvm compiler, and is used in workarounds gated to the compiler version.
+// We must update this with the compiler and re-evaluate if the workarounds are still necessary each time.
+#define _ONEDPL_LATEST_INTEL_LLVM_COMPILER 20260200
 
 // Enable SIMD for compilers that support OpenMP 4.0
 #if (_OPENMP >= 201307) || __INTEL_LLVM_COMPILER || (__INTEL_COMPILER >= 1600) ||                                      \
@@ -286,10 +274,12 @@
         (_ONEDPL___cplusplus >= 202302L && __cpp_lib_tuple_like >= 202207L)
 #    define _ONEDPL_CPP23_RANGES_ZIP_PRESENT (_ONEDPL___cplusplus >= 202302L && __cpp_lib_ranges_zip >= 202110L)
 #    define _ONEDPL_CPP26_DEFAULT_VALUE_TYPE_PRESENT (__cpp_lib_algorithm_default_value_type >= 202403L)
+#    define _ONEDPL_CPP20_SPAN_PRESENT (_ONEDPL___cplusplus >= 202002L && __cpp_lib_span >= 202002L)
 #else
 #    define _ONEDPL_CPP23_TUPLE_LIKE_COMMON_REFERENCE_PRESENT 0
 #    define _ONEDPL_CPP23_RANGES_ZIP_PRESENT 0
 #    define _ONEDPL_CPP26_DEFAULT_VALUE_TYPE_PRESENT 0
+#    define _ONEDPL_CPP20_SPAN_PRESENT 0
 #endif
 
 // std::views::all on rvalue non-view ranges requires P2415R2 owning_view.
@@ -356,6 +346,15 @@
 #    define _ONEDPL_HIDDEN_FRIENDS_SIBLING_ACCESS_BROKEN 1
 #else
 #    define _ONEDPL_HIDDEN_FRIENDS_SIBLING_ACCESS_BROKEN 0
+#endif
+
+// sycl::property::no_init on a ranged accessor (one covering only a sub-range of its buffer) discards the contents
+// of the whole buffer in the DPC++ runtime, rather than only the elements within the accessor's range as specified.
+// Known broken in all released icpx versions to date.
+#if __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER <= _ONEDPL_LATEST_INTEL_LLVM_COMPILER
+#    define _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN 1
+#else
+#    define _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN 0
 #endif
 
 // -- Configure heterogeneous backends --

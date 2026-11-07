@@ -18,6 +18,9 @@
 #define _ONEDPL_UNSEQ_BACKEND_SYCL_H
 
 #include <type_traits>
+#if defined(SYCL_EXT_ONEAPI_COMPLEX_ALGORITHMS)
+#    include <complex>
+#endif
 
 #include "../../onedpl_config.h"
 #include "../../utils.h"
@@ -26,9 +29,6 @@
 #include "parallel_backend_sycl_utils.h"
 #include "../../functional_impl.h" // for oneapi::dpl::identity
 
-#define _ONEDPL_SYCL_KNOWN_IDENTITY_PRESENT                                                                            \
-    (_ONEDPL_SYCL2020_KNOWN_IDENTITY_PRESENT || _ONEDPL_LIBSYCL_KNOWN_IDENTITY_PRESENT)
-
 namespace oneapi
 {
 namespace dpl
@@ -36,71 +36,81 @@ namespace dpl
 namespace unseq_backend
 {
 
-#if _ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
-//This optimization depends on Intel(R) oneAPI DPC++ Compiler implementation such as support of binary operators from std namespace.
-//We need to use defined(SYCL_IMPLEMENTATION_INTEL) macro as a guard.
+#if _ONEDPL_USE_GROUP_ALGOS
 
+// When ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION is defined as non-zero, we avoid using known identity for 64-bit arithmetic data types
 template <typename _Tp>
-inline constexpr bool __can_use_known_identity =
-#    if ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
-    // When ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION is defined as non-zero, we avoid using known identity for 64-bit arithmetic data types
-    !(::std::is_arithmetic_v<_Tp> && sizeof(_Tp) == sizeof(::std::uint64_t));
-#    else
-    true;
-#    endif // ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
+using __workaround_igpu_64_bit_reduction =
+#        if ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
+    std::bool_constant<!(::std::is_arithmetic_v<_Tp> && sizeof(_Tp) == sizeof(::std::uint64_t))>;
+#        else
+    std::true_type;
+#        endif // ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION
 
-//TODO: To change __has_known_identity implementation as soon as the Intel(R) oneAPI DPC++ Compiler implementation issues related to
-//std::multiplies, std::bit_or, std::bit_and and std::bit_xor operations will be fixed.
-//std::logical_and and std::logical_or are not supported in Intel(R) oneAPI DPC++ Compiler to be used in sycl::inclusive_scan_over_group and sycl::reduce_over_group
-template <typename _BinaryOp, typename _Tp>
-using __has_known_identity = ::std::conditional_t<
-    __can_use_known_identity<_Tp>,
-#    if _ONEDPL_SYCL_KNOWN_IDENTITY_PRESENT
-    typename ::std::disjunction<
-        __dpl_sycl::__has_known_identity<_BinaryOp, _Tp>,
-        ::std::conjunction<::std::is_arithmetic<_Tp>,
-                           ::std::disjunction<::std::is_same<::std::decay_t<_BinaryOp>, ::std::plus<_Tp>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, ::std::plus<void>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<_Tp>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<void>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__minimum<_Tp>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__minimum<void>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__maximum<_Tp>>,
-                                              ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__maximum<void>>>>>,
-#    else
-    typename ::std::conjunction<
-        ::std::is_arithmetic<_Tp>,
-        ::std::disjunction<::std::is_same<::std::decay_t<_BinaryOp>, ::std::plus<_Tp>>,
-                           ::std::is_same<::std::decay_t<_BinaryOp>, ::std::plus<void>>,
-                           ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<_Tp>>,
-                           ::std::is_same<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<void>>>>,
-#    endif
-    ::std::false_type>;     // This is for the case of __can_use_known_identity<_Tp>==false
+template <typename _BinaryOp, typename _Tp, template <typename> class... _Ops>
+using __is_one_of_ops = std::disjunction<std::is_same<std::decay_t<_BinaryOp>, _Ops<_Tp>>...,
+                                         std::is_same<std::decay_t<_BinaryOp>, _Ops<void>>...>;
 
-#else //_ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
+#    if defined(SYCL_IMPLEMENTATION_INTEL)
+
+// Intel SYCL implementation provides correct results only for std::complex with plus.
+#        if defined(SYCL_EXT_ONEAPI_COMPLEX_ALGORITHMS)
+template <typename _Tp>
+using __is_complex_float_or_double =
+    std::disjunction<std::is_same<_Tp, std::complex<float>>, std::is_same<_Tp, std::complex<double>>>;
 
 template <typename _BinaryOp, typename _Tp>
-using __has_known_identity = std::false_type;
-
-#endif //_ONEDPL_USE_GROUP_ALGOS && defined(SYCL_IMPLEMENTATION_INTEL)
+using __can_use_group_reduce_scan_for_complex =
+    std::conjunction<__is_complex_float_or_double<_Tp>, __is_one_of_ops<_BinaryOp, _Tp, std::plus, sycl::plus>>;
+#        else
+template <typename _BinaryOp, typename _Tp>
+using __can_use_group_reduce_scan_for_complex = std::false_type;
+#        endif // defined(SYCL_EXT_ONEAPI_COMPLEX_ALGORITHMS)
 
 template <typename _BinaryOp, typename _Tp>
-struct __known_identity_for_plus
-{
-    static_assert(::std::is_same_v<::std::decay_t<_BinaryOp>, ::std::plus<_Tp>> ||
-                  ::std::is_same_v<::std::decay_t<_BinaryOp>, ::std::plus<void>> ||
-                  ::std::is_same_v<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<_Tp>> ||
-                  ::std::is_same_v<::std::decay_t<_BinaryOp>, __dpl_sycl::__plus<void>>);
-    static constexpr _Tp value = 0;
-};
+using __can_use_group_reduce_scan = std::conjunction<
+    __workaround_igpu_64_bit_reduction<_Tp>,
+    std::negation<std::is_same<_Tp, bool>>, // group algorithms are not implemented for bool in icpx as of 2026.0
+    sycl::has_known_identity<_BinaryOp, _Tp>,
+    std::disjunction<std::is_arithmetic<_Tp>, std::is_same<_Tp, sycl::half>,
+                     __can_use_group_reduce_scan_for_complex<_BinaryOp, _Tp>>,
+    __is_one_of_ops<_BinaryOp, _Tp,
+                    std::plus, sycl::plus,
+                    std::multiplies, sycl::multiplies,
+                    std::bit_and, sycl::bit_and,
+                    std::bit_or, sycl::bit_or,
+                    std::bit_xor, sycl::bit_xor,
+                    // std::logical_<and|or> are not accepted by icpx,
+                    // sycl::logical_<and|or> are off until group algorithms support bool.
+                    //
+                    // no std::minimum and std::maximum exist
+                    sycl::minimum,
+                    sycl::maximum>>;
+
+#    else  // Other SYCL implementations, assuming they are SYCL 2020 compliant
+// TODO: check acpp - it should support std::* ops as sycl::* ops are aliases to std::* ops.
+template <typename _BinaryOp, typename _Tp>
+using __can_use_group_reduce_scan = std::conjunction<
+    __workaround_igpu_64_bit_reduction<_Tp>,
+    std::is_arithmetic<_Tp>,
+    sycl::has_known_identity<_BinaryOp, _Tp>,
+    __is_one_of_ops<_BinaryOp, _Tp,
+                    sycl::plus,
+                    sycl::multiplies,
+                    sycl::bit_and,
+                    sycl::bit_or,
+                    sycl::bit_xor,
+                    sycl::logical_and,
+                    sycl::logical_or,
+                    sycl::minimum,
+                    sycl::maximum>>;
+#    endif // defined(SYCL_IMPLEMENTATION_INTEL)
+#else      // _ONEDPL_USE_GROUP_ALGOS
 
 template <typename _BinaryOp, typename _Tp>
-inline constexpr _Tp __known_identity =
-#if _ONEDPL_SYCL_KNOWN_IDENTITY_PRESENT
-    __dpl_sycl::__known_identity<_BinaryOp, _Tp>::value;
-#else
-    __known_identity_for_plus<_BinaryOp, _Tp>::value; //for plus only
-#endif
+using __can_use_group_reduce_scan = std::false_type;
+
+#endif // _ONEDPL_USE_GROUP_ALGOS
 
 template <typename _F>
 struct walk_n
@@ -472,17 +482,18 @@ struct reduce_over_group
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
     reduce_impl(const _NDItemId __item, const _Size __n, oneapi::dpl::__internal::__lazy_ctor_storage<_Tp>& __val,
-                const _AccLocal& /*__local_mem*/, std::true_type /*has_known_identity*/) const
+                const _AccLocal& /*__local_mem*/, std::true_type /*__can_use_group_reduce_scan*/) const
     {
         const _Size __global_idx = __item.get_global_id(0);
         return __dpl_sycl::__reduce_over_group(
-            __item.get_group(), __global_idx >= __n ? __known_identity<_BinaryOperation1, _Tp> : __val.__v, __bin_op1);
+            __item.get_group(), __global_idx >= __n ? sycl::known_identity<_BinaryOperation1, _Tp>::value : __val.__v,
+            __bin_op1);
     }
 
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
     reduce_impl(const _NDItemId __item, const _Size __n, oneapi::dpl::__internal::__lazy_ctor_storage<_Tp>& __val,
-                const _AccLocal& __local_mem, std::false_type /*has_known_identity*/) const
+                const _AccLocal& __local_mem, std::false_type /*__can_use_group_reduce_scan*/) const
     {
         auto __local_idx = __item.get_local_id(0);
         auto __group_size = __item.get_local_range().size();
@@ -512,7 +523,7 @@ struct reduce_over_group
     operator()(const _NDItemId __item, const _Size __n, oneapi::dpl::__internal::__lazy_ctor_storage<_Tp>& __val,
                const _AccLocal& __local_mem) const
     {
-        return reduce_impl(__item, __n, __val, __local_mem, __has_known_identity<_BinaryOperation1, _Tp>{});
+        return reduce_impl(__item, __n, __val, __local_mem, __can_use_group_reduce_scan<_BinaryOperation1, _Tp>{});
     }
 
     template <typename _InitType, typename _Result>
@@ -525,7 +536,7 @@ struct reduce_over_group
     inline std::size_t
     local_mem_req(const std::uint16_t& __work_group_size) const
     {
-        if constexpr (__has_known_identity<_BinaryOperation1, _Tp>{})
+        if constexpr (__can_use_group_reduce_scan<_BinaryOperation1, _Tp>{})
             return 0;
 
         return __work_group_size;
@@ -693,35 +704,37 @@ struct __brick_includes
 struct __reverse_functor
 {
   private:
-    const std::size_t __size;
+    const std::size_t __begin;
+    const std::size_t __end;
 
   public:
-    __reverse_functor(std::size_t __size) : __size(__size) {}
+    // Construction parameters: the number of elements to reverse, the index of the first element (0 by default)
+    __reverse_functor(std::size_t __n, std::size_t __shift = 0) : __begin(__shift), __end(__n + __shift) {}
 
     template <typename _IsFull, typename _Params, typename _Range, std::enable_if_t<_Params::__can_vectorize, int> = 0>
     void
-    operator()(_IsFull, const std::size_t __left_start_idx, _Params, _Range&& __rng) const
+    operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
-
         _ValueType __rng_left_vector[_Params::__vector_size];
         _ValueType __rng_right_vector[_Params::__vector_size];
 
-        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__size};
+        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__end};
         oneapi::dpl::__par_backend_hetero::__vector_reverse<_Params::__vector_size> __vec_reverse;
-        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size>
-            __vec_store{__size - __left_start_idx};
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__end - __idx};
         oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
         oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>
             __store_op;
 
+        const std::size_t __left_start_idx = __begin + __idx;
+
         if constexpr (_IsFull::value == false)
         {
-            if (__left_start_idx + _Params::__vector_size >= __size - __left_start_idx)
+            if (__left_start_idx + _Params::__vector_size >= __end - __idx)
             {
                 // The remaining data to reverse fits into a single vector
                 __vec_load(std::false_type{}, __left_start_idx, __load_op, __rng, __rng_left_vector);
-                __vec_reverse(std::false_type{}, __size - 2 * __left_start_idx, __rng_left_vector);
+                __vec_reverse(std::false_type{}, __end - __idx - __left_start_idx, __rng_left_vector);
                 __vec_store(std::false_type{}, __left_start_idx, __store_op, __rng_left_vector, __rng);
                 return;
             }
@@ -733,7 +746,7 @@ struct __reverse_functor
         // There may exist a single point of double processing between left and right vectors in the last work-item
         // which reverses middle elements.
 
-        const std::size_t __right_start_idx = __size - __left_start_idx - _Params::__vector_size;
+        const std::size_t __right_start_idx = __end - __idx - _Params::__vector_size;
 
         // 1. Load two vectors that we want to swap: one from the left half of the buffer and one from the right.
         // Note that due to indices we have chosen, there will always be a full vector of elements to load.
@@ -751,7 +764,7 @@ struct __reverse_functor
     operator()(_IsFull, const std::size_t __idx, _Params, _Range&& __rng) const
     {
         using std::swap;
-        swap(__rng[__idx], __rng[__size - __idx - 1]);
+        swap(__rng[__begin + __idx], __rng[__end - __idx - 1]);
     }
 };
 
@@ -817,16 +830,16 @@ struct __reverse_copy
 //------------------------------------------------------------------------
 // rotate_copy
 //------------------------------------------------------------------------
-template <typename _Size>
 struct __rotate_copy
 {
   private:
-    _Size __size;
-    _Size __shift;
-    oneapi::dpl::__internal::__pstl_assign __assigner;
+    const std::size_t __size;
+    const std::size_t __size_in;
+    const std::size_t __shift;
 
   public:
-    __rotate_copy(_Size __size, _Size __shift) : __size(__size), __shift(__shift) {}
+    __rotate_copy(std::size_t __sz, std::size_t __sz_in, std::size_t __sh)
+        : __size(__sz), __size_in(__sz_in), __shift(__sh) {}
 
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
               std::enable_if_t<_Params::__can_vectorize, int> = 0>
@@ -834,38 +847,31 @@ struct __rotate_copy
     operator()(_IsFull __is_full, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
         using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
-        const std::size_t __n = __size;
-        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__n};
-        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__n};
+        oneapi::dpl::__par_backend_hetero::__vector_load<_Params::__vector_size> __vec_load{__size_in};
+        oneapi::dpl::__par_backend_hetero::__vector_store<_Params::__vector_size> __vec_store{__size};
         oneapi::dpl::__par_backend_hetero::__scalar_load_op __load_op;
         oneapi::dpl::__par_backend_hetero::__scalar_store_transform_op<oneapi::dpl::__internal::__pstl_assign>
             __store_op;
-        const std::size_t __shifted_idx = __shift + __idx;
-        const std::size_t __wrapped_idx = __shifted_idx % __size;
+        std::size_t __shifted_idx = __shift + __idx;
+        if (__shifted_idx >= __size_in)
+            __shifted_idx -= __size_in;
         _ValueType __rng1_vector[_Params::__vector_size];
-        //1. Vectorize loads only if we know the wrap around point is beyond the current vector elements to process
-        if (__wrapped_idx + _Params::__vector_size <= __n)
+        // Vectorize loads only if we know the wraparound point is beyond the current vector elements to process
+        if (__shifted_idx + _Params::__vector_size <= __size_in)
         {
-            __vec_load(__is_full, __wrapped_idx, __load_op, __rng1, __rng1_vector);
+            __vec_load(std::true_type{}, __shifted_idx, __load_op, __rng1, __rng1_vector);
         }
         else
         {
-            // A single point of non-contiguity within the rotation operation. Manually process two loops here:
-            // the first before the wraparound point and the second after.
-            const std::size_t __remaining_elements = __n - __idx;
-            const std::uint8_t __elements_to_process =
-                std::min(std::size_t{_Params::__vector_size}, __remaining_elements);
-            // __n - __wrapped_idx can safely fit into a uint8_t due to the condition check above.
-            const std::uint8_t __loop1_elements =
-                std::min(__elements_to_process, static_cast<std::uint8_t>(__n - __wrapped_idx));
-            const std::uint8_t __loop2_elements = __elements_to_process - __loop1_elements;
+            // Around the single wraparound point within the rotation, load elements in separate loops before and after
+            const std::uint8_t __elements_to_load = std::min<std::size_t>(_Params::__vector_size, __size - __idx);
+            const std::uint8_t __loop1_bound = std::min<std::size_t>(__elements_to_load, __size_in - __shifted_idx);
             std::uint8_t __i = 0;
-            for (__i = 0; __i < __loop1_elements; ++__i)
-                __assigner(__rng1[__wrapped_idx + __i], __rng1_vector[__i]);
-            for (std::uint8_t __j = 0; __j < __loop2_elements; ++__j)
-                __assigner(__rng1[__j], __rng1_vector[__i + __j]);
+            for (; __i < __loop1_bound; ++__i)
+                __rng1_vector[__i] = __rng1[__shifted_idx + __i];
+            for (; __i < __elements_to_load; ++__i)
+                __rng1_vector[__i] = __rng1[__shifted_idx + __i - __size_in];
         }
-        // 2. Store the rotation
         __vec_store(__is_full, __idx, __store_op, __rng1_vector, __rng2);
     }
     template <typename _IsFull, typename _Params, typename _Range1, typename _Range2,
@@ -873,7 +879,10 @@ struct __rotate_copy
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Range1&& __rng1, _Range2&& __rng2) const
     {
-        __rng2[__idx] = __rng1[(__shift + __idx) % __size];
+        std::size_t __shifted_idx = __shift + __idx;
+        if (__shifted_idx >= __size_in)
+            __shifted_idx -= __size_in;
+        __rng2[__idx] = __rng1[__shifted_idx];
     }
 };
 

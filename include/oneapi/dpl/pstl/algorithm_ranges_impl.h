@@ -347,7 +347,7 @@ __pattern_count(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, const _T& __val
     return oneapi::dpl::__internal::__pattern_count(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r),
-        oneapi::dpl::__internal::__count_fn_pred<_T, _Proj>{__value, __proj});
+        oneapi::dpl::__internal::__ranges_equal_value<const _T&, _Proj>{__value, __proj});
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _T, typename _Proj>
@@ -463,6 +463,67 @@ __pattern_sort_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPoli
                       _Proj __proj, _LeafSort __leaf_sort)
 {
     return __leaf_sort(std::forward<_R>(__r), __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// pattern_partial_sort_ranges
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_partial_sort_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::ranges::iterator_t<_R> __middle,
+                              _Comp __comp, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    oneapi::dpl::__internal::__pattern_partial_sort(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+
+    return __last;
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_partial_sort_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&& __exec, _R&& __r,
+                              std::ranges::iterator_t<_R> __middle, _Comp __comp, _Proj __proj)
+{
+    return std::ranges::partial_sort(std::forward<_R>(__r), __middle, __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// pattern_partial_sort_copy_ranges
+//---------------------------------------------------------------------------------------------------------------------
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp, typename _Proj1,
+          typename _Proj2>
+std::ranges::partial_sort_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
+__pattern_partial_sort_copy_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r, _Comp __comp,
+                                   _Proj1, _Proj2 __proj2)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+    auto [__out_first, __out_last] = oneapi::dpl::__ranges::__bounds(__out_r);
+
+    // __pattern_partial_sort_copy sorts after copying, so _Proj1 is not used
+    auto __out_finish = oneapi::dpl::__internal::__pattern_partial_sort_copy(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __out_first, __out_last,
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj2, _Proj2>{__comp, __proj2, __proj2});
+
+    return {__last, __out_finish};
+}
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp, typename _Proj1,
+          typename _Proj2>
+std::ranges::partial_sort_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
+__pattern_partial_sort_copy_ranges(__serial_tag<_IsVector>, _ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r,
+                                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    // Use the standard implementation for both seq and unseq policies
+    return std::ranges::partial_sort_copy(std::forward<_R>(__r), std::forward<_OutR>(__out_r), __comp, __proj1,
+                                          __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -756,6 +817,35 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
         __first3 + std::min<_IndexCommon>(__n1 + __n2, __n3), __comp, __proj1, __proj2);
 
     return {__it1, __it2, __it3};
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// pattern_inplace_merge_ranges
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_inplace_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::ranges::iterator_t<_R> __middle,
+                               _Comp __comp, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    oneapi::dpl::__internal::__pattern_inplace_merge(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+
+    return __last;
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_inplace_merge_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&& __exec, _R&& __r,
+                               std::ranges::iterator_t<_R> __middle, _Comp __comp, _Proj __proj)
+{
+    std::ranges::inplace_merge(__r, __middle, __comp, __proj);
+    return oneapi::dpl::__ranges::__end(__r);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -1522,6 +1612,58 @@ __pattern_mismatch(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// __pattern_nth_element
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_nth_element(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::ranges::iterator_t<_R> __nth, _Comp __comp,
+                      _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto [__beg, __end] = oneapi::dpl::__ranges::__bounds(__r);
+    oneapi::dpl::__internal::__pattern_nth_element(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __beg, __nth, __end,
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+
+    return __end;
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
+std::ranges::borrowed_iterator_t<_R>
+__pattern_nth_element(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r,
+                      std::ranges::iterator_t<_R> __nth, _Comp __comp, _Proj __proj)
+{
+    return std::ranges::nth_element(std::forward<_R>(__r), __nth, __comp, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_is_partitioned
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
+bool
+__pattern_is_partitioned(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    return oneapi::dpl::__internal::__pattern_is_partitioned(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
+bool
+__pattern_is_partitioned(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
+                         _Proj __proj)
+{
+    return std::ranges::is_partitioned(std::forward<_R>(__r), __pred, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // __pattern_remove_if
 //---------------------------------------------------------------------------------------------------------------------
 
@@ -1751,6 +1893,182 @@ __pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPoli
     }
     return {__it_in, __it_out};
 }
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_partition
+//---------------------------------------------------------------------------------------------------------------------
+
+template <class _Tag, typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_partition(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    auto __middle =
+        oneapi::dpl::__internal::__pattern_partition(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                                     oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+
+    return {__middle, __last};
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_partition(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
+                    _Proj __proj)
+{
+    return std::ranges::partition(std::forward<_R>(__r), __pred, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_stable_partition
+//---------------------------------------------------------------------------------------------------------------------
+
+template <class _Tag, typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_stable_partition(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+
+    auto [__first, __last] = oneapi::dpl::__ranges::__bounds(__r);
+
+    auto __middle = oneapi::dpl::__internal::__pattern_stable_partition(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+
+    return {__middle, __last};
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _Pred, typename _Proj>
+std::ranges::borrowed_subrange_t<_R>
+__pattern_stable_partition(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
+                           _Proj __proj)
+{
+    return std::ranges::stable_partition(std::forward<_R>(__r), __pred, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_partition_copy
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _IsVector, typename _ForwardIterator, typename _FwdSentinel, typename _OutIterator1,
+          typename _OutSentinel1, class _OutIterator2, class _OutSentinel2, typename _Condition>
+std::tuple<_ForwardIterator, _OutIterator1, _OutIterator2>
+__brick_bounded_partition_copy(_ForwardIterator __it_in, _FwdSentinel __end_in, _OutIterator1 __it_out1,
+                               _OutSentinel1 __end_out1, _OutIterator2 __it_out2, _OutSentinel2 __end_out2,
+                               _Condition __cond, _IsVector /*TODO: dispatch*/)
+{
+    std::size_t __i = 0;
+    for (; __it_in != __end_in; ++__it_in, ++__i)
+    {
+        if (__cond(__it_in, __i))
+        {
+            if (__it_out1 == __end_out1)
+                break;
+            *__it_out1 = *__it_in;
+            ++__it_out1;
+        }
+        else
+        {
+            if (__it_out2 == __end_out2)
+                break;
+            *__it_out2 = *__it_in;
+            ++__it_out2;
+        }
+    }
+    return {__it_in, __it_out1, __it_out2};
+}
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _InRange, typename _OutRange1, typename _OutRange2,
+          typename _Pred, typename _Proj>
+std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                   std::ranges::borrowed_iterator_t<_OutRange1>,
+                                   std::ranges::borrowed_iterator_t<_OutRange2>>
+__pattern_partition_copy_ranges(__serial_tag<_IsVector>, _ExecutionPolicy&&, _InRange&& __in_r,
+                                _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
+{
+    auto [__it_in, __it_out1, __it_out2] = __brick_bounded_partition_copy(
+        std::ranges::begin(__in_r), std::ranges::end(__in_r), std::ranges::begin(__out_true_r),
+        std::ranges::end(__out_true_r), std::ranges::begin(__out_false_r), std::ranges::end(__out_false_r),
+        [=](auto __it, std::size_t /*__i*/) -> bool { return std::invoke(__pred, std::invoke(__proj, *__it)); },
+        _IsVector{});
+    return {__it_in, __it_out1, __it_out2};
+}
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _InRange, typename _OutRange1, typename _OutRange2,
+          typename _Pred, typename _Proj>
+std::ranges::partition_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                   std::ranges::borrowed_iterator_t<_OutRange1>,
+                                   std::ranges::borrowed_iterator_t<_OutRange2>>
+__pattern_partition_copy_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
+                                _OutRange1&& __out_true_r, _OutRange2&& __out_false_r, _Pred __pred, _Proj __proj)
+{
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+    __internal::__pred_at_index __idx_pred{__internal::__unary_op<_Pred, _Proj>{__pred, __proj}};
+
+    const std::intptr_t __n = std::ranges::size(__in_r);
+    using _OutputPos = std::pair<std::intptr_t, std::intptr_t>;
+    __par_backend::__buffer<bool> __mask_buf(__n);
+    bool* __mask = __mask_buf.get();
+    const std::intptr_t __n_out1 = std::ranges::size(__out_true_r);
+    const std::intptr_t __n_out2 = std::ranges::size(__out_false_r);
+    auto __begin = std::ranges::begin(__in_r);
+    auto __out1_begin = std::ranges::begin(__out_true_r);
+    auto __out2_begin = std::ranges::begin(__out_false_r);
+    auto __stop_in = __begin + __n;
+    auto __stop_out1 = __out1_begin + __n_out1;
+    auto __stop_out2 = __out2_begin + __n_out2;
+
+    __internal::__except_handler([=, &__exec, &__idx_pred, &__stop_in, &__stop_out1, &__stop_out2]() {
+        __par_backend::__parallel_strict_scan(
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n,
+            _OutputPos{std::intptr_t(0), std::intptr_t(0)},
+            [=, &__idx_pred](std::intptr_t __i, std::intptr_t __len) { // Reduce
+                return __internal::__brick_compute_mask(__begin + __i, __len, __idx_pred, __mask + __i, _IsVector{});
+            },
+            [](const _OutputPos& __x, const _OutputPos& __y) -> _OutputPos { // Combine
+                return std::make_pair(__x.first + __y.first, __x.second + __y.second);
+            },
+            [=, &__stop_in, &__stop_out1, &__stop_out2](std::intptr_t __i, std::intptr_t __len,
+                                                        _OutputPos __initial) { // Scan
+                // __initial carries the numbers of true/false mask elements produced by preceding chunks,
+                // which are also the starting output positions of this chunk. If any of these is greater
+                // than the corresponding output size, the stop position is located in a preceding chunk.
+                if (__initial.first > __n_out1 || __initial.second > __n_out2)
+                    return;
+                const std::intptr_t __safe_len = std::min(__n_out1 - __initial.first, __n_out2 - __initial.second);
+                if (__safe_len >= __len)
+                {
+                    __internal::__brick_partition_by_mask(
+                        __begin + __i, __begin + (__i + __len), __out1_begin + __initial.first,
+                        __out2_begin + __initial.second, __mask + __i, _IsVector{});
+                }
+                else
+                {
+                    auto [__next_in, __next_out1, __next_out2] = __brick_bounded_partition_copy(
+                        __begin + __i, __begin + (__i + __len), __out1_begin + __initial.first, __out1_begin + __n_out1,
+                        __out2_begin + __initial.second, __out2_begin + __n_out2,
+                        [=](auto /*__it*/, std::intptr_t __j) { return __mask[__i + __j]; }, _IsVector{});
+                    // If the end of the chunk is not reached, then the stop positions are found.
+                    if (__next_in - __begin < __i + __len)
+                    {
+                        __stop_in = __next_in;
+                        __stop_out1 = __next_out1;
+                        __stop_out2 = __next_out2;
+                    }
+                }
+            },
+            [=, &__stop_out1, &__stop_out2](_OutputPos __total) { // Apex
+                if (__total.first < __n_out1) // Output size is bigger than needed
+                    __stop_out1 = __out1_begin + __total.first;
+                if (__total.second < __n_out2)
+                    __stop_out2 = __out2_begin + __total.second;
+            });
+    });
+    return {__stop_in, __stop_out1, __stop_out2};
+}
+
 } // namespace __ranges
 } // namespace __internal
 } // namespace dpl

@@ -15,6 +15,21 @@
 option(ONEDPL_TEST_ENABLE_KT_ESIMD "Enable ESIMD-based kernel template tests")
 option(ONEDPL_TEST_ENABLE_KT_SYCL "Enable SYCL-based kernel template tests")
 
+# SYCL_EXT_ONEAPI_BFLOAT16 feature test macro was added only in 2026.0
+if (INTEL_LLVM_COMPILER AND NOT INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2026.0)
+    set(_bfloat16_key_type_supported TRUE)
+else()
+    set(_bfloat16_key_type_supported FALSE) # Skip silently in order not to spam the output
+endif()
+
+# Kernel Template configurations and types covered by the SYCL-based sort tests
+set(_kt_sycl_data_per_work_item_all "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" "13" "14" "15" "16")
+set(_kt_sycl_work_group_size_all "1024" "512")
+set(_kt_sycl_type_all "char" "uint16_t" "int" "uint64_t" "float" "double" "sycl::half")
+if (_bfloat16_key_type_supported)
+    list(APPEND _kt_sycl_type_all "sycl::ext::oneapi::bfloat16")
+endif()
+
 function(_generate_test _target_name _test_path)
     add_executable(${_target_name} EXCLUDE_FROM_ALL ${_test_path})
 
@@ -108,14 +123,14 @@ function(_generate_sort_tests _variant _key_value_pairs)
 
     # Variant-specific configurations
     if ("${_variant}" STREQUAL "kt_sycl")
-        set(_data_per_work_item_all "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" "13" "14" "15" "16")
-        set(_work_group_size_all "1024" "512")
+        set(_data_per_work_item_all ${_kt_sycl_data_per_work_item_all})
+        set(_work_group_size_all ${_kt_sycl_work_group_size_all})
+        set(_type_all ${_kt_sycl_type_all})
     else() # kt_esimd
         set(_data_per_work_item_all "32" "64" "96" "128" "160" "192" "224" "256" "288" "320" "352" "384" "416" "448" "480" "512")
         set(_work_group_size_all "64")
+        set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double" "sycl::half")
     endif()
-
-    set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double" "sycl::half")
 
     foreach (_data_per_work_item ${_data_per_work_item_all})
         foreach (_work_group_size ${_work_group_size_all})
@@ -156,6 +171,49 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     _generate_sort_test("kt_sycl" "radix_sort_by_key_out_of_place" "3" "1024" "uint32_t" "uint32_t" 1000)
     _generate_sort_test("kt_sycl" "radix_sort_by_key" "5" "512" "float" "uint32_t" 1000)
     _generate_sort_test("kt_sycl" "radix_sort" "12" "1024" "int32_t" "" 1000)
+    if (_bfloat16_key_type_supported)
+        _generate_sort_test("kt_sycl" "radix_sort_by_key" "7" "512" "sycl::ext::oneapi::bfloat16" "uint32_t" 1000)
+    endif()
+
+    # Add configurations which reserve > 128 KiB SLM and launch more tiles than work-groups which can be resident at
+    # once, checking that the cooperative onesweep kernel does not hang.
+    _generate_sort_test("kt_sycl" "radix_sort_residency" "22" "1024" "sycl::half" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_residency" "17" "512" "uint64_t" "uint64_t" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_residency" "24" "1024" "uint64_t" "" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_residency" "33" "512" "double" "" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_residency" "32" "1024" "uint32_t" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "radix_sort_residency" "20" "1024" "uint64_t" "uint64_t" 1000)
+
+    _generate_test("kt_sycl_cooperative_groups_estimate.pass" "implementation_details/cooperative_groups_estimate.cpp")
+endif()
+
+function(_generate_batched_stable_sort_tests)
+    foreach (_data_per_work_item ${_kt_sycl_data_per_work_item_all})
+        foreach (_work_group_size ${_kt_sycl_work_group_size_all})
+            foreach (_key_type ${_kt_sycl_type_all})
+                # ~1-2 tests: (5/1000) * (16 * 2 * 7)
+                _generate_sort_test("kt_sycl" "batched_stable_sort" ${_data_per_work_item} ${_work_group_size} ${_key_type} "" 5)
+                foreach (_val_type ${_kt_sycl_type_all})
+                    # ~1-2 tests: (1/1000) * (16 * 2 * 7 * 7)
+                    _generate_sort_test("kt_sycl" "batched_stable_sort" ${_data_per_work_item} ${_work_group_size} ${_key_type} ${_val_type} 1)
+                endforeach()
+            endforeach()
+        endforeach()
+    endforeach()
+endfunction()
+
+if (ONEDPL_TEST_ENABLE_KT_SYCL)
+    _generate_batched_stable_sort_tests()
+
+    # Pin some cases to track them
+    _generate_sort_test("kt_sycl" "batched_stable_sort" "8" "512" "uint32_t" "" 1000)
+    _generate_sort_test("kt_sycl" "batched_stable_sort" "3" "1024" "float" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "batched_stable_sort" "12" "512" "int32_t" "uint64_t" 1000)
+    _generate_sort_test("kt_sycl" "batched_stable_sort" "1" "512" "uint8_t" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "batched_stable_sort" "4" "512" "sycl::half" "uint32_t" 1000)
+    if (_bfloat16_key_type_supported)
+        _generate_sort_test("kt_sycl" "batched_stable_sort" "5" "512" "sycl::ext::oneapi::bfloat16" "uint32_t" 1000)
+    endif()
 endif()
 
 function (_generate_gpu_scan_test _data_per_work_item _work_group_size _type _probability_permille)

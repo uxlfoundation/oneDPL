@@ -181,6 +181,13 @@ __pattern_walk1(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
     });
 }
 
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Function>
+void
+__pattern_for_each(_Tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last, _Function __f)
+{
+    __pattern_walk1(_Tag{}, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
+}
+
 //------------------------------------------------------------------------
 // walk1_n
 //------------------------------------------------------------------------
@@ -217,6 +224,13 @@ __pattern_walk1_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     oneapi::dpl::__internal::__pattern_walk1(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __n,
                                              __f);
     return __first + __n;
+}
+
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Function>
+_ForwardIterator
+__pattern_for_each_n(_Tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n, _Function __f)
+{
+    return __pattern_walk1_n(_Tag{}, std::forward<_ExecutionPolicy>(__exec), __first, __n, __f);
 }
 
 //------------------------------------------------------------------------
@@ -1905,68 +1919,73 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
 // rotate_copy
 //------------------------------------------------------------------------
 
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
+template <class _ForwardIterator, class _OutputIterator>
 _OutputIterator
-__brick_rotate_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __middle,
-                    _ForwardIterator __last, _OutputIterator __result) noexcept
+__brick_rotate_copy(_ForwardIterator __first, _ForwardIterator __middle, _ForwardIterator __last,
+                    _OutputIterator __result, std::size_t __n_out, /*is_vector=*/std::false_type) noexcept
 {
-    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
-
-    return ::std::rotate_copy(__first, __middle, __last, __result);
+    std::size_t __i = 0;
+    for (_ForwardIterator __from = __middle; __from != __last && __i < __n_out; ++__i)
+    {
+        *__result++ = *__from++;
+    }
+    for (_ForwardIterator __from = __first; __from != __middle && __i < __n_out; ++__i)
+    {
+        *__result++ = *__from++;
+    }
+    return __result;
 }
 
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
+template <class _RandomAccessIterator1, class _RandomAccessIterator2>
 _RandomAccessIterator2
-__brick_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1 __first,
-                    _RandomAccessIterator1 __middle, _RandomAccessIterator1 __last,
-                    _RandomAccessIterator2 __result) noexcept
+__brick_rotate_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __middle, _RandomAccessIterator1 __last,
+                    _RandomAccessIterator2 __result, std::size_t __n_out, /*is_vector=*/std::true_type) noexcept
 {
-    _RandomAccessIterator2 __res = __brick_copy<__parallel_tag<_IsVector>>{}(__middle, __last, __result);
-    return __internal::__brick_copy<__parallel_tag<_IsVector>>{}(__first, __middle, __res);
+    auto __assign = [](_RandomAccessIterator1 __first, _RandomAccessIterator2 __result) { *__result = *__first; };
+    std::size_t __len = std::min<std::size_t>(__n_out, __last - __middle);
+    __result = __unseq_backend::__simd_assign(__middle, __len, __result, __assign);
+    __len = std::min<std::size_t>(__n_out - __len, __middle - __first);
+    return __unseq_backend::__simd_assign(__first, __len, __result, __assign);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
 _OutputIterator
-__pattern_rotate_copy(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __middle,
-                      _ForwardIterator __last, _OutputIterator __result) noexcept
+__pattern_rotate_copy(_Tag __tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __middle,
+                      _ForwardIterator __last, _OutputIterator __result, std::size_t __n_out) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __internal::__brick_rotate_copy(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
-                                           __result);
+    return __internal::__brick_rotate_copy(__first, __middle, __last, __result, __n_out, typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
 _RandomAccessIterator2
 __pattern_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
-                      _RandomAccessIterator1 __middle, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result)
+                      _RandomAccessIterator1 __middle, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
+                      std::size_t __n_out)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
+    __n_out = std::min<std::size_t>(__n_out, __last - __first);
+
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            [__first, __last, __middle, __result](_RandomAccessIterator1 __b, _RandomAccessIterator1 __e) {
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), std::size_t(0), __n_out,
+            [__first, __last, __middle, __result](std::size_t __b, std::size_t __e) {
                 __internal::__brick_copy<__parallel_tag<_IsVector>> __copy{};
-                if (__b > __middle)
+                std::size_t __split = __last - __middle;
+                _RandomAccessIterator2 __dest = __result + __b;
+                if (__b < __split)
                 {
-                    __copy(__b, __e, __result + (__b - __middle), _IsVector{});
+                    __dest = __copy(__middle + __b, (__e < __split)? __middle + __e : __last, __dest, _IsVector{});
                 }
-                else
+                if (__e >= __split)
                 {
-                    _RandomAccessIterator2 __new_result = __result + ((__last - __middle) + (__b - __first));
-                    if (__e < __middle)
-                    {
-                        __copy(__b, __e, __new_result, _IsVector{});
-                    }
-                    else
-                    {
-                        __copy(__b, __middle, __new_result, _IsVector{});
-                        __copy(__middle, __e, __result, _IsVector{});
-                    }
+                    __copy((__b < __split)? __first : __first + (__b - __split), __first + (__e - __split), __dest,
+                           _IsVector{});
                 }
             });
-        return __result + (__last - __first);
+        return __result + __n_out;
     });
 }
 
@@ -2156,65 +2175,195 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    // partitioned range: elements before pivot satisfy pred (true part),
-    //                    elements after pivot don't satisfy pred (false part)
+    // Mirror-Reduce Partition (MRP) algorithm
+    // ---------------------------------------
+    // The input [__first, __last) is interpreted as two mirrored halves: a "real" half [__first, __first + __n / 2)
+    // and a "mirror" half [__last - __n / 2, __last).
+    // Parallel reduction runs over the real half. Each leaf pairs a real chunk with its mirror chunk and
+    // partitions the pair by swapping the misplaced elements. Once one side is exhausted, it
+    // partitions the remaining tail on one side. This yields at most one leftover per leaf:
+    // either a false-leftover (elements for which the predicate is FALSE) on the real side or
+    // a true-leftover (elements for which the predicate is TRUE) on the mirror side, never both.
+    //
+    // Merge combines adjacent leaf ranges by moving leftovers toward the middle while preserving that
+    // invariant. Same-kind leftovers are shifted together, and a false/true pair is neutralized by swapping,
+    // with any remainder moved inward.
+    //
+    // After reduction, the surviving leftover determines the partition point.
+
     struct _PartitionRange
     {
-        _RandomAccessIterator __begin;
-        _RandomAccessIterator __pivot;
-        _RandomAccessIterator __end;
+        _RandomAccessIterator __real_chunk_begin;
+        _RandomAccessIterator __real_chunk_end;
+        _RandomAccessIterator __mirror_chunk_begin;
+        _RandomAccessIterator __mirror_chunk_end;
+        _RandomAccessIterator __false_leftover;
+        _RandomAccessIterator __true_leftover;
+
+        bool
+        __has_false_leftover() const
+        {
+            return __false_leftover != __real_chunk_end;
+        }
+        bool
+        __has_true_leftover() const
+        {
+            return __true_leftover != __mirror_chunk_begin;
+        }
+
+        bool
+        __empty() const
+        {
+            return __real_chunk_begin == __real_chunk_end;
+        }
     };
 
-    return __internal::__except_handler([&]() {
-        _PartitionRange __init{__last, __last, __last};
+    return __internal::__except_handler([&] {
+        using __diff_type = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
+        __diff_type __n = __last - __first;
+        using std::iter_swap;
 
-        // lambda for merging two partitioned ranges to one partitioned range
-        auto __reductor = [&__exec](_PartitionRange __val1, _PartitionRange __val2) -> _PartitionRange {
-            auto __size1 = __val1.__end - __val1.__pivot;
-            auto __size2 = __val2.__pivot - __val2.__begin;
-            auto __new_begin = __val2.__begin - (__val1.__end - __val1.__begin);
+        if (__n < __diff_type(2))
+            return __internal::__brick_partition(__first, __last, __pred, _IsVector{});
 
-            // if all elements in left range satisfy pred then we can move new pivot to pivot of right range
-            if (__val1.__end == __val1.__pivot)
+        auto __swap_ranges = [&__exec](_RandomAccessIterator __begin, _RandomAccessIterator __end,
+                                       _RandomAccessIterator __target) {
+            constexpr __diff_type __serial_swap_ranges_cutoff = 8192;
+            if ((__end - __begin) < __serial_swap_ranges_cutoff)
             {
-                return {__new_begin, __val2.__pivot, __val2.__end};
+                __internal::__brick_swap_ranges(__begin, __end, __target, _IsVector{});
             }
-            // if true part of right range greater than false part of left range
-            // then we should swap the false part of left range and last part of true part of right range
-            else if (__size2 > __size1)
-            {
-                __par_backend::__parallel_for(
-                    __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __val1.__pivot, __val1.__pivot + __size1,
-                    [__val1, __val2, __size1](_RandomAccessIterator __i, _RandomAccessIterator __j) {
-                        __internal::__brick_swap_ranges(__i, __j, (__val2.__pivot - __size1) + (__i - __val1.__pivot),
-                                                        _IsVector{});
-                    });
-                return {__new_begin, __val2.__pivot - __size1, __val2.__end};
-            }
-            // else we should swap the first part of false part of left range and true part of right range
             else
             {
+                // __exec is passed as an lvalue: this lambda is called many times, including after
+                // __exec has been forwarded into __parallel_reduce below
                 __par_backend::__parallel_for(
-                    __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __val1.__pivot, __val1.__pivot + __size2,
-                    [__val1, __val2](_RandomAccessIterator __i, _RandomAccessIterator __j) {
-                        __internal::__brick_swap_ranges(__i, __j, __val2.__begin + (__i - __val1.__pivot), _IsVector{});
-                    });
-                return {__new_begin, __val1.__pivot + __size2, __val2.__end};
+                    __backend_tag{}, __exec, __begin, __end,
+                    [__begin, __target](_RandomAccessIterator __chunk_begin, _RandomAccessIterator __chunk_end) {
+                        _RandomAccessIterator __chunk_target = __target + (__chunk_begin - __begin);
+                        __internal::__brick_swap_ranges(__chunk_begin, __chunk_end, __chunk_target, _IsVector{});
+                    },
+                    __serial_swap_ranges_cutoff);
             }
-        };
+        }; // __swap_ranges
 
-        _PartitionRange __result = __par_backend::__parallel_reduce(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __init,
-            [__pred, __reductor](_RandomAccessIterator __i, _RandomAccessIterator __j,
-                                 _PartitionRange __value) -> _PartitionRange {
-                //1. serial partition
-                _RandomAccessIterator __pivot = __internal::__brick_partition(__i, __j, __pred, _IsVector{});
+        auto __partial_swap = [__swap_ranges](_RandomAccessIterator __false_begin, _RandomAccessIterator __false_end,
+                                              _RandomAccessIterator __true_begin,
+                                              _RandomAccessIterator __true_end) -> __diff_type {
+            // Swap as many elements as possible, return how many
+            __diff_type __false_size = __false_end - __false_begin;
+            __diff_type __true_size  = __true_end - __true_begin;
+            __diff_type __swap_size  = std::min(__false_size, __true_size);
 
-                // 2. merging of two ranges (left and right respectively)
-                return __reductor(__value, {__i, __pivot, __j});
-            },
-            __reductor);
-        return __result.__pivot;
+            __swap_ranges(__false_begin, __false_begin + __swap_size, __true_end - __swap_size);
+            return __swap_size;
+        }; // __partial_swap
+
+        auto __flip_partition = [__partial_swap](_RandomAccessIterator __false_begin,
+                                                 _RandomAccessIterator __false_end, // == __true_begin
+                                                 _RandomAccessIterator __block_end) -> _RandomAccessIterator {
+            __partial_swap(__false_begin, __false_end, __false_end, __block_end);
+            // Return the new partition point
+            return __block_end - (__false_end - __false_begin);
+        }; // __flip_partition
+
+        auto __merge = [__flip_partition, __partial_swap](_PartitionRange __val1,
+                                                          _PartitionRange __val2) -> _PartitionRange {
+            if (__val1.__empty())
+                return __val2;
+            if (__val2.__empty())
+                return __val1;
+
+            // Merged range initialized with __val2's leftovers, which are already adjacent to the middle.
+            // If __val1 has no leftover, this initial state is already the correct result.
+            _PartitionRange __merged_range{__val1.__real_chunk_begin,   __val2.__real_chunk_end,
+                                           __val2.__mirror_chunk_begin, __val1.__mirror_chunk_end,
+                                           __val2.__false_leftover,     __val2.__true_leftover};
+
+            if (__val1.__has_false_leftover())
+            {
+                if (__val2.__has_true_leftover())
+                {
+                    // Opposite-side leftovers: swap as many elements as possible
+                    __diff_type __swap_size = __partial_swap(__val1.__false_leftover, __val1.__real_chunk_end,
+                                                             __val2.__mirror_chunk_begin, __val2.__true_leftover);
+                    __val1.__false_leftover += __swap_size;
+                    __merged_range.__true_leftover = __val2.__true_leftover - __swap_size;
+                }
+                // Move the remaining false leftover toward the middle, if any
+                __merged_range.__false_leftover =
+                    __flip_partition(__val1.__false_leftover, __val1.__real_chunk_end, __val2.__false_leftover);
+            }
+            else if (__val1.__has_true_leftover())
+            {
+                if (__val2.__has_false_leftover())
+                {
+                    // Opposite-side leftovers: swap as many elements as possible
+                    __diff_type __swap_size = __partial_swap(__val2.__false_leftover, __val2.__real_chunk_end,
+                                                             __val1.__mirror_chunk_begin, __val1.__true_leftover);
+                    __val1.__true_leftover -= __swap_size;
+                    __merged_range.__false_leftover = __val2.__false_leftover + __swap_size;
+                }
+                // Move the remaining true leftover toward the middle, if any
+                __merged_range.__true_leftover =
+                    __flip_partition(__val2.__true_leftover, __val1.__mirror_chunk_begin, __val1.__true_leftover);
+            }
+            return __merged_range;
+        }; // merge
+
+        const __diff_type __mid = __n / 2;
+
+        auto __reduce_leaf = [&__pred, __merge, __first, __last, __mid](_RandomAccessIterator __real_chunk_begin,
+                                                                        _RandomAccessIterator __real_chunk_end,
+                                                                        _PartitionRange __value) -> _PartitionRange {
+            // If the real chunk is the last chunk of the reduction, __mirror_chunk_begin starts right after
+            // to cover the middle element that would otherwise be skipped when __n is odd
+            _RandomAccessIterator __mirror_chunk_begin =
+                __real_chunk_end == __first + __mid ? __first + __mid : __last - (__real_chunk_end - __first);
+            _RandomAccessIterator __mirror_chunk_end = __last - (__real_chunk_begin - __first);
+
+            // Partition the pair of chunks
+            _RandomAccessIterator __left = __real_chunk_begin;
+            _RandomAccessIterator __right = __mirror_chunk_end;
+            bool __both_valid;
+            do
+            {
+                while (__left != __real_chunk_end && std::invoke(__pred, *__left))
+                    ++__left;
+                while (__right != __mirror_chunk_begin && !std::invoke(__pred, *(__right - 1)))
+                    --__right;
+
+                __both_valid = __left != __real_chunk_end && __right != __mirror_chunk_begin;
+                if (__both_valid)
+                {
+                    iter_swap(__left, __right - 1);
+                    ++__left;
+                    --__right;
+                }
+            } while (__both_valid);
+
+            // Partition the remainder and calculate leftover boundaries
+            _RandomAccessIterator __false_leftover = __real_chunk_end;
+            _RandomAccessIterator __true_leftover = __mirror_chunk_begin;
+            if (__left != __real_chunk_end)
+                __false_leftover = __internal::__brick_partition(__left, __real_chunk_end, __pred, _IsVector{});
+            else
+                __true_leftover = __internal::__brick_partition(__mirror_chunk_begin, __right, __pred, _IsVector{});
+
+            _PartitionRange __range{__real_chunk_begin, __real_chunk_end, __mirror_chunk_begin,
+                                    __mirror_chunk_end, __false_leftover, __true_leftover};
+
+            return __merge(__value, __range);
+        }; // reduce leaf
+
+        // The reduction identity carries no elements and no leftovers
+        _PartitionRange __init{__last, __last, __last, __last, __last, __last};
+        _PartitionRange __final_range =
+            __par_backend::__parallel_reduce(__backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __first,
+                                             __first + __mid, __init, __reduce_leaf, __merge);
+
+        // The partition point is the start of the surviving leftover
+        return __final_range.__has_true_leftover() ? __final_range.__true_leftover : __final_range.__false_leftover;
     });
 }
 
@@ -2506,7 +2655,7 @@ __pattern_partial_sort_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, 
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return ::std::partial_sort_copy(__first, __last, __d_first, __d_last, __comp);
+    return std::partial_sort_copy(__first, __last, __d_first, __d_last, __comp);
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
@@ -2528,7 +2677,7 @@ __pattern_partial_sort_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec
         if (__n2 >= __n1)
         {
             __par_backend::__parallel_stable_sort(
-                __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __d_first, __d_first + __n1, __comp,
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __d_first, __d_first + __n1, __comp,
                 [__first, __d_first](_RandomAccessIterator2 __i, _RandomAccessIterator2 __j, _Compare __comp) {
                     _RandomAccessIterator1 __i1 = __first + (__i - __d_first);
                     _RandomAccessIterator1 __j1 = __first + (__j - __d_first);
@@ -2536,48 +2685,47 @@ __pattern_partial_sort_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec
                     // 1. Copy elements from input to output
                     __brick_copy<__parallel_tag<_IsVector>>{}(__i1, __j1, __i, _IsVector{});
                     // 2. Sort elements in output sequence
-                    ::std::sort(__i, __j, __comp);
+                    std::sort(__i, __j, __comp);
                 },
                 __n1);
             return __d_first + __n1;
         }
         else
         {
-            using _T1 = typename std::iterator_traits<_RandomAccessIterator1>::value_type;
             using _T2 = typename std::iterator_traits<_RandomAccessIterator2>::value_type;
-            __par_backend::__buffer<_T1> __buf(__n1);
-            _T1* __r = __buf.get();
+            __par_backend::__buffer<_T2> __buf(__n1);
+            _T2* __r = __buf.get();
 
             __par_backend::__parallel_stable_sort(
-                __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n1, __comp,
-                [__n2, __first, __r](_T1* __i, _T1* __j, _Compare __comp) {
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __r, __r + __n1, __comp,
+                [__n2, __first, __r](_T2* __i, _T2* __j, _Compare __comp) {
                     _RandomAccessIterator1 __it = __first + (__i - __r);
 
                     // 1. Copy elements from input to raw memory
-                    for (_T1* __k = __i; __k != __j; ++__k, (void)++__it)
+                    for (_T2* __k = __i; __k != __j; ++__k, (void)++__it)
                     {
                         ::new (__k) _T2(*__it);
                     }
 
                     // 2. Sort elements in temporary buffer
                     if (__n2 < __j - __i)
-                        ::std::partial_sort(__i, __i + __n2, __j, __comp);
+                        std::partial_sort(__i, __i + __n2, __j, __comp);
                     else
-                        ::std::sort(__i, __j, __comp);
+                        std::sort(__i, __j, __comp);
                 },
                 __n2);
 
             // 3. Move elements from temporary buffer to output
-            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n2,
-                                          [__r, __d_first](_T1* __i, _T1* __j) {
+            __par_backend::__parallel_for(__backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __r, __r + __n2,
+                                          [__r, __d_first](_T2* __i, _T2* __j) {
                                               __brick_move_destroy<__parallel_tag<_IsVector>>{}(
                                                   __i, __j, __d_first + (__i - __r), _IsVector{});
                                           });
 
-            if constexpr (!::std::is_trivially_destructible_v<_T1>)
-                __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r + __n2,
+            if constexpr (!std::is_trivially_destructible_v<_T2>)
+                __par_backend::__parallel_for(__backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __r + __n2,
                                               __r + __n1,
-                                              [](_T1* __i, _T1* __j) { __brick_destroy(__i, __j, _IsVector{}); });
+                                              [](_T2* __i, _T2* __j) { __brick_destroy(__i, __j, _IsVector{}); });
 
             return __d_first + __n2;
         }
@@ -4727,10 +4875,11 @@ __brick_min_element(_RandomAccessIterator __first, _RandomAccessIterator __last,
                     /* __is_vector = */ ::std::true_type) noexcept
 {
 #if _ONEDPL_UDR_PRESENT // _PSTL_UDR_PRESENT
-    return __unseq_backend::__simd_min_element(__first, __last - __first, __comp);
-#else
-    return ::std::min_element(__first, __last, __comp);
+    if constexpr (__unseq_backend::__is_indirectly_storable_v<_RandomAccessIterator>)
+        return __unseq_backend::__simd_min_element(__first, __last - __first, __comp);
+    else
 #endif
+        return std::min_element(__first, __last, __comp);
 }
 
 template <class _Tag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Compare>
@@ -4756,22 +4905,21 @@ __pattern_min_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
 
     return __internal::__except_handler([&]() {
         return __par_backend::__parallel_reduce(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, /*identity*/ __last,
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __first, __last, /*identity*/ __last,
             [=](_RandomAccessIterator __begin, _RandomAccessIterator __end,
                 _RandomAccessIterator __init) -> _RandomAccessIterator {
                 const _RandomAccessIterator __subresult =
                     __internal::__brick_min_element(__begin, __end, __comp, _IsVector{});
-                return __init == __last ? __subresult
-                                        : __internal::__cmp_iterators_by_values(__init, __subresult, __comp,
-                                                                                oneapi::dpl::__internal::__pstl_less());
+                return __init == __last
+                           ? __subresult
+                           : __internal::__cmp_iterators_by_values(__init, __subresult, __comp, std::less<>{});
             },
             [=](_RandomAccessIterator __it1, _RandomAccessIterator __it2) -> _RandomAccessIterator {
                 if (__it1 == __last)
                     return __it2;
                 if (__it2 == __last)
                     return __it1;
-                return __internal::__cmp_iterators_by_values(__it1, __it2, __comp,
-                                                             oneapi::dpl::__internal::__pstl_less());
+                return __internal::__cmp_iterators_by_values(__it1, __it2, __comp, std::less<>{});
             });
     });
 }
@@ -4794,10 +4942,11 @@ __brick_minmax_element(_RandomAccessIterator __first, _RandomAccessIterator __la
                        /* __is_vector = */ ::std::true_type) noexcept
 {
 #if _ONEDPL_UDR_PRESENT // _PSTL_UDR_PRESENT
-    return __unseq_backend::__simd_minmax_element(__first, __last - __first, __comp);
-#else
-    return ::std::minmax_element(__first, __last, __comp);
+    if constexpr (__unseq_backend::__is_indirectly_storable_v<_RandomAccessIterator>)
+        return __unseq_backend::__simd_minmax_element(__first, __last - __first, __comp);
+    else
 #endif
+        return std::minmax_element(__first, __last, __comp);
 }
 
 template <class _Tag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Compare>
@@ -4811,7 +4960,7 @@ __pattern_minmax_element(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Fo
 }
 
 template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare>
-::std::pair<_RandomAccessIterator, _RandomAccessIterator>
+std::pair<_RandomAccessIterator, _RandomAccessIterator>
 __pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
                          _RandomAccessIterator __last, _Compare __comp)
 {
@@ -4819,7 +4968,7 @@ __pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
 
     // a trivial case pre-check
     if (__last - __first < 2)
-        return ::std::make_pair(__first, __first);
+        return std::make_pair(__first, __first);
 
     return __internal::__except_handler([&]() {
         using _Result = std::pair<_RandomAccessIterator, _RandomAccessIterator>;
@@ -4831,24 +4980,22 @@ __pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
                 const _Result __subresult = __internal::__brick_minmax_element(__begin, __end, __comp, _IsVector{});
                 if (__init.first == __last) // = identity
                     return __subresult;
-                return ::std::make_pair(
-                    __internal::__cmp_iterators_by_values(__init.first, __subresult.first, __comp,
-                                                          oneapi::dpl::__internal::__pstl_less()),
+                return std::make_pair(
+                    __internal::__cmp_iterators_by_values(__init.first, __subresult.first, __comp, std::less<>{}),
                     __internal::__cmp_iterators_by_values(__init.second, __subresult.second,
                                                           oneapi::dpl::__internal::__reorder_pred<_Compare>(__comp),
-                                                          oneapi::dpl::__internal::__pstl_greater()));
+                                                          std::greater<>{}));
             },
             [=, &__comp](_Result __p1, _Result __p2) -> _Result {
                 if (__p1.first == __last)
                     return __p2;
                 if (__p2.first == __last)
                     return __p1;
-                return ::std::make_pair(
-                    __internal::__cmp_iterators_by_values(__p1.first, __p2.first, __comp,
-                                                          oneapi::dpl::__internal::__pstl_less()),
+                return std::make_pair(
+                    __internal::__cmp_iterators_by_values(__p1.first, __p2.first, __comp, std::less<>{}),
                     __internal::__cmp_iterators_by_values(__p1.second, __p2.second,
                                                           oneapi::dpl::__internal::__reorder_pred<_Compare>(__comp),
-                                                          oneapi::dpl::__internal::__pstl_greater()));
+                                                          std::greater<>{}));
             });
     });
 }

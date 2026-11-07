@@ -12,11 +12,30 @@
 
 // The library version
 #define ONEDPL_VERSION_MAJOR 2022
-#define ONEDPL_VERSION_MINOR 13
+#define ONEDPL_VERSION_MINOR 14
 #define ONEDPL_VERSION_PATCH 0
 
 // The oneAPI Specification version this implementation is compliant with
-#define ONEDPL_SPEC_VERSION 104
+#define ONEDPL_SPEC_VERSION 105
+
+// -- Check if SYCL backend should be enabled --
+
+// If DPCPP backend is explicitly requested, optimistically assume SYCL availability;
+// otherwise, make sure that it is definitely available additionally checking SYCL_LANGUAGE_VERSION
+#if __has_include(<sycl/sycl.hpp>) || __has_include(<CL/sycl.hpp>)
+#    if SYCL_LANGUAGE_VERSION || CL_SYCL_LANGUAGE_VERSION || ONEDPL_USE_DPCPP_BACKEND
+#        define _ONEDPL_SYCL_AVAILABLE 1
+#    endif
+#else
+#    if ONEDPL_USE_DPCPP_BACKEND
+#        error "Device execution policies are requested, but SYCL* headers are not found"
+#    endif
+#endif
+
+// If DPCPP backend is not explicitly turned off and SYCL is available, enable it
+#if (ONEDPL_USE_DPCPP_BACKEND || !defined(ONEDPL_USE_DPCPP_BACKEND)) && _ONEDPL_SYCL_AVAILABLE
+#    define _ONEDPL_BACKEND_SYCL 1
+#endif
 
 // -- Check for C++ standard library feature macros --
 #if __has_include(<version>)
@@ -26,14 +45,6 @@
 #else
 #    define _ONEDPL_STD_FEATURE_MACROS_PRESENT 0
 #    define _ONEDPL_CPP20_CONCEPTS_PRESENT 0
-#endif
-
-// -- Check for C++20 requires-clause support --
-// This is the concepts language feature (a requires-clause, e.g. on a constrained partial specialization)
-#if __cpp_concepts >= 201907L
-#    define _ONEDPL_CPP20_REQUIRES_CLAUSE_PRESENT 1
-#else
-#    define _ONEDPL_CPP20_REQUIRES_CLAUSE_PRESENT 0
 #endif
 
 // -- Check for C++20 Ranges support --
@@ -55,7 +66,12 @@
 // -- Define oneDPL feature macros --
 #define ONEDPL_HAS_RANDOM_NUMBERS         202603L
 #if _ONEDPL_CPP20_RANGES_PRESENT
-#    define ONEDPL_HAS_RANGE_ALGORITHMS   202605L
+#    define ONEDPL_HAS_RANGE_ALGORITHMS   202608L
+#endif
+
+#if _ONEDPL_BACKEND_SYCL
+// Device containers will only be defined with the dpcpp backend.
+#    define ONEDPL_HAS_DEVICE_CONTAINERS 202608L
 #endif
 
 #endif // _ONEDPL_VERSION_IMPL_H

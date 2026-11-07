@@ -1,25 +1,68 @@
 import argparse
+import os
+import platform
 import re
+import subprocess
 
 from collections import Counter
 
+NA_VALUE = "N/A"
+
 
 def parse_arguments():
-    na_value = "N/A"
     parser = argparse.ArgumentParser(description="Analyze build logs and ctest output, and generate a summary.")
     parser.add_argument("--build-log", required=True, help="Path to the build log file.")
     parser.add_argument("--ctest-log", required=True, help="Path to the ctest log file.")
     parser.add_argument("--output-file", required=True, help="Path to the output file.")
-    parser.add_argument("--os", default=na_value, help="Operating System.")
-    parser.add_argument("--compiler-version", default=na_value, help="Version of the compiler.")
-    parser.add_argument("--cmake-version", default=na_value, help="Version of CMake.")
-    parser.add_argument("--cpu-model", default=na_value, help="CPU model.")
+    parser.add_argument("--compiler", help="Name of the C++ compiler executable, queried for its version.")
     return parser.parse_args()
 
 
 def read_file(file_path):
     with open(file_path, 'r', encoding="utf8") as f:
         return f.read()
+
+
+def first_output_line(command):
+    """Return the first non-empty line the command prints, or "N/A" if it prints nothing.
+
+    Both streams are captured and the exit code is ignored on purpose: cl writes
+    its version banner to stderr and then fails on the "--version" option it does
+    not recognize, but that banner is exactly what is wanted here.
+    """
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+    except OSError:
+        return NA_VALUE
+    for line in (result.stdout + result.stderr).splitlines():
+        if line.strip():
+            return line.strip()
+    return NA_VALUE
+
+
+def detect_os():
+    if platform.system() == "Windows":
+        # The marketing name ("Microsoft Windows Server 2022 Datacenter") says more
+        # than platform.platform()'s "Windows-10-10.0.20348-SP0".
+        return first_output_line(
+            ["powershell", "-command", "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"])
+    return platform.platform()
+
+
+def detect_cpu_model():
+    if platform.system() == "Linux":
+        try:
+            for line in read_file("/proc/cpuinfo").splitlines():
+                if line.startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+        except OSError:
+            pass
+        return NA_VALUE
+    if platform.system() == "Darwin":
+        return first_output_line(["sysctl", "-n", "machdep.cpu.brand_string"])
+    # platform.processor() only reports the CPU family on Windows, so ask WMI for
+    # the model name that the other platforms report.
+    return first_output_line(["powershell", "-command", "(Get-CimInstance -ClassName Win32_Processor).Name"])
 
 
 def generate_environment_table(os_info, compiler_version, cmake_version, cpu_model):
@@ -92,7 +135,9 @@ if __name__ == "__main__":
     build_log_content = read_file(args.build_log)
     ctest_log_content = read_file(args.ctest_log)
 
-    environment_table = generate_environment_table(args.os, args.compiler_version, args.cmake_version, args.cpu_model)
+    compiler_version = first_output_line([args.compiler, "--version"]) if args.compiler else NA_VALUE
+    environment_table = generate_environment_table(detect_os(), compiler_version,
+                                                   first_output_line(["cmake", "--version"]), detect_cpu_model())
     warning_table = generate_warning_table(build_log_content)
     ctest_table = generate_ctest_table(ctest_log_content)
     ctest_summary = extract_ctest_summary(ctest_log_content)
@@ -100,3 +145,10 @@ if __name__ == "__main__":
 
     with open(args.output_file, 'w', encoding="utf-8") as f:
         f.write(summary)
+
+    # Publish to the job summary as well, so that callers do not have to copy the
+    # file there themselves in a platform-specific way.
+    step_summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
+    if step_summary_file:
+        with open(step_summary_file, 'a', encoding="utf-8") as f:
+            f.write(summary)

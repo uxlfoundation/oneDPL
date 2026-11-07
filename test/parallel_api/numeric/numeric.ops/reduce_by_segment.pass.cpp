@@ -88,13 +88,12 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
 #endif // DUMP_CHECK_RESULTS
 
     template <typename Iterator1, typename Iterator2, typename Iterator3, typename Iterator4, typename InputSize,
-              typename OutputKeySize, typename OutputValSize,
-              typename BinaryPredicateCheck = oneapi::dpl::__internal::__pstl_equal,
-              typename BinaryOperationCheck = oneapi::dpl::__internal::__pstl_plus>
-    void check_values(Iterator1 host_keys, Iterator2 host_vals, Iterator3 key_res, Iterator4 val_res, InputSize n,
-                      OutputKeySize num_keys, OutputValSize num_vals,
-                      BinaryPredicateCheck pred = BinaryPredicateCheck(),
-                      BinaryOperationCheck op = BinaryOperationCheck())
+              typename OutputKeySize, typename OutputValSize, typename BinaryPredicateCheck = std::equal_to<>,
+              typename BinaryOperationCheck = std::plus<>>
+    void
+    check_values(Iterator1 host_keys, Iterator2 host_vals, Iterator3 key_res, Iterator4 val_res, InputSize n,
+                 OutputKeySize num_keys, OutputValSize num_vals, BinaryPredicateCheck pred = BinaryPredicateCheck(),
+                 BinaryOperationCheck op = BinaryOperationCheck())
     {
         // https://docs.oneapi.io/versions/latest/onedpl/extension_api.html
         // keys:   [ 0, 0, 0, 1, 1, 1 ]
@@ -108,15 +107,14 @@ DEFINE_TEST_2(test_reduce_by_segment, BinaryPredicate, BinaryOperation)
         using KeyT = typename std::iterator_traits<Iterator1>::value_type;
         using ValT = typename std::iterator_traits<Iterator2>::value_type;
 
-        ::std::vector<KeyT> expected_key_res(n);
-        ::std::vector<ValT> expected_val_res(n);
+        std::vector<KeyT> expected_key_res(n);
+        std::vector<ValT> expected_val_res(n);
 
-        ::std::size_t num_segments =
-            reduce_by_segment_serial(host_keys, host_vals, ::std::begin(expected_key_res),
-                ::std::begin(expected_val_res), n, pred, op);
+        std::size_t num_segments = reduce_by_segment_serial(host_keys, host_vals, std::begin(expected_key_res),
+                                                            std::begin(expected_val_res), n, pred, op);
 
 #ifdef DUMP_CHECK_RESULTS
-        ::std::cout << "check_values(n = " << n << ", segments = " << num_keys << ") : " << ::std::endl;
+        std::cout << "check_values(n = " << n << ", segments = " << num_keys << ") : " << std::endl;
         display_param("           keys: ", host_keys, n);
         display_param("         values: ", host_vals, n);
         display_param("    result keys: ", key_res, num_keys);

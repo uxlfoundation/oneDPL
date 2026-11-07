@@ -544,7 +544,7 @@ Sequence Transformation
     // replace_copy
     template <typename ExecutionPolicy, std::ranges::random_access_range R,
               std::ranges::random_access_range OutR, typename Proj = std::identity,
-              typename T1 = /*projected-value-type*/<std::ranges::iterator_t<R>, Proj>>,
+              typename T1 = /*projected-value-type*/<std::ranges::iterator_t<R>, Proj>,
               typename T2 = std::ranges::range_value_t<OutR>>
       requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<ExecutionPolicy>> &&
                std::ranges::sized_range<R> && std::ranges::sized_range<OutR> &&
@@ -562,7 +562,7 @@ Sequence Transformation
     template <typename ExecutionPolicy, std::ranges::random_access_range R,
               std::ranges::random_access_range OutR,
               class T = std::ranges::range_value_t<OutR>, typename Proj = std::identity,
-              std::indirect_unary_predicate< std::projected<std::ranges::iterator_t<R>, Proj> > Pred,
+              std::indirect_unary_predicate< std::projected<std::ranges::iterator_t<R>, Proj> > Pred>
       requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<ExecutionPolicy>> &&
                std::ranges::sized_range<R> && std::ranges::sized_range<OutR> &&
                std::indirectly_copyable<std::ranges::iterator_t<R>, std::ranges::iterator_t<OutR>> &&
@@ -660,7 +660,7 @@ Sequence Filtering
               typename Proj = std::identity,
               typename T = /*projected-value-type*/<std::ranges::iterator_t<R>, Proj>>
       requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<ExecutionPolicy>> &&
-               std::ranges::sized_range<R> && std::permutable<std::ranges::iterator_t<R> &&
+               std::ranges::sized_range<R> && std::permutable<std::ranges::iterator_t<R>> &&
                std::indirect_binary_predicate< std::ranges::equal_to,
                                                std::projected<std::ranges::iterator_t<R>, Proj>,
                                                const T* >
@@ -1028,7 +1028,7 @@ Uninitialized Memory Algorithms
         uninitialized_value_construct (ExecutionPolicy&& pol, R&& r);
 
     // uninitialized_copy
-    template <typename ExecutionPolicy, std::random_access_range IR,
+    template <typename ExecutionPolicy, std::ranges::random_access_range IR,
               /*nothrow-random-access-range*/ OR>
       requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<ExecutionPolicy>> &&
                std::ranges::sized_range<IR> && std::ranges::sized_range<OR> &&
