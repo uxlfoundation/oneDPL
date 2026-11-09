@@ -2421,7 +2421,6 @@ __parallel_transform_reduce_then_scan_impl(
 
     // use work groups to match the number of compute units
     const oneapi::dpl::__internal::__device_compute_units __compute_units(__q);
-    const std::uint32_t __max_compute_units = __compute_units.__max_compute_units;
 
     std::size_t __inputs_remaining = __n;
     if constexpr (__is_unique_pattern_v)
@@ -2438,36 +2437,35 @@ __parallel_transform_reduce_then_scan_impl(
 
     if (__target_is_gpu)
     {
-        const std::uint32_t __num_xe_cores = __compute_units.__num_xe_cores;
         std::size_t __last_level_cache_size_bytes =
             __q.get_device().template get_info<sycl::info::device::global_mem_cache_size>();
         if (__last_level_cache_size_bytes == 0)
         {
             // If the device doesn't report a cache size, it's likely somewhat old, assume 32K per CU
-            __last_level_cache_size_bytes = std::size_t{32} * 1024 * __max_compute_units;
+            __last_level_cache_size_bytes = std::size_t{32} * 1024 * __compute_units.__max_compute_units;
         }
         // Use half the cache as the target to leave room for other data
         const std::size_t __target_cache_size_bytes = __last_level_cache_size_bytes / 2;
         // Minimal LLC working set of a single work group
         const std::uint32_t __min_wg_cache_demand = __work_group_size * __bytes_per_work_item_iter;
 
-        if (std::size_t{__num_xe_cores} * __min_wg_cache_demand <= __target_cache_size_bytes)
+        if (std::size_t{__compute_units.__num_xe_cores} * __min_wg_cache_demand <= __target_cache_size_bytes)
         {
             // If minimal demand is within the cache target, launch 2 work groups per core (still fit full LLC)
-            __num_work_groups = __num_xe_cores * 2;
+            __num_work_groups = __compute_units.__num_xe_cores * 2;
             __max_inputs_per_block = std::max<std::size_t>(__target_cache_size_bytes / __bytes_per_work_item_iter,
                                                            __num_work_groups * __work_group_size);
         }
-        else if (std::size_t{__num_xe_cores} * __min_wg_cache_demand <= __last_level_cache_size_bytes)
+        else if (std::size_t{__compute_units.__num_xe_cores} * __min_wg_cache_demand <= __last_level_cache_size_bytes)
         {
             // Launching 1 work group per core with 1 iteration per item avoids spilling from LLC
-            __num_work_groups = __num_xe_cores;
+            __num_work_groups = __compute_units.__num_xe_cores;
             __max_inputs_per_block = __num_work_groups * __work_group_size;
         }
         else
         {
             // if we can't avoid spilling from LLC, use 2 work groups per core and a single block
-            __num_work_groups = __num_xe_cores * 2;
+            __num_work_groups = __compute_units.__num_xe_cores * 2;
             __max_inputs_per_block = __n;
         }
 
@@ -2491,7 +2489,7 @@ __parallel_transform_reduce_then_scan_impl(
     else // target is cpu
     {
         // use a large multiple of the number of cores (each WG is executed by a single thread)
-        __num_work_groups = oneapi::dpl::__internal::__dpl_bit_ceil(__max_compute_units * 64);
+        __num_work_groups = oneapi::dpl::__internal::__dpl_bit_ceil(__compute_units.__max_compute_units * 64);
         // use a large number of inputs per item to amortize the overhead
         __max_inputs_per_block = std::size_t{__num_work_groups} * __work_group_size *
                                  std::max<std::uint32_t>(1, 2048u / __bytes_per_work_item_iter);
