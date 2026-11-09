@@ -278,21 +278,17 @@ struct __segmented_reduce_flat_tuning
 {
     static constexpr std::size_t __sub_group_size = 32;
 
-    // Min elements per work-item for small inputs to amortize the search and combination; the max (4x), which larger
-    // inputs with long segments take, so that they spread over more work-groups than the device runs at once
+    // Min elements per work-item for small inputs to amortize the search and combination; the max (4x), which large
+    // inputs take, so that they spread over more work-groups than the device runs at once
     static constexpr std::size_t __min_inputs_per_item = 16;
     static constexpr std::size_t __max_inputs_per_item = 4 * __min_inputs_per_item;
 
-    // An input is small, or tiny, up to this many elements per hardware thread of the device; short segments of small
-    // and tiny inputs take fewer elements per work-item, so that more sub-groups share them
+    // An input is small, or tiny, up to this many elements per hardware thread of the device; small and tiny inputs
+    // take fewer elements per work-item, so that more sub-groups share them
     static constexpr std::size_t __small_inputs_per_thread = 1024;
     static constexpr std::size_t __tiny_inputs_per_thread = 256;
     static constexpr std::size_t __small_min_inputs_per_item = 8;
     static constexpr std::size_t __tiny_min_inputs_per_item = 4;
-
-    // Average segment length up to which walking a piece costs more than its loads, the largest piece: size pieces to
-    // fill HW threads
-    static constexpr std::size_t __short_average_segment = __max_inputs_per_item * __sub_group_size;
 
     // Work-group size limit of both kernels, also of the work-group per segment path
     static constexpr std::size_t __work_group_size_limit = 256;
@@ -322,31 +318,22 @@ struct __segmented_reduce_flat_tuning
         return __m > __pieces ? 2 : 0;
     }
 
-    // Launch for __n elements in __m segments, by the band of the average segment length: short segments spread over a
-    // piece per HW thread, long ones over twice as many work-groups as GPU cores, as in reduce-then-scan; elements per
-    // work-item within the bounds of the band, and work-groups halved (down to one sub-group) until there are at least
-    // two per GPU core
+    // Launch for __n elements: a piece per HW thread, elements per work-item within the bounds, and work-groups halved
+    // (down to one sub-group) until there are at least two per GPU core
     static __segmented_reduce_flat_geometry
-    __geometry(const sycl::queue& __q, const std::size_t __n, const std::size_t __m)
+    __geometry(const sycl::queue& __q, const std::size_t __n)
     {
         std::size_t __work_group_size = __max_work_group(__q);
         const oneapi::dpl::__internal::__device_compute_units __compute_units(__q);
         const std::size_t __min_groups = 2 * std::size_t{__compute_units.__num_xe_cores};
         const std::size_t __hw_threads = __segmented_reduce_hw_threads(__compute_units);
 
-        // Long segments: an input that is not small has more than __max_inputs_per_item elements per work-item here
-        // (with at least 4 hardware threads per compute unit), so only the lower bound of small inputs matters
-        std::size_t __items = __min_groups * __work_group_size;
-        std::size_t __min_inputs = __min_inputs_per_item;
-        if (__n <= __m * __short_average_segment)
-        {
-            __items = __hw_threads * __sub_group_size;
-            __min_inputs = __n <= __tiny_inputs_per_thread * __hw_threads    ? __tiny_min_inputs_per_item
-                           : __n <= __small_inputs_per_thread * __hw_threads ? __small_min_inputs_per_item
-                                                                             : __min_inputs_per_item;
-        }
-        const std::size_t __inputs_per_item = std::clamp<std::size_t>(
-            oneapi::dpl::__internal::__dpl_ceiling_div(__n, __items), __min_inputs, __max_inputs_per_item);
+        const std::size_t __min_inputs = __n <= __tiny_inputs_per_thread * __hw_threads    ? __tiny_min_inputs_per_item
+                                         : __n <= __small_inputs_per_thread * __hw_threads ? __small_min_inputs_per_item
+                                                                                           : __min_inputs_per_item;
+        const std::size_t __inputs_per_item =
+            std::clamp<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(__n, __hw_threads * __sub_group_size),
+                                    __min_inputs, __max_inputs_per_item);
 
         auto __groups = [__n, __inputs_per_item](std::size_t __size) {
             return oneapi::dpl::__internal::__dpl_ceiling_div(__n, __inputs_per_item * __size);
@@ -448,8 +435,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // A reversed segment has a negative length, so it is tiny; the search steps may go below zero before clamping
         static_assert(std::is_signed_v<_Size>, "The size type must be signed");
         constexpr std::size_t __sub_group_size = _Tuning::__sub_group_size;
-        const __segmented_reduce_flat_geometry __geometry =
-            _Tuning::__geometry(__q, std::size_t(__n), std::size_t(__m));
+        const __segmented_reduce_flat_geometry __geometry = _Tuning::__geometry(__q, std::size_t(__n));
         const std::size_t __work_group_size = __geometry.__work_group_size;
         // Kernel values in 32 bits (counted in pieces and work-groups) so kernel arguments stay in registers
         const std::uint32_t __sub_groups = __work_group_size / __sub_group_size;
