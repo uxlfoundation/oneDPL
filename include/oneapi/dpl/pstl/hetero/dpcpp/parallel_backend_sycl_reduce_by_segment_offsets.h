@@ -233,14 +233,6 @@ struct __segmented_reduce_pointer_input<
 };
 
 // The launch of the flat path
-// Hardware threads of a device: the unit of the input thresholds of the GPU paths
-inline std::size_t
-__segmented_reduce_hw_threads(const oneapi::dpl::__internal::__device_compute_units& __compute_units)
-{
-    return std::max<std::size_t>(1, std::size_t{__compute_units.__max_compute_units} *
-                                        __compute_units.__threads_per_compute_unit);
-}
-
 struct __segmented_reduce_flat_geometry
 {
     std::size_t __work_group_size = {}; // multiple of the sub-group size
@@ -297,7 +289,7 @@ struct __segmented_reduce_flat_tuning
         std::size_t __work_group_size = __max_work_group(__q);
         const oneapi::dpl::__internal::__device_compute_units __compute_units(__q);
         const std::size_t __min_groups = 2 * std::size_t{__compute_units.__num_xe_cores};
-        const std::size_t __hw_threads = __segmented_reduce_hw_threads(__compute_units);
+        const std::size_t __hw_threads = __compute_units.__hw_threads;
 
         const std::size_t __min_inputs = __n <= __tiny_inputs_per_thread * __hw_threads    ? __tiny_min_inputs_per_item
                                          : __n <= __small_inputs_per_thread * __hw_threads ? __small_min_inputs_per_item
@@ -915,8 +907,7 @@ struct __segmented_reduce_group_tuning
         if (__m < __min_segments_beyond)
             return false;
 
-        const std::size_t __hw_threads =
-            __segmented_reduce_hw_threads(oneapi::dpl::__internal::__device_compute_units(__q));
+        const std::size_t __hw_threads = oneapi::dpl::__internal::__device_compute_units(__q).__hw_threads;
         const std::size_t __max_input_beyond =
             std::min<std::size_t>(std::numeric_limits<std::uint32_t>::max(), __max_inputs_per_thread * __hw_threads);
         return __n <= __max_input_beyond && __m <= __max_input_beyond;
