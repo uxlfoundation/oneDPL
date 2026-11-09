@@ -292,15 +292,18 @@ __pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&
     // the size of the input
     using _Size = std::make_signed_t<std::common_type_t<decltype(+_Diff{}), decltype(+__num_segments)>>;
 
+    // Converted once, on the host: every kernel starts from this accumulator
+    _Acc __init_acc = std::move(__init);
+
     // Not no_init: the short and the long segments are written by different kernels
     auto __keep_result = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write>();
     auto __result_buf = __keep_result(__result, __result + __num_segments);
 
     if (__first == __last)
     {
-        __par_backend_hetero::__parallel_reduce_by_segment_offsets_fill<_Acc>(
+        __par_backend_hetero::__parallel_reduce_by_segment_offsets_fill(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __result_buf.all_view(), _Size(__num_segments),
-            __init);
+            __init_acc);
         return __result + __num_segments;
     }
 
@@ -309,9 +312,9 @@ __pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&
     auto __keep_offsets = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __offsets_buf = __keep_offsets(__offsets, __offsets + __num_segments + 1);
 
-    __par_backend_hetero::__parallel_reduce_by_segment_offsets<_Acc>(
+    __par_backend_hetero::__parallel_reduce_by_segment_offsets(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __input_buf.all_view(), __offsets_buf.all_view(),
-        __result_buf.all_view(), _Size(__last - __first), _Size(__num_segments), __init, __binary_op);
+        __result_buf.all_view(), _Size(__last - __first), _Size(__num_segments), std::move(__init_acc), __binary_op);
 
     return __result + __num_segments;
 }

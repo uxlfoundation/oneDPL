@@ -175,19 +175,20 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
 // reduce_by_segment with segments defined by offsets
 //------------------------------------------------------------------------
 
-// Reduces the elements [__begin, __end) of a random access iterator on the host as __segmented_reduce_serial does
-template <typename _Acc, typename _RandomAccessIterator, typename _Index, typename _InitType, typename _BinaryOperation>
+// Reduces the elements [__begin, __end) of a random access iterator on the host as __segmented_reduce_serial does,
+// from an accumulator: the initial value converted to the accumulator type, or the result of the operation
+template <typename _Acc, typename _RandomAccessIterator, typename _Index, typename _BinaryOperation>
 _Acc
-__segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __end, _InitType __init,
+__segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __end, _Acc __init,
                         _BinaryOperation& __binary_op, /*is_vector=*/std::false_type)
 {
     return __internal::__segmented_reduce_serial<_Acc>(__first, __begin, __end, std::move(__init), __binary_op);
 }
 
 // The same, vectorized: the vectorized reduction also starts its lanes from the operation on two elements
-template <typename _Acc, typename _RandomAccessIterator, typename _Index, typename _InitType, typename _BinaryOperation>
+template <typename _Acc, typename _RandomAccessIterator, typename _Index, typename _BinaryOperation>
 _Acc
-__segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __end, _InitType __init,
+__segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __end, _Acc __init,
                         _BinaryOperation& __binary_op, /*is_vector=*/std::true_type)
 {
     // Unordered offsets may give __begin > __end, which the brick cannot take
@@ -196,7 +197,7 @@ __segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __
 
     // An operation returning the accumulator type keeps the implicit conversion of its results and the operation itself
     return __internal::__brick_transform_reduce(
-        __first + __begin, __first + __end, __internal::__segmented_reduce_to_acc<_Acc>(std::move(__init)),
+        __first + __begin, __first + __end, std::move(__init),
         [&__binary_op](auto&& __x, auto&& __y) -> _Acc {
             return std::invoke(__binary_op, std::forward<decltype(__x)>(__x), std::forward<decltype(__y)>(__y));
         },
@@ -206,11 +207,11 @@ __segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __
 // The segments one after another, each one from its own offsets clamped to the input, as on a device, and vectorized
 // when the tag asks for vectorization
 template <typename _Acc, typename _RandomAccessInputIt, typename _SegmentNum, typename _RandomAccessOffsetIt,
-          typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation, typename _IsVector>
+          typename _RandomAccessOutputIt, typename _BinaryOperation, typename _IsVector>
 _RandomAccessOutputIt
 __brick_reduce_by_segment_offsets(_RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
                                   _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
-                                  _RandomAccessOffsetIt __offsets, _InitType __init, _BinaryOperation& __binary_op,
+                                  _RandomAccessOffsetIt __offsets, const _Acc& __init, _BinaryOperation& __binary_op,
                                   _IsVector __is_vector)
 {
     using _Size = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
@@ -241,8 +242,10 @@ __reduce_by_segment_offsets_impl(__internal::__serial_tag<_IsVector>, _Policy&&,
 {
     using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
 
+    // Converted once: every segment starts from this accumulator
+    const _Acc __init_acc = std::move(__init);
     return __brick_reduce_by_segment_offsets<_Acc>(__first_value, __last_value, __result_value, __num_segments,
-                                                   __offsets, __init, __binary_op, _IsVector{});
+                                                   __offsets, __init_acc, __binary_op, _IsVector{});
 }
 
 // The parallel host policies reduce a small input in the calling thread, as the serial policies do, vectorized when
@@ -266,12 +269,13 @@ static_assert(__segmented_reduce_host_short_segment_max >= __segmented_reduce_ho
 // forks and joins its threads once per pass (OpenMP)
 template <typename _Acc, typename _Size, typename _BackendTag, typename _IsVector, typename _ExecutionPolicy,
           typename _RandomAccessInputIt, typename _RandomAccessOutputIt, typename _RandomAccessOffsetIt,
-          typename _InitType, typename _BinaryOperation>
+          typename _BinaryOperation>
 void
 __reduce_by_segment_offsets_by_pieces(_BackendTag, _IsVector, _ExecutionPolicy& __exec,
                                       _RandomAccessInputIt __first_value, const _Size __n,
                                       _RandomAccessOutputIt __result_value, const _Size __m,
-                                      _RandomAccessOffsetIt __offsets, _InitType& __init, _BinaryOperation& __binary_op)
+                                      _RandomAccessOffsetIt __offsets, const _Acc& __init,
+                                      _BinaryOperation& __binary_op)
 {
     using __backend_tag = _BackendTag;
 
@@ -341,9 +345,8 @@ __reduce_by_segment_offsets_by_pieces(_BackendTag, _IsVector, _ExecutionPolicy& 
                             {
                                 __h.__value.__setup(__segmented_reduce_host<_Acc>(
                                     __first_value, __b + 2, __h_last,
-                                    __internal::__segmented_reduce_to_acc<_Acc>(
-                                        std::invoke(__binary_op, __first_value[__b], __first_value[__b + 1])),
-                                    __binary_op, _IsVector{}));
+                                    std::invoke(__binary_op, __first_value[__b], __first_value[__b + 1]), __binary_op,
+                                    _IsVector{}));
                             }
                             else
                             {
@@ -436,10 +439,12 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
     if (__num_segments <= 0)
         return __result_value;
 
+    // Converted once: every segment and every chunk starts from this accumulator or from the operation
+    const _Acc __init_acc = std::move(__init);
     const _Size __n = __last_value - __first_value;
     if (std::size_t(__n) < __segmented_reduce_host_cut_off)
         return __brick_reduce_by_segment_offsets<_Acc>(__first_value, __last_value, __result_value, __num_segments,
-                                                       __offsets, __init, __binary_op, _IsVector{});
+                                                       __offsets, __init_acc, __binary_op, _IsVector{});
 
     const _Size __m = __num_segments;
     // OpenMP forks and joins its threads once per parallel pass: one pass over pieces of the input in place of up
@@ -447,7 +452,7 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
     if constexpr (std::is_same_v<__backend_tag, oneapi::dpl::__internal::__omp_backend_tag>)
     {
         __reduce_by_segment_offsets_by_pieces<_Acc, _Size>(__backend_tag{}, _IsVector{}, __exec, __first_value, __n,
-                                                           __result_value, __m, __offsets, __init, __binary_op);
+                                                           __result_value, __m, __offsets, __init_acc, __binary_op);
         return __result_value + __m;
     }
 
@@ -485,8 +490,8 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
                             continue;
                         }
                     }
-                    __result_value[__segment] =
-                        __segmented_reduce_host<_Acc>(__first_value, __begin, __end, __init, __binary_op, _IsVector{});
+                    __result_value[__segment] = __segmented_reduce_host<_Acc>(__first_value, __begin, __end, __init_acc,
+                                                                              __binary_op, _IsVector{});
                 }
             },
             __segment_grain);
@@ -514,8 +519,8 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
         }
 
         // The chunks in parallel. The first chunk of a segment takes the remainder of its length and starts from the
-        // operation on the initial value and its first element; every other chunk has exactly __chunk_size elements
-        // and starts from the operation on its first two elements.
+        // initial value converted to the accumulator type; every other chunk has exactly __chunk_size elements and
+        // starts from the operation on its first two elements.
         oneapi::dpl::__par_backend::__buffer<_Acc> __partials_buf(__num_chunks);
         _Acc* __partials = __partials_buf.get();
         oneapi::dpl::__par_backend::__parallel_for(
@@ -531,15 +536,14 @@ __reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Executi
                     if (__j == 0)
                     {
                         ::new (__partials + __chunk) _Acc(__segmented_reduce_host<_Acc>(
-                            __first_value, __begin, __begin + __head, __init, __binary_op, _IsVector{}));
+                            __first_value, __begin, __begin + __head, __init_acc, __binary_op, _IsVector{}));
                     }
                     else
                     {
                         const _Size __chunk_begin = __begin + __head + (__j - 1) * __chunk_size;
                         ::new (__partials + __chunk) _Acc(__segmented_reduce_host<_Acc>(
                             __first_value, __chunk_begin + 2, __chunk_begin + __chunk_size,
-                            __internal::__segmented_reduce_to_acc<_Acc>(std::invoke(
-                                __binary_op, __first_value[__chunk_begin], __first_value[__chunk_begin + 1])),
+                            std::invoke(__binary_op, __first_value[__chunk_begin], __first_value[__chunk_begin + 1]),
                             __binary_op, _IsVector{}));
                     }
                 }
