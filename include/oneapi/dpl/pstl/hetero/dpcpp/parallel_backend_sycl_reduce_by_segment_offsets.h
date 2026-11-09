@@ -25,7 +25,7 @@
 #include "unseq_backend_sycl.h"
 #include "utils_ranges_sycl.h"
 
-#include "../../functional_impl.h" // oneapi::dpl::identity, oneapi::dpl::maximum
+#include "../../functional_impl.h" // oneapi::dpl::identity
 #include "../../segmented_reduce_utils.h"
 #include "../../utils.h"
 
@@ -222,9 +222,7 @@ struct __segmented_reduce_combine_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
 
-    _Size __num_partials = {};  // number of computed partial results
-    bool __write_empty = false; // whether a segment without chunks gets the init; otherwise left as is
-    _Acc __init;                // init converted to _Acc
+    _Size __num_partials = {}; // number of computed partial results
     mutable _BinaryOperation __binary_op;
 
     template <typename _IsFull, typename _Params, typename _ChunkEnds, typename _Partials, typename _Result>
@@ -237,19 +235,11 @@ struct __segmented_reduce_combine_brick
 
         const _Size __first = __idx == 0 ? _Size{0} : _Size(__chunk_ends[__idx - 1]);
 
-        // No chunks: empty, or short and already reduced. Unordered offsets may exceed the computed chunks:
-        // results unspecified
+        // No chunks: short and already reduced. Unordered offsets may exceed the computed chunks: results unspecified
         const _Size __last = std::min<_Size>(__chunk_ends[__idx], __num_partials);
-        if (__first >= __last)
-        {
-            if (__write_empty)
-                std::get<0>(__result[__idx]) = __init;
-        }
-        else
-        {
+        if (__first < __last)
             std::get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(
                 __partials, __first + 1, __last, _Acc(__partials[__first]), __binary_op);
-        }
     }
 };
 
@@ -1160,10 +1150,6 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
 };
 
 template <typename _Name>
-class __segmented_reduce_length_wrapper;
-template <typename _Name>
-class __segmented_reduce_all_empty_wrapper;
-template <typename _Name>
 class __segmented_reduce_scan_wrapper;
 template <typename _Name>
 class __segmented_reduce_chunk_wrapper;
@@ -1240,44 +1226,14 @@ struct __parallel_reduce_by_segment_offsets
             }
         }
 
+        // Short segments by a work-item each, which also writes the empty ones; the longer ones in chunks
         const _Size __threshold = _ChunkTuning::__short_segment_max(__is_gpu);
-        if (__n / __m > __threshold)
-        {
-            // Long average segment: all in chunks, the chunk length from the longest segment on GPUs (on CPUs it does
-            // not depend on it); chunkless segments get init
-            const _Size __max_length =
-                __is_gpu ? __parallel_transform_reduce<_Size, std::true_type>(
-                               _BackendTag{}, make_wrapped_policy<__segmented_reduce_length_wrapper>(__exec),
-                               oneapi::dpl::maximum<_Size>{},
-                               unseq_backend::walk_n<__segmented_reduce_length<_Size>>{
-                                   __segmented_reduce_length<_Size>{__n}},
-                               unseq_backend::__init_value<_Size>{_Size{0}},
-                               oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1}),
-                               oneapi::dpl::__ranges::take_view_simple(__offsets, __m))
-                         : __n;
-            if (__max_length > 0)
-            {
-                __reduce_in_chunks(_BackendTag{}, __exec, __is_gpu, __input, __offsets, __result, __n, __m, __init,
-                                   __binary_op, _Size{0}, /*__write_empty=*/true, __max_length, __m);
-            }
-            else
-            {
-                // Every segment empty: only the init to write
-                // Own kernel name: the empty-input fill has the default one with other template arguments
-                __parallel_reduce_by_segment_offsets_fill(
-                    _BackendTag{}, make_wrapped_policy<__segmented_reduce_all_empty_wrapper>(__exec), __result, __m,
-                    __init);
-            }
-
-            return;
-        }
-
         const _Size __max_length = __reduce_short_segments(_BackendTag{}, __exec, __input, __offsets, __result, __n,
                                                            __m, __threshold, __init, __binary_op);
         // At most __n / __threshold segments are longer than __threshold
         if (__max_length > 0)
             __reduce_in_chunks(_BackendTag{}, __exec, __is_gpu, __input, __offsets, __result, __n, __m, __init,
-                               __binary_op, __threshold, /*__write_empty=*/false, __max_length, __n / __threshold);
+                               __binary_op, __threshold, __max_length, __n / __threshold);
     }
 
   private:
@@ -1313,7 +1269,7 @@ struct __parallel_reduce_by_segment_offsets
     __reduce_in_chunks(_BackendTag, _ExecutionPolicy& __exec, const bool __is_gpu, _InRange& __input,
                        _OffsetRange& __offsets, _OutRange& __result, const _Size __n, const _Size __m,
                        const _Acc& __init, const _BinaryOperation& __binary_op, const _Size __min_length,
-                       const bool __write_empty, const _Size __max_length, const _Size __max_segments)
+                       const _Size __max_length, const _Size __max_segments)
     {
         const _Size __chunk_size = _ChunkTuning::__chunk_size(__is_gpu, __max_length);
 
@@ -1342,8 +1298,7 @@ struct __parallel_reduce_by_segment_offsets
             oneapi::dpl::__ranges::make_zip_view(__partials.__all_view()), __input);
 
         __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec), __chunks.event(),
-                       __segmented_reduce_combine_brick<_Acc, _Size, _BinaryOperation>{__num_partials, __write_empty,
-                                                                                       __init, __binary_op},
+                       __segmented_reduce_combine_brick<_Acc, _Size, _BinaryOperation>{__num_partials, __binary_op},
                        __m, __chunk_ends.__all_view(), __partials.__all_view(),
                        // Zip view: a tuple value type keeps __parallel_for from vectorizing (__vector_size == 1);
                        // with __iters_per_item == 1, one segment per item
