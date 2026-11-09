@@ -344,7 +344,7 @@ test_segments(Init init, BinaryOp op, Generator generator, Out unwritten)
             const SegmentNum num_segments = SegmentNum(offsets.size() - 1);
             Sequence<Out> out(std::max<std::size_t>(offsets.size() - 1, 1),
                               [unwritten](std::size_t) { return unwritten; });
-            invoke_on_all_policies<CallNumber * 3>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
+            invoke_on_all_policies<CallNumber * 2>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
                                                      out.begin(), out.end(), offsets.begin(), num_segments, init, op,
                                                      unwritten);
         }
@@ -352,36 +352,44 @@ test_segments(Init init, BinaryOp op, Generator generator, Out unwritten)
         // A non-positive number of segments: the output is not written
         const std::vector<Offset> offsets{0, Offset(n)};
         Sequence<Out> out(1, [unwritten](std::size_t) { return unwritten; });
-        invoke_on_all_policies<CallNumber * 3>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+        invoke_on_all_policies<CallNumber * 2>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                                  out.end(), offsets.begin(), SegmentNum(0), init, op, unwritten);
         if constexpr (std::is_signed_v<SegmentNum>)
         {
-            invoke_on_all_policies<CallNumber * 3>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
+            invoke_on_all_policies<CallNumber * 2>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
                                                      out.begin(), out.end(), offsets.begin(), SegmentNum(-1), init,
                                                      op, unwritten);
         }
+    }
 
-        // Fixed-length segments; the last two ones cross or lie beyond the end of the input
+    // Read-only input
+    const std::size_t n = 1000;
+    Sequence<T> in(n, generator);
+    const std::vector<Offset> offsets = make_offsets<Offset>(segments::random, n, gen);
+    const SegmentNum num_segments = SegmentNum(offsets.size() - 1);
+    Sequence<Out> out(num_segments, [unwritten](std::size_t) { return unwritten; });
+    invoke_on_all_policies<CallNumber * 2 + 1>()(test_reduce_by_segment_offsets(), in.cbegin(), in.cend(),
+                                                 out.begin(), out.end(), offsets.begin(), num_segments, init, op,
+                                                 unwritten);
+}
+
+// Fixed-length segments, by offsets computed on the fly, which users can write themselves; the last two segments
+// cross or lie beyond the end of the input
+template <std::size_t CallNumber>
+void
+test_fixed_length_segments()
+{
+    for (std::size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : std::size_t(3.1415 * n))
+    {
+        Sequence<int> in(n, [](std::size_t i) { return int(i % 101) - 50; });
         for (std::int64_t length : {1, 7, 1000})
         {
-            auto fixed_offsets = oneapi::dpl::make_transform_iterator(
-                oneapi::dpl::counting_iterator<std::int64_t>(0), segment_begin{length});
-            const SegmentNum num_segments = SegmentNum(n / length + 2);
-            Sequence<Out> fixed_out(num_segments, [unwritten](std::size_t) { return unwritten; });
-            invoke_on_all_policies<CallNumber * 3 + 1>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
-                                                         fixed_out.begin(), fixed_out.end(), fixed_offsets,
-                                                         num_segments, init, op, unwritten);
-        }
-
-        // Read-only input
-        if (n <= 1000)
-        {
-            const std::vector<Offset> random_offsets = make_offsets<Offset>(segments::random, n, gen);
-            const SegmentNum num_segments = SegmentNum(random_offsets.size() - 1);
-            Sequence<Out> random_out(num_segments, [unwritten](std::size_t) { return unwritten; });
-            invoke_on_all_policies<CallNumber * 3 + 2>()(test_reduce_by_segment_offsets(), in.cbegin(), in.cend(),
-                                                         random_out.begin(), random_out.end(),
-                                                         random_offsets.begin(), num_segments, init, op, unwritten);
+            auto offsets = oneapi::dpl::make_transform_iterator(oneapi::dpl::counting_iterator<std::int64_t>(0),
+                                                                segment_begin{length});
+            const std::int64_t num_segments = std::int64_t(n / length + 2);
+            Sequence<int> out(num_segments, [](std::size_t) { return -1; });
+            invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                                 out.end(), offsets, num_segments, 5, std::plus<int>{}, -1);
         }
     }
 }
@@ -669,6 +677,7 @@ main()
     test_rfc_example<40>();
     test_boundaries<42>();
     test_input_bounds<43>();
+    test_fixed_length_segments<45>();
     test_counting_input();
     test_narrow_counting_input();
 
