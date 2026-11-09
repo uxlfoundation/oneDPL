@@ -288,7 +288,7 @@ struct __segmented_reduce_flat_tuning
     {
         std::size_t __work_group_size = __max_work_group(__q);
         const oneapi::dpl::__internal::__device_compute_units __compute_units(__q);
-        const std::size_t __min_groups = 2 * std::size_t{__compute_units.__num_xe_cores};
+        const std::size_t __min_groups = 2 * __compute_units.__num_xe_cores;
 
         const std::size_t __min_inputs =
             __n <= __tiny_inputs_per_thread * __compute_units.__hw_threads    ? __tiny_min_inputs_per_item
