@@ -74,25 +74,6 @@ struct __segmented_reduce_variable_brick
     }
 };
 
-// Writes the initial value into every result: all the segments are empty
-template <typename _Acc>
-struct __segmented_reduce_init_brick
-{
-    static constexpr std::uint8_t __iters_per_item = 1;
-
-    _Acc __init; // the initial value converted to the accumulator type
-
-    // __result is a zip view of the result only, so that the segments are not vectorized over
-    template <typename _IsFull, typename _Params, typename _Result>
-    void
-    operator()(_IsFull, const std::size_t __idx, _Params, _Result __result) const
-    {
-        static_assert(_Params::__vector_size == 1,
-                      "The brick operates with tuples which must be excluded from vectorizable types");
-        std::get<0>(__result[__idx]) = __init;
-    }
-};
-
 template <typename _Name>
 class __segmented_reduce_fill_wrapper;
 
@@ -251,11 +232,12 @@ void
 __parallel_reduce_by_segment_offsets_fill(_BackendTag, _ExecutionPolicy&& __exec, _Range&& __result, _Size __m,
                                           const _Acc& __init)
 {
+    using _Fill = oneapi::dpl::__internal::__brick_fill<oneapi::dpl::__internal::__hetero_tag<_BackendTag>, _Acc>;
     // A separate kernel name: the reduction kernel of the same call is instantiated too
     __parallel_for(_BackendTag{},
                    make_wrapped_policy<__segmented_reduce_fill_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-                   __segmented_reduce_init_brick<_Acc>{__init}, __m,
-                   oneapi::dpl::__ranges::make_zip_view(std::forward<_Range>(__result)))
+                   unseq_backend::walk_n_vectors_or_scalars<_Fill>{_Fill{__init}, static_cast<std::size_t>(__m)}, __m,
+                   std::forward<_Range>(__result))
         .event()
         .wait_and_throw();
 }
