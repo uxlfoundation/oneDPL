@@ -185,6 +185,8 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     _generate_sort_test("kt_sycl" "radix_sort_residency" "20" "1024" "uint64_t" "uint64_t" 1000)
 
     _generate_test("kt_sycl_cooperative_groups_estimate.pass" "implementation_details/cooperative_groups_estimate.cpp")
+    add_dependencies(build-kt_sycl-sort-tests kt_sycl_cooperative_groups_estimate.pass)
+    add_dependencies(run-kt_sycl-sort-tests kt_sycl_cooperative_groups_estimate.pass)
 endif()
 
 function(_generate_batched_stable_sort_tests)
