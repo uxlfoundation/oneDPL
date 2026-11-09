@@ -25,6 +25,7 @@
 #    include <iterator>
 #    include <algorithm> // std::ranges::sort, std::ranges::stable_sort
 #    include <concepts>  // for std::copy_constructible, std::indirectly_unary_invocable, std::indirectly_writable
+#    include <optional>  // for std::optional
 #endif
 
 #include "utils_ranges.h" // __difference_t, __bounds
@@ -483,6 +484,32 @@ inline constexpr __internal::__count_fn count;
 
 struct __internal::__equal_fn
 {
+  private:
+    // Returns the unsized range __r as a sized subrange if it has exactly __n elements, and std::nullopt otherwise.
+    // A random access range that is not sized has a sentinel of a different type, so its end can only be found by
+    // walking it. The walk is bounded by __n, and an infinite range is recognized without walking.
+    template <typename _R, typename _Size>
+    static std::optional<std::ranges::subrange<std::ranges::iterator_t<_R>>>
+    __sized_subrange_of(_R& __r, _Size __n)
+    {
+        if constexpr (std::is_same_v<std::ranges::sentinel_t<_R>, std::unreachable_sentinel_t>)
+        {
+            return std::nullopt;
+        }
+        else
+        {
+            using _DiffType = std::ranges::range_difference_t<_R>;
+
+            const auto __first = std::ranges::begin(__r);
+            const auto __last = std::ranges::end(__r);
+            const auto __it = std::ranges::next(__first, _DiffType(__n), __last);
+            if (__it != __last || __it - __first != _DiffType(__n))
+                return std::nullopt;
+            return std::ranges::subrange(__first, __it);
+        }
+    }
+
+  public:
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
               typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
@@ -492,14 +519,28 @@ struct __internal::__equal_fn
     operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {},
                _Proj2 __proj2 = {}) const
     {
-        if constexpr(!std::ranges::sized_range<_R1> || !std::ranges::sized_range<_R2>)
-            return false;
-        else
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        if constexpr (std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2>)
         {
-            const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
             return oneapi::dpl::__internal::__ranges::__pattern_equal(__dispatch_tag,
                 std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2), __pred,
                 __proj1, __proj2);
+        }
+        else if constexpr (!std::ranges::sized_range<_R1>)
+        {
+            auto __sized_r1 = __sized_subrange_of(__r1, std::ranges::size(__r2));
+            return __sized_r1 && oneapi::dpl::__internal::__ranges::__pattern_equal(__dispatch_tag,
+                std::forward<_ExecutionPolicy>(__exec), *__sized_r1, std::forward<_R2>(__r2), __pred, __proj1,
+                __proj2);
+        }
+        else
+        {
+            static_assert(!std::ranges::sized_range<_R2>);
+
+            auto __sized_r2 = __sized_subrange_of(__r2, std::ranges::size(__r1));
+            return __sized_r2 && oneapi::dpl::__internal::__ranges::__pattern_equal(__dispatch_tag,
+                std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), *__sized_r2, __pred, __proj1,
+                __proj2);
         }
     }
 }; //__equal_fn
