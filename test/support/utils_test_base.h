@@ -528,7 +528,7 @@ test_algo_three_sequences(int mult = kDefaultMultValue,
 }
 
 //--------------------------------------------------------------------------------------------------------------------//
-// Used with algorithms that have two input sequences and two output sequencess
+// Used with algorithms that have two input sequences and two output sequences
 template <typename T, typename TestName, typename TPolicyInvoker = default_sequence_invoker>
 void
 test_algo_four_sequences(int mult = kDefaultMultValue)
