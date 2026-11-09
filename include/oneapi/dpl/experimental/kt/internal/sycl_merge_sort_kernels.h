@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- batched_merge_sort_kernels.h --------------------------------------===//
+//===-- sycl_merge_sort_kernels.h -----------------------------------------===//
 //
 // Copyright (C) UXL Foundation Contributors
 //
@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _ONEDPL_KT_BATCHED_MERGE_SORT_KERNELS_H
-#define _ONEDPL_KT_BATCHED_MERGE_SORT_KERNELS_H
+#ifndef _ONEDPL_KT_SYCL_MERGE_SORT_KERNELS_H
+#define _ONEDPL_KT_SYCL_MERGE_SORT_KERNELS_H
 
 #include <cstdint>
 #include <cstddef>
@@ -22,8 +22,6 @@
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
 #include "../../../pstl/hetero/dpcpp/parallel_backend_sycl_utils.h"
 #include "../../../pstl/utils.h"
-
-#include "radix_sort_utils.h"
 
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
@@ -247,8 +245,7 @@ struct __batched_merge_sort_kernel
             }
         }
 
-        __work_item_stable_sort<__has_values>(__keys, __vals,
-                                              [](_Bits __a, _Bits __b) { return __less(__a, __b); });
+        __work_item_stable_sort<__has_values>(__keys, __vals, [](_Bits __a, _Bits __b) { return __less(__a, __b); });
 
         // data stays within work-item so no barrier required before storing
         __store_to_slm(__keys, __vals, __slm_segment_offset + __start, __count);
@@ -443,4 +440,4 @@ __batched_merge_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
 
-#endif // _ONEDPL_KT_BATCHED_MERGE_SORT_KERNELS_H
+#endif // _ONEDPL_KT_SYCL_MERGE_SORT_KERNELS_H
