@@ -310,7 +310,8 @@ __reduce_by_segment_offsets_by_pieces(_BackendTag, _IsVector, _ExecutionPolicy& 
         _Size __first = 0;    // the elements [__first, __last) of a head shorter than two elements
         _Size __last = 0;
         bool __ends = false; // a head: the segment ends in the piece
-        oneapi::dpl::__internal::__opt_lazy_ctor_storage<_Acc> __value; // the partial result, if any
+        // The partial result, if any
+        oneapi::dpl::__internal::__opt_lazy_ctor_storage<_Acc> __value;
     };
     oneapi::dpl::__par_backend::__buffer<__part> __heads_buf(__num_pieces), __tails_buf(__num_pieces);
     __part* __heads = __heads_buf.get();
@@ -375,42 +376,34 @@ __reduce_by_segment_offsets_by_pieces(_BackendTag, _IsVector, _ExecutionPolicy& 
             /*__grainsize=*/1);
 
         // The partial results in the order of the pieces: a tail opens a segment, the heads of the following pieces
-        // add to it until one ends in its piece
-        _Size __open = -1;
-        oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __acc;
+        // add to its partial result until one ends in its piece
+        __part* __open = nullptr;
         for (_Size __p = 0; __p < __num_pieces; ++__p)
         {
             __part& __h = __heads[__p];
-            if (__h.__segment >= 0 && __h.__segment == __open)
+            if (__open != nullptr && __h.__segment == __open->__segment)
             {
+                _Acc& __acc = __open->__value.__get_ref();
                 if (__h.__value.__has_value())
-                    __acc.__v = std::invoke(__binary_op, std::move(__acc.__v), std::move(__h.__value.__get_ref()));
+                    __acc = std::invoke(__binary_op, std::move(__acc), std::move(__h.__value.__get_ref()));
                 for (_Size __i = __h.__first; __i < __h.__last; ++__i)
-                    __acc.__v = std::invoke(__binary_op, std::move(__acc.__v), __first_value[__i]);
+                    __acc = std::invoke(__binary_op, std::move(__acc), __first_value[__i]);
                 if (__h.__ends)
                 {
-                    __result_value[__open] = std::move(__acc.__v);
-                    __acc.__destroy();
-                    __open = -1;
+                    __result_value[__open->__segment] = std::move(__acc);
+                    __open = nullptr;
                 }
             }
             if (__tails[__p].__segment >= 0)
             {
-                if (__open >= 0)
-                {
-                    // Unordered offsets only: a segment left open
-                    __result_value[__open] = std::move(__acc.__v);
-                    __acc.__destroy();
-                }
-                __acc.__setup(std::move(__tails[__p].__value.__get_ref()));
-                __open = __tails[__p].__segment;
+                // Unordered offsets only: a segment left open
+                if (__open != nullptr)
+                    __result_value[__open->__segment] = std::move(__open->__value.__get_ref());
+                __open = __tails + __p;
             }
         }
-        if (__open >= 0)
-        {
-            __result_value[__open] = std::move(__acc.__v);
-            __acc.__destroy();
-        }
+        if (__open != nullptr)
+            __result_value[__open->__segment] = std::move(__open->__value.__get_ref());
 
         // The partial results that were set up
         if constexpr (!std::is_trivially_destructible_v<_Acc>)
