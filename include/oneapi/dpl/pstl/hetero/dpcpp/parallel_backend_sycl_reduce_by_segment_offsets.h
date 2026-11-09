@@ -104,9 +104,9 @@ struct __segmented_reduce_length
 {
     _Size __n; // the size of the input
 
-    template <typename _OffsetEnd, typename _OffsetBegin>
+    template <typename _Offset>
     _Size
-    operator()(_OffsetEnd __end, _OffsetBegin __begin) const
+    operator()(_Offset __begin, _Offset __end) const
     {
         const _Size __b = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__begin, __n);
         const _Size __e = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__end, __n);
@@ -126,7 +126,7 @@ struct __segmented_reduce_chunk_count
     _Size
     operator()(const _Bounds& __bounds) const
     {
-        const _Size __length = __segmented_reduce_length<_Size>{__n}(std::get<1>(__bounds), std::get<0>(__bounds));
+        const _Size __length = __segmented_reduce_length<_Size>{__n}(std::get<0>(__bounds), std::get<1>(__bounds));
         return __length > __min_length ? __length / __chunk_size + (__length % __chunk_size != 0) : _Size{0};
     }
 };
@@ -299,8 +299,8 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                       oneapi::dpl::maximum<_Size>{},
                       unseq_backend::walk_n<__segmented_reduce_length<_Size>>{__segmented_reduce_length<_Size>{__n}},
                       unseq_backend::__init_value<_Size>{_Size{0}},
-                      oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1}),
-                      oneapi::dpl::__ranges::take_view_simple(__offsets, __m))
+                      oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
+                      oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1}))
                 : __n;
         if (__max_length == 0)
         {
