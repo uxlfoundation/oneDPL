@@ -56,14 +56,14 @@ __segmented_reduce_offset(const _OffsetRange& __offsets, const _Index __i, const
 
 // One work-item per short segment; a long one only reports its length via atomic max, capped to 32 bits: the chunk
 // length takes only its square root and clamps it far below
-template <typename _Acc, typename _Size, typename _InitType, typename _BinaryOperation>
+template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_variable_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
 
     _Size __n = {};         // input size
     _Size __threshold = {}; // longest short segment length
-    _InitType __init;
+    _Acc __init;            // init converted to _Acc
     mutable _BinaryOperation __binary_op;
 
     template <typename _IsFull, typename _Params, typename _Offsets, typename _Result, typename _Input,
@@ -95,20 +95,6 @@ struct __segmented_reduce_variable_brick
             std::get<0>(__result[__idx]) =
                 oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(__input, __begin, __end, __init, __binary_op);
         }
-    }
-};
-
-// Writes the init of an empty segment to its result, which may be a proxy (e.g. of a zip iterator)
-template <typename _Acc>
-struct __segmented_reduce_assign_init
-{
-    _Acc __init_acc;
-
-    template <typename _Result>
-    void
-    operator()(_Result&& __result) const
-    {
-        __result = __init_acc;
     }
 };
 
@@ -186,7 +172,7 @@ struct __segmented_reduce_chunk_count
 // Reduces one chunk of a long segment. The first chunk of a segment takes the remainder of its length and starts
 // from the initial value converted to the accumulator type; every other chunk has exactly __chunk_size elements and
 // starts from the operation on its first two elements.
-template <typename _Acc, typename _Size, typename _InitType, typename _BinaryOperation>
+template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_chunk_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
@@ -194,7 +180,7 @@ struct __segmented_reduce_chunk_brick
     _Size __n = {};            // input size
     _Size __num_segments = {}; // number of segments
     _Size __chunk_size = {};   // chunk length
-    _InitType __init;
+    _Acc __init;               // init converted to _Acc
     mutable _BinaryOperation __binary_op;
 
     template <typename _IsFull, typename _Params, typename _ChunkEnds, typename _Offsets, typename _Partials,
@@ -211,9 +197,9 @@ struct __segmented_reduce_chunk_brick
             return;
 
         // The segment of the chunk: the first one whose chunks end after it, the last one if no other does
-        const _Size __lo = oneapi::dpl::__internal::__pstl_upper_bound(
-            __chunk_ends, _Size{0}, __num_segments - 1, &__chunk, std::less<>{}, oneapi::dpl::identity{},
-            oneapi::dpl::identity{});
+        const _Size __lo = oneapi::dpl::__internal::__pstl_upper_bound(__chunk_ends, _Size{0}, __num_segments - 1,
+                                                                       &__chunk, std::less<>{}, oneapi::dpl::identity{},
+                                                                       oneapi::dpl::identity{});
         const _Size __first_chunk = __lo == 0 ? _Size{0} : _Size(__chunk_ends[__lo - 1]);
         const _Size __begin = __segmented_reduce_offset(__offsets, __lo, __n);
         const _Size __end = __segmented_reduce_offset(__offsets, __lo + 1, __n);
@@ -229,9 +215,9 @@ struct __segmented_reduce_chunk_brick
         // The first chunk starts from __init; non-first chunks start from op(first two elements) as std::reduce does:
         // an accumulator is never made from a lone element, which may mean something else to the operation (such a
         // chunk has >= 64 elements)
-        _Acc __start = __k == 0 ? __segmented_reduce_to_acc<_Acc>(__init)
-                                : __segmented_reduce_to_acc<_Acc>(
-                                      std::invoke(__binary_op, __input[__chunk_begin], __input[__chunk_begin + 1]));
+        _Acc __start = __init;
+        if (__k != 0)
+            __start = std::invoke(__binary_op, __input[__chunk_begin], __input[__chunk_begin + 1]);
 
         std::get<0>(__partials[__idx]) = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(
             __input, __chunk_begin + (__k == 0 ? 0 : 2), __chunk_end, std::move(__start), __binary_op);
@@ -239,14 +225,14 @@ struct __segmented_reduce_chunk_brick
 };
 
 // A work-item per segment combines its chunk partials in chunk order
-template <typename _Acc, typename _Size, typename _InitType, typename _BinaryOperation>
+template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_combine_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
 
     _Size __num_partials = {};  // number of computed partial results
     bool __write_empty = false; // whether a segment without chunks gets the init; otherwise left as is
-    _InitType __init;
+    _Acc __init;                // init converted to _Acc
     mutable _BinaryOperation __binary_op;
 
     template <typename _IsFull, typename _Params, typename _ChunkEnds, typename _Partials, typename _Result>
@@ -265,7 +251,7 @@ struct __segmented_reduce_combine_brick
         if (__first >= __last)
         {
             if (__write_empty)
-                std::get<0>(__result[__idx]) = __segmented_reduce_to_acc<_Acc>(__init);
+                std::get<0>(__result[__idx]) = __init;
         }
         else
         {
@@ -1202,19 +1188,18 @@ class __segmented_reduce_chunk_wrapper;
 template <typename _Name>
 class __segmented_reduce_combine_wrapper;
 
-// Writes the init into every result, as the input is empty
-template <typename _Acc, typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Size,
-          typename _InitType>
+// Writes the init into every result: the input is empty, or the offsets give no element to any segment
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Size, typename _Acc>
 void
 __parallel_reduce_by_segment_offsets_fill(_BackendTag, _ExecutionPolicy&& __exec, _Range&& __result, _Size __m,
-                                          const _InitType& __init)
+                                          const _Acc& __init)
 {
+    using _Fill = oneapi::dpl::__internal::__brick_fill<oneapi::dpl::__internal::__hetero_tag<_BackendTag>, _Acc>;
     // Separate kernel name, as the same call also instantiates the reduction kernel
     __parallel_for(_BackendTag{},
                    make_wrapped_policy<__segmented_reduce_fill_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-                   unseq_backend::walk_n_vectors_or_scalars<__segmented_reduce_assign_init<_Acc>>{
-                       __segmented_reduce_assign_init<_Acc>{__segmented_reduce_to_acc<_Acc>(__init)}, std::size_t(__m)},
-                   __m, std::forward<_Range>(__result))
+                   unseq_backend::walk_n_vectors_or_scalars<_Fill>{_Fill{__init}, std::size_t(__m)}, __m,
+                   std::forward<_Range>(__result))
         .event()
         .wait_and_throw();
 }
@@ -1297,7 +1282,7 @@ struct __parallel_reduce_by_segment_offsets
             {
                 // Every segment empty: only the init to write
                 // Own kernel name: the empty-input fill has the default one with other template arguments
-                __parallel_reduce_by_segment_offsets_fill<_Acc>(
+                __parallel_reduce_by_segment_offsets_fill(
                     _BackendTag{}, make_wrapped_policy<__segmented_reduce_all_empty_wrapper>(__exec), __result, __m,
                     __init);
             }
@@ -1326,13 +1311,13 @@ struct __parallel_reduce_by_segment_offsets
         auto __report_buf = __buffer<std::uint32_t>(1).get_buffer();
         // No host data: the atomic maximum starts from this zero
         __report_buf.get_host_access(sycl::write_only)[0] = 0;
-        __parallel_for(_BackendTag{}, __exec,
-                       __segmented_reduce_variable_brick<_Acc, _Size, _InitType, _BinaryOperation>{
-                           __n, __threshold, __init, __binary_op},
-                       // Zip view: a tuple value type keeps __parallel_for from vectorizing (__vector_size == 1);
-                       // with __iters_per_item == 1, one segment per item
-                       __m, __offsets, oneapi::dpl::__ranges::make_zip_view(__result), __input,
-                       oneapi::dpl::__ranges::views::all(__report_buf))
+        __parallel_for(
+            _BackendTag{}, __exec,
+            __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op},
+            // Zip view: a tuple value type keeps __parallel_for from vectorizing (__vector_size == 1);
+            // with __iters_per_item == 1, one segment per item
+            __m, __offsets, oneapi::dpl::__ranges::make_zip_view(__result), __input,
+            oneapi::dpl::__ranges::views::all(__report_buf))
             .event()
             .wait_and_throw();
 
@@ -1369,17 +1354,15 @@ struct __parallel_reduce_by_segment_offsets
 
         auto __chunks = __parallel_for(
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec), __scan.event(),
-            __segmented_reduce_chunk_brick<_Acc, _Size, _InitType, _BinaryOperation>{__n, __m, __chunk_size, __init,
-                                                                                     __binary_op},
+            __segmented_reduce_chunk_brick<_Acc, _Size, _BinaryOperation>{__n, __m, __chunk_size, __init, __binary_op},
             __num_partials, __chunk_ends.__all_view(), __offsets,
             // Zip view: a tuple value type keeps __parallel_for from vectorizing (__vector_size == 1);
             // with __iters_per_item == 1, one chunk per item
             oneapi::dpl::__ranges::make_zip_view(__partials.__all_view()), __input);
 
-        __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec),
-                       __chunks.event(),
-                       __segmented_reduce_combine_brick<_Acc, _Size, _InitType, _BinaryOperation>{
-                           __num_partials, __write_empty, __init, __binary_op},
+        __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec), __chunks.event(),
+                       __segmented_reduce_combine_brick<_Acc, _Size, _BinaryOperation>{__num_partials, __write_empty,
+                                                                                       __init, __binary_op},
                        __m, __chunk_ends.__all_view(), __partials.__all_view(),
                        // Zip view: a tuple value type keeps __parallel_for from vectorizing (__vector_size == 1);
                        // with __iters_per_item == 1, one segment per item
