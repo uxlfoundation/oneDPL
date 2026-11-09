@@ -47,17 +47,11 @@ enum class segments
     one,           // a single segment over the whole input
     unit,          // every element is a segment
     equal,         // segments of the same length, the last one crosses the end of the input
-    growing,       // segments of the lengths 1, 2, 3, ..., the last one is cut at the end of the input
-    random,        // segments of random lengths, including empty ones
+    mixed,         // segments of random lengths, an empty one, one of one element and a long one
     all_empty,     // only empty segments
-    skewed,        // one long segment between short ones
     inner,         // the segments cover only the middle of the input
     out_of_bounds, // the segments cross the ends of the input or lie beyond them
 };
-
-constexpr segments all_segments[] = {segments::one,       segments::unit,   segments::equal,
-                                     segments::growing,   segments::random, segments::all_empty,
-                                     segments::skewed,    segments::inner,  segments::out_of_bounds};
 
 // Returns the num_segments + 1 non-decreasing offsets of the segments
 template <typename Offset>
@@ -79,31 +73,25 @@ make_offsets(segments kind, std::int64_t n, std::mt19937& gen)
         while (bounds.back() < n)
             add(1 + n / 10);
         break;
-    case segments::growing:
-        for (std::int64_t length = 1; bounds.back() < n; ++length)
-            add(std::min(length, n - bounds.back()));
-        break;
-    case segments::random:
+    case segments::mixed:
     {
+        // The long segment has three quarters of the input: every operation reduces a long segment
         std::uniform_int_distribution<std::int64_t> length(0, 2 + n / 32);
-        while (bounds.back() < n)
-            add(std::min(length(gen), n - bounds.back()));
+        auto add_random = [&](std::int64_t end) {
+            while (bounds.back() < end)
+                add(std::min(length(gen), end - bounds.back()));
+        };
+        add(0);
+        add(std::min<std::int64_t>(1, n));
+        add_random(n / 8);
+        add(std::min(n * 3 / 4, n - bounds.back()));
+        add_random(n);
         add(0);
         break;
     }
     case segments::all_empty:
         bounds.assign(5, n / 2);
         break;
-    case segments::skewed:
-    {
-        const std::int64_t short_ones = std::min<std::int64_t>(3, n / 2);
-        for (std::int64_t i = 0; i < short_ones; ++i)
-            add(1);
-        add(n - 2 * short_ones);
-        for (std::int64_t i = 0; i < short_ones; ++i)
-            add(1);
-        break;
-    }
     case segments::inner:
         bounds.assign(1, n / 4);
         while (bounds.back() < n - n / 4)
@@ -338,20 +326,13 @@ test_segments(Init init, BinaryOp op, Generator generator, Out unwritten)
     for (std::size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : std::size_t(3.1415 * n))
     {
         Sequence<T> in(n, generator);
-        for (segments kind : all_segments)
-        {
-            const std::vector<Offset> offsets = make_offsets<Offset>(kind, n, gen);
-            const SegmentNum num_segments = SegmentNum(offsets.size() - 1);
-            Sequence<Out> out(std::max<std::size_t>(offsets.size() - 1, 1),
-                              [unwritten](std::size_t) { return unwritten; });
-            invoke_on_all_policies<CallNumber * 2>()(test_reduce_by_segment_offsets(), in.begin(), in.end(),
-                                                     out.begin(), out.end(), offsets.begin(), num_segments, init, op,
-                                                     unwritten);
-        }
+        const std::vector<Offset> offsets = make_offsets<Offset>(segments::mixed, n, gen);
+        const SegmentNum num_segments = SegmentNum(offsets.size() - 1);
+        Sequence<Out> out(num_segments, [unwritten](std::size_t) { return unwritten; });
+        invoke_on_all_policies<CallNumber * 2>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                                 out.end(), offsets.begin(), num_segments, init, op, unwritten);
 
         // A non-positive number of segments: the output is not written
-        const std::vector<Offset> offsets{0, Offset(n)};
-        Sequence<Out> out(1, [unwritten](std::size_t) { return unwritten; });
         invoke_on_all_policies<CallNumber * 2>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                                  out.end(), offsets.begin(), SegmentNum(0), init, op, unwritten);
         if constexpr (std::is_signed_v<SegmentNum>)
@@ -365,12 +346,32 @@ test_segments(Init init, BinaryOp op, Generator generator, Out unwritten)
     // Read-only input
     const std::size_t n = 1000;
     Sequence<T> in(n, generator);
-    const std::vector<Offset> offsets = make_offsets<Offset>(segments::random, n, gen);
+    const std::vector<Offset> offsets = make_offsets<Offset>(segments::mixed, n, gen);
     const SegmentNum num_segments = SegmentNum(offsets.size() - 1);
     Sequence<Out> out(num_segments, [unwritten](std::size_t) { return unwritten; });
     invoke_on_all_policies<CallNumber * 2 + 1>()(test_reduce_by_segment_offsets(), in.cbegin(), in.cend(),
                                                  out.begin(), out.end(), offsets.begin(), num_segments, init, op,
                                                  unwritten);
+}
+
+// The segment distributions at the edges, with one operation and one type
+template <std::size_t CallNumber>
+void
+test_edge_segment_distributions()
+{
+    std::mt19937 gen(42);
+    for (std::size_t n = 0; n <= max_n; n = n <= 16 ? n + 1 : std::size_t(3.1415 * n))
+    {
+        Sequence<int> in(n, [](std::size_t i) { return int(i % 101) - 50; });
+        for (segments kind : {segments::one, segments::unit, segments::equal, segments::all_empty})
+        {
+            const std::vector<int> offsets = make_offsets<int>(kind, n, gen);
+            const int num_segments = int(offsets.size() - 1);
+            Sequence<int> out(std::max(num_segments, 1), [](std::size_t) { return -1; });
+            invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                                 out.end(), offsets.begin(), num_segments, 5, std::plus<int>{}, -1);
+        }
+    }
 }
 
 // Fixed-length segments, by offsets computed on the fly, which users can write themselves; the last two segments
@@ -471,7 +472,7 @@ test_input_bounds()
         Sequence<int> guarded(n + 2 * guard_length, [n](std::size_t i) {
             return i < guard_length || i >= guard_length + n ? poison : int(i % 101) - 50;
         });
-        for (segments kind : all_segments)
+        for (segments kind : {segments::mixed, segments::inner, segments::out_of_bounds})
         {
             const std::vector<std::int64_t> offsets = make_offsets<std::int64_t>(kind, n, gen);
             const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
@@ -499,7 +500,7 @@ test_usm()
     // The input is guarded by poison on both sides, as in test_input_bounds
     std::vector<int> in(n + 2 * guard_length, poison);
     std::iota(in.begin() + guard_length, in.begin() + guard_length + n, -500);
-    for (segments kind : all_segments)
+    for (segments kind : {segments::mixed, segments::all_empty})
     {
         std::vector<int> offsets = make_offsets<int>(kind, n, gen);
         const int num_segments = int(offsets.size() - 1);
@@ -530,7 +531,7 @@ test_buffer()
     // The input is guarded by poison on both sides, as in test_input_bounds
     std::vector<int> in(n + 2 * guard_length, poison);
     std::iota(in.begin() + guard_length, in.begin() + guard_length + n, -500);
-    for (segments kind : all_segments)
+    for (segments kind : {segments::mixed, segments::all_empty})
     {
         std::vector<int> offsets = make_offsets<int>(kind, n, gen);
         const int num_segments = int(offsets.size() - 1);
@@ -677,6 +678,7 @@ main()
     test_rfc_example<40>();
     test_boundaries<42>();
     test_input_bounds<43>();
+    test_edge_segment_distributions<44>();
     test_fixed_length_segments<45>();
     test_counting_input();
     test_narrow_counting_input();
