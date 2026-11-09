@@ -1231,13 +1231,13 @@ struct __max_nested_type_size
 template <typename... _Ts>
 struct __max_nested_type_size<std::tuple<_Ts...>>
 {
-    constexpr static std::size_t value = std::max({__max_nested_type_size<_Ts>::value...});
+    constexpr static std::size_t value = std::max({sizeof(std::tuple<>), __max_nested_type_size<_Ts>::value...});
 };
 
 template <typename... _Ts>
 struct __max_nested_type_size<oneapi::dpl::__internal::tuple<_Ts...>>
 {
-    constexpr static std::size_t value = std::max({__max_nested_type_size<_Ts>::value...});
+    constexpr static std::size_t value = std::max({sizeof(std::tuple<>), __max_nested_type_size<_Ts>::value...});
 };
 
 struct __swap_fn
