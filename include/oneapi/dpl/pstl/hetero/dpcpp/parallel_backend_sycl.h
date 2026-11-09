@@ -1218,18 +1218,7 @@ struct __early_exit_find_or
                     _BrickTag::__save_state_to(__found_local, __base);
                     return true;
                 }
-                std::size_t __j = 0;
-                if constexpr (__backward)
-                {
-                    __j = __width - 1;
-                    while (!((__hits >> __j) & 1u))
-                        --__j;
-                }
-                else
-                {
-                    while (!((__hits >> __j) & 1u))
-                        ++__j;
-                }
+                const std::size_t __j = __backward ? 31 - sycl::clz(__hits) : sycl::ctz(__hits);
                 _BrickTag::__save_state_to(__found_local, __base + __j);
                 return true;
             };
