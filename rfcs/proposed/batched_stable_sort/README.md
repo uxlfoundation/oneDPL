@@ -241,7 +241,8 @@ Implement two kernels, and optionally a third:
    * Keys are compared with `_Compare` directly.
    * Load into registers and stable sort each work-item's `data_per_workitem` keys (leaf sort).
      The last work-item of a segment may hold fewer than `data_per_workitem` keys; its unused
-     slots are padded and excluded from the merges and the final write.
+     slots are never compared, as no padding key is known to order last under an arbitrary
+     comparator, and are excluded from the merges and the final write.
    * `ceil(log2(ceil(__segment_size / data_per_workitem)))` merge rounds (zero when the segment
      fits in one work-item): registers → SLM, barrier, each work-item binary-searches its diagonal
      (co-rank) for its merge path start, then merges `data_per_workitem` keys from SLM back into
