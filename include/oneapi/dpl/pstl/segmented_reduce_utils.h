@@ -57,8 +57,7 @@ __segmented_reduce_clamp_offset(_Offset __offset, _Size __n)
                   "The offsets of reduce_by_segment must be of an integral type other than bool");
 
     using _Common = std::common_type_t<_Offset, _Size>;
-    const _Offset __non_negative = std::max(__offset, _Offset{0});
-    return static_cast<_Size>(std::min(static_cast<_Common>(__non_negative), static_cast<_Common>(__n)));
+    return static_cast<_Size>(std::min<_Common>(std::max<_Offset>(__offset, 0), __n));
 }
 
 } // namespace __internal
