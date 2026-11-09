@@ -38,14 +38,6 @@ namespace __par_backend_hetero
 
 // reduce_by_segment with segments defined by offsets
 
-// Accumulator from the init or an operation result by implicit conversion, as the RFC requires both convertible
-template <typename _Acc, typename _Value>
-_Acc
-__segmented_reduce_to_acc(_Value&& __value)
-{
-    return std::forward<_Value>(__value);
-}
-
 // Offset __i clamped to the input: the beginning of segment __i and the end of segment __i - 1
 template <typename _OffsetRange, typename _Index, typename _Size>
 _Size
@@ -443,17 +435,17 @@ __segmented_reduce_lanes(const _SubGroup __sg, _Acc __acc, const std::uint32_t _
     }
 }
 
-template <typename _Acc, typename _KernelName, typename _GroupKernelName, typename _TailKernelName, typename _InitType,
+template <typename _Acc, typename _KernelName, typename _GroupKernelName, typename _TailKernelName,
           typename _BinaryOperation, typename _Tuning>
 struct __segmented_reduce_flat_submitter;
 
-template <typename _Acc, typename... _Name, typename... _GroupName, typename... _TailName, typename _InitType,
-          typename _BinaryOperation, typename _Tuning>
-struct __segmented_reduce_flat_submitter<
-    _Acc, __internal::__optional_kernel_name<_Name...>, __internal::__optional_kernel_name<_GroupName...>,
-    __internal::__optional_kernel_name<_TailName...>, _InitType, _BinaryOperation, _Tuning>
+template <typename _Acc, typename... _Name, typename... _GroupName, typename... _TailName, typename _BinaryOperation,
+          typename _Tuning>
+struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_name<_Name...>,
+                                         __internal::__optional_kernel_name<_GroupName...>,
+                                         __internal::__optional_kernel_name<_TailName...>, _BinaryOperation, _Tuning>
 {
-    _InitType __init;
+    _Acc __init; // init converted to _Acc
     mutable _BinaryOperation __binary_op;
 
     template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size>
@@ -598,8 +590,8 @@ struct __segmented_reduce_flat_submitter<
     _Acc
     __reduce_four(_T __a, _T __b, _T __c, _T __d) const
     {
-        return std::invoke(__binary_op, __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __a, __b)),
-                           __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __c, __d)));
+        return std::invoke(__binary_op, _Acc(std::invoke(__binary_op, __a, __b)),
+                           _Acc(std::invoke(__binary_op, __c, __d)));
     }
 
     // Folds __get(__i) into __acc for __i from __i below __end by __stride: four values an op while they last
@@ -749,7 +741,7 @@ struct __segmented_reduce_flat_submitter<
                         __v.load(0, sycl::address_space_cast<sycl::access::address_space::generic_space,
                                                              sycl::access::decorated::no>(__p + __a + __w * __k));
                         if constexpr (__w == 2)
-                            return __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, _T(__v[0]), _T(__v[1])));
+                            return _Acc(std::invoke(__binary_op, _T(__v[0]), _T(__v[1])));
                         else
                             return __reduce_four(_T(__v[0]), _T(__v[1]), _T(__v[2]), _T(__v[3]));
                     };
@@ -774,21 +766,20 @@ struct __segmented_reduce_flat_submitter<
         if (!__by_vectors && __lane < __active)
         {
             const std::uint32_t __i = __first + __lane;
-            __acc.__setup(__segmented_reduce_to_acc<_Acc>(
-                std::invoke(__binary_op, __element(__input, __base, __i), __element(__input, __base, __i + __active))));
+            __acc.__setup(
+                std::invoke(__binary_op, __element(__input, __base, __i), __element(__input, __base, __i + __active)));
             __fold_strided(__acc.__v, __i + 2 * __active, __last, __active,
                            [&](std::uint32_t __j) { return __element(__input, __base, __j); });
         }
         if (__lane >= __active)
-            __acc.__setup(__segmented_reduce_to_acc<_Acc>(__init));
+            __acc.__setup(__init);
 
         if (__active > 0)
             __acc.__v = __segmented_reduce_lanes<_Acc>(__sg, __acc.__v, __active, __binary_op);
 
         // A range of one element (no active lane) is that element; a segment start adds the init
-        const _Acc __total =
-            __active > 0 ? __acc.__v : __segmented_reduce_to_acc<_Acc>(__element(__input, __base, __first));
-        return __is_first ? __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __init, __total)) : __total;
+        const _Acc __total = __active > 0 ? __acc.__v : _Acc(__element(__input, __base, __first));
+        return __is_first ? _Acc(std::invoke(__binary_op, __init, __total)) : __total;
     }
 
     // Run of very short segments from __s, a lane each, up to the first longer one: reduced from op(init, first),
@@ -820,8 +811,7 @@ struct __segmented_reduce_flat_submitter<
             // Within the piece, whose size fits in 32 bits
             const std::uint32_t __lo = std::uint32_t(__mb - __piece_begin);
             const std::uint32_t __hi = std::uint32_t(__me - __piece_begin);
-            _Acc __acc = __segmented_reduce_to_acc<_Acc>(
-                std::invoke(__binary_op, __init, __element(__input, __piece_begin, __lo)));
+            _Acc __acc = std::invoke(__binary_op, __init, __element(__input, __piece_begin, __lo));
             __fold_strided(__acc, __lo + 1, __hi, 1,
                            [&](std::uint32_t __j) { return __element(__input, __piece_begin, __j); });
             __result[__mine] = __acc;
@@ -881,7 +871,6 @@ struct __segmented_reduce_flat_submitter<
                    const __segment_estimate __estimate, const int __interpolation_steps,
                    __piece_parts<_Size>& __parts) const
     {
-        const _Acc __init_acc = __segmented_reduce_to_acc<_Acc>(__init);
         const bool __last_piece = __piece_end == __n;
         // Below __m, as __piece_begin is below __n
         const _Size __guess = _Size(__estimate(__piece_begin));
@@ -899,7 +888,7 @@ struct __segmented_reduce_flat_submitter<
             if (__is_tiny(__b, __e, __piece_begin, __piece_end))
             {
                 const auto [__count, __run_end] = __reduce_tiny_run(__sg, __input, __offsets, __result, __n, __m, __s,
-                                                                    __b, __piece_begin, __piece_end, __init_acc);
+                                                                    __b, __piece_begin, __piece_end, __init);
                 // Continue after the run; its last segment may end the piece. __count >= 1, as segment __s is tiny
                 __s += _Size(__count) - 1;
                 if (__run_end >= __piece_end && !__last_piece)
@@ -907,8 +896,7 @@ struct __segmented_reduce_flat_submitter<
                 continue;
             }
 
-            __reduce_segment_part(__sg, __input, __result, __s, __b, __e, __piece_begin, __piece_end, __init_acc,
-                                  __parts);
+            __reduce_segment_part(__sg, __input, __result, __s, __b, __e, __piece_begin, __piece_end, __init, __parts);
 
             // A later segment begins at or after the end of this one
             if (__e >= __piece_end && !__last_piece)
@@ -965,8 +953,7 @@ struct __segmented_reduce_flat_submitter<
             {
                 __state = __local.__loc_head_states_acc[__k];
                 if (__state != 0)
-                    __acc = __segmented_reduce_to_acc<_Acc>(
-                        std::invoke(__binary_op, __acc, __local.__loc_heads_tails_acc[__k]));
+                    __acc = std::invoke(__binary_op, __acc, __local.__loc_heads_tails_acc[__k]);
             }
             return __state;
         };
@@ -1032,7 +1019,7 @@ struct __segmented_reduce_flat_submitter<
         __acc.__v = __segmented_reduce_lanes<_Acc>(
             __sg, __acc.__v, std::min<std::uint32_t>(__heads_count, __sub_group_size), __binary_op);
         if (__lane == 0)
-            __result[__s] = __segmented_reduce_to_acc<_Acc>(std::invoke(__binary_op, __tail, __acc.__v));
+            __result[__s] = _Acc(std::invoke(__binary_op, __tail, __acc.__v));
     }
 };
 
@@ -1086,16 +1073,15 @@ struct __segmented_reduce_group_tuning
 template <typename... _Name>
 class __segmented_reduce_group_kernel;
 
-template <typename _Acc, typename _KernelName, typename _InitType, typename _BinaryOperation, typename _Tuning>
+template <typename _Acc, typename _KernelName, typename _BinaryOperation, typename _Tuning>
 struct __segmented_reduce_group_submitter;
 
-template <typename _Acc, typename... _Name, typename _InitType, typename _BinaryOperation, typename _Tuning>
-struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_name<_Name...>, _InitType,
-                                          _BinaryOperation, _Tuning>
+template <typename _Acc, typename... _Name, typename _BinaryOperation, typename _Tuning>
+struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_name<_Name...>, _BinaryOperation, _Tuning>
 {
     static_assert(std::is_arithmetic_v<_Acc>, "the work-group per segment path takes arithmetic accumulators only");
 
-    _InitType __init;
+    _Acc __init; // init converted to _Acc
     mutable _BinaryOperation __binary_op;
 
     template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size>
@@ -1106,7 +1092,6 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
         constexpr std::uint32_t __sub_group_size = _Tuning::__sub_group_size;
         const std::uint32_t __work_group_size = _Tuning::__work_group_size(__q, std::size_t(__n), std::size_t(__m));
         const std::uint32_t __sub_groups = __work_group_size / __sub_group_size;
-        const _Acc __init_acc = __segmented_reduce_to_acc<_Acc>(__init);
 
         sycl::event __event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
@@ -1125,7 +1110,7 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                     if (__begin >= __end)
                     {
                         if (__lid == 0)
-                            __result[__segment] = __init_acc;
+                            __result[__segment] = __init;
                         return;
                     }
 
@@ -1133,9 +1118,8 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                     // element, skipped by the combinations below
                     const std::uint32_t __length = __end - __begin;
                     const std::uint32_t __first = __lid < __length ? __lid : 0;
-                    _Acc __acc = __lid == 0 ? __segmented_reduce_to_acc<_Acc>(
-                                                  std::invoke(__binary_op, __init, __input[__begin]))
-                                            : __segmented_reduce_to_acc<_Acc>(__input[__begin + __first]);
+                    _Acc __acc = __lid == 0 ? _Acc(std::invoke(__binary_op, __init, __input[__begin]))
+                                            : _Acc(__input[__begin + __first]);
                     for (std::uint32_t __i = __lid + __work_group_size; __i < __length; __i += __work_group_size)
                         __acc = std::invoke(__binary_op, __acc, __input[__begin + __i]);
 
@@ -1211,10 +1195,10 @@ template <typename _Acc, typename _ChunkTuning = __segmented_reduce_chunk_tuning
 struct __parallel_reduce_by_segment_offsets
 {
     template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
-              typename _OutRange, typename _Size, typename _InitType, typename _BinaryOperation>
+              typename _OutRange, typename _Size, typename _BinaryOperation>
     void
     operator()(_BackendTag, _ExecutionPolicy&& __exec, _InRange&& __input, _OffsetRange&& __offsets,
-               _OutRange&& __result, const _Size __n, const _Size __m, _InitType __init,
+               _OutRange&& __result, const _Size __n, const _Size __m, const _Acc __init,
                _BinaryOperation __binary_op) const
     {
         // Segment lengths and index steps may go negative before they are clamped
@@ -1239,7 +1223,7 @@ struct __parallel_reduce_by_segment_offsets
                     // Small input: a work-group per segment
                     using _GroupKernel =
                         __internal::__kernel_name_provider<__segmented_reduce_group_kernel<_CustomName>>;
-                    __segmented_reduce_group_submitter<_Acc, _GroupKernel, _InitType, _BinaryOperation, _GroupTuning>{
+                    __segmented_reduce_group_submitter<_Acc, _GroupKernel, _BinaryOperation, _GroupTuning>{
                         __init, __binary_op}(__q, __input, __offsets, __result, __n, __m);
                 }
                 else
@@ -1250,7 +1234,7 @@ struct __parallel_reduce_by_segment_offsets
                         __internal::__kernel_name_provider<__segmented_reduce_flat_group_kernel<_CustomName>>;
                     using _FlatTailKernel =
                         __internal::__kernel_name_provider<__segmented_reduce_flat_tail_kernel<_CustomName>>;
-                    __segmented_reduce_flat_submitter<_Acc, _FlatKernel, _FlatGroupKernel, _FlatTailKernel, _InitType,
+                    __segmented_reduce_flat_submitter<_Acc, _FlatKernel, _FlatGroupKernel, _FlatTailKernel,
                                                       _BinaryOperation, _FlatTuning>{__init, __binary_op}(
                         __q, __input, __offsets, __result, __n, __m);
                 }
@@ -1302,11 +1286,11 @@ struct __parallel_reduce_by_segment_offsets
     // Short segments, a work-item each; returns the longest long-segment length (0 if none) via a buffer, cheaper on
     // GPUs than a copy from device USM
     template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
-              typename _OutRange, typename _Size, typename _InitType, typename _BinaryOperation>
+              typename _OutRange, typename _Size, typename _BinaryOperation>
     static _Size
     __reduce_short_segments(_BackendTag, _ExecutionPolicy& __exec, _InRange& __input, _OffsetRange& __offsets,
                             _OutRange& __result, const _Size __n, const _Size __m, const _Size __threshold,
-                            const _InitType& __init, const _BinaryOperation& __binary_op)
+                            const _Acc& __init, const _BinaryOperation& __binary_op)
     {
         auto __report_buf = __buffer<std::uint32_t>(1).get_buffer();
         // No host data: the atomic maximum starts from this zero
@@ -1326,11 +1310,11 @@ struct __parallel_reduce_by_segment_offsets
 
     // Reduces segments longer than __min_length in chunks; __max_segments bounds their number
     template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
-              typename _OutRange, typename _Size, typename _InitType, typename _BinaryOperation>
+              typename _OutRange, typename _Size, typename _BinaryOperation>
     static void
     __reduce_in_chunks(_BackendTag, _ExecutionPolicy& __exec, const bool __is_gpu, _InRange& __input,
                        _OffsetRange& __offsets, _OutRange& __result, const _Size __n, const _Size __m,
-                       const _InitType& __init, const _BinaryOperation& __binary_op, const _Size __min_length,
+                       const _Acc& __init, const _BinaryOperation& __binary_op, const _Size __min_length,
                        const bool __write_empty, const _Size __max_length, const _Size __max_segments)
     {
         const _Size __chunk_size = _ChunkTuning::__chunk_size(__is_gpu, __max_length);
