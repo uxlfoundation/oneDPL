@@ -159,9 +159,9 @@ struct __segmented_reduce_chunk_brick
             return;
 
         // The segment of the chunk: the first one whose chunks end after it, the last one if no other does
-        const _Size __lo = oneapi::dpl::__internal::__pstl_upper_bound(
-            __chunk_ends, _Size{0}, __num_segments - 1, &__chunk, std::less<>{}, oneapi::dpl::identity{},
-            oneapi::dpl::identity{});
+        const _Size __lo = oneapi::dpl::__internal::__pstl_upper_bound(__chunk_ends, _Size{0}, __num_segments - 1,
+                                                                       &__chunk, std::less<>{}, oneapi::dpl::identity{},
+                                                                       oneapi::dpl::identity{});
         const _Size __first_chunk = __lo == 0 ? _Size{0} : _Size(__chunk_ends[__lo - 1]);
         const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__lo], __n);
         const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__lo + 1], __n);
