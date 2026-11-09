@@ -369,8 +369,9 @@ _ForwardIterator
 __pattern_generate_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                      _Size __count, _Generator __g)
 {
-    __pattern_generate(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __count, __g);
-    return __first + __count;
+    _ForwardIterator __last = __first + __count;
+    __pattern_generate(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __g);
+    return __last;
 }
 
 //------------------------------------------------------------------------
