@@ -24,7 +24,7 @@
 #include "internal/kt_utils.h"
 #include "internal/radix_sort_utils.h"
 #include "internal/radix_sort_dispatchers.h"
-#include "internal/batched_merge_sort_kernels.h"
+#include "internal/sycl_merge_sort_kernels.h"
 
 namespace oneapi::dpl::experimental::kt::gpu
 {
