@@ -44,9 +44,9 @@ struct __segmented_reduce_variable_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
 
-    _Size __n;         // the size of the input
-    _Size __threshold; // the length of the longest short segment
-    _Acc __init;       // the initial value converted to the accumulator type
+    _Size __n = {};         // the size of the input
+    _Size __threshold = {}; // the length of the longest short segment
+    _Acc __init;            // the initial value converted to the accumulator type
     mutable _BinaryOperation __binary_op;
 
     template <typename _IsFull, typename _Params, typename _Offsets, typename _Result, typename _Input,
@@ -102,7 +102,7 @@ __segmented_reduce_chunk_size(bool __is_gpu, std::size_t __max_length)
 template <typename _Size>
 struct __segmented_reduce_length
 {
-    _Size __n; // the size of the input
+    _Size __n = {}; // the size of the input
 
     template <typename _Offset>
     _Size
@@ -118,9 +118,9 @@ struct __segmented_reduce_length
 template <typename _Size>
 struct __segmented_reduce_chunk_count
 {
-    _Size __n;          // the size of the input
-    _Size __chunk_size; // the length of a chunk
-    _Size __min_length; // the segments not longer than this have no chunks
+    _Size __n = {};          // the size of the input
+    _Size __chunk_size = {}; // the length of a chunk
+    _Size __min_length = {}; // the segments not longer than this have no chunks
 
     template <typename _Bounds>
     _Size
@@ -139,10 +139,10 @@ struct __segmented_reduce_chunk_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
 
-    _Size __n;            // the size of the input
-    _Size __num_segments; // the number of segments
-    _Size __chunk_size;   // the length of a chunk
-    _Acc __init;          // the initial value converted to the accumulator type
+    _Size __n = {};            // the size of the input
+    _Size __num_segments = {}; // the number of segments
+    _Size __chunk_size = {};   // the length of a chunk
+    _Acc __init;               // the initial value converted to the accumulator type
     mutable _BinaryOperation __binary_op;
 
     template <typename _IsFull, typename _Params, typename _ChunkEnds, typename _Offsets, typename _Partials,
@@ -188,9 +188,9 @@ struct __segmented_reduce_combine_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
 
-    _Size __num_partials; // the number of the computed partial results
-    bool __write_empty;   // whether a segment without chunks gets the initial value; otherwise it is left as is
-    _Acc __init;          // the initial value converted to the accumulator type
+    _Size __num_partials = {};  // the number of the computed partial results
+    bool __write_empty = false; // whether a segment without chunks gets the initial value; otherwise it is left as is
+    _Acc __init;                // the initial value converted to the accumulator type
     mutable _BinaryOperation __binary_op;
 
     template <typename _IsFull, typename _Params, typename _ChunkEnds, typename _Partials, typename _Result>
