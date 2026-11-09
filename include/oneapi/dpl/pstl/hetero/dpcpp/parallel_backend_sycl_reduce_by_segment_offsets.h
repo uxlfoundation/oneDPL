@@ -311,13 +311,6 @@ struct __segmented_reduce_flat_tuning
     // waiting for the slowest sub-group, which many work-groups hide
     static constexpr std::size_t __group_combine_input = std::size_t(1) << 24;
 
-    // Interpolation refines the piece guess only with more segments than pieces; otherwise a step just adds a load
-    static int
-    __interpolation_steps(const std::size_t __m, const std::size_t __pieces)
-    {
-        return __m > __pieces ? 2 : 0;
-    }
-
     // Launch for __n elements: a piece per HW thread, elements per work-item within the bounds, and work-groups halved
     // (down to one sub-group) until there are at least two per GPU core
     static __segmented_reduce_flat_geometry
@@ -432,7 +425,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     {
         // Accumulators in __lazy_ctor_storage are never destroyed: arithmetic types only
         static_assert(std::is_trivially_destructible_v<_Acc>);
-        // A reversed segment has a negative length, so it is tiny; the search steps may go below zero before clamping
+        // A reversed segment has a negative length, so it is tiny
         static_assert(std::is_signed_v<_Size>, "The size type must be signed");
         constexpr std::size_t __sub_group_size = _Tuning::__sub_group_size;
         const __segmented_reduce_flat_geometry __geometry = _Tuning::__geometry(__q, std::size_t(__n));
@@ -447,14 +440,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         const bool __in_group = std::size_t(__n) > _Tuning::__group_combine_input;
         const std::uint32_t __num_units = __in_group ? __num_groups : __num_groups * __sub_groups;
         const std::uint32_t __unit_size = __in_group ? __piece_size * __sub_groups : __piece_size;
-
-        // Segments per element in fixed point, to guess a piece's first segment assuming equal lengths: 32 fraction
-        // bits (16 for >= 2^31 segments) keep the product with up to 2 * __n elements within 64 bits
-        const std::uint32_t __fraction_bits = std::uint64_t(__m) < (std::uint64_t(1) << 31) ? 32 : 16;
-        const __segment_estimate __estimate{(std::uint64_t(__m) << __fraction_bits) / std::uint64_t(__n),
-                                            __fraction_bits};
-
-        const int __interpolation_steps = _Tuning::__interpolation_steps(std::size_t(__m), __num_groups * __sub_groups);
 
         // Unit tail segments, then head and tail partials, in one storage (one call fewer, measured faster), typed by
         // the more aligned type so both arrays start aligned
@@ -496,7 +481,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
                         if (__piece_begin < __piece_end)
                             __reduce_piece(__sg, __input, __offsets, __result, __n, __m, __piece_begin, __piece_end,
-                                           __estimate, __interpolation_steps, __parts);
+                                           __parts);
 
                         if constexpr (__in_group_v)
                             __combine_pieces_in_group(__item, __sg_id, __lane, __group, __sub_groups, __m, __parts,
@@ -546,19 +531,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     }
 
   private:
-    // Segments in __x elements assuming equal lengths: floor(__x * __m / __n)
-    struct __segment_estimate
-    {
-        std::uint64_t __per_element = {};
-        std::uint32_t __fraction_bits = {};
-
-        std::uint64_t
-        operator()(const std::uint64_t __x) const
-        {
-            return __x * __per_element >> __fraction_bits;
-        }
-    };
-
     // Op on four values as two accumulator pairs; by value so all four load before the op waits on any
     template <typename _T>
     _Acc
@@ -580,67 +552,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                 __reduce_four(__get(__i), __get(__i + __stride), __get(__i + 2 * __stride), __get(__i + 3 * __stride)));
         for (; __i < __end; __i += __stride)
             __acc = std::invoke(__binary_op, __acc, __get(__i));
-    }
-
-    // Index of the last of __m segments beginning at or before __v, or -1, searched from __guess in [0, __m - 1]:
-    // doubling steps bracket the answer, then binary search, so a close guess takes a few reads, not log2(__m)
-    template <typename _Size, typename _OffsetRange>
-    static _Size
-    __last_begin(const _OffsetRange __offsets, const _Size __m, const _Size __n, const _Size __v, _Size __guess,
-                 const __segment_estimate __estimate, const int __steps)
-    {
-        auto __begins_after = [&](_Size __i) { return __segmented_reduce_offset(__offsets, __i, __n) > __v; };
-
-        // Move the guess by the segments to __v assuming equal lengths nearby, within [0, __m - 1]; distance <= n + 1
-        for (int __step = 0; __step < __steps; ++__step)
-        {
-            const _Size __at = __segmented_reduce_offset(__offsets, __guess, __n);
-            const std::uint64_t __g = __guess;
-            const _Size __next = _Size(__v >= __at ? std::min<std::uint64_t>(__g + __estimate(__v - __at), __m - 1)
-                                                   : __g - std::min<std::uint64_t>(__g, __estimate(__at - __v)));
-
-            if (__next == __guess)
-                break;
-
-            __guess = __next;
-        }
-
-        // First segment beginning after __v is in [__lo, __hi]: all before __lo begin at or before it
-        _Size __lo = 0, __hi = __m;
-        if (__begins_after(__guess))
-        {
-            __hi = __guess;
-            for (_Size __step = 1; __hi > 0; __step *= 2)
-            {
-                // Relies on signed _Size: the difference may go negative before clamping
-                const _Size __below = std::max<_Size>(_Size{0}, __guess - __step);
-                if (!__begins_after(__below))
-                {
-                    __lo = __below + 1;
-                    break;
-                }
-                __hi = __below;
-            }
-        }
-        else
-        {
-            __lo = __guess + 1;
-            for (_Size __step = 1; __lo < __m; __step *= 2)
-            {
-                const _Size __above = std::min<_Size>(__m, __guess + __step);
-                if (__above == __m || __begins_after(__above))
-                {
-                    __hi = __above;
-                    break;
-                }
-                __lo = __above + 1;
-            }
-        }
-
-        // The first segment in [__lo, __hi] beginning after __v, less one
-        const _Size __after = oneapi::dpl::__internal::__pstl_lower_bound_impl(
-            __lo, __hi, [&](const _Size __i) { return !__begins_after(__i); });
-        return __after - 1;
     }
 
     // A piece's output on lane 0: head partial (state 0 none, 1 ends in the piece, 2 goes on past it) and tail partial
@@ -842,15 +753,14 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     void
     __reduce_piece(const _SubGroup __sg, const _InRange __input, const _OffsetRange __offsets, const _OutRange __result,
                    const _Size __n, const _Size __m, const _Size __piece_begin, const _Size __piece_end,
-                   const __segment_estimate __estimate, const int __interpolation_steps,
                    __piece_parts<_Size>& __parts) const
     {
         const bool __last_piece = __piece_end == __n;
-        // Below __m, as __piece_begin is below __n
-        const _Size __guess = _Size(__estimate(__piece_begin));
-        // Signed _Size: __piece_begin - 1 and the result may be -1 for the first piece, raised to 0
-        _Size __s = std::max<_Size>(
-            0, __last_begin(__offsets, __m, __n, __piece_begin - 1, __guess, __estimate, __interpolation_steps));
+        // The last segment beginning before the piece, 0 for the first piece
+        _Size __s =
+            std::max<_Size>(0, oneapi::dpl::__internal::__pstl_lower_bound_impl(_Size{0}, __m, [&](const _Size __i) {
+                                   return __segmented_reduce_offset(__offsets, __i, __n) < __piece_begin;
+                               }) - 1);
 
         for (; __s < __m; ++__s)
         {
