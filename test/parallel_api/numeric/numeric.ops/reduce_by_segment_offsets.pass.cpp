@@ -34,7 +34,7 @@
 #include <limits>      // std::numeric_limits
 #include <numeric>     // std::iota
 #include <random>      // std::mt19937, std::uniform_int_distribution
-#include <type_traits> // std::enable_if_t, std::is_same_v, std::is_signed_v
+#include <type_traits> // std::enable_if_t, std::is_signed_v
 #include <vector>      // std::vector
 
 static_assert(ONEDPL_HAS_SEGMENTED_ALGORITHMS >= 202611L);
@@ -108,25 +108,6 @@ make_offsets(segments kind, std::int64_t n, std::mt19937& gen)
     return offsets;
 }
 
-// A test tag, not an operation: given in place of the operation, test_reduce_by_segment_offsets calls the overload
-// without the operation, and its reference uses std::plus<>, the default operation
-struct default_op
-{
-};
-
-template <typename BinaryOp>
-BinaryOp
-reference_op(BinaryOp op)
-{
-    return op;
-}
-
-std::plus<>
-reference_op(default_op)
-{
-    return {};
-}
-
 // The algorithm requires random access iterators, as the RFC does: the forward and bidirectional iterators that the
 // test framework makes for the host policies are skipped
 struct test_reduce_by_segment_offsets
@@ -149,17 +130,11 @@ struct test_reduce_by_segment_offsets
         if (num_segments > 0)
             std::copy_n(offsets, num_segments + 1, std::back_inserter(offsets_copy));
         std::vector<Out> expected(std::distance(out_first, out_last), unwritten);
-        reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets_copy.begin(), num_segments, init,
-                                         reference_op(op), expected.begin());
+        reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets_copy.begin(), num_segments, init, op,
+                                         expected.begin());
 
-        auto res = [&] {
-            if constexpr (std::is_same_v<BinaryOp, default_op>)
-                return oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
-                                                      offsets, init);
-            else
-                return oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
-                                                      offsets, init, op);
-        }();
+        auto res = oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
+                                                  offsets, init, op);
         EXPECT_EQ_N(expected.begin(), out_first, expected.size(), "wrong result from reduce_by_segment with offsets");
         // The end of the results, which a non-positive number of segments leaves at the start
         EXPECT_EQ(num_segments > 0 ? out_first + num_segments : out_first, res,
@@ -405,29 +380,6 @@ test_unordered()
     Sequence<int> out(offsets.size() - 1);
     invoke_on_all_policies<CallNumber>()(test_unordered_offsets(), in.begin(), in.end(), out.begin(), out.end(),
                                          offsets.begin(), int(offsets.size() - 1), 0, std::plus<int>{});
-}
-
-// The example of the RFC: predefined results for a small input, which also check the reference; also with the default
-// operation, which the overload without the operation only passes on, and an initial value which is not the identity
-template <std::size_t CallNumber>
-void
-test_rfc_example()
-{
-    const std::vector<int> input{10, 20, 5, 7, 4};
-    const std::vector<int> offsets{0, 2, 2, 4, 5};
-    const std::vector<int> expected{30, 0, 12, 4};
-
-    std::vector<int> reference(expected.size());
-    reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets.begin(), 4, 0, std::plus<int>{},
-                                     reference.begin());
-    EXPECT_EQ_N(expected.begin(), reference.begin(), expected.size(), "wrong reference for the example of the RFC");
-
-    Sequence<int> in(input.size(), [&input](std::size_t i) { return input[i]; });
-    Sequence<int> out(expected.size(), [](std::size_t) { return -1; });
-    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
-                                         out.end(), offsets.begin(), 4, 0, std::plus<int>{}, -1);
-    invoke_on_all_policies<CallNumber + 1>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
-                                             out.end(), offsets.begin(), 4, 1, default_op{}, -1);
 }
 
 // The segment length boundaries are based on the thresholds when the implementation selects different paths
@@ -768,7 +720,6 @@ main()
         std::uint16_t{65535});
 
     test_unordered<39>();
-    test_rfc_example<40>();
     test_boundaries<42>();
     test_input_bounds<43>();
     test_edge_segment_distributions<44>();
