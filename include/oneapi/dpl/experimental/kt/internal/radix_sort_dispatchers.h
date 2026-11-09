@@ -89,7 +89,6 @@ class __onesweep_memory_holder
 
     sycl::queue __m_q;
 
-
     void
     __allocate_raw_memory()
     {
