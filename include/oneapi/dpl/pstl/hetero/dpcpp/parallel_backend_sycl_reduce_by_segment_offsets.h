@@ -117,38 +117,24 @@ struct __segmented_reduce_chunk_tuning
     }
 };
 
-// Segment length within the input; a negatively sized segment is empty
-template <typename _Size>
-struct __segmented_reduce_length
-{
-    _Size __n = {}; // input size
-
-    template <typename _Offset>
-    _Size
-    operator()(_Offset __begin, _Offset __end) const
-    {
-        const _Size __b = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__begin, __n);
-        const _Size __e = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__end, __n);
-
-        static_assert(std::is_signed_v<_Size>, "The size type must be signed");
-        return std::max<_Size>(0, __e - __b);
-    }
-};
-
 // Chunks of a segment (0 if not longer than __min_length), scanned into chunk ends; __length - 1 >= 0 when used
 template <typename _Size>
 struct __segmented_reduce_chunk_count
 {
     _Size __n = {};          // input size
     _Size __chunk_size = {}; // chunk length
-    _Size __min_length = {}; // segments not longer than this have no chunks
+    _Size __min_length = {}; // segments not longer than this (>= 0) have no chunks
 
     template <typename _Bounds>
     _Size
     operator()(const _Bounds& __bounds) const
     {
-        const _Size __length = __segmented_reduce_length<_Size>{__n}(std::get<0>(__bounds), std::get<1>(__bounds));
+        const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(std::get<0>(__bounds), __n);
+        const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(std::get<1>(__bounds), __n);
 
+        // A reversed segment has a negative length, so it is not longer than __min_length and has no chunks
+        static_assert(std::is_signed_v<_Size>, "The size type must be signed");
+        const _Size __length = __end - __begin;
         return __length > __min_length ? (__length - 1) / __chunk_size + 1 : _Size{0};
     }
 };
