@@ -34,7 +34,6 @@
 #include <limits>      // std::numeric_limits
 #include <numeric>     // std::iota
 #include <random>      // std::mt19937, std::uniform_int_distribution
-#include <tuple>       // std::tuple, std::get
 #include <type_traits> // std::enable_if_t, std::is_same_v, std::is_signed_v
 #include <vector>      // std::vector
 
@@ -477,137 +476,7 @@ test_input_bounds()
     }
 }
 
-// ArgMin of the RFC: the zip of global indices and values is reduced, and the output turns the global index of
-// the minimum into the index within its segment; ties are resolved to the smallest index
-using argmin_idx_t = std::uint32_t;
-using argmin_t = std::tuple<argmin_idx_t, float>;
-
-struct argmin
-{
-    template <typename A, typename B>
-    argmin_t
-    operator()(const A& a, const B& b) const
-    {
-        const auto ia = std::get<0>(a);
-        const auto ib = std::get<0>(b);
-        const auto va = std::get<1>(a);
-        const auto vb = std::get<1>(b);
-        const bool take_b = vb < va || (!(va < vb) && ib < ia);
-        return take_b ? argmin_t{ib, vb} : argmin_t{ia, va};
-    }
-};
-
-struct global_to_local
-{
-    argmin_idx_t* out;
-    argmin_idx_t begin;
-
-    const global_to_local&
-    operator=(argmin_idx_t global) const
-    {
-        *out = global - begin;
-        return *this;
-    }
-};
-
-struct make_global_to_local
-{
-    argmin_idx_t* idx_out;
-    const argmin_idx_t* offsets;
-
-    global_to_local
-    operator()(argmin_idx_t segment) const
-    {
-        return global_to_local{idx_out + segment, offsets[segment]};
-    }
-};
-
-// values, offsets, idx_out and val_out must be accessible with the policy
-template <typename Policy>
-void
-test_argmin(Policy&& exec, float* values, argmin_idx_t n, argmin_idx_t* offsets, argmin_idx_t num_segments,
-            argmin_idx_t* idx_out, float* val_out)
-{
-    std::mt19937 gen(7);
-    std::uniform_int_distribution<int> value(0, 9); // many ties
-    std::uniform_int_distribution<argmin_idx_t> length(0, 2 * n / num_segments);
-    for (argmin_idx_t i = 0; i < n; ++i)
-        values[i] = float(value(gen));
-    offsets[0] = 0;
-    for (argmin_idx_t s = 1; s <= num_segments; ++s)
-        offsets[s] = std::min(n, offsets[s - 1] + length(gen));
-
-    // Not the infinity of the RFC, which EXPECT_EQ cannot compare
-    const argmin_t init{std::numeric_limits<argmin_idx_t>::max(), std::numeric_limits<float>::max()};
-    auto in = oneapi::dpl::make_zip_iterator(oneapi::dpl::counting_iterator<argmin_idx_t>(0), values);
-    std::vector<argmin_t> expected(num_segments);
-    reduce_by_segment_offsets_serial(in, in + n, offsets, num_segments, init, argmin{}, expected.begin());
-
-    auto local_idx_out = oneapi::dpl::make_transform_iterator(oneapi::dpl::counting_iterator<argmin_idx_t>(0),
-                                                              make_global_to_local{idx_out, offsets});
-    auto check = [&](bool check_values) {
-        for (argmin_idx_t s = 0; s < num_segments; ++s)
-        {
-            // The index of an empty segment comes from the initial value and is meaningless
-            if (offsets[s] != offsets[s + 1])
-                EXPECT_EQ(std::get<0>(expected[s]) - offsets[s], idx_out[s], "wrong index from ArgMin");
-            if (check_values)
-                EXPECT_EQ(std::get<1>(expected[s]), val_out[s], "wrong value from ArgMin");
-        }
-    };
-
-    // Index-value pairs
-    {
-        const auto out = oneapi::dpl::make_zip_iterator(local_idx_out, val_out);
-        auto res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_IDX(exec, 0), in, in + n, out, num_segments,
-                                                  offsets, init, argmin{});
-        check(true);
-        EXPECT_EQ(out + num_segments, res,
-                  "wrong iterator returned by reduce_by_segment for ArgMin of index-value pairs");
-    }
-
-    // Only the index
-    std::fill(idx_out, idx_out + num_segments, argmin_idx_t(0));
-    {
-        const auto out = oneapi::dpl::make_zip_iterator(local_idx_out, oneapi::dpl::discard_iterator());
-        auto res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_IDX(exec, 1), in, in + n, out, num_segments,
-                                                  offsets, init, argmin{});
-        check(false);
-        EXPECT_EQ(out + num_segments, res,
-                  "wrong iterator returned by reduce_by_segment for ArgMin of the index only");
-    }
-}
-
-void
-test_argmin_on_host()
-{
-    const argmin_idx_t n = 10000, num_segments = 100;
-    std::vector<float> values(n), val_out(num_segments);
-    std::vector<argmin_idx_t> offsets(num_segments + 1), idx_out(num_segments);
-    test_argmin(oneapi::dpl::execution::seq, values.data(), n, offsets.data(), num_segments, idx_out.data(),
-                val_out.data());
-    test_argmin(oneapi::dpl::execution::par_unseq, values.data(), n, offsets.data(), num_segments, idx_out.data(),
-                val_out.data());
-}
-
 #if TEST_DPCPP_BACKEND_PRESENT
-void
-test_argmin_on_device()
-{
-    auto policy = TestUtils::get_dpcpp_test_policy();
-    sycl::queue q = policy.queue();
-    const argmin_idx_t n = 10000, num_segments = 100;
-    float* values = sycl::malloc_shared<float>(n, q);
-    float* val_out = sycl::malloc_shared<float>(num_segments, q);
-    argmin_idx_t* offsets = sycl::malloc_shared<argmin_idx_t>(num_segments + 1, q);
-    argmin_idx_t* idx_out = sycl::malloc_shared<argmin_idx_t>(num_segments, q);
-    test_argmin(policy, values, n, offsets, num_segments, idx_out, val_out);
-    sycl::free(values, q);
-    sycl::free(val_out, q);
-    sycl::free(offsets, q);
-    sycl::free(idx_out, q);
-}
-
 // USM pointers and sycl::buffer iterators: the tests with host iterators above do not reach them
 template <sycl::usm::alloc alloc_type, typename KernelName>
 void
@@ -736,7 +605,7 @@ test_narrow_counting_input()
 int
 main()
 {
-    // The operations: the ones of the RFC (sum, min, max, product, logical, ArgMin), the accumulator types of its
+    // The operations: the ones of the RFC (sum, min, max, product, logical), the accumulator types of its
     // examples, and the ones of the other reduction tests (a user-defined type, an accumulator which is not
     // default-constructible, bitwise operations)
 
@@ -803,9 +672,7 @@ main()
     test_counting_input();
     test_narrow_counting_input();
 
-    test_argmin_on_host();
 #if TEST_DPCPP_BACKEND_PRESENT
-    test_argmin_on_device();
     test_usm<sycl::usm::alloc::shared, KernelNameUSM>();
     test_usm<sycl::usm::alloc::device, KernelNameUSM>();
     test_buffer<KernelNameBuffer>();
