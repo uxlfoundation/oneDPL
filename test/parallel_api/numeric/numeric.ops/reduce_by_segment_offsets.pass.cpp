@@ -395,6 +395,25 @@ test_fixed_length_segments()
     }
 }
 
+// The parallel host policies reduce an input of at least 2^20 elements in parallel
+template <std::size_t CallNumber>
+void
+test_large_input()
+{
+    std::mt19937 gen(42);
+    const std::size_t n = (std::size_t(1) << 20) + 1000;
+    Sequence<int> in(n, [](std::size_t i) { return int(i % 101) - 50; });
+    for (segments kind : {segments::mixed, segments::unit})
+    {
+        const std::vector<std::int64_t> offsets = make_offsets<std::int64_t>(kind, n, gen);
+        const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+        Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+        invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                             out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                             std::plus<std::int64_t>{}, std::int64_t{-1});
+    }
+}
+
 template <std::size_t CallNumber>
 void
 test_unordered()
@@ -674,6 +693,7 @@ main()
     test_input_bounds<43>();
     test_edge_segment_distributions<44>();
     test_fixed_length_segments<45>();
+    test_large_input<46>();
     test_counting_input();
     test_narrow_counting_input();
 
