@@ -13,7 +13,7 @@
 #include <functional>  // std::invoke
 #include <iterator>    // std::iterator_traits
 #include <type_traits> // std::decay_t, std::invoke_result_t, std::common_type_t, std::make_unsigned_t, ...
-#include <utility>     // std::move, std::forward
+#include <utility>     // std::move
 
 #include "onedpl_config.h"
 
@@ -30,15 +30,6 @@ template <typename _InitType, typename _InputIterator, typename _BinaryOperation
 using __segmented_reduce_acc_t = std::decay_t<
     std::invoke_result_t<_BinaryOperation&, _InitType, typename std::iterator_traits<_InputIterator>::reference>>;
 
-// The accumulator made from the initial value of an empty segment or from a result of the operation: by an implicit
-// conversion, as the RFC requires both to be convertible to the accumulator type
-template <typename _Acc, typename _Value>
-_Acc
-__segmented_reduce_to_acc(_Value&& __value)
-{
-    return std::forward<_Value>(__value);
-}
-
 // Reduces the elements [__begin, __end) of a random access iterator or a range into an accumulator made from the
 // initial value; an empty range gives the initial value converted to the accumulator type
 template <typename _Acc, typename _Source, typename _Index, typename _InitType, typename _BinaryOperation>
@@ -46,7 +37,7 @@ _Acc
 __segmented_reduce_serial(const _Source& __src, _Index __begin, _Index __end, _InitType __init,
                           _BinaryOperation& __binary_op)
 {
-    _Acc __acc = __segmented_reduce_to_acc<_Acc>(std::move(__init));
+    _Acc __acc = std::move(__init);
     // Unrolled on a device, where a work-item reducing alone would wait for every load
 #if defined(__SYCL_DEVICE_ONLY__)
     _ONEDPL_PRAGMA(unroll 16)
