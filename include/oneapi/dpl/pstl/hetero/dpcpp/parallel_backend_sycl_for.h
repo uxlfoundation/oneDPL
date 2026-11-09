@@ -132,7 +132,6 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
     {
         _PRINT_INFO_IN_DEBUG_MODE(__q);
         auto __event = __q.submit([__rngs..., __brick, __count, __dependency](sycl::handler& __cgh) {
-
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             if (__dependency)
@@ -307,8 +306,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
 // __dependency, if not null, is an event the kernel waits for on the device before it starts
 template <typename _CustomName, typename _Fp, typename _Index, typename... _Ranges>
 __future<sycl::event>
-__parallel_for_impl(sycl::queue& __q, const sycl::event* __dependency, _Fp __brick, _Index __count,
-                    _Ranges&&... __rngs)
+__parallel_for_impl(sycl::queue& __q, const sycl::event* __dependency, _Fp __brick, _Index __count, _Ranges&&... __rngs)
 {
     assert(oneapi::dpl::__ranges::__min_size_calc{}(__rngs...) > 0);
     assert(__count > 0);

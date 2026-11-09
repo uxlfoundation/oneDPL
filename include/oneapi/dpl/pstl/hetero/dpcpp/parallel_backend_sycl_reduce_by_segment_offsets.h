@@ -491,7 +491,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
         // First kernel, with or without in-group combining: separate so the latter sets up no local memory
         auto __pieces = [&](auto __in_group_tag) {
-
             constexpr bool __in_group_v = decltype(__in_group_tag)::value;
 
             return __q.submit([&](sycl::handler& __cgh) {
@@ -553,7 +552,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                     sycl::nd_range<1>(sycl::range<1>(__tail_groups * __tail_work_group_size),
                                       sycl::range<1>(__tail_work_group_size)),
                     [=, *this](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(__sub_group_size)]] {
-
                         const auto __sg = __item.get_sub_group();
                         const std::uint32_t __unit =
                             __item.get_group(0) * __tail_sub_groups + __sg.get_group_linear_id();
@@ -601,9 +599,9 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                    _Get __get) const
     {
         for (; __i + 3 * __stride < __end; __i += 4 * __stride)
-            __acc = std::invoke(__binary_op, __acc,
-                                __reduce_four(__get(__i), __get(__i + __stride), __get(__i + 2 * __stride),
-                                              __get(__i + 3 * __stride)));
+            __acc = std::invoke(
+                __binary_op, __acc,
+                __reduce_four(__get(__i), __get(__i + __stride), __get(__i + 2 * __stride), __get(__i + 3 * __stride)));
         for (; __i < __end; __i += __stride)
             __acc = std::invoke(__binary_op, __acc, __get(__i));
     }
@@ -1328,8 +1326,7 @@ struct __parallel_reduce_by_segment_offsets
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
             oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
                                                  oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1})),
-            __chunk_ends.__all_view(), __m,
-            __segmented_reduce_chunk_count<_Size>{__n, __chunk_size, __min_length},
+            __chunk_ends.__all_view(), __m, __segmented_reduce_chunk_count<_Size>{__n, __chunk_size, __min_length},
             unseq_backend::__no_init_value<_Size>{}, std::plus<_Size>{}, /*_Inclusive=*/std::true_type{});
 
         // At most n / __chunk_size + 1 chunks per segment, unless the offsets are not ordered
