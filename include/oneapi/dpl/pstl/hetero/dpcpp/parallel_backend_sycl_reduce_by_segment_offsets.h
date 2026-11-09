@@ -123,9 +123,9 @@ struct __segmented_reduce_length
 {
     _Size __n = {}; // input size
 
-    template <typename _OffsetEnd, typename _OffsetBegin>
+    template <typename _Offset>
     _Size
-    operator()(_OffsetEnd __end, _OffsetBegin __begin) const
+    operator()(_Offset __begin, _Offset __end) const
     {
         const _Size __b = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__begin, __n);
         const _Size __e = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__end, __n);
@@ -147,7 +147,7 @@ struct __segmented_reduce_chunk_count
     _Size
     operator()(const _Bounds& __bounds) const
     {
-        const _Size __length = __segmented_reduce_length<_Size>{__n}(std::get<1>(__bounds), std::get<0>(__bounds));
+        const _Size __length = __segmented_reduce_length<_Size>{__n}(std::get<0>(__bounds), std::get<1>(__bounds));
 
         return __length > __min_length ? (__length - 1) / __chunk_size + 1 : _Size{0};
     }
