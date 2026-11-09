@@ -62,19 +62,19 @@ reduce_by_segment_offsets_serial(RandAccessItIn first, RandAccessItIn last, Rand
 {
     using AccT = std::decay_t<
         std::invoke_result_t<BinaryOperation&, Init, typename std::iterator_traits<RandAccessItIn>::reference>>;
-    using OffsetT = typename std::iterator_traits<RandAccessItOffsets>::value_type;
+    using OffsetType = typename std::iterator_traits<RandAccessItOffsets>::value_type;
     using SizeT = typename std::iterator_traits<RandAccessItIn>::difference_type;
-    using CommonIndexT = std::common_type_t<OffsetT, SizeT>;
+    using CommonIndexT = std::common_type_t<OffsetType, SizeT>;
 
     const SizeT n = last - first;
     SegmentNum s = 0;
     for (; s < num_segments; ++s)
     {
-        const OffsetT s_first_idx = std::max<OffsetT>(offsets[s], OffsetT(0));
-        const OffsetT s_last_idx = std::max<OffsetT>(std::min<CommonIndexT>(offsets[s + 1], n), OffsetT(0));
+        const OffsetType s_first_idx = std::max<OffsetType>(offsets[s], OffsetType(0));
+        const OffsetType s_last_idx = std::max<OffsetType>(std::min<CommonIndexT>(offsets[s + 1], n), OffsetType(0));
 
         AccT acc = init_value;
-        for (OffsetT i = s_first_idx; i < s_last_idx; ++i)
+        for (OffsetType i = s_first_idx; i < s_last_idx; ++i)
             acc = binary_op(std::move(acc), first[i]);
         result[s] = std::move(acc);
     }
