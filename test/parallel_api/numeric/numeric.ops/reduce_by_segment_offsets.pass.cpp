@@ -430,10 +430,7 @@ test_rfc_example()
                                              out.end(), offsets.begin(), 4, 1, default_op{}, -1);
 }
 
-// Segments of the lengths at the boundaries of the implementations: the longest short segment and the shortest long one
-// (512 on GPUs, 32768 on CPU devices and on the host), and long segments whose first chunk has one element or the whole
-// chunk length (256 on GPUs for this longest segment, 4096 on CPU devices, 16384 on the host); alone, and among many
-// short segments, which take another path on GPUs
+// The segment length boundaries are based on the thresholds when the implementation selects different paths
 template <std::size_t CallNumber>
 void
 test_boundaries()
@@ -561,9 +558,7 @@ class KernelNameCounting;
 class KernelNameNarrowCounting;
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-// A counting input of a 32-bit difference type, with long segments among many short ones: the short segments and
-// the long ones are reduced by different kernels into the same output, the length of a long one is reported in
-// 32 bits, and its chunks are counted in the difference type
+// Counting iterators help cover input with specific difference types.
 void
 test_counting_input()
 {
@@ -589,8 +584,7 @@ test_counting_input()
 #endif
 }
 
-// A counting input of a 16-bit difference type: a long segment, reduced in chunks, among more empty segments than
-// the difference type can count
+// More segments than a 16-bit difference type can count
 void
 test_narrow_counting_input()
 {
