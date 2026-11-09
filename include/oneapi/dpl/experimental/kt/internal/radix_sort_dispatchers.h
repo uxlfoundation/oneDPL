@@ -22,9 +22,20 @@
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
 
 #include "radix_sort_submitters.h"
-#if _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
-#    include "sycl_batched_one_wg_radix_sort_kernels.h"
-#endif
+
+// Organization of the radix sort kernel templates (sycl_radix_sort.h, esimd_radix_sort.h, batched_stable_sort.h):
+// - radix_sort_dispatchers.h (this file): the common entry point of the top-level headers. Picks the algorithm
+//     (one work-group or onesweep) from the input size and kernel parameters, allocates temporary storage, and chains
+//     the kernel submissions.
+// - radix_sort_submitters.h: one submitter per kernel. It computes the launch configuration and the SLM size, and
+//     submits the kernel to the queue.
+// - radix_sort_kernels.h: primary templates of the kernels that have both an ESIMD and a SYCL implementation,
+//     specialized on __esimd_tag or __sycl_tag.
+// - esimd_radix_sort_kernels.h: the kernel bodies, with ESIMD implementation.
+// - sycl_radix_sort_kernels.h: the kernel bodies with regular SYCL (sub-group ballots) and the SYCL-only one
+//     work-group batched kernel.
+// - radix_sort_utils.h: the tags, host-side parameter checks, and types shared by the files above.
+// - esimd_radix_sort_utils.h: ESIMD device helpers and utilities.
 
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
