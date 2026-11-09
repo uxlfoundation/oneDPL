@@ -87,7 +87,7 @@ __pattern_transform(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-// pattern_transform (binary vesrion)
+// pattern_transform (binary version)
 //---------------------------------------------------------------------------------------------------------------------
 
 template<typename _Tag, typename _ExecutionPolicy, typename _InRange1, typename _InRange2, typename _OutRange,
