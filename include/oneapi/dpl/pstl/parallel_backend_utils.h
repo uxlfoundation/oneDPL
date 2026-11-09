@@ -44,7 +44,7 @@ class __buffer_impl
 {
     _TAllocator<_Tp> _M_allocator;
     _Tp* _M_ptr = nullptr;
-    const ::std::size_t _M_buf_size = 0;
+    const std::size_t _M_buf_size = 0;
 
     __buffer_impl(const __buffer_impl&) = delete;
     void
@@ -61,8 +61,17 @@ class __buffer_impl
     {
         return _M_ptr;
     }
+// GCC 15 reports a false-positive -Wfree-nonheap-object here when the serial backend fully inlines
+// __remove_elements at -O3: _M_ptr is never modified after construction.
+#if defined(__GNUC__) && !defined(__clang__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wfree-nonheap-object"
+#endif
     //! Destroy buffer
     ~__buffer_impl() { _M_allocator.deallocate(_M_ptr, _M_buf_size); }
+#if defined(__GNUC__) && !defined(__clang__)
+#    pragma GCC diagnostic pop
+#endif
 };
 
 //! Destroy sequence [xs,xe)
