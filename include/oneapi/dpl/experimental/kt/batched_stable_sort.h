@@ -13,6 +13,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstddef>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <type_traits>
@@ -33,9 +34,12 @@ namespace oneapi::dpl::experimental::kt::gpu
 // Sort configurations: each selects one algorithm and carries its specific parameters
 //-----------------------------------------------------------------------------
 
-// Merge path sort; requires __segment_size <= data_per_workitem * workgroup_size
+// Merge path sort; requires __segment_size <= data_per_workitem * workgroup_size. Benchmark baseline: only
+// std::less<> (ascending) and std::greater<> (descending), sorted through the key codec.
+template <typename _Compare = std::less<>>
 struct merge_single_group_tag
 {
+    using compare_type = _Compare;
 };
 
 // One work-group radix sort; requires __segment_size <= data_per_workitem * workgroup_size
@@ -58,7 +62,16 @@ namespace __impl
 {
 
 template <typename _SortConfig>
-inline constexpr bool __is_merge_single_group_tag_v = std::is_same_v<_SortConfig, merge_single_group_tag>;
+struct __is_merge_single_group_tag : std::false_type
+{
+};
+template <typename _Compare>
+struct __is_merge_single_group_tag<merge_single_group_tag<_Compare>> : std::true_type
+{
+};
+
+template <typename _SortConfig>
+inline constexpr bool __is_merge_single_group_tag_v = __is_merge_single_group_tag<_SortConfig>::value;
 
 // Whether _SortConfig is _Tag<__is_ascending, __radix_bits> for some __is_ascending and __radix_bits
 template <template <bool, std::uint8_t> class _Tag, typename _SortConfig>
@@ -140,8 +153,11 @@ __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack
     __check_batched_sort_config<_SortConfig, _KernelParam>();
     if constexpr (__is_merge_single_group_tag_v<_SortConfig>)
     {
-        return __batched_merge_sort<__is_ascending>(__q, std::forward<_RngPack1>(__pack_in),
-                                                    std::forward<_RngPack2>(__pack_out), __segment_size, __param);
+        using _Compare = typename _SortConfig::compare_type;
+        static_assert(std::is_same_v<_Compare, std::less<>> || std::is_same_v<_Compare, std::greater<>>,
+                      "The codec baseline supports only std::less<> and std::greater<>");
+        return __batched_merge_sort<std::is_same_v<_Compare, std::less<>>>(
+            __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __segment_size, __param);
     }
     else if constexpr (__is_radix_single_group_tag_v<_SortConfig>)
     {
