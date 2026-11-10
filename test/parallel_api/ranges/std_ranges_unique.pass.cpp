@@ -34,11 +34,24 @@ main()
 
     auto unique_checker = TEST_PREPARE_CALLABLE(std::ranges::unique);
 
+    // input generator with a fair chance of repeating the previous value
+    auto repeat_sometimes = [](auto i) {
+        static decltype(i) last = 0;
+        if (i == 0)
+            last = 0; // reset
+        else if (i%7 > 0 && (last + i - 1)%3 == 0)
+            last = i;
+        return last;
+    };
+    using repeating_gen = decltype(repeat_sometimes);
+
+    auto equal_tens = [](auto i, auto j) { return i/10 == j/10; };
+
     test_range_algo<0>{get_scan_big_sz()}(dpl_ranges::unique, unique_checker);
-    test_range_algo<1>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{});
-    test_range_algo<2>{}(dpl_ranges::unique, unique_checker, std::not_equal_to{});
-    test_range_algo<3>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, proj);
-    test_range_algo<4, P2>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, &P2::x);
+    test_range_algo<1, int, data_in, repeating_gen>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{});
+    test_range_algo<2>{small_size}(dpl_ranges::unique, unique_checker, std::not_equal_to{});
+    test_range_algo<3>{}(dpl_ranges::unique, unique_checker, equal_tens, proj);
+    test_range_algo<4, P2, data_in, repeating_gen>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, &P2::x);
     test_range_algo<5, P2>{}(dpl_ranges::unique, unique_checker, std::ranges::equal_to{}, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
 

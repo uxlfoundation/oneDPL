@@ -215,56 +215,6 @@ class __reorder_pred<__binary_op<_Pred, _Proj1, _Proj2>> : public __binary_op<__
         : __base(__reorder_pred<_Pred>{__op.__f}, __op.__proj1, __op.__proj2) {}
 };
 
-//! "==" comparison.
-/** Not called "equal" to avoid (possibly unfounded) concerns about accidental invocation via
-    argument-dependent name lookup by code expecting to find the usual ::std::equal. */
-class __pstl_equal
-{
-  public:
-    template <typename _Xp, typename _Yp>
-    bool
-    operator()(_Xp&& __x, _Yp&& __y) const
-    {
-        return ::std::forward<_Xp>(__x) == ::std::forward<_Yp>(__y);
-    }
-};
-
-//! "<" comparison.
-class __pstl_less
-{
-  public:
-    template <typename _Xp, typename _Yp>
-    bool
-    operator()(_Xp&& __x, _Yp&& __y) const
-    {
-        return ::std::forward<_Xp>(__x) < ::std::forward<_Yp>(__y);
-    }
-};
-
-//! ">" comparison.
-class __pstl_greater
-{
-  public:
-    template <typename _Xp, typename _Yp>
-    bool
-    operator()(_Xp&& __x, _Yp&& __y) const
-    {
-        return ::std::forward<_Xp>(__x) > ::std::forward<_Yp>(__y);
-    }
-};
-
-//! General "+" operation
-class __pstl_plus
-{
-  public:
-    template <typename _Xp, typename _Yp>
-    auto
-    operator()(_Xp&& __x, _Yp&& __y) const -> decltype(::std::forward<_Xp>(__x) + ::std::forward<_Yp>(__y))
-    {
-        return ::std::forward<_Xp>(__x) + ::std::forward<_Yp>(__y);
-    }
-};
-
 //! min calculation.
 class __pstl_min
 {
@@ -345,7 +295,7 @@ class __set_value
     }
 };
 
-//TODO: to do the same fix  for output type (by re-using __transform_functor if applicable) for the other functor below:
+//TODO: to do the same fix  for output type (by reusing __transform_functor if applicable) for the other functor below:
 // __transform_if_unary_functor, __transform_if_binary_functor, __replace_functor
 template <typename _F, typename _RevTag = std::false_type>
 class __transform_functor
@@ -662,6 +612,23 @@ constexpr auto
 __dpl_ceiling_div(_T1 __number, _T2 __divisor)
 {
     return (__number + __divisor - 1) / __divisor;
+}
+
+// The high 64 bits of the 128-bit product of two 64-bit unsigned integers
+inline std::uint64_t
+__dpl_mul_hi_u64(std::uint64_t __a, std::uint64_t __b) noexcept
+{
+#if _ONEDPL_BACKEND_SYCL && !_ONEDPL_SYCL2020_MUL_HI_BROKEN
+    return sycl::mul_hi(__a, __b);
+#else
+    const std::uint64_t __a_lo = __a & 0xffffffffu, __a_hi = __a >> 32;
+    const std::uint64_t __b_lo = __b & 0xffffffffu, __b_hi = __b >> 32;
+    const std::uint64_t __lo_lo = __a_lo * __b_lo;
+    const std::uint64_t __hi_lo = __a_hi * __b_lo;
+    const std::uint64_t __lo_hi = __a_lo * __b_hi;
+    const std::uint64_t __mid = (__lo_lo >> 32) + (__hi_lo & 0xffffffffu) + (__lo_hi & 0xffffffffu);
+    return __a_hi * __b_hi + (__hi_lo >> 32) + (__lo_hi >> 32) + (__mid >> 32);
+#endif
 }
 
 template <typename _T>

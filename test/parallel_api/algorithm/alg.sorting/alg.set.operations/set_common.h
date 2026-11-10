@@ -352,9 +352,9 @@ run_test_set()
         std::int32_t;
 #endif
 
-    test_set<TestType, data_t, data_t>(oneapi::dpl::__internal::__pstl_less(), false);
+    test_set<TestType, data_t, data_t>(std::less<>{}, false);
 #if !ONEDPL_FPGA_DEVICE
-    test_set<TestType, data_t, data_t>(oneapi::dpl::__internal::__pstl_less(), true);
+    test_set<TestType, data_t, data_t>(std::less<>{}, true);
 #endif // !ONEDPL_FPGA_DEVICE
 
 #if !TEST_DPCPP_BACKEND_PRESENT

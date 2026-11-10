@@ -25,12 +25,8 @@ fi
 
 if [[ "${BACKEND}" == "dpcpp" ]]; then
   # set targets for dpcpp tests
-  make_targets="build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests"
-  tests_regex="(sycl_iterator_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)|(host_device_storage)"
-  if [[ "${DEVICE_TYPE}" != "fpga" ]]; then
-    make_targets+=" build-onedpl-ranges-tests"
-    tests_regex+="|(std_ranges_.*)"
-  fi
+  make_targets="build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests build-onedpl-ranges-tests"
+  tests_regex="(sycl_iterator_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)|(host_device_storage)|(std_ranges_.*)"
   ctest_flags="-R ${tests_regex}\.pass"
 else
   make_targets="build-onedpl-tests"
@@ -53,10 +49,6 @@ if [[ "${CXX_COMPILER}" != "g++" ]]; then
 fi
 if [[ "${CXX_COMPILER}" == "icpx" ]]; then
   EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=recommended-option"
-fi
-
-if [[ "${DEVICE_TYPE}" == "fpga" ]]; then
-  EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=deprecated-declarations -DONEDPL_FPGA_DEVICE -DONEDPL_FPGA_EMULATOR"
 fi
 
 cmake -DCMAKE_CXX_STANDARD="${STD}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \

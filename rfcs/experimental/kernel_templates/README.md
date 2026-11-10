@@ -146,6 +146,10 @@ and sorting algorithms are divided into radix, merge, and by-key categories for 
 Specialized namespaces may contain a different set algorithms,
 based on user demand and performance considerations.
 
+Proposals for additional algorithms:
+- [Batched Stable Sort](../../proposed/batched_stable_sort/README.md):
+  `batched_stable_sort` and `batched_stable_sort_by_key` for batches of fixed size segments.
+
 ### Example
 
 The example demonstrates the use of a kernel template

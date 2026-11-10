@@ -278,9 +278,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 adjacent_difference(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
                     _ForwardIterator2 __d_first)
 {
-    using _ValueType = typename std::iterator_traits<_ForwardIterator1>::value_type;
-    return adjacent_difference(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __d_first,
-                               ::std::minus<_ValueType>());
+    return adjacent_difference(std::forward<_ExecutionPolicy>(__exec), __first, __last, __d_first, std::minus<>());
 }
 
 } // namespace dpl

@@ -124,12 +124,21 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _RandomA
 histogram(_ExecutionPolicy&& exec, _RandomAccessIterator1 first, _RandomAccessIterator1 last, _Size num_bins,
           _ValueType first_bin_min_val, _ValueType last_bin_max_val, _RandomAccessIterator2 histogram_first)
 {
+    // With no bins there is no output, and no sample may be binned
+    if (num_bins == 0)
+        return histogram_first;
+
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(exec, first, histogram_first);
 
-    oneapi::dpl::__internal::__pattern_histogram(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(exec), first, last, num_bins,
-        oneapi::dpl::__internal::__evenly_divided_binhash<_ValueType>(first_bin_min_val, last_bin_max_val, num_bins),
-        histogram_first);
+    // Floating-point samples with integer bounds are binned in the sample type so their fractional part is kept
+    using _SampleT = typename std::iterator_traits<_RandomAccessIterator1>::value_type;
+    using _BinT = std::conditional_t<std::is_floating_point_v<_SampleT> && !std::is_floating_point_v<_ValueType>,
+                                     _SampleT, _ValueType>;
+    oneapi::dpl::__internal::__pattern_histogram(__dispatch_tag, std::forward<_ExecutionPolicy>(exec), first, last,
+                                                 num_bins,
+                                                 oneapi::dpl::__internal::__make_evenly_divided_binhash(
+                                                     _BinT(first_bin_min_val), _BinT(last_bin_max_val), num_bins),
+                                                 histogram_first);
     return histogram_first + num_bins;
 }
 

@@ -83,7 +83,7 @@ main()
     auto ret = test1<KernelTest1, int>();
     ret &= test1<KernelTest2, int>(3);
     ret &= test2();
-    EXPECT_TRUE(ret, "Wrong result of dpl::optional constructor anc copy check");
+    EXPECT_TRUE(ret, "Wrong result of dpl::optional constructor and copy check");
 
     return TestUtils::done();
 }

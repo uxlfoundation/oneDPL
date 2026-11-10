@@ -77,11 +77,10 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
 #endif // DUMP_CHECK_RESULTS
 
     template <typename Iterator1, typename Iterator2, typename Iterator3, typename Size,
-              typename BinaryPredicateCheck = oneapi::dpl::__internal::__pstl_equal,
-              typename BinaryOperationCheck = oneapi::dpl::__internal::__pstl_plus>
-    void check_values(Iterator1 host_keys, Iterator2 host_vals, Iterator3 val_res, Size n,
-                      BinaryPredicateCheck pred = BinaryPredicateCheck(),
-                      BinaryOperationCheck op = BinaryOperationCheck())
+              typename BinaryPredicateCheck = std::equal_to<>, typename BinaryOperationCheck = std::plus<>>
+    void
+    check_values(Iterator1 host_keys, Iterator2 host_vals, Iterator3 val_res, Size n,
+                 BinaryPredicateCheck pred = BinaryPredicateCheck(), BinaryOperationCheck op = BinaryOperationCheck())
     {
         // https://docs.oneapi.io/versions/latest/onedpl/extension_api.html
         // keys:   [ 0, 0, 0, 1, 1, 1 ]
@@ -93,12 +92,11 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
 
         using ValT = typename std::iterator_traits<Iterator2>::value_type;
 
-        ::std::vector<ValT> expected_val_res(n);
-        inclusive_scan_by_segment_serial(host_keys, host_vals, ::std::begin(expected_val_res),
-            n, pred, op);
+        std::vector<ValT> expected_val_res(n);
+        inclusive_scan_by_segment_serial(host_keys, host_vals, std::begin(expected_val_res), n, pred, op);
 
 #ifdef DUMP_CHECK_RESULTS
-        ::std::cout << "check_values(n = " << n << ") : " << ::std::endl;
+        std::cout << "check_values(n = " << n << ") : " << std::endl;
         display_param("           keys:   ", host_keys, n);
         display_param("         values: ", host_vals, n);
         display_param("         result: ", val_res, n);

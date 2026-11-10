@@ -335,12 +335,6 @@ struct __is_comp_ascending<std::less<_T>>
     static constexpr bool value = true;
 };
 
-template <>
-struct __is_comp_ascending<oneapi::dpl::__internal::__pstl_less>
-{
-    static constexpr bool value = true;
-};
-
 #if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201911L
 template <>
 struct __is_comp_ascending<std::ranges::less>
@@ -357,11 +351,6 @@ struct __is_comp_descending
 };
 template <typename _T>
 struct __is_comp_descending<std::greater<_T>>
-{
-    static constexpr bool value = true;
-};
-template <>
-struct __is_comp_descending<oneapi::dpl::__internal::__pstl_greater>
 {
     static constexpr bool value = true;
 };
@@ -629,6 +618,14 @@ class __future : private std::tuple<_Args...>
 
     template <typename _T>
     _T
+    __wait_and_get_value(const __internal::__copyable_storage_state<_T>& __st)
+    {
+        __internal::__copyable_storage_state<_T> __st_copy = __st;
+        return __wait_and_get_value(__result_and_scratch_storage(std::move(__st_copy)));
+    }
+
+    template <typename _T>
+    _T
     __wait_and_get_value(const _T& __val)
     {
         wait();
@@ -697,13 +694,6 @@ class __future : private std::tuple<_Args...>
         return __future<_Event, _T, _Args...>(__my_event, new_tuple);
     }
 };
-
-template <typename _ValueType>
-auto
-__create_future(sycl::event&& __event, __combined_storage<_ValueType>&& __payload)
-{
-    return __future(std::move(__event), __result_and_scratch_storage<_ValueType>(std::move(__payload).__move_state()));
-}
 
 struct __scalar_load_op
 {

@@ -877,12 +877,12 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     constexpr std::size_t __target_block_bytes_max = 16 * 1024;       // half of the smallest common L1d (32KB)
 
     // A narrow difference type (e.g. of counting_iterator<std::int8_t>) cannot hold such a block: limit it
-    constexpr auto __bytes_to_block_size = [](std::size_t __bytes) {
-        return _DifferenceType1(std::min(__internal::__dpl_ceiling_div(__bytes, sizeof(_ValueT1)),
-                                         std::size_t(std::numeric_limits<_DifferenceType1>::max())));
+    constexpr auto __bytes_to_block_size = [](std::size_t __bytes) -> std::size_t {
+        return std::min<std::size_t>(__internal::__dpl_ceiling_div(__bytes, sizeof(_ValueT1)),
+                                     std::numeric_limits<_DifferenceType1>::max());
     };
-    constexpr _DifferenceType1 __block_size_min = __bytes_to_block_size(__target_block_bytes_min);
-    constexpr _DifferenceType1 __block_size_max = __bytes_to_block_size(__target_block_bytes_max);
+    constexpr std::size_t __block_size_min = __bytes_to_block_size(__target_block_bytes_min);
+    constexpr std::size_t __block_size_max = __bytes_to_block_size(__target_block_bytes_max);
 
     // A longer second sequence does not stay in L1 while a block is walked over it, so it is walked in tiles.
     // The tiles give up the early exit inside a block, so the blocks then start from a single element: the doubling
@@ -897,27 +897,24 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     if (__first == __last || __s_first == __s_last)
         return __last; // according to the standard
 
-    const _DifferenceType1 __n1 = __last - __first;
     const _DifferenceType2 __n2 = __s_last - __s_first;
 
     // start small if tiled, else start at a size that stays in L1
     const bool __tiled = (__n2 - 1) / __tile_size >= __tiles_min;
-    _DifferenceType1 __block_size = __tiled ? _DifferenceType1(1) : __block_size_min;
+    std::size_t __block_size = __tiled ? std::size_t(1) : __block_size_min;
 
-    for (_DifferenceType1 __block_begin = 0; __block_begin < __n1;)
+    for (_ForwardIterator1 __block_begin = __first; __block_begin != __last;)
     {
-        const _DifferenceType1 __block_end =
-            __block_begin + std::min<_DifferenceType1>(__n1 - __block_begin, __block_size);
-        const _ForwardIterator1 __it_block_end = __first + __block_end;
+        const _ForwardIterator1 __block_end =
+            __block_begin + std::min<_DifferenceType1>(__last - __block_begin, __block_size);
         const _ForwardIterator1 __res =
-            __tiled ? __simd_find_first_of_tiled(__first + __block_begin, __it_block_end, __s_first, __n2, __tile_size,
-                                                 __pred)
-                    : __simd_find_first_of_block(__first + __block_begin, __it_block_end, __s_first, __s_last, __pred);
-        if (__res != __it_block_end)
+            __tiled ? __simd_find_first_of_tiled(__block_begin, __block_end, __s_first, __n2, __tile_size, __pred)
+                    : __simd_find_first_of_block(__block_begin, __block_end, __s_first, __s_last, __pred);
+        if (__res != __block_end)
             return __res;
 
         __block_begin = __block_end;
-        __block_size = __block_size < __block_size_max / 2 ? __block_size * 2 : __block_size_max;
+        __block_size = std::min(__block_size * 2, __block_size_max);
     }
 
     return __last;

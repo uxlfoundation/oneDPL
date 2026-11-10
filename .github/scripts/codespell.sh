@@ -18,7 +18,8 @@ SKIP_PATTERN='*/.git/*,*/.github/*,*/examples/pSTL_offload/FileWordCount/*'
 
 # Ignored cases
 IGNORE_COMMAND="sed -e /.*windows.inc.*Od\\s*=.*/d \
--e /.*README.md.*varN\\s*=.*/d"
+-e /.*README.md.*varN\\s*=.*/d \
+-e /.*segmented_reduce\\/.*OffsetT\\s*==>\\s*offset$/d"
 
 SCAN_RESULT=$(codespell -I ${GITHUB_WORKSPACE}/.github/scripts/allowed_words.txt --quiet-level=2 --skip "${SKIP_PATTERN}" ${SCAN_TARGET})
 SCAN_RESULT=$(echo -e "${SCAN_RESULT}" | ${IGNORE_COMMAND})

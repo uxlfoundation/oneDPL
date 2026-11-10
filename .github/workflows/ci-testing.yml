@@ -65,83 +65,95 @@ jobs:
     name: ${{ matrix.device_type }},bknd=${{ matrix.backend }},cmplr=${{ matrix.cxx_compiler }},${{ matrix.os }},std=c++${{ matrix.std }},cfg=${{ matrix.build_type }}
     runs-on: ['${{ matrix.os }}']
     timeout-minutes: 60
+    # Long-running jobs share six repository-wide job-level concurrency groups,
+    # onedpl-ci-slot-1 through onedpl-ci-slot-6.
+    concurrency:
+      group: onedpl-ci-slot-${{ matrix.ci_slot }}
+      queue: max
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
+            ci_slot: 1
             cxx_compiler: icpx
             std: 17
             build_type: release
             backend: dpcpp
             device_type: cpu
           - os: ubuntu-latest
-            cxx_compiler: icpx
-            std: 17
-            build_type: release
-            backend: dpcpp
-            device_type: fpga # FPGA emulator
-          - os: ubuntu-latest
+            ci_slot: 2
             cxx_compiler: icpx
             std: 17
             build_type: release
             backend: tbb
             device_type: HOST
           - os: ubuntu-latest
+            ci_slot: 2
             cxx_compiler: icpx
             std: 17
             build_type: release
             backend: omp
             device_type: HOST
           - os: ubuntu-latest
+            ci_slot: 4
             cxx_compiler: g++
             std: 17
             build_type: release
             backend: omp
             device_type: HOST
           - os: ubuntu-latest
+            ci_slot: 5
             cxx_compiler: g++
             std: 17
             build_type: release
             backend: tbb
             device_type: HOST
           - os: ubuntu-latest
+            ci_slot: 1
             cxx_compiler: clang++
             std: 17
             build_type: release
             backend: tbb
             device_type: HOST
           - os: ubuntu-latest
+            ci_slot: 1
             cxx_compiler: clang++
             std: 17
             build_type: release
             backend: omp
             device_type: HOST
           - os: ubuntu-latest
+            ci_slot: 2
             cxx_compiler: g++
             std: 17
             build_type: release
             backend: serial
             device_type: HOST
           - os: ubuntu-latest
+            ci_slot: 3
             cxx_compiler: icpx
             std: 20
             build_type: RelWithAsserts
             backend: dpcpp
             device_type: cpu
           - os: ubuntu-latest
+            ci_slot: 4
             cxx_compiler: icpx
             std: 20
             build_type: RelWithAsserts
             backend: tbb
             device_type: HOST
           - os: ubuntu-latest
+            ci_slot: 6
             cxx_compiler: icpx
             std: 20
             build_type: RelWithAsserts
             backend: omp
             device_type: HOST
           - os: ubuntu-latest
+            ci_slot: 5
             cxx_compiler: g++
             std: 20
             build_type: RelWithAsserts
@@ -152,9 +164,8 @@ jobs:
       - name: Set up Intel® oneAPI
         uses: ./.github/actions/setup-linux-oneapi
         with:
-          tbb: ${{ (matrix.backend == 'tbb' || matrix.backend == 'dpcpp') && matrix.device_type != 'fpga' }}
-          compiler: ${{ matrix.device_type != 'fpga' && matrix.cxx_compiler == 'icpx' }}
-          fpga: ${{ matrix.device_type == 'fpga' }} # it will install compatible icpx and tbb on its own
+          tbb: ${{ matrix.backend == 'tbb' || matrix.backend == 'dpcpp' }}
+          compiler: ${{ matrix.cxx_compiler == 'icpx' }}
       - name: Install OpenMP dependencies
         if: (matrix.os == 'ubuntu-latest' && matrix.cxx_compiler == 'clang++' && matrix.backend == 'omp')
         run: |
@@ -173,41 +184,51 @@ jobs:
     name: ${{ matrix.device_type }},bknd=${{ matrix.backend }},cmplr=${{ matrix.cxx_compiler }},${{ matrix.os }},std=c++${{ matrix.std }},cfg=${{ matrix.build_type }}
     runs-on: ['${{ matrix.os }}']
     timeout-minutes: 60
+    concurrency:
+      group: onedpl-ci-slot-${{ matrix.ci_slot }}
+      queue: max
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
+            ci_slot: 1
             cxx_compiler: icx-cl
             std: 17
             build_type: release
             backend: tbb
             device_type: HOST
           - os: windows-latest
+            ci_slot: 2
             cxx_compiler: cl
             std: 17
             build_type: release
             backend: tbb
             device_type: HOST
           - os: windows-latest
+            ci_slot: 3
             cxx_compiler: icx
             std: 17
             build_type: release
             backend: dpcpp
             device_type: cpu
           - os: windows-latest
+            ci_slot: 4
             cxx_compiler: cl
             std: 20
             build_type: RelWithAsserts
             backend: serial
             device_type: HOST
           - os: windows-latest
+            ci_slot: 5
             cxx_compiler: icx-cl
             std: 20
             build_type: RelWithAsserts
             backend: tbb
             device_type: HOST
           - os: windows-latest
+            ci_slot: 6
             cxx_compiler: icx
             std: 20
             build_type: RelWithAsserts
@@ -236,6 +257,10 @@ jobs:
     name: examples,cmplr=icpx,ubuntu-latest,std=c++17,cfg=release
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    concurrency:
+      group: onedpl-ci-slot-2
+      queue: max
+      cancel-in-progress: false
     env:
       CXX_COMPILER: icpx
       STD: 17
@@ -255,6 +280,10 @@ jobs:
     name: examples,cmplr=icx,windows-latest,std=c++17,cfg=release
     runs-on: windows-latest
     timeout-minutes: 60
+    concurrency:
+      group: onedpl-ci-slot-3
+      queue: max
+      cancel-in-progress: false
     env:
       CXX_COMPILER: icx
       STD: 17
@@ -276,11 +305,16 @@ jobs:
     name: HOST,bknd=${{ matrix.backend }},cmplr=${{ matrix.cxx_compiler }},${{ matrix.os }},std=c++${{ matrix.std }},cfg=${{ matrix.build_type }}
     runs-on: ['${{ matrix.os }}']
     timeout-minutes: 60
+    concurrency:
+      group: onedpl-ci-slot-${{ matrix.ci_slot }}
+      queue: max
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-latest
+            ci_slot: 4
             cxx_compiler: clang++
             std: 17
             build_type: release
