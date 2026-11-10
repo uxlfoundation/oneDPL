@@ -10,7 +10,7 @@
 #include "batched_stable_sort.h"
 
 template <bool IsAscending>
-using SortConfig = kt::gpu::merge_single_group_tag;
+using SortConfig = kt::gpu::merge_single_group_tag<DefaultKeyCompare<IsAscending>>;
 
 int
 main()
