@@ -21,9 +21,10 @@ namespace dpl
 namespace internal
 {
 
-// The device overloads of reduce_by_segment: the key-based one and the one of the segments defined by offsets. The
-// overloads of the host policies are in internal/reduce_by_segment_impl.h, which includes this header before them and
-// calls them all by the qualified name.
+// The device overload of the key-based reduce_by_segment. The overload of the host policies is in
+// internal/reduce_by_segment_impl.h, which includes this header before it and calls both by the qualified name. The
+// segments defined by offsets need no such overload: reduce_by_segment calls __pattern_reduce_by_segment_offsets
+// directly, the device overload of which is in numeric_impl_hetero.h.
 template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator1, typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
 std::pair<OutputIterator1, OutputIterator2>
@@ -48,19 +49,6 @@ reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& pol
         __tag, std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred, binary_op);
 
     return std::make_pair(result1 + __n, result2 + __n);
-}
-
-template <typename _BackendTag, typename _Policy, typename _RandomAccessInputIt, typename _SegmentNum,
-          typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
-_RandomAccessOutputIt
-reduce_by_segment_offsets_impl(__internal::__hetero_tag<_BackendTag> __tag, _Policy&& __policy,
-                               _RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
-                               _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
-                               _RandomAccessOffsetIt __offsets, _InitType __init_value, _BinaryOperation __binary_op)
-{
-    return oneapi::dpl::__internal::__pattern_reduce_by_segment_offsets(
-        __tag, std::forward<_Policy>(__policy), __first_value, __last_value, __result_value, __num_segments, __offsets,
-        __init_value, __binary_op);
 }
 
 } // namespace internal
