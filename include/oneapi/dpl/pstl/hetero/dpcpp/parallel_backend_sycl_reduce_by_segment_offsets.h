@@ -10,7 +10,7 @@
 #ifndef _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_BY_SEGMENT_OFFSETS_H
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_BY_SEGMENT_OFFSETS_H
 
-#include <algorithm>   // std::min, std::max, std::clamp
+#include <algorithm>   // std::min, std::max, std::clamp, std::find
 #include <cassert>     // assert
 #include <cmath>       // std::sqrt
 #include <cstddef>     // std::size_t
@@ -19,6 +19,7 @@
 #include <limits>      // std::numeric_limits
 #include <type_traits> // std::integral_constant, std::conditional_t, std::enable_if_t, std::is_*_v, ...
 #include <utility>     // std::move, std::forward, std::declval, std::pair
+#include <vector>      // std::vector
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl.h"
@@ -37,8 +38,8 @@ namespace __par_backend_hetero
 
 // reduce_by_segment with segments defined by offsets
 
-// One work-item per short segment; a long one only reports its length via atomic max, capped to 32 bits: the chunk
-// length takes only its square root and clamps it far below
+// One work-item per short segment; a long one only reports its length via a device-scope atomic max, capped to 32 bits:
+// the chunk length takes only its square root and clamps it far below
 template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_variable_brick
 {
@@ -83,6 +84,15 @@ struct __segmented_reduce_variable_brick
 
 template <typename _Name>
 class __segmented_reduce_fill_wrapper;
+
+// Whether a device supports the atomics of the device scope, which SYCL does not require
+inline bool
+__segmented_reduce_device_scope_atomics(sycl::device __device)
+{
+    const std::vector<sycl::memory_scope> __scopes =
+        __device.get_info<sycl::info::device::atomic_memory_scope_capabilities>();
+    return std::find(__scopes.begin(), __scopes.end(), sycl::memory_scope::device) != __scopes.end();
+}
 
 // Short segment: one work-item; long: chunks per work-item, then combined by one work-item. Tuned on GPUs and CPUs
 struct __segmented_reduce_chunk_tuning
@@ -1025,6 +1035,8 @@ template <typename _Name>
 class __segmented_reduce_chunk_wrapper;
 template <typename _Name>
 class __segmented_reduce_combine_wrapper;
+template <typename _Name>
+class __segmented_reduce_init_wrapper;
 
 // Writes the init into every result: the input is empty, or the offsets give no element to any segment
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Size, typename _Acc>
@@ -1094,6 +1106,18 @@ struct __parallel_reduce_by_segment_offsets
                 }
                 return;
             }
+        }
+
+        // Without device-scope atomics the longest length is not reported: init for the empty segments, all the others
+        // in chunks, sized for the whole input
+        if (!__segmented_reduce_device_scope_atomics(__q.get_device()))
+        {
+            __parallel_reduce_by_segment_offsets_fill(_BackendTag{},
+                                                      make_wrapped_policy<__segmented_reduce_init_wrapper>(__exec),
+                                                      __result, std::size_t(__m), __init);
+            __reduce_in_chunks(_BackendTag{}, __exec, __is_gpu, __input, __offsets, __result, __n, __m, __init,
+                               __binary_op, _Size{0}, __n, __m);
+            return;
         }
 
         // Short segments by a work-item each, which also writes the empty ones; the longer ones in chunks
