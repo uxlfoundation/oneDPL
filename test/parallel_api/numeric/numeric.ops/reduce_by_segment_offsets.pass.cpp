@@ -56,56 +56,55 @@ enum class segments
 // Returns the num_segments + 1 non-decreasing offsets of the segments
 template <typename Offset>
 std::vector<Offset>
-make_offsets(segments kind, std::int64_t n, std::mt19937& gen)
+make_offsets(segments kind, std::size_t size, std::mt19937& gen)
 {
-    std::vector<std::int64_t> bounds{0};
-    auto add = [&bounds](std::int64_t length) { bounds.push_back(bounds.back() + length); };
+    const Offset n = static_cast<Offset>(size);
+    std::vector<Offset> bounds{0};
+    auto add = [&bounds](Offset length) { bounds.push_back(Offset(bounds.back() + length)); };
     switch (kind)
     {
     case segments::one:
         add(n);
         break;
     case segments::unit:
-        for (std::int64_t i = 0; i < n; ++i)
-            add(1);
+        for (Offset i = 0; i < n; ++i)
+            add(Offset{1});
         break;
     case segments::equal:
         while (bounds.back() < n)
-            add(1 + n / 10);
+            add(Offset(1 + n / 10));
         break;
     case segments::mixed:
     {
         // The long segment has three quarters of the input: every operation reduces a long segment
-        std::uniform_int_distribution<std::int64_t> length(0, 2 + n / 32);
-        auto add_random = [&](std::int64_t end) {
+        std::uniform_int_distribution<std::int64_t> length(0, 2 + std::int64_t(n) / 32);
+        auto add_random = [&](Offset end) {
             while (bounds.back() < end)
-                add(std::min(length(gen), end - bounds.back()));
+                add(std::min<Offset>(Offset(length(gen)), end - bounds.back()));
         };
-        add(0);
-        add(std::min<std::int64_t>(1, n));
-        add_random(n / 8);
-        add(std::min(n * 3 / 4, n - bounds.back()));
+        add(Offset{0});
+        add(std::min<Offset>(1, n));
+        add_random(Offset(n / 8));
+        add(std::min<Offset>(n * 3 / 4, n - bounds.back()));
         add_random(n);
-        add(0);
+        add(Offset{0});
         break;
     }
     case segments::all_empty:
-        bounds.assign(5, n / 2);
+        bounds.assign(5, Offset(n / 2));
         break;
     case segments::inner:
-        bounds.assign(1, n / 4);
+        bounds.assign(1, Offset(n / 4));
         while (bounds.back() < n - n / 4)
-            add(std::min(1 + n / 8, n - n / 4 - bounds.back()));
+            add(std::min<Offset>(1 + n / 8, n - n / 4 - bounds.back()));
         break;
     case segments::out_of_bounds:
         // A negative first offset, if representable; the last offset is the largest representable one
-        bounds = {std::is_signed_v<Offset> ? -3 : n / 4, n / 3, n / 2, n + 2, n + 5};
+        bounds = {std::is_signed_v<Offset> ? Offset(-3) : Offset(n / 4), Offset(n / 3), Offset(n / 2), Offset(n + 2),
+                  Offset(n + 5), std::numeric_limits<Offset>::max()};
         break;
     }
-    std::vector<Offset> offsets(bounds.begin(), bounds.end());
-    if (kind == segments::out_of_bounds)
-        offsets.push_back(std::numeric_limits<Offset>::max());
-    return offsets;
+    return bounds;
 }
 
 // The algorithm requires random access iterators, as the RFC does: the forward and bidirectional iterators that the
