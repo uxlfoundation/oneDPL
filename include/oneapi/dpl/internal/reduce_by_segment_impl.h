@@ -195,8 +195,8 @@ __pattern_reduce_by_segment_offsets(_Tag, _Policy&&, _InputValueIt __first_value
     for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
     {
         *__this_segment =
-            __segmented_reduce_serial<_Acc>(__first_value, __clamp_to_size(__offsets[__segment], __n),
-                                            __clamp_to_size(__offsets[__segment + 1], __n), __init, __binary_op);
+            __serial_accumulate<_Acc>(__first_value, __clamp_to_size(__offsets[__segment], __n),
+                                      __clamp_to_size(__offsets[__segment + 1], __n), __init, __binary_op);
         ++__this_segment;
     }
 

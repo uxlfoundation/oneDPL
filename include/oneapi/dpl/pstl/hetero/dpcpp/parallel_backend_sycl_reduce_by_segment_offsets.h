@@ -70,7 +70,7 @@ struct __segmented_reduce_variable_brick
             return;
         }
         std::get<0>(__result[__idx]) =
-            oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(__input, __begin, __end, __init, __binary_op);
+            oneapi::dpl::__internal::__serial_accumulate<_Acc>(__input, __begin, __end, __init, __binary_op);
     }
 };
 
@@ -186,7 +186,7 @@ struct __segmented_reduce_chunk_brick
         _Acc __start = __init;
         if (__k != 0)
             __start = std::invoke(__binary_op, __input[__chunk_begin], __input[__chunk_begin + 1]);
-        std::get<0>(__partials[__idx]) = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(
+        std::get<0>(__partials[__idx]) = oneapi::dpl::__internal::__serial_accumulate<_Acc>(
             __input, __chunk_begin + (__k == 0 ? 0 : 2), __chunk_end, std::move(__start), __binary_op);
     }
 };
@@ -220,7 +220,7 @@ struct __segmented_reduce_combine_brick
                 std::get<0>(__result[__idx]) = __init;
             return;
         }
-        std::get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(
+        std::get<0>(__result[__idx]) = oneapi::dpl::__internal::__serial_accumulate<_Acc>(
             __partials, __first + 1, __last, _Acc(__partials[__first]), __binary_op);
     }
 };
