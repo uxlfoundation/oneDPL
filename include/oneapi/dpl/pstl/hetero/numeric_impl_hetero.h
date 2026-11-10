@@ -286,10 +286,8 @@ __pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&
         return __result;
 
     using _Acc = __segmented_reduce_acc_t<_InitType, _RandomAccessInputIt, _BinaryOperation>;
-    using _Diff = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
-    // Promoted, so that the index arithmetic keeps the type, and covering the number of segments, which may exceed
-    // the size of the input
-    using _Size = std::make_signed_t<std::common_type_t<decltype(+_Diff{}), decltype(+__num_segments)>>;
+    // The type of the index arithmetic; signed, as a reversed segment has a negative length
+    using _Size = std::make_signed_t<decltype((__last - __first) + __num_segments)>;
 
     // Converted once, on the host: every kernel starts from this accumulator
     _Acc __init_acc = std::move(__init);
