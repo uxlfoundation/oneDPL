@@ -83,6 +83,20 @@ parameters, at any scale and without external data. A simpler alternative for se
 from a Zipf or Pareto distribution with an exponent and a cap. Both reproduce the skew of real graphs, but not their
 exact structure.
 
+### Data sources and their users
+
+The collections below are the usual sources of real sparse matrices and graphs for benchmarking sparse and graph
+algorithms; any of them can feed the segments files of this proposal.
+
+| Source | Link | Content | Used, for example, by |
+|---|---|---|---|
+| SuiteSparse Matrix Collection [4] | https://sparse.tamu.edu (files also on the mirror https://www.cise.ufl.edu/research/sparse/) | about 2,900 sparse matrices from science and engineering, plus graphs mirrored from other collections | Williams et al. [2], Bell and Garland [1], ModernGPU [6], Merrill and Garland (CUB SpMV) [3], CSR5 [9], the benchmarks of Ginkgo through its `ssget` tool [10] |
+| SNAP [5] | https://snap.stanford.edu/data | social, web, citation, communication, road and collaboration networks | graph analytics literature, Gunrock [11]; many SNAP graphs are mirrored in SuiteSparse (group `SNAP`) |
+| Laboratory for Web Algorithmics (LAW) [12] | https://law.di.unimi.it/datasets.php | large web and social crawls (e.g. `uk-2002`, `sk-2005`) | GAP Benchmark Suite (`sk-2005`) [13]; several LAW graphs are mirrored in SuiteSparse (group `LAW`) |
+| DIMACS Implementation Challenges, 9th and 10th [14] | https://sparse.tamu.edu/DIMACS10 (the 10th challenge graphs in SuiteSparse, e.g. `road_usa`; original site https://sites.cc.gatech.edu/dimacs10/) | road networks, meshes, clustering and partitioning instances | GAP Benchmark Suite (the road network of the USA from the 9th challenge) [13] |
+| Graph500 Kronecker generator [15] | https://graph500.org | synthetic power-law graphs of any scale, R-MAT style [7] | the Graph500 ranking, GAP Benchmark Suite (`kron`) [13] |
+| Matrix Market [16] | https://math.nist.gov/MatrixMarket | an older matrix collection and the coordinate file format used by SuiteSparse | the input format of most sparse libraries and of this proposal's conversion |
+
 ### Summary
 
 | Approach | Covers skew | Empty segments | External data | Comparable with |
@@ -251,3 +265,21 @@ locally. The prototype runs all regimes on a GPU and on a CPU device as SYCL dev
    International Conference on Data Mining, 2004.
 8. NVIDIA CCCL: CUB device-wide segmented reduction and its benchmarks. https://github.com/NVIDIA/cccl
    (`cub/benchmarks/bench/segmented_reduce`).
+9. W. Liu and B. Vinter. *CSR5: An Efficient Storage Format for Cross-Platform Sparse Matrix-Vector Multiplication.*
+    Proceedings of ICS'15, 2015.
+10. H. Anzt et al. *Ginkgo: A Modern Linear Operator Algebra Framework for High Performance Computing.* ACM Transactions
+    on Mathematical Software 48(1), 2022. https://github.com/ginkgo-project/ginkgo, `ssget`:
+    https://github.com/ginkgo-project/ssget
+11. Y. Wang, A. Davidson, Y. Pan, Y. Wu, A. Riffel and J. D. Owens. *Gunrock: A High-Performance Graph Processing
+    Library on the GPU.* Proceedings of PPoPP'16, 2016. https://github.com/gunrock/gunrock
+12. P. Boldi and S. Vigna. *The WebGraph Framework I: Compression Techniques.* Proceedings of WWW'04, 2004.
+13. S. Beamer, K. Asanović and D. Patterson. *The GAP Benchmark Suite.* arXiv:1508.03619, 2015.
+    https://github.com/sbeamer/gapbs
+14. C. Demetrescu, A. V. Goldberg and D. S. Johnson (eds.). *The Shortest Path Problem: Ninth DIMACS Implementation
+    Challenge.* DIMACS Series in Discrete Mathematics and Theoretical Computer Science 74, AMS, 2009.
+    D. A. Bader, H. Meyerhenke, P. Sanders and D. Wagner (eds.). *Graph Partitioning and Graph Clustering: Tenth DIMACS
+    Implementation Challenge.* Contemporary Mathematics 588, AMS, 2013.
+15. R. C. Murphy, K. B. Wheeler, B. W. Barrett and J. A. Ang. *Introducing the Graph 500.* Cray User Group, 2010.
+    https://graph500.org
+16. R. F. Boisvert, R. Pozo, K. Remington, R. F. Barrett and J. J. Dongarra. *Matrix Market: A Web Resource for Test
+    Matrix Collections.* In: Quality of Numerical Software, Chapman & Hall, 1997. https://math.nist.gov/MatrixMarket
