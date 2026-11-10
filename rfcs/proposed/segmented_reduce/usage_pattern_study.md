@@ -2,7 +2,7 @@
 
 Usage of `cub::DeviceSegmentedReduce` and `rocprim::segmented_reduce` in various projects.
 
-Gathered on 2026-10-06 and extended on 2026-10-09 with AI assistance.
+Gathered on 2026-10-06 and extended on 2026-11-10 with AI assistance.
 
 | Usage example | Application domain | Repository stars | Segments | Semantics | Workload |
 | --- | --- | ---: | --- | --- | --- |
