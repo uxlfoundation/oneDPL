@@ -53,10 +53,10 @@ reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& pol
 template <typename _BackendTag, typename _Policy, typename _RandomAccessInputIt, typename _SegmentNum,
           typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
 _RandomAccessOutputIt
-__reduce_by_segment_offsets_impl(__internal::__hetero_tag<_BackendTag> __tag, _Policy&& __policy,
-                                 _RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
-                                 _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
-                                 _RandomAccessOffsetIt __offsets, _InitType __init_value, _BinaryOperation __binary_op)
+reduce_by_segment_offsets_impl(__internal::__hetero_tag<_BackendTag> __tag, _Policy&& __policy,
+                               _RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
+                               _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
+                               _RandomAccessOffsetIt __offsets, _InitType __init_value, _BinaryOperation __binary_op)
 {
     return oneapi::dpl::__internal::__pattern_reduce_by_segment_offsets(
         __tag, std::forward<_Policy>(__policy), __first_value, __last_value, __result_value, __num_segments, __offsets,
