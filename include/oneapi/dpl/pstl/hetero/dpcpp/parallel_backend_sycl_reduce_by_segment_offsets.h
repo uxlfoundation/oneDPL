@@ -10,7 +10,7 @@
 #ifndef _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_BY_SEGMENT_OFFSETS_H
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_BY_SEGMENT_OFFSETS_H
 
-#include <algorithm>   // std::min, std::clamp
+#include <algorithm>   // std::min, std::clamp, std::find
 #include <cmath>       // std::sqrt
 #include <cstddef>     // std::size_t
 #include <cstdint>     // std::uint8_t, std::uint32_t, std::uint64_t
@@ -18,6 +18,7 @@
 #include <limits>      // std::numeric_limits
 #include <type_traits> // std::true_type
 #include <utility>     // std::move, std::forward
+#include <vector>      // std::vector
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl.h"
@@ -37,7 +38,7 @@ namespace __par_backend_hetero
 // reduce_by_segment with segments defined by offsets
 
 // One work-item per short segment. A longer segment is left to the reduction in chunks and only reports its length,
-// capped as only its square root matters, through an atomic maximum.
+// capped as only its square root matters, through an atomic maximum of the device scope.
 template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_variable_brick
 {
@@ -75,6 +76,15 @@ struct __segmented_reduce_variable_brick
 
 template <typename _Name>
 class __segmented_reduce_fill_wrapper;
+
+// Whether a device supports the atomics of the device scope, which SYCL does not require
+inline bool
+__segmented_reduce_device_scope_atomics(sycl::device __device)
+{
+    const std::vector<sycl::memory_scope> __scopes =
+        __device.get_info<sycl::info::device::atomic_memory_scope_capabilities>();
+    return std::find(__scopes.begin(), __scopes.end(), sycl::memory_scope::device) != __scopes.end();
+}
 
 // A short segment is reduced by one work-item. A long segment is split into chunks, each reduced by one work-item, and
 // the partial results of the segment are combined by one work-item. The values below were measured on GPUs and CPUs
@@ -249,7 +259,8 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                                      _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n, const _Size __m,
                                      _Acc __init, _BinaryOperation __binary_op)
 {
-    const bool __is_gpu = __exec.queue().get_device().is_gpu();
+    const sycl::device __device = __exec.queue().get_device();
+    const bool __is_gpu = __device.is_gpu();
     const _Size __threshold =
         __is_gpu ? __segmented_reduce_gpu_short_segment_max : __segmented_reduce_cpu_short_segment_max;
 
@@ -288,9 +299,10 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         __scan.event().wait_and_throw();
     };
 
-    if (__n / __m > __threshold)
+    // The average segment is long, or the device cannot report the longest length of the short segments' pass:
+    // all the segments in chunks, which needs no atomics. The longest one selects the chunk length on GPUs.
+    if (__n / __m > __threshold || !__segmented_reduce_device_scope_atomics(__device))
     {
-        // The average segment is long: all the segments in chunks. The longest one selects the chunk length on GPUs.
         const _Size __max_length =
             __is_gpu
                 ? __parallel_transform_reduce<_Size, std::true_type>(
