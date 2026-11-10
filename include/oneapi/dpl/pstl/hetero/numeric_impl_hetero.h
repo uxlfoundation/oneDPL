@@ -18,7 +18,6 @@
 
 #include <iterator>
 #include "../parallel_backend.h"
-#include "../segmented_reduce_utils.h"
 #include "../utils.h"
 #if _ONEDPL_BACKEND_SYCL
 #    include "dpcpp/execution_sycl_defs.h"

@@ -25,7 +25,6 @@
 #include "utils_ranges_sycl.h"
 
 #include "../../functional_impl.h" // oneapi::dpl::identity, oneapi::dpl::maximum
-#include "../../segmented_reduce_utils.h"
 #include "../../utils.h"
 
 namespace oneapi
