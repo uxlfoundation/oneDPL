@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <functional>
 #include <type_traits>
 #include <vector>
 
@@ -40,23 +41,54 @@ using KeyT = TEST_KEY_TYPE;
 
 #include "batched_sort_test_utils.h"
 
-// SortConfig<IsAscending> is the sort configuration tag under test
-template <template <bool> class SortConfig, bool UsesTempStorage>
+// The comparators of keys of the reference sort, and of merge_single_group_tag
+template <bool IsAscending>
+using DefaultKeyCompare = std::conditional_t<IsAscending, std::less<>, std::greater<>>;
+
+// A comparator for merge_single_group_tag which orders keys by the low 4 bits of their representation only: a strict
+// weak ordering different from < with many equivalent but distinct keys, so stability is visible in the keys alone.
+// It applies to every key type, including those the radix sorts do not order this way.
+template <bool IsAscending>
+struct LowBitsCompare
+{
+    static KeyBitsT
+    low_bits(const KeyT& key)
+    {
+        return KeyBitsT(sycl::bit_cast<KeyBitsT>(key) & KeyBitsT(0xF));
+    }
+    bool
+    operator()(const KeyT& lhs, const KeyT& rhs) const
+    {
+        return IsAscending ? low_bits(lhs) < low_bits(rhs) : low_bits(rhs) < low_bits(lhs);
+    }
+};
+
+// SortConfig<IsAscending> is the sort configuration tag under test. With CustomCompare, sorts with
+// merge_single_group_tag<LowBitsCompare<IsAscending>> instead of SortConfig
+template <template <bool> class SortConfig, bool UsesTempStorage, bool CustomCompare = false>
 struct BatchedStableSort
 {
     static constexpr bool uses_temp_storage = UsesTempStorage;
+    static constexpr int kernel_variant = CustomCompare;
+    static constexpr const char* name = CustomCompare ? "low bits comparator" : "default comparator";
+
+    template <bool IsAscending>
+    using key_compare = std::conditional_t<CustomCompare, LowBitsCompare<IsAscending>, DefaultKeyCompare<IsAscending>>;
+    template <bool IsAscending>
+    using config = std::conditional_t<CustomCompare, kt::gpu::merge_single_group_tag<LowBitsCompare<IsAscending>>,
+                                      SortConfig<IsAscending>>;
 
     template <bool IsAscending, typename... Args>
     static sycl::event
     sort(sycl::queue q, Args&&... args)
     {
-        return kt::gpu::batched_stable_sort<SortConfig<IsAscending>>(q, std::forward<Args>(args)...);
+        return kt::gpu::batched_stable_sort<config<IsAscending>>(q, std::forward<Args>(args)...);
     }
     template <bool IsAscending, typename... Args>
     static sycl::event
     sort_by_key(sycl::queue q, Args&&... args)
     {
-        return kt::gpu::batched_stable_sort_by_key<SortConfig<IsAscending>>(q, std::forward<Args>(args)...);
+        return kt::gpu::batched_stable_sort_by_key<config<IsAscending>>(q, std::forward<Args>(args)...);
     }
     template <typename KernelParam>
     static constexpr std::size_t
@@ -79,12 +111,33 @@ struct BatchedStableSort
 std::vector<std::size_t>
 segment_sizes(std::size_t tile, std::size_t sub_group_tile, std::size_t work_item_tile, bool wg_resident_only)
 {
-    std::vector<std::size_t> sizes = {
-        1,        2,      7,        100,      317,          1000,           4095,         4097,
-        tile - 1, tile,   tile + 1, 2 * tile, 2 * tile + 1, 3 * tile + 333, 7 * tile - 5, 50'000,
-        1 << 17,  300'007,
-        sub_group_tile - 1, sub_group_tile, sub_group_tile + 1, 2 * sub_group_tile + 3, tile / 2 + 1, tile / 3,
-        work_item_tile, work_item_tile + 1, 2 * work_item_tile - 1};
+    std::vector<std::size_t> sizes = {1,
+                                      2,
+                                      7,
+                                      100,
+                                      317,
+                                      1000,
+                                      4095,
+                                      4097,
+                                      tile - 1,
+                                      tile,
+                                      tile + 1,
+                                      2 * tile,
+                                      2 * tile + 1,
+                                      3 * tile + 333,
+                                      7 * tile - 5,
+                                      50'000,
+                                      1 << 17,
+                                      300'007,
+                                      sub_group_tile - 1,
+                                      sub_group_tile,
+                                      sub_group_tile + 1,
+                                      2 * sub_group_tile + 3,
+                                      tile / 2 + 1,
+                                      tile / 3,
+                                      work_item_tile,
+                                      work_item_tile + 1,
+                                      2 * work_item_tile - 1};
     sizes.erase(std::remove(sizes.begin(), sizes.end(), std::size_t(0)), sizes.end());
     if (wg_resident_only)
         sizes.erase(std::remove_if(sizes.begin(), sizes.end(), [tile](std::size_t s) { return s > tile; }),
@@ -95,7 +148,10 @@ segment_sizes(std::size_t tile, std::size_t sub_group_tile, std::size_t work_ite
 }
 
 template <typename Config>
-constexpr bool IsMergeConfig = std::is_same_v<Config, kt::gpu::merge_single_group_tag>;
+constexpr bool IsMergeConfig = false;
+
+template <typename Compare>
+constexpr bool IsMergeConfig<kt::gpu::merge_single_group_tag<Compare>> = true;
 
 // WgResidentOnly: the sort configuration supports only segments which fit in a work-group tile
 template <template <bool> class SortConfig, bool WgResidentOnly>
@@ -156,6 +212,20 @@ test()
                 // Temporary storage provided by the caller, for each data mode with in-place and out-of-place sorts
                 test_case<SorterTempStorage, Ascending, false>(q, modes[mode_idx % 4], segment_size, 3, params);
                 test_case<SorterTempStorage, Descending, true>(q, modes[(mode_idx + 1) % 4], segment_size, 3, params);
+
+                if constexpr (IsMergeConfig<SortConfig<Ascending>>)
+                {
+                    // A user comparator, under which distinct keys are equivalent
+                    using SorterCustomCompare =
+                        BatchedStableSort<SortConfig, /*UsesTempStorage=*/false, /*CustomCompare=*/true>;
+                    test_case<SorterCustomCompare, Ascending, false>(q, modes[mode_idx % 4], segment_size, 3, params);
+                    test_case<SorterCustomCompare, Descending, true>(q, modes[(mode_idx + 1) % 4], segment_size, 3,
+                                                                     params);
+                    test_case<SorterCustomCompare, Ascending, true>(q, modes[(mode_idx + 2) % 4], segment_size, many,
+                                                                    params);
+                    test_case<SorterCustomCompare, Descending, false>(q, modes[(mode_idx + 3) % 4], segment_size, many,
+                                                                      params);
+                }
             }
 
             // More histogram chunks than histogram work-groups, with segments of 3 chunks: work-groups own several
@@ -167,8 +237,8 @@ test()
             test_empty_input<SorterTempStorage>(q, params, static_cast<void*>(nullptr), std::size_t{0});
 
             // The kernel_param may be given as a template argument instead, also with temporary storage
-            using ParamA = decltype(TestUtils::create_new_kernel_param_idx<32>(params));
-            using ParamB = decltype(TestUtils::create_new_kernel_param_idx<33>(params));
+            using ParamA = decltype(TestUtils::create_new_kernel_param_idx<64>(params));
+            using ParamB = decltype(TestUtils::create_new_kernel_param_idx<65>(params));
             KeyT* no_keys = nullptr;
             kt::gpu::batched_stable_sort<SortConfig<Ascending>, ParamA>(q, no_keys, no_keys, 4).wait();
             kt::gpu::batched_stable_sort<SortConfig<Ascending>, ParamB>(q, no_keys, no_keys, 4, nullptr, 0).wait();

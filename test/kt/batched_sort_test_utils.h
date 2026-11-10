@@ -12,8 +12,10 @@
 
 // Shared by the batched sort tests, which define KeyT, ValueT and TEST_KEYS_ONLY before including this header.
 // A Sorter provides static sort<IsAscending>(q, args...) and sort_by_key<IsAscending>(q, args...), forwarding to the
-// keys-only and key-value overloads of the sort under test. A Sorter with uses_temp_storage also provides
-// bytes_req<KernelParam>(segment_size, n), and its sorts are given temporary storage of that many bytes.
+// keys-only and key-value overloads of the sort under test, and key_compare<IsAscending>, the host comparator of keys
+// for the reference sort. A Sorter with uses_temp_storage also provides bytes_req<KernelParam>(segment_size, n), and
+// its sorts are given temporary storage of that many bytes. Sorters with the same uses_temp_storage have distinct
+// kernel_variant values in [0, 2), and a name.
 
 #include <oneapi/dpl/experimental/kernel_templates>
 #include <oneapi/dpl/iterator>
@@ -177,14 +179,27 @@ generate_data(std::vector<KeyT>& keys, std::vector<ValueT>& vals, std::size_t se
     }
 }
 
-// The generated keys contain no NaNs, so comparing with < or > matches the ordering of kt sorts (-0.0 == +0.0)
-template <bool IsAscending>
+// Applies a comparator of keys to the keys of zipped (key, value) elements
+template <typename KeyCompare>
+struct ZipKeyCompare
+{
+    template <typename T, typename U>
+    bool
+    operator()(const T& lhs, const U& rhs) const
+    {
+        return KeyCompare{}(std::get<0>(lhs), std::get<0>(rhs));
+    }
+};
+
+// The generated keys contain no NaNs, so comparing with < or > matches the ordering of the radix sorts
+// (-0.0 == +0.0)
+template <typename KeyCompare>
 void
 reference_sort(std::vector<KeyT>& keys, std::vector<ValueT>& vals, std::size_t segment_size)
 {
     auto zip_first = oneapi::dpl::make_zip_iterator(keys.begin(), vals.begin());
     for (std::size_t first = 0; first < keys.size(); first += segment_size)
-        std::stable_sort(zip_first + first, zip_first + first + segment_size, CompareKey<IsAscending>{});
+        std::stable_sort(zip_first + first, zip_first + first + segment_size, ZipKeyCompare<KeyCompare>{});
 }
 
 // Calls the in-place or out-of-place overload of the sort under test with the given keys, values and outputs: either
@@ -236,7 +251,9 @@ template <typename Sorter, bool IsAscending, bool InPlace, DataMode Mode, typena
 constexpr auto
 unique_kernel_param(KernelParam param)
 {
-    constexpr int variant = int(IsAscending) + 2 * int(InPlace) + 4 * int(Sorter::uses_temp_storage);
+    static_assert(Sorter::kernel_variant >= 0 && Sorter::kernel_variant < 2);
+    constexpr int variant =
+        int(IsAscending) + 2 * int(InPlace) + 4 * int(Sorter::uses_temp_storage) + 8 * Sorter::kernel_variant;
     return TestUtils::create_new_kernel_param_idx<4 * variant + int(Mode)>(param);
 }
 
@@ -346,7 +363,7 @@ test_case(sycl::queue q, DataMode mode, std::size_t segment_size, std::size_t se
 
     std::vector<KeyT> expected_keys(keys);
     std::vector<ValueT> expected_vals(vals);
-    reference_sort<IsAscending>(expected_keys, expected_vals, segment_size);
+    reference_sort<typename Sorter::template key_compare<IsAscending>>(expected_keys, expected_vals, segment_size);
 
     std::vector<KeyT> actual_keys, keys_in_after;
     std::vector<ValueT> actual_vals, vals_in_after;
@@ -377,10 +394,10 @@ test_case(sycl::queue q, DataMode mode, std::size_t segment_size, std::size_t se
     }
 
     std::ostringstream msg;
-    msg << mode_name(mode) << ", temp storage: " << Sorter::uses_temp_storage << ", in-place: " << InPlace
-        << ", ascending: " << IsAscending << ", segment size: " << segment_size << ", segments: " << segment_count
-        << ", dpwi: " << KernelParam::data_per_workitem << ", wgs: " << KernelParam::workgroup_size
-        << ", data: " << pattern_name(pattern);
+    msg << Sorter::name << ", " << mode_name(mode) << ", temp storage: " << Sorter::uses_temp_storage
+        << ", in-place: " << InPlace << ", ascending: " << IsAscending << ", segment size: " << segment_size
+        << ", segments: " << segment_count << ", dpwi: " << KernelParam::data_per_workitem
+        << ", wgs: " << KernelParam::workgroup_size << ", data: " << pattern_name(pattern);
     const std::string m = msg.str();
 
     expect_equal_keys(expected_keys, actual_keys, "wrong keys, " + m);
