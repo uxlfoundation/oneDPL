@@ -12,15 +12,18 @@ Both in-place and out-of-place overloads are provided. Out-of-place overloads do
 
 The algorithm is selected at compile time with a sort configuration type:
 
-- ``merge_single_group_tag``: a work-group merge path sort. Each segment is sorted by a single work-group,
-  and multiple segments may be packed into one work-group.
-- ``radix_single_group_tag<RadixBits>``: a one work-group radix sort. Each segment is sorted by a single work-group,
-  and multiple segments may be packed into one work-group.
-- ``radix_many_groups_tag<RadixBits>``: a segmented Onesweep* [#fnote1]_ radix sort. Each segment may be sorted by
-  multiple work-groups.
+- ``merge_single_group_tag<Compare>``: a work-group merge path sort, ordering keys with the comparator ``Compare``.
+  Each segment is sorted by a single work-group, and multiple segments may be packed into one work-group.
+- ``radix_single_group_tag<IsAscending, RadixBits>``: a one work-group radix sort. Each segment is sorted by a single
+  work-group, and multiple segments may be packed into one work-group.
+- ``radix_many_groups_tag<IsAscending, RadixBits>``: a segmented Onesweep* [#fnote1]_ radix sort. Each segment may be
+  sorted by multiple work-groups.
 
-Every configuration orders keys in the same way, so the output does not depend on the configuration, which may be
-chosen for performance alone (see :ref:`Selecting a Sort Configuration <batched-sort-by-key-selecting-config>`).
+The sort configuration also selects the sort order: ``IsAscending`` for the radix configurations, and the comparator for
+``merge_single_group_tag``, where ``std::less<>`` (the default) sorts in ascending order and ``std::greater<>`` in
+descending order. For inputs without NaNs, every configuration with the same order produces the same output, so the
+configuration may be chosen for performance alone (see :ref:`Selecting a Sort Configuration
+<batched-sort-by-key-selecting-config>`).
 
 .. note::
    The requirements of ``batched_stable_sort_by_key`` depend on the sort configuration:
@@ -44,16 +47,17 @@ A synopsis of the ``batched_stable_sort_by_key`` function is provided below:
    namespace oneapi::dpl::experimental::kt::gpu {
 
    // Sort configurations
+   template <typename Compare = std::less<>>
    struct merge_single_group_tag;
 
-   template <std::uint8_t RadixBits = 8>
+   template <bool IsAscending = true, std::uint8_t RadixBits = 8>
    struct radix_single_group_tag;
 
-   template <std::uint8_t RadixBits = 8>
+   template <bool IsAscending = true, std::uint8_t RadixBits = 8>
    struct radix_many_groups_tag;
 
    // Sort in-place
-   template <typename SortConfig, bool IsAscending = true,
+   template <typename SortConfig,
              typename KernelParam, typename Iterator1, typename Iterator2>
    sycl::event
    batched_stable_sort_by_key (sycl::queue q, Iterator1 keys_first, Iterator1 keys_last,
@@ -61,7 +65,7 @@ A synopsis of the ``batched_stable_sort_by_key`` function is provided below:
                                typename std::iterator_traits<Iterator1>::difference_type segment_size,
                                KernelParam param = {}); // (1)
 
-   template <typename SortConfig, bool IsAscending = true,
+   template <typename SortConfig,
              typename KernelParam, typename KeysRng, typename ValuesRng>
    sycl::event
    batched_stable_sort_by_key (sycl::queue q, KeysRng&& keys, ValuesRng&& values,
@@ -69,7 +73,7 @@ A synopsis of the ``batched_stable_sort_by_key`` function is provided below:
                                KernelParam param = {}); // (2)
 
    // Sort out-of-place
-   template <typename SortConfig, bool IsAscending = true,
+   template <typename SortConfig,
              typename KernelParam, typename KeysIterator1, typename ValuesIterator1,
              typename KeysIterator2, typename ValuesIterator2>
    sycl::event
@@ -79,7 +83,7 @@ A synopsis of the ``batched_stable_sort_by_key`` function is provided below:
                                typename std::iterator_traits<KeysIterator1>::difference_type segment_size,
                                KernelParam param = {}); // (3)
 
-   template <typename SortConfig, bool IsAscending = true,
+   template <typename SortConfig,
              typename KernelParam, typename KeysRng1, typename ValuesRng1,
              typename KeysRng2, typename ValuesRng2>
    sycl::event
@@ -90,7 +94,7 @@ A synopsis of the ``batched_stable_sort_by_key`` function is provided below:
 
    // Each of (1)-(4) has a counterpart which accepts caller-provided temporary storage
    // directly before param, for example:
-   template <typename SortConfig, bool IsAscending = true,
+   template <typename SortConfig,
              typename KernelParam, typename KeysIterator1, typename ValuesIterator1,
              typename KeysIterator2, typename ValuesIterator2>
    sycl::event
@@ -117,7 +121,12 @@ Template Parameters
 | ``typename SortConfig``     | The sort configuration: ``merge_single_group_tag``, ``radix_single_group_tag``, or    |
 |                             | ``radix_many_groups_tag``. It has no default value and must always be specified.      |
 +-----------------------------+---------------------------------------------------------------------------------------+
-| ``bool IsAscending``        | The sort order. Ascending: ``true``; Descending: ``false``.                           |
+| ``typename Compare``        | The comparator of keys of ``merge_single_group_tag``, which also determines the sort  |
+|                             | order. Ascending: ``std::less<>`` (default); Descending: ``std::greater<>``. See the  |
+|                             | type requirements below.                                                              |
++-----------------------------+---------------------------------------------------------------------------------------+
+| ``bool IsAscending``        | The sort order of ``radix_single_group_tag`` and ``radix_many_groups_tag``.           |
+|                             | Ascending: ``true`` (default); Descending: ``false``.                                 |
 +-----------------------------+---------------------------------------------------------------------------------------+
 | ``std::uint8_t RadixBits``  | The number of bits to sort for each radix sort algorithm pass                         |
 |                             | (``radix_single_group_tag`` and ``radix_many_groups_tag`` only).                      |
@@ -166,15 +175,27 @@ Parameters
 
 **Type Requirements**:
 
-- The element type of the keys sequence(s) must be one of the following:
+- For ``radix_single_group_tag`` and ``radix_many_groups_tag``, the element type of the keys sequence(s) must be one of
+  the following:
 
    - A C++ integral or floating-point type other than ``bool`` with a width of up to 64 bits.
    - ``sycl::half``.
    - ``sycl::ext::oneapi::bfloat16`` (requires Intel® oneAPI DPC++/C++ Compiler 2026.0 or greater).
 
-**Ordering**: keys are ordered as by :doc:`radix_sort_by_key <radix_sort_by_key>`. For floating-point keys,
-``-0.0`` and ``+0.0`` are equal, so their relative order is preserved, and NaNs are ordered by their sign and
-payload, after ``+infinity`` for positive NaNs and before ``-infinity`` for negative NaNs in ascending order.
+- For ``merge_single_group_tag``, the element type of the keys sequence(s) may be any type which is default
+  constructible, copy assignable, and device copyable. ``Compare`` must be default constructible and device copyable,
+  and callable in device code with two keys, returning a value convertible to ``bool``. It is default constructed in the
+  kernel, so it cannot carry state set on the host.
+
+**Ordering**:
+
+- ``radix_single_group_tag`` and ``radix_many_groups_tag`` order keys as by :doc:`radix_sort_by_key
+  <radix_sort_by_key>`. For floating-point keys, ``-0.0`` and ``+0.0`` are equal, so their relative order is preserved,
+  and NaNs are ordered by their sign and payload, after ``+infinity`` for positive NaNs and before ``-infinity`` for
+  negative NaNs in ascending order.
+- ``merge_single_group_tag`` sorts each segment as ``std::stable_sort`` would with ``Compare``. ``std::less<>`` and
+  ``std::greater<>`` order keys other than NaN as the radix configurations do, including ``-0.0`` and ``+0.0``
+  being equal.
 
 **Preconditions**: the behavior is undefined if any of the following are violated. In debug builds, the violations
 are reported with an assertion.
@@ -182,6 +203,8 @@ are reported with an assertion.
 - ``segment_size > 0``, and ``n`` is a multiple of ``segment_size``. If ``n`` is `0`, the call has no effect.
 - For ``merge_single_group_tag`` and ``radix_single_group_tag``,
   ``segment_size <= param.data_per_workitem * param.workgroup_size``.
+- For ``merge_single_group_tag``, ``Compare`` induces a strict weak ordering on the input keys.
+  In particular, NaN keys are not supported with ``std::less<>`` (the default) or ``std::greater<>``.
 - The values and output sequences hold at least ``n`` elements.
 - The input and output sequences of the out-of-place overloads do not overlap.
 
@@ -242,7 +265,7 @@ In-Place Example
       }
 
       // sort each segment in ascending order
-      using config_t = kt::gpu::merge_single_group_tag;
+      using config_t = kt::gpu::merge_single_group_tag<>; // std::less<>
       auto e = kt::gpu::batched_stable_sort_by_key<config_t>(q, keys, values, segment_size,
                                                              kt::kernel_param<4, 64>{}); // (2)
       e.wait();
@@ -300,9 +323,9 @@ Out-of-Place Example
       values[4] = 'e', values[5] = 'f', values[6] = 'g', values[7] = 'h';
 
       // sort each segment in descending order
-      using config_t = kt::gpu::radix_single_group_tag<8>;
-      auto e = kt::gpu::batched_stable_sort_by_key<config_t, false>(q, keys, keys + n, values, keys_out, values_out,
-                                                                    segment_size, kt::kernel_param<4, 64>{}); // (3)
+      using config_t = kt::gpu::radix_single_group_tag</*IsAscending=*/false, 8>;
+      auto e = kt::gpu::batched_stable_sort_by_key<config_t>(q, keys, keys + n, values, keys_out, values_out,
+                                                             segment_size, kt::kernel_param<4, 64>{}); // (3)
       e.wait();
 
       // print
@@ -430,13 +453,14 @@ with ``kernel_param`` tuned independently for each:
                           std::ptrdiff_t n, std::ptrdiff_t segment_size)
    {
       // Thresholds and kernel_params are illustrative; tune them for the target device and types.
+      using compare_t = std::conditional_t<IsAscending, std::less<>, std::greater<>>;
       if (segment_size <= 256)
-         return kt::gpu::batched_stable_sort_by_key<kt::gpu::merge_single_group_tag, IsAscending>(
+         return kt::gpu::batched_stable_sort_by_key<kt::gpu::merge_single_group_tag<compare_t>>(
             q, keys, keys + n, values, keys_out, values_out, segment_size, kt::kernel_param<4, 64>{});
       if (segment_size <= 4096)
-         return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_single_group_tag<8>, IsAscending>(
+         return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_single_group_tag<IsAscending, 8>>(
             q, keys, keys + n, values, keys_out, values_out, segment_size, kt::kernel_param<8, 512>{});
-      return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_many_groups_tag<8>, IsAscending>(
+      return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_many_groups_tag<IsAscending, 8>>(
          q, keys, keys + n, values, keys_out, values_out, segment_size, kt::kernel_param<8, 512>{});
    }
 
