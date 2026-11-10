@@ -529,18 +529,18 @@ struct __internal::__equal_fn
         else if constexpr (!std::ranges::sized_range<_R1>)
         {
             auto __sized_r1 = __sized_subrange_of(__r1, std::ranges::size(__r2));
-            return __sized_r1 && oneapi::dpl::__internal::__ranges::__pattern_equal(__dispatch_tag,
-                std::forward<_ExecutionPolicy>(__exec), *__sized_r1, std::forward<_R2>(__r2), __pred, __proj1,
-                __proj2);
+            return __sized_r1 && oneapi::dpl::__internal::__ranges::__pattern_equal(
+                                     __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), *__sized_r1,
+                                     std::forward<_R2>(__r2), __pred, __proj1, __proj2);
         }
         else
         {
             static_assert(!std::ranges::sized_range<_R2>);
 
             auto __sized_r2 = __sized_subrange_of(__r2, std::ranges::size(__r1));
-            return __sized_r2 && oneapi::dpl::__internal::__ranges::__pattern_equal(__dispatch_tag,
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), *__sized_r2, __pred, __proj1,
-                __proj2);
+            return __sized_r2 && oneapi::dpl::__internal::__ranges::__pattern_equal(
+                                     __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1),
+                                     *__sized_r2, __pred, __proj1, __proj2);
         }
     }
 }; //__equal_fn
