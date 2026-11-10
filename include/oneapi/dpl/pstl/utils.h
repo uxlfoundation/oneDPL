@@ -1319,8 +1319,7 @@ template <typename _Offset, typename _Size>
 constexpr _Size
 __segmented_reduce_clamp_offset(_Offset __offset, _Size __n)
 {
-    static_assert(std::is_integral_v<_Offset> && !std::is_same_v<_Offset, bool>,
-                  "The offsets of reduce_by_segment must be of an integral type other than bool");
+    static_assert(std::is_integral_v<_Offset> && std::is_integral_v<_Size>, "The value and the bound must be integral");
 
     using _Common = std::common_type_t<_Offset, _Size>;
     return static_cast<_Size>(std::min<_Common>(std::max<_Offset>(__offset, 0), static_cast<_Common>(__n)));
