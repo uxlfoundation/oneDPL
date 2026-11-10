@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The [Offset-Based Segmented Reduction](../segmented_reduce/README.md) RFC (#2848) adds a `reduce_by_segment` overload
+The [Offset-Based Segmented Reduction](README.md) RFC (#2848) adds a `reduce_by_segment` overload
 whose segments are defined by `num_segments + 1` offsets. Its performance depends on the distribution of the segment
 lengths much more than on the input size alone: an implementation picks different strategies for short, long and mixed
 segments, and the worst cases are skewed distributions, where a few very long segments coexist with millions of

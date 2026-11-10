@@ -43,7 +43,8 @@ Table of contents:
   - [Performance Studies](#performance-studies)
 
 See [reference implementations](reference_implementations.md) and the
-[usage pattern study](usage_pattern_study.md) for background.
+[usage pattern study](usage_pattern_study.md) for background, and the [benchmarking proposal](benchmarking.md)
+for the evaluation of the performance on real and synthetic segment distributions.
 
 ## Synopsis
 
@@ -967,7 +968,8 @@ because a sentinel `last` would require constraining or documenting a sentinel-i
 
 ### Performance Studies
 
-These papers may be useful when implementing the algorithm efficiently.
+These papers may be useful when implementing the algorithm efficiently. The data sets and the methodology used by
+the literature to evaluate such algorithms are reviewed in the [benchmarking proposal](benchmarking.md).
 
 - [Optimized Parallel Reduction for Regular and Irregular Segments on GPU (2026)](https://doi.org/10.1002/cpe.70715), [implementation](https://github.com/MichelBC/bestReduce)
 - [Advancing Awkward Arrays for High-Performance CPU and GPU Processing (2026)](https://arxiv.org/abs/2607.28145)
