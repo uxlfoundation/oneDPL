@@ -52,7 +52,6 @@
 #include <memory>   // std::destroy_at, std::destroy_n
 
 #include "by_segment_extension_defs.h"
-#include "../pstl/segmented_reduce_utils.h"
 
 #include "../pstl/glue_numeric_impl.h"
 #include "../pstl/glue_algorithm_impl.h" // TODO: replace the use of for_each & transform with __pattern_walk3
@@ -236,9 +235,9 @@ __brick_reduce_by_segment_offsets(_RandomAccessInputIt __first_value, _RandomAcc
 template <typename _IsVector, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
           typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
 _OutputValueIt
-__reduce_by_segment_offsets_impl(__internal::__serial_tag<_IsVector>, _Policy&&, _InputValueIt __first_value,
-                                 _InputValueIt __last_value, _OutputValueIt __result_value, _SegmentNum __num_segments,
-                                 _OffsetIt __offsets, _InitType __init, _BinaryOperation __binary_op)
+reduce_by_segment_offsets_impl(__internal::__serial_tag<_IsVector>, _Policy&&, _InputValueIt __first_value,
+                               _InputValueIt __last_value, _OutputValueIt __result_value, _SegmentNum __num_segments,
+                               _OffsetIt __offsets, _InitType __init, _BinaryOperation __binary_op)
 {
     using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
 
@@ -417,17 +416,15 @@ __reduce_by_segment_offsets_by_pieces(_BackendTag, _IsVector, _ExecutionPolicy& 
 template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessInputIt, typename _SegmentNum,
           typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
 _RandomAccessOutputIt
-__reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
-                                 _RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
-                                 _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
-                                 _RandomAccessOffsetIt __offsets, _InitType __init, _BinaryOperation __binary_op)
+reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
+                               _RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
+                               _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
+                               _RandomAccessOffsetIt __offsets, _InitType __init, _BinaryOperation __binary_op)
 {
     using __backend_tag = typename __internal::__parallel_tag<_IsVector>::__backend_tag;
     using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _RandomAccessInputIt, _BinaryOperation>;
-    using _Diff = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
-    // Promoted, so that the index arithmetic keeps the type, and covering the number of segments, which may exceed
-    // the size of the input, as on a device
-    using _Size = std::make_signed_t<std::common_type_t<decltype(+_Diff{}), decltype(+__num_segments)>>;
+    // The type of the index arithmetic, as on a device; signed, as a reversed segment has a negative length
+    using _Size = std::make_signed_t<decltype((__last_value - __first_value) + __num_segments)>;
 
     if (__num_segments <= 0)
         return __result_value;
@@ -624,8 +621,8 @@ reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_fir
 
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first, offsets, out_first);
 
-    return internal::__reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first, last,
-                                                      out_first, num_segments, offsets, init_value, binary_op);
+    return internal::reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first, last,
+                                                    out_first, num_segments, offsets, init_value, binary_op);
 }
 
 template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt, typename InitT>
