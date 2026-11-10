@@ -58,8 +58,8 @@ struct __segmented_reduce_variable_brick
         static_assert(_Params::__vector_size == 1,
                       "The brick operates with tuples which must be excluded from vectorizable types");
 
-        const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__idx], __n);
-        const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__idx + 1], __n);
+        const _Size __begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx], __n);
+        const _Size __end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx + 1], __n);
         if (__end - __begin > __threshold)
         {
             sycl::atomic_ref<std::uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device,
@@ -117,8 +117,8 @@ struct __segmented_reduce_length
     _Size
     operator()(_Offset __begin, _Offset __end) const
     {
-        const _Size __b = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__begin, __n);
-        const _Size __e = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__end, __n);
+        const _Size __b = oneapi::dpl::__internal::__clamp_to_size(__begin, __n);
+        const _Size __e = oneapi::dpl::__internal::__clamp_to_size(__end, __n);
         return __b < __e ? __e - __b : _Size{0};
     }
 };
@@ -172,8 +172,8 @@ struct __segmented_reduce_chunk_brick
                                                                        &__chunk, std::less<>{}, oneapi::dpl::identity{},
                                                                        oneapi::dpl::identity{});
         const _Size __first_chunk = __lo == 0 ? _Size{0} : _Size(__chunk_ends[__lo - 1]);
-        const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__lo], __n);
-        const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__lo + 1], __n);
+        const _Size __begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__lo], __n);
+        const _Size __end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__lo + 1], __n);
         const _Size __head = (__end - __begin) - (_Size(__chunk_ends[__lo]) - __first_chunk - 1) * __chunk_size;
 
         // One loop for every chunk, so that the work-items of a sub-group do not diverge into two long loops
