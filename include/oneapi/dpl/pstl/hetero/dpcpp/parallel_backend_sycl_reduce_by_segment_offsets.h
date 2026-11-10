@@ -216,7 +216,7 @@ struct __segmented_reduce_combine_brick
         const _Size __last = std::min<_Size>(__chunk_ends[__idx], __num_partials);
         if (__first < __last)
             std::get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(
-                __partials, __first + 1, __last, _Acc(__partials[__first]), __binary_op);
+                __partials, std::size_t(__first) + 1, std::size_t(__last), _Acc(__partials[__first]), __binary_op);
     }
 };
 
