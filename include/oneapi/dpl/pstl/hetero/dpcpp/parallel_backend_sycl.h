@@ -1080,11 +1080,25 @@ struct __early_exit_find_or
 
     static constexpr bool __wide = __width > 1;
 
+    // One range's elements for an iteration, in registers. Indexing yields the range's own reference type, as a
+    // view does, so the brick sees the same argument types as on the scalar path.
+    template <typename _Ref, std::size_t __n>
+    struct __staged_block
+    {
+        mutable std::array<std::remove_cv_t<std::remove_reference_t<_Ref>>, __n> __elems;
+
+        _Ref
+        operator[](std::size_t __j) const
+        {
+            return static_cast<_Ref>(__elems[__j]);
+        }
+    };
+
     template <typename _Range, std::size_t... __j>
     static auto
     __load_elems(const _Range& __rng, std::size_t __base, std::index_sequence<__j...>)
     {
-        return std::array<std::decay_t<decltype(__rng[__base])>, sizeof...(__j)>{__rng[__base + __j]...};
+        return __staged_block<decltype(__rng[__base]), sizeof...(__j)>{{__rng[__base + __j]...}};
     }
 
     // The pair adjacent_find passes: one range as take_view_simple(__r, __n - 1) and drop_view_simple(__r, 1).
@@ -1127,7 +1141,7 @@ struct __early_exit_find_or
         const auto __lo = __load_elems(__rng1, __base, std::index_sequence<__j...>{});
         const auto __last = __rng2[__base + __n - 1];
         auto __at = [&](std::size_t __k) { return __k < __n ? __lo[__k] : __last; };
-        return std::make_tuple(__lo, decltype(__lo){__at(__j + 1)...});
+        return std::make_tuple(__lo, std::decay_t<decltype(__lo)>{{__at(__j + 1)...}});
     }
 
     // One iteration's block of every range, in registers.
@@ -1291,6 +1305,19 @@ struct __brick_reads_at_scanned_index<oneapi::dpl::unseq_backend::single_match_p
 {
 };
 
+// Whether the wide scan may copy a range's elements into registers
+template <typename _Range>
+constexpr bool
+__find_or_elems_copyable()
+{
+    using _Ref = decltype(std::declval<const std::decay_t<_Range>&>()[0]);
+    using _Elem = std::remove_cv_t<std::remove_reference_t<_Ref>>;
+    if constexpr (std::is_reference_v<_Ref>)
+        return std::is_trivially_copy_constructible_v<_Elem> && std::is_trivially_destructible_v<_Elem>;
+    else
+        return std::is_copy_constructible_v<_Elem>;
+}
+
 template <typename _Brick, typename... _Ranges>
 constexpr bool
 __find_or_wide_scan_profitable()
@@ -1302,7 +1329,7 @@ __find_or_wide_scan_profitable()
     // Widest element type the wide scan accepts
     constexpr std::size_t __max_elem_size_bytes = 8;
 
-    return __brick_reads_at_scanned_index<_Brick>::value &&
+    return __brick_reads_at_scanned_index<_Brick>::value && (__find_or_elems_copyable<_Ranges>() && ...) &&
            oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value <= __max_elem_size_bytes;
 #endif
 }
