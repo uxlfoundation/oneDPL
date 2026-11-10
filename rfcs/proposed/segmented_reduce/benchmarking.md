@@ -4,17 +4,20 @@
 
 The [Offset-Based Segmented Reduction](README.md) RFC (#2848) adds a `reduce_by_segment` overload
 whose segments are defined by `num_segments + 1` offsets. Its performance depends on the distribution of the segment
-lengths much more than on the input size alone: an implementation picks different strategies for short, long and mixed
-segments, and the worst cases are skewed distributions, where a few very long segments coexist with millions of
-short or empty ones.
+lengths much more than on the input size alone: the work per segment ranges from nothing to the whole input, which
+makes the work hard to distribute evenly, and the hardest cases are skewed distributions, where a few very long
+segments coexist with many short or empty ones.
 
 The benchmarks used so far generate the segments synthetically: the lengths are drawn uniformly from one or two ranges
 (e.g. 1..1024, 1..16, 2K..128K, 64K..256K, and a mixture of 95 % short and 5 % very long segments). Such regimes are
-easy to reason about, but they miss the shapes that dominate in practice. The main source of offset-defined segments
-is the compressed sparse row (CSR) format: the row offsets of a sparse matrix or of a graph adjacency are exactly the
-offsets of this algorithm, and a row sum or a vertex degree computation is a segmented reduction over them. Real
-matrices and graphs have nearly uniform rows (finite element meshes), heavy-tailed rows (web and social graphs), and
-empty rows (isolated vertices, structurally singular matrices).
+easy to reason about, but they miss irregular shapes of real data. Offset-defined segments describe any ragged
+structure: ragged tensors, groups and clusters, rows of sparse matrices and neighborhoods of graph vertices, among the
+uses found in the [usage study](usage_pattern_study.md). Of these, sparse matrices and graphs are the only ones with
+public, well-documented collections of real data: in their compressed sparse row (CSR) form, the row offsets are
+exactly the offsets of this algorithm, and a row sum or a vertex degree computation is a segmented reduction over
+them. They have nearly uniform rows (finite element meshes), heavy-tailed rows (web and social graphs), and empty rows
+(isolated vertices, structurally singular matrices), so they serve here as examples of real irregular length
+distributions; the other sources are represented by the synthetic regimes.
 
 This document reviews how the literature and other libraries generate inputs for segmented reductions and the closely
 related sparse matrix-vector multiplication (SpMV), and proposes a benchmark design for oneDPL that combines
@@ -27,8 +30,8 @@ parameterized synthetic distributions with a fixed set of real matrices and grap
 ModernGPU [6] benchmarks its segmented reduction on segments whose lengths are drawn uniformly from `[1, 2 * avg]`
 (or `[0, 2 * avg]` when empty segments are allowed), so that the average length is `avg`. One series fixes the average
 at 500 and varies the input size; the other fixes the input size at 20M elements and sweeps the average over
-10, 20, 50, ..., 500K. The sweep is a compact way to locate the length thresholds at which an implementation switches
-strategies, and to compare implementations along the whole range of lengths rather than at a few points.
+10, 20, 50, ..., 500K. The sweep compares implementations over the whole range of lengths rather than at a few
+points.
 
 ### Fixed and bounded-uniform lengths (CUB)
 
