@@ -166,8 +166,8 @@ The data set is prepared once, by a script, from the following sources. The base
 
 1. Download every archive of the table with an HTTPS GET of `<base URL><group>/<name>.tar.gz` into a local cache
    directory; an archive already in the cache is not downloaded again.
-2. Verify the SHA-256 checksum of every archive against the list below, and stop on a mismatch: a changed source must
-   be reviewed and its checksum updated explicitly.
+2. Verify the checksum of every archive against the one recorded with the data, and stop on a mismatch: a changed
+   source must be reviewed and its checksum updated explicitly.
 3. Extract only the matrix file `<name>/<name>.mtx` from the archive; the other files of an archive (right-hand sides,
    coordinates, node names) are not used.
 4. Read the Matrix Market header `%%MatrixMarket matrix coordinate <field> <symmetry>`, skip the comment lines starting
@@ -186,26 +186,6 @@ Optionally, a larger SNAP graph not mirrored by the collection, `com-Orkut`, can
 `https://snap.stanford.edu/data/bigdata/communities/com-orkut.ungraph.txt.gz` (447 MB): an undirected edge list
 `<u> <v>` with comment lines starting with `#`; every edge then increments the lengths of both rows `u` and `v`.
 It is not part of the prototype.
-
-SHA-256 checksums of the archives, as downloaded on the date of this proposal:
-
-```
-cb8681ba8987fd44214b0c25ca499610b710af979e87d9c3e5b2c87aff59790a  Williams/pdb1HYS.tar.gz
-a06af28ebb94274fd5cea46d4965e7feba9f0375fa40c9030a9eab45e1e128fd  Williams/consph.tar.gz
-58c63a4a0c446c4b57dd3146b0c4dc1bd8416dc4eee2dfbe7dd45cfb3e7181d7  Williams/cant.tar.gz
-46e4f709fae9d70c148e1b01ebf55cc63d4a6d9ecc8c5331d2dc0f936a64eb99  Boeing/pwtk.tar.gz
-50db8d278d371531b3dd0638444d47a77f3a3e189663993a857861dbc34c5e3f  Bova/rma10.tar.gz
-63e4f4839cd739c53cd753a7456db2822a6dba681b20782417bc0f25dcb34eeb  QCD/conf5_4-8x8-05.tar.gz
-d021889affed5429f85b606900f76870d0b1b1aefd92529cc6f43bf9d7ef0eb1  DNVS/shipsec1.tar.gz
-0dec2952b2908e3d59e4179289245db7f2c84f9e5e6543e818491deed5978f82  Williams/mac_econ_fwd500.tar.gz
-c02fef86efdd4f4322487e7472697a3d30b084ede1021e6d6889b347d3f6b268  Williams/mc2depi.tar.gz
-cf055e12e788e72d40d625bd848a7b716608e5c6aa892080497efd5f3454bb9e  Williams/cop20k_A.tar.gz
-227d4c98e51c8af49c07f89929c62f2523e115e81b672e7f306185ea92c2996f  Hamm/scircuit.tar.gz
-17a0391cdd966350b2b41f32aaf8e6684f3c55f25eb68c4be088f44f728a3ed4  Williams/webbase-1M.tar.gz
-084d77a0ef65b86cab1766dc7246b43a281fcc96bc3982e515aa76275caa3707  Mittelmann/rail4284.tar.gz
-15fa6d28895f030f03c2da0b8c25ab19fd207614e397706d00003264abe37337  SNAP/web-Google.tar.gz
-6518202e02a60f4db9828f3f6ce756191436e61c061c44b66e869b7ba28a647b  SNAP/soc-LiveJournal1.tar.gz
-```
 
 ### Delivery of the data
 
