@@ -15,37 +15,28 @@
 
 #include "std_ranges_test.h"
 
-#include <numeric> // for std::iota
+#include <type_traits> // for std::is_invocable_v
 #include <vector>
 
 #if _ENABLE_STD_RANGES_TESTING
-// A sentinel that is not a sized_sentinel_for its iterator, which makes a finite random access range unsized
-template <typename It>
-struct unsized_sentinel
-{
-    It end{};
+using infinite_t = std::ranges::iota_view<int, std::unreachable_sentinel_t>;
 
-    friend bool
-    operator==(const It& it, const unsized_sentinel& s)
-    {
-        return it == s.end;
-    }
-};
+static_assert(std::ranges::random_access_range<infinite_t> && !std::ranges::sized_range<infinite_t>);
 
-template <typename It>
-auto
-make_unsized(It first, It last)
-{
-    return std::ranges::subrange(first, unsized_sentinel<It>{last});
-}
+// At least one range must be sized
+using policy_t = decltype(oneapi::dpl::execution::seq);
+static_assert(std::is_invocable_v<decltype(oneapi::dpl::ranges::equal), policy_t, std::vector<int>&, infinite_t>);
+static_assert(std::is_invocable_v<decltype(oneapi::dpl::ranges::equal), policy_t, infinite_t, std::vector<int>&>);
+static_assert(!std::is_invocable_v<decltype(oneapi::dpl::ranges::equal), policy_t, infinite_t, infinite_t>);
 
 template <typename Policy, typename TView1, typename TView2>
 void
 test_impl(Policy&& exec, TView1&& view1, TView2&& view2, bool expected)
 {
     namespace dpl_ranges = oneapi::dpl::ranges;
-    const char* err_msg = "Wrong effect algo equal with unsized ranges.";
+    const char* err_msg = "Wrong effect algo equal with an infinite range.";
 
+    // An infinite range is compared up to the size of the sized one
     EXPECT_TRUE(dpl_ranges::equal(exec, view1, view2) == expected, err_msg);
     EXPECT_TRUE(dpl_ranges::equal(std::forward<Policy>(exec), view2, view1) == expected, err_msg);
 }
@@ -54,32 +45,23 @@ template <typename Policy>
 void
 test_host(Policy&& exec)
 {
-    const int n = test_std_ranges::medium_size;
-    std::vector<int> sized(n);
-    std::iota(sized.begin(), sized.end(), 0);
+    std::vector<int> sized(test_std_ranges::medium_size);
+    for (int i = 0; i < (int)sized.size(); ++i)
+        sized[i] = i;
 
-    // Holds one element more than "sized", to build unsized ranges that are longer or shorter by one
-    std::vector<int> data(n + 1);
-    std::iota(data.begin(), data.end(), 0);
+    // Equal elements
+    test_impl(exec, sized, infinite_t(0), true);
+    // Empty sized range
+    test_impl(exec, std::ranges::subrange(sized.begin(), sized.begin()), infinite_t(0), true);
+    // Different elements
+    test_impl(exec, sized, infinite_t(1), false);
 
-    static_assert(!std::ranges::sized_range<decltype(make_unsized(data.begin(), data.end()))>);
-    static_assert(std::ranges::random_access_range<decltype(make_unsized(data.begin(), data.end()))>);
-
-    // Infinite range
-    test_impl(exec, sized, std::ranges::iota_view(0, std::unreachable_sentinel_t{}), false);
-    // Finite unsized ranges: equal, shorter, longer
-    test_impl(exec, sized, make_unsized(data.begin(), data.begin() + n), true);
-    test_impl(exec, sized, make_unsized(data.begin(), data.begin() + n - 1), false);
-    test_impl(exec, sized, make_unsized(data.begin(), data.end()), false);
-
-    // Same length, one element differs
     std::vector<int> other = sized;
-    other[n / 2] = -1;
-    test_impl(exec, sized, make_unsized(other.begin(), other.end()), false);
-
-    // Empty ranges
-    test_impl(exec, std::ranges::subrange(sized.begin(), sized.begin()), make_unsized(data.begin(), data.begin()),
-              true);
+    other[other.size() / 2] = -1;
+    test_impl(exec, other, infinite_t(0), false);
+    other.back() = -1;
+    other[other.size() / 2] = sized[other.size() / 2];
+    test_impl(exec, other, infinite_t(0), false);
 }
 #endif // _ENABLE_STD_RANGES_TESTING
 
@@ -93,18 +75,15 @@ main()
     test_host(oneapi::dpl::execution::par_unseq);
 
 #if TEST_DPCPP_BACKEND_PRESENT
-    const int n = test_std_ranges::medium_size;
-    std::ranges::iota_view sized(0, n);
-    std::ranges::iota_view infinite(0, std::unreachable_sentinel_t{});
+    std::ranges::iota_view sized(0, test_std_ranges::medium_size);
 
     auto policy = TestUtils::get_dpcpp_test_policy();
-    test_impl(policy, sized, infinite, false);
-    test_impl(policy, sized, make_unsized(infinite.begin(), infinite.begin() + n), true);
-    test_impl(policy, sized, make_unsized(infinite.begin(), infinite.begin() + n + 1), false);
+    test_impl(policy, sized, infinite_t(0), true);
+    test_impl(policy, sized, infinite_t(1), false);
 
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
     TestUtils::check_compilation(policy, [&](auto&& policy) {
-        test_impl(std::forward<decltype(policy)>(policy), sized, infinite, false);
+        test_impl(std::forward<decltype(policy)>(policy), sized, infinite_t(0), true);
     });
 #endif
 #endif // TEST_DPCPP_BACKEND_PRESENT
