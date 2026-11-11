@@ -95,28 +95,6 @@ The default handler prints an error message and terminates the application.
 
 Thrust uses `assert` in some places; CUB does not.
 
-### [HPX](https://github.com/STEllAR-GROUP/hpx/blob/master/docs/sphinx/manual/building_hpx.rst)
-
-- CMake `debug` mode, when building HPX, enables "additional" assertions.
-- Uses `assert`: no, except for some rare cases.
-
-### Kokkos
-
-- [`NDEBUG`](https://github.com/kokkos/kokkos-core-wiki/blob/main/docs/source/API/core/utilities/assert.rst): disables `KOKKOS_ASSERT`, unless `KOKKOS_ENABLE_DEBUG` is defined.
-- [`KOKKOS_ENABLE_DEBUG`](https://github.com/kokkos/kokkos-core-wiki/blob/main/docs/source/API/core/utilities/assert.rst): enables `KOKKOS_ASSERT` regardless of `NDEBUG`. On by default for the Debug build type.
-- [`Kokkos_ENABLE_DEBUG_BOUNDS_CHECK`](https://kokkos.org/kokkos-core-wiki/get-started/configuration-guide.html): bounds checking, which "will increase runtime". Off by default.
-- Uses `assert`: no.
-
-### Summary
-
-- These libraries do not rely on `NDEBUG`: each provides its own macros to control its checks.
-  They allow enabling their assertions even if `NDEBUG` is defined.
-- Several libraries tie default checks to a debug build, detected by the build type,
-  `_DEBUG`, or the absence of optimization. libc++ vendors choose the default hardening mode.
-- Expensive checks are opt-in: libstdc++ debug mode, the libc++ debug hardening mode,
-  bounds checking in Kokkos.
-- Some provide several levels of checking (libstdc++, libc++, MSVC STL, Kokkos).
-
 ## oneDPL Assertions
 
 ### Internal vs User-Facing Assertions
