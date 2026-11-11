@@ -66,6 +66,23 @@ struct __pfor_params_simple
     constexpr static std::uint8_t __iters_per_item = 1;
 };
 
+// A brick opts out of the vectorization by defining `static constexpr bool __can_vectorize = false`: it is then given
+// the parameters without the vectorization whatever the value types of its ranges are. The number of iterations per
+// work-item is chosen apart, by __iters_per_item of the brick or else from the ranges.
+template <typename _Brick, typename = void>
+struct __brick_can_vectorize : std::true_type
+{
+};
+template <typename _Brick>
+struct __brick_can_vectorize<_Brick, std::void_t<decltype(_Brick::__can_vectorize)>>
+    : std::bool_constant<_Brick::__can_vectorize>
+{
+};
+
+template <typename _Brick, typename... _Ranges>
+using __pfor_params_for_brick =
+    std::conditional_t<__brick_can_vectorize<_Brick>::value, __pfor_params<_Ranges...>, __pfor_params_simple>;
+
 template <typename _Brick1, typename _Brick2>
 struct __dual_brick
 {
@@ -264,7 +281,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     __future<sycl::event>
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
-        using __params_t = __pfor_params<_Ranges...>;
+        using __params_t = __pfor_params_for_brick<_Fp, _Ranges...>;
         const std::uint16_t __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__q, __work_group_size_limit);
         _PRINT_INFO_IN_DEBUG_MODE(__q);
@@ -316,7 +333,7 @@ __parallel_for_impl(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... 
     // Compile two kernels: one for small-to-medium inputs and a second for large. This avoids runtime checks within a
     // single kernel that worsen performance for small cases. If the number of iterations of the large submitter is 1,
     // then only compile the basic kernel as the two versions are effectively the same.
-    if constexpr (__iters_per_work_item > 1 || __pfor_params<_Ranges...>::__vector_size > 1)
+    if constexpr (__iters_per_work_item > 1 || __pfor_params_for_brick<_Fp, _Ranges...>::__vector_size > 1)
     {
         if (__count >= __large_submitter::__minimal_useful_size(__q, __iters_per_work_item))
         {
