@@ -140,9 +140,9 @@ struct __segmented_reduce_chunk_count
     }
 };
 
-// Reduces one chunk of a long segment. The first chunk of a segment takes the remainder of its length and starts
-// from the initial value converted to the accumulator type; every other chunk has exactly __chunk_size elements and
-// starts from the operation on its first two elements.
+// Reduces one chunk of a long segment. The first chunk of a segment, its head, takes the remainder of its length and
+// starts from the initial value converted to the accumulator type; every other chunk has exactly __chunk_size elements
+// and starts from the operation on its first two elements.
 template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_chunk_brick
 {
@@ -168,26 +168,29 @@ struct __segmented_reduce_chunk_brick
             return;
 
         // The segment of the chunk: the first one whose chunks end after it, the last one if no other does
-        const _Size __lo = oneapi::dpl::__internal::__pstl_upper_bound(__chunk_ends, _Size{0}, __num_segments - 1,
-                                                                       &__chunk, std::less<>{}, oneapi::dpl::identity{},
-                                                                       oneapi::dpl::identity{});
-        const _Size __first_chunk = __lo == 0 ? _Size{0} : _Size(__chunk_ends[__lo - 1]);
-        const _Size __begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__lo], __n);
-        const _Size __end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__lo + 1], __n);
-        const _Size __head = (__end - __begin) - (_Size(__chunk_ends[__lo]) - __first_chunk - 1) * __chunk_size;
+        const _Size __segment_idx = oneapi::dpl::__internal::__pstl_upper_bound(
+            __chunk_ends, _Size{0}, __num_segments - 1, &__chunk, std::less<>{}, oneapi::dpl::identity{},
+            oneapi::dpl::identity{});
+        const _Size __segment_first_chunk = __segment_idx == 0 ? _Size{0} : _Size(__chunk_ends[__segment_idx - 1]);
+        const _Size __segment_begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__segment_idx], __n);
+        const _Size __segment_end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__segment_idx + 1], __n);
+        const _Size __head_length = (__segment_end - __segment_begin) -
+                                    (_Size(__chunk_ends[__segment_idx]) - __segment_first_chunk - 1) * __chunk_size;
 
         // One loop for every chunk, so that the work-items of a sub-group do not diverge into two long loops
-        const _Size __k = __chunk - __first_chunk;
-        const _Size __chunk_begin = __k == 0 ? __begin : __begin + __head + (__k - 1) * __chunk_size;
-        const _Size __chunk_end = __k == 0 ? __begin + __head : __chunk_begin + __chunk_size;
-        // The first chunk starts from the initial value; any other chunk starts from the operation on its first two
+        const _Size __chunk_idx_in_segment = __chunk - __segment_first_chunk;
+        const bool __is_head = __chunk_idx_in_segment == 0;
+        const _Size __chunk_begin =
+            __is_head ? __segment_begin : __segment_begin + __head_length + (__chunk_idx_in_segment - 1) * __chunk_size;
+        const _Size __chunk_end = __is_head ? __segment_begin + __head_length : __chunk_begin + __chunk_size;
+        // The head starts from the initial value; any other chunk starts from the operation on its first two
         // elements, as a partial result of std::reduce does: the accumulator is never made from an element alone,
         // which may mean something else than the element to the operation (such a chunk has at least 64 elements)
         _Acc __start = __init;
-        if (__k != 0)
+        if (!__is_head)
             __start = std::invoke(__binary_op, __input[__chunk_begin], __input[__chunk_begin + 1]);
         std::get<0>(__partials[__idx]) = oneapi::dpl::__internal::__serial_accumulate<_Acc>(
-            __input, __chunk_begin + (__k == 0 ? 0 : 2), __chunk_end, std::move(__start), __binary_op);
+            __input, __chunk_begin + (__is_head ? 0 : 2), __chunk_end, std::move(__start), __binary_op);
     }
 };
 
