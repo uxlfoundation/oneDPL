@@ -1291,36 +1291,6 @@ inline constexpr bool __trivial_uninitialized_value_construct =
     std::is_trivially_default_constructible_v<_ValueType> && // required operation
     std::is_trivially_copy_assignable_v<_ValueType>;         // actual operation
 
-// Clamps an integral value to [0, n], also for a signed value and an unsigned n or the other way round
-template <typename _Tp, typename _Size>
-constexpr _Size
-__clamp_to_size(_Tp __value, _Size __n)
-{
-    static_assert(std::is_integral_v<_Tp> && std::is_integral_v<_Size>, "The value and the bound must be integral");
-
-    using _Common = std::common_type_t<_Tp, _Size>;
-    return static_cast<_Size>(std::min<_Common>(std::max<_Tp>(__value, 0), static_cast<_Common>(__n)));
-}
-
-// Folds the elements [__begin, __end) of a random access iterator or a range from left to right into an accumulator
-// made from the initial value, as std::accumulate does; an empty range gives the initial value converted to the
-// accumulator type
-template <typename _Acc, typename _Source, typename _Index, typename _InitType, typename _BinaryOperation>
-_Acc
-__serial_accumulate(const _Source& __src, _Index __begin, _Index __end, _InitType __init, _BinaryOperation& __binary_op)
-{
-    _Acc __acc = std::move(__init);
-
-    // Unrolled on a device, where a work-item reducing alone would wait for every load
-#if defined(__SYCL_DEVICE_ONLY__)
-    _ONEDPL_PRAGMA(unroll 16)
-#endif
-    for (; __begin < __end; ++__begin)
-        __acc = std::invoke(__binary_op, std::move(__acc), __src[__begin]);
-
-    return __acc;
-}
-
 // Trick to get behavior similar to static_assert(false) pre-C++23.
 template <typename...>
 inline constexpr bool __always_false_v = false;
