@@ -128,7 +128,7 @@ struct test_reduce_by_segment_offsets
         std::vector<typename std::iterator_traits<OffsetIt>::value_type> offsets_copy;
         if (num_segments > 0)
             std::copy_n(offsets, num_segments + 1, std::back_inserter(offsets_copy));
-        std::vector<Out> expected(std::distance(out_first, out_last), unwritten);
+        std::vector<Out> expected(static_cast<std::size_t>(std::distance(out_first, out_last)), unwritten);
         reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets_copy.begin(), num_segments, init, op,
                                          expected.begin());
 
