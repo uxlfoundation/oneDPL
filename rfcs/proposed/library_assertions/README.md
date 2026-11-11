@@ -88,11 +88,12 @@ The default handler prints an error message and terminates the application.
 
 ### [CCCL](https://github.com/NVIDIA/cccl/blob/main/docs/cccl/config_macros.rst) (Thrust, CUB, libcu++)
 
-- `CCCL_ENABLE_ASSERTIONS`: host and device checks. Implied by compiling in debug mode.
-- `CCCL_ENABLE_HOST_ASSERTIONS`: host checks, independent of debug mode. Implied by `CCCL_ENABLE_ASSERTIONS`.
-- `CCCL_ENABLE_DEVICE_ASSERTIONS`: device checks, independent of debug mode. Implied by `CCCL_ENABLE_ASSERTIONS`.
-- The macros must be defined consistently in the whole project.
-- Uses `assert`: yes in Thrust, no in CUB.
+| | `CCCL_ENABLE_ASSERTIONS` | `CCCL_ENABLE_HOST_ASSERTIONS` | `CCCL_ENABLE_DEVICE_ASSERTIONS` |
+|---|---|---|---|
+| Purpose | Host and device checks | Host checks, independent of debug mode | Device checks, independent of debug mode |
+| Default | Enabled when compiling in debug mode | Implied by `CCCL_ENABLE_ASSERTIONS` | Implied by `CCCL_ENABLE_ASSERTIONS` |
+
+Thrust uses `assert` in some places; CUB does not.
 
 ### [HPX](https://github.com/STEllAR-GROUP/hpx/blob/master/docs/sphinx/manual/building_hpx.rst)
 
@@ -137,7 +138,9 @@ The default handler prints an error message and terminates the application.
 
 ## Proposal
 
-1. Add a macro `ONEDPL_USE_ASSERT` to control internal assertions.
+TBD
+
+<!-- 1. Add a macro `ONEDPL_USE_ASSERT` to control internal assertions.
 2. Have a single level of internal assertions.
 3. Do not enable assertions automatically based on platform-specific flags.
 4. Do not enable assertions automatically for the CMake `Debug` build type.
@@ -163,4 +166,4 @@ Lack of portability leads to inconsistency, and more complicated rules.
 between the debug build type and the enabling of assertions in oneDPL specifically.
 
 (5) CMake option duplicates the macro. The users can set `target_compile_definitions`
-or pass the macro definition via `CMAKE_CXX_FLAGS`.
+or pass the macro definition via `CMAKE_CXX_FLAGS`. -->
