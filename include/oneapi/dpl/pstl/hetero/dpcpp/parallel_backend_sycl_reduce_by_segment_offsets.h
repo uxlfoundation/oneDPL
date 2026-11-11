@@ -274,7 +274,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         // The end of the chunks of every segment: an inclusive scan of their numbers, computed from the pairs of
         // the adjacent offsets. The chunks depend on it through __chunk_ends, so the host does not wait for it; its
         // future keeps the temporary data of the scan until the partial results are combined.
-        auto __chunk_ends = __buffer<_Size>(__m).get_buffer();
+        oneapi::dpl::__par_backend_hetero::__buffer<_Size> __chunk_ends_buf(__m);
+        auto __chunk_ends = __chunk_ends_buf.get_buffer();
+
         auto __scan = __parallel_transform_scan(
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
             oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
@@ -285,7 +287,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
 
         // At most n / __chunk_size + 1 chunks per segment, unless the offsets are not ordered
         const _Size __num_partials = __n / __chunk_size + __max_segments + 1;
-        auto __partials = __buffer<_Acc>(__num_partials).get_buffer();
+        oneapi::dpl::__par_backend_hetero::__buffer<_Acc> __partials_buf(__num_partials);
+        auto __partials = __partials_buf.get_buffer();
+
         __parallel_for(
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec),
             __segmented_reduce_chunk_brick<_Acc, _Size, _BinaryOperation>{__n, __m, __chunk_size, __init, __binary_op},
@@ -328,7 +332,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
 
     // The short segments, one work-item each; the long ones only report the longest length. The report is in a buffer,
     // which costs less on GPUs than copying it from device USM.
-    auto __report_buf = __buffer<std::uint32_t>(1).get_buffer();
+    oneapi::dpl::__par_backend_hetero::__buffer<std::uint32_t> __report_storage(1);
+    auto __report_buf = __report_storage.get_buffer();
+
     // The buffer has no host data: the atomic maximum starts from the zero written here
     __report_buf.get_host_access(sycl::write_only)[0] = 0;
     __parallel_for(
