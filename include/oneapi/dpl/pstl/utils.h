@@ -1321,12 +1321,6 @@ __serial_accumulate(const _Source& __src, _Index __begin, _Index __end, _InitTyp
     return __acc;
 }
 
-// The accumulator type of reduce_by_segment with segments defined by offsets, shared by the host and the device
-// implementations
-template <typename _InitType, typename _InputIterator, typename _BinaryOperation>
-using __segmented_reduce_acc_t = std::decay_t<
-    std::invoke_result_t<_BinaryOperation&, _InitType, typename std::iterator_traits<_InputIterator>::reference>>;
-
 // Trick to get behavior similar to static_assert(false) pre-C++23.
 template <typename...>
 inline constexpr bool __always_false_v = false;

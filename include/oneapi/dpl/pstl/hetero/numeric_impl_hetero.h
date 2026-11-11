@@ -285,7 +285,8 @@ __pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&
     if (__num_segments <= 0)
         return __result;
 
-    using _Acc = __segmented_reduce_acc_t<_InitType, _RandomAccessInputIt, _BinaryOperation>;
+    using _Acc = std::decay_t<std::invoke_result_t<_BinaryOperation&, _InitType,
+                                                   typename std::iterator_traits<_RandomAccessInputIt>::reference>>;
     // The type of the index arithmetic; signed, as a reversed segment has a negative length
     using _Size = std::make_signed_t<decltype((__last - __first) + __num_segments)>;
 

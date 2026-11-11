@@ -186,7 +186,8 @@ __pattern_reduce_by_segment_offsets(_Tag, _Policy&&, _InputValueIt __first_value
 {
     static_assert(__is_host_dispatch_tag_v<_Tag>);
 
-    using _Acc = __segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
+    using _Acc = std::decay_t<
+        std::invoke_result_t<_BinaryOperation&, _InitType, typename std::iterator_traits<_InputValueIt>::reference>>;
     using _Size = typename std::iterator_traits<_InputValueIt>::difference_type;
 
     const _Size __n = __last_value - __first_value;
