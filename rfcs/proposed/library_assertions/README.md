@@ -59,6 +59,8 @@ libc++ does not use `assert`; It adds hardening modes, which inspired [C++26 Har
 - `quick-enforce`: terminate the program immediately via a trap. Default for `FAST` and `EXTENSIVE`.
 - `enforce`: log the failure and terminate the program. Default for `DEBUG`.
 
+libc++ also had `_LIBCPP_DEBUG` and `_LIBCPP_ASSERT` macros, which were removed in libc++17.
+
 ### MSVC STL
 
 MSVC STL does not use `assert` and relies on the following macros:
@@ -78,7 +80,7 @@ oneTBB does not use `assert` and relies on the following macros:
 
 | | `TBB_USE_DEBUG` | `TBB_USE_ASSERT` | `__TBB_ASSERT_RELEASE` (undocumented) |
 |---|---|---|---|
-| Purpose | Sets defaults for `TBB_USE_ASSERT` and `TBB_USE_PROFILING_TOOLS`; enables additional debug code (besides assertions) | Internal assertion checking | Always-enabled internal assertion checks |
+| Purpose | Sets defaults for `TBB_USE_ASSERT` and `TBB_USE_PROFILING_TOOLS`; enables additional debug code (besides assertions) | Internal assertion checking | Internal assertion checking |
 | Cost | Can significantly slow down performance | Can significantly slow down performance | ? |
 | Default | `1` on Windows if `_DEBUG` is defined (`/MDd` or `/MTd`), `0` otherwise | Value of `TBB_USE_DEBUG` | Always enabled, regardless of `TBB_USE_ASSERT`, `TBB_USE_DEBUG`, or `NDEBUG` |
 
@@ -118,30 +120,63 @@ Thrust uses `assert` in some places; CUB does not.
 
 TBD
 
-<!-- 1. Add a macro `ONEDPL_USE_ASSERT` to control internal assertions.
-2. Have a single level of internal assertions.
-3. Do not enable assertions automatically based on platform-specific flags.
-4. Do not enable assertions automatically for the CMake `Debug` build type.
-5. Do not add CMake options to control `ONEDPL_USE_ASSERT`.
-6. Set `ONEDPL_USE_ASSERT=1` in the CI, except for the `Release` build.
-7. Document the macro for both library headers and the CMake build system.
+## Open Questions
 
-(1) The naming follows the oneTBB convention, another oneAPI library.
-If `ONEDPL_USE_ASSERT` is`0` or undefined, the assertions are disabled, otherwise they are enabled.
-There is no dependency on `NDEBUG`,
-hence `ONEDPL_USE_ASSERT` should be implemented without `assert`,
-but its behaviour should match the `assert`'s behaviour.
+1. **Should the macros have "assert" or "debug" or even "hardening" semantics?**
 
-(2) is because the use of internal assertions in oneDPL is not uniform,
-there are no developer guidelines,
-so levels needs to be clearly defined and consistently maintained.
+    - **Assert** implies that the checks follow the `assert` rules, e.g., cause an abort.
+    - **Debug** implies that the checks are intended for development and not production.
+    - **Hardening** implies that the checks are intended to enforce security and robustness,
+    potentially in production as well.
 
-(3) is because enabling assertions automatically
-based on platform-specific flags is not portable.
-Lack of portability leads to inconsistency, and more complicated rules.
+    oneTBB's `TBB_USE_DEBUG` and `TBB_USE_ASSERT` look like different levels of checks.
+    The same applies to libstdc++'s `_GLIBCXX_DEBUG` and `_GLIBCXX_ASSERTIONS` macros.
 
-(4) CMake is portable, however a user may want to differentiate
-between the debug build type and the enabling of assertions in oneDPL specifically.
+   **Tentative answer:** Follow **Hardening** semantics.
+   It will impact the name/names of the macros.
 
-(5) CMake option duplicates the macro. The users can set `target_compile_definitions`
-or pass the macro definition via `CMAKE_CXX_FLAGS`. -->
+2. **Should there be one or multiple layers of checks?**
+
+    Separate layers for cheap and expensive checks could let users choose the acceptable overhead.
+    However, multiple layers add maintenance cost: they need to be documented,
+    and developers need to classify checks consistently.
+    The current use of assertions in oneDPL have differnt costs, serve different purposes,
+    and there are no developer guidelines.
+
+   **Tentative answer:** ?
+
+3. **Should internal and user-facing checks be controlled separately?**
+
+    Internal checks help developers detect implementation errors,
+    while user-facing checks diagnose violations of algorithm preconditions.
+    Some checks serve both purposes.
+
+   **Tentative answer:** ?
+
+4. **Should debug checks be inferred from compiler flags or CMake build configurations?**
+
+    MSVC STL and oneTBB infer debug settings from compiler flags on Windows.
+    Such platform-specific defaults are not portable and can lead to inconsistent behavior
+    and more complicated configuration rules.
+    CMake provides portable build configurations, but users
+    may also want to choose debug compilation and oneDPL assertions independently.
+
+    **Tentative answer:** Do not infer the checks and their levels; make them explicit.
+
+5. **Should there be a dedicated CMake option to enable checks?**
+
+    An option could make configuration more discoverable,
+    but would duplicate the macro.
+
+    Users can already define the macro with `target_compile_definitions`
+    or pass it through `CMAKE_CXX_FLAGS`.
+
+    **Tentative answer:** Do not add a dedicated CMake option.
+
+6. **Should host and device checks be controlled separately?**
+
+    In oneDPL's SYCL backend, users may want to enable checks in host-side setup
+    independently of checks in device kernels.
+    oneDPL has no device checks, and it is questionable if they are feasible.
+
+    **Tentative answer:** Do not separate host and device checks for now.
