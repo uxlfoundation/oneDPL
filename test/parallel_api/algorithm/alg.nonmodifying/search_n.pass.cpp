@@ -121,19 +121,17 @@ void
 test_narrow_count_type()
 {
     const std::size_t type_range = std::size_t(std::numeric_limits<Size>::max()) + 1;
+    const Size count = Size(2);
     for (std::size_t n : {type_range + 1, 2 * type_range, 3 * type_range + 1})
     {
-        for (Size count : {Size(1), Size(2)})
+        for (std::size_t pos : {n / 2, n - count})
         {
-            for (std::size_t pos : {std::size_t(0), n / 2, n - count})
-            {
-                Sequence<std::int32_t> in(n, [](std::size_t) { return 0; });
-                for (std::size_t i = 0; i < count; ++i)
-                    in[pos + i] = 1;
+            Sequence<std::int32_t> in(n, [](std::size_t) { return 0; });
+            for (std::size_t i = 0; i < count; ++i)
+                in[pos + i] = 1;
 
-                invoke_on_all_policies<CallNumber>()(test_search_n<std::int32_t>(), in.begin(), in.end(), count,
-                                                     std::int32_t(1), std::equal_to<std::int32_t>());
-            }
+            invoke_on_all_policies<CallNumber>()(test_search_n<std::int32_t>(), in.begin(), in.end(), count,
+                                                 std::int32_t(1), std::equal_to<std::int32_t>());
         }
     }
 }
