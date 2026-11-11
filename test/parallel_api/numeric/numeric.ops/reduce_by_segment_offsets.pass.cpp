@@ -28,7 +28,7 @@
 
 #include <algorithm>   // std::copy_n, std::fill, std::min, std::max
 #include <cstddef>     // std::size_t, std::nullptr_t
-#include <cstdint>     // std::int16_t, std::int64_t, std::uint32_t, std::uint64_t
+#include <cstdint>     // std::int16_t, std::int64_t, std::uint8_t, std::uint32_t, std::uint64_t
 #include <functional>  // std::plus, std::multiplies, std::bit_xor, std::logical_and
 #include <iterator>    // std::back_inserter, std::distance, std::iterator_traits, std::random_access_iterator_tag
 #include <limits>      // std::numeric_limits
@@ -507,6 +507,7 @@ class KernelNameUSM;
 class KernelNameBuffer;
 class KernelNameCounting;
 class KernelNameNarrowCounting;
+class KernelNameSmallTypes;
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 // Counting iterators help cover input with specific difference types.
@@ -553,6 +554,37 @@ test_narrow_counting_input()
     test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameNarrowCounting), first, first + n,
                                      out.begin(), out.end(), offsets.begin(), num_segments, std::int64_t{5},
                                      std::plus<std::int64_t>{}, std::int64_t{-1});
+#endif
+}
+
+// 8-bit values, accumulator and results, and enough segments for the kernels of __parallel_for which would vectorize
+// over 8-bit values: the bricks of a device reduce whole segments or chunks and must opt out of the vectorization
+void
+test_small_types()
+{
+    // Short segments, so that they are reduced one per work-item, and one long segment, so that the partial results of
+    // its chunks are combined, one work-item per segment again; it is at an odd index, which a vectorized combination
+    // would skip
+    const std::size_t num_segments = 1 << 19;
+    std::mt19937 gen(42);
+    std::uniform_int_distribution<std::int64_t> length(0, 16);
+    std::vector<std::int64_t> offsets(num_segments + 1, 0);
+    for (std::size_t i = 0; i < num_segments; ++i)
+        offsets[i + 1] = offsets[i] + (i == num_segments / 2 + 1 ? 100000 : length(gen));
+    std::vector<std::uint8_t> in(static_cast<std::size_t>(offsets.back()));
+    for (std::size_t i = 0; i < in.size(); ++i)
+        in[i] = std::uint8_t(i * 7919 % 251);
+    std::vector<std::uint8_t> out(num_segments, 0xFF);
+    // The number of segments of the signed difference type of the offsets, as a size_t one is converted to index them
+    const std::int64_t m = static_cast<std::int64_t>(num_segments);
+    test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, in.begin(), in.end(), out.begin(), out.end(),
+                                     offsets.begin(), m, std::uint8_t{5}, std::bit_xor<std::uint8_t>{},
+                                     std::uint8_t{0xFF});
+#if TEST_DPCPP_BACKEND_PRESENT
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameSmallTypes), in.begin(), in.end(),
+                                     out.begin(), out.end(), offsets.begin(), m, std::uint8_t{5},
+                                     std::bit_xor<std::uint8_t>{}, std::uint8_t{0xFF});
 #endif
 }
 
@@ -626,6 +658,7 @@ main()
     test_fixed_length_segments<45>();
     test_counting_input();
     test_narrow_counting_input();
+    test_small_types();
 
 #if TEST_DPCPP_BACKEND_PRESENT
     test_usm<sycl::usm::alloc::shared, KernelNameUSM>();
