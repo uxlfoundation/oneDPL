@@ -505,12 +505,12 @@ struct __internal::__equal_fn
             static_assert(std::is_same_v<std::ranges::sentinel_t<_R1>, std::unreachable_sentinel_t>,
                           "oneapi::dpl::ranges::equal: an unsized range must be infinite");
 
-            auto __sized_r1 = std::ranges::subrange(
-                std::ranges::begin(__r1),
-                std::ranges::begin(__r1) + std::ranges::range_difference_t<_R1>(std::ranges::size(__r2)));
-            return oneapi::dpl::__internal::__ranges::__pattern_equal(__dispatch_tag,
-                std::forward<_ExecutionPolicy>(__exec), __sized_r1, std::forward<_R2>(__r2), __pred, __proj1,
-                __proj2);
+            auto __sized_r1 = std::ranges::subrange(std::ranges::begin(__r1),
+                                                    std::ranges::begin(__r1) +
+                                                        std::ranges::range_difference_t<_R1>(std::ranges::size(__r2)));
+            return oneapi::dpl::__internal::__ranges::__pattern_equal(
+                __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __sized_r1, std::forward<_R2>(__r2), __pred,
+                __proj1, __proj2);
         }
         else
         {
@@ -518,12 +518,12 @@ struct __internal::__equal_fn
             static_assert(std::is_same_v<std::ranges::sentinel_t<_R2>, std::unreachable_sentinel_t>,
                           "oneapi::dpl::ranges::equal: an unsized range must be infinite");
 
-            auto __sized_r2 = std::ranges::subrange(
-                std::ranges::begin(__r2),
-                std::ranges::begin(__r2) + std::ranges::range_difference_t<_R2>(std::ranges::size(__r1)));
-            return oneapi::dpl::__internal::__ranges::__pattern_equal(__dispatch_tag,
-                std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), __sized_r2, __pred, __proj1,
-                __proj2);
+            auto __sized_r2 = std::ranges::subrange(std::ranges::begin(__r2),
+                                                    std::ranges::begin(__r2) +
+                                                        std::ranges::range_difference_t<_R2>(std::ranges::size(__r1)));
+            return oneapi::dpl::__internal::__ranges::__pattern_equal(
+                __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), __sized_r2, __pred,
+                __proj1, __proj2);
         }
     }
 }; //__equal_fn
