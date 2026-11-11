@@ -43,6 +43,7 @@ template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_variable_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
+    static constexpr std::uint8_t __vector_size = 1; // one segment or chunk per work-item, in a loop of its length
 
     _Size __n = {};         // the size of the input
     _Size __threshold = {}; // the length of the longest short segment
@@ -55,9 +56,6 @@ struct __segmented_reduce_variable_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input,
                _MaxLength __max_length) const
     {
-        static_assert(_Params::__vector_size == 1,
-                      "The brick operates with tuples which must be excluded from vectorizable types");
-
         const _Size __begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx], __n);
         const _Size __end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx + 1], __n);
         if (__end - __begin > __threshold)
@@ -69,7 +67,7 @@ struct __segmented_reduce_variable_brick
                 static_cast<std::uint64_t>(__end - __begin), std::numeric_limits<std::uint32_t>::max())));
             return;
         }
-        std::get<0>(__result[__idx]) =
+        __result[__idx] =
             oneapi::dpl::__internal::__serial_accumulate<_Acc>(__input, __begin, __end, __init, __binary_op);
     }
 };
@@ -147,6 +145,7 @@ template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_chunk_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
+    static constexpr std::uint8_t __vector_size = 1; // one segment or chunk per work-item, in a loop of its length
 
     _Size __n = {};            // the size of the input
     _Size __num_segments = {}; // the number of segments
@@ -160,9 +159,6 @@ struct __segmented_reduce_chunk_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _ChunkEnds __chunk_ends, _Offsets __offsets,
                _Partials __partials, _Input __input) const
     {
-        static_assert(_Params::__vector_size == 1,
-                      "The brick operates with tuples which must be excluded from vectorizable types");
-
         const _Size __chunk = __idx;
         if (__chunk >= __chunk_ends[__num_segments - 1])
             return;
@@ -189,7 +185,7 @@ struct __segmented_reduce_chunk_brick
         _Acc __start = __init;
         if (!__is_head)
             __start = std::invoke(__binary_op, __input[__chunk_begin], __input[__chunk_begin + 1]);
-        std::get<0>(__partials[__idx]) = oneapi::dpl::__internal::__serial_accumulate<_Acc>(
+        __partials[__idx] = oneapi::dpl::__internal::__serial_accumulate<_Acc>(
             __input, __chunk_begin + (__is_head ? 0 : 2), __chunk_end, std::move(__start), __binary_op);
     }
 };
@@ -199,6 +195,7 @@ template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_combine_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
+    static constexpr std::uint8_t __vector_size = 1; // one segment or chunk per work-item, in a loop of its length
 
     _Size __num_partials = {};  // the number of the computed partial results
     bool __write_empty = false; // whether a segment without chunks gets the initial value; otherwise it is left as is
@@ -210,9 +207,6 @@ struct __segmented_reduce_combine_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _ChunkEnds __chunk_ends, _Partials __partials,
                _Result __result) const
     {
-        static_assert(_Params::__vector_size == 1,
-                      "The brick operates with tuples which must be excluded from vectorizable types");
-
         const _Size __first = __idx == 0 ? _Size{0} : _Size(__chunk_ends[__idx - 1]);
         // A segment without chunks is empty, or short and already reduced. Unordered offsets may give more chunks than
         // computed: their results are unspecified.
@@ -220,11 +214,11 @@ struct __segmented_reduce_combine_brick
         if (__first >= __last)
         {
             if (__write_empty)
-                std::get<0>(__result[__idx]) = __init;
+                __result[__idx] = __init;
             return;
         }
-        std::get<0>(__result[__idx]) = oneapi::dpl::__internal::__serial_accumulate<_Acc>(
-            __partials, __first + 1, __last, _Acc(__partials[__first]), __binary_op);
+        __result[__idx] = oneapi::dpl::__internal::__serial_accumulate<_Acc>(__partials, __first + 1, __last,
+                                                                             _Acc(__partials[__first]), __binary_op);
     }
 };
 
@@ -294,13 +288,12 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec),
             __segmented_reduce_chunk_brick<_Acc, _Size, _BinaryOperation>{__n, __m, __chunk_size, __init, __binary_op},
             __num_partials, oneapi::dpl::__ranges::views::all_read(__chunk_ends), __offsets,
-            oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::views::all_write(__partials)), __input);
+            oneapi::dpl::__ranges::views::all_write(__partials), __input);
         __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec),
                        __segmented_reduce_combine_brick<_Acc, _Size, _BinaryOperation>{__num_partials, __write_empty,
                                                                                        __init, __binary_op},
                        __m, oneapi::dpl::__ranges::views::all_read(__chunk_ends),
-                       oneapi::dpl::__ranges::views::all_read(__partials),
-                       oneapi::dpl::__ranges::make_zip_view(__result))
+                       oneapi::dpl::__ranges::views::all_read(__partials), __result)
             .event()
             .wait_and_throw();
         __scan.event().wait_and_throw();
@@ -340,8 +333,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     __parallel_for(
         _BackendTag{}, __exec,
         __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op}, __m,
-        __offsets, oneapi::dpl::__ranges::make_zip_view(__result), __input,
-        oneapi::dpl::__ranges::views::all(__report_buf))
+        __offsets, __result, __input, oneapi::dpl::__ranges::views::all(__report_buf))
         .event()
         .wait_and_throw();
     const _Size __max_length = __report_buf.get_host_access(sycl::read_only)[0];
