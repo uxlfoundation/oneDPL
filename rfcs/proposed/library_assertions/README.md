@@ -9,20 +9,20 @@ which is important to avoid in a performance-oriented library.
 
 ### Motivational Example
 
-Sort pattern from the oneTBB backend has these checks:
+Sort pattern from the oneTBB backend had these checks (removed in [PR#2882](https://github.com/uxlfoundation/oneDPL/pull/2882)):
 
 ```cpp
-assert(::std::is_sorted(_M_x_beg + _M_xs, _M_x_beg + _M_xs + __kx, _M_comp));
-assert(::std::is_sorted(_M_x_beg + _M_ys, _M_x_beg + _M_ys + __ky, _M_comp));
+assert(std::is_sorted(_M_x_beg + _M_xs, _M_x_beg + _M_xs + __kx, _M_comp));
+assert(std::is_sorted(_M_x_beg + _M_ys, _M_x_beg + _M_ys + __ky, _M_comp));
 ```
 
-They are expensive.
+They were expensive.
 In practice, omitting `-DNDEBUG` led to 2x slowdown of the baseline.
 
 ## Existing practice
 
 Below is a summary of how different C++ libraries, which are somewhat related to oneDPL,
-handle internal assertions.
+handle internal assertsions and checks in general.
 
 ### [libstdc++](https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_macros.html)
 
@@ -61,9 +61,16 @@ libc++ does not use `assert`; It adds hardening modes, which inspired [C++26 Har
 
 ### MSVC STL
 
-- [`_ITERATOR_DEBUG_LEVEL`](https://learn.microsoft.com/en-us/cpp/standard-library/iterator-debug-level): 0 disables checked iterators, 1 enables checked iterators, 2 enables iterator debugging. Defaults to 2 in Debug and 0 in Release; 2 is an error in Release.
-- [`_MSVC_STL_HARDENING`](https://github.com/microsoft/STL/wiki/STL-Hardening): lightweight precondition checks intended for production. Off by default. Per-class `_MSVC_STL_HARDENING_<CLASS>` macros default to its value.
-- Uses `assert`: no.
+MSVC STL does not use `assert` and relies on the following macros:
+
+| | [`_ITERATOR_DEBUG_LEVEL`](https://learn.microsoft.com/en-us/cpp/standard-library/iterator-debug-level) | [`_MSVC_STL_HARDENING`](https://github.com/microsoft/STL/wiki/STL-Hardening) |
+|---|---|---|
+| Purpose | Checked iterators and iterator debugging, such as dereferencing `end()` or moving an iterators beyond the container bounds | Lightweight precondition checks intended for production |
+| Values | `0`: disables checked iterators; `1`: enables checked iterators; `2`: enables iterator debugging | `0`: disabled; `1`: enabled |
+| ABI | `1` and `2` change container and iterator layouts | Preserved |
+| Default | `2` in Debug (`/MDd` or `/MTd`), `0` in Release (`/MD` or `/MT`) | Off |
+| Restrictions | `2` is an error in Release | None |
+| Per-class controls | None | `_MSVC_STL_HARDENING_<CLASS>` macros default to `_MSVC_STL_HARDENING` |
 
 ### [oneTBB](https://github.com/uxlfoundation/oneTBB/blob/master/doc/main/reference/source/configuration/enabling_debugging_features.rst)
 
