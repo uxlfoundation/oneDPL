@@ -49,7 +49,6 @@
 #include <iterator> // std::distance
 
 #include "by_segment_extension_defs.h"
-#include "../pstl/segmented_reduce_utils.h"
 
 #include "../pstl/glue_numeric_impl.h"
 #include "../pstl/glue_algorithm_impl.h" // TODO: replace the use of for_each & transform with __pattern_walk3
@@ -220,7 +219,7 @@ reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _In
 {
     static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
 
-    using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
+    using _Acc = __internal::__reduction_accumulator_t<_BinaryOperation, _InputValueIt, _InitType>;
     using _Size = typename std::iterator_traits<_InputValueIt>::difference_type;
 
     const _Size __n = __last_value - __first_value;
