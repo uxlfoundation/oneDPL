@@ -106,33 +106,6 @@ class __iterations_per_item
 template <typename _Brick, typename... _Ranges>
 inline constexpr std::uint8_t __iterations_per_item_v = __iterations_per_item<_Brick, _Ranges...>::value;
 
-// The vector size of a brick: its own __vector_size if it defines one, otherwise the one suggested for its ranges
-template <typename _Brick, typename... _Ranges>
-class __vector_size_per_item
-{
-    template <typename _F>
-    static std::integral_constant<std::uint8_t, _F::__vector_size>
-    test(int);
-
-    template <typename>
-    static std::integral_constant<std::uint8_t, __pfor_params<_Ranges...>::__vector_size>
-    test(...);
-
-  public:
-    constexpr static std::uint8_t value = decltype(test<_Brick>(0))::value;
-};
-
-// The parameters given to a brick: the ones suggested for its ranges, with the vector size of the brick
-template <typename _Brick, typename... _Ranges>
-struct __pfor_brick_params : __pfor_params<_Ranges...>
-{
-    // A brick may lower the vector size suggested for its ranges but not raise it: ranges which cannot be vectorized
-    // get the vector size of one, so the bricks taking the vectorized path can rely on vectorizable ranges
-    constexpr static std::uint8_t __vector_size =
-        std::min(__vector_size_per_item<_Brick, _Ranges...>::value, __pfor_params<_Ranges...>::__vector_size);
-    constexpr static bool __can_vectorize = __vector_size > 1;
-};
-
 template <typename... Name>
 class __parallel_for_small_kernel;
 
@@ -291,7 +264,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     __future<sycl::event>
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
-        using __params_t = __pfor_brick_params<_Fp, _Ranges...>;
+        using __params_t = __pfor_params<_Ranges...>;
         const std::uint16_t __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__q, __work_group_size_limit);
         _PRINT_INFO_IN_DEBUG_MODE(__q);
@@ -343,7 +316,7 @@ __parallel_for_impl(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... 
     // Compile two kernels: one for small-to-medium inputs and a second for large. This avoids runtime checks within a
     // single kernel that worsen performance for small cases. If the number of iterations of the large submitter is 1,
     // then only compile the basic kernel as the two versions are effectively the same.
-    if constexpr (__iters_per_work_item > 1 || __pfor_brick_params<_Fp, _Ranges...>::__vector_size > 1)
+    if constexpr (__iters_per_work_item > 1 || __pfor_params<_Ranges...>::__vector_size > 1)
     {
         if (__count >= __large_submitter::__minimal_useful_size(__q, __iters_per_work_item))
         {
