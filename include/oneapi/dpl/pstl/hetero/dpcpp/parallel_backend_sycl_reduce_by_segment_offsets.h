@@ -136,7 +136,7 @@ struct __segmented_reduce_chunk_count
     operator()(const _Bounds& __bounds) const
     {
         const _Size __length = __segmented_reduce_length<_Size>{__n}(std::get<0>(__bounds), std::get<1>(__bounds));
-        return __length > __min_length ? __length / __chunk_size + (__length % __chunk_size != 0) : _Size{0};
+        return __length > __min_length ? oneapi::dpl::__internal::__dpl_ceiling_div(__length, __chunk_size) : _Size{0};
     }
 };
 
