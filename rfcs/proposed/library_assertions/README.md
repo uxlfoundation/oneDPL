@@ -2,31 +2,50 @@
 
 ## Introduction
 
-oneDPL extensively uses `assert` for internal checks, including expensive ones.
-Asserts are enabled by default, and disabled when `NDEBUG` is defined.
-It can be considered a performance pitfall,
-which is important to avoid in a performance-oriented library.
+oneDPL extensively uses `assert`, which is enabled by default and disabled when `NDEBUG` is defined.
+Other major C++ performance-oriented libraries define their own mechanisms decoupled from the standard `assert`.
+Should oneDPL reconsider its use of `assert`?
 
-### Motivational Example
+There is also [P3471](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3471r4.html) proposal, which overlaps with the internal assertion uses,
+especially in the context of precondition checks, what oneDPL currently handles using `assert`.
+Its goal is to improve safety and security.
 
-Sort pattern from the oneTBB backend had these checks (removed in [PR#2882](https://github.com/uxlfoundation/oneDPL/pull/2882)):
+Motivations:
 
-```cpp
-assert(std::is_sorted(_M_x_beg + _M_xs, _M_x_beg + _M_xs + __kx, _M_comp));
-assert(std::is_sorted(_M_x_beg + _M_ys, _M_x_beg + _M_ys + __ky, _M_comp));
-```
+1. Performance pitfalls due to the opt-out nature of `assert` and having expensive checks. Example:
 
-They were expensive.
-In practice, omitting `-DNDEBUG` led to 2x slowdown of the baseline.
+    Sort pattern from the oneTBB backend had these checks (removed in [PR#2882](https://github.com/uxlfoundation/oneDPL/pull/2882)):
+
+    ```cpp
+    assert(std::is_sorted(_M_x_beg + _M_xs, _M_x_beg + _M_xs + __kx, _M_comp));
+    assert(std::is_sorted(_M_x_beg + _M_ys, _M_x_beg + _M_ys + __ky, _M_comp));
+    ```
+
+    Omitting `-DNDEBUG` led to 2x slowdown of the sort algorithms.
+
+2. Improve safety and security following the principles outlined in
+[P3471](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3471r4.html).
+
+## oneDPL Assertions
+
+| Cost | Count | Examples | Cost details | Risk of removal |
+|---|---:|---|---|---|
+| O(1) per work-item, device code | ~5 | Constructors and `size()` of `take_view_simple`, `drop_view_simple` in `utils_ranges.h`; e.g. `drop_view_simple` is constructed inside the global merge-sort kernel | N/A: SYCL does not generally support `assert` in device code - they must be removed | N/A |
+| O(1) per TBB task | 5 | `parallel_backend_tbb.h`: `_M_execute_data != nullptr`, `__parent != nullptr`, `__parent->_M_refcount > 0`, `__next == nullptr` | Medium: a predictable branch and a relaxed load from a cache line that `--_M_refcount` touches right after, paid on every task; small next to task allocation and spawning | Low: a broken task tree crashes or hangs anyway; only the diagnostics get worse |
+| O(1) per chunk or search step | ~5 | `__pattern_includes` (2 extra `__comp` calls per chunk), merge-path bounds in `std::lower_bound` | Low or Medium | Low |
+| O(1) per call, SYCL device query | 2 | `get_device().has(sycl::aspect::atomic64)` | Low | KT algorithms trust the user, it should stay; the core algorithm should be fixed |
+| O(1) per call | ~160 | Size checks, `__n > 0`, result bounds of `__parallel_set_op`, `optional::has_value()`, null checks | Negligible | Not evaluated |
+
+Some assertions check documented preconditions, such as valid range sizes (see `__min_fn` `assert(std::ranges::size(__r) > 0);` check) and some check internal invariants (e.g., `assert(__first != __last);` from `__pattern_adjacent_difference`).
 
 ## Existing practice
 
 Below is a summary of how different C++ libraries, which are somewhat related to oneDPL,
-handle internal assertsions and checks in general.
+handle internal assertions and checks in general.
 
 ### [libstdc++](https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_macros.html)
 
-libstdc++ does not use `assert` and relies on the following macros:
+libstdc++ relies on the following macros:
 
 | | `_GLIBCXX_ASSERTIONS` | `_GLIBCXX_DEBUG` | `_GLIBCXX_DEBUG_PEDANTIC` |
 |---|---|---|---|
@@ -39,14 +58,14 @@ libstdc++ does not use `assert` and relies on the following macros:
 
 ### [libc++](https://libcxx.llvm.org/Hardening.html)
 
-libc++ does not use `assert`; It adds hardening modes, which inspired [C++26 Hardening](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3471r4.html).
+libc++ relies on hardening modes, which inspired [P3471](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3471r4.html).
 
-`_LIBCPP_HARDENING_MODE` have the following options:
+`_LIBCPP_HARDENING_MODE` has the following options:
 
 | | `_LIBCPP_HARDENING_MODE_NONE` | `_LIBCPP_HARDENING_MODE_FAST` | `_LIBCPP_HARDENING_MODE_EXTENSIVE` | `_LIBCPP_HARDENING_MODE_DEBUG` |
 |---|---|---|---|---|
 | Purpose | Disable hardening | Lightweight hardening for production | Broader checking for production | Testing, CI, and development. Not intended for production |
-| Checks | No checks | Security-critical preconditions | `FAST` plus additional checks for undefined behavior | All available checks, including **internal invariant checks** and heuristic checks |
+| Checks | No checks | Security-critical preconditions | `FAST` plus additional checks for undefined behavior | All available checks, including internal invariant checks and heuristic checks |
 | Examples | None | Container bounds, empty-container access, input-range validity | `FAST` checks plus null pointers, overlapping ranges, incompatible allocators | `EXTENSIVE` checks plus internal invariants and heuristic semantic-requirement checks |
 | Cost | No checking overhead | Relatively little overhead; constant-time checks | Additional overhead beyond `FAST` | Potentially significant overhead; expensive heuristic checks |
 | ABI | Preserved | Preserved | Preserved | Preserved |
@@ -63,7 +82,7 @@ libc++ also had `_LIBCPP_DEBUG` and `_LIBCPP_ASSERT` macros, which were removed 
 
 ### MSVC STL
 
-MSVC STL does not use `assert` and relies on the following macros:
+MSVC STL relies on the following macros:
 
 | | [`_ITERATOR_DEBUG_LEVEL`](https://learn.microsoft.com/en-us/cpp/standard-library/iterator-debug-level) | [`_MSVC_STL_HARDENING`](https://github.com/microsoft/STL/wiki/STL-Hardening) |
 |---|---|---|
@@ -76,7 +95,7 @@ MSVC STL does not use `assert` and relies on the following macros:
 
 ### [oneTBB](https://github.com/uxlfoundation/oneTBB/blob/master/doc/main/reference/source/configuration/enabling_debugging_features.rst)
 
-oneTBB does not use `assert` and relies on the following macros:
+oneTBB relies on the following macros:
 
 | | `TBB_USE_DEBUG` | `TBB_USE_ASSERT` | `__TBB_ASSERT_RELEASE` (undocumented) |
 |---|---|---|---|
@@ -95,88 +114,12 @@ The default handler prints an error message and terminates the application.
 | Purpose | Host and device checks | Host checks, independent of debug mode | Device checks, independent of debug mode |
 | Default | Enabled when compiling in debug mode | Implied by `CCCL_ENABLE_ASSERTIONS` | Implied by `CCCL_ENABLE_ASSERTIONS` |
 
-Thrust uses `assert` in some places; CUB does not.
-
-## oneDPL Assertions
-
-### Internal vs User-Facing Assertions
-
-- `assert(__parent != nullptr)` from task logic in merge operations.
-- `assert(std::ranges::size(__r) > 0);` in `dpl::ranges::min`,
-  a condition which violation leads to UB by the C++ standard.
-- `assert(::std::is_sorted(_M_z_beg + _M_xs, _M_z_beg + _M_xs + __kx, _M_comp));`
-  expects user input to be sorted and also depends on the internal state of the algorithm.
-
-### Expensive vs Cheap Assertions
-
-| Cost | Count | Where |
-|---|---:|---|
-| O(n) | 4 | parallel_backend_tbb.h:878, 879, 883, 884, std::is_sorted in __merge_func::x_less_y() |
-| Runtime SYCL query | 2 | get_device().has(sycl::aspect::atomic64) at parallel_backend_sycl.h:1231 and kt/single_pass_scan.h:252. One API call per algorithm invocation; not expensive, but not free. |
-| O(1) on a hot path | ~5 | See below |
-| O(1), once per call | ~163 | Size checks, __n > 0, merge-path bounds, optional::has_value(), null checks, std::ranges::size on sized ranges, std::distance on random-access iterators |
-
 ## Proposal
 
-TBD
+Short-term: do not add assertions with more than O(1) cost per call.
+After [PR#2882](https://github.com/uxlfoundation/oneDPL/pull/2882), no host-side assertion has a noticeable cost.
+Remove the assertions reachable from device code, since SYCL does not support them.
 
-## Open Questions
-
-1. **Should the macros have "assert" or "debug" or even "hardening" semantics?**
-
-    - **Assert** implies that the checks follow the `assert` rules, e.g., cause an abort.
-    - **Debug** implies that the checks are intended for development and not production.
-    - **Hardening** implies that the checks are intended to enforce security and robustness,
-    potentially in production as well.
-
-    oneTBB's `TBB_USE_DEBUG` and `TBB_USE_ASSERT` look like different levels of checks.
-    The same applies to libstdc++'s `_GLIBCXX_DEBUG` and `_GLIBCXX_ASSERTIONS` macros.
-
-   **Tentative answer:** Follow **Hardening** semantics.
-   It will impact the name/names of the macros.
-
-2. **Should there be one or multiple layers of checks?**
-
-    Separate layers for cheap and expensive checks could let users choose the acceptable overhead.
-    However, multiple layers add maintenance cost: they need to be documented,
-    and developers need to classify checks consistently.
-    The current use of assertions in oneDPL have differnt costs, serve different purposes,
-    and there are no developer guidelines.
-
-   **Tentative answer:** ?
-
-3. **Should internal and user-facing checks be controlled separately?**
-
-    Internal checks help developers detect implementation errors,
-    while user-facing checks diagnose violations of algorithm preconditions.
-    Some checks serve both purposes.
-
-   **Tentative answer:** ?
-
-4. **Should debug checks be inferred from compiler flags or CMake build configurations?**
-
-    MSVC STL and oneTBB infer debug settings from compiler flags on Windows.
-    Such platform-specific defaults are not portable and can lead to inconsistent behavior
-    and more complicated configuration rules.
-    CMake provides portable build configurations, but users
-    may also want to choose debug compilation and oneDPL assertions independently.
-
-    **Tentative answer:** Do not infer the checks and their levels; make them explicit.
-
-5. **Should there be a dedicated CMake option to enable checks?**
-
-    An option could make configuration more discoverable,
-    but would duplicate the macro.
-
-    Users can already define the macro with `target_compile_definitions`
-    or pass it through `CMAKE_CXX_FLAGS`.
-
-    **Tentative answer:** Do not add a dedicated CMake option.
-
-6. **Should host and device checks be controlled separately?**
-
-    In oneDPL's SYCL backend, users may want to enable checks in host-side setup
-    independently of checks in device kernels.
-    oneDPL has no device checks, and it is questionable if they are feasible.
-
-    **Tentative answer:** Do not separate host and device checks for now.
+Long-term:
+wait until [P3471](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3471r4.html) settles, and potentially adopt it.
+Look for the new paper that defines the behaviour for algorithms.
