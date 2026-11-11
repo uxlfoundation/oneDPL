@@ -26,22 +26,38 @@ handle internal assertions.
 
 ### [libstdc++](https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_macros.html)
 
-- `_GLIBCXX_ASSERTIONS`: precondition checks. On if `_GLIBCXX_DEBUG` is defined, or when compiling without optimization unless `_GLIBCXX_NO_ASSERTIONS` is defined.
-- `_GLIBCXX_NO_ASSERTIONS`: prevents the implicit `_GLIBCXX_ASSERTIONS` without optimization. Off by default.
-- `_GLIBCXX_DEBUG`: debug mode, implies `_GLIBCXX_ASSERTIONS`. Off by default.
-- `_GLIBCXX_DEBUG_PEDANTIC`: makes the debug mode "extremely picky". Off by default.
-- `_GLIBCXX_PARALLEL_ASSERTIONS`: checks for the parallel mode. Defaults to `_GLIBCXX_ASSERTIONS`.
-- Uses `assert`: no.
+libstdc++ does not use `assert` and relies on the following macros:
+
+| | `_GLIBCXX_ASSERTIONS` | `_GLIBCXX_DEBUG` | `_GLIBCXX_DEBUG_PEDANTIC` |
+|---|---|---|---|
+| Purpose | Lightweight precondition checks | Extensive debugging checks | Stricter checking within debug mode |
+| Examples | Bounds checks, empty-container access, null smart-pointer dereference | Those checks, plus invalid iterators, invalid ranges, algorithm preconditions | Debug-mode checks, plus checks rejecting selected libstdc++ extensions and implementation-specific behavior |
+| Cost | Generally low overhead | Additional time and memory; some checks scan entire ranges | Debug-mode overhead plus stricter checks |
+| Container layout / ABI | Preserved | Changes affected containers and iterator types | Same as debug mode |
+| Dependencies | Enabled automatically by `_GLIBCXX_DEBUG` | Includes `_GLIBCXX_ASSERTIONS` | Requires `_GLIBCXX_DEBUG` |
+| Default | On when compiling without optimization, unless `_GLIBCXX_NO_ASSERTIONS` is defined | Off | Off |
 
 ### [libc++](https://libcxx.llvm.org/Hardening.html)
 
-- `_LIBCPP_HARDENING_MODE`: set of checks, the default is `none`. Values:
-  - `_LIBCPP_HARDENING_MODE_NONE`: no checks.
-  - `_LIBCPP_HARDENING_MODE_FAST`: security-critical checks "with relatively little overhead in constant time".
-  - `_LIBCPP_HARDENING_MODE_EXTENSIVE`: `FAST` plus additional checks for undefined behavior.
-  - `_LIBCPP_HARDENING_MODE_DEBUG`: all checks, including internal assertions and heuristic checks that "might be quite expensive". Not intended for production.
-- `_LIBCPP_ASSERTION_SEMANTIC` (experimental): action on failure: ignore, observe, quick-enforce, enforce. The default depends on the hardening mode.
-- Uses `assert`: no.
+libc++ does not use `assert`; It adds hardening modes, which inspired [C++26 Hardening](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3471r4.html).
+
+`_LIBCPP_HARDENING_MODE` have the following options:
+
+| | `_LIBCPP_HARDENING_MODE_NONE` | `_LIBCPP_HARDENING_MODE_FAST` | `_LIBCPP_HARDENING_MODE_EXTENSIVE` | `_LIBCPP_HARDENING_MODE_DEBUG` |
+|---|---|---|---|---|
+| Purpose | Disable hardening | Lightweight hardening for production | Broader checking for production | Testing, CI, and development. Not intended for production |
+| Checks | No checks | Security-critical preconditions | `FAST` plus additional checks for undefined behavior | All available checks, including **internal invariant checks** and heuristic checks |
+| Examples | None | Container bounds, empty-container access, input-range validity | `FAST` checks plus null pointers, overlapping ranges, incompatible allocators | `EXTENSIVE` checks plus internal invariants and heuristic semantic-requirement checks |
+| Cost | No checking overhead | Relatively little overhead; constant-time checks | Additional overhead beyond `FAST` | Potentially significant overhead; expensive heuristic checks |
+| ABI | Preserved | Preserved | Preserved | Preserved |
+| Default | Upstream default; vendors may change it | Opt-in or vendor-selected | Opt-in or vendor-selected | Opt-in or vendor-selected |
+
+`_LIBCPP_ASSERTION_SEMANTIC` (experimental) controls the action on failure:
+
+- `ignore`
+- `observe`: log the failure but continue execution.
+- `quick-enforce`: terminate the program immediately via a trap. Default for `FAST` and `EXTENSIVE`.
+- `enforce`: log the failure and terminate the program. Default for `DEBUG`.
 
 ### MSVC STL
 
@@ -79,8 +95,8 @@ handle internal assertions.
 
 - These libraries do not rely on `NDEBUG`: each provides its own macros to control its checks.
   They allow enabling their assertions even if `NDEBUG` is defined.
-- Checks that are enabled by default are tied to a debug build, detected by the build type,
-  `_DEBUG`, or the absence of optimization, rather than by the absence of `NDEBUG`.
+- Several libraries tie default checks to a debug build, detected by the build type,
+  `_DEBUG`, or the absence of optimization. libc++ vendors choose the default hardening mode.
 - Expensive checks are opt-in: libstdc++ debug mode, the libc++ debug hardening mode,
   bounds checking in Kokkos.
 - Some provide several levels of checking (libstdc++, libc++, MSVC STL, Kokkos).
@@ -106,9 +122,7 @@ handle internal assertions.
 
 ## Proposal
 
-TBD
-
-<!-- 1. Add a macro `ONEDPL_USE_ASSERT` to control internal assertions.
+1. Add a macro `ONEDPL_USE_ASSERT` to control internal assertions.
 2. Have a single level of internal assertions.
 3. Do not enable assertions automatically based on platform-specific flags.
 4. Do not enable assertions automatically for the CMake `Debug` build type.
@@ -134,4 +148,4 @@ Lack of portability leads to inconsistency, and more complicated rules.
 between the debug build type and the enabling of assertions in oneDPL specifically.
 
 (5) CMake option duplicates the macro. The users can set `target_compile_definitions`
-or pass the macro definition via `CMAKE_CXX_FLAGS`. -->
+or pass the macro definition via `CMAKE_CXX_FLAGS`.
