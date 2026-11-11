@@ -74,9 +74,17 @@ MSVC STL does not use `assert` and relies on the following macros:
 
 ### [oneTBB](https://github.com/uxlfoundation/oneTBB/blob/master/doc/main/reference/source/configuration/enabling_debugging_features.rst)
 
-- `TBB_USE_DEBUG`: default for `TBB_USE_ASSERT`. 1 on Windows if `_DEBUG` is defined, 0 otherwise.
-- `TBB_USE_ASSERT`: internal assertion checking, which "can significantly slow down performance". Defaults to `TBB_USE_DEBUG`. Some assertions remain in release builds.
-- Uses `assert`: no.
+oneTBB does not use `assert` and relies on the following macros:
+
+| | `TBB_USE_DEBUG` | `TBB_USE_ASSERT` | `__TBB_ASSERT_RELEASE` (undocumented) |
+|---|---|---|---|
+| Purpose | Sets defaults for `TBB_USE_ASSERT` and `TBB_USE_PROFILING_TOOLS`; enables additional debug code (besides assertions) | Internal assertion checking | Always-enabled internal assertion checks |
+| Cost | Can significantly slow down performance | Can significantly slow down performance | ? |
+| Default | `1` on Windows if `_DEBUG` is defined (`/MDd` or `/MTd`), `0` otherwise | Value of `TBB_USE_DEBUG` | Always enabled, regardless of `TBB_USE_ASSERT`, `TBB_USE_DEBUG`, or `NDEBUG` |
+
+oneTBB also supports a [custom assertion handler](https://www.intel.com/content/www/us/en/docs/onetbb/developer-guide-api-reference/2023-2/custom-assertion-handler.html#GUID-E04E99E7-BE0C-46F3-BF58-7D62D7451B4F)
+via `set_assertion_handler` to customize the action on failure.
+The default handler prints an error message and terminates the application.
 
 ### [CCCL](https://github.com/NVIDIA/cccl/blob/main/docs/cccl/config_macros.rst) (Thrust, CUB, libcu++)
 
