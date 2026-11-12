@@ -46,6 +46,8 @@ inline constexpr std::size_t __segmented_reduce_cpu_short_segment_max = 32768;
 inline constexpr std::size_t __segmented_reduce_gpu_min_chunk_size = 64;
 inline constexpr std::size_t __segmented_reduce_gpu_max_chunk_size = 16384;
 inline constexpr std::size_t __segmented_reduce_cpu_chunk_size = 4096;
+// - above this bound of the number of the chunks, the host waits for the scan and reads their exact number instead.
+inline constexpr std::size_t __segmented_reduce_max_bounded_chunks = std::size_t{1} << 18;
 
 // The chunk length of a long segment, derived from its own length only: a power of two close to the square root of the
 // length, within the bounds (both equal on CPUs)
@@ -390,7 +392,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             __simple_write_to_id{}, unseq_backend::__no_init_value<_Size>{}, __holder, /*_Inclusive=*/std::true_type{},
             /*_IsUniquePattern=*/std::false_type{});
 
-    // A bound of the number of the chunks, so that the host does not wait for the scan; it holds unless the offsets
+    // A bound of the number of the chunks, so that the host need not wait for the scan; it holds unless the offsets
     // are not ordered. Every chunk but the head of a segment has at least the minimal chunk length: at most
     // n / min + m chunks. On GPUs, a segment of the length L in [2^k, 2^(k+1)) has chunks of the length 2^(k/2 + 1)
     // (k/2 rounded down), or longer where clamped by the minimum: at most 2^ceil(k/2) <= sqrt(2 * L) chunks, the head
@@ -401,9 +403,17 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     const double __tight_bound = std::sqrt(2.0 * static_cast<double>(__m) * static_cast<double>(__n)) +
                                  static_cast<double>(__n / __chunk_length.__max_chunk_size) +
                                  static_cast<double>(__m) + 2.0;
-    const _Size __num_partials = __is_gpu && __tight_bound < static_cast<double>(__loose_bound)
-                                     ? static_cast<_Size>(__tight_bound)
-                                     : __loose_bound;
+    _Size __num_partials = __is_gpu && __tight_bound < static_cast<double>(__loose_bound)
+                               ? static_cast<_Size>(__tight_bound)
+                               : __loose_bound;
+    // A large bound, with many segments, wastes memory and work-items: the host then waits for the scan and reads
+    // the exact number of the chunks, its total, from its result storage, which is host USM where it is fast for the
+    // device. That costs a synchronization, small against the work on such an input.
+    if (static_cast<std::size_t>(__num_partials) > __segmented_reduce_max_bounded_chunks)
+    {
+        __scan_event.wait_and_throw();
+        __holder.template __copy_result<0>(&__num_partials, 1);
+    }
     __block_storage<_Acc, 0> __partials{__q, static_cast<std::size_t>(__num_partials)};
 
     // The chunks start on the device after the scan, and the combination after the chunks
