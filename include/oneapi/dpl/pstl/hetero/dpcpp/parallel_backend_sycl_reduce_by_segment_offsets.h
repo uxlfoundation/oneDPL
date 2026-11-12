@@ -57,6 +57,10 @@ struct __segmented_reduce_variable_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input,
                _MaxLongSegmentLengthBuf __max_long_segment_length_buf) const
     {
+        using _MaxLongSegmentLength = oneapi::dpl::__internal::__value_t<_MaxLongSegmentLengthBuf>;
+        using __atomic_ref_t = sycl::atomic_ref<_MaxLongSegmentLength, sycl::memory_order::relaxed,
+                                                sycl::memory_scope::device, sycl::access::address_space::global_space>;
+
         const _Size __begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx], __n);
         const _Size __end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx + 1], __n);
 
@@ -64,11 +68,6 @@ struct __segmented_reduce_variable_brick
         static_assert(std::is_signed_v<_Size>, "The size type must be signed");
         if (__end - __begin > __threshold)
         {
-            using _MaxLongSegmentLength = oneapi::dpl::__internal::__value_t<_MaxLongSegmentLengthBuf>;
-            using __atomic_ref_t =
-                sycl::atomic_ref<_MaxLongSegmentLength, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                                 sycl::access::address_space::global_space>;
-
             __atomic_ref_t __ref(__max_long_segment_length_buf[0]);
             __ref.fetch_max(oneapi::dpl::__internal::__clamp_to_size(
                 __end - __begin, std::numeric_limits<_MaxLongSegmentLength>::max()));
