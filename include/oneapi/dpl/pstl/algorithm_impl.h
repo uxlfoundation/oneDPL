@@ -994,7 +994,7 @@ _RandomAccessIterator
 __pattern_search_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
                    _RandomAccessIterator __last, _Size __count, const _Tp& __value, _BinaryPredicate __pred)
 {
-    if (static_cast<_Size>(__last - __first) == __count)
+    if (__last - __first == __count)
     {
         const bool __result = !__internal::__pattern_any_of(__tag, std::forward<_ExecutionPolicy>(__exec), __first,
             __last, [&__value, __pred](auto&& __val) mutable { return !__pred(std::forward<decltype(__val)>(__val),

@@ -112,6 +112,18 @@ test_mixed_types()
     invoke_on_all_policies<5>()(test_search_n_mixed_types<std::int32_t>(), in.begin(), in.end(), 2, 2.0);
 }
 
+void
+test_narrow_count()
+{
+    // The count type need not be able to represent the range length.
+    Sequence<std::int32_t> in(257, [](std::size_t i) { return std::int32_t(i == 0); });
+    const std::uint8_t count = 1;
+    invoke_on_all_policies<6>()(test_search_n<std::int32_t>(), in.begin(), in.end(), count, 1,
+                                std::equal_to<std::int32_t>());
+    invoke_on_all_policies<7>()(test_search_n_predicate<std::int32_t>(), in.begin(), in.end(), count, 1,
+                                std::equal_to<std::int32_t>());
+}
+
 template <typename T>
 struct test_non_const
 {
@@ -183,6 +195,7 @@ main()
 
     test_empty_list_initialization();
     test_mixed_types();
+    test_narrow_count();
 
     return done();
 }
