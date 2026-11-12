@@ -48,7 +48,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Tp>
 reduce(_ExecutionPolicy&& __exec, _Range&& __rng, _Tp __init)
 {
     return transform_reduce(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), std::move(__init),
-                            std::plus<_Tp>(), oneapi::dpl::identity{});
+                            std::plus<>(), oneapi::dpl::identity{});
 }
 
 template <typename _ExecutionPolicy, typename _Range>
@@ -57,7 +57,7 @@ reduce(_ExecutionPolicy&& __exec, _Range&& __rng)
 {
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
     return transform_reduce(std::forward<_ExecutionPolicy>(__exec), std::forward<_Range>(__rng), _ValueType{},
-                            std::plus<_ValueType>(), oneapi::dpl::identity{});
+                            std::plus<>(), oneapi::dpl::identity{});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Tp>
@@ -66,11 +66,9 @@ transform_reduce(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, 
 {
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng1, __rng2);
 
-    using _ValueType = oneapi::dpl::__internal::__value_t<_Range1>;
     return oneapi::dpl::__internal::__ranges::__pattern_transform_reduce(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range1>(__rng1)),
-        views::all_read(::std::forward<_Range2>(__rng2)), std::move(__init), ::std::plus<_ValueType>(),
-        ::std::multiplies<_ValueType>());
+        __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), views::all_read(std::forward<_Range1>(__rng1)),
+        views::all_read(std::forward<_Range2>(__rng2)), std::move(__init), std::plus<>(), std::multiplies<>());
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Tp, typename _BinaryOperation1,

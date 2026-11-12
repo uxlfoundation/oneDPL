@@ -25,6 +25,8 @@
 #include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 
 #include <numeric> // std::accumulate, std::inner_product
+#include <algorithm> // std::fill
+#include <cstdint>
 #include <iostream>
 
 #if _ENABLE_RANGES_TESTING
@@ -55,6 +57,19 @@ test_impl(Policy&& exec)
     EXPECT_EQ(expected1, res1, "wrong effect from reduce with sycl ranges");
     EXPECT_EQ(expected2, res2, "wrong effect from reduce with init, sycl ranges");
     EXPECT_EQ(expected3, res3, "wrong effect from reduce with init and binary operation, sycl ranges");
+
+    // Default operation must be std::plus<> ([reduce]/2), so the initial value is not converted to the value type
+    // of the input range, and the accumulation happens in the type of the initial value
+    std::uint32_t data_u32[max_n];
+    std::fill(data_u32, data_u32 + max_n, std::uint32_t(3000000000u));
+    const std::uint64_t init_u64 = std::uint64_t{1} << 32;
+    std::uint64_t res4 = 0;
+    {
+        sycl::buffer<std::uint32_t> B(data_u32, sycl::range<1>(max_n));
+        res4 = reduce(CLONE_TEST_POLICY_IDX(exec, 3), B, init_u64);
+    }
+    const std::uint64_t expected4 = init_u64 + std::uint64_t(max_n) * 3000000000u;
+    EXPECT_EQ(expected4, res4, "wrong effect from reduce with init of a different type, sycl ranges");
 }
 #endif // _ENABLE_RANGES_TESTING
 
