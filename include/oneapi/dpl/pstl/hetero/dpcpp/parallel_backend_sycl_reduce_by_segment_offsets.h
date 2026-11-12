@@ -143,10 +143,11 @@ struct __segmented_reduce_chunk_brick
     {
         const _Size __chunk = __idx;
 
-        // The segment of the chunk: the first one whose chunks end after it, the last one if no other does
-        const _Size __segment_idx = oneapi::dpl::__internal::__pstl_upper_bound(
-            __chunk_ends, _Size{0}, __num_segments - 1, &__chunk, std::less<>{}, oneapi::dpl::identity{},
-            oneapi::dpl::identity{});
+        // The segment of the chunk: the first one whose chunks end after it, the last one if no other does. The chunk
+        // ends are a block storage, indexed by std::size_t.
+        const std::size_t __segment_idx = oneapi::dpl::__internal::__pstl_upper_bound(
+            __chunk_ends, std::size_t{0}, std::size_t(__num_segments - 1), &__chunk, std::less<>{},
+            oneapi::dpl::identity{}, oneapi::dpl::identity{});
         const _Size __segment_first_chunk = __segment_idx == 0 ? _Size{0} : _Size(__chunk_ends[__segment_idx - 1]);
         const _Size __segment_begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__segment_idx], __n);
         const _Size __segment_end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__segment_idx + 1], __n);
@@ -192,8 +193,10 @@ struct __segmented_reduce_combine_brick
         if (__first >= __last)
             return;
 
-        __result[__idx] = oneapi::dpl::__internal::__serial_accumulate<_Acc>(__partials, __first + 1, __last,
-                                                                             _Acc(__partials[__first]), __binary_op);
+        // The partials are a block storage, indexed by std::size_t
+        __result[__idx] = oneapi::dpl::__internal::__serial_accumulate<_Acc>(
+            __partials, std::size_t(__first) + 1, std::size_t(__last), _Acc(__partials[std::size_t(__first)]),
+            __binary_op);
     }
 };
 
