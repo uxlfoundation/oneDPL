@@ -708,7 +708,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
 template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
     oneapi::dpl::__par_backend_hetero::__segmented_reduce_combine_brick, _Acc, _Size, _BinaryOperation)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOperation>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Size, _BinaryOperation>
 {
 };
 
