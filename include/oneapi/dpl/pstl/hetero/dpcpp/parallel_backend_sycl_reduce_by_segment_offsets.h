@@ -56,17 +56,21 @@ struct __segmented_reduce_variable_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input,
                _MaxLength __max_length) const
     {
+        using __atomic_ref_t = sycl::atomic_ref<std::uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                                sycl::access::address_space::global_space>;
+
         const _Size __begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx], __n);
         const _Size __end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx + 1], __n);
+
         if (__end - __begin > __threshold)
         {
-            sycl::atomic_ref<std::uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                             sycl::access::address_space::global_space>
-                __ref(__max_length[0]);
+            __atomic_ref_t __ref(__max_length[0]);
+
             __ref.fetch_max(static_cast<std::uint32_t>(std::min<std::uint64_t>(
                 static_cast<std::uint64_t>(__end - __begin), std::numeric_limits<std::uint32_t>::max())));
             return;
         }
+
         __result[__idx] =
             oneapi::dpl::__internal::__serial_accumulate<_Acc>(__input, __begin, __end, __init, __binary_op);
     }
