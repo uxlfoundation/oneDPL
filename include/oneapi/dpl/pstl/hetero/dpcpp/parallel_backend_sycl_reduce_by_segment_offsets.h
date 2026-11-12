@@ -14,7 +14,7 @@
 #include <cassert>     // assert
 #include <cmath>       // std::sqrt
 #include <cstddef>     // std::size_t
-#include <cstdint>     // std::uint8_t, std::uint32_t, std::uint64_t, std::uintptr_t
+#include <cstdint>     // std::uint8_t, std::uint32_t, std::uintptr_t
 #include <functional>  // std::invoke, std::less, std::plus
 #include <limits>      // std::numeric_limits
 #include <type_traits> // std::integral_constant, std::conditional_t, std::enable_if_t, std::is_*_v, ...
@@ -44,6 +44,7 @@ template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_variable_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
+    static constexpr std::uint8_t __vector_size = 1; // one segment or chunk per work-item, in a loop of its length
 
     _Size __n = {};         // input size
     _Size __threshold = {}; // longest short segment length
@@ -51,33 +52,31 @@ struct __segmented_reduce_variable_brick
     mutable _BinaryOperation __binary_op;
 
     template <typename _IsFull, typename _Params, typename _Offsets, typename _Result, typename _Input,
-              typename _MaxLength>
+              typename _MaxLongSegmentLengthBuf>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input,
-               _MaxLength __max_length) const
+               _MaxLongSegmentLengthBuf __max_long_segment_length_buf) const
     {
-        static_assert(_Params::__vector_size == 1,
-                      "The brick operates with tuples which must be excluded from vectorizable types");
-
-        const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__idx], __n);
-        const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__idx + 1], __n);
+        const _Size __begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx], __n);
+        const _Size __end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx + 1], __n);
 
         // A reversed segment has a negative length, so it is short and its serial reduce gives the init
         static_assert(std::is_signed_v<_Size>, "The size type must be signed");
         if (__end - __begin > __threshold)
         {
+            using _MaxLongSegmentLength = oneapi::dpl::__internal::__value_t<_MaxLongSegmentLengthBuf>;
             using __atomic_ref_t =
-                sycl::atomic_ref<std::uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                sycl::atomic_ref<_MaxLongSegmentLength, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                  sycl::access::address_space::global_space>;
 
-            __atomic_ref_t __ref(__max_length[0]);
-            __ref.fetch_max(static_cast<std::uint32_t>(std::min<std::uint64_t>(
-                static_cast<std::uint64_t>(__end - __begin), std::numeric_limits<std::uint32_t>::max())));
+            __atomic_ref_t __ref(__max_long_segment_length_buf[0]);
+            __ref.fetch_max(oneapi::dpl::__internal::__clamp_to_size(
+                __end - __begin, std::numeric_limits<_MaxLongSegmentLength>::max()));
         }
         else
         {
-            std::get<0>(__result[__idx]) =
-                oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(__input, __begin, __end, __init, __binary_op);
+            __result[__idx] =
+                oneapi::dpl::__internal::__serial_accumulate<_Acc>(__input, __begin, __end, __init, __binary_op);
         }
     }
 };
@@ -138,23 +137,24 @@ struct __segmented_reduce_chunk_count
     _Size
     operator()(const _Bounds& __bounds) const
     {
-        const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(std::get<0>(__bounds), __n);
-        const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(std::get<1>(__bounds), __n);
+        const _Size __begin = oneapi::dpl::__internal::__clamp_to_size(std::get<0>(__bounds), __n);
+        const _Size __end = oneapi::dpl::__internal::__clamp_to_size(std::get<1>(__bounds), __n);
 
         // A reversed segment has a negative length, so it is not longer than __min_length and has no chunks
         static_assert(std::is_signed_v<_Size>, "The size type must be signed");
         const _Size __length = __end - __begin;
-        return __length > __min_length ? (__length - 1) / __chunk_size + 1 : _Size{0};
+        return __length > __min_length ? oneapi::dpl::__internal::__dpl_ceiling_div(__length, __chunk_size) : _Size{0};
     }
 };
 
-// Reduces one chunk of a long segment. The first chunk of a segment takes the remainder of its length and starts
-// from the initial value converted to the accumulator type; every other chunk has exactly __chunk_size elements and
-// starts from the operation on its first two elements.
+// Reduces one chunk of a long segment. The first chunk of a segment, its head, takes the remainder of its length and
+// starts from the initial value converted to the accumulator type; every other chunk has exactly __chunk_size elements
+// and starts from the operation on its first two elements.
 template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_chunk_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
+    static constexpr std::uint8_t __vector_size = 1; // one segment or chunk per work-item, in a loop of its length
 
     _Size __n = {};            // input size
     _Size __num_segments = {}; // number of segments
@@ -168,38 +168,38 @@ struct __segmented_reduce_chunk_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _ChunkEnds __chunk_ends, _Offsets __offsets,
                _Partials __partials, _Input __input) const
     {
-        static_assert(_Params::__vector_size == 1,
-                      "The brick operates with tuples which must be excluded from vectorizable types");
-
         const _Size __chunk = __idx;
         if (__chunk >= __chunk_ends[__num_segments - 1])
             return;
 
         // The segment of the chunk: the first one whose chunks end after it, the last one if no other does
-        const _Size __lo = oneapi::dpl::__internal::__pstl_upper_bound(__chunk_ends, _Size{0}, __num_segments - 1,
-                                                                       &__chunk, std::less<>{}, oneapi::dpl::identity{},
-                                                                       oneapi::dpl::identity{});
-        const _Size __first_chunk = __lo == 0 ? _Size{0} : _Size(__chunk_ends[__lo - 1]);
-        const _Size __begin = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__lo], __n);
-        const _Size __end = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__lo + 1], __n);
+        const _Size __segment_idx = oneapi::dpl::__internal::__pstl_upper_bound(
+            __chunk_ends, _Size{0}, __num_segments - 1, &__chunk, std::less<>{}, oneapi::dpl::identity{},
+            oneapi::dpl::identity{});
+        const _Size __segment_first_chunk = __segment_idx == 0 ? _Size{0} : _Size(__chunk_ends[__segment_idx - 1]);
+        const _Size __segment_begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__segment_idx], __n);
+        const _Size __segment_end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__segment_idx + 1], __n);
 
-        // First chunk length: the remainder after the full chunks, in [1, __chunk_size]
-        const _Size __head = (__end - __begin) - (_Size(__chunk_ends[__lo]) - __first_chunk - 1) * __chunk_size;
+        // Head length: the remainder after the full chunks, in [1, __chunk_size]
+        const _Size __head_length = (__segment_end - __segment_begin) -
+                                    (_Size(__chunk_ends[__segment_idx]) - __segment_first_chunk - 1) * __chunk_size;
 
         // One loop for every chunk, so sub-group work-items do not diverge into two long loops
-        const _Size __k = __chunk - __first_chunk;
-        const _Size __chunk_begin = __k == 0 ? __begin : __begin + __head + (__k - 1) * __chunk_size;
-        const _Size __chunk_end = __k == 0 ? __begin + __head : __chunk_begin + __chunk_size;
+        const _Size __chunk_idx_in_segment = __chunk - __segment_first_chunk;
+        const bool __is_head = __chunk_idx_in_segment == 0;
+        const _Size __chunk_begin =
+            __is_head ? __segment_begin : __segment_begin + __head_length + (__chunk_idx_in_segment - 1) * __chunk_size;
+        const _Size __chunk_end = __is_head ? __segment_begin + __head_length : __chunk_begin + __chunk_size;
 
-        // The first chunk starts from __init; non-first chunks start from op(first two elements) as std::reduce does:
-        // an accumulator is never made from a lone element, which may mean something else to the operation (such a
-        // chunk has >= 64 elements)
+        // The head starts from __init; other chunks start from op(first two elements) as std::reduce does: an
+        // accumulator is never made from a lone element, which may mean something else to the operation (such a chunk
+        // has >= 64 elements)
         _Acc __start = __init;
-        if (__k != 0)
+        if (!__is_head)
             __start = std::invoke(__binary_op, __input[__chunk_begin], __input[__chunk_begin + 1]);
 
-        std::get<0>(__partials[__idx]) = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(
-            __input, __chunk_begin + (__k == 0 ? 0 : 2), __chunk_end, std::move(__start), __binary_op);
+        __partials[__idx] = oneapi::dpl::__internal::__serial_accumulate<_Acc>(
+            __input, __chunk_begin + (__is_head ? 0 : 2), __chunk_end, std::move(__start), __binary_op);
     }
 };
 
@@ -208,6 +208,7 @@ template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_combine_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
+    static constexpr std::uint8_t __vector_size = 1; // one segment or chunk per work-item, in a loop of its length
 
     _Size __num_partials = {}; // number of computed partial results
     mutable _BinaryOperation __binary_op;
@@ -217,15 +218,12 @@ struct __segmented_reduce_combine_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _ChunkEnds __chunk_ends, _Partials __partials,
                _Result __result) const
     {
-        static_assert(_Params::__vector_size == 1,
-                      "The brick operates with tuples which must be excluded from vectorizable types");
-
         const _Size __first = __idx == 0 ? _Size{0} : _Size(__chunk_ends[__idx - 1]);
 
         // No chunks: short and already reduced. Unordered offsets may exceed the computed chunks: results unspecified
         const _Size __last = std::min<_Size>(__chunk_ends[__idx], __num_partials);
         if (__first < __last)
-            std::get<0>(__result[__idx]) = oneapi::dpl::__internal::__segmented_reduce_serial<_Acc>(
+            __result[__idx] = oneapi::dpl::__internal::__serial_accumulate<_Acc>(
                 __partials, std::size_t(__first) + 1, std::size_t(__last), _Acc(__partials[__first]), __binary_op);
     }
 };
@@ -660,10 +658,10 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         bool __run = false;
         if (__mine < __m)
         {
-            using oneapi::dpl::__internal::__segmented_reduce_clamp_offset;
+            using oneapi::dpl::__internal::__clamp_to_size;
 
-            __mb = __segmented_reduce_clamp_offset(__offsets[__mine], __n);
-            __me = __segmented_reduce_clamp_offset(__offsets[__mine + 1], __n);
+            __mb = __clamp_to_size(__offsets[__mine], __n);
+            __me = __clamp_to_size(__offsets[__mine + 1], __n);
             __run = __is_tiny(__mb, __me, __piece_begin, __piece_end);
         }
         // Run length: the first lane not in the run, or the sub-group size if all are
@@ -737,21 +735,21 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                    __piece_parts<_Size>& __parts) const
     {
         const bool __last_piece = __piece_end == __n;
-        using oneapi::dpl::__internal::__segmented_reduce_clamp_offset;
+        using oneapi::dpl::__internal::__clamp_to_size;
 
         // The last segment beginning before the piece, 0 for the first piece
         _Size __s =
             std::max<_Size>(0, oneapi::dpl::__internal::__pstl_lower_bound_impl(_Size{0}, __m, [&](const _Size __i) {
-                                   return __segmented_reduce_clamp_offset(__offsets[__i], __n) < __piece_begin;
+                                   return __clamp_to_size(__offsets[__i], __n) < __piece_begin;
                                }) - 1);
 
         for (; __s < __m; ++__s)
         {
-            const _Size __b = __segmented_reduce_clamp_offset(__offsets[__s], __n);
+            const _Size __b = __clamp_to_size(__offsets[__s], __n);
             if (__b >= __piece_end && !__last_piece)
                 break;
 
-            const _Size __e = __segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
+            const _Size __e = __clamp_to_size(__offsets[__s + 1], __n);
             if (__is_tiny(__b, __e, __piece_begin, __piece_end))
             {
                 const auto [__count, __run_end] = __reduce_tiny_run(__sg, __input, __offsets, __result, __n, __m, __s,
@@ -865,7 +863,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // Tail loaded with its segment end so neither waits for the other
         // Tails follow the heads in the storage
         const _Acc __tail = (__heads + __num_units)[__unit];
-        const _Size __e = oneapi::dpl::__internal::__segmented_reduce_clamp_offset(__offsets[__s + 1], __n);
+        const _Size __e = oneapi::dpl::__internal::__clamp_to_size(__offsets[__s + 1], __n);
         // Units after this one up to the one holding the segment's last element
         const std::uint32_t __heads_count = std::uint32_t(std::size_t(__e - 1) / __unit_size) - __unit;
         if (__heads_count == 0 && __lane == 0)
@@ -969,10 +967,10 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                 [=, *this](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(__sub_group_size)]] {
                     const std::uint32_t __segment = __item.get_group(0);
                     const std::uint32_t __lid = __item.get_local_id(0);
-                    using oneapi::dpl::__internal::__segmented_reduce_clamp_offset;
+                    using oneapi::dpl::__internal::__clamp_to_size;
 
-                    const _Size __begin = __segmented_reduce_clamp_offset(__offsets[__segment], __n);
-                    const _Size __end = __segmented_reduce_clamp_offset(__offsets[__segment + 1], __n);
+                    const _Size __begin = __clamp_to_size(__offsets[__segment], __n);
+                    const _Size __end = __clamp_to_size(__offsets[__segment + 1], __n);
 
                     // Uniform across the work-group, so it leaves before any barrier
                     if (__begin >= __end)
@@ -1140,20 +1138,19 @@ struct __parallel_reduce_by_segment_offsets
                             _OutRange& __result, const _Size __n, const _Size __m, const _Size __threshold,
                             const _Acc& __init, const _BinaryOperation& __binary_op)
     {
-        auto __report_buf = __buffer<std::uint32_t>(1).get_buffer();
+        oneapi::dpl::__par_backend_hetero::__buffer<std::uint32_t> __max_long_segment_length_storage(1);
+        auto __max_long_segment_length_buf = __max_long_segment_length_storage.get_buffer();
+
         // No host data: the atomic maximum starts from this zero
-        __report_buf.get_host_access(sycl::write_only)[0] = 0;
+        __max_long_segment_length_buf.get_host_access(sycl::write_only)[0] = 0;
         __parallel_for(
             _BackendTag{}, __exec,
             __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op},
-            // Zip view: a tuple value type keeps __parallel_for from vectorizing (__vector_size == 1);
-            // with __iters_per_item == 1, one segment per item
-            __m, __offsets, oneapi::dpl::__ranges::make_zip_view(__result), __input,
-            oneapi::dpl::__ranges::views::all(__report_buf))
+            __m, __offsets, __result, __input, oneapi::dpl::__ranges::views::all(__max_long_segment_length_buf))
             .event()
             .wait_and_throw();
 
-        return __report_buf.get_host_access(sycl::read_only)[0];
+        return __max_long_segment_length_buf.get_host_access(sycl::read_only)[0];
     }
 
     // Reduces segments longer than __min_length in chunks; __max_segments bounds their number
@@ -1186,17 +1183,11 @@ struct __parallel_reduce_by_segment_offsets
         auto __chunks = __parallel_for(
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec), __scan.event(),
             __segmented_reduce_chunk_brick<_Acc, _Size, _BinaryOperation>{__n, __m, __chunk_size, __init, __binary_op},
-            __num_partials, __chunk_ends.__all_view(), __offsets,
-            // Zip view: a tuple value type keeps __parallel_for from vectorizing (__vector_size == 1);
-            // with __iters_per_item == 1, one chunk per item
-            oneapi::dpl::__ranges::make_zip_view(__partials.__all_view()), __input);
+            __num_partials, __chunk_ends.__all_view(), __offsets, __partials.__all_view(), __input);
 
         __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec), __chunks.event(),
                        __segmented_reduce_combine_brick<_Acc, _Size, _BinaryOperation>{__num_partials, __binary_op},
-                       __m, __chunk_ends.__all_view(), __partials.__all_view(),
-                       // Zip view: a tuple value type keeps __parallel_for from vectorizing (__vector_size == 1);
-                       // with __iters_per_item == 1, one segment per item
-                       oneapi::dpl::__ranges::make_zip_view(__result))
+                       __m, __chunk_ends.__all_view(), __partials.__all_view(), __result)
             .event()
             .wait_and_throw();
     }

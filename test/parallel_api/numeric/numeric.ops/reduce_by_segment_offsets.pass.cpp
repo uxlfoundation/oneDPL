@@ -56,56 +56,55 @@ enum class segments
 // Returns the num_segments + 1 non-decreasing offsets of the segments
 template <typename Offset>
 std::vector<Offset>
-make_offsets(segments kind, std::int64_t n, std::mt19937& gen)
+make_offsets(segments kind, std::size_t size, std::mt19937& gen)
 {
-    std::vector<std::int64_t> bounds{0};
-    auto add = [&bounds](std::int64_t length) { bounds.push_back(bounds.back() + length); };
+    const Offset n = static_cast<Offset>(size);
+    std::vector<Offset> bounds{0};
+    auto add = [&bounds](Offset length) { bounds.push_back(Offset(bounds.back() + length)); };
     switch (kind)
     {
     case segments::one:
         add(n);
         break;
     case segments::unit:
-        for (std::int64_t i = 0; i < n; ++i)
-            add(1);
+        for (Offset i = 0; i < n; ++i)
+            add(Offset{1});
         break;
     case segments::equal:
         while (bounds.back() < n)
-            add(1 + n / 10);
+            add(Offset(1 + n / 10));
         break;
     case segments::mixed:
     {
         // The long segment has three quarters of the input: every operation reduces a long segment
-        std::uniform_int_distribution<std::int64_t> length(0, 2 + n / 32);
-        auto add_random = [&](std::int64_t end) {
+        std::uniform_int_distribution<std::int64_t> length(0, 2 + std::int64_t(n) / 32);
+        auto add_random = [&](Offset end) {
             while (bounds.back() < end)
-                add(std::min(length(gen), end - bounds.back()));
+                add(std::min<Offset>(Offset(length(gen)), end - bounds.back()));
         };
-        add(0);
-        add(std::min<std::int64_t>(1, n));
-        add_random(n / 8);
-        add(std::min(n * 3 / 4, n - bounds.back()));
+        add(Offset{0});
+        add(std::min<Offset>(1, n));
+        add_random(Offset(n / 8));
+        add(std::min<Offset>(n * 3 / 4, n - bounds.back()));
         add_random(n);
-        add(0);
+        add(Offset{0});
         break;
     }
     case segments::all_empty:
-        bounds.assign(5, n / 2);
+        bounds.assign(5, Offset(n / 2));
         break;
     case segments::inner:
-        bounds.assign(1, n / 4);
+        bounds.assign(1, Offset(n / 4));
         while (bounds.back() < n - n / 4)
-            add(std::min(1 + n / 8, n - n / 4 - bounds.back()));
+            add(std::min<Offset>(1 + n / 8, n - n / 4 - bounds.back()));
         break;
     case segments::out_of_bounds:
         // A negative first offset, if representable; the last offset is the largest representable one
-        bounds = {std::is_signed_v<Offset> ? -3 : n / 4, n / 3, n / 2, n + 2, n + 5};
+        bounds = {std::is_signed_v<Offset> ? Offset(-3) : Offset(n / 4), Offset(n / 3), Offset(n / 2), Offset(n + 2),
+                  Offset(n + 5), std::numeric_limits<Offset>::max()};
         break;
     }
-    std::vector<Offset> offsets(bounds.begin(), bounds.end());
-    if (kind == segments::out_of_bounds)
-        offsets.push_back(std::numeric_limits<Offset>::max());
-    return offsets;
+    return bounds;
 }
 
 // The algorithm requires random access iterators, as the RFC does: the forward and bidirectional iterators that the
@@ -129,7 +128,7 @@ struct test_reduce_by_segment_offsets
         std::vector<typename std::iterator_traits<OffsetIt>::value_type> offsets_copy;
         if (num_segments > 0)
             std::copy_n(offsets, num_segments + 1, std::back_inserter(offsets_copy));
-        std::vector<Out> expected(std::distance(out_first, out_last), unwritten);
+        std::vector<Out> expected(static_cast<std::size_t>(std::distance(out_first, out_last)), unwritten);
         reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets_copy.begin(), num_segments, init, op,
                                          expected.begin());
 
@@ -599,6 +598,7 @@ class KernelNameBuffer;
 class KernelNameCounting;
 class KernelNameNarrowCounting;
 class KernelNameUSMVectorEdges;
+class KernelNameSmallTypes;
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 // Counting iterators help cover input with specific difference types.
@@ -645,6 +645,37 @@ test_narrow_counting_input()
     test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameNarrowCounting), first, first + n,
                                      out.begin(), out.end(), offsets.begin(), num_segments, std::int64_t{5},
                                      std::plus<std::int64_t>{}, std::int64_t{-1});
+#endif
+}
+
+// 8-bit values, accumulator and results, and enough segments for the kernels of __parallel_for which would vectorize
+// over 8-bit values: the bricks of a device reduce whole segments or chunks and must not be vectorized
+void
+test_small_types()
+{
+    // Short segments, so that they are reduced one per work-item, and one long segment, so that the partial results of
+    // its chunks are combined, one work-item per segment again; it is at an odd index, which a vectorized combination
+    // would skip
+    const std::size_t num_segments = 1 << 19;
+    std::mt19937 gen(42);
+    std::uniform_int_distribution<std::int64_t> length(0, 16);
+    std::vector<std::int64_t> offsets(num_segments + 1, 0);
+    for (std::size_t i = 0; i < num_segments; ++i)
+        offsets[i + 1] = offsets[i] + (i == num_segments / 2 + 1 ? 100000 : length(gen));
+    std::vector<std::uint8_t> in(static_cast<std::size_t>(offsets.back()));
+    for (std::size_t i = 0; i < in.size(); ++i)
+        in[i] = std::uint8_t(i * 7919 % 251);
+    std::vector<std::uint8_t> out(num_segments, 0xFF);
+    // The number of segments of the signed difference type of the offsets, as a size_t one is converted to index them
+    const std::int64_t m = static_cast<std::int64_t>(num_segments);
+    test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, in.begin(), in.end(), out.begin(), out.end(),
+                                     offsets.begin(), m, std::uint8_t{5}, std::bit_xor<std::uint8_t>{},
+                                     std::uint8_t{0xFF});
+#if TEST_DPCPP_BACKEND_PRESENT
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameSmallTypes), in.begin(), in.end(),
+                                     out.begin(), out.end(), offsets.begin(), m, std::uint8_t{5},
+                                     std::bit_xor<std::uint8_t>{}, std::uint8_t{0xFF});
 #endif
 }
 
@@ -727,6 +758,7 @@ main()
     test_counting_input();
     test_narrow_counting_input();
     test_pieces<47>();
+    test_small_types();
 
 #if TEST_DPCPP_BACKEND_PRESENT
     test_usm<sycl::usm::alloc::shared, KernelNameUSM>();

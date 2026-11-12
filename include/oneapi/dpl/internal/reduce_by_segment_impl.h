@@ -57,10 +57,6 @@
 #include "function.h"
 #include "../pstl/utils.h"
 
-#if _ONEDPL_BACKEND_SYCL
-#    include "../pstl/hetero/reduce_by_segment_impl_hetero.h"
-#endif
-
 namespace oneapi
 {
 namespace dpl
@@ -167,6 +163,48 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     return std::make_pair(result1 + N, result2 + N);
 }
 
+#if _ONEDPL_BACKEND_SYCL
+
+template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
+          typename OutputIterator1, typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
+std::pair<OutputIterator1, OutputIterator2>
+reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy, InputIterator1 first1,
+                       InputIterator1 last1, InputIterator2 first2, OutputIterator1 result1, OutputIterator2 result2,
+                       BinaryPred binary_pred, BinaryOperator binary_op)
+{
+    // The algorithm reduces values in [first2, first2 + (last1-first1)) where the associated
+    // keys for the values are equal to the adjacent key.
+    //
+    // Example: keys          = { 1, 2, 3, 4, 1, 1, 3, 3, 1, 1, 3, 3, 0 } -- [first1, last1)
+    //          values        = { 1, 2, 3, 4, 1, 1, 3, 3, 1, 1, 3, 3, 0 } -- [first2, first2+n)
+    //
+    //          keys_result   = { 1, 2, 3, 4, 1, 3, 1, 3, 0 } -- result1
+    //          values_result = { 1, 2, 3, 4, 2, 6, 2, 6, 0 } -- result2
+
+    if (first1 == last1)
+        return std::make_pair(result1, result2);
+
+    // number of unique keys
+    const auto __n = oneapi::dpl::__internal::__pattern_reduce_by_segment(
+        __tag, std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred, binary_op);
+
+    return std::make_pair(result1 + __n, result2 + __n);
+}
+
+template <typename _BackendTag, typename _Policy, typename _RandomAccessInputIt, typename _SegmentNum,
+          typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
+_RandomAccessOutputIt
+reduce_by_segment_offsets_impl(__internal::__hetero_tag<_BackendTag> __tag, _Policy&& __policy,
+                               _RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
+                               _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
+                               _RandomAccessOffsetIt __offsets, _InitType __init_value, _BinaryOperation __binary_op)
+{
+    return oneapi::dpl::__internal::__pattern_reduce_by_segment_offsets(
+        __tag, std::forward<_Policy>(__policy), __first_value, __last_value, __result_value, __num_segments, __offsets,
+        __init_value, __binary_op);
+}
+#endif
+
 //------------------------------------------------------------------------
 // reduce_by_segment with segments defined by offsets
 //------------------------------------------------------------------------
@@ -179,7 +217,9 @@ reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _In
                                _OutputValueIt __result_value, _SegmentNum __num_segments, _OffsetIt __offsets,
                                _InitType __init, _BinaryOperation __binary_op)
 {
-    using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
+    static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
+
+    using _Acc = __internal::__reduction_accumulator_t<_BinaryOperation, _InputValueIt, _InitType>;
     using _Size = typename std::iterator_traits<_InputValueIt>::difference_type;
 
     const _Size __n = __last_value - __first_value;
@@ -187,9 +227,9 @@ reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _In
     _OutputValueIt __this_segment = __result_value;
     for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
     {
-        *__this_segment = __internal::__segmented_reduce_serial<_Acc>(
-            __first_value, __internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n),
-            __internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n), __init, __binary_op);
+        *__this_segment = __internal::__serial_accumulate<_Acc>(
+            __first_value, __internal::__clamp_to_size(__offsets[__segment], __n),
+            __internal::__clamp_to_size(__offsets[__segment + 1], __n), __init, __binary_op);
         ++__this_segment;
     }
 
