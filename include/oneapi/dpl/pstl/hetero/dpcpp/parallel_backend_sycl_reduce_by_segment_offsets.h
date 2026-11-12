@@ -65,7 +65,8 @@ struct __segmented_reduce_chunk_length
 };
 
 // One work-item per short segment, which also writes the empty ones. A longer segment is left to the reduction in
-// chunks.
+// chunks and only sets the flag of the long segments: every writer stores the same value, and the host reads it after
+// the kernel, so the atomics of the work-group scope that every device supports are enough.
 template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_short_brick
 {
@@ -77,15 +78,22 @@ struct __segmented_reduce_short_brick
     _Acc __init;            // the initial value converted to the accumulator type
     mutable _BinaryOperation __binary_op;
 
-    template <typename _IsFull, typename _Params, typename _Offsets, typename _Result, typename _Input>
+    template <typename _IsFull, typename _Params, typename _Offsets, typename _Result, typename _Input,
+              typename _HasLongBuf>
     void
-    operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input) const
+    operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input,
+               _HasLongBuf __has_long_buf) const
     {
         const _Size __begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx], __n);
         const _Size __end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx + 1], __n);
 
         if (__end - __begin > __threshold)
+        {
+            using _HasLong = oneapi::dpl::__internal::__value_t<_HasLongBuf>;
+            __dpl_sycl::__atomic_ref<_HasLong, sycl::access::address_space::global_space> __ref(__has_long_buf[0]);
+            __ref.store(_HasLong{1});
             return;
+        }
 
         __result[__idx] =
             oneapi::dpl::__internal::__serial_accumulate<_Acc>(__input, __begin, __end, __init, __binary_op);
@@ -203,8 +211,6 @@ struct __segmented_reduce_combine_brick
 template <typename _Name>
 class __segmented_reduce_fill_wrapper;
 template <typename _Name>
-class __segmented_reduce_count_wrapper;
-template <typename _Name>
 class __segmented_reduce_scan_wrapper;
 template <typename _Name>
 class __segmented_reduce_chunk_wrapper;
@@ -242,56 +248,53 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         _Size(__is_gpu ? __segmented_reduce_gpu_min_chunk_size : __segmented_reduce_cpu_chunk_size),
         _Size(__is_gpu ? __segmented_reduce_gpu_max_chunk_size : __segmented_reduce_cpu_chunk_size)};
 
-    // The short segments, one work-item each, which also writes the empty ones
-    auto __short_segments_f = __parallel_for(
-        _BackendTag{}, __exec,
-        __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op}, __m,
-        __offsets, __result, __input);
+    // The short segments, one work-item each, which also writes the empty ones; the long ones only set the flag. The
+    // flag is in a buffer, which costs less on GPUs than copying it from device USM. It is std::uint32_t rather than
+    // bool, as it is set atomically and sycl::atomic_ref takes no bool, only 32- and 64-bit types.
+    oneapi::dpl::__par_backend_hetero::__buffer<std::uint32_t> __has_long_storage(1);
+    auto __has_long_buf = __has_long_storage.get_buffer();
 
-    // No segment is longer than the input
-    if (__n <= __threshold)
-    {
-        __short_segments_f.event().wait_and_throw();
+    // The buffer has no host data: the flag starts from the zero written here
+    __has_long_buf.get_host_access(sycl::write_only)[0] = 0;
+    __parallel_for(_BackendTag{}, __exec,
+                   __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op},
+                   __m, __offsets, __result, __input, oneapi::dpl::__ranges::views::all(__has_long_buf))
+        .event()
+        .wait_and_throw();
+
+    // The long segments in chunks, if any
+    if (__has_long_buf.get_host_access(sycl::read_only)[0] == 0)
         return;
-    }
 
-    // The number of the chunks of all the long segments: none for most inputs of short segments, which so take no scan
-    const _Size __num_partials = __parallel_transform_reduce<_Size, std::true_type>(
-        _BackendTag{}, make_wrapped_policy<__segmented_reduce_count_wrapper>(__exec), std::plus<_Size>{},
-        unseq_backend::walk_n<__segmented_reduce_chunk_count<_Size>>{
-            __segmented_reduce_chunk_count<_Size>{__n, __threshold, __chunk_length}},
-        unseq_backend::__init_value<_Size>{_Size{0}}, oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
-        oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1}));
+    // The end of the chunks of every long segment: an inclusive scan of their numbers, computed from the pairs of the
+    // adjacent offsets, independently of the other segments; its future keeps the temporary data of the scan until the
+    // end. The temporary data are device USM or, without it, SYCL buffers.
+    sycl::queue __q = __exec.queue();
+    __block_storage<_Size, 0> __chunk_ends{__q, static_cast<std::size_t>(__m)};
 
-    if (__num_partials > 0)
-    {
-        // The end of the chunks of every long segment: an inclusive scan of their numbers, computed from the pairs of
-        // the adjacent offsets, independently of the other segments. Every next step starts on the device after the
-        // previous one; the future of the scan keeps its temporary data until the end. The temporary data are device
-        // USM or, without it, SYCL buffers.
-        sycl::queue __q = __exec.queue();
-        __block_storage<_Size, 0> __chunk_ends{__q, static_cast<std::size_t>(__m)};
-        auto __scan_f = __parallel_transform_scan(
-            _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
-            oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
-                                                 oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1})),
-            __chunk_ends.__all_view(), __m, __segmented_reduce_chunk_count<_Size>{__n, __threshold, __chunk_length},
-            unseq_backend::__no_init_value<_Size>{}, std::plus<_Size>{}, /*_Inclusive=*/std::true_type{});
+    auto __scan_f = __parallel_transform_scan(
+        _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
+        oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
+                                             oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1})),
+        __chunk_ends.__all_view(), __m, __segmented_reduce_chunk_count<_Size>{__n, __threshold, __chunk_length},
+        unseq_backend::__no_init_value<_Size>{}, std::plus<_Size>{}, /*_Inclusive=*/std::true_type{});
 
-        __block_storage<_Acc, 0> __partials{__q, static_cast<std::size_t>(__num_partials)};
+    // The number of the chunks: the last chunk end, the only element copied to the host
+    __scan_f.event().wait_and_throw();
+    const _Size __num_partials = __chunk_ends.__get_data_at(static_cast<std::size_t>(__m - 1));
 
-        auto __chunks_f = __parallel_for(
-            _BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec), __scan_f.event(),
-            __segmented_reduce_chunk_brick<_Acc, _Size, _BinaryOperation>{__n, __m, __chunk_length, __init,
-                                                                          __binary_op},
-            __num_partials, __chunk_ends.__all_view(), __offsets, __partials.__all_view(), __input);
-        __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec),
-                       __chunks_f.event(), __segmented_reduce_combine_brick<_Acc, _Size, _BinaryOperation>{__binary_op},
-                       __m, __chunk_ends.__all_view(), __partials.__all_view(), __result)
-            .event()
-            .wait_and_throw();
-    }
-    __short_segments_f.event().wait_and_throw();
+    // The combination starts on the device after the chunks
+    __block_storage<_Acc, 0> __partials{__q, static_cast<std::size_t>(__num_partials)};
+
+    auto __chunks_f = __parallel_for(
+        _BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec),
+        __segmented_reduce_chunk_brick<_Acc, _Size, _BinaryOperation>{__n, __m, __chunk_length, __init, __binary_op},
+        __num_partials, __chunk_ends.__all_view(), __offsets, __partials.__all_view(), __input);
+    __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec), __chunks_f.event(),
+                   __segmented_reduce_combine_brick<_Acc, _Size, _BinaryOperation>{__binary_op}, __m,
+                   __chunk_ends.__all_view(), __partials.__all_view(), __result)
+        .event()
+        .wait_and_throw();
 }
 
 } // namespace __par_backend_hetero

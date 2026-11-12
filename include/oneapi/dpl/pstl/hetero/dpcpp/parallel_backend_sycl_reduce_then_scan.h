@@ -170,6 +170,16 @@ struct __block_storage : public __device_storage<_T>
         else
             return __view{__block_sz, this->__usm_buf.get(), {}};
     }
+
+    // One element copied to the host, e.g. the total of a scan written into the storage
+    _T
+    __get_data_at(std::size_t __idx)
+    {
+        // __idx must be within [0, __block_sz + __offset)
+        _T __value{};
+        this->__copy_n(&__value, nullptr, 1, __idx);
+        return __value;
+    }
 };
 
 template <typename _Range, typename _T, std::size_t __offset>
