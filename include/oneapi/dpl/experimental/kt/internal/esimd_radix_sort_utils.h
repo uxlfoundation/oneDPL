@@ -124,7 +124,7 @@ __dpl_esimd::__ns::simd<std::uint16_t, _N>
 __order_preserving_cast(__dpl_esimd::__ns::simd<sycl::half, _N> __src)
 {
     __dpl_esimd::__ns::simd<std::uint16_t, _N> __uint16_src = __src.template bit_cast_view<std::uint16_t>();
-    __dpl_esimd::__ns::simd_mask<_N> __is_zero = (__src == sycl::half{0});
+    __dpl_esimd::__ns::simd_mask<_N> __is_zero = ((__uint16_src & 0x7FFFu) == 0);
     __dpl_esimd::__ns::simd<std::uint16_t, _N> __mask;
     __dpl_esimd::__ns::simd_mask<_N> __sign_bit_m = (__uint16_src >> 15 == 0);
     if constexpr (__is_ascending)
@@ -137,7 +137,8 @@ __order_preserving_cast(__dpl_esimd::__ns::simd<sycl::half, _N> __src)
         __mask = __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<std::uint16_t, _N>(0x7FFFu),
                                           __dpl_esimd::__ns::simd<std::uint16_t, _N>(std::uint16_t(0)), __sign_bit_m);
     }
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation.
+    // Zero is detected from the bits: a floating-point comparison would also match subnormals flushed to zero.
     return __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<std::uint16_t, _N>(0x8000u),
                                     __dpl_esimd::__ns::simd<std::uint16_t, _N>(__uint16_src ^ __mask), __is_zero);
 }
@@ -148,7 +149,7 @@ __dpl_esimd::__ns::simd<::std::uint32_t, _N>
 __order_preserving_cast(__dpl_esimd::__ns::simd<_Float, _N> __src)
 {
     __dpl_esimd::__ns::simd<::std::uint32_t, _N> __uint32_src = __src.template bit_cast_view<::std::uint32_t>();
-    __dpl_esimd::__ns::simd_mask<_N> __is_zero = (__src == _Float{0});
+    __dpl_esimd::__ns::simd_mask<_N> __is_zero = ((__uint32_src & 0x7FFFFFFFu) == 0);
     __dpl_esimd::__ns::simd<::std::uint32_t, _N> __mask;
     __dpl_esimd::__ns::simd_mask<_N> __sign_bit_m = (__uint32_src >> 31 == 0);
     if constexpr (__is_ascending)
@@ -162,7 +163,8 @@ __order_preserving_cast(__dpl_esimd::__ns::simd<_Float, _N> __src)
             __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<::std::uint32_t, _N>(0x7FFFFFFFu),
                                      __dpl_esimd::__ns::simd<::std::uint32_t, _N>(::std::uint32_t(0)), __sign_bit_m);
     }
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation.
+    // Zero is detected from the bits: a floating-point comparison would also match subnormals flushed to zero.
     return __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<std::uint32_t, _N>(0x80000000u), __uint32_src ^ __mask,
                                     __is_zero);
 }
@@ -173,7 +175,7 @@ __dpl_esimd::__ns::simd<::std::uint64_t, _N>
 __order_preserving_cast(__dpl_esimd::__ns::simd<_Float, _N> __src)
 {
     __dpl_esimd::__ns::simd<::std::uint64_t, _N> __uint64_src = __src.template bit_cast_view<::std::uint64_t>();
-    __dpl_esimd::__ns::simd_mask<_N> __is_zero = (__src == _Float{0});
+    __dpl_esimd::__ns::simd_mask<_N> __is_zero = ((__uint64_src & 0x7FFFFFFFFFFFFFFFu) == 0);
     __dpl_esimd::__ns::simd<::std::uint64_t, _N> __mask;
     __dpl_esimd::__ns::simd_mask<_N> __sign_bit_m = (__uint64_src >> 63 == 0);
     if constexpr (__is_ascending)
@@ -188,7 +190,8 @@ __order_preserving_cast(__dpl_esimd::__ns::simd<_Float, _N> __src)
             __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<::std::uint64_t, _N>(0x7FFFFFFFFFFFFFFFu),
                                      __dpl_esimd::__ns::simd<::std::uint64_t, _N>(::std::uint64_t(0)), __sign_bit_m);
     }
-    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation
+    // Map +0/-0 to the uppermost bit to place zero at the negative/positive boundary in its unsigned representation.
+    // Zero is detected from the bits: a floating-point comparison would also match subnormals flushed to zero.
     return __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<std::uint64_t, _N>(0x8000000000000000u),
                                     __uint64_src ^ __mask, __is_zero);
 }
