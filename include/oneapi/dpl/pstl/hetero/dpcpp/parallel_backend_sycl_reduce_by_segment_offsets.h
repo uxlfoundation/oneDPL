@@ -65,8 +65,8 @@ struct __segmented_reduce_chunk_length
 };
 
 // One work-item per short segment, which also writes the empty ones. A longer segment is left to the reduction in
-// chunks and only sets the flag of the long segments, by an atomic store of the work-group scope that every device
-// supports; the flag is host USM only where the device supports atomics on host USM.
+// chunks and only sets the flag of the long segments: by an atomic store of the work-group scope that every device
+// supports, or by a plain store into host USM where the device has no atomics on it (see __segmented_reduce_flag).
 template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_short_brick
 {
@@ -77,6 +77,7 @@ struct __segmented_reduce_short_brick
     _Size __threshold = {}; // the length of the longest short segment
     _Acc __init;            // the initial value converted to the accumulator type
     mutable _BinaryOperation __binary_op;
+    bool __atomic_flag = true; // whether the flag is set by an atomic store
 
     template <typename _IsFull, typename _Params, typename _Offsets, typename _Result, typename _Input,
               typename _HasLongBuf>
@@ -89,8 +90,16 @@ struct __segmented_reduce_short_brick
 
         if (__end - __begin > __threshold)
         {
-            __dpl_sycl::__atomic_ref<std::uint32_t, sycl::access::address_space::global_space> __ref(__has_long_buf[0]);
-            __ref.store(1);
+            if (__atomic_flag)
+            {
+                __dpl_sycl::__atomic_ref<std::uint32_t, sycl::access::address_space::global_space> __ref(
+                    __has_long_buf[0]);
+                __ref.store(1);
+            }
+            else
+            {
+                __has_long_buf[0] = 1;
+            }
             return;
         }
 
@@ -99,12 +108,20 @@ struct __segmented_reduce_short_brick
     }
 };
 
-// The flag of the long segments, set atomically by the short pass and read by the host: host USM where the device
-// supports atomics on it (sycl::aspect::usm_atomic_host_allocations), which the host reads without a copy from the
-// device and which is far cheaper to read on some GPUs; or else device USM or, without USM, a SYCL buffer
+// The flag of the long segments, set by the short pass and read by the host, which reads host USM without a copy from
+// the device; reading device memory on the host costs hundreds of microseconds on some GPUs. The flag is:
+// - host USM with atomic stores where the device supports atomics on host USM
+//   (sycl::aspect::usm_atomic_host_allocations);
+// - else host USM with plain stores where host USM is fast for the device (Level Zero GPUs). The stores of different
+//   work-items are then formally a data race, but a benign one: every writer stores the same value 1 into an aligned
+//   32-bit word, nothing in the kernel reads the flag, and the host reads it only after the kernel has completed, which
+//   makes the stores visible, so the value read is 1 if any work-item stored it and 0 otherwise;
+// - else device USM or, without USM, a SYCL buffer, with atomic stores.
 struct __segmented_reduce_flag : public __device_storage<std::uint32_t>
 {
-    bool __is_host = false; // whether the flag is host USM
+    bool __is_host = false;   // whether the flag is host USM
+    bool __is_atomic = true;  // whether the kernel sets it by an atomic store
+    sycl::event __unset_done; // the completion of the initial zero on the device, if it is not set by the host
     // The view a brick of __parallel_for takes as a range
     struct __view
     {
@@ -135,29 +152,29 @@ struct __segmented_reduce_flag : public __device_storage<std::uint32_t>
         }
     };
 
-    // The flag starts unset
-    explicit __segmented_reduce_flag(const sycl::queue& __q)
+    // The flag starts unset; the initial zero in device USM is set asynchronously, see __unset_done
+    explicit __segmented_reduce_flag(sycl::queue& __q)
     {
         const sycl::device __device = __q.get_device();
+        std::uint32_t* __ptr = nullptr;
         if (__device.has(sycl::aspect::usm_host_allocations) && __device.has(sycl::aspect::usm_atomic_host_allocations))
+            __ptr = sycl::malloc_host<std::uint32_t>(1, __q);
+        else if ((__ptr = __internal::__allocate_usm<std::uint32_t, sycl::usm::alloc::host>(__q, 1)))
+            __is_atomic = false;
+        if (__ptr)
         {
-            if (std::uint32_t* __ptr = sycl::malloc_host<std::uint32_t>(1, __q))
-            {
-                this->__usm_buf = std::unique_ptr<std::uint32_t, __internal::__sycl_usm_free>(
-                    __ptr, __internal::__sycl_usm_free{__q});
-                __is_host = true;
-            }
+            this->__usm_buf =
+                std::unique_ptr<std::uint32_t, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+            __is_host = true;
+            *__ptr = 0;
+            return;
         }
-        if (!__is_host)
-            this->__initialize(__q, 1);
 
-        const std::uint32_t __unset = 0;
-        if (__is_host)
-            *this->__usm_buf.get() = __unset;
-        else if (this->__usm_buf)
-            this->__usm_buf.get_deleter().__q->memcpy(this->__usm_buf.get(), &__unset, sizeof(__unset)).wait();
+        this->__initialize(__q, 1);
+        if (this->__usm_buf)
+            __unset_done = __q.fill(this->__usm_buf.get(), std::uint32_t{0}, 1);
         else
-            this->__sycl_buf.get_host_access(sycl::write_only)[0] = __unset;
+            this->__sycl_buf.get_host_access(sycl::write_only)[0] = 0;
     }
 
     __view
@@ -335,9 +352,11 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         _Size(__is_gpu ? __segmented_reduce_gpu_max_chunk_size : __segmented_reduce_cpu_chunk_size)};
 
     // The short segments, one work-item each, which also writes the empty ones; the long ones only set the flag
-    __segmented_reduce_flag __has_long{__exec.queue()};
-    __parallel_for(_BackendTag{}, __exec,
-                   __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op},
+    sycl::queue __q = __exec.queue();
+    __segmented_reduce_flag __has_long{__q};
+    __parallel_for(_BackendTag{}, __exec, __has_long.__unset_done,
+                   __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op,
+                                                                                 __has_long.__is_atomic},
                    __m, __offsets, __result, __input, __has_long.__all_view())
         .event()
         .wait_and_throw();
@@ -346,7 +365,6 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     if (__n <= __threshold || !__has_long.__is_set())
         return;
 
-    sycl::queue __q = __exec.queue();
     // The end of the chunks of every long segment: an inclusive scan of their numbers, computed from the pairs of the
     // adjacent offsets, independently of the other segments; its future keeps the temporary data of the scan until the
     // end. The temporary data are device USM or, without it, SYCL buffers.
