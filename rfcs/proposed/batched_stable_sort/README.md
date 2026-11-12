@@ -378,7 +378,7 @@ the initial offering, and later serve as the performance regression checks.
 
 The comparison baseline is `cub::DeviceSegmentedSort::StableSortKeys` and `StableSortPairs` on a 
 comparable NVIDIA GPU, run over the same configurations (equally sized segments given as offset
-iterators,temporary storage allocated once and not timed).
+iterators, temporary storage allocated once and not timed).
 `cub::DeviceSegmentedSort` was at least as fast as `cub::DeviceSegmentedRadixSort` at every
 segment size and total size measured, so it is the more demanding baseline.
 
