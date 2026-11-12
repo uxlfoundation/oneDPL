@@ -61,9 +61,6 @@ namespace dpl
 namespace __internal
 {
 
-template <typename _T, typename...>
-using __returns = _T;
-
 template <typename Iterator>
 using is_const_iterator =
     typename ::std::is_const<::std::remove_pointer_t<typename ::std::iterator_traits<Iterator>::pointer>>;
