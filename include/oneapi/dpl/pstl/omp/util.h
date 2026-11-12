@@ -53,6 +53,9 @@ using __buffer = oneapi::dpl::__utils::__buffer_impl<_Tp, std::allocator>;
 // Preliminary size of each chunk: requires further discussion
 constexpr std::size_t __default_chunk_size = 2048;
 
+// Aim for 3 chunks per thread for better load balancing
+constexpr std::size_t __nominal_chunks_per_thread = 3;
+
 // Convenience function to determine when we should run serial.
 template <typename _Iterator, std::enable_if_t<!std::is_integral_v<_Iterator>, bool> = true>
 constexpr auto
@@ -101,8 +104,6 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
         return __chunk_metrics{__n_chunks, __chunk_size, __n_larger_chunks};
     }
 
-    // Aim for 3 chunks per thread for better load balancing
-    constexpr std::size_t __nominal_chunks_per_thread = 3;
     std::size_t __nominal_n_chunks = __num_threads * __nominal_chunks_per_thread;
 
     // This truncating division or the equivalents in if-else branches below will be accounted for with __n_larger_chunks
