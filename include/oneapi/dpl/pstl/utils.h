@@ -1305,7 +1305,8 @@ __clamp_to_size(_Tp __value, _Size __n)
     static_assert(std::is_integral_v<_Tp> && std::is_integral_v<_Size>, "The value and the bound must be integral");
 
     using _Common = std::common_type_t<_Tp, _Size>;
-    return static_cast<_Size>(std::min<_Common>(std::max<_Tp>(__value, 0), static_cast<_Common>(__n)));
+    return static_cast<_Size>(
+        std::min<_Common>(static_cast<_Common>(std::max<_Tp>(__value, 0)), static_cast<_Common>(__n)));
 }
 
 // Folds the elements [__begin, __end) of a random access iterator or a range from left to right into an accumulator
