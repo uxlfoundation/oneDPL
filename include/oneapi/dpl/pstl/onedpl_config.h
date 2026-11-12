@@ -102,14 +102,11 @@
 #    define _ONEDPL_PRAGMA_SIMD_REDUCTION(PRM)
 #endif //Enable SIMD
 
-// Enable loop unrolling pragmas where supported. _ONEDPL_PRAGMA_UNROLL asks for a full unroll, which suits a loop with
-// a trip count known at compile time; _ONEDPL_PRAGMA_UNROLL_BY(N) unrolls a loop by N, which also suits a loop with a
-// trip count known only at run time.
+// Enable loop unrolling pragmas where supported
 #if (__INTEL_LLVM_COMPILER || __INTEL_COMPILER || _ONEDPL_CLANG_VERSION >= 30700)
 #    define _ONEDPL_PRAGMA_UNROLL _ONEDPL_PRAGMA(unroll)
 #    define _ONEDPL_PRAGMA_UNROLL_BY(N) _ONEDPL_PRAGMA(unroll(N))
 #elif (_ONEDPL_GCC_VERSION >= 80000)
-// GCC has no unroll pragma without a count
 #    define _ONEDPL_PRAGMA_UNROLL
 #    define _ONEDPL_PRAGMA_UNROLL_BY(N) _ONEDPL_PRAGMA(GCC unroll N)
 #else //no pragma unroll
