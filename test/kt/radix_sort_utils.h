@@ -94,7 +94,7 @@ calculate_slm_size(KernelParam param)
 #endif
 }
 
-// SLM usage of the SYCL one work-group batched radix sort: the reorder buffer overlaps the sub-group histograms
+// SLM usage of the SYCL one work-group batched radix sort: the reorder buffer followed by the sub-group histograms
 template <typename KernelParam, typename KeyT, typename ValueT = void, std::uint8_t RadixBits = TestRadixBits>
 std::size_t
 calculate_one_wg_slm_size(KernelParam param)
@@ -106,7 +106,7 @@ calculate_one_wg_slm_size(KernelParam param)
     std::size_t reorder_size = sizeof(KeyT) * param.data_per_workitem * param.workgroup_size;
     if constexpr (!std::is_void_v<ValueT>)
         reorder_size += sizeof(ValueT) * param.data_per_workitem * param.workgroup_size;
-    return std::max(hists_size, reorder_size);
+    return hists_size + reorder_size;
 }
 
 template <typename KernelParam, typename KeyT, typename ValueT = void, bool OneWorkGroup = false,

@@ -294,25 +294,23 @@ __extract_bins(const _KeyT (&__keys)[__data_per_work_item], _LocOffsetT (&__bins
     }
 }
 
-// Bitmask of the sub-group lanes holding the same bin as this lane
+// Bitmask of the sub-group lanes holding the same bin as this lane. All 32 lanes must be active.
 template <std::uint8_t __radix_bits>
 inline std::uint32_t
 __sub_group_match_bins(sycl::sub_group __sub_group, std::uint32_t __bin)
 {
-    // start with all bits 1
-    sycl::ext::oneapi::sub_group_mask __matched_bins = sycl::ext::oneapi::group_ballot(__sub_group);
+    // The votes are narrowed to 32 bits at once: sub_group_mask is 64 bits wide and costs extra instructions
+    std::uint32_t __matched_bins = ~std::uint32_t{0};
     _ONEDPL_PRAGMA_UNROLL
     for (int __i = 0; __i < __radix_bits; __i++)
     {
         bool __bit = static_cast<bool>((__bin >> __i) & 1);
-        sycl::ext::oneapi::sub_group_mask __sg_vote = sycl::ext::oneapi::group_ballot(__sub_group, __bit);
-        // If we vote yes, then we want to set all bits that also voted yes. If no, then we want to
-        // zero out the bits that said yes as they don't match and preserve others as we have no info on these.
+        std::uint32_t __sg_vote = 0;
+        sycl::ext::oneapi::group_ballot(__sub_group, __bit).extract_bits(__sg_vote);
+        // Keep the lanes that voted the same as this lane
         __matched_bins &= __bit ? __sg_vote : ~__sg_vote;
     }
-    std::uint32_t __result = 0;
-    __matched_bins.extract_bits(__result);
-    return __result;
+    return __matched_bins;
 }
 
 // Ranks the elements of a sub-group of 32 lanes in the order (element, lane), and leaves the per-bin counts of the
@@ -939,8 +937,8 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 //
 // Per stage:
 // 1. Each sub-group ranks its elements with ballots and leaves its per-bin counts in an SLM histogram row.
-// 2. The rows of a segment are scanned per bin, and the last row of each segment is then scanned across bins, giving
-//    the segment's bin offsets.
+// 2. One sub-group per segment scans the segment's rows per bin and across bins, replacing each row with the SLM
+//    offset of the sub-group's first element in each bin.
 // 3. Elements are reordered through SLM, where each segment occupies the same slots it owns in registers, and read
 //    back into registers.
 //
@@ -970,15 +968,15 @@ struct __batched_one_wg_radix_sort_kernel
     static_assert(__tile_size <= std::numeric_limits<_LocOffsetT>::max(),
                   "data_per_workitem * workgroup_size must fit the 16-bit local offsets");
 
+    // The histograms do not overlap the reorder buffer, so SLM needs no barrier to pass from one to the other
+    static constexpr std::uint32_t __reorder_size =
+        __tile_size * (sizeof(_KeyT) + (__has_values ? sizeof(std::conditional_t<__has_values, _ValT, char>) : 0));
+    static constexpr std::uint32_t __hists_size = __num_sub_groups * __bin_count * sizeof(_LocOffsetT);
+
     static constexpr std::uint32_t
     __calc_slm_alloc()
     {
-        // The reorder buffer overlaps the histograms, which are consumed before the reorder starts
-        std::uint32_t __reorder_size = __tile_size * sizeof(_KeyT);
-        if constexpr (__has_values)
-            __reorder_size += __tile_size * sizeof(_ValT);
-        constexpr std::uint32_t __hists_size = __num_sub_groups * __bin_count * sizeof(_LocOffsetT);
-        return std::max(__reorder_size, __hists_size);
+        return __reorder_size + __hists_size;
     }
 
     _GlobOffsetT __m_segment_size;
@@ -1022,7 +1020,7 @@ struct __batched_one_wg_radix_sort_kernel
         const std::uint32_t __slm_segment_offset = __local_segment * __m_sub_groups_per_segment * __data_per_sub_group;
 
         unsigned char* __slm_raw = __m_slm.template get_multi_ptr<sycl::access::decorated::no>().get();
-        _LocOffsetT* __slm_hists = reinterpret_cast<_LocOffsetT*>(__slm_raw);
+        _LocOffsetT* __slm_hists = reinterpret_cast<_LocOffsetT*>(__slm_raw + __reorder_size);
         _KeyT* __slm_keys = reinterpret_cast<_KeyT*>(__slm_raw);
         _ValT* __slm_vals = nullptr;
         if constexpr (__has_values)
@@ -1046,29 +1044,23 @@ struct __batched_one_wg_radix_sort_kernel
             }
             sycl::group_barrier(__group);
 
-            // 2. Offsets of each sub-group and bin within its segment
-            if (__m_sub_groups_per_segment > 1)
-            {
-                __scan_rows_per_bin(__idx.get_local_linear_id(), __group_segment_count, __slm_hists);
-                sycl::group_barrier(__group);
-            }
-            // One sub-group per segment scans its bins: sub-group i takes segment i, which need not be its own
-            // segment, since the histograms are shared by the work-group
+            // 2. SLM offsets of each sub-group and bin. Sub-group i scans segment i, which need not be its own segment,
+            // since the histograms are shared by the work-group.
             if (__sg_id < __group_segment_count)
-                __scan_segment_bins(__sub_group, __sg_local_id, __segment_last_row(__sg_id, __slm_hists));
-            sycl::group_barrier(__group);
-
-            if (__is_active)
-                __propagate_ranks_across_sub_groups(
-                    __ranks, __bins, __sg_in_segment == 0 ? nullptr : __slm_hists + (__sg_id - 1) * __bin_count,
-                    __segment_last_row(__local_segment, __slm_hists), _LocOffsetT(__slm_segment_offset));
-            // The reorder buffer overlaps the histograms
+                __scan_segment_hists(__sub_group, __sg_local_id, __sg_id, __slm_hists);
             sycl::group_barrier(__group);
 
             // 3. Reorder through SLM
             if (__is_active)
+            {
+                const _LocOffsetT* __sg_offsets = __slm_hists + __sg_id * __bin_count;
+                _ONEDPL_PRAGMA_UNROLL
+                for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
+                    __ranks[__i] += __sg_offsets[__bins[__i]];
                 __scatter_to_slm(__pack, __ranks, __slm_keys, __slm_vals);
+            }
             sycl::group_barrier(__group);
+            // The next stage writes this buffer only after its first barrier
             if (__is_active)
             {
                 _ONEDPL_PRAGMA_UNROLL
@@ -1080,9 +1072,6 @@ struct __batched_one_wg_radix_sort_kernel
                         __pack.__vals[__i] = __slm_vals[__slm_idx];
                 }
             }
-            // The next stage's histograms overlap the reorder buffer. After the last stage, SLM is not used again.
-            if (__stage + 1 < __stage_count)
-                sycl::group_barrier(__group);
         }
 
         if (__is_active)
@@ -1124,50 +1113,50 @@ struct __batched_one_wg_radix_sort_kernel
         }
     }
 
-    _LocOffsetT*
-    __segment_last_row(std::uint32_t __local_segment, _LocOffsetT* __slm_hists) const
-    {
-        return __slm_hists + ((__local_segment + 1) * __m_sub_groups_per_segment - 1) * __bin_count;
-    }
-
-    // Inclusive scan of each bin over the histogram rows of a segment
+    // Replaces each histogram row of segment __segment with the SLM offset of that sub-group's first element in each
+    // bin: the segment's SLM offset, plus the bin's offset within the segment, plus the counts of the earlier
+    // sub-groups in that bin. Each lane owns __bins_per_lane consecutive bins.
     void
-    __scan_rows_per_bin(std::uint32_t __local_id, std::uint32_t __group_segment_count, _LocOffsetT* __slm_hists) const
-    {
-        for (std::uint32_t __p = __local_id; __p < __group_segment_count * __bin_count; __p += __work_group_size)
-        {
-            const std::uint32_t __segment = __p / __bin_count;
-            _LocOffsetT* __col = __slm_hists + __segment * __m_sub_groups_per_segment * __bin_count + __p % __bin_count;
-            _LocOffsetT __sum = 0;
-            for (std::uint32_t __row = 0; __row < __m_sub_groups_per_segment; ++__row)
-            {
-                __sum += __col[__row * __bin_count];
-                __col[__row * __bin_count] = __sum;
-            }
-        }
-    }
-
-    // Exclusive scan across the bins of a segment's totals, in place
-    void
-    __scan_segment_bins(const sycl::sub_group& __sub_group, std::uint32_t __sg_local_id, _LocOffsetT* __row) const
+    __scan_segment_hists(const sycl::sub_group& __sub_group, std::uint32_t __sg_local_id, std::uint32_t __segment,
+                         _LocOffsetT* __slm_hists) const
     {
         static_assert(__bin_count % __sub_group_size == 0);
         constexpr std::uint32_t __bins_per_lane = __bin_count / __sub_group_size;
-        const std::uint32_t __first_bin = __sg_local_id * __bins_per_lane;
+        const std::uint32_t __rows = __m_sub_groups_per_segment;
+        _LocOffsetT* __lane_hists =
+            __slm_hists + __segment * __rows * __bin_count + __sg_local_id * __bins_per_lane;
+
+        std::uint32_t __totals[__bins_per_lane] = {};
+        for (std::uint32_t __row = 0; __row < __rows; ++__row)
+        {
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __j = 0; __j < __bins_per_lane; ++__j)
+                __totals[__j] += __lane_hists[__row * __bin_count + __j];
+        }
 
         std::uint32_t __lane_sum = 0;
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __j = 0; __j < __bins_per_lane; ++__j)
-        {
-            __lane_sum += __row[__first_bin + __j];
-        }
-        std::uint32_t __prefix = sycl::exclusive_scan_over_group(__sub_group, __lane_sum, sycl::plus<std::uint32_t>{});
+            __lane_sum += __totals[__j];
+        std::uint32_t __offset = __segment * __rows * __data_per_sub_group +
+                                 sycl::exclusive_scan_over_group(__sub_group, __lane_sum, sycl::plus<std::uint32_t>{});
+        std::uint32_t __offsets[__bins_per_lane];
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __j = 0; __j < __bins_per_lane; ++__j)
         {
-            const _LocOffsetT __count = __row[__first_bin + __j];
-            __row[__first_bin + __j] = __prefix;
-            __prefix += __count;
+            __offsets[__j] = __offset;
+            __offset += __totals[__j];
+        }
+
+        for (std::uint32_t __row = 0; __row < __rows; ++__row)
+        {
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __j = 0; __j < __bins_per_lane; ++__j)
+            {
+                const _LocOffsetT __count = __lane_hists[__row * __bin_count + __j];
+                __lane_hists[__row * __bin_count + __j] = __offsets[__j];
+                __offsets[__j] += __count;
+            }
         }
     }
 };
