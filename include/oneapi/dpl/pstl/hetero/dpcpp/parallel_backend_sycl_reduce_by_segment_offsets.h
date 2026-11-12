@@ -65,9 +65,9 @@ struct __segmented_reduce_chunk_length
 };
 
 // One work-item per short segment, which also writes the empty ones. A longer segment is left to the reduction in
-// chunks and only sets the flag of the long segments: every writer stores the same value and the host reads it only
-// after the kernel. The store is not atomic, as the flag is host USM where possible, and devices may support no
-// atomics on host USM (sycl::aspect::usm_atomic_host_allocations).
+// chunks and only sets the flag of the long segments, by an atomic store of the work-group scope that every device
+// supports: every writer stores the same value and the host reads it only after the kernel, so the atomics on host USM
+// need not be atomic with respect to the host (sycl::aspect::usm_atomic_host_allocations).
 template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_short_brick
 {
@@ -90,7 +90,8 @@ struct __segmented_reduce_short_brick
 
         if (__end - __begin > __threshold)
         {
-            __has_long_buf[0] = 1;
+            __dpl_sycl::__atomic_ref<std::uint32_t, sycl::access::address_space::global_space> __ref(__has_long_buf[0]);
+            __ref.store(1);
             return;
         }
 
