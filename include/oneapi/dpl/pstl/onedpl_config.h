@@ -107,6 +107,7 @@
 #    define _ONEDPL_PRAGMA_UNROLL _ONEDPL_PRAGMA(unroll)
 #    define _ONEDPL_PRAGMA_UNROLL_BY(N) _ONEDPL_PRAGMA(unroll(N))
 #elif (_ONEDPL_GCC_VERSION >= 80000)
+// GCC has no unroll pragma without a count: 8 is the default of its own limit for -funroll-loops (max-unroll-times)
 #    define _ONEDPL_PRAGMA_UNROLL _ONEDPL_PRAGMA(GCC unroll 8)
 #    define _ONEDPL_PRAGMA_UNROLL_BY(N) _ONEDPL_PRAGMA(GCC unroll N)
 #else //no pragma unroll
