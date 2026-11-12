@@ -558,7 +558,7 @@ test_narrow_counting_input()
 }
 
 // 8-bit values, accumulator and results, and enough segments for the kernels of __parallel_for which would vectorize
-// over 8-bit values: the bricks of a device reduce whole segments or chunks and must opt out of the vectorization
+// over 8-bit values: the bricks of a device reduce whole segments or chunks and must not be vectorized
 void
 test_small_types()
 {
