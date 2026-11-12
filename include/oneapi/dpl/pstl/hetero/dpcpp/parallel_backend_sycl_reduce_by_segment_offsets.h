@@ -336,9 +336,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         __offsets, __result, __input, oneapi::dpl::__ranges::views::all(__report_buf))
         .event()
         .wait_and_throw();
-    const _Size __max_length = __report_buf.get_host_access(sycl::read_only)[0];
 
     // The long segments in chunks: at most n / __threshold of them
+    const _Size __max_length = __report_buf.get_host_access(sycl::read_only)[0];
     if (__max_length > 0)
         __reduce_in_chunks(__threshold, /*__write_empty=*/false, __max_length, __n / __threshold);
 }
