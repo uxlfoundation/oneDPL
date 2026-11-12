@@ -294,25 +294,23 @@ __extract_bins(const _KeyT (&__keys)[__data_per_work_item], _LocOffsetT (&__bins
     }
 }
 
-// Bitmask of the sub-group lanes holding the same bin as this lane
+// Bitmask of the sub-group lanes holding the same bin as this lane. All 32 lanes must be active.
 template <std::uint8_t __radix_bits>
 inline std::uint32_t
 __sub_group_match_bins(sycl::sub_group __sub_group, std::uint32_t __bin)
 {
-    // start with all bits 1
-    sycl::ext::oneapi::sub_group_mask __matched_bins = sycl::ext::oneapi::group_ballot(__sub_group);
+    std::uint32_t __matched_bins = ~std::uint32_t{0};
     _ONEDPL_PRAGMA_UNROLL
     for (int __i = 0; __i < __radix_bits; __i++)
     {
         bool __bit = static_cast<bool>((__bin >> __i) & 1);
-        sycl::ext::oneapi::sub_group_mask __sg_vote = sycl::ext::oneapi::group_ballot(__sub_group, __bit);
-        // If we vote yes, then we want to set all bits that also voted yes. If no, then we want to
-        // zero out the bits that said yes as they don't match and preserve others as we have no info on these.
+        // votes narrowed to 32 bits, sub_group_mask is 64 bits wide and costs extra instructions, subgroups size = 32
+        std::uint32_t __sg_vote = 0;
+        sycl::ext::oneapi::group_ballot(__sub_group, __bit).extract_bits(__sg_vote);
+        // Keep the lanes that voted the same as this lane
         __matched_bins &= __bit ? __sg_vote : ~__sg_vote;
     }
-    std::uint32_t __result = 0;
-    __matched_bins.extract_bits(__result);
-    return __result;
+    return __matched_bins;
 }
 
 // Ranks the elements of a sub-group of 32 lanes in the order (element, lane), and leaves the per-bin counts of the
