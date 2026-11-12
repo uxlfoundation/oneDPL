@@ -60,10 +60,6 @@
 #include "function.h"
 #include "../pstl/utils.h"
 
-#if _ONEDPL_BACKEND_SYCL
-#    include "../pstl/hetero/reduce_by_segment_impl_hetero.h"
-#endif
-
 namespace oneapi
 {
 namespace dpl
@@ -170,18 +166,60 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     return std::make_pair(result1 + N, result2 + N);
 }
 
+#if _ONEDPL_BACKEND_SYCL
+
+template <typename _BackendTag, typename Policy, typename InputIterator1, typename InputIterator2,
+          typename OutputIterator1, typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
+std::pair<OutputIterator1, OutputIterator2>
+reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& policy, InputIterator1 first1,
+                       InputIterator1 last1, InputIterator2 first2, OutputIterator1 result1, OutputIterator2 result2,
+                       BinaryPred binary_pred, BinaryOperator binary_op)
+{
+    // The algorithm reduces values in [first2, first2 + (last1-first1)) where the associated
+    // keys for the values are equal to the adjacent key.
+    //
+    // Example: keys          = { 1, 2, 3, 4, 1, 1, 3, 3, 1, 1, 3, 3, 0 } -- [first1, last1)
+    //          values        = { 1, 2, 3, 4, 1, 1, 3, 3, 1, 1, 3, 3, 0 } -- [first2, first2+n)
+    //
+    //          keys_result   = { 1, 2, 3, 4, 1, 3, 1, 3, 0 } -- result1
+    //          values_result = { 1, 2, 3, 4, 2, 6, 2, 6, 0 } -- result2
+
+    if (first1 == last1)
+        return std::make_pair(result1, result2);
+
+    // number of unique keys
+    const auto __n = oneapi::dpl::__internal::__pattern_reduce_by_segment(
+        __tag, std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred, binary_op);
+
+    return std::make_pair(result1 + __n, result2 + __n);
+}
+
+template <typename _BackendTag, typename _Policy, typename _RandomAccessInputIt, typename _SegmentNum,
+          typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
+_RandomAccessOutputIt
+reduce_by_segment_offsets_impl(__internal::__hetero_tag<_BackendTag> __tag, _Policy&& __policy,
+                               _RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
+                               _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
+                               _RandomAccessOffsetIt __offsets, _InitType __init_value, _BinaryOperation __binary_op)
+{
+    return oneapi::dpl::__internal::__pattern_reduce_by_segment_offsets(
+        __tag, std::forward<_Policy>(__policy), __first_value, __last_value, __result_value, __num_segments, __offsets,
+        __init_value, __binary_op);
+}
+#endif
+
 //------------------------------------------------------------------------
 // reduce_by_segment with segments defined by offsets
 //------------------------------------------------------------------------
 
-// Reduces the elements [__begin, __end) of a random access iterator on the host as __segmented_reduce_serial does,
+// Reduces the elements [__begin, __end) of a random access iterator on the host as __serial_accumulate does,
 // from an accumulator: the initial value converted to the accumulator type, or the result of the operation
 template <typename _Acc, typename _RandomAccessIterator, typename _Index, typename _BinaryOperation>
 _Acc
 __segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __end, _Acc __init,
                         _BinaryOperation& __binary_op, /*is_vector=*/std::false_type)
 {
-    return __internal::__segmented_reduce_serial<_Acc>(__first, __begin, __end, std::move(__init), __binary_op);
+    return __internal::__serial_accumulate<_Acc>(__first, __begin, __end, std::move(__init), __binary_op);
 }
 
 // The same, vectorized: the vectorized reduction also starts its lanes from the operation on two elements
@@ -222,9 +260,8 @@ __brick_reduce_by_segment_offsets(_RandomAccessInputIt __first_value, _RandomAcc
     for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
     {
         *__this_segment = __segmented_reduce_host<_Acc>(
-            __first_value, __internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n),
-            __internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n), __init, __binary_op,
-            __is_vector);
+            __first_value, __internal::__clamp_to_size(__offsets[__segment], __n),
+            __internal::__clamp_to_size(__offsets[__segment + 1], __n), __init, __binary_op, __is_vector);
         ++__this_segment;
     }
 
@@ -239,7 +276,7 @@ reduce_by_segment_offsets_impl(__internal::__serial_tag<_IsVector>, _Policy&&, _
                                _InputValueIt __last_value, _OutputValueIt __result_value, _SegmentNum __num_segments,
                                _OffsetIt __offsets, _InitType __init, _BinaryOperation __binary_op)
 {
-    using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _InputValueIt, _BinaryOperation>;
+    using _Acc = __internal::__reduction_accumulator_t<_BinaryOperation, _InputValueIt, _InitType>;
 
     // Converted once: every segment starts from this accumulator
     const _Acc __init_acc = std::move(__init);
@@ -279,7 +316,7 @@ __reduce_by_segment_offsets_by_pieces(_BackendTag, _IsVector, _ExecutionPolicy& 
     using __backend_tag = _BackendTag;
 
     auto __begin_of = [__offsets, __n](_Size __segment) {
-        return __internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n);
+        return __internal::__clamp_to_size(__offsets[__segment], __n);
     };
 
     // One parallel pass over pieces of the input of about __segmented_reduce_host_piece elements. A piece writes
@@ -289,7 +326,7 @@ __reduce_by_segment_offsets_by_pieces(_BackendTag, _IsVector, _ExecutionPolicy& 
     // input to the last piece. Unordered offsets give unspecified results but no access out of the bounds. The pass
     // has a grain of one piece, as the OpenMP backend would otherwise run up to 2048 of them in one task.
     const _Size __num_pieces = std::max<_Size>(1, __n / _Size(__segmented_reduce_host_piece));
-    const _Size __piece = (__n + __num_pieces - 1) / __num_pieces;
+    const _Size __piece = __internal::__dpl_ceiling_div(__n, __num_pieces);
     // The first segment starting at __x or later, __m if none
     auto __first_from = [&](_Size __x) {
         _Size __lo = 0, __hi = __m;
@@ -312,9 +349,11 @@ __reduce_by_segment_offsets_by_pieces(_BackendTag, _IsVector, _ExecutionPolicy& 
         // The partial result, if any
         oneapi::dpl::__internal::__opt_lazy_ctor_storage<_Acc> __value;
     };
-    oneapi::dpl::__par_backend::__buffer<__part> __heads_buf(__num_pieces), __tails_buf(__num_pieces);
+    oneapi::dpl::__par_backend::__buffer<__part> __heads_buf(__num_pieces);
     __part* __heads = __heads_buf.get();
+    oneapi::dpl::__par_backend::__buffer<__part> __tails_buf(__num_pieces);
     __part* __tails = __tails_buf.get();
+
     for (_Size __p = 0; __p < __num_pieces; ++__p)
     {
         ::new (__heads + __p) __part{};
@@ -422,7 +461,7 @@ reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Execution
                                _RandomAccessOffsetIt __offsets, _InitType __init, _BinaryOperation __binary_op)
 {
     using __backend_tag = typename __internal::__parallel_tag<_IsVector>::__backend_tag;
-    using _Acc = __internal::__segmented_reduce_acc_t<_InitType, _RandomAccessInputIt, _BinaryOperation>;
+    using _Acc = __internal::__reduction_accumulator_t<_BinaryOperation, _RandomAccessInputIt, _InitType>;
     // The type of the index arithmetic, as on a device; signed, as a reversed segment has a negative length
     using _Size = std::make_signed_t<decltype((__last_value - __first_value) + __num_segments)>;
 
@@ -449,8 +488,8 @@ reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Execution
     const _Size __threshold = __segmented_reduce_host_short_segment_max;
     const _Size __chunk_size = __segmented_reduce_host_chunk_size;
     auto __bounds = [__offsets, __n](_Size __segment) {
-        return std::make_pair(__internal::__segmented_reduce_clamp_offset(__offsets[__segment], __n),
-                              __internal::__segmented_reduce_clamp_offset(__offsets[__segment + 1], __n));
+        return std::make_pair(__internal::__clamp_to_size(__offsets[__segment], __n),
+                              __internal::__clamp_to_size(__offsets[__segment + 1], __n));
     };
 
     // The __parallel_for over the segments has a grain of about __threshold elements on average, so that many short
@@ -464,6 +503,7 @@ reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Execution
         const _Size __capacity = __n / __threshold + 1;
         oneapi::dpl::__par_backend::__buffer<_Size> __long_buf(__capacity);
         _Size* __long = __long_buf.get();
+
         std::atomic<_Size> __num_listed{0};
         oneapi::dpl::__par_backend::__parallel_for(
             __backend_tag{}, __exec, _Size{0}, __m,
@@ -498,13 +538,14 @@ reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Execution
         _Size* __long_begins = __long_begins_buf.get();
         oneapi::dpl::__par_backend::__buffer<_Size> __long_lengths_buf(__num_long);
         _Size* __long_lengths = __long_lengths_buf.get();
+
         _Size __num_chunks = 0;
         for (_Size __k = 0; __k < __num_long; ++__k)
         {
             const auto [__begin, __end] = __bounds(__long[__k]);
             __long_begins[__k] = __begin;
             __long_lengths[__k] = __end - __begin;
-            __num_chunks += (__end - __begin + __chunk_size - 1) / __chunk_size;
+            __num_chunks += __internal::__dpl_ceiling_div(__end - __begin, __chunk_size);
             __chunk_ends[__k] = __num_chunks;
         }
 
@@ -513,24 +554,28 @@ reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Execution
         // starts from the operation on its first two elements.
         oneapi::dpl::__par_backend::__buffer<_Acc> __partials_buf(__num_chunks);
         _Acc* __partials = __partials_buf.get();
+
         oneapi::dpl::__par_backend::__parallel_for(
             __backend_tag{}, __exec, _Size{0}, __num_chunks,
             [&](_Size __chunk_first, _Size __chunk_last) {
                 for (_Size __chunk = __chunk_first; __chunk < __chunk_last; ++__chunk)
                 {
                     const _Size __k = std::upper_bound(__chunk_ends, __chunk_ends + __num_long, __chunk) - __chunk_ends;
-                    const _Size __first_chunk = __k == 0 ? _Size{0} : __chunk_ends[__k - 1];
-                    const _Size __begin = __long_begins[__k];
-                    const _Size __head = __long_lengths[__k] - (__chunk_ends[__k] - __first_chunk - 1) * __chunk_size;
-                    const _Size __j = __chunk - __first_chunk;
-                    if (__j == 0)
+                    const _Size __segment_first_chunk = __k == 0 ? _Size{0} : __chunk_ends[__k - 1];
+                    const _Size __segment_begin = __long_begins[__k];
+                    const _Size __head_length =
+                        __long_lengths[__k] - (__chunk_ends[__k] - __segment_first_chunk - 1) * __chunk_size;
+                    const _Size __chunk_idx_in_segment = __chunk - __segment_first_chunk;
+                    if (__chunk_idx_in_segment == 0)
                     {
                         ::new (__partials + __chunk) _Acc(__segmented_reduce_host<_Acc>(
-                            __first_value, __begin, __begin + __head, __init_acc, __binary_op, _IsVector{}));
+                            __first_value, __segment_begin, __segment_begin + __head_length, __init_acc, __binary_op,
+                            _IsVector{}));
                     }
                     else
                     {
-                        const _Size __chunk_begin = __begin + __head + (__j - 1) * __chunk_size;
+                        const _Size __chunk_begin =
+                            __segment_begin + __head_length + (__chunk_idx_in_segment - 1) * __chunk_size;
                         ::new (__partials + __chunk) _Acc(__segmented_reduce_host<_Acc>(
                             __first_value, __chunk_begin + 2, __chunk_begin + __chunk_size,
                             std::invoke(__binary_op, __first_value[__chunk_begin], __first_value[__chunk_begin + 1]),
@@ -545,10 +590,10 @@ reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _Execution
         auto __combine = [&](_Size __k_first, _Size __k_last) {
             for (_Size __k = __k_first; __k < __k_last; ++__k)
             {
-                const _Size __first_chunk = __k == 0 ? _Size{0} : __chunk_ends[__k - 1];
-                _Acc __acc = std::move(__partials[__first_chunk]);
-                std::destroy_at(__partials + __first_chunk);
-                for (_Size __chunk = __first_chunk + 1; __chunk < __chunk_ends[__k]; ++__chunk)
+                const _Size __segment_first_chunk = __k == 0 ? _Size{0} : __chunk_ends[__k - 1];
+                _Acc __acc = std::move(__partials[__segment_first_chunk]);
+                std::destroy_at(__partials + __segment_first_chunk);
+                for (_Size __chunk = __segment_first_chunk + 1; __chunk < __chunk_ends[__k]; ++__chunk)
                 {
                     __acc = std::invoke(__binary_op, std::move(__acc), std::move(__partials[__chunk]));
                     std::destroy_at(__partials + __chunk);
