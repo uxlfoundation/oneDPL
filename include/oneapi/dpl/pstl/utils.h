@@ -295,7 +295,7 @@ class __set_value
     }
 };
 
-//TODO: to do the same fix  for output type (by reusing __transform_functor if applicable) for the other functor below:
+//TODO: to do the same fix for output type (by reusing __transform_functor if applicable) for the other functor below:
 // __transform_if_unary_functor, __transform_if_binary_functor, __replace_functor
 template <typename _F, typename _RevTag = std::false_type>
 class __transform_functor
