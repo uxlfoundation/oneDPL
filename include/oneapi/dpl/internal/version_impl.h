@@ -65,6 +65,9 @@
 
 // -- Define oneDPL feature macros --
 #define ONEDPL_HAS_RANDOM_NUMBERS         202603L
+// clang-format off
+#define ONEDPL_HAS_SEGMENTED_ALGORITHMS   202611L
+// clang-format on
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #    define ONEDPL_HAS_RANGE_ALGORITHMS   202608L
 #endif
