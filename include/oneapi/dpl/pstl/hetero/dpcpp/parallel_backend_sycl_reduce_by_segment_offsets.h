@@ -13,7 +13,7 @@
 #include <algorithm>   // std::min, std::clamp, std::find
 #include <cmath>       // std::sqrt
 #include <cstddef>     // std::size_t
-#include <cstdint>     // std::uint8_t, std::uint32_t, std::uint64_t
+#include <cstdint>     // std::uint8_t, std::uint32_t
 #include <functional>  // std::invoke, std::less, std::plus
 #include <limits>      // std::numeric_limits
 #include <type_traits> // std::true_type
@@ -56,8 +56,9 @@ struct __segmented_reduce_variable_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input,
                _MaxLongSegmentLengthBuf __max_long_segment_length_buf) const
     {
-        using __atomic_ref_t = sycl::atomic_ref<std::uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                                                sycl::access::address_space::global_space>;
+        using _MaxLongSegmentLength = oneapi::dpl::__internal::__value_t<_MaxLongSegmentLengthBuf>;
+        using __atomic_ref_t = sycl::atomic_ref<_MaxLongSegmentLength, sycl::memory_order::relaxed,
+                                                sycl::memory_scope::device, sycl::access::address_space::global_space>;
 
         const _Size __begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx], __n);
         const _Size __end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx + 1], __n);
@@ -66,8 +67,8 @@ struct __segmented_reduce_variable_brick
         {
             __atomic_ref_t __ref(__max_long_segment_length_buf[0]);
 
-            __ref.fetch_max(static_cast<std::uint32_t>(std::min<std::uint64_t>(
-                static_cast<std::uint64_t>(__end - __begin), std::numeric_limits<std::uint32_t>::max())));
+            __ref.fetch_max(oneapi::dpl::__internal::__clamp_to_size(
+                __end - __begin, std::numeric_limits<_MaxLongSegmentLength>::max()));
             return;
         }
 
