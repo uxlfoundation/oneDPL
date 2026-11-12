@@ -180,22 +180,6 @@ struct __block_storage : public __device_storage<_T>
         this->__copy_n(&__value, nullptr, 1, __idx);
         return __value;
     }
-    // One element set from the host, e.g. the initial value of a flag set by a kernel
-    void
-    __set_data_at(std::size_t __idx, const _T& __value)
-    {
-        // __idx must be within [0, __block_sz + __offset)
-        if (this->__usm_buf)
-        {
-            auto& __q_proxy = this->__usm_buf.get_deleter();
-            assert(__q_proxy.__q.has_value());
-            __q_proxy.__q->memcpy(this->__usm_buf.get() + __idx, &__value, sizeof(_T)).wait();
-        }
-        else
-        {
-            this->__sycl_buf.get_host_access(sycl::write_only)[__idx] = __value;
-        }
-    }
 };
 
 template <typename _Range, typename _T, std::size_t __offset>

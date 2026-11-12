@@ -65,8 +65,9 @@ struct __segmented_reduce_chunk_length
 };
 
 // One work-item per short segment, which also writes the empty ones. A longer segment is left to the reduction in
-// chunks and only sets the flag of the long segments: every writer stores the same value, and the host reads it after
-// the kernel, so the atomics of the work-group scope that every device supports are enough.
+// chunks and only sets the flag of the long segments: every writer stores the same value and the host reads it only
+// after the kernel. The store is not atomic, as the flag is host USM where possible, and devices may support no
+// atomics on host USM (sycl::aspect::usm_atomic_host_allocations).
 template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_short_brick
 {
@@ -89,14 +90,79 @@ struct __segmented_reduce_short_brick
 
         if (__end - __begin > __threshold)
         {
-            using _HasLong = oneapi::dpl::__internal::__value_t<_HasLongBuf>;
-            __dpl_sycl::__atomic_ref<_HasLong, sycl::access::address_space::global_space> __ref(__has_long_buf[0]);
-            __ref.store(_HasLong{1});
+            __has_long_buf[0] = 1;
             return;
         }
 
         __result[__idx] =
             oneapi::dpl::__internal::__serial_accumulate<_Acc>(__input, __begin, __end, __init, __binary_op);
+    }
+};
+
+// The flag of the long segments, set by the short pass and read by the host: host USM where a device writes it (Level
+// Zero GPUs), which the host reads without a copy from the device, or else device USM or, without USM, a SYCL buffer,
+// as a __result_storage is
+struct __segmented_reduce_flag : public __result_storage<std::uint32_t>
+{
+    // The view a brick of __parallel_for takes as a range
+    struct __view
+    {
+        using value_type = std::uint32_t;
+        using __acc_t = sycl::accessor<std::uint32_t, 1, sycl::access_mode::read_write, __dpl_sycl::__target_device>;
+        std::uint32_t* __data = nullptr;
+        __acc_t __acc;
+
+        // Element access is only valid in device code
+        std::uint32_t&
+        operator[](std::size_t __idx) const
+        {
+            return __data ? __data[__idx] : __acc[__idx];
+        }
+
+        std::size_t
+        size() const
+        {
+            return 1;
+        }
+
+        // ADL-discoverable call used by __ranges::__require_access in utils_ranges_sycl.h
+        friend void
+        __require_access_range(sycl::handler& __cgh, __view& __v)
+        {
+            if (__v.__acc.size() != 0)
+                __cgh.require(__v.__acc);
+        }
+    };
+
+    // The flag starts unset
+    explicit __segmented_reduce_flag(const sycl::queue& __q) : __result_storage<std::uint32_t>(__q, 1)
+    {
+        const std::uint32_t __unset = 0;
+        if (this->__kind == sycl::usm::alloc::host)
+            *this->__usm_buf.get() = __unset;
+        else if (this->__usm_buf)
+            this->__usm_buf.get_deleter().__q->memcpy(this->__usm_buf.get(), &__unset, sizeof(__unset)).wait();
+        else
+            this->__sycl_buf.get_host_access(sycl::write_only)[0] = __unset;
+    }
+
+    __view
+    __all_view()
+    {
+        // As __block_storage: checking the buffer size covers both "no device USM" and
+        // _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
+        if (this->__sycl_buf.size() != 0)
+            return __view{this->__usm_buf.get(), {this->__sycl_buf}};
+        return __view{this->__usm_buf.get(), {}};
+    }
+
+    // Valid after the kernel that sets it has completed
+    bool
+    __is_set()
+    {
+        std::uint32_t __value = 0;
+        this->__copy_result(&__value, 1);
+        return __value != 0;
     }
 };
 
@@ -248,22 +314,19 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         _Size(__is_gpu ? __segmented_reduce_gpu_min_chunk_size : __segmented_reduce_cpu_chunk_size),
         _Size(__is_gpu ? __segmented_reduce_gpu_max_chunk_size : __segmented_reduce_cpu_chunk_size)};
 
-    // The short segments, one work-item each, which also writes the empty ones; the long ones only set the flag. The
-    // flag is device USM or, without it, a SYCL buffer, as the temporary data below. It is std::uint32_t rather than
-    // bool, as it is set atomically and sycl::atomic_ref takes no bool, only 32- and 64-bit types.
-    sycl::queue __q = __exec.queue();
-    __block_storage<std::uint32_t, 0> __has_long{__q, 1};
-    __has_long.__set_data_at(0, 0);
+    // The short segments, one work-item each, which also writes the empty ones; the long ones only set the flag
+    __segmented_reduce_flag __has_long{__exec.queue()};
     __parallel_for(_BackendTag{}, __exec,
                    __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op},
                    __m, __offsets, __result, __input, __has_long.__all_view())
         .event()
         .wait_and_throw();
 
-    // The long segments in chunks, if any
-    if (__has_long.__get_data_at(0) == 0)
+    // The long segments in chunks, if any: none if no segment is longer than the input
+    if (__n <= __threshold || !__has_long.__is_set())
         return;
 
+    sycl::queue __q = __exec.queue();
     // The end of the chunks of every long segment: an inclusive scan of their numbers, computed from the pairs of the
     // adjacent offsets, independently of the other segments; its future keeps the temporary data of the scan until the
     // end. The temporary data are device USM or, without it, SYCL buffers.
