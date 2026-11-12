@@ -103,12 +103,17 @@
 #endif //Enable SIMD
 
 // Enable loop unrolling pragmas where supported
-#if (__INTEL_LLVM_COMPILER || __INTEL_COMPILER ||                                                                      \
-     (!defined(__INTEL_LLVM_COMPILER) && !defined(__INTEL_COMPILER) &&                                                 \
-      ((_ONEDPL_GCC_VERSION >= 80000) || (_ONEDPL_CLANG_VERSION >= 30700))))
+#if (__INTEL_LLVM_COMPILER || __INTEL_COMPILER || _ONEDPL_CLANG_VERSION >= 30700)
 #    define _ONEDPL_PRAGMA_UNROLL _ONEDPL_PRAGMA(unroll)
+#    define _ONEDPL_PRAGMA_UNROLL_BY(N) _ONEDPL_PRAGMA(unroll(N))
+#elif (_ONEDPL_GCC_VERSION >= 80000)
+// GCC has no unroll pragma without a count. 8 is the factor GCC itself uses for -funroll-loops (undocumented).
+// Reevaluate the value when the pragma is used in host code.
+#    define _ONEDPL_PRAGMA_UNROLL _ONEDPL_PRAGMA(GCC unroll 8)
+#    define _ONEDPL_PRAGMA_UNROLL_BY(N) _ONEDPL_PRAGMA(GCC unroll N)
 #else //no pragma unroll
 #    define _ONEDPL_PRAGMA_UNROLL
+#    define _ONEDPL_PRAGMA_UNROLL_BY(N)
 #endif
 
 #if (__INTEL_LLVM_COMPILER || __INTEL_COMPILER)
