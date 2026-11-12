@@ -128,7 +128,7 @@ struct __block_storage : public __device_storage<_T>
             return __data ? __data[__lidx] : __acc[__lidx];
         }
 
-        // Elements addressable through the view, so that __parallel_for takes it as a range
+        // The elements addressable through the view: __parallel_for checks its ranges are not empty in debug builds
         std::size_t
         size() const
         {

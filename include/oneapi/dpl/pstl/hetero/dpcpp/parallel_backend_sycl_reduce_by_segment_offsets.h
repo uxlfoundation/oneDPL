@@ -141,6 +141,7 @@ struct __segmented_reduce_flag : public __device_storage<std::uint32_t>
                 __flag = 1;
         }
 
+        // The one element: __parallel_for checks that its ranges are not empty in debug builds
         std::size_t
         size() const
         {
