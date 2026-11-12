@@ -382,7 +382,7 @@ iterators, temporary storage allocated once and not timed).
 `cub::DeviceSegmentedSort` was at least as fast as `cub::DeviceSegmentedRadixSort` at every
 segment size and total size measured, so it is the more demanding baseline.
 
-After tuning, the oneDPL geomean time across all configurations above must be no more than 2x the
+After tuning, the oneDPL geomean of time ratios across all configurations above must be no more than 2x the
 `cub::DeviceSegmentedSort` time. Initial performance results show us we should be able to do significantly
 better than this bar.
 
