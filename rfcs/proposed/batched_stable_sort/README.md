@@ -41,8 +41,9 @@ Required:
 Preferred:
 Temporary data preallocated and supplied
 
-Not required:
-custom comparator (offered by merge path sort only, see [Sort Configuration](#sort-configuration))
+Not explicitly required (based on feedback and use case search):
+* Custom comparator. It is offered by merge path sort anyway, for consistency with the rest of
+  oneDPL and with the standard library (see [Sort Configuration](#sort-configuration)).
 
 ## Proposal
 
@@ -365,8 +366,10 @@ the initial offering, and later serve as the performance regression checks.
   focus on `float`.
 * Input: uniformly distributed **random** keys and values.
 * Segment sizes: 32, 64, 75, 128, 256, 333, 1K, 2051, 4K, 5125, 16K, 64K, 256K.
-* Total sizes: 2^8 to 2^28 elements in steps of 4x, skipping total sizes smaller than one segment. Total
-  size must be exact multiple of segment size, so reduce the size to the nearest multiple of segment size.
+* Total sizes: 2^8 to 2^28 elements in steps of 4x. Total size must be an exact multiple of the
+  segment size, so each total size is rounded down to a multiple of the segment size.
+* The configurations are the cartesian product of the segment sizes and the total sizes, omitting
+  combinations where the segment size is larger than the total size.
 * Kernel configuration: for each segment size, the `_SortConfig` and `kernel_param` tuned per
   target device, chosen per total size range (up to 2^14, up to 2^18, and above 2^18 elements).
   This is the dispatch a user would write (see [Dispatch](#dispatch)).
@@ -391,6 +394,10 @@ These are left out of the initial proposal to limit scope.
   are not supported yet by defining how they map to an ordered unsigned integer.
 * Arbitrary projections, where the sort key is the result of a user callable applied to each
   element, and the element itself is what moves. This could potentially remove the need for `_by_key` variants.
+* A `merge_many_groups_tag`, a merge path sort spanning multiple work-groups per segment, to allow
+  a custom comparator for segments larger than one work-group can sort. This is not prioritized
+  now, as a custom comparator has not been found to be needed in the gathered feedback; it can be
+  added if demand appears.
 
 ## Open Questions
 
