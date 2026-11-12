@@ -65,8 +65,7 @@ struct __segmented_reduce_chunk_length
 };
 
 // One work-item per short segment, which also writes the empty ones. A longer segment is left to the reduction in
-// chunks and only sets the flag of the long segments: by an atomic store of the work-group scope that every device
-// supports, or by a plain store into host USM where the device has no atomics on it (see __segmented_reduce_flag).
+// chunks and only sets the flag of the long segments (see __segmented_reduce_flag).
 template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_short_brick
 {
@@ -77,7 +76,6 @@ struct __segmented_reduce_short_brick
     _Size __threshold = {}; // the length of the longest short segment
     _Acc __init;            // the initial value converted to the accumulator type
     mutable _BinaryOperation __binary_op;
-    bool __atomic_flag = true; // whether the flag is set by an atomic store
 
     template <typename _IsFull, typename _Params, typename _Offsets, typename _Result, typename _Input,
               typename _HasLongBuf>
@@ -90,16 +88,7 @@ struct __segmented_reduce_short_brick
 
         if (__end - __begin > __threshold)
         {
-            if (__atomic_flag)
-            {
-                __dpl_sycl::__atomic_ref<std::uint32_t, sycl::access::address_space::global_space> __ref(
-                    __has_long_buf[0]);
-                __ref.store(1);
-            }
-            else
-            {
-                __has_long_buf[0] = 1;
-            }
+            __has_long_buf.__set();
             return;
         }
 
@@ -129,12 +118,24 @@ struct __segmented_reduce_flag : public __device_storage<std::uint32_t>
         using __acc_t = sycl::accessor<std::uint32_t, 1, sycl::access_mode::read_write, __dpl_sycl::__target_device>;
         std::uint32_t* __data = nullptr;
         __acc_t __acc;
+        bool __is_atomic = true; // whether the flag is set by an atomic store
 
         // Element access is only valid in device code
         std::uint32_t&
         operator[](std::size_t __idx) const
         {
             return __data ? __data[__idx] : __acc[__idx];
+        }
+
+        // Sets the flag; only valid in device code
+        void
+        __set() const
+        {
+            std::uint32_t& __flag = (*this)[0];
+            if (__is_atomic)
+                __dpl_sycl::__atomic_ref<std::uint32_t, sycl::access::address_space::global_space>(__flag).store(1);
+            else
+                __flag = 1;
         }
 
         std::size_t
@@ -183,8 +184,8 @@ struct __segmented_reduce_flag : public __device_storage<std::uint32_t>
         // As __block_storage: checking the buffer size covers both "no device USM" and
         // _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
         if (this->__sycl_buf.size() != 0)
-            return __view{this->__usm_buf.get(), {this->__sycl_buf}};
-        return __view{this->__usm_buf.get(), {}};
+            return __view{this->__usm_buf.get(), {this->__sycl_buf}, __is_atomic};
+        return __view{this->__usm_buf.get(), {}, __is_atomic};
     }
 
     // Valid after the kernel that sets it has completed
@@ -349,8 +350,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     sycl::queue __q = __exec.queue();
     __segmented_reduce_flag __has_long{__q};
     __parallel_for(_BackendTag{}, __exec, __has_long.__unset_done,
-                   __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op,
-                                                                                 __has_long.__is_atomic},
+                   __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op},
                    __m, __offsets, __result, __input, __has_long.__all_view())
         .event()
         .wait_and_throw();
