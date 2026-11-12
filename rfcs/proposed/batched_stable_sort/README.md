@@ -364,7 +364,7 @@ the initial offering, and later serve as the performance regression checks.
   interesting to track as well, but for the sake of not exploding the combinations, our criteria will
   focus on `float`.
 * Input: uniformly distributed **random** keys and values.
-* Segment sizes: 32, 64, 128, 256, 1K, 4K, 16K, 64K, 256K.
+* Segment sizes: 32, 64, 75, 128, 256, 333, 1K, 2051, 4K, 5125, 16K, 64K, 256K.
 * Total sizes: 2^8 to 2^28 elements in steps of 4x, skipping total sizes smaller than one segment.
 * Kernel configuration: for each segment size, the `_SortConfig` and `kernel_param` tuned per
   target device, chosen per total size range (up to 2^14, up to 2^18, and above 2^18 elements).
