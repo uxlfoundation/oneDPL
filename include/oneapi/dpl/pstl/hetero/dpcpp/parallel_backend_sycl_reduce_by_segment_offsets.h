@@ -66,8 +66,7 @@ struct __segmented_reduce_chunk_length
 
 // One work-item per short segment, which also writes the empty ones. A longer segment is left to the reduction in
 // chunks and only sets the flag of the long segments, by an atomic store of the work-group scope that every device
-// supports: every writer stores the same value and the host reads it only after the kernel, so the atomics on host USM
-// need not be atomic with respect to the host (sycl::aspect::usm_atomic_host_allocations).
+// supports; the flag is host USM only where the device supports atomics on host USM.
 template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_short_brick
 {
@@ -100,11 +99,12 @@ struct __segmented_reduce_short_brick
     }
 };
 
-// The flag of the long segments, set by the short pass and read by the host: host USM where a device writes it (Level
-// Zero GPUs), which the host reads without a copy from the device, or else device USM or, without USM, a SYCL buffer,
-// as a __result_storage is
-struct __segmented_reduce_flag : public __result_storage<std::uint32_t>
+// The flag of the long segments, set atomically by the short pass and read by the host: host USM where the device
+// supports atomics on it (sycl::aspect::usm_atomic_host_allocations), which the host reads without a copy from the
+// device and which is far cheaper to read on some GPUs; or else device USM or, without USM, a SYCL buffer
+struct __segmented_reduce_flag : public __device_storage<std::uint32_t>
 {
+    bool __is_host = false; // whether the flag is host USM
     // The view a brick of __parallel_for takes as a range
     struct __view
     {
@@ -136,10 +136,23 @@ struct __segmented_reduce_flag : public __result_storage<std::uint32_t>
     };
 
     // The flag starts unset
-    explicit __segmented_reduce_flag(const sycl::queue& __q) : __result_storage<std::uint32_t>(__q, 1)
+    explicit __segmented_reduce_flag(const sycl::queue& __q)
     {
+        const sycl::device __device = __q.get_device();
+        if (__device.has(sycl::aspect::usm_host_allocations) && __device.has(sycl::aspect::usm_atomic_host_allocations))
+        {
+            if (std::uint32_t* __ptr = sycl::malloc_host<std::uint32_t>(1, __q))
+            {
+                this->__usm_buf = std::unique_ptr<std::uint32_t, __internal::__sycl_usm_free>(
+                    __ptr, __internal::__sycl_usm_free{__q});
+                __is_host = true;
+            }
+        }
+        if (!__is_host)
+            this->__initialize(__q, 1);
+
         const std::uint32_t __unset = 0;
-        if (this->__kind == sycl::usm::alloc::host)
+        if (__is_host)
             *this->__usm_buf.get() = __unset;
         else if (this->__usm_buf)
             this->__usm_buf.get_deleter().__q->memcpy(this->__usm_buf.get(), &__unset, sizeof(__unset)).wait();
@@ -162,7 +175,7 @@ struct __segmented_reduce_flag : public __result_storage<std::uint32_t>
     __is_set()
     {
         std::uint32_t __value = 0;
-        this->__copy_result(&__value, 1);
+        this->__copy_n(&__value, __is_host ? this->__usm_buf.get() : nullptr, 1, 0);
         return __value != 0;
     }
 };
