@@ -161,6 +161,41 @@ test_even_bin_arithmetic(std::initializer_list<T> values, Bound bin_min, Bound b
                                          bin_min, bin_max, expected);
 }
 
+struct test_histogram_range_bins_exact
+{
+    // The boundaries are passed as a container so that they are not reversed along with the iterator arguments
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Bound>
+    void
+    operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 bin_first, Iterator2 bin_last,
+               const std::vector<Bound>& boundaries, const std::vector<int>& expected)
+    {
+        if constexpr (TestUtils::is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator2>)
+        {
+            const int sentinel = -1;
+            std::fill(bin_first, bin_last, sentinel);
+            const auto num_bins = expected.size();
+            EXPECT_TRUE(boundaries.size() == num_bins + 1, "test setup: expected must have one entry per bin");
+            auto orr = oneapi::dpl::histogram(std::forward<Policy>(exec), in_first, in_last, boundaries.begin(),
+                                              boundaries.end(), bin_first);
+            EXPECT_TRUE(bin_first + num_bins == orr, "histogram returned wrong iterator");
+            EXPECT_EQ_N(expected.begin(), bin_first, num_bins, "wrong result from histogram with custom boundaries");
+            // The output range holds one extra element to catch a sample mapped past the last bin
+            EXPECT_TRUE(bin_first[num_bins] == sentinel, "histogram wrote past the last bin");
+        }
+    }
+};
+
+template <std::size_t CallNumber, typename T, typename Bound>
+void
+test_range_bin_arithmetic(std::initializer_list<T> values, std::initializer_list<Bound> boundaries,
+                          std::vector<int> expected)
+{
+    Sequence<T> in(values);
+    Sequence<int> out(expected.size() + 1, [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber>()(test_histogram_range_bins_exact(), in.begin(), in.end(), out.begin(), out.end(),
+                                         std::vector<Bound>(boundaries), expected);
+}
+
 void
 test_bin_arithmetic()
 {
@@ -263,6 +298,21 @@ test_bin_arithmetic()
     // With no bins nothing is written, even for samples within the bounds
     test_even_bin_arithmetic<19, int>({0, 5}, 0, 10, {});
     test_even_bin_arithmetic<20, float>({0.0f, 5.0f}, 0.0f, 10.0f, {});
+
+    // Custom boundaries that do not fit in the sample type must be compared without converting them to it
+    test_range_bin_arithmetic<42, std::int32_t, std::int64_t>({std::numeric_limits<std::int32_t>::min(), -1, 0,
+                                                               std::numeric_limits<std::int32_t>::max()},
+                                                              {-3000000000LL, 0LL, 3000000000LL}, {2, 2});
+    test_range_bin_arithmetic<43, std::int8_t, int>({std::int8_t(-128), std::int8_t(50), std::int8_t(127)},
+                                                    {-200, 0, 300, 400}, {1, 2, 0});
+    test_range_bin_arithmetic<44, std::uint8_t, int>({std::uint8_t(0), std::uint8_t(99), std::uint8_t(100),
+                                                      std::uint8_t(255)},
+                                                     {-10, 100, 300}, {2, 2});
+    // A double boundary just above a float sample must not be rounded down onto it
+    test_range_bin_arithmetic<45, float, double>({0.5f}, {0.0, std::nextafter(0.5, 1.0), 1.0}, {1, 0});
+    // 64-bit samples outside 32-bit boundaries are excluded rather than wrapped into the range
+    test_range_bin_arithmetic<46, std::int64_t, std::uint32_t>(
+        {10, 509, 510, 1009, 1010, two32 + 10, two32 + 510, 10 - two32}, {10u, 510u, 1010u}, {2, 2});
 }
 
 int
