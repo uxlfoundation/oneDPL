@@ -249,27 +249,24 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         _Size(__is_gpu ? __segmented_reduce_gpu_max_chunk_size : __segmented_reduce_cpu_chunk_size)};
 
     // The short segments, one work-item each, which also writes the empty ones; the long ones only set the flag. The
-    // flag is in a buffer, which costs less on GPUs than copying it from device USM. It is std::uint32_t rather than
+    // flag is device USM or, without it, a SYCL buffer, as the temporary data below. It is std::uint32_t rather than
     // bool, as it is set atomically and sycl::atomic_ref takes no bool, only 32- and 64-bit types.
-    oneapi::dpl::__par_backend_hetero::__buffer<std::uint32_t> __has_long_storage(1);
-    auto __has_long_buf = __has_long_storage.get_buffer();
-
-    // The buffer has no host data: the flag starts from the zero written here
-    __has_long_buf.get_host_access(sycl::write_only)[0] = 0;
+    sycl::queue __q = __exec.queue();
+    __block_storage<std::uint32_t, 0> __has_long{__q, 1};
+    __has_long.__set_data_at(0, 0);
     __parallel_for(_BackendTag{}, __exec,
                    __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op},
-                   __m, __offsets, __result, __input, oneapi::dpl::__ranges::views::all(__has_long_buf))
+                   __m, __offsets, __result, __input, __has_long.__all_view())
         .event()
         .wait_and_throw();
 
     // The long segments in chunks, if any
-    if (__has_long_buf.get_host_access(sycl::read_only)[0] == 0)
+    if (__has_long.__get_data_at(0) == 0)
         return;
 
     // The end of the chunks of every long segment: an inclusive scan of their numbers, computed from the pairs of the
     // adjacent offsets, independently of the other segments; its future keeps the temporary data of the scan until the
     // end. The temporary data are device USM or, without it, SYCL buffers.
-    sycl::queue __q = __exec.queue();
     __block_storage<_Size, 0> __chunk_ends{__q, static_cast<std::size_t>(__m)};
 
     auto __scan_f = __parallel_transform_scan(
