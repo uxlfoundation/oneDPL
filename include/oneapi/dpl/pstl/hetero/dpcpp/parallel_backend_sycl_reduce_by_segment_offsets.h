@@ -10,7 +10,8 @@
 #ifndef _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_BY_SEGMENT_OFFSETS_H
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_BY_SEGMENT_OFFSETS_H
 
-#include <algorithm>   // std::clamp
+#include <algorithm>   // std::clamp, std::min
+#include <cmath>       // std::sqrt
 #include <cstddef>     // std::size_t
 #include <cstdint>     // std::uint8_t, std::uint32_t, std::uint64_t
 #include <functional>  // std::invoke, std::less, std::plus
@@ -249,6 +250,10 @@ struct __segmented_reduce_chunk_brick
     {
         const _Size __chunk = __idx;
 
+        // More work-items than chunks: their number is bounded, not read on the host
+        if (__chunk >= _Size(__chunk_ends[std::size_t(__num_segments - 1)]))
+            return;
+
         // The segment of the chunk: the first one whose chunks end after it, the last one if no other does. The chunk
         // ends are a block storage, indexed by std::size_t.
         const std::size_t __segment_idx = oneapi::dpl::__internal::__pstl_upper_bound(
@@ -285,6 +290,7 @@ struct __segmented_reduce_combine_brick
     static constexpr std::uint8_t __iters_per_item = 1;
     static constexpr std::uint8_t __vector_size = 1; // one segment or chunk per work-item, in a loop of its length
 
+    _Size __num_partials = {}; // the number of the partial results, a bound of the chunks
     mutable _BinaryOperation __binary_op;
 
     template <typename _IsFull, typename _Params, typename _ChunkEnds, typename _Partials, typename _Result>
@@ -293,7 +299,8 @@ struct __segmented_reduce_combine_brick
                _Result __result) const
     {
         const _Size __first = __idx == 0 ? _Size{0} : _Size(__chunk_ends[__idx - 1]);
-        const _Size __last = __chunk_ends[__idx];
+        // Unordered offsets may give more chunks than the bound: their results are unspecified
+        const _Size __last = std::min<_Size>(__chunk_ends[__idx], __num_partials);
 
         // A segment without chunks is short and already reduced
         if (__first >= __last)
@@ -360,9 +367,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         return;
 
     // The end of the chunks of every long segment: an inclusive scan of their numbers, computed from the pairs of the
-    // adjacent offsets, independently of the other segments. The reduce-then-scan also leaves the total, the number of
-    // the chunks, in its result storage: host USM where it is fast for the device, which the host reads without a copy
-    // from the device. The temporary data are device USM or, without it, SYCL buffers.
+    // adjacent offsets, independently of the other segments. The reduce-then-scan is called directly: the scan of a
+    // single work-group would add its kernels to the JIT compilation. The temporary data are device USM or, without it,
+    // SYCL buffers, kept with the storage of the scan until the end.
     __block_storage<_Size, 0> __chunk_ends{__q, static_cast<std::size_t>(__m)};
 
     using _ChunkCount = __segmented_reduce_chunk_count<_Size>;
@@ -372,28 +379,40 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         2 * sizeof(oneapi::dpl::__internal::__value_t<std::decay_t<_OffsetRange>>);
     const _GenInput __gen_input{_ChunkCount{__n, __threshold, __chunk_length}};
     __transform_scan_storage_holder_simple<_Size> __holder(__q);
-    __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_work_item_iter,
-                                          __segmented_reduce_scan_wrapper<
-                                              oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>(
-        __q, static_cast<std::size_t>(__m),
-        oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
-                                             oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1})),
-        __chunk_ends.__all_view(), __gen_input, std::plus<_Size>{}, __gen_input, oneapi::dpl::identity{},
-        __simple_write_to_id{}, unseq_backend::__no_init_value<_Size>{}, __holder, /*_Inclusive=*/std::true_type{},
-        /*_IsUniquePattern=*/std::false_type{})
-        .wait_and_throw();
+    sycl::event __scan_event =
+        __parallel_transform_reduce_then_scan</*_Bounded=*/false, __bytes_per_work_item_iter,
+                                              __segmented_reduce_scan_wrapper<
+                                                  oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>(
+            __q, static_cast<std::size_t>(__m),
+            oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
+                                                 oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1})),
+            __chunk_ends.__all_view(), __gen_input, std::plus<_Size>{}, __gen_input, oneapi::dpl::identity{},
+            __simple_write_to_id{}, unseq_backend::__no_init_value<_Size>{}, __holder, /*_Inclusive=*/std::true_type{},
+            /*_IsUniquePattern=*/std::false_type{});
 
-    // The chunks, then their combination after them on the device
-    _Size __num_partials = 0;
-    __holder.template __copy_result<0>(&__num_partials, 1);
+    // A bound of the number of the chunks, so that the host does not wait for the scan; it holds unless the offsets
+    // are not ordered. Every chunk but the head of a segment has at least the minimal chunk length: at most
+    // n / min + m chunks. On GPUs, a segment of the length L in [2^k, 2^(k+1)) has chunks of the length 2^(k/2 + 1)
+    // (k/2 rounded down), or longer where clamped by the minimum: at most 2^ceil(k/2) <= sqrt(2 * L) chunks, the head
+    // included; where clamped by the maximum, at most L / max + 1. The sum of sqrt(2 * L) over at most m segments of
+    // the total length n is at most sqrt(2 * m * n), so there are at most sqrt(2 * m * n) + n / max + m chunks, with 2
+    // more for the rounding: much fewer than n / min + m for few segments. Compared as doubles, which cannot overflow.
+    const _Size __loose_bound = __n / __chunk_length.__min_chunk_size + __m;
+    const double __tight_bound = std::sqrt(2.0 * static_cast<double>(__m) * static_cast<double>(__n)) +
+                                 static_cast<double>(__n / __chunk_length.__max_chunk_size) +
+                                 static_cast<double>(__m) + 2.0;
+    const _Size __num_partials = __is_gpu && __tight_bound < static_cast<double>(__loose_bound)
+                                     ? static_cast<_Size>(__tight_bound)
+                                     : __loose_bound;
     __block_storage<_Acc, 0> __partials{__q, static_cast<std::size_t>(__num_partials)};
 
+    // The chunks start on the device after the scan, and the combination after the chunks
     auto __chunks_f = __parallel_for(
-        _BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec),
+        _BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec), __scan_event,
         __segmented_reduce_chunk_brick<_Acc, _Size, _BinaryOperation>{__n, __m, __chunk_length, __init, __binary_op},
         __num_partials, __chunk_ends.__all_view(), __offsets, __partials.__all_view(), __input);
     __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_combine_wrapper>(__exec), __chunks_f.event(),
-                   __segmented_reduce_combine_brick<_Acc, _Size, _BinaryOperation>{__binary_op}, __m,
+                   __segmented_reduce_combine_brick<_Acc, _Size, _BinaryOperation>{__num_partials, __binary_op}, __m,
                    __chunk_ends.__all_view(), __partials.__all_view(), __result)
         .event()
         .wait_and_throw();
