@@ -100,15 +100,23 @@ struct __segmented_reduce_chunk_count
     _Size __threshold = {}; // the length of the longest short segment
     __segmented_reduce_chunk_length<_Size> __chunk_length;
 
+    template <typename _Offset>
+    _Size
+    operator()(_Offset __first, _Offset __last) const
+    {
+        const _Size __begin = oneapi::dpl::__internal::__clamp_to_size(__first, __n);
+        const _Size __end = oneapi::dpl::__internal::__clamp_to_size(__last, __n);
+        const _Size __length = __end - __begin;
+        return __length > __threshold ? oneapi::dpl::__internal::__dpl_ceiling_div(__length, __chunk_length(__length))
+                                      : _Size{0};
+    }
+
+    // The same for the pair of the offsets as a tuple, the input of the scan
     template <typename _Bounds>
     _Size
     operator()(const _Bounds& __bounds) const
     {
-        const _Size __begin = oneapi::dpl::__internal::__clamp_to_size(std::get<0>(__bounds), __n);
-        const _Size __end = oneapi::dpl::__internal::__clamp_to_size(std::get<1>(__bounds), __n);
-        const _Size __length = __end - __begin;
-        return __length > __threshold ? oneapi::dpl::__internal::__dpl_ceiling_div(__length, __chunk_length(__length))
-                                      : _Size{0};
+        return (*this)(std::get<0>(__bounds), std::get<1>(__bounds));
     }
 };
 
@@ -192,6 +200,8 @@ struct __segmented_reduce_combine_brick
 template <typename _Name>
 class __segmented_reduce_fill_wrapper;
 template <typename _Name>
+class __segmented_reduce_count_wrapper;
+template <typename _Name>
 class __segmented_reduce_scan_wrapper;
 template <typename _Name>
 class __segmented_reduce_chunk_wrapper;
@@ -242,33 +252,30 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         return;
     }
 
-    // The end of the chunks of every long segment: an inclusive scan of their numbers, computed from the pairs of the
-    // adjacent offsets, independently of the other segments
-    oneapi::dpl::__par_backend_hetero::__buffer<_Size> __chunk_ends_buf(__m);
-    auto __chunk_ends = __chunk_ends_buf.get_buffer();
+    // The number of the chunks of all the long segments: none for most inputs of short segments, which so take no scan
+    const _Size __num_partials = __parallel_transform_reduce<_Size, std::true_type>(
+        _BackendTag{}, make_wrapped_policy<__segmented_reduce_count_wrapper>(__exec), std::plus<_Size>{},
+        unseq_backend::walk_n<__segmented_reduce_chunk_count<_Size>>{
+            __segmented_reduce_chunk_count<_Size>{__n, __threshold, __chunk_length}},
+        unseq_backend::__init_value<_Size>{_Size{0}}, oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
+        oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1}));
 
-    __parallel_transform_scan(
-        _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
-        oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
-                                             oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1})),
-        oneapi::dpl::__ranges::views::all_write(__chunk_ends), __m,
-        __segmented_reduce_chunk_count<_Size>{__n, __threshold, __chunk_length},
-        unseq_backend::__no_init_value<_Size>{}, std::plus<_Size>{}, /*_Inclusive=*/std::true_type{})
-        .event()
-        .wait_and_throw();
-
-    // The long segments in chunks, if any. Only the last chunk end is copied to the host: a host accessor would copy
-    // the whole buffer.
-    _Size __num_partials = 0;
-    __exec.queue()
-        .submit([&](sycl::handler& __cgh) {
-            auto __last = __chunk_ends.template get_access<sycl::access_mode::read>(
-                __cgh, sycl::range<1>(1), sycl::id<1>(static_cast<std::size_t>(__m - 1)));
-            __cgh.copy(__last, &__num_partials);
-        })
-        .wait_and_throw();
     if (__num_partials > 0)
     {
+        // The end of the chunks of every long segment: an inclusive scan of their numbers, computed from the pairs of
+        // the adjacent offsets, independently of the other segments. The chunks depend on it through __chunk_ends, so
+        // the host does not wait for it; its future keeps the temporary data of the scan until the end.
+        oneapi::dpl::__par_backend_hetero::__buffer<_Size> __chunk_ends_buf(__m);
+        auto __chunk_ends = __chunk_ends_buf.get_buffer();
+
+        auto __scan = __parallel_transform_scan(
+            _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
+            oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
+                                                 oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1})),
+            oneapi::dpl::__ranges::views::all_write(__chunk_ends), __m,
+            __segmented_reduce_chunk_count<_Size>{__n, __threshold, __chunk_length},
+            unseq_backend::__no_init_value<_Size>{}, std::plus<_Size>{}, /*_Inclusive=*/std::true_type{});
+
         oneapi::dpl::__par_backend_hetero::__buffer<_Acc> __partials_buf(__num_partials);
         auto __partials = __partials_buf.get_buffer();
 
@@ -283,6 +290,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                        oneapi::dpl::__ranges::views::all_read(__partials), __result)
             .event()
             .wait_and_throw();
+        __scan.event().wait_and_throw();
     }
     __short_segments.event().wait_and_throw();
 }
