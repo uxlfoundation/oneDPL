@@ -257,8 +257,16 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         .event()
         .wait_and_throw();
 
-    // The long segments in chunks, if any
-    const _Size __num_partials = __chunk_ends.get_host_access(sycl::read_only)[__m - 1];
+    // The long segments in chunks, if any. Only the last chunk end is copied to the host: a host accessor would copy
+    // the whole buffer.
+    _Size __num_partials = 0;
+    __exec.queue()
+        .submit([&](sycl::handler& __cgh) {
+            auto __last = __chunk_ends.template get_access<sycl::access_mode::read>(
+                __cgh, sycl::range<1>(1), sycl::id<1>(static_cast<std::size_t>(__m - 1)));
+            __cgh.copy(__last, &__num_partials);
+        })
+        .wait_and_throw();
     if (__num_partials > 0)
     {
         oneapi::dpl::__par_backend_hetero::__buffer<_Acc> __partials_buf(__num_partials);
