@@ -51,10 +51,10 @@ struct __segmented_reduce_variable_brick
     mutable _BinaryOperation __binary_op;
 
     template <typename _IsFull, typename _Params, typename _Offsets, typename _Result, typename _Input,
-              typename _MaxLength>
+              typename _MaxLongSegmentLengthBuf>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input,
-               _MaxLength __max_length) const
+               _MaxLongSegmentLengthBuf __max_long_segment_length_buf) const
     {
         using __atomic_ref_t = sycl::atomic_ref<std::uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                                 sycl::access::address_space::global_space>;
@@ -64,7 +64,7 @@ struct __segmented_reduce_variable_brick
 
         if (__end - __begin > __threshold)
         {
-            __atomic_ref_t __ref(__max_length[0]);
+            __atomic_ref_t __ref(__max_long_segment_length_buf[0]);
 
             __ref.fetch_max(static_cast<std::uint32_t>(std::min<std::uint64_t>(
                 static_cast<std::uint64_t>(__end - __begin), std::numeric_limits<std::uint32_t>::max())));
@@ -329,20 +329,20 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
 
     // The short segments, one work-item each; the long ones only report the longest length. The report is in a buffer,
     // which costs less on GPUs than copying it from device USM.
-    oneapi::dpl::__par_backend_hetero::__buffer<std::uint32_t> __report_storage(1);
-    auto __report_buf = __report_storage.get_buffer();
+    oneapi::dpl::__par_backend_hetero::__buffer<std::uint32_t> __max_long_segment_length_storage(1);
+    auto __max_long_segment_length_buf = __max_long_segment_length_storage.get_buffer();
 
     // The buffer has no host data: the atomic maximum starts from the zero written here
-    __report_buf.get_host_access(sycl::write_only)[0] = 0;
+    __max_long_segment_length_buf.get_host_access(sycl::write_only)[0] = 0;
     __parallel_for(
         _BackendTag{}, __exec,
         __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op}, __m,
-        __offsets, __result, __input, oneapi::dpl::__ranges::views::all(__report_buf))
+        __offsets, __result, __input, oneapi::dpl::__ranges::views::all(__max_long_segment_length_buf))
         .event()
         .wait_and_throw();
 
     // The long segments in chunks: at most n / __threshold of them
-    const _Size __max_length = __report_buf.get_host_access(sycl::read_only)[0];
+    const _Size __max_length = __max_long_segment_length_buf.get_host_access(sycl::read_only)[0];
     if (__max_length > 0)
         __reduce_in_chunks(__threshold, /*__write_empty=*/false, __max_length, __n / __threshold);
 }
