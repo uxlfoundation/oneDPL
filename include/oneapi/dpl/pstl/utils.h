@@ -1318,9 +1318,8 @@ __serial_accumulate(const _Source& __src, _Index __begin, _Index __end, _InitTyp
     _Acc __acc = std::move(__init);
 
     // Unrolled on a device, where a work-item reducing alone would wait for every load
-#if defined(__SYCL_DEVICE_ONLY__)
-    _ONEDPL_PRAGMA(unroll 16)
-#endif
+    // TODO: let's apply #pragma unroll 16 later
+    _ONEDPL_PRAGMA_UNROLL
     for (; __begin < __end; ++__begin)
         __acc = std::invoke(__binary_op, std::move(__acc), __src[__begin]);
 
