@@ -19,7 +19,7 @@
 //!!! NOTE: This file should be included under the macro _ONEDPL_BACKEND_SYCL
 #include <array>
 #include <type_traits>
-#include <algorithm> // std::min, std::find
+#include <algorithm> // std::min, std::max, std::find
 #include <functional>
 #include <utility>
 #include <cstddef>
@@ -101,6 +101,32 @@ __max_compute_units(const sycl::queue& __q)
 {
     return __q.get_device().template get_info<sycl::info::device::max_compute_units>();
 }
+
+// The compute units of a device, for GPUs the number of its cores, and its hardware threads, to size a launch by any.
+struct __device_compute_units
+{
+    static constexpr std::uint32_t __compute_units_per_gpu_core = 8;
+    // Hardware threads per compute unit of a non-GPU device and of a GPU that does not report them
+    static constexpr std::uint32_t __default_threads_per_compute_unit = 8;
+
+    std::uint32_t __max_compute_units = 0;
+    std::uint32_t __num_xe_cores = 0;
+    std::size_t __hw_threads = 0;
+
+    explicit __device_compute_units(const sycl::queue& __q)
+        : __max_compute_units(oneapi::dpl::__internal::__max_compute_units(__q)),
+          __num_xe_cores(std::max(1u, __max_compute_units / __compute_units_per_gpu_core))
+    {
+        std::uint32_t __threads_per_compute_unit = __default_threads_per_compute_unit;
+#if defined(SYCL_EXT_INTEL_DEVICE_INFO)
+        const sycl::device __device = __q.get_device();
+        if (__device.is_gpu() && __device.has(sycl::aspect::ext_intel_gpu_hw_threads_per_eu))
+            __threads_per_compute_unit =
+                std::max(1u, std::uint32_t(__device.get_info<sycl::ext::intel::info::device::gpu_hw_threads_per_eu>()));
+#endif
+        __hw_threads = std::max<std::size_t>(1, std::size_t{__max_compute_units} * __threads_per_compute_unit);
+    }
+};
 
 inline bool
 __supports_sub_group_size(const sycl::queue& __q, std::size_t __target_size)
