@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- batched_stable_sort_merge_single_group.cpp ------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Copyright (C) UXL Foundation Contributors
 //
@@ -7,6 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// merge_single_group_tag, with segments which fit in a work-group tile
-#define TEST_MERGE_SINGLE_GROUP 1
+// merge_wg_resident_tag, with segments which fit in a work-group tile
+#define TEST_MERGE_WG_RESIDENT 1
 #include "batched_stable_sort.cpp"

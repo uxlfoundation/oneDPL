@@ -96,7 +96,7 @@ pattern_name(DataPattern pattern)
     }
 }
 
-// merge_single_group_tag holds up to one tile of keys and of values in SLM
+// merge_wg_resident_tag holds up to one tile of keys and of values in SLM
 template <typename KernelParam, typename KeyT, typename ValueT = void>
 bool
 can_run_merge_test(sycl::queue q, KernelParam param)

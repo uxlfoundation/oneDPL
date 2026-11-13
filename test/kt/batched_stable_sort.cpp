@@ -39,16 +39,16 @@ using KeyT = TEST_KEY_TYPE;
 #ifndef TEST_WG_RESIDENT
 #    define TEST_WG_RESIDENT 0
 #endif
-#ifndef TEST_MERGE_SINGLE_GROUP
-#    define TEST_MERGE_SINGLE_GROUP 0
+#ifndef TEST_MERGE_WG_RESIDENT
+#    define TEST_MERGE_WG_RESIDENT 0
 #endif
-// The comparators of keys of the reference sort, and of merge_single_group_tag
+// The comparators of keys of the reference sort, and of merge_wg_resident_tag
 template <bool IsAscending>
 using DefaultKeyCompare = std::conditional_t<IsAscending, std::less<>, std::greater<>>;
 
-#if TEST_MERGE_SINGLE_GROUP
+#if TEST_MERGE_WG_RESIDENT
 template <bool IsAscending = true>
-using SortConfig = kt::gpu::merge_single_group_tag<DefaultKeyCompare<IsAscending>>;
+using SortConfig = kt::gpu::merge_wg_resident_tag<DefaultKeyCompare<IsAscending>>;
 #elif TEST_WG_RESIDENT
 template <bool IsAscending = true>
 using SortConfig = kt::gpu::radix_wg_resident_tag<IsAscending, TestRadixBits>;
@@ -56,8 +56,8 @@ using SortConfig = kt::gpu::radix_wg_resident_tag<IsAscending, TestRadixBits>;
 template <bool IsAscending = true>
 using SortConfig = kt::gpu::radix_multi_wg_tag<IsAscending, TestRadixBits>;
 #endif
-// merge_single_group_tag and radix_wg_resident_tag sort only segments which fit in a tile
-constexpr bool WgResidentOnly = TEST_WG_RESIDENT || TEST_MERGE_SINGLE_GROUP;
+// merge_wg_resident_tag and radix_wg_resident_tag sort only segments which fit in a tile
+constexpr bool WgResidentOnly = TEST_WG_RESIDENT || TEST_MERGE_WG_RESIDENT;
 #if TEST_WG_RESIDENT
 #    define TEST_SORT_CONFIG_AVAILABLE TEST_SYCL_WG_RESIDENT_RADIX_SORT_KT_AVAILABLE
 #else
@@ -66,7 +66,7 @@ constexpr bool WgResidentOnly = TEST_WG_RESIDENT || TEST_MERGE_SINGLE_GROUP;
 
 #include "batched_sort_test_utils.h"
 
-// A comparator for merge_single_group_tag which orders keys by the low 4 bits of their representation only: a strict
+// A comparator for merge_wg_resident_tag which orders keys by the low 4 bits of their representation only: a strict
 // weak ordering different from < with many equivalent but distinct keys, so stability is visible in the keys alone.
 // It applies to every key type, including those the radix sorts do not order this way.
 template <bool IsAscending>
@@ -84,7 +84,7 @@ struct LowBitsCompare
     }
 };
 
-// With CustomCompare, sorts with merge_single_group_tag<LowBitsCompare<IsAscending>> instead of SortConfig
+// With CustomCompare, sorts with merge_wg_resident_tag<LowBitsCompare<IsAscending>> instead of SortConfig
 template <bool UsesTempStorage, bool CustomCompare = false>
 struct BatchedStableSort
 {
@@ -95,7 +95,7 @@ struct BatchedStableSort
     template <bool IsAscending>
     using key_compare = std::conditional_t<CustomCompare, LowBitsCompare<IsAscending>, DefaultKeyCompare<IsAscending>>;
     template <bool IsAscending>
-    using config = std::conditional_t<CustomCompare, kt::gpu::merge_single_group_tag<LowBitsCompare<IsAscending>>,
+    using config = std::conditional_t<CustomCompare, kt::gpu::merge_wg_resident_tag<LowBitsCompare<IsAscending>>,
                                       SortConfig<IsAscending>>;
 
     template <bool IsAscending, typename... Args>
@@ -171,8 +171,8 @@ int
 main()
 {
     bool run_test = false;
-    // merge_single_group_tag requires none of the extensions of the radix sorts
-#if TEST_SORT_CONFIG_AVAILABLE || TEST_MERGE_SINGLE_GROUP
+    // merge_wg_resident_tag requires none of the extensions of the radix sorts
+#if TEST_SORT_CONFIG_AVAILABLE || TEST_MERGE_WG_RESIDENT
     using Param = kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE>;
     using Sorter = BatchedStableSort</*UsesTempStorage=*/false>;
     using SorterTempStorage = BatchedStableSort</*UsesTempStorage=*/true>;
@@ -188,7 +188,7 @@ main()
 #    else
     using SlmValueT = ValueT;
 #    endif
-#    if TEST_MERGE_SINGLE_GROUP
+#    if TEST_MERGE_WG_RESIDENT
     run_test = can_run_merge_test<Param, KeyT, SlmValueT>(q, params);
 #    else
     run_test = can_run_test<Param, KeyT, SlmValueT, WgResidentOnly, SortConfig<>::radix_bits>(q, params);
@@ -227,7 +227,7 @@ main()
                 test_case<SorterTempStorage, Ascending, false>(q, modes[mode_idx % 4], segment_size, 3, params);
                 test_case<SorterTempStorage, Descending, true>(q, modes[(mode_idx + 1) % 4], segment_size, 3, params);
 
-#    if TEST_MERGE_SINGLE_GROUP
+#    if TEST_MERGE_WG_RESIDENT
                 // A user comparator, under which distinct keys are equivalent
                 using SorterCustomCompare = BatchedStableSort</*UsesTempStorage=*/false, /*CustomCompare=*/true>;
                 test_case<SorterCustomCompare, Ascending, false>(q, modes[mode_idx % 4], segment_size, 3, params);
@@ -260,7 +260,7 @@ main()
             return EXIT_FAILURE;
         }
     }
-#endif // TEST_SORT_CONFIG_AVAILABLE || TEST_MERGE_SINGLE_GROUP
+#endif // TEST_SORT_CONFIG_AVAILABLE || TEST_MERGE_WG_RESIDENT
 
     return TestUtils::done(run_test);
 }

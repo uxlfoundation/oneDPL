@@ -34,17 +34,17 @@ namespace oneapi::dpl::experimental::kt::gpu
 // Sort configurations: each selects one algorithm and carries its specific parameters
 //-----------------------------------------------------------------------------
 
-// Merge path sort; requires __segment_size <= data_per_workitem * workgroup_size. Keys are ordered by _Compare, which
-// must be a strict weak ordering of the input keys and also dictates the direction of the sort: std::less<> sorts
-// ascending, std::greater<> descending. NaN keys are therefore not supported with either. _Compare is default
-// constructed in the kernel.
+// Work-group resident merge path sort; requires __segment_size <= data_per_workitem * workgroup_size. Keys are
+// ordered by _Compare, which must be a strict weak ordering of the input keys and also dictates the direction of the
+// sort: std::less<> sorts ascending, std::greater<> descending. NaN keys are therefore not supported with either.
+// _Compare is default constructed in the kernel.
 template <typename _Compare = std::less<>>
-struct merge_single_group_tag
+struct merge_wg_resident_tag
 {
     using compare_type = _Compare;
 };
 
-// One work-group radix sort; requires __segment_size <= data_per_workitem * workgroup_size
+// Work-group resident radix sort, requires __segment_size <= data_per_workitem * workgroup_size
 template <bool __is_ascending = true, std::uint8_t __radix_bits = 8>
 struct radix_wg_resident_tag
 {
@@ -64,16 +64,16 @@ namespace __impl
 {
 
 template <typename _SortConfig>
-struct __is_merge_single_group_tag : std::false_type
+struct __is_merge_wg_resident_tag : std::false_type
 {
 };
 template <typename _Compare>
-struct __is_merge_single_group_tag<merge_single_group_tag<_Compare>> : std::true_type
+struct __is_merge_wg_resident_tag<merge_wg_resident_tag<_Compare>> : std::true_type
 {
 };
 
 template <typename _SortConfig>
-inline constexpr bool __is_merge_single_group_tag_v = __is_merge_single_group_tag<_SortConfig>::value;
+inline constexpr bool __is_merge_wg_resident_tag_v = __is_merge_wg_resident_tag<_SortConfig>::value;
 
 // Whether _SortConfig is _Tag<__is_ascending, __radix_bits> for some __is_ascending and __radix_bits
 template <template <bool, std::uint8_t> class _Tag, typename _SortConfig>
@@ -96,9 +96,9 @@ template <typename _SortConfig, typename _KernelParam>
 constexpr void
 __check_batched_sort_config()
 {
-    static_assert(__is_merge_single_group_tag_v<_SortConfig> || __is_radix_wg_resident_tag_v<_SortConfig> ||
+    static_assert(__is_merge_wg_resident_tag_v<_SortConfig> || __is_radix_wg_resident_tag_v<_SortConfig> ||
                       __is_radix_multi_wg_tag_v<_SortConfig>,
-                  "Unsupported _SortConfig: only merge_single_group_tag, radix_wg_resident_tag and "
+                  "Unsupported _SortConfig: only merge_wg_resident_tag, radix_wg_resident_tag and "
                   "radix_multi_wg_tag are currently implemented");
     if constexpr (__is_radix_wg_resident_tag_v<_SortConfig>)
     {
@@ -134,8 +134,8 @@ __batched_stable_sort_bytes_req(std::size_t __segment_size, std::size_t __total_
     __check_batched_sort_config<_SortConfig, _KernelParam>();
     assert(__segment_size > 0 && "The segment size must be greater than zero");
     assert(__total_size % __segment_size == 0 && "The number of elements must be a multiple of the segment size");
-    // The one work-group sorts need no temporary global memory
-    if constexpr (__is_merge_single_group_tag_v<_SortConfig> || __is_radix_wg_resident_tag_v<_SortConfig>)
+    // The work-group resident sorts need no temporary global memory
+    if constexpr (__is_merge_wg_resident_tag_v<_SortConfig> || __is_radix_wg_resident_tag_v<_SortConfig>)
         return 0;
     else
     {
@@ -153,9 +153,9 @@ __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack
                       _KernelParam __param, [[maybe_unused]] _TempStorage __temp_storage)
 {
     __check_batched_sort_config<_SortConfig, _KernelParam>();
-    if constexpr (__is_merge_single_group_tag_v<_SortConfig>)
+    if constexpr (__is_merge_wg_resident_tag_v<_SortConfig>)
     {
-        return __batched_merge_sort<typename _SortConfig::compare_type>(
+        return __batched_wg_resident_merge_sort<typename _SortConfig::compare_type>(
             __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __segment_size, __param);
     }
     else if constexpr (__is_radix_wg_resident_tag_v<_SortConfig>)
