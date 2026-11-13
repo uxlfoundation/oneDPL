@@ -298,7 +298,7 @@ template <std::uint8_t __radix_bits, std::uint32_t __sub_group_size>
 inline std::uint32_t
 __sub_group_match_bins(sycl::sub_group __sub_group, std::uint32_t __bin)
 {
-    static_assert(__sub_group_size <= 32, "Sub-group ballots are narrowed to 32 bits");
+    static_assert(__sub_group_size == 32, "The 32-bit ballots and the all-ones seed require a 32-lane sub-group");
     std::uint32_t __matched_bins = ~std::uint32_t{0};
     _ONEDPL_PRAGMA_UNROLL
     for (int __i = 0; __i < __radix_bits; __i++)
