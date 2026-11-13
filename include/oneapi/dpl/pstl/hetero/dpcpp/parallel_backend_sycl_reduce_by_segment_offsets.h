@@ -77,6 +77,80 @@ struct __segmented_reduce_variable_brick
     }
 };
 
+// The longest length of the long segments: an atomic maximum of the pass of the short segments, read by the host.
+// It is host USM where the device supports atomics on it, read by the host directly; else device USM, zeroed by a fill
+// and read by a copy, which costs less on GPUs than the host accessors of a SYCL buffer; without USM, a SYCL buffer.
+struct __segmented_reduce_max_length : public __device_storage<std::uint32_t>
+{
+    bool __is_host = false;  // whether the storage is host USM
+    sycl::event __zero_done; // the completion of the initial zero on the device, if it is not written by the host
+
+    // The view a brick of __parallel_for takes as a range
+    struct __view
+    {
+        using value_type = std::uint32_t;
+        using __acc_t = sycl::accessor<std::uint32_t, 1, sycl::access_mode::read_write, __dpl_sycl::__target_device>;
+        std::uint32_t* __data = nullptr;
+        __acc_t __acc;
+
+        std::uint32_t&
+        operator[](std::size_t __idx) const
+        {
+            return __data ? __data[__idx] : __acc[__idx];
+        }
+
+        std::size_t
+        size() const
+        {
+            return 1;
+        }
+
+        friend void
+        __require_access_range(sycl::handler& __cgh, __view& __v)
+        {
+            if (__v.__acc.size() != 0)
+                __cgh.require(__v.__acc);
+        }
+    };
+
+    explicit __segmented_reduce_max_length(sycl::queue& __q)
+    {
+        std::uint32_t* __ptr = nullptr;
+        if (__q.get_device().has(sycl::aspect::usm_atomic_host_allocations))
+            __ptr = __internal::__allocate_usm<std::uint32_t, sycl::usm::alloc::host>(__q, 1);
+        if (__ptr)
+        {
+            this->__usm_buf =
+                std::unique_ptr<std::uint32_t, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+            __is_host = true;
+            *__ptr = 0;
+            return;
+        }
+
+        this->__initialize(__q, 1);
+        if (this->__usm_buf)
+            __zero_done = __q.fill(this->__usm_buf.get(), std::uint32_t{0}, 1);
+        else
+            this->__sycl_buf.get_host_access(sycl::write_only)[0] = 0;
+    }
+
+    __view
+    __all_view()
+    {
+        if (this->__sycl_buf.size() != 0)
+            return __view{this->__usm_buf.get(), {this->__sycl_buf}};
+        return __view{this->__usm_buf.get(), {}};
+    }
+
+    std::uint32_t
+    __get()
+    {
+        std::uint32_t __value = 0;
+        this->__copy_n(&__value, __is_host ? this->__usm_buf.get() : nullptr, 1, 0);
+        return __value;
+    }
+};
+
 template <typename _Name>
 class __segmented_reduce_fill_wrapper;
 
@@ -325,22 +399,18 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         return;
     }
 
-    // The short segments, one work-item each; the long ones only report the longest length. The report is in a buffer,
-    // which costs less on GPUs than copying it from device USM.
-    oneapi::dpl::__par_backend_hetero::__buffer<std::uint32_t> __max_long_segment_length_storage(1);
-    auto __max_long_segment_length_buf = __max_long_segment_length_storage.get_buffer();
-
-    // The buffer has no host data: the atomic maximum starts from the zero written here
-    __max_long_segment_length_buf.get_host_access(sycl::write_only)[0] = 0;
+    // The short segments, one work-item each; the long ones only report the longest length
+    sycl::queue __q = __exec.queue();
+    __segmented_reduce_max_length __max_long_segment_length{__q};
     __parallel_for(
-        _BackendTag{}, __exec,
+        _BackendTag{}, __exec, __max_long_segment_length.__zero_done,
         __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op}, __m,
-        __offsets, __result, __input, oneapi::dpl::__ranges::views::all(__max_long_segment_length_buf))
+        __offsets, __result, __input, __max_long_segment_length.__all_view())
         .event()
         .wait_and_throw();
 
     // The long segments in chunks: at most n / __threshold of them
-    const _Size __max_length = __max_long_segment_length_buf.get_host_access(sycl::read_only)[0];
+    const _Size __max_length = static_cast<_Size>(__max_long_segment_length.__get());
     if (__max_length > 0)
         __reduce_in_chunks(__threshold, /*__write_empty=*/false, __max_length, __n / __threshold);
 }
