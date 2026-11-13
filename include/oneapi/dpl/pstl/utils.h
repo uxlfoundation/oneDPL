@@ -1297,15 +1297,17 @@ template <typename _BinaryOperation, typename _InputIterator, typename _InitType
 using __reduction_accumulator_t = std::decay_t<
     std::invoke_result_t<_BinaryOperation&, _InitType, typename std::iterator_traits<_InputIterator>::reference>>;
 
-// Clamps an integral value to [0, n], also for a signed value and an unsigned n or the other way round
-template <typename _Tp, typename _Size>
-constexpr _Size
-__clamp_to_size(_Tp __value, _Size __n)
+// Clamps an integral value to [0, n], also for a signed value and an unsigned n or the other way round,
+// and casts the result to _ResultT, which must be able to represent [0, n]
+template <typename _ResultT, typename _Tp, typename _Size>
+constexpr _ResultT
+__clamp_to_size_and_cast(_Tp __value, _Size __n)
 {
-    static_assert(std::is_integral_v<_Tp> && std::is_integral_v<_Size>, "The value and the bound must be integral");
+    static_assert(std::is_integral_v<_ResultT> && std::is_integral_v<_Tp> && std::is_integral_v<_Size>,
+                  "The result, the value and the bound must be integral");
 
     using _Common = std::common_type_t<_Tp, _Size>;
-    return static_cast<_Size>(
+    return static_cast<_ResultT>(
         std::min<_Common>(static_cast<_Common>(std::max<_Tp>(__value, 0)), static_cast<_Common>(__n)));
 }
 

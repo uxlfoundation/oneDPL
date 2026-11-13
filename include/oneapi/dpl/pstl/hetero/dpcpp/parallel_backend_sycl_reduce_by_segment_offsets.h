@@ -60,14 +60,14 @@ struct __segmented_reduce_variable_brick
         using __atomic_ref_t = sycl::atomic_ref<_MaxLongSegmentLength, sycl::memory_order::relaxed,
                                                 sycl::memory_scope::device, sycl::access::address_space::global_space>;
 
-        const _Size __begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx], __n);
-        const _Size __end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__idx + 1], __n);
+        const _Size __begin = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__idx], __n);
+        const _Size __end = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__idx + 1], __n);
 
         if (__end - __begin > __threshold)
         {
             __atomic_ref_t __ref(__max_long_segment_length_buf[0]);
 
-            __ref.fetch_max(oneapi::dpl::__internal::__clamp_to_size(
+            __ref.fetch_max(oneapi::dpl::__internal::__clamp_to_size_and_cast<_MaxLongSegmentLength>(
                 __end - __begin, std::numeric_limits<_MaxLongSegmentLength>::max()));
             return;
         }
@@ -120,8 +120,8 @@ struct __segmented_reduce_length
     _Size
     operator()(_Offset __begin, _Offset __end) const
     {
-        const _Size __b = oneapi::dpl::__internal::__clamp_to_size(__begin, __n);
-        const _Size __e = oneapi::dpl::__internal::__clamp_to_size(__end, __n);
+        const _Size __b = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__begin, __n);
+        const _Size __e = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__end, __n);
         return __b < __e ? __e - __b : _Size{0};
     }
 };
@@ -173,8 +173,10 @@ struct __segmented_reduce_chunk_brick
             __chunk_ends, _Size{0}, __num_segments - 1, &__chunk, std::less<>{}, oneapi::dpl::identity{},
             oneapi::dpl::identity{});
         const _Size __segment_first_chunk = __segment_idx == 0 ? _Size{0} : _Size(__chunk_ends[__segment_idx - 1]);
-        const _Size __segment_begin = oneapi::dpl::__internal::__clamp_to_size(__offsets[__segment_idx], __n);
-        const _Size __segment_end = oneapi::dpl::__internal::__clamp_to_size(__offsets[__segment_idx + 1], __n);
+        const _Size __segment_begin =
+            oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__segment_idx], __n);
+        const _Size __segment_end =
+            oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__segment_idx + 1], __n);
         const _Size __head_length = (__segment_end - __segment_begin) -
                                     (_Size(__chunk_ends[__segment_idx]) - __segment_first_chunk - 1) * __chunk_size;
 
