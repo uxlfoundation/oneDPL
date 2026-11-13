@@ -1136,10 +1136,20 @@ struct __batched_one_wg_radix_sort_kernel
         {
             const std::uint32_t __segment = __p / __bin_count;
             _LocOffsetT* __col = __slm_hists + __segment * __m_sub_groups_per_segment * __bin_count + __p % __bin_count;
+            // All loads are issued before the first store so their latencies overlap. Rows past the segment's
+            // last one reload that row and are not stored.
+            const std::uint32_t __last_row = __m_sub_groups_per_segment - 1;
+            _LocOffsetT __counts[__num_sub_groups];
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __row = 0; __row < __num_sub_groups; ++__row)
+                __counts[__row] = __col[std::min(__row, __last_row) * __bin_count];
             _LocOffsetT __sum = 0;
-            for (std::uint32_t __row = 0; __row < __m_sub_groups_per_segment; ++__row)
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __row = 0; __row < __num_sub_groups; ++__row)
             {
-                __sum += __col[__row * __bin_count];
+                if (__row > __last_row)
+                    break;
+                __sum += __counts[__row];
                 __col[__row * __bin_count] = __sum;
             }
         }
