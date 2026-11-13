@@ -194,13 +194,13 @@ template <typename _BackendTag, typename _Policy, typename _RandomAccessInputIt,
           typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
 _RandomAccessOutputIt
 reduce_by_segment_offsets_impl(__internal::__hetero_tag<_BackendTag> __tag, _Policy&& __policy,
-                               _RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
-                               _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
-                               _RandomAccessOffsetIt __offsets, _InitType __init_value, _BinaryOperation __binary_op)
+                               _RandomAccessInputIt __first, _RandomAccessInputIt __last,
+                               _RandomAccessOutputIt __result, _SegmentNum __num_segments,
+                               _RandomAccessOffsetIt __offsets, _InitType __init, _BinaryOperation __binary_op)
 {
-    return oneapi::dpl::__internal::__pattern_reduce_by_segment_offsets(
-        __tag, std::forward<_Policy>(__policy), __first_value, __last_value, __result_value, __num_segments, __offsets,
-        __init_value, __binary_op);
+    return oneapi::dpl::__internal::__pattern_reduce_by_segment_offsets(__tag, std::forward<_Policy>(__policy), __first,
+                                                                        __last, __result, __num_segments, __offsets,
+                                                                        __init, __binary_op);
 }
 #endif
 
@@ -209,25 +209,25 @@ reduce_by_segment_offsets_impl(__internal::__hetero_tag<_BackendTag> __tag, _Pol
 //------------------------------------------------------------------------
 
 // The host policies, the segments one after another, each one from its own offsets clamped to the input, as on a device
-template <typename _Tag, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
-          typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
-_OutputValueIt
-reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _InputValueIt __last_value,
-                               _OutputValueIt __result_value, _SegmentNum __num_segments, _OffsetIt __offsets,
-                               _InitType __init, _BinaryOperation __binary_op)
+template <typename _Tag, typename _Policy, typename _RandomAccessInputIt, typename _SegmentNum,
+          typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
+_RandomAccessOutputIt
+reduce_by_segment_offsets_impl(_Tag, _Policy&&, _RandomAccessInputIt __first, _RandomAccessInputIt __last,
+                               _RandomAccessOutputIt __result, _SegmentNum __num_segments,
+                               _RandomAccessOffsetIt __offsets, _InitType __init, _BinaryOperation __binary_op)
 {
     static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
 
-    using _Acc = __internal::__reduction_accumulator_t<_BinaryOperation, _InputValueIt, _InitType>;
-    using _Size = typename std::iterator_traits<_InputValueIt>::difference_type;
+    using _Acc = __internal::__reduction_accumulator_t<_BinaryOperation, _RandomAccessInputIt, _InitType>;
+    using _Size = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
 
-    const _Size __n = __last_value - __first_value;
+    const _Size __n = __last - __first;
 
-    _OutputValueIt __this_segment = __result_value;
+    _RandomAccessOutputIt __this_segment = __result;
     for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
     {
         *__this_segment = __internal::__serial_accumulate<_Acc>(
-            __first_value, __internal::__clamp_to_size_and_cast<_Size>(__offsets[__segment], __n),
+            __first, __internal::__clamp_to_size_and_cast<_Size>(__offsets[__segment], __n),
             __internal::__clamp_to_size_and_cast<_Size>(__offsets[__segment + 1], __n), __init, __binary_op);
         ++__this_segment;
     }
