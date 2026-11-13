@@ -41,11 +41,11 @@ using KeyT = TEST_KEY_TYPE;
 
 #include "batched_sort_test_utils.h"
 
-// The comparators of keys of the reference sort, and of merge_single_group_tag
+// The comparators of keys of the reference sort, and of merge_wg_resident_tag
 template <bool IsAscending>
 using DefaultKeyCompare = std::conditional_t<IsAscending, std::less<>, std::greater<>>;
 
-// A comparator for merge_single_group_tag which orders keys by the low 4 bits of their representation only: a strict
+// A comparator for merge_wg_resident_tag which orders keys by the low 4 bits of their representation only: a strict
 // weak ordering different from < with many equivalent but distinct keys, so stability is visible in the keys alone.
 // It applies to every key type, including those the radix sorts do not order this way.
 template <bool IsAscending>
@@ -64,7 +64,7 @@ struct LowBitsCompare
 };
 
 // SortConfig<IsAscending> is the sort configuration tag under test. With CustomCompare, sorts with
-// merge_single_group_tag<LowBitsCompare<IsAscending>> instead of SortConfig
+// merge_wg_resident_tag<LowBitsCompare<IsAscending>> instead of SortConfig
 template <template <bool> class SortConfig, bool UsesTempStorage, bool CustomCompare = false>
 struct BatchedStableSort
 {
@@ -75,7 +75,7 @@ struct BatchedStableSort
     template <bool IsAscending>
     using key_compare = std::conditional_t<CustomCompare, LowBitsCompare<IsAscending>, DefaultKeyCompare<IsAscending>>;
     template <bool IsAscending>
-    using config = std::conditional_t<CustomCompare, kt::gpu::merge_single_group_tag<LowBitsCompare<IsAscending>>,
+    using config = std::conditional_t<CustomCompare, kt::gpu::merge_wg_resident_tag<LowBitsCompare<IsAscending>>,
                                       SortConfig<IsAscending>>;
 
     template <bool IsAscending, typename... Args>
@@ -151,7 +151,7 @@ template <typename Config>
 constexpr bool IsMergeConfig = false;
 
 template <typename Compare>
-constexpr bool IsMergeConfig<kt::gpu::merge_single_group_tag<Compare>> = true;
+constexpr bool IsMergeConfig<kt::gpu::merge_wg_resident_tag<Compare>> = true;
 
 // WgResidentOnly: the sort configuration supports only segments which fit in a work-group tile
 template <template <bool> class SortConfig, bool WgResidentOnly>
