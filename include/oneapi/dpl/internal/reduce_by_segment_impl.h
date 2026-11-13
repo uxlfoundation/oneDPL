@@ -42,10 +42,14 @@
 #ifndef _ONEDPL_REDUCE_BY_SEGMENT_IMPL_H
 #define _ONEDPL_REDUCE_BY_SEGMENT_IMPL_H
 
+#include <algorithm> // std::min, std::max, std::upper_bound
+#include <atomic>    // std::atomic, std::memory_order_relaxed
 #include <cstdint>
+#include <functional> // std::invoke
 #include <type_traits>
 #include <utility>
 #include <iterator> // std::distance
+#include <memory>   // std::destroy_at, std::destroy_n
 
 #include "by_segment_extension_defs.h"
 
@@ -208,31 +212,404 @@ reduce_by_segment_offsets_impl(__internal::__hetero_tag<_BackendTag> __tag, _Pol
 // reduce_by_segment with segments defined by offsets
 //------------------------------------------------------------------------
 
-// The host policies, the segments one after another, each one from its own offsets clamped to the input, as on a device
-template <typename _Tag, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
-          typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
-_OutputValueIt
-reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _InputValueIt __last_value,
-                               _OutputValueIt __result_value, _SegmentNum __num_segments, _OffsetIt __offsets,
-                               _InitType __init, _BinaryOperation __binary_op)
+// Reduces the elements [__begin, __end) of a random access iterator on the host as __serial_accumulate does,
+// from an accumulator: the initial value converted to the accumulator type, or the result of the operation
+template <typename _Acc, typename _RandomAccessIterator, typename _Index, typename _BinaryOperation>
+_Acc
+__segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __end, _Acc __init,
+                        _BinaryOperation& __binary_op, /*is_vector=*/std::false_type)
 {
-    static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
+    return __internal::__serial_accumulate<_Acc>(__first, __begin, __end, std::move(__init), __binary_op);
+}
 
-    using _Acc = __internal::__reduction_accumulator_t<_BinaryOperation, _InputValueIt, _InitType>;
-    using _Size = typename std::iterator_traits<_InputValueIt>::difference_type;
+// The same, vectorized: the vectorized reduction also starts its lanes from the operation on two elements
+template <typename _Acc, typename _RandomAccessIterator, typename _Index, typename _BinaryOperation>
+_Acc
+__segmented_reduce_host(_RandomAccessIterator __first, _Index __begin, _Index __end, _Acc __init,
+                        _BinaryOperation& __binary_op, /*is_vector=*/std::true_type)
+{
+    // Unordered offsets may give __begin > __end, which the brick cannot take
+    if (__begin >= __end)
+        return std::move(__init);
+
+    // An operation returning the accumulator type keeps the implicit conversion of its results and the operation itself
+    return __internal::__brick_transform_reduce(
+        __first + __begin, __first + __end, std::move(__init),
+        [&__binary_op](auto&& __x, auto&& __y) -> _Acc {
+            return std::invoke(__binary_op, std::forward<decltype(__x)>(__x), std::forward<decltype(__y)>(__y));
+        },
+        oneapi::dpl::identity{}, /*is_vector=*/std::true_type{});
+}
+
+// The segments one after another, each one from its own offsets clamped to the input, as on a device, and vectorized
+// when the tag asks for vectorization
+template <typename _Acc, typename _RandomAccessInputIt, typename _SegmentNum, typename _RandomAccessOffsetIt,
+          typename _RandomAccessOutputIt, typename _BinaryOperation, typename _IsVector>
+_RandomAccessOutputIt
+__brick_reduce_by_segment_offsets(_RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
+                                  _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
+                                  _RandomAccessOffsetIt __offsets, const _Acc& __init, _BinaryOperation& __binary_op,
+                                  _IsVector __is_vector)
+{
+    using _Size = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
 
     const _Size __n = __last_value - __first_value;
 
-    _OutputValueIt __this_segment = __result_value;
+    _RandomAccessOutputIt __this_segment = __result_value;
+
     for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
     {
-        *__this_segment = __internal::__serial_accumulate<_Acc>(
+        *__this_segment = __segmented_reduce_host<_Acc>(
             __first_value, __internal::__clamp_to_size(__offsets[__segment], __n),
-            __internal::__clamp_to_size(__offsets[__segment + 1], __n), __init, __binary_op);
+            __internal::__clamp_to_size(__offsets[__segment + 1], __n), __init, __binary_op, __is_vector);
         ++__this_segment;
     }
 
     return __this_segment;
+}
+
+// The serial host policies: the segments one after another, vectorized when the tag asks for vectorization (unseq)
+template <typename _IsVector, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
+          typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
+_OutputValueIt
+reduce_by_segment_offsets_impl(__internal::__serial_tag<_IsVector>, _Policy&&, _InputValueIt __first_value,
+                               _InputValueIt __last_value, _OutputValueIt __result_value, _SegmentNum __num_segments,
+                               _OffsetIt __offsets, _InitType __init, _BinaryOperation __binary_op)
+{
+    using _Acc = __internal::__reduction_accumulator_t<_BinaryOperation, _InputValueIt, _InitType>;
+
+    // Converted once: every segment starts from this accumulator
+    const _Acc __init_acc = std::move(__init);
+    return __brick_reduce_by_segment_offsets<_Acc>(__first_value, __last_value, __result_value, __num_segments,
+                                                   __offsets, __init_acc, __binary_op, _IsVector{});
+}
+
+// The parallel host policies reduce a small input in the calling thread, as the serial policies do, vectorized when
+// the tag asks for vectorization: below this many elements the tasks cost more than they save.
+inline constexpr std::size_t __segmented_reduce_host_cut_off = std::size_t(1) << 20;
+
+// The parallel host policies reduce a short segment in one task, and split a longer one into chunks reduced in
+// parallel, which balances the load when a few segments hold most of the input.
+// - a segment up to this length is short;
+inline constexpr std::size_t __segmented_reduce_host_short_segment_max = 32768;
+// - the length of a chunk of a long segment.
+inline constexpr std::size_t __segmented_reduce_host_chunk_size = 16384;
+// - the elements of a piece of the input in the one parallel pass of OpenMP.
+inline constexpr std::size_t __segmented_reduce_host_piece = std::size_t(1) << 16;
+// A chunk after the first one of a segment starts from the operation on its first two elements, and a long segment
+// has at least one such chunk besides the first one.
+static_assert(__segmented_reduce_host_chunk_size >= 2);
+static_assert(__segmented_reduce_host_short_segment_max >= __segmented_reduce_host_chunk_size);
+
+// One parallel pass over pieces of the input of about __segmented_reduce_host_piece elements, for a backend that
+// forks and joins its threads once per pass (OpenMP)
+template <typename _Acc, typename _Size, typename _BackendTag, typename _IsVector, typename _ExecutionPolicy,
+          typename _RandomAccessInputIt, typename _RandomAccessOutputIt, typename _RandomAccessOffsetIt,
+          typename _BinaryOperation>
+void
+__reduce_by_segment_offsets_by_pieces(_BackendTag, _IsVector, _ExecutionPolicy& __exec,
+                                      _RandomAccessInputIt __first_value, const _Size __n,
+                                      _RandomAccessOutputIt __result_value, const _Size __m,
+                                      _RandomAccessOffsetIt __offsets, const _Acc& __init,
+                                      _BinaryOperation& __binary_op)
+{
+    using __backend_tag = _BackendTag;
+
+    auto __begin_of = [__offsets, __n](_Size __segment) {
+        return __internal::__clamp_to_size(__offsets[__segment], __n);
+    };
+
+    // One parallel pass over pieces of the input of about __segmented_reduce_host_piece elements. A piece writes
+    // every segment that starts and ends in it; the segment continuing from the previous piece (the head) and the one
+    // continuing into the next piece (the tail, with the initial value) leave partial results, combined serially in
+    // the order of the pieces. A segment belongs to the piece holding its start, the empty ones at the end of the
+    // input to the last piece. Unordered offsets give unspecified results but no access out of the bounds. The pass
+    // has a grain of one piece, as the OpenMP backend would otherwise run up to 2048 of them in one task.
+    const _Size __num_pieces = std::max<_Size>(1, __n / _Size(__segmented_reduce_host_piece));
+    const _Size __piece = __internal::__dpl_ceiling_div(__n, __num_pieces);
+    // The first segment starting at __x or later, __m if none
+    auto __first_from = [&](_Size __x) {
+        _Size __lo = 0, __hi = __m;
+        while (__lo < __hi)
+        {
+            const _Size __mid = __lo + (__hi - __lo) / 2;
+            if (__begin_of(__mid) < __x)
+                __lo = __mid + 1;
+            else
+                __hi = __mid;
+        }
+        return __lo;
+    };
+    struct __part
+    {
+        _Size __segment = -1; // -1: none
+        _Size __first = 0;    // the elements [__first, __last) of a head shorter than two elements
+        _Size __last = 0;
+        bool __ends = false; // a head: the segment ends in the piece
+        // The partial result, if any
+        oneapi::dpl::__internal::__opt_lazy_ctor_storage<_Acc> __value;
+    };
+    oneapi::dpl::__par_backend::__buffer<__part> __heads_buf(__num_pieces);
+    __part* __heads = __heads_buf.get();
+    oneapi::dpl::__par_backend::__buffer<__part> __tails_buf(__num_pieces);
+    __part* __tails = __tails_buf.get();
+
+    for (_Size __p = 0; __p < __num_pieces; ++__p)
+    {
+        ::new (__heads + __p) __part{};
+        ::new (__tails + __p) __part{};
+    }
+
+    __internal::__except_handler([&]() {
+        oneapi::dpl::__par_backend::__parallel_for(
+            __backend_tag{}, __exec, _Size{0}, __num_pieces,
+            [&](_Size __p_first, _Size __p_last) {
+                for (_Size __p = __p_first; __p < __p_last; ++__p)
+                {
+                    const _Size __b = std::min(__n, __p * __piece);
+                    const _Size __e = __p + 1 == __num_pieces ? __n : std::min(__n, __b + __piece);
+                    const _Size __s_lo = __first_from(__b);
+                    const _Size __s_hi = __p + 1 == __num_pieces ? __m : __first_from(__e);
+                    // The head: the segment before the first one of the piece, if it continues into the piece
+                    if (__s_lo > 0)
+                    {
+                        const _Size __h_end = __begin_of(__s_lo);
+                        const _Size __h_last = std::min(__h_end, __e);
+                        if (__begin_of(__s_lo - 1) < __b && __h_last > __b)
+                        {
+                            __part& __h = __heads[__p];
+                            __h.__segment = __s_lo - 1;
+                            __h.__ends = __h_end <= __e;
+                            if (__h_last - __b >= 2)
+                            {
+                                __h.__value.__setup(__segmented_reduce_host<_Acc>(
+                                    __first_value, __b + 2, __h_last,
+                                    std::invoke(__binary_op, __first_value[__b], __first_value[__b + 1]), __binary_op,
+                                    _IsVector{}));
+                            }
+                            else
+                            {
+                                __h.__first = __b;
+                                __h.__last = __h_last;
+                            }
+                        }
+                    }
+                    for (_Size __s = __s_lo; __s < __s_hi; ++__s)
+                    {
+                        const _Size __s_begin = __begin_of(__s);
+                        const _Size __s_end = __begin_of(__s + 1);
+                        if (__s_end > __e && __s + 1 == __s_hi)
+                        {
+                            // The tail: it continues into the next piece
+                            __tails[__p].__value.__setup(__segmented_reduce_host<_Acc>(
+                                __first_value, __s_begin, __e, __init, __binary_op, _IsVector{}));
+                            __tails[__p].__segment = __s;
+                            continue;
+                        }
+                        __result_value[__s] = __segmented_reduce_host<_Acc>(
+                            __first_value, __s_begin, std::min(__s_end, __e), __init, __binary_op, _IsVector{});
+                    }
+                }
+            },
+            /*__grainsize=*/1);
+
+        // The partial results in the order of the pieces: a tail opens a segment, the heads of the following pieces
+        // add to its partial result until one ends in its piece
+        __part* __open = nullptr;
+        for (_Size __p = 0; __p < __num_pieces; ++__p)
+        {
+            __part& __h = __heads[__p];
+            if (__open != nullptr && __h.__segment == __open->__segment)
+            {
+                _Acc& __acc = __open->__value.__get_ref();
+                if (__h.__value.__has_value())
+                    __acc = std::invoke(__binary_op, std::move(__acc), std::move(__h.__value.__get_ref()));
+                for (_Size __i = __h.__first; __i < __h.__last; ++__i)
+                    __acc = std::invoke(__binary_op, std::move(__acc), __first_value[__i]);
+                if (__h.__ends)
+                {
+                    __result_value[__open->__segment] = std::move(__acc);
+                    __open = nullptr;
+                }
+            }
+            if (__tails[__p].__segment >= 0)
+            {
+                // Unordered offsets only: a segment left open
+                if (__open != nullptr)
+                    __result_value[__open->__segment] = std::move(__open->__value.__get_ref());
+                __open = __tails + __p;
+            }
+        }
+        if (__open != nullptr)
+            __result_value[__open->__segment] = std::move(__open->__value.__get_ref());
+
+        // The partial results that were set up
+        if constexpr (!std::is_trivially_destructible_v<_Acc>)
+        {
+            std::destroy_n(__heads, __num_pieces);
+            std::destroy_n(__tails, __num_pieces);
+        }
+    });
+}
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessInputIt, typename _SegmentNum,
+          typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
+_RandomAccessOutputIt
+reduce_by_segment_offsets_impl(__internal::__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
+                               _RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
+                               _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
+                               _RandomAccessOffsetIt __offsets, _InitType __init, _BinaryOperation __binary_op)
+{
+    using __backend_tag = typename __internal::__parallel_tag<_IsVector>::__backend_tag;
+    using _Acc = __internal::__reduction_accumulator_t<_BinaryOperation, _RandomAccessInputIt, _InitType>;
+    // The type of the index arithmetic, as on a device; signed, as a reversed segment has a negative length
+    using _Size = std::make_signed_t<decltype((__last_value - __first_value) + __num_segments)>;
+
+    if (__num_segments <= 0)
+        return __result_value;
+
+    // Converted once: every segment and every chunk starts from this accumulator or from the operation
+    const _Acc __init_acc = std::move(__init);
+    const _Size __n = __last_value - __first_value;
+    if (std::size_t(__n) < __segmented_reduce_host_cut_off)
+        return __brick_reduce_by_segment_offsets<_Acc>(__first_value, __last_value, __result_value, __num_segments,
+                                                       __offsets, __init_acc, __binary_op, _IsVector{});
+
+    const _Size __m = __num_segments;
+    // OpenMP forks and joins its threads once per parallel pass: one pass over pieces of the input in place of up
+    // to three
+    if constexpr (std::is_same_v<__backend_tag, oneapi::dpl::__internal::__omp_backend_tag>)
+    {
+        __reduce_by_segment_offsets_by_pieces<_Acc, _Size>(__backend_tag{}, _IsVector{}, __exec, __first_value, __n,
+                                                           __result_value, __m, __offsets, __init_acc, __binary_op);
+        return __result_value + __m;
+    }
+
+    const _Size __threshold = __segmented_reduce_host_short_segment_max;
+    const _Size __chunk_size = __segmented_reduce_host_chunk_size;
+    auto __bounds = [__offsets, __n](_Size __segment) {
+        return std::make_pair(__internal::__clamp_to_size(__offsets[__segment], __n),
+                              __internal::__clamp_to_size(__offsets[__segment + 1], __n));
+    };
+
+    // The __parallel_for over the segments has a grain of about __threshold elements on average, so that many short
+    // segments do not make a task each; the one over the chunks has a grain of one, so that every chunk is a task
+    const std::size_t __segment_grain = std::size_t(std::max<_Size>(1, __threshold / std::max<_Size>(1, __n / __m)));
+    __internal::__except_handler([&]() {
+        // The short segments, in parallel over the segments; the long ones, at most n / __threshold of them unless the
+        // offsets are not ordered, are only listed. A long segment beyond the list is reduced as a short one; which
+        // ones are beyond it depends on the scheduling, so with unordered offsets the grouping of the operations, and
+        // so a floating-point result, may differ from run to run.
+        const _Size __capacity = __n / __threshold + 1;
+        oneapi::dpl::__par_backend::__buffer<_Size> __long_buf(__capacity);
+        _Size* __long = __long_buf.get();
+
+        std::atomic<_Size> __num_listed{0};
+        oneapi::dpl::__par_backend::__parallel_for(
+            __backend_tag{}, __exec, _Size{0}, __m,
+            [&](_Size __segment_first, _Size __segment_last) {
+                for (_Size __segment = __segment_first; __segment < __segment_last; ++__segment)
+                {
+                    const auto [__begin, __end] = __bounds(__segment);
+                    if (__end - __begin > __threshold)
+                    {
+                        const _Size __k = __num_listed.fetch_add(1, std::memory_order_relaxed);
+                        if (__k < __capacity)
+                        {
+                            __long[__k] = __segment;
+                            continue;
+                        }
+                    }
+                    __result_value[__segment] = __segmented_reduce_host<_Acc>(__first_value, __begin, __end, __init_acc,
+                                                                              __binary_op, _IsVector{});
+                }
+            },
+            __segment_grain);
+
+        const _Size __num_long = std::min(__num_listed.load(), __capacity);
+        if (__num_long == 0)
+            return;
+
+        // The end of the chunks of every long segment: a serial scan of their numbers, keeping the start of every long
+        // segment and its length, so that the chunks do not read the offsets
+        oneapi::dpl::__par_backend::__buffer<_Size> __chunk_ends_buf(__num_long);
+        _Size* __chunk_ends = __chunk_ends_buf.get();
+        oneapi::dpl::__par_backend::__buffer<_Size> __long_begins_buf(__num_long);
+        _Size* __long_begins = __long_begins_buf.get();
+        oneapi::dpl::__par_backend::__buffer<_Size> __long_lengths_buf(__num_long);
+        _Size* __long_lengths = __long_lengths_buf.get();
+
+        _Size __num_chunks = 0;
+        for (_Size __k = 0; __k < __num_long; ++__k)
+        {
+            const auto [__begin, __end] = __bounds(__long[__k]);
+            __long_begins[__k] = __begin;
+            __long_lengths[__k] = __end - __begin;
+            __num_chunks += __internal::__dpl_ceiling_div(__end - __begin, __chunk_size);
+            __chunk_ends[__k] = __num_chunks;
+        }
+
+        // The chunks in parallel. The first chunk of a segment takes the remainder of its length and starts from the
+        // initial value converted to the accumulator type; every other chunk has exactly __chunk_size elements and
+        // starts from the operation on its first two elements.
+        oneapi::dpl::__par_backend::__buffer<_Acc> __partials_buf(__num_chunks);
+        _Acc* __partials = __partials_buf.get();
+
+        oneapi::dpl::__par_backend::__parallel_for(
+            __backend_tag{}, __exec, _Size{0}, __num_chunks,
+            [&](_Size __chunk_first, _Size __chunk_last) {
+                for (_Size __chunk = __chunk_first; __chunk < __chunk_last; ++__chunk)
+                {
+                    const _Size __k = std::upper_bound(__chunk_ends, __chunk_ends + __num_long, __chunk) - __chunk_ends;
+                    const _Size __segment_first_chunk = __k == 0 ? _Size{0} : __chunk_ends[__k - 1];
+                    const _Size __segment_begin = __long_begins[__k];
+                    const _Size __head_length =
+                        __long_lengths[__k] - (__chunk_ends[__k] - __segment_first_chunk - 1) * __chunk_size;
+                    const _Size __chunk_idx_in_segment = __chunk - __segment_first_chunk;
+                    if (__chunk_idx_in_segment == 0)
+                    {
+                        ::new (__partials + __chunk) _Acc(__segmented_reduce_host<_Acc>(
+                            __first_value, __segment_begin, __segment_begin + __head_length, __init_acc, __binary_op,
+                            _IsVector{}));
+                    }
+                    else
+                    {
+                        const _Size __chunk_begin =
+                            __segment_begin + __head_length + (__chunk_idx_in_segment - 1) * __chunk_size;
+                        ::new (__partials + __chunk) _Acc(__segmented_reduce_host<_Acc>(
+                            __first_value, __chunk_begin + 2, __chunk_begin + __chunk_size,
+                            std::invoke(__binary_op, __first_value[__chunk_begin], __first_value[__chunk_begin + 1]),
+                            __binary_op, _IsVector{}));
+                    }
+                }
+            },
+            /*__grainsize=*/1);
+
+        // The partial results of every long segment, combined in order: serially when the partial results are few, or
+        // with a grain of about __threshold of them on average
+        auto __combine = [&](_Size __k_first, _Size __k_last) {
+            for (_Size __k = __k_first; __k < __k_last; ++__k)
+            {
+                const _Size __segment_first_chunk = __k == 0 ? _Size{0} : __chunk_ends[__k - 1];
+                _Acc __acc = std::move(__partials[__segment_first_chunk]);
+                std::destroy_at(__partials + __segment_first_chunk);
+                for (_Size __chunk = __segment_first_chunk + 1; __chunk < __chunk_ends[__k]; ++__chunk)
+                {
+                    __acc = std::invoke(__binary_op, std::move(__acc), std::move(__partials[__chunk]));
+                    std::destroy_at(__partials + __chunk);
+                }
+                __result_value[__long[__k]] = std::move(__acc);
+            }
+        };
+        if (__num_chunks <= __threshold)
+            __combine(_Size{0}, __num_long);
+        else
+            oneapi::dpl::__par_backend::__parallel_for(
+                __backend_tag{}, __exec, _Size{0}, __num_long, __combine,
+                std::size_t(std::max<_Size>(1, __threshold / (__num_chunks / __num_long))));
+    });
+
+    return __result_value + __m;
 }
 
 } // namespace internal
