@@ -41,8 +41,9 @@ Required:
 Preferred:
 Temporary data preallocated and supplied
 
-Not required:
-custom comparator
+Not explicitly required (based on feedback and use case search):
+* Custom comparator. It is offered by merge path sort anyway, for consistency with the rest of
+  oneDPL and with the standard library (see [Sort Configuration](#sort-configuration)).
 
 ## Proposal
 
@@ -52,7 +53,7 @@ namespace:
 `oneapi::dpl::experimental::kt::gpu`
 
 ```c++
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam,
+template <typename _SortConfig, typename _KernelParam,
           typename _KeysIterator1, typename _ValsIterator1,
           typename _KeysIterator2, typename _ValsIterator2>
 sycl::event
@@ -78,7 +79,9 @@ a single launch. If we decide to provide a similar API, we reserve `segmented` f
 
 #### Sort Configuration
 
-`_SortConfig` selects the algorithm, and carries any parameters specific to it.
+`_SortConfig` selects the algorithm and the sort direction, and carries any parameters specific to
+the algorithm. For the radix sorts, the direction is the first template parameter, and defaults to
+ascending. For merge path sort, the direction is dictated by its comparator.
 `_SortConfig` has no default and must always be specified, which keeps the algorithm, and its
 segment size limit and requirements, visible at each call site. Kernel templates are
 meant to be a thin layer around an algorithm / kernel, so each call runs
@@ -86,16 +89,25 @@ exactly one algorithm, configured by one `kernel_param`.
 
 ```c++
 // Merge path sort; requires __segment_size <= data_per_workitem * workgroup_size
+template <typename _Compare = std::less<>>
 struct merge_single_group_tag;
 
 // One work-group radix sort; requires __segment_size <= data_per_workitem * workgroup_size
-template <std::uint8_t __radix_bits = 8>
+template <bool __is_ascending = true, std::uint8_t __radix_bits = 8>
 struct radix_single_group_tag;
 
 // Modified OneSweep radix sort; any __segment_size
-template <std::uint8_t __radix_bits = 8>
+template <bool __is_ascending = true, std::uint8_t __radix_bits = 8>
 struct radix_many_groups_tag;
 ```
+
+Merge path sort is comparison based, so `merge_single_group_tag` accepts a comparator type
+`_Compare`, which also dictates the sort direction: `std::less<>` (the default) sorts ascending, and
+`std::greater<>` descending. As for `std::stable_sort`, the comparator must induce a strict weak
+ordering on the input keys. NaN keys are therefore unsupported with the default comparator (and
+with `std::greater<>`). The comparator must also be default constructible and device copyable, and
+is default constructed in the kernel, so it cannot carry state set on the host. The radix sorts
+accept no comparator, as they order keys by their bits.
 
 Unsupported combinations of `_SortConfig` and `kernel_param` are rejected at compile time, e.g.
 `radix_many_groups_tag` currently requires 8 radix bits and 512 or 1024 work-items. Unsupported
@@ -105,8 +117,9 @@ Dispatching between algorithms by segment size is left to the user. The document
 an example wrapper (see [Dispatch](#dispatch)).
 
 Compile time parameters:
-* `_SortConfig` - the algorithm, and its algorithm specific parameters (radix bits)
-* ascending / descending - direction of the sort, defaults to ascending
+* `_SortConfig` - the algorithm, the direction of the sort (ascending / descending, defaults to
+  ascending), and its algorithm specific parameters (radix bits); for merge path sort, the
+  comparator, which also dictates the direction
 * `kernel_param`: `data_per_workitem`, `workgroup_size`
 
 Runtime Parameters:
@@ -131,10 +144,19 @@ Runtime Parameters:
   [Implementation Details](#implementation-details)).
 * Input and output must not overlap. Full aliasing is served by the in-place overloads; partial
   overlap is not supported.
-* All algorithms order keys by the same total order as `kt::gpu::radix_sort`, the order of their
+* The radix sorts order keys by the same total order as `kt::gpu::radix_sort`, the order of their
   order-preserving bit transform: for floating point, `-0.0` and `+0.0` compare equal (so, by
-  stability, keep their input order), and NaNs are ordered by sign and payload. Since every
-  algorithm is also stable, the output does not depend on the `_SortConfig`, so it can be chosen
+  stability, keep their input order), and NaNs are ordered by sign and payload.
+* `merge_single_group_tag` sorts each segment as `std::stable_sort` with its comparator would. Its
+  key types are not limited to those supported by the radix sorts: any device copyable key type the
+  comparator accepts may be used.
+* `merge_single_group_tag` requires its comparator to induce a strict weak ordering on the input
+  keys; otherwise the behavior is undefined. NaN keys are not supported with the default
+  comparator `std::less<>` (or with `std::greater<>`), as it is not a strict weak ordering when NaNs
+  are present.
+* `std::less<>` and `std::greater<>` agree with the radix order for all keys other than NaN
+  (`-0.0` and `+0.0` are equivalent under both). Since every algorithm is also stable, for such
+  input the output does not depend on the `_SortConfig` of a given direction, so it can be chosen
   for performance alone.
 * Supported key types, data passing mechanisms (USM pointers, `oneapi::dpl::begin` / `end`,
   `sycl::buffer`, `views::all` / `views::subrange`), and the returned `sycl::event` match the
@@ -161,11 +183,10 @@ q.wait(); // The current API has no dependency-event parameter.
 
 // A row fits in one tile of 8 * 512 = 4096 keys + ids (32 KB of SLM), so one work-group radix
 // sort can be used
-using config_t = kt::gpu::radix_single_group_tag<8>;
+using config_t = kt::gpu::radix_single_group_tag</*__is_ascending=*/false, 8>;
 using param_t = kt::kernel_param<8, 512>;
-sycl::event e = kt::gpu::batched_stable_sort_by_key<config_t, false>(q, probs, probs + n, ids,
-                                                                     probs_out, ids_out, V,
-                                                                     param_t{});
+sycl::event e = kt::gpu::batched_stable_sort_by_key<config_t>(q, probs, probs + n, ids, probs_out,
+                                                              ids_out, V, param_t{});
 e.wait();
 // each row of probs_out is sorted descending; ties keep the lower token id first
 ```
@@ -218,8 +239,7 @@ Implement two kernels, and optionally a third:
 3) (Optional, or secondary priority) Work-group merge path sort, for segments which fit into a
    single work-group (`workgroup_size * data_per_workitem`). Multiple segments may be packed into
    one work-group.
-   * Keys are compared after the same order-preserving bit transform radix sort uses, rather than
-     with `operator<`, so the order matches radix sort exactly, including `-0.0` / `+0.0` and NaN.
+   * Keys are compared with `_Compare` directly.
    * Load into registers and stable sort each work-item's `data_per_workitem` keys (leaf sort).
      The last work-item of a segment may hold fewer than `data_per_workitem` keys; its unused
      slots are padded and excluded from the merges and the final write.
@@ -249,14 +269,14 @@ my_batched_sort_by_key(sycl::queue q, _Key* keys, _Val* vals, _Key* keys_out, _V
 {
     // Thresholds and kernel_params are illustrative; tune for the target device and types.
     // Tiles below fit 32 KB of SLM for 4-byte keys and values.
+    using compare_t = std::conditional_t<__is_ascending, std::less<>, std::greater<>>;
     if (segment_size <= 256)
-        return kt::gpu::batched_stable_sort_by_key<kt::gpu::merge_single_group_tag, __is_ascending>(
+        return kt::gpu::batched_stable_sort_by_key<kt::gpu::merge_single_group_tag<compare_t>>(
             q, keys, keys + n, vals, keys_out, vals_out, segment_size, kt::kernel_param<4, 64>{});
     if (segment_size <= 4096)
-        return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_single_group_tag<8>,
-                                                   __is_ascending>(
+        return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_single_group_tag<__is_ascending, 8>>(
             q, keys, keys + n, vals, keys_out, vals_out, segment_size, kt::kernel_param<8, 512>{});
-    return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_many_groups_tag<8>, __is_ascending>(
+    return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_many_groups_tag<__is_ascending, 8>>(
         q, keys, keys + n, vals, keys_out, vals_out, segment_size, kt::kernel_param<4, 512>{});
 }
 ```
@@ -315,9 +335,13 @@ Following the [Kernel Templates testing guidance][kt-testing]:
 * Segment sizes: 1, small non-power-of-two, around each algorithm's capacity (-1, ==), large
   segments, and a single segment (`__segment_size == n`).
 * Each `_SortConfig`, with a representative sample of `kernel_param`s and radix bits.
-* Identical output from every `_SortConfig` for the same input.
-* All supported key types, including floating point edge cases (-0.0, +0.0, infinities, NaNs), and
-  key and value types of different widths.
+* Identical output from every `_SortConfig` of the same direction for the same input without NaNs
+  (`merge_single_group_tag` with `std::less<>` / `std::greater<>`).
+* `merge_single_group_tag` with user comparators against a per-segment `std::stable_sort` with the
+  same comparator: e.g. a comparator on part of the key (to exercise stability among equivalent
+  keys), and a key type the radix sorts do not support.
+* All supported key types, including floating point edge cases (-0.0, +0.0, infinities, and NaNs
+  for the radix sorts only), and key and value types of different widths.
 * Ascending and descending; key only and by key; out-of-place and in-place; iterators and ranges;
   USM and `sycl::buffer`.
 * `n == 0` is a no-op; assertions fire for `__segment_size <= 0`, `n % __segment_size != 0`, and
@@ -325,6 +349,42 @@ Following the [Kernel Templates testing guidance][kt-testing]:
   `radix_single_group_tag`.
 * Reuse the existing `kt::gpu::radix_sort` test setup to cover a representative sample of kernel
   parameters.
+
+## Performance Acceptance Criteria
+
+Batched sorting adds the segment size to the dimensions measured for other sorts (key and value
+types, total size, and kernel parameters). The configurations below are the acceptance criteria for
+the initial offering, and later serve as the performance regression checks.
+
+### Benchmark Configurations
+
+* Algorithms: `batched_stable_sort` and `batched_stable_sort_by_key`, ascending, out-of-place, USM
+  device pointers, with the temporary storage allocated once and reused across iterations (not
+  timed).
+* Types: `float` keys, and `float` values for the by_key sort. `uint32_t`, `uint16_t`, `double` keys are
+  interesting to track as well, but for the sake of not exploding the combinations, our criteria will
+  focus on `float`.
+* Input: uniformly distributed **random** keys and values.
+* Segment sizes: 32, 64, 75, 128, 256, 333, 1K, 2051, 4K, 5125, 16K, 64K, 256K.
+* Total sizes: 2^8 to 2^28 elements in steps of 4x. Total size must be an exact multiple of the
+  segment size, so each total size is rounded down to a multiple of the segment size.
+* The configurations are the cartesian product of the segment sizes and the total sizes, omitting
+  combinations where the segment size is larger than the total size.
+* Kernel configuration: for each segment size, the `_SortConfig` and `kernel_param` tuned per
+  target device, chosen per total size range (up to 2^14, up to 2^18, and above 2^18 elements).
+  This is the dispatch a user would write (see [Dispatch](#dispatch)).
+
+### Acceptance Criteria
+
+The comparison baseline is `cub::DeviceSegmentedSort::StableSortKeys` and `StableSortPairs` on a 
+comparable NVIDIA GPU, run over the same configurations (equally sized segments given as offset
+iterators, temporary storage allocated once and not timed).
+`cub::DeviceSegmentedSort` was at least as fast as `cub::DeviceSegmentedRadixSort` at every
+segment size and total size measured, so it is the more demanding baseline.
+
+After tuning, the oneDPL geomean of time ratios across all configurations above must be no more than 2x the
+`cub::DeviceSegmentedSort` time. Initial performance results show us we should be able to do significantly
+better than this bar.
 
 ## Future Directions
 
@@ -334,6 +394,10 @@ These are left out of the initial proposal to limit scope.
   are not supported yet by defining how they map to an ordered unsigned integer.
 * Arbitrary projections, where the sort key is the result of a user callable applied to each
   element, and the element itself is what moves. This could potentially remove the need for `_by_key` variants.
+* A `merge_many_groups_tag`, a merge path sort spanning multiple work-groups per segment, to allow
+  a custom comparator for segments larger than one work-group can sort. This is not prioritized
+  now, as a custom comparator has not been found to be needed in the gathered feedback; it can be
+  added if demand appears.
 
 ## Open Questions
 
@@ -366,7 +430,7 @@ batched_stable_sort_by_key_bytes_req(std::size_t __segment_size, std::size_t __t
   `kernel_param`, in additional overloads of each sort (key only variants drop the values and `_ValT`):
 
 ```c++
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam,
+template <typename _SortConfig, typename _KernelParam,
           typename _KeysIterator1, typename _ValsIterator1,
           typename _KeysIterator2, typename _ValsIterator2>
 sycl::event
