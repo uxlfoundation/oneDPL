@@ -237,16 +237,15 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
 // Building blocks shared by the onesweep and the one work-group kernels
 //-----------------------------------------------------------------------------
 
-// Loads a block of 32 * __data_per_work_item elements starting at __block_begin into the registers of a sub-group of
-// 32 lanes; lane l holds the elements __block_begin + i * 32 + l. Elements at or beyond __end are not loaded; with
-// __sort_identity_residual their slots are set to the sort identity instead.
-template <bool __is_ascending, bool __sort_identity_residual, std::uint16_t __data_per_work_item, typename _T,
-          typename _InSeq, typename _GlobOffsetT>
+// Loads a block of __sub_group_size * __data_per_work_item elements starting at __block_begin into the registers of a
+// sub-group; lane l holds the elements __block_begin + i * __sub_group_size + l. Elements at or beyond __end are not
+// loaded; with __sort_identity_residual their slots are set to the sort identity instead.
+template <bool __is_ascending, bool __sort_identity_residual, std::uint32_t __sub_group_size,
+          std::uint16_t __data_per_work_item, typename _T, typename _InSeq, typename _GlobOffsetT>
 inline void
 __load_sub_group_block(_T (&__elements)[__data_per_work_item], const _InSeq& __in_seq, _GlobOffsetT __block_begin,
                        std::uint32_t __sub_group_local_id, _GlobOffsetT __end)
 {
-    constexpr std::uint32_t __sub_group_size = 32;
     const bool __is_full_block = (__block_begin + __data_per_work_item * __sub_group_size) <= __end;
     const _GlobOffsetT __offset = __block_begin + __sub_group_local_id;
     if (__is_full_block)
@@ -294,17 +293,18 @@ __extract_bins(const _KeyT (&__keys)[__data_per_work_item], _LocOffsetT (&__bins
     }
 }
 
-// Bitmask of the sub-group lanes holding the same bin as this lane. All 32 lanes must be active.
-template <std::uint8_t __radix_bits>
+// Bitmask of the sub-group lanes holding the same bin as this lane. All lanes of the sub-group must be active.
+template <std::uint8_t __radix_bits, std::uint32_t __sub_group_size>
 inline std::uint32_t
 __sub_group_match_bins(sycl::sub_group __sub_group, std::uint32_t __bin)
 {
+    static_assert(__sub_group_size <= 32, "Sub-group ballots are narrowed to 32 bits");
     std::uint32_t __matched_bins = ~std::uint32_t{0};
     _ONEDPL_PRAGMA_UNROLL
     for (int __i = 0; __i < __radix_bits; __i++)
     {
         bool __bit = static_cast<bool>((__bin >> __i) & 1);
-        // votes narrowed to 32 bits, sub_group_mask is 64 bits wide and costs extra instructions, subgroups size = 32
+        // votes narrowed to 32 bits, sub_group_mask is 64 bits wide and costs extra instructions
         std::uint32_t __sg_vote = 0;
         sycl::ext::oneapi::group_ballot(__sub_group, __bit).extract_bits(__sg_vote);
         // Keep the lanes that voted the same as this lane
@@ -313,16 +313,16 @@ __sub_group_match_bins(sycl::sub_group __sub_group, std::uint32_t __bin)
     return __matched_bins;
 }
 
-// Ranks the elements of a sub-group of 32 lanes in the order (element, lane), and leaves the per-bin counts of the
-// sub-group in __slm_hist. __bins[i] of lane l is the bin of the sub-group's element i * 32 + l.
-template <std::uint8_t __radix_bits, std::uint16_t __data_per_work_item, typename _LocOffsetT>
+// Ranks the elements of a sub-group in the order (element, lane), and leaves the per-bin counts of the sub-group in
+// __slm_hist. __bins[i] of lane l is the bin of the sub-group's element i * __sub_group_size + l.
+template <std::uint8_t __radix_bits, std::uint32_t __sub_group_size, std::uint16_t __data_per_work_item,
+          typename _LocOffsetT>
 inline void
 __sub_group_rank(sycl::sub_group __sub_group, _LocOffsetT (&__ranks)[__data_per_work_item],
                  const _LocOffsetT (&__bins)[__data_per_work_item], _LocOffsetT* __slm_hist,
                  std::uint32_t __sub_group_local_id)
 {
     constexpr std::uint32_t __bin_count = 1 << __radix_bits;
-    constexpr std::uint32_t __sub_group_size = 32;
     using _SubGroupBitmaskT = std::uint32_t;
 
     for (std::uint32_t __i = __sub_group_local_id; __i < __bin_count; __i += __sub_group_size)
@@ -330,15 +330,14 @@ __sub_group_rank(sycl::sub_group __sub_group, _LocOffsetT (&__ranks)[__data_per_
         __slm_hist[__i] = 0;
     }
 
-    constexpr _SubGroupBitmaskT __sub_group_full_bitmask = 0x7fffffff;
-    // lower bits than my current will be set meaning we only preserve left lanes
-    _SubGroupBitmaskT __remove_right_lanes = __sub_group_full_bitmask >> (__sub_group_size - 1 - __sub_group_local_id);
+    // Lanes below this one
+    const _SubGroupBitmaskT __remove_right_lanes = (_SubGroupBitmaskT{1} << __sub_group_local_id) - 1;
 
     _ONEDPL_PRAGMA_UNROLL
     for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
     {
         _LocOffsetT __bin = __bins[__i];
-        _SubGroupBitmaskT __matched_bins = __sub_group_match_bins<__radix_bits>(__sub_group, __bin);
+        _SubGroupBitmaskT __matched_bins = __sub_group_match_bins<__radix_bits, __sub_group_size>(__sub_group, __bin);
         sycl::group_barrier(__sub_group);
         _LocOffsetT __pre_rank = __slm_hist[__bin];
         _SubGroupBitmaskT __matched_left_lanes = __matched_bins & __remove_right_lanes;
@@ -534,11 +533,11 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     {
         // Elements at or beyond the segment end belong to the next segment (or lie past the input) and are not loaded
         const _GlobOffsetT __offset = __loc.__tile_begin + __data_per_sub_group * __sg_id;
-        __load_sub_group_block<__is_ascending, /*__sort_identity_residual=*/true>(
+        __load_sub_group_block<__is_ascending, /*__sort_identity_residual=*/true, __sub_group_size>(
             __pack.__keys, __rng_data(__in_pack.__keys_rng()), __offset, __sg_local_id, __loc.__segment_end);
         if constexpr (__has_values)
         {
-            __load_sub_group_block<__is_ascending, /*__sort_identity_residual=*/false>(
+            __load_sub_group_block<__is_ascending, /*__sort_identity_residual=*/false, __sub_group_size>(
                 __pack.__vals, __rng_data(__in_pack.__vals_rng()), __offset, __sg_local_id, __loc.__segment_end);
         }
     }
@@ -550,8 +549,8 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                  std::uint32_t __sub_group_local_id) const
     {
         static_assert(__sub_group_size == 32);
-        __sub_group_rank<__radix_bits>(__sub_group, __ranks, __bins, __slm_subgroup_hists + __sub_group_slm_offset,
-                                       __sub_group_local_id);
+        __sub_group_rank<__radix_bits, __sub_group_size>(
+            __sub_group, __ranks, __bins, __slm_subgroup_hists + __sub_group_slm_offset, __sub_group_local_id);
         sycl::group_barrier(__idx.get_group());
     }
 
@@ -1039,8 +1038,8 @@ struct __batched_one_wg_radix_sort_kernel
             if (__is_active)
             {
                 __extract_bins<__is_ascending, __radix_bits>(__pack.__keys, __bins, __stage * __radix_bits);
-                __sub_group_rank<__radix_bits>(__sub_group, __ranks, __bins, __slm_hists + __sg_id * __bin_count,
-                                               __sg_local_id);
+                __sub_group_rank<__radix_bits, __sub_group_size>(__sub_group, __ranks, __bins,
+                                                                 __slm_hists + __sg_id * __bin_count, __sg_local_id);
             }
             sycl::group_barrier(__group);
 
@@ -1095,11 +1094,11 @@ struct __batched_one_wg_radix_sort_kernel
     {
         const _GlobOffsetT __block_begin = __segment_begin + __sg_in_segment * __data_per_sub_group;
         const _GlobOffsetT __segment_end = __segment_begin + __m_segment_size;
-        __load_sub_group_block<__is_ascending, /*__sort_identity_residual=*/true>(
+        __load_sub_group_block<__is_ascending, /*__sort_identity_residual=*/true, __sub_group_size>(
             __pack.__keys, __m_in_pack.__keys_rng(), __block_begin, __sg_local_id, __segment_end);
         if constexpr (__has_values)
         {
-            __load_sub_group_block<__is_ascending, /*__sort_identity_residual=*/false>(
+            __load_sub_group_block<__is_ascending, /*__sort_identity_residual=*/false, __sub_group_size>(
                 __pack.__vals, __m_in_pack.__vals_rng(), __block_begin, __sg_local_id, __segment_end);
         }
     }
