@@ -87,18 +87,19 @@ __internal::__returns<std::pair<OutputIterator1, OutputIterator2>,
 reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                   OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred, BinaryOperator binary_op);
 
-template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt, typename InitT>
-__internal::__returns<OutputIt, __internal::__enable_if_execution_policy<Policy>,
+template <typename Policy, typename InputIterator, typename OutputIterator, typename SegmentNumT,
+          typename OffsetIterator, typename T>
+__internal::__returns<OutputIterator, __internal::__enable_if_execution_policy<Policy>,
                       std::enable_if_t<std::is_integral_v<SegmentNumT>>>
-reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first, SegmentNumT num_segments,
-                  OffsetIt offsets, InitT init_value);
+reduce_by_segment(Policy&& policy, InputIterator first, InputIterator last, OutputIterator result,
+                  SegmentNumT num_segments, OffsetIterator offsets, T init);
 
-template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt, typename InitT,
-          typename BinaryOp>
-__internal::__returns<OutputIt, __internal::__enable_if_execution_policy<Policy>,
+template <typename Policy, typename InputIterator, typename OutputIterator, typename SegmentNumT,
+          typename OffsetIterator, typename T, typename BinaryOperator>
+__internal::__returns<OutputIterator, __internal::__enable_if_execution_policy<Policy>,
                       std::enable_if_t<std::is_integral_v<SegmentNumT>>>
-reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first, SegmentNumT num_segments,
-                  OffsetIt offsets, InitT init_value, BinaryOp binary_op);
+reduce_by_segment(Policy&& policy, InputIterator first, InputIterator last, OutputIterator result,
+                  SegmentNumT num_segments, OffsetIterator offsets, T init, BinaryOperator binary_op);
 
 } // end namespace dpl
 } // end namespace oneapi
