@@ -121,9 +121,9 @@ main()
     static_assert(SorterTempStorage::bytes_req<Param>(4096, 0) == 0);
     auto q = TestUtils::get_test_queue();
 #    if TEST_KEYS_ONLY
-    run_test = can_run_test<Param, KeyT, void, OneWorkGroupOnly, SortConfig::radix_bits>(q, params);
+    run_test = can_run_test<Param, KeyT, void, OneWorkGroupOnly, SortConfig<>::radix_bits>(q, params);
 #    else
-    run_test = can_run_test<Param, KeyT, ValueT, OneWorkGroupOnly, SortConfig::radix_bits>(q, params);
+    run_test = can_run_test<Param, KeyT, ValueT, OneWorkGroupOnly, SortConfig<>::radix_bits>(q, params);
 #    endif
 
     if (run_test)
