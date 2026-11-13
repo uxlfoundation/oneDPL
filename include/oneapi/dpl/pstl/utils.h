@@ -61,9 +61,6 @@ namespace dpl
 namespace __internal
 {
 
-template <typename _T, typename...>
-using __returns = _T;
-
 template <typename Iterator>
 using is_const_iterator =
     typename ::std::is_const<::std::remove_pointer_t<typename ::std::iterator_traits<Iterator>::pointer>>;
@@ -1321,7 +1318,6 @@ __serial_accumulate(const _Source& __src, _Index __begin, _Index __end, _InitTyp
 {
     _Acc __acc = std::move(__init);
 
-    // Unrolled on a device, where a work-item reducing alone would wait for every load
     _ONEDPL_PRAGMA_UNROLL_BY(16)
     for (; __begin < __end; ++__begin)
         __acc = std::invoke(__binary_op, std::move(__acc), __src[__begin]);

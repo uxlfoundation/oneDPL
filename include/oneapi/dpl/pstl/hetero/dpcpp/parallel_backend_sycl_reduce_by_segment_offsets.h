@@ -85,7 +85,7 @@ class __segmented_reduce_fill_wrapper;
 
 // Whether a device supports the atomics of the device scope, which SYCL does not require
 inline bool
-__segmented_reduce_device_scope_atomics(sycl::device __device)
+__has_device_scope_atomics(sycl::device __device)
 {
     const std::vector<sycl::memory_scope> __scopes =
         __device.get_info<sycl::info::device::atomic_memory_scope_capabilities>();
@@ -1107,7 +1107,7 @@ struct __parallel_reduce_by_segment_offsets
 
         // Without device-scope atomics the longest length is not reported: init for the empty segments, all the others
         // in chunks, sized for the whole input
-        if (!__segmented_reduce_device_scope_atomics(__q.get_device()))
+        if (!__has_device_scope_atomics(__q.get_device()))
         {
             __parallel_reduce_by_segment_offsets_fill(_BackendTag{},
                                                       make_wrapped_policy<__segmented_reduce_init_wrapper>(__exec),
