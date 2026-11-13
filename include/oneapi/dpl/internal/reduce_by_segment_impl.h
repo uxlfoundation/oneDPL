@@ -43,7 +43,6 @@
 #define _ONEDPL_REDUCE_BY_SEGMENT_IMPL_H
 
 #include <cstdint>
-#include <functional> // std::invoke
 #include <type_traits>
 #include <utility>
 #include <iterator> // std::distance
@@ -277,7 +276,7 @@ reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 fir
 template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt, typename InitT,
           typename BinaryOp>
 __internal::__returns<OutputIt, __internal::__enable_if_execution_policy<Policy>,
-    std::enable_if_t<std::is_integral_v<SegmentNumT> && !std::is_integral_v<OffsetIt>>>
+                      std::enable_if_t<std::is_integral_v<SegmentNumT>>>
 reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first, SegmentNumT num_segments,
                   OffsetIt offsets, InitT init_value, BinaryOp binary_op)
 {
@@ -296,7 +295,7 @@ reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_fir
 
 template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt, typename InitT>
 __internal::__returns<OutputIt, __internal::__enable_if_execution_policy<Policy>,
-    std::enable_if_t<std::is_integral_v<SegmentNumT> && !std::is_integral_v<OffsetIt>>>
+                      std::enable_if_t<std::is_integral_v<SegmentNumT>>>
 reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first, SegmentNumT num_segments,
                   OffsetIt offsets, InitT init_value)
 {

@@ -34,7 +34,8 @@ using ValueT = TEST_VALUE_TYPE;
 #endif
 using KeyT = TEST_KEY_TYPE;
 
-using SortConfig = kt::gpu::radix_many_groups_tag<TestRadixBits>;
+template <bool IsAscending = true>
+using SortConfig = kt::gpu::radix_many_groups_tag<IsAscending, TestRadixBits>;
 
 #include "batched_sort_test_utils.h"
 
@@ -47,22 +48,23 @@ struct BatchedStableSort
     static sycl::event
     sort(sycl::queue q, Args&&... args)
     {
-        return kt::gpu::batched_stable_sort<SortConfig, IsAscending>(q, std::forward<Args>(args)...);
+        return kt::gpu::batched_stable_sort<SortConfig<IsAscending>>(q, std::forward<Args>(args)...);
     }
     template <bool IsAscending, typename... Args>
     static sycl::event
     sort_by_key(sycl::queue q, Args&&... args)
     {
-        return kt::gpu::batched_stable_sort_by_key<SortConfig, IsAscending>(q, std::forward<Args>(args)...);
+        return kt::gpu::batched_stable_sort_by_key<SortConfig<IsAscending>>(q, std::forward<Args>(args)...);
     }
     template <typename KernelParam>
     static constexpr std::size_t
     bytes_req(std::size_t segment_size, std::size_t n)
     {
 #if TEST_KEYS_ONLY
-        return kt::gpu::batched_stable_sort_bytes_req<SortConfig, KeyT>(segment_size, n, KernelParam{});
+        return kt::gpu::batched_stable_sort_bytes_req<SortConfig<>, KeyT>(segment_size, n, KernelParam{});
 #else
-        return kt::gpu::batched_stable_sort_by_key_bytes_req<SortConfig, KeyT, ValueT>(segment_size, n, KernelParam{});
+        return kt::gpu::batched_stable_sort_by_key_bytes_req<SortConfig<>, KeyT, ValueT>(segment_size, n,
+                                                                                         KernelParam{});
 #endif
     }
 };
@@ -145,8 +147,8 @@ main()
             using ParamA = decltype(TestUtils::create_new_kernel_param_idx<32>(params));
             using ParamB = decltype(TestUtils::create_new_kernel_param_idx<33>(params));
             KeyT* no_keys = nullptr;
-            kt::gpu::batched_stable_sort<SortConfig, Ascending, ParamA>(q, no_keys, no_keys, 4).wait();
-            kt::gpu::batched_stable_sort<SortConfig, Ascending, ParamB>(q, no_keys, no_keys, 4, nullptr, 0).wait();
+            kt::gpu::batched_stable_sort<SortConfig<Ascending>, ParamA>(q, no_keys, no_keys, 4).wait();
+            kt::gpu::batched_stable_sort<SortConfig<Ascending>, ParamB>(q, no_keys, no_keys, 4, nullptr, 0).wait();
         }
         catch (const std::exception& exc)
         {
