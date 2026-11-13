@@ -14,6 +14,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <functional>
+#include <type_traits>
 #include <vector>
 
 #if __has_include(<sycl/sycl.hpp>)
@@ -37,15 +39,25 @@ using KeyT = TEST_KEY_TYPE;
 #ifndef TEST_WG_RESIDENT
 #    define TEST_WG_RESIDENT 0
 #endif
-#if TEST_WG_RESIDENT
+#ifndef TEST_MERGE_WG_RESIDENT
+#    define TEST_MERGE_WG_RESIDENT 0
+#endif
+// The comparators of keys of the reference sort, and of merge_wg_resident_tag
+template <bool IsAscending>
+using DefaultKeyCompare = std::conditional_t<IsAscending, std::less<>, std::greater<>>;
+
+#if TEST_MERGE_WG_RESIDENT
+template <bool IsAscending = true>
+using SortConfig = kt::gpu::merge_wg_resident_tag<DefaultKeyCompare<IsAscending>>;
+#elif TEST_WG_RESIDENT
 template <bool IsAscending = true>
 using SortConfig = kt::gpu::radix_wg_resident_tag<IsAscending, TestRadixBits>;
 #else
 template <bool IsAscending = true>
 using SortConfig = kt::gpu::radix_multi_wg_tag<IsAscending, TestRadixBits>;
 #endif
-// radix_wg_resident_tag sorts only segments which fit in a tile
-constexpr bool WgResidentOnly = TEST_WG_RESIDENT;
+// merge_wg_resident_tag and radix_wg_resident_tag sort only segments which fit in a tile
+constexpr bool WgResidentOnly = TEST_WG_RESIDENT || TEST_MERGE_WG_RESIDENT;
 #if TEST_WG_RESIDENT
 #    define TEST_SORT_CONFIG_AVAILABLE TEST_SYCL_WG_RESIDENT_RADIX_SORT_KT_AVAILABLE
 #else
@@ -54,22 +66,49 @@ constexpr bool WgResidentOnly = TEST_WG_RESIDENT;
 
 #include "batched_sort_test_utils.h"
 
-template <bool UsesTempStorage>
+// A comparator for merge_wg_resident_tag which orders keys by the low 4 bits of their representation only: a strict
+// weak ordering different from < with many equivalent but distinct keys, so stability is visible in the keys alone.
+// It applies to every key type, including those the radix sorts do not order this way.
+template <bool IsAscending>
+struct LowBitsCompare
+{
+    static KeyBitsT
+    low_bits(const KeyT& key)
+    {
+        return KeyBitsT(sycl::bit_cast<KeyBitsT>(key) & KeyBitsT(0xF));
+    }
+    bool
+    operator()(const KeyT& lhs, const KeyT& rhs) const
+    {
+        return IsAscending ? low_bits(lhs) < low_bits(rhs) : low_bits(rhs) < low_bits(lhs);
+    }
+};
+
+// With CustomCompare, sorts with merge_wg_resident_tag<LowBitsCompare<IsAscending>> instead of SortConfig
+template <bool UsesTempStorage, bool CustomCompare = false>
 struct BatchedStableSort
 {
     static constexpr bool uses_temp_storage = UsesTempStorage;
+    static constexpr int kernel_variant = CustomCompare;
+    static constexpr const char* name = CustomCompare ? "low bits comparator" : "default comparator";
+
+    template <bool IsAscending>
+    using key_compare = std::conditional_t<CustomCompare, LowBitsCompare<IsAscending>, DefaultKeyCompare<IsAscending>>;
+    template <bool IsAscending>
+    using config = std::conditional_t<CustomCompare, kt::gpu::merge_wg_resident_tag<LowBitsCompare<IsAscending>>,
+                                      SortConfig<IsAscending>>;
 
     template <bool IsAscending, typename... Args>
     static sycl::event
     sort(sycl::queue q, Args&&... args)
     {
-        return kt::gpu::batched_stable_sort<SortConfig<IsAscending>>(q, std::forward<Args>(args)...);
+        return kt::gpu::batched_stable_sort<config<IsAscending>>(q, std::forward<Args>(args)...);
     }
     template <bool IsAscending, typename... Args>
     static sycl::event
     sort_by_key(sycl::queue q, Args&&... args)
     {
-        return kt::gpu::batched_stable_sort_by_key<SortConfig<IsAscending>>(q, std::forward<Args>(args)...);
+        return kt::gpu::batched_stable_sort_by_key<config<IsAscending>>(q, std::forward<Args>(args)...);
     }
     template <typename KernelParam>
     static constexpr std::size_t
@@ -87,15 +126,38 @@ struct BatchedStableSort
 // Segment sizes around the tile size (data_per_workitem * workgroup_size) and the global histogram chunk (4096), plus
 // segments smaller than a tile, multi-tile segments and segments that are not multiples of the sub-group size.
 // Segments that fit in a tile are owned by whole sub-groups of 32 * data_per_workitem elements, several per
-// work-group, so sizes around multiples of a sub-group's elements are covered too.
+// work-group, so sizes around multiples of a sub-group's elements are covered too. Sizes around a work-item's
+// elements cover the merge sort's leaf sort and first merge round.
 std::vector<std::size_t>
-segment_sizes(std::size_t tile, std::size_t sub_group_tile)
+segment_sizes(std::size_t tile, std::size_t sub_group_tile, std::size_t work_item_tile)
 {
-    std::vector<std::size_t> sizes = {
-        1,        2,      7,        100,      317,          1000,           4095,         4097,
-        tile - 1, tile,   tile + 1, 2 * tile, 2 * tile + 1, 3 * tile + 333, 7 * tile - 5, 50'000,
-        1 << 17,  300'007,
-        sub_group_tile - 1, sub_group_tile, sub_group_tile + 1, 2 * sub_group_tile + 3, tile / 2 + 1, tile / 3};
+    std::vector<std::size_t> sizes = {1,
+                                      2,
+                                      7,
+                                      100,
+                                      317,
+                                      1000,
+                                      4095,
+                                      4097,
+                                      tile - 1,
+                                      tile,
+                                      tile + 1,
+                                      2 * tile,
+                                      2 * tile + 1,
+                                      3 * tile + 333,
+                                      7 * tile - 5,
+                                      50'000,
+                                      1 << 17,
+                                      300'007,
+                                      sub_group_tile - 1,
+                                      sub_group_tile,
+                                      sub_group_tile + 1,
+                                      2 * sub_group_tile + 3,
+                                      tile / 2 + 1,
+                                      tile / 3,
+                                      work_item_tile,
+                                      work_item_tile + 1,
+                                      2 * work_item_tile - 1};
     sizes.erase(std::remove(sizes.begin(), sizes.end(), std::size_t(0)), sizes.end());
     if (WgResidentOnly)
         sizes.erase(std::remove_if(sizes.begin(), sizes.end(), [tile](std::size_t s) { return s > tile; }),
@@ -109,7 +171,8 @@ int
 main()
 {
     bool run_test = false;
-#if TEST_SORT_CONFIG_AVAILABLE
+    // merge_wg_resident_tag requires none of the extensions of the radix sorts
+#if TEST_SORT_CONFIG_AVAILABLE || TEST_MERGE_WG_RESIDENT
     using Param = kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE>;
     using Sorter = BatchedStableSort</*UsesTempStorage=*/false>;
     using SorterTempStorage = BatchedStableSort</*UsesTempStorage=*/true>;
@@ -121,9 +184,14 @@ main()
     static_assert(SorterTempStorage::bytes_req<Param>(4096, 0) == 0);
     auto q = TestUtils::get_test_queue();
 #    if TEST_KEYS_ONLY
-    run_test = can_run_test<Param, KeyT, void, WgResidentOnly, SortConfig<>::radix_bits>(q, params);
+    using SlmValueT = void;
 #    else
-    run_test = can_run_test<Param, KeyT, ValueT, WgResidentOnly, SortConfig<>::radix_bits>(q, params);
+    using SlmValueT = ValueT;
+#    endif
+#    if TEST_MERGE_WG_RESIDENT
+    run_test = can_run_merge_test<Param, KeyT, SlmValueT>(q, params);
+#    else
+    run_test = can_run_test<Param, KeyT, SlmValueT, WgResidentOnly, SortConfig<>::radix_bits>(q, params);
 #    endif
 
     if (run_test)
@@ -134,7 +202,8 @@ main()
             const DataMode modes[] = {DataMode::usm_iterators, DataMode::usm_ranges, DataMode::buffer_iterators,
                                       DataMode::buffer_ranges};
             std::size_t mode_idx = 0;
-            for (std::size_t segment_size : segment_sizes(tile, std::size_t(Param::data_per_workitem) * 32))
+            const std::size_t sub_group_tile = std::size_t(Param::data_per_workitem) * 32;
+            for (std::size_t segment_size : segment_sizes(tile, sub_group_tile, Param::data_per_workitem))
             {
                 // A single segment (segment_size == n), a few segments, and many segments. The count of the
                 // smallest segments is capped: global scratch memory grows with the number of tiles and segments.
@@ -157,6 +226,17 @@ main()
                 // Temporary storage provided by the caller, for each data mode with in-place and out-of-place sorts
                 test_case<SorterTempStorage, Ascending, false>(q, modes[mode_idx % 4], segment_size, 3, params);
                 test_case<SorterTempStorage, Descending, true>(q, modes[(mode_idx + 1) % 4], segment_size, 3, params);
+
+#    if TEST_MERGE_WG_RESIDENT
+                // A user comparator, under which distinct keys are equivalent
+                using SorterCustomCompare = BatchedStableSort</*UsesTempStorage=*/false, /*CustomCompare=*/true>;
+                test_case<SorterCustomCompare, Ascending, false>(q, modes[mode_idx % 4], segment_size, 3, params);
+                test_case<SorterCustomCompare, Descending, true>(q, modes[(mode_idx + 1) % 4], segment_size, 3, params);
+                test_case<SorterCustomCompare, Ascending, true>(q, modes[(mode_idx + 2) % 4], segment_size, many,
+                                                                params);
+                test_case<SorterCustomCompare, Descending, false>(q, modes[(mode_idx + 3) % 4], segment_size, many,
+                                                                  params);
+#    endif
             }
 
             // More histogram chunks than histogram work-groups, with segments of 3 chunks: work-groups own several
@@ -168,8 +248,8 @@ main()
             test_empty_input<SorterTempStorage>(q, params, static_cast<void*>(nullptr), std::size_t{0});
 
             // The kernel_param may be given as a template argument instead, also with temporary storage
-            using ParamA = decltype(TestUtils::create_new_kernel_param_idx<32>(params));
-            using ParamB = decltype(TestUtils::create_new_kernel_param_idx<33>(params));
+            using ParamA = decltype(TestUtils::create_new_kernel_param_idx<64>(params));
+            using ParamB = decltype(TestUtils::create_new_kernel_param_idx<65>(params));
             KeyT* no_keys = nullptr;
             kt::gpu::batched_stable_sort<SortConfig<Ascending>, ParamA>(q, no_keys, no_keys, 4).wait();
             kt::gpu::batched_stable_sort<SortConfig<Ascending>, ParamB>(q, no_keys, no_keys, 4, nullptr, 0).wait();
@@ -180,7 +260,7 @@ main()
             return EXIT_FAILURE;
         }
     }
-#endif // TEST_SORT_CONFIG_AVAILABLE
+#endif // TEST_SORT_CONFIG_AVAILABLE || TEST_MERGE_WG_RESIDENT
 
     return TestUtils::done(run_test);
 }
