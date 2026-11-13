@@ -25,7 +25,7 @@
 
 #include "kt_utils.h"
 #include "radix_sort_utils.h"
-#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT || _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT || _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
 #    include "sycl_radix_sort_kernels.h"
 #endif
 #if __has_include(<sycl/ext/intel/esimd.hpp>)
@@ -280,14 +280,14 @@ struct __radix_sort_copyback_submitter<oneapi::dpl::__par_backend_hetero::__inte
     }
 };
 
-#if _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
 template <bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename _KernelName>
-struct __batched_one_wg_radix_sort_submitter;
+struct __batched_wg_resident_radix_sort_submitter;
 
 template <bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename... _Name>
-struct __batched_one_wg_radix_sort_submitter<
+struct __batched_wg_resident_radix_sort_submitter<
     __is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
     oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
@@ -297,8 +297,9 @@ struct __batched_one_wg_radix_sort_submitter<
                std::uint32_t __segment_size) const
     {
         using _KernelType =
-            __batched_one_wg_radix_sort_kernel<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
-                                               std::decay_t<_InRngPack>, std::decay_t<_OutRngPack>>;
+            __batched_wg_resident_radix_sort_kernel<__is_ascending, __radix_bits, __data_per_work_item,
+                                                    __work_group_size, std::decay_t<_InRngPack>,
+                                                    std::decay_t<_OutRngPack>>;
         constexpr bool __has_values = _KernelType::__has_values;
 
         const std::uint32_t __segment_count = __n / __segment_size;
@@ -324,7 +325,7 @@ struct __batched_one_wg_radix_sort_submitter<
         });
     }
 };
-#endif // _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
+#endif // _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
 

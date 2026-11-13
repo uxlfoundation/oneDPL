@@ -88,20 +88,27 @@ meant to be a thin layer around an algorithm / kernel, so each call runs
 exactly one algorithm, configured by one `kernel_param`.
 
 ```c++
-// Merge path sort; requires __segment_size <= data_per_workitem * workgroup_size
+// Work-group resident merge path sort; requires __segment_size <= data_per_workitem * workgroup_size
 template <typename _Compare = std::less<>>
-struct merge_single_group_tag;
+struct merge_wg_resident_tag;
 
-// One work-group radix sort; requires __segment_size <= data_per_workitem * workgroup_size
+// Work-group resident radix sort; requires __segment_size <= data_per_workitem * workgroup_size
 template <bool __is_ascending = true, std::uint8_t __radix_bits = 8>
-struct radix_single_group_tag;
+struct radix_wg_resident_tag;
 
 // Modified OneSweep radix sort; any __segment_size
 template <bool __is_ascending = true, std::uint8_t __radix_bits = 8>
-struct radix_many_groups_tag;
+struct radix_multi_wg_tag;
 ```
 
-Merge path sort is comparison based, so `merge_single_group_tag` accepts a comparator type
+Each tag name pairs the sorting approach (`radix` or `merge`) with how a segment maps to
+work-groups. With `_wg_resident`, each segment is sorted entirely within one work-group, without
+communication between work-groups; a work-group may hold several segments, and a call may still
+launch many work-groups. With `_multi_wg`, the work-groups cooperate to sort a segment, so it may
+be of any size. The names describe the approach and its limits rather than a specific kernel,
+which leaves room to change the implementation behind a tag.
+
+Merge path sort is comparison based, so `merge_wg_resident_tag` accepts a comparator type
 `_Compare`, which also dictates the sort direction: `std::less<>` (the default) sorts ascending, and
 `std::greater<>` descending. As for `std::stable_sort`, the comparator must induce a strict weak
 ordering on the input keys. NaN keys are therefore unsupported with the default comparator (and
@@ -110,7 +117,7 @@ is default constructed in the kernel, so it cannot carry state set on the host. 
 accept no comparator, as they order keys by their bits.
 
 Unsupported combinations of `_SortConfig` and `kernel_param` are rejected at compile time, e.g.
-`radix_many_groups_tag` currently requires 8 radix bits and 512 or 1024 work-items. Unsupported
+`radix_multi_wg_tag` currently requires 8 radix bits and 512 or 1024 work-items. Unsupported
 runtime arguments for specific sort configurations assert at runtime.
 
 Dispatching between algorithms by segment size is left to the user. The documentation will include
@@ -133,24 +140,24 @@ Runtime Parameters:
 * `__segment_size <= 0` is rejected with an assertion.
 * For `__segment_size > 0`, `n == 0` is a no-op; otherwise, `n % __segment_size != 0` is rejected
   with an assertion.
-* For `merge_single_group_tag` and `radix_single_group_tag`,
+* For `merge_wg_resident_tag` and `radix_wg_resident_tag`,
   `__segment_size > data_per_workitem * workgroup_size` is rejected with an assertion.
-  `radix_many_groups_tag` accepts any `__segment_size`.
-* `merge_single_group_tag` and `radix_single_group_tag` stage a full work-group tile of keys (and
+  `radix_multi_wg_tag` accepts any `__segment_size`.
+* `merge_wg_resident_tag` and `radix_wg_resident_tag` stage a full work-group tile of keys (and
   values) in local memory, so `data_per_workitem * workgroup_size * (sizeof(key) + sizeof(value))`
   must not exceed the device's local memory (`sycl::info::device::local_mem_size`). Choosing a
   `kernel_param` which satisfies this is the user's responsibility, as for other kernel templates.
-* `radix_many_groups_tag` requires parallel forward progress between work-groups (see
+* `radix_multi_wg_tag` requires parallel forward progress between work-groups (see
   [Implementation Details](#implementation-details)).
 * Input and output must not overlap. Full aliasing is served by the in-place overloads; partial
   overlap is not supported.
 * The radix sorts order keys by the same total order as `kt::gpu::radix_sort`, the order of their
   order-preserving bit transform: for floating point, `-0.0` and `+0.0` compare equal (so, by
   stability, keep their input order), and NaNs are ordered by sign and payload.
-* `merge_single_group_tag` sorts each segment as `std::stable_sort` with its comparator would. Its
+* `merge_wg_resident_tag` sorts each segment as `std::stable_sort` with its comparator would. Its
   key types are not limited to those supported by the radix sorts: any device copyable key type the
   comparator accepts may be used.
-* `merge_single_group_tag` requires its comparator to induce a strict weak ordering on the input
+* `merge_wg_resident_tag` requires its comparator to induce a strict weak ordering on the input
   keys; otherwise the behavior is undefined. NaN keys are not supported with the default
   comparator `std::less<>` (or with `std::greater<>`), as it is not a strict weak ordering when NaNs
   are present.
@@ -181,9 +188,9 @@ std::uint32_t* ids_out = sycl::malloc_device<std::uint32_t>(n, q);
 // ... fill probs and ids ...
 q.wait(); // The current API has no dependency-event parameter.
 
-// A row fits in one tile of 8 * 512 = 4096 keys + ids (32 KB of SLM), so one work-group radix
-// sort can be used
-using config_t = kt::gpu::radix_single_group_tag</*__is_ascending=*/false, 8>;
+// A row fits in one tile of 8 * 512 = 4096 keys + ids (32 KB of SLM), so the work-group resident
+// radix sort can be used
+using config_t = kt::gpu::radix_wg_resident_tag</*__is_ascending=*/false, 8>;
 using param_t = kt::kernel_param<8, 512>;
 sycl::event e = kt::gpu::batched_stable_sort_by_key<config_t>(q, probs, probs + n, ids, probs_out,
                                                               ids_out, V, param_t{});
@@ -200,7 +207,7 @@ The best stable sort depends on segment size. Candidates considered:
 |-----------------------|--------------------|---------------------------------------------------|
 | OneSweep per segment  | all                | current workaround; baseline                      |
 | Composite OneSweep    | all                | segment id prepended to key; performance floor    |
-| One work-group radix  | segment fits in wg | proposed; packs multiple segments per wg          |
+| WG resident radix    | segment fits in wg | proposed; packs multiple segments per wg          |
 | Modified OneSweep     | all                | proposed; best when segments exceed one wg        |
 | Work-group merge path | segment fits in wg | proposed; packs multiple segments per wg          |
 | Sub-group merge path  | segment fits in sg | deferred; capped near 1024 by SLM                 |
@@ -213,7 +220,8 @@ bits add sweep passes and data movement, so it is not proposed.
 
 #### Plan
 Implement two kernels, and optionally a third:
-1) One work-group radix sort, for segments which fit into a single work-group.
+1) Work-group resident radix sort (`radix_wg_resident_tag`), for segments which fit into a single
+   work-group.
    * All radix stages run in a single kernel, with no global histogram or lookback.
    * Each segment is owned by `ceil(__segment_size / (32 * data_per_workitem))` sub-groups, and
      multiple segments may be packed into one work-group, at sub-group granularity.
@@ -227,8 +235,8 @@ Implement two kernels, and optionally a third:
      scenarios when they are larger than the data itself, so they do not change whether a
      `kernel_param` fits.
    * It is the user's responsibility to choose a `kernel_param` which fits in local memory.
-2) Modified OneSweep radix sort, which handles any segment size, but is best for segments which do
-   not fit into a single work-group.
+2) Modified OneSweep radix sort (`radix_multi_wg_tag`), which handles any segment size, but is
+   best for segments which do not fit into a single work-group.
    * Global histogram and bin offset scan per (segment, radix stage).
    * Sweep tiles are aligned to segments, with one decoupled lookback chain per segment; tile 0 of
      each segment seeds from that segment's offsets.
@@ -236,9 +244,9 @@ Implement two kernels, and optionally a third:
      segment end.
    * Shares implementation with the existing `kt::gpu::radix_sort` where possible, which may
      require refactoring its kernels to be segment-aware.
-3) (Optional, or secondary priority) Work-group merge path sort, for segments which fit into a
-   single work-group (`workgroup_size * data_per_workitem`). Multiple segments may be packed into
-   one work-group.
+3) (Optional, or secondary priority) Work-group resident merge path sort (`merge_wg_resident_tag`),
+   for segments which fit into a single work-group (`workgroup_size * data_per_workitem`). Multiple
+   segments may be packed into one work-group.
    * Keys are compared with `_Compare` directly.
    * Load into registers and stable sort each work-item's `data_per_workitem` keys (leaf sort).
      The last work-item of a segment may hold fewer than `data_per_workitem` keys; its unused
@@ -247,11 +255,11 @@ Implement two kernels, and optionally a third:
      fits in one work-item): registers → SLM, barrier, each work-item binary-searches its diagonal
      (co-rank) for its merge path start, then merges `data_per_workitem` keys from SLM back into
      registers. When a round has an odd number of runs, the trailing run is carried over unchanged.
-   * Measured to be faster than one work-group radix sort for segments smaller than roughly 1K-2K
-     elements (see [Expectations](#expectations-from-proof-of-concept-work)).
+   * Measured to be faster than work-group resident radix sort for segments smaller than roughly
+     1K-2K elements (see [Expectations](#expectations-from-proof-of-concept-work)).
 
-All kernels are SYCL (not ESIMD) implementations in the `gpu` namespace. Work-group merge path and
-one work-group radix sort have no cross-work-group communication. Modified OneSweep relies on
+All kernels are SYCL (not ESIMD) implementations in the `gpu` namespace. The work-group resident
+merge path and radix sorts have no cross-work-group communication. Modified OneSweep relies on
 decoupled lookback, so like `kt::gpu::radix_sort` it requires parallel forward progress between
 work-groups, and initially carries the same device and runtime restrictions.
 
@@ -271,21 +279,21 @@ my_batched_sort_by_key(sycl::queue q, _Key* keys, _Val* vals, _Key* keys_out, _V
     // Tiles below fit 32 KB of SLM for 4-byte keys and values.
     using compare_t = std::conditional_t<__is_ascending, std::less<>, std::greater<>>;
     if (segment_size <= 256)
-        return kt::gpu::batched_stable_sort_by_key<kt::gpu::merge_single_group_tag<compare_t>>(
+        return kt::gpu::batched_stable_sort_by_key<kt::gpu::merge_wg_resident_tag<compare_t>>(
             q, keys, keys + n, vals, keys_out, vals_out, segment_size, kt::kernel_param<4, 64>{});
     if (segment_size <= 4096)
-        return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_single_group_tag<__is_ascending, 8>>(
+        return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_wg_resident_tag<__is_ascending, 8>>(
             q, keys, keys + n, vals, keys_out, vals_out, segment_size, kt::kernel_param<8, 512>{});
-    return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_many_groups_tag<__is_ascending, 8>>(
+    return kt::gpu::batched_stable_sort_by_key<kt::gpu::radix_multi_wg_tag<__is_ascending, 8>>(
         q, keys, keys + n, vals, keys_out, vals_out, segment_size, kt::kernel_param<4, 512>{});
 }
 ```
 
-Each branch has its own `kernel_param`, so the one work-group tile and the Modified OneSweep tile
-can be tuned independently.
+Each branch has its own `kernel_param`, so the work-group resident tile and the Modified OneSweep
+tile can be tuned independently.
 
 The local memory bound depends on key and value size, so larger types reduce the largest segment
-size served by one work-group radix sort and merge path sort. For example, at 64 KB of local
+size served by the work-group resident radix and merge path sorts. For example, at 64 KB of local
 memory, the tile is limited to 16K `std::uint32_t` keys, 8K `std::uint32_t` key-value pairs, or 4K
 `std::uint64_t` key-value pairs.
 
@@ -310,9 +318,10 @@ large, it is possible that a separate kernel launch per segment could be faster.
 modified OneSweep sort the segments at ~0.7x-1.1x the wallclock time of a single `kt::gpu::radix_sort` over
 the entire sequence.
 
-One work-group radix sort versus work-group merge path sort, measured on the prototype
-implementation: the geomean over total sizes 2^8-2^28 of the best one work-group radix time divided
-by the best merge time, `float` keys and values, 8 radix bits. Below 1, radix sort is faster.
+Work-group resident radix sort versus work-group resident merge path sort, measured on the prototype
+implementation: the geomean over total sizes 2^8-2^28 of the best work-group resident radix time
+divided by the best merge time, `float` keys and values, 8 radix bits. Below 1, radix sort is
+faster.
 
 | segment size | BMG keys | PVC keys | BMG by key | PVC by key |
 |--------------|----------|----------|------------|------------|
@@ -336,8 +345,8 @@ Following the [Kernel Templates testing guidance][kt-testing]:
   segments, and a single segment (`__segment_size == n`).
 * Each `_SortConfig`, with a representative sample of `kernel_param`s and radix bits.
 * Identical output from every `_SortConfig` of the same direction for the same input without NaNs
-  (`merge_single_group_tag` with `std::less<>` / `std::greater<>`).
-* `merge_single_group_tag` with user comparators against a per-segment `std::stable_sort` with the
+  (`merge_wg_resident_tag` with `std::less<>` / `std::greater<>`).
+* `merge_wg_resident_tag` with user comparators against a per-segment `std::stable_sort` with the
   same comparator: e.g. a comparator on part of the key (to exercise stability among equivalent
   keys), and a key type the radix sorts do not support.
 * All supported key types, including floating point edge cases (-0.0, +0.0, infinities, and NaNs
@@ -345,8 +354,8 @@ Following the [Kernel Templates testing guidance][kt-testing]:
 * Ascending and descending; key only and by key; out-of-place and in-place; iterators and ranges;
   USM and `sycl::buffer`.
 * `n == 0` is a no-op; assertions fire for `__segment_size <= 0`, `n % __segment_size != 0`, and
-  `__segment_size > data_per_workitem * workgroup_size` for `merge_single_group_tag` and
-  `radix_single_group_tag`.
+  `__segment_size > data_per_workitem * workgroup_size` for `merge_wg_resident_tag` and
+  `radix_wg_resident_tag`.
 * Reuse the existing `kt::gpu::radix_sort` test setup to cover a representative sample of kernel
   parameters.
 
@@ -394,7 +403,7 @@ These are left out of the initial proposal to limit scope.
   are not supported yet by defining how they map to an ordered unsigned integer.
 * Arbitrary projections, where the sort key is the result of a user callable applied to each
   element, and the element itself is what moves. This could potentially remove the need for `_by_key` variants.
-* A `merge_many_groups_tag`, a merge path sort spanning multiple work-groups per segment, to allow
+* A `merge_multi_wg_tag`, a merge path sort with multiple work-groups per segment, to allow
   a custom comparator for segments larger than one work-group can sort. This is not prioritized
   now, as a custom comparator has not been found to be needed in the gathered feedback; it can be
   added if demand appears.
@@ -443,15 +452,14 @@ batched_stable_sort_by_key(sycl::queue __q,
                            _KernelParam __param = {});
 ```
 
-* Should merge path sort be part of the initial offering? One work-group radix sort and Modified
-  OneSweep together serve every segment size. The cost of leaving merge out is giving up its
-  advantage for segments below roughly 1K elements, which is up to 3-4x at 32 element segments.
+* Should merge path sort be part of the initial offering? Work-group resident radix sort and
+  Modified OneSweep together serve every segment size. The cost of leaving merge out is giving up
+  its advantage for segments below roughly 1K elements, which is up to 3-4x at 32 element segments.
   Adding it later only adds a `_SortConfig` type to the API.
     * My suggestion would be to make the initial offering radix only, and add merge path as a
       secondary priority.
 
-* Naming of `_SortConfig` and its types (`merge_single_group_tag`, `radix_single_group_tag`,
-  `radix_many_groups_tag`). "Policy" is avoided, to avoid confusion with execution policy elsewhere
+* Naming of `_SortConfig`. "Policy" is avoided, to avoid confusion with execution policy elsewhere
   in oneDPL. Should these types live in a nested namespace? Other options: `_SortBrick`, `_Sorter`,
   `_SortAlgo`...
 

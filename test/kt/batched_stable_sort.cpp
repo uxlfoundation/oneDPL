@@ -34,20 +34,20 @@ using ValueT = TEST_VALUE_TYPE;
 #endif
 using KeyT = TEST_KEY_TYPE;
 
-#ifndef TEST_SINGLE_GROUP
-#    define TEST_SINGLE_GROUP 0
+#ifndef TEST_WG_RESIDENT
+#    define TEST_WG_RESIDENT 0
 #endif
-#if TEST_SINGLE_GROUP
+#if TEST_WG_RESIDENT
 template <bool IsAscending = true>
-using SortConfig = kt::gpu::radix_single_group_tag<IsAscending, TestRadixBits>;
+using SortConfig = kt::gpu::radix_wg_resident_tag<IsAscending, TestRadixBits>;
 #else
 template <bool IsAscending = true>
-using SortConfig = kt::gpu::radix_many_groups_tag<IsAscending, TestRadixBits>;
+using SortConfig = kt::gpu::radix_multi_wg_tag<IsAscending, TestRadixBits>;
 #endif
-// radix_single_group_tag sorts only segments which fit in a tile
-constexpr bool OneWorkGroupOnly = TEST_SINGLE_GROUP;
-#if TEST_SINGLE_GROUP
-#    define TEST_SORT_CONFIG_AVAILABLE TEST_SYCL_ONE_WG_RADIX_SORT_KT_AVAILABLE
+// radix_wg_resident_tag sorts only segments which fit in a tile
+constexpr bool WgResidentOnly = TEST_WG_RESIDENT;
+#if TEST_WG_RESIDENT
+#    define TEST_SORT_CONFIG_AVAILABLE TEST_SYCL_WG_RESIDENT_RADIX_SORT_KT_AVAILABLE
 #else
 #    define TEST_SORT_CONFIG_AVAILABLE TEST_SYCL_RADIX_SORT_KT_AVAILABLE
 #endif
@@ -97,7 +97,7 @@ segment_sizes(std::size_t tile, std::size_t sub_group_tile)
         1 << 17,  300'007,
         sub_group_tile - 1, sub_group_tile, sub_group_tile + 1, 2 * sub_group_tile + 3, tile / 2 + 1, tile / 3};
     sizes.erase(std::remove(sizes.begin(), sizes.end(), std::size_t(0)), sizes.end());
-    if (OneWorkGroupOnly)
+    if (WgResidentOnly)
         sizes.erase(std::remove_if(sizes.begin(), sizes.end(), [tile](std::size_t s) { return s > tile; }),
                     sizes.end());
     std::sort(sizes.begin(), sizes.end());
@@ -114,16 +114,16 @@ main()
     using Sorter = BatchedStableSort</*UsesTempStorage=*/false>;
     using SorterTempStorage = BatchedStableSort</*UsesTempStorage=*/true>;
     constexpr Param params;
-    // The memory requirement can be known at compile time. The one work-group sort needs no temporary storage,
+    // The memory requirement can be known at compile time. The work-group resident sort needs no temporary storage,
     // onesweep does unless the input is empty.
     constexpr std::size_t temp_bytes = SorterTempStorage::bytes_req<Param>(4096, 1 << 20);
-    static_assert(OneWorkGroupOnly ? temp_bytes == 0 : temp_bytes > 0);
+    static_assert(WgResidentOnly ? temp_bytes == 0 : temp_bytes > 0);
     static_assert(SorterTempStorage::bytes_req<Param>(4096, 0) == 0);
     auto q = TestUtils::get_test_queue();
 #    if TEST_KEYS_ONLY
-    run_test = can_run_test<Param, KeyT, void, OneWorkGroupOnly, SortConfig<>::radix_bits>(q, params);
+    run_test = can_run_test<Param, KeyT, void, WgResidentOnly, SortConfig<>::radix_bits>(q, params);
 #    else
-    run_test = can_run_test<Param, KeyT, ValueT, OneWorkGroupOnly, SortConfig<>::radix_bits>(q, params);
+    run_test = can_run_test<Param, KeyT, ValueT, WgResidentOnly, SortConfig<>::radix_bits>(q, params);
 #    endif
 
     if (run_test)
@@ -161,7 +161,7 @@ main()
 
             // More histogram chunks than histogram work-groups, with segments of 3 chunks: work-groups own several
             // chunks and switch segments in the middle of their range
-            if (!OneWorkGroupOnly || 9000 <= tile)
+            if (!WgResidentOnly || 9000 <= tile)
                 test_case<Sorter, Ascending, false>(q, DataMode::usm_iterators, 9000, 600, params);
 
             test_empty_input<Sorter>(q, params);

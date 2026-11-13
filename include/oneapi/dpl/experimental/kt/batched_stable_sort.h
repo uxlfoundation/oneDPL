@@ -32,17 +32,17 @@ namespace oneapi::dpl::experimental::kt::gpu
 // Sort configurations: each selects one algorithm and carries its specific parameters
 //-----------------------------------------------------------------------------
 
-// One work-group radix sort; requires __segment_size <= data_per_workitem * workgroup_size
+// Work-group resident radix sort, requires __segment_size <= data_per_workitem * workgroup_size
 template <bool __is_ascending = true, std::uint8_t __radix_bits = 8>
-struct radix_single_group_tag
+struct radix_wg_resident_tag
 {
     static constexpr bool is_ascending = __is_ascending;
     static constexpr std::uint8_t radix_bits = __radix_bits;
 };
 
-// Modified OneSweep radix sort; any __segment_size
+// Modified OneSweep radix sort: each segment may span multiple work-groups; any __segment_size
 template <bool __is_ascending = true, std::uint8_t __radix_bits = 8>
-struct radix_many_groups_tag
+struct radix_multi_wg_tag
 {
     static constexpr bool is_ascending = __is_ascending;
     static constexpr std::uint8_t radix_bits = __radix_bits;
@@ -62,36 +62,36 @@ struct __is_radix_tag<_Tag, _Tag<__is_ascending, __radix_bits>> : std::true_type
 };
 
 template <typename _SortConfig>
-inline constexpr bool __is_radix_single_group_tag_v = __is_radix_tag<radix_single_group_tag, _SortConfig>::value;
+inline constexpr bool __is_radix_wg_resident_tag_v = __is_radix_tag<radix_wg_resident_tag, _SortConfig>::value;
 
 template <typename _SortConfig>
-inline constexpr bool __is_radix_many_groups_tag_v = __is_radix_tag<radix_many_groups_tag, _SortConfig>::value;
+inline constexpr bool __is_radix_multi_wg_tag_v = __is_radix_tag<radix_multi_wg_tag, _SortConfig>::value;
 
 // Rejects unsupported combinations of _SortConfig and kernel_param at compile time
 template <typename _SortConfig, typename _KernelParam>
 constexpr void
 __check_batched_sort_config()
 {
-    static_assert(__is_radix_single_group_tag_v<_SortConfig> || __is_radix_many_groups_tag_v<_SortConfig>,
-                  "Unsupported _SortConfig: only radix_single_group_tag and radix_many_groups_tag are currently "
+    static_assert(__is_radix_wg_resident_tag_v<_SortConfig> || __is_radix_multi_wg_tag_v<_SortConfig>,
+                  "Unsupported _SortConfig: only radix_wg_resident_tag and radix_multi_wg_tag are currently "
                   "implemented");
-    if constexpr (__is_radix_single_group_tag_v<_SortConfig>)
+    if constexpr (__is_radix_wg_resident_tag_v<_SortConfig>)
     {
         // There is no fundamental limitation here, 4 bits works but is rarely beneficial, so we enforce 8 bits for now,
         // for consistency with onesweep, and to encourage settings which are most performant.
-        static_assert(_SortConfig::radix_bits == 8, "radix_single_group_tag currently requires 8 radix bits");
+        static_assert(_SortConfig::radix_bits == 8, "radix_wg_resident_tag currently requires 8 radix bits");
         static_assert(_KernelParam::workgroup_size > 0 && _KernelParam::workgroup_size % 32 == 0 &&
                           _KernelParam::workgroup_size <= 1024,
-                      "radix_single_group_tag requires a positive multiple of 32 and at most 1024 work-items in a "
+                      "radix_wg_resident_tag requires a positive multiple of 32 and at most 1024 work-items in a "
                       "work-group");
         static_assert(_KernelParam::data_per_workitem > 0,
-                      "radix_single_group_tag requires a positive number of elements per work-item");
-        // Bin counts and local offsets within the one work-group kernel use 16-bit integers
+                      "radix_wg_resident_tag requires a positive number of elements per work-item");
+        // Bin counts and local offsets within the work-group resident kernel use 16-bit integers
         static_assert(std::uint32_t{_KernelParam::workgroup_size} * _KernelParam::data_per_workitem <=
                           std::numeric_limits<std::uint16_t>::max(),
                       "The work-group tile size (workgroup_size * data_per_workitem) must not exceed 65535");
     }
-    if constexpr (__is_radix_many_groups_tag_v<_SortConfig>)
+    if constexpr (__is_radix_multi_wg_tag_v<_SortConfig>)
     {
         __check_sycl_onesweep_kernel_params<_SortConfig::radix_bits, _KernelParam::data_per_workitem,
                                             _KernelParam::workgroup_size>();
@@ -109,8 +109,8 @@ __batched_stable_sort_bytes_req(std::size_t __segment_size, std::size_t __total_
     __check_batched_sort_config<_SortConfig, _KernelParam>();
     assert(__segment_size > 0 && "The segment size must be greater than zero");
     assert(__total_size % __segment_size == 0 && "The number of elements must be a multiple of the segment size");
-    // The one work-group radix sort needs no temporary global memory
-    if (__total_size == 0 || __is_radix_single_group_tag_v<_SortConfig>)
+    // The work-group resident radix sort needs no temporary global memory
+    if (__total_size == 0 || __is_radix_wg_resident_tag_v<_SortConfig>)
         return 0;
     return __onesweep_temp_bytes<_KeyT, _ValT, _SortConfig::radix_bits, _KernelParam::data_per_workitem,
                                  _KernelParam::workgroup_size>(__total_size, __segment_size);
@@ -123,13 +123,13 @@ __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack
                       _KernelParam __param, _TempStorage __temp_storage)
 {
     __check_batched_sort_config<_SortConfig, _KernelParam>();
-    if constexpr (__is_radix_single_group_tag_v<_SortConfig>)
+    if constexpr (__is_radix_wg_resident_tag_v<_SortConfig>)
     {
-#if _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
-        return __batched_single_group<_SortConfig::is_ascending, _SortConfig::radix_bits>(
+#if _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
+        return __batched_wg_resident<_SortConfig::is_ascending, _SortConfig::radix_bits>(
             __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __segment_size, __param);
 #else
-        __sycl_one_wg_radix_sort_unsupported_msg<_SortConfig>();
+        __sycl_wg_resident_radix_sort_unsupported_msg<_SortConfig>();
 #endif
     }
     else

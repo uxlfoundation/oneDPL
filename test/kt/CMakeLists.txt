@@ -189,7 +189,7 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     add_dependencies(run-kt_sycl-sort-tests kt_sycl_cooperative_groups_estimate.pass)
 endif()
 
-# radix_single_group_tag accepts any work-group size which is a multiple of 32, radix_many_groups_tag only 512 or 1024
+# radix_wg_resident_tag accepts any work-group size which is a multiple of 32, radix_multi_wg_tag only 512 or 1024
 function(_generate_batched_stable_sort_tests _test_name _work_group_size_all)
     foreach (_data_per_work_item ${_kt_sycl_data_per_work_item_all})
         foreach (_work_group_size ${_work_group_size_all})
@@ -207,7 +207,7 @@ endfunction()
 
 if (ONEDPL_TEST_ENABLE_KT_SYCL)
     _generate_batched_stable_sort_tests("batched_stable_sort" "${_kt_sycl_work_group_size_all}")
-    _generate_batched_stable_sort_tests("batched_stable_sort_single_group" "64;128;256;512;1024")
+    _generate_batched_stable_sort_tests("batched_stable_sort_wg_resident" "64;128;256;512;1024")
 
     # Pin some cases to track them
     _generate_sort_test("kt_sycl" "batched_stable_sort" "8" "512" "uint32_t" "" 1000)
@@ -218,11 +218,11 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     if (_bfloat16_key_type_supported)
         _generate_sort_test("kt_sycl" "batched_stable_sort" "5" "512" "sycl::ext::oneapi::bfloat16" "uint32_t" 1000)
     endif()
-    _generate_sort_test("kt_sycl" "batched_stable_sort_single_group" "8" "512" "uint32_t" "" 1000)
-    _generate_sort_test("kt_sycl" "batched_stable_sort_single_group" "4" "256" "sycl::half" "" 1000)
-    _generate_sort_test("kt_sycl" "batched_stable_sort_single_group" "3" "128" "float" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "batched_stable_sort_wg_resident" "8" "512" "uint32_t" "" 1000)
+    _generate_sort_test("kt_sycl" "batched_stable_sort_wg_resident" "4" "256" "sycl::half" "" 1000)
+    _generate_sort_test("kt_sycl" "batched_stable_sort_wg_resident" "3" "128" "float" "uint32_t" 1000)
     if (_bfloat16_key_type_supported)
-        _generate_sort_test("kt_sycl" "batched_stable_sort_single_group" "7" "512" "sycl::ext::oneapi::bfloat16" "uint32_t" 1000)
+        _generate_sort_test("kt_sycl" "batched_stable_sort_wg_resident" "7" "512" "sycl::ext::oneapi::bfloat16" "uint32_t" 1000)
     endif()
 endif()
 

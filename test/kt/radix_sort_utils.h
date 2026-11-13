@@ -35,7 +35,7 @@
 
 // Availability of the SYCL radix sort KT (matches the criteria from kt_defs.h in include/)
 
-// Sub-group ballots, used by both the onesweep and the one work-group kernels
+// Sub-group ballots, used by both the onesweep and the work-group resident kernels
 #if SYCL_EXT_ONEAPI_SUB_GROUP_MASK >= 1 && TEST_LIBSYCL_VERSION >= 50700
 #    define TEST_SYCL_SUB_GROUP_MASK_PRESENT 1
 #endif
@@ -46,9 +46,9 @@
 #    define TEST_SYCL_RADIX_SORT_KT_AVAILABLE 1
 #endif
 
-// The SYCL one work-group radix sort needs only sub-group ballots, with no forward progress between work-groups
+// The SYCL work-group resident radix sort needs only sub-group ballots, with no forward progress between work-groups
 #if TEST_SYCL_SUB_GROUP_MASK_PRESENT
-#    define TEST_SYCL_ONE_WG_RADIX_SORT_KT_AVAILABLE 1
+#    define TEST_SYCL_WG_RESIDENT_RADIX_SORT_KT_AVAILABLE 1
 #endif
 
 // Namespace aliases for kernel template APIs
@@ -94,10 +94,10 @@ calculate_slm_size(KernelParam param)
 #endif
 }
 
-// SLM usage of the SYCL one work-group batched radix sort: the reorder buffer overlaps the sub-group histograms
+// SLM usage of the SYCL work-group resident batched radix sort: the reorder buffer overlaps the sub-group histograms
 template <typename KernelParam, typename KeyT, typename ValueT = void, std::uint8_t RadixBits = TestRadixBits>
 std::size_t
-calculate_one_wg_slm_size(KernelParam param)
+calculate_wg_resident_slm_size(KernelParam param)
 {
     constexpr std::uint32_t bin_count = 1 << RadixBits;
     constexpr std::uint32_t sub_group_size = 32;
@@ -109,14 +109,15 @@ calculate_one_wg_slm_size(KernelParam param)
     return std::max(hists_size, reorder_size);
 }
 
-template <typename KernelParam, typename KeyT, typename ValueT = void, bool OneWorkGroup = false,
+template <typename KernelParam, typename KeyT, typename ValueT = void, bool WgResident = false,
           std::uint8_t RadixBits = TestRadixBits>
 bool
 can_run_test(sycl::queue q, KernelParam param)
 {
     const auto max_slm_size = q.get_device().template get_info<sycl::info::device::local_mem_size>();
-    std::size_t slm_alloc_size = OneWorkGroup ? calculate_one_wg_slm_size<KernelParam, KeyT, ValueT, RadixBits>(param)
-                                              : calculate_slm_size<KernelParam, KeyT, ValueT, RadixBits>(param);
+    std::size_t slm_alloc_size = WgResident
+                                     ? calculate_wg_resident_slm_size<KernelParam, KeyT, ValueT, RadixBits>(param)
+                                     : calculate_slm_size<KernelParam, KeyT, ValueT, RadixBits>(param);
 
     // skip tests with error: LLVM ERROR: SLM size exceeds target limits
     // TODO: get rid of that check: it is useless for AOT case. Proper configuration must be provided at compile time.

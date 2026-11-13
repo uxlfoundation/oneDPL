@@ -32,8 +32,8 @@
 // - radix_sort_kernels.h: primary templates of the kernels that have both an ESIMD and a SYCL implementation,
 //     specialized on __esimd_tag or __sycl_tag.
 // - esimd_radix_sort_kernels.h: the kernel bodies, with ESIMD implementation.
-// - sycl_radix_sort_kernels.h: the kernel bodies with regular SYCL (sub-group ballots) and the SYCL-only one
-//     work-group batched kernel.
+// - sycl_radix_sort_kernels.h: the kernel bodies with regular SYCL (sub-group ballots) and the SYCL-only work-group
+//     resident batched kernel.
 // - radix_sort_utils.h: the tags, host-side parameter checks, and types shared by the files above.
 // - esimd_radix_sort_utils.h: ESIMD device helpers and utilities.
 
@@ -55,7 +55,7 @@ template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_copyback;
 
 template <typename... _Name>
-class __batched_radix_sort_one_wg;
+class __batched_radix_sort_wg_resident;
 
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename _KtTag, typename _RngPack>
@@ -515,29 +515,29 @@ __batched_onesweep(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_ou
 }
 #endif // _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
 
-#if _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
 // Batched sort: each consecutive run of __segment_size elements, which must fit in a work-group tile, is sorted
-// independently by the one work-group kernel
+// independently by the work-group resident kernel
 template <bool __is_ascending, std::uint8_t __radix_bits, typename _RngPack1, typename _RngPack2, typename _KernelParam>
 sycl::event
-__batched_single_group(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __segment_size,
-                       _KernelParam)
+__batched_wg_resident(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __segment_size,
+                      _KernelParam)
 {
     const std::size_t __n = __pack_in.__keys_rng().size();
     assert(__n > 0);
     assert(__segment_size <= std::size_t(_KernelParam::data_per_workitem) * _KernelParam::workgroup_size &&
-           "radix_single_group_tag requires the segment size not to exceed data_per_workitem * workgroup_size");
+           "radix_wg_resident_tag requires the segment size not to exceed data_per_workitem * workgroup_size");
 
     _PRINT_INFO_IN_DEBUG_MODE(__q);
     using _KernelName =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__batched_radix_sort_one_wg<
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__batched_radix_sort_wg_resident<
             std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, typename _KernelParam::kernel_name>>;
-    return __batched_one_wg_radix_sort_submitter<__is_ascending, __radix_bits, _KernelParam::data_per_workitem,
-                                                 _KernelParam::workgroup_size, _KernelName>()(
+    return __batched_wg_resident_radix_sort_submitter<__is_ascending, __radix_bits, _KernelParam::data_per_workitem,
+                                                      _KernelParam::workgroup_size, _KernelName>()(
         __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n,
         static_cast<std::uint32_t>(__segment_size));
 }
-#endif // _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
+#endif // _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
 

@@ -234,7 +234,7 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
 #endif // _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
 
 //-----------------------------------------------------------------------------
-// Building blocks shared by the onesweep and the one work-group kernels
+// Building blocks shared by the onesweep and the work-group resident kernels
 //-----------------------------------------------------------------------------
 
 // Loads a block of __sub_group_size * __data_per_work_item elements starting at __block_begin into the registers of a
@@ -922,9 +922,9 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 };
 #endif // _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
 
-#if _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
 //-----------------------------------------------------------------------------
-// One work-group batched radix sort kernel
+// Work-group resident batched radix sort kernel
 //-----------------------------------------------------------------------------
 
 // Sorts one or more whole segments per work-group, with all radix stages in a single kernel. Each segment is owned
@@ -945,7 +945,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 // input and output may alias (in-place sort).
 template <bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
-struct __batched_one_wg_radix_sort_kernel
+struct __batched_wg_resident_radix_sort_kernel
 {
     using _KeyT = typename _InRngPack::_KeyT;
     using _ValT = typename _InRngPack::_ValT;
@@ -986,10 +986,10 @@ struct __batched_one_wg_radix_sort_kernel
     _OutRngPack __m_out_pack;
     sycl::local_accessor<unsigned char, 1> __m_slm;
 
-    __batched_one_wg_radix_sort_kernel(_GlobOffsetT __segment_size, _GlobOffsetT __segment_count,
-                                       std::uint32_t __sub_groups_per_segment, std::uint32_t __segments_per_group,
-                                       const _InRngPack& __in_pack, const _OutRngPack& __out_pack,
-                                       const sycl::local_accessor<unsigned char, 1>& __slm)
+    __batched_wg_resident_radix_sort_kernel(_GlobOffsetT __segment_size, _GlobOffsetT __segment_count,
+                                            std::uint32_t __sub_groups_per_segment, std::uint32_t __segments_per_group,
+                                            const _InRngPack& __in_pack, const _OutRngPack& __out_pack,
+                                            const sycl::local_accessor<unsigned char, 1>& __slm)
         : __m_segment_size(__segment_size), __m_segment_count(__segment_count),
           __m_sub_groups_per_segment(__sub_groups_per_segment), __m_segments_per_group(__segments_per_group),
           __m_in_pack(__in_pack), __m_out_pack(__out_pack), __m_slm(__slm)
@@ -1168,7 +1168,7 @@ struct __batched_one_wg_radix_sort_kernel
         }
     }
 };
-#endif // _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT
+#endif // _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
 

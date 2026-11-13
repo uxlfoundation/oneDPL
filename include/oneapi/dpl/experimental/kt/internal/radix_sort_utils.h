@@ -128,11 +128,12 @@ __sycl_radix_sort_unsupported_msg()
 
 template <typename _T>
 constexpr void
-__sycl_one_wg_radix_sort_unsupported_msg()
+__sycl_wg_resident_radix_sort_unsupported_msg()
 {
     static_assert(oneapi::dpl::__internal::__always_false_v<_T>,
-                  "oneDPL's SYCL one work-group radix sort kernel templates require SYCL_EXT_ONEAPI_SUB_GROUP_MASK "
-                  "extension support. Please use a oneAPI compiler version that supports this extension.");
+                  "oneDPL's SYCL work-group resident radix sort kernel templates require "
+                  "SYCL_EXT_ONEAPI_SUB_GROUP_MASK extension support. Please use a oneAPI compiler version that supports "
+                  "this extension.");
 }
 
 //-----------------------------------------------------------------------------

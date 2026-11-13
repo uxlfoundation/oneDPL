@@ -26,9 +26,9 @@
 #    define _ONEDPL_ENABLE_SYCL_ONESWEEP_KT 1
 #endif
 
-// One work-group radix sort uses sub-group ballots, with no communication between work-groups
+// Work-group resident radix sort uses sub-group ballots, with no communication between work-groups
 #if _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT
-#    define _ONEDPL_ENABLE_SYCL_ONE_WG_RADIX_SORT_KT 1
+#    define _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT 1
 #endif
 
 #endif
