@@ -12,6 +12,8 @@
 
 #include <cassert>
 #include <cstdint>
+#include <cstddef>
+#include <algorithm>
 #include <utility>
 #include <type_traits>
 
@@ -23,7 +25,7 @@
 
 #include "kt_utils.h"
 #include "radix_sort_utils.h"
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT || _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
 #    include "sycl_radix_sort_kernels.h"
 #endif
 #if __has_include(<sycl/ext/intel/esimd.hpp>)
@@ -90,7 +92,7 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
         });
     }
 
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
     // Per-segment histograms, laid out as [stage][segment][bin]
     template <typename _KeysRng>
     sycl::event
@@ -121,7 +123,7 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
             __cgh.parallel_for<_Name...>(__nd_range, __kernel);
         });
     }
-#endif // _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#endif // _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
 };
 
 template <std::uint32_t __stage_count, std::uint16_t __bin_count, typename _KernelName>
@@ -206,7 +208,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
         });
     }
 
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
     template <typename _InRngPack, typename _OutRngPack>
     sycl::event
     operator()(__sycl_tag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack,
@@ -243,7 +245,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
             __cgh.parallel_for<_KernelName>(__nd_range, __kernel);
         });
     }
-#endif // _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
+#endif // _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
 };
 
 template <typename _KernelName>
@@ -277,6 +279,52 @@ struct __radix_sort_copyback_submitter<oneapi::dpl::__par_backend_hetero::__inte
         });
     }
 };
+
+#if _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
+template <bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
+          std::uint16_t __work_group_size, typename _KernelName>
+struct __batched_wg_resident_radix_sort_submitter;
+
+template <bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
+          std::uint16_t __work_group_size, typename... _Name>
+struct __batched_wg_resident_radix_sort_submitter<
+    __is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
+    oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
+{
+    template <typename _InRngPack, typename _OutRngPack>
+    sycl::event
+    operator()(sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack, std::size_t __n,
+               std::uint32_t __segment_size) const
+    {
+        using _KernelType = __batched_wg_resident_radix_sort_kernel<__is_ascending, __radix_bits, __data_per_work_item,
+                                                                    __work_group_size, std::decay_t<_InRngPack>,
+                                                                    std::decay_t<_OutRngPack>>;
+        constexpr bool __has_values = _KernelType::__has_values;
+
+        const std::uint32_t __segment_count = __n / __segment_size;
+        const std::uint32_t __sub_groups_per_segment =
+            oneapi::dpl::__internal::__dpl_ceiling_div(__segment_size, _KernelType::__data_per_sub_group);
+        assert(__sub_groups_per_segment <= _KernelType::__num_sub_groups);
+        const std::uint32_t __segments_per_group =
+            std::min(_KernelType::__num_sub_groups / __sub_groups_per_segment, __segment_count);
+        const std::size_t __group_count =
+            oneapi::dpl::__internal::__dpl_ceiling_div(__segment_count, __segments_per_group);
+
+        sycl::nd_range<1> __nd_range(__group_count * __work_group_size, __work_group_size);
+        return __q.submit([&](sycl::handler& __cgh) {
+            oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__keys_rng(), __out_pack.__keys_rng());
+            if constexpr (__has_values)
+            {
+                oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__vals_rng(), __out_pack.__vals_rng());
+            }
+            sycl::local_accessor<unsigned char, 1> __slm(_KernelType::__calc_slm_alloc(), __cgh);
+            _KernelType __kernel(__segment_size, __segment_count, __sub_groups_per_segment, __segments_per_group,
+                                 std::forward<_InRngPack>(__in_pack), std::forward<_OutRngPack>(__out_pack), __slm);
+            __cgh.parallel_for<_Name...>(__nd_range, __kernel);
+        });
+    }
+};
+#endif // _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
 
