@@ -1307,8 +1307,7 @@ __clamp_to_size_and_cast(_Tp __value, _Size __n)
                   "The result, the value and the bound must be integral");
 
     using _Common = std::common_type_t<_Tp, _Size>;
-    return static_cast<_ResultT>(
-        std::min<_Common>(static_cast<_Common>(std::max<_Tp>(__value, 0)), static_cast<_Common>(__n)));
+    return static_cast<_ResultT>(std::min<_Common>(std::max<_Tp>(__value, 0), __n));
 }
 
 // Folds the elements [__begin, __end) of a random access iterator or a range from left to right into an accumulator
