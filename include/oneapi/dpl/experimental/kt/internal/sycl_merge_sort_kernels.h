@@ -26,7 +26,7 @@ namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
 
 template <typename... _Name>
-class __batched_merge_sort_kernel_name;
+class __batched_merge_sort_wg_resident;
 
 // Placeholder for the values of a keys-only sort
 struct __no_values
@@ -85,7 +85,7 @@ __work_item_stable_sort(_KeyT (&__keys)[_N], _ValT (&__vals)[_N], std::uint32_t 
 // input and output may alias (in-place sort).
 template <typename _Compare, std::uint16_t __data_per_work_item, std::uint16_t __work_group_size, typename _InRngPack,
           typename _OutRngPack>
-struct __batched_merge_sort_kernel
+struct __batched_wg_resident_merge_sort_kernel
 {
     using _KeyT = typename _InRngPack::_KeyT;
     using _ValT = typename _InRngPack::_ValT;
@@ -102,10 +102,10 @@ struct __batched_merge_sort_kernel
     _KeysSlmAcc __m_slm_keys;
     _ValsSlmAcc __m_slm_vals;
 
-    __batched_merge_sort_kernel(std::size_t __segment_count, std::uint32_t __segment_size,
-                                std::uint32_t __segments_per_group, const _InRngPack& __in_pack,
-                                const _OutRngPack& __out_pack, const _KeysSlmAcc& __slm_keys,
-                                const _ValsSlmAcc& __slm_vals)
+    __batched_wg_resident_merge_sort_kernel(std::size_t __segment_count, std::uint32_t __segment_size,
+                                            std::uint32_t __segments_per_group, const _InRngPack& __in_pack,
+                                            const _OutRngPack& __out_pack, const _KeysSlmAcc& __slm_keys,
+                                            const _ValsSlmAcc& __slm_vals)
         : __m_segment_count(__segment_count), __m_segment_size(__segment_size),
           __m_segments_per_group(__segments_per_group), __m_in_pack(__in_pack), __m_out_pack(__out_pack),
           __m_slm_keys(__slm_keys), __m_slm_vals(__slm_vals)
@@ -270,19 +270,21 @@ struct __batched_merge_sort_kernel
 // Submitter
 //-----------------------------------------------------------------------------
 template <typename _Compare, std::uint16_t __data_per_work_item, std::uint16_t __work_group_size, typename _KernelName>
-struct __batched_merge_sort_submitter;
+struct __batched_wg_resident_merge_sort_submitter;
 
 template <typename _Compare, std::uint16_t __data_per_work_item, std::uint16_t __work_group_size, typename... _Name>
-struct __batched_merge_sort_submitter<_Compare, __data_per_work_item, __work_group_size,
-                                      oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
+struct __batched_wg_resident_merge_sort_submitter<
+    _Compare, __data_per_work_item, __work_group_size,
+    oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
     template <typename _InRngPack, typename _OutRngPack>
     sycl::event
     operator()(sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack, std::size_t __n,
                std::uint32_t __segment_size) const
     {
-        using _KernelType = __batched_merge_sort_kernel<_Compare, __data_per_work_item, __work_group_size,
-                                                        std::decay_t<_InRngPack>, std::decay_t<_OutRngPack>>;
+        using _KernelType =
+            __batched_wg_resident_merge_sort_kernel<_Compare, __data_per_work_item, __work_group_size,
+                                                    std::decay_t<_InRngPack>, std::decay_t<_OutRngPack>>;
         using _ValStorageT = typename _KernelType::_ValStorageT;
         constexpr bool __has_values = _KernelType::__has_values;
 
@@ -322,25 +324,25 @@ struct __batched_merge_sort_submitter<_Compare, __data_per_work_item, __work_gro
 //-----------------------------------------------------------------------------
 template <typename _Compare, typename _RngPack1, typename _RngPack2, typename _KernelParam>
 sycl::event
-__batched_merge_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __segment_size,
-                     _KernelParam)
+__batched_wg_resident_merge_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out,
+                                 std::size_t __segment_size, _KernelParam)
 {
     const std::size_t __n = __pack_in.__keys_rng().size();
     assert(__n > 0);
     assert(__segment_size <= std::size_t(_KernelParam::data_per_workitem) * _KernelParam::workgroup_size &&
-           "merge_single_group_tag requires the segment size not to exceed data_per_workitem * workgroup_size");
+           "merge_wg_resident_tag requires the segment size not to exceed data_per_workitem * workgroup_size");
 
     _PRINT_INFO_IN_DEBUG_MODE(__q);
     // The comparator and range pack types are part of the name, so one custom name serves every comparator and data
     // passing mechanism
     using _KernelName =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__batched_merge_sort_kernel_name<
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__batched_merge_sort_wg_resident<
             _Compare, std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, typename _KernelParam::kernel_name>>;
 
-    return __batched_merge_sort_submitter<_Compare, _KernelParam::data_per_workitem, _KernelParam::workgroup_size,
-                                          _KernelName>()(__q, std::forward<_RngPack1>(__pack_in),
-                                                         std::forward<_RngPack2>(__pack_out), __n,
-                                                         static_cast<std::uint32_t>(__segment_size));
+    return __batched_wg_resident_merge_sort_submitter<_Compare, _KernelParam::data_per_workitem,
+                                                      _KernelParam::workgroup_size, _KernelName>()(
+        __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __n,
+        static_cast<std::uint32_t>(__segment_size));
 }
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
