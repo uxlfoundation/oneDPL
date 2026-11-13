@@ -43,7 +43,6 @@
 #define _ONEDPL_REDUCE_BY_SEGMENT_IMPL_H
 
 #include <cstdint>
-#include <functional> // std::invoke
 #include <type_traits>
 #include <utility>
 #include <iterator> // std::distance
