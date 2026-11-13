@@ -82,7 +82,7 @@ class __segmented_reduce_fill_wrapper;
 
 // Whether a device supports the atomics of the device scope, which SYCL does not require
 inline bool
-__segmented_reduce_device_scope_atomics(sycl::device __device)
+__has_device_scope_atomics(sycl::device __device)
 {
     const std::vector<sycl::memory_scope> __scopes =
         __device.get_info<sycl::info::device::atomic_memory_scope_capabilities>();
@@ -306,7 +306,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
 
     // The average segment is long, or the device cannot report the longest length of the short segments' pass:
     // all the segments in chunks, which needs no atomics. The longest one selects the chunk length on GPUs.
-    if (__n / __m > __threshold || !__segmented_reduce_device_scope_atomics(__device))
+    if (__n / __m > __threshold || !__has_device_scope_atomics(__device))
     {
         const _Size __max_length =
             __is_gpu
