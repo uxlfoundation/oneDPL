@@ -189,12 +189,58 @@ reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& pol
 
     return std::make_pair(result1 + __n, result2 + __n);
 }
+
+template <typename _BackendTag, typename _Policy, typename _RandomAccessInputIt, typename _SegmentNum,
+          typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
+_RandomAccessOutputIt
+reduce_by_segment_offsets_impl(__internal::__hetero_tag<_BackendTag> __tag, _Policy&& __policy,
+                               _RandomAccessInputIt __first_value, _RandomAccessInputIt __last_value,
+                               _RandomAccessOutputIt __result_value, _SegmentNum __num_segments,
+                               _RandomAccessOffsetIt __offsets, _InitType __init_value, _BinaryOperation __binary_op)
+{
+    return oneapi::dpl::__internal::__pattern_reduce_by_segment_offsets(
+        __tag, std::forward<_Policy>(__policy), __first_value, __last_value, __result_value, __num_segments, __offsets,
+        __init_value, __binary_op);
+}
 #endif
+
+//------------------------------------------------------------------------
+// reduce_by_segment with segments defined by offsets
+//------------------------------------------------------------------------
+
+// The host policies, the segments one after another, each one from its own offsets clamped to the input, as on a device
+template <typename _Tag, typename _Policy, typename _InputValueIt, typename _SegmentNum, typename _OffsetIt,
+          typename _OutputValueIt, typename _InitType, typename _BinaryOperation>
+_OutputValueIt
+reduce_by_segment_offsets_impl(_Tag, _Policy&&, _InputValueIt __first_value, _InputValueIt __last_value,
+                               _OutputValueIt __result_value, _SegmentNum __num_segments, _OffsetIt __offsets,
+                               _InitType __init, _BinaryOperation __binary_op)
+{
+    static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
+
+    using _Acc = __internal::__reduction_accumulator_t<_BinaryOperation, _InputValueIt, _InitType>;
+    using _Size = typename std::iterator_traits<_InputValueIt>::difference_type;
+
+    const _Size __n = __last_value - __first_value;
+
+    _OutputValueIt __this_segment = __result_value;
+    for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
+    {
+        *__this_segment = __internal::__serial_accumulate<_Acc>(
+            __first_value, __internal::__clamp_to_size(__offsets[__segment], __n),
+            __internal::__clamp_to_size(__offsets[__segment + 1], __n), __init, __binary_op);
+        ++__this_segment;
+    }
+
+    return __this_segment;
+}
+
 } // namespace internal
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIterator1, OutputIterator2>>
+__internal::__returns<std::pair<OutputIterator1, OutputIterator2>,
+    __internal::__enable_if_execution_policy<Policy>, std::enable_if_t<!std::is_integral_v<OutputIterator1>>>
 reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                   OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred, BinaryOperator binary_op)
 {
@@ -206,7 +252,8 @@ reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, 
 
 template <typename Policy, typename InputIt1, typename InputIt2, typename OutputIt1, typename OutputIt2,
           typename BinaryPred>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIt1, OutputIt2>>
+__internal::__returns<std::pair<OutputIt1, OutputIt2>,
+    __internal::__enable_if_execution_policy<Policy>, std::enable_if_t<!std::is_integral_v<OutputIt1>>>
 reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt1 result1,
                   OutputIt2 result2, BinaryPred binary_pred)
 {
@@ -217,13 +264,43 @@ reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 fir
 }
 
 template <typename Policy, typename InputIt1, typename InputIt2, typename OutputIt1, typename OutputIt2>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIt1, OutputIt2>>
+__internal::__returns<std::pair<OutputIt1, OutputIt2>, __internal::__enable_if_execution_policy<Policy>>
 reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt1 result1,
                   OutputIt2 result2)
 {
     using T = typename std::iterator_traits<InputIt1>::value_type;
 
     return reduce_by_segment(std::forward<Policy>(policy), first1, last1, first2, result1, result2, std::equal_to<T>());
+}
+
+template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt, typename InitT,
+          typename BinaryOp>
+__internal::__returns<OutputIt, __internal::__enable_if_execution_policy<Policy>,
+                      std::enable_if_t<std::is_integral_v<SegmentNumT>>>
+reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first, SegmentNumT num_segments,
+                  OffsetIt offsets, InitT init_value, BinaryOp binary_op)
+{
+    static_assert(std::is_integral_v<SegmentNumT> && !std::is_same_v<SegmentNumT, bool>,
+                  "The number of segments of reduce_by_segment must be of an integral type other than bool");
+
+    using _Offset = typename std::iterator_traits<OffsetIt>::value_type;
+    static_assert(std::is_integral_v<_Offset> && !std::is_same_v<_Offset, bool>,
+                  "The offsets of reduce_by_segment must be of an integral type other than bool");
+
+    const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first, offsets, out_first);
+
+    return internal::reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first, last,
+                                                    out_first, num_segments, offsets, init_value, binary_op);
+}
+
+template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT, typename OffsetIt, typename InitT>
+__internal::__returns<OutputIt, __internal::__enable_if_execution_policy<Policy>,
+                      std::enable_if_t<std::is_integral_v<SegmentNumT>>>
+reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first, SegmentNumT num_segments,
+                  OffsetIt offsets, InitT init_value)
+{
+    return reduce_by_segment(std::forward<Policy>(policy), first, last, out_first, num_segments, offsets, init_value,
+                             std::plus<>());
 }
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
