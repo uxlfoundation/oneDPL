@@ -207,7 +207,7 @@ The best stable sort depends on segment size. Candidates considered:
 |-----------------------|--------------------|---------------------------------------------------|
 | OneSweep per segment  | all                | current workaround; baseline                      |
 | Composite OneSweep    | all                | segment id prepended to key; performance floor    |
-| WG resident radix    | segment fits in wg | proposed; packs multiple segments per wg          |
+| WG resident radix     | segment fits in wg | proposed; packs multiple segments per wg          |
 | Modified OneSweep     | all                | proposed; best when segments exceed one wg        |
 | Work-group merge path | segment fits in wg | proposed; packs multiple segments per wg          |
 | Sub-group merge path  | segment fits in sg | deferred; capped near 1024 by SLM                 |
