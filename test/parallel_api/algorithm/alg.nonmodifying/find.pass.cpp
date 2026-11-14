@@ -43,13 +43,13 @@ test(Value value, Hit hit, Miss miss)
     // Try sequences of various lengths.
     for (size_t n : get_find_test_sizes())
     {
-        const bool device_only = n > find_test_max_host_size;
         Sequence<T> in(n, [&](size_t k) -> T { return miss(n ^ k); });
         // A single match in the last element
         if (n > 0)
         {
             in[n - 1] = hit(n ^ (n - 1));
-            invoke_on_all_policies<2>{device_only}(test_find<T>(), in.begin(), in.end(), value);
+            invoke_on_all_policies_with_host_cap<2>{find_test_max_host_size, n}(test_find<T>(), in.begin(), in.end(),
+                                                                                value);
             in[n - 1] = miss(n ^ (n - 1));
         }
         // Try different find positions, including not found.
@@ -59,8 +59,10 @@ test(Value value, Hit hit, Miss miss)
         {
             if (m < n)
                 in[m] = hit(n ^ m);
-            invoke_on_all_policies<0>{device_only}(test_find<T>(), in.begin(), in.end(), value);
-            invoke_on_all_policies<1>{device_only}(test_find<T>(), in.cbegin(), in.cend(), value);
+            invoke_on_all_policies_with_host_cap<0>{find_test_max_host_size, n}(test_find<T>(), in.begin(), in.end(),
+                                                                                value);
+            invoke_on_all_policies_with_host_cap<1>{find_test_max_host_size, n}(test_find<T>(), in.cbegin(),
+                                                                                in.cend(), value);
         }
     }
 }

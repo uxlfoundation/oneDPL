@@ -62,17 +62,18 @@ test(Predicate pred, Hit hit, Miss miss)
     // Try sequences of various lengths.
     for (size_t n : get_find_test_sizes())
     {
-        const bool device_only = n > find_test_max_host_size;
         Sequence<T> in(n, [&](size_t k) -> T { return miss(n ^ k); });
         // A single match in the last element
         if (n > 0)
         {
             in[n - 1] = hit(n ^ (n - 1));
 #ifdef _PSTL_TEST_FIND_IF
-            invoke_on_all_policies<4>{device_only}(test_find_if<T>(), in.begin(), in.end(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<4>{find_test_max_host_size, n}(test_find_if<T>(), in.begin(),
+                                                                                in.end(), pred, not_pred);
 #endif
 #ifdef _PSTL_TEST_FIND_IF_NOT
-            invoke_on_all_policies<5>{device_only}(test_find_if_not<T>(), in.begin(), in.end(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<5>{find_test_max_host_size, n}(test_find_if_not<T>(), in.begin(),
+                                                                                in.end(), pred, not_pred);
 #endif
             in[n - 1] = miss(n ^ (n - 1));
         }
@@ -84,12 +85,16 @@ test(Predicate pred, Hit hit, Miss miss)
             if (m < n)
                 in[m] = hit(n ^ m);
 #ifdef _PSTL_TEST_FIND_IF
-            invoke_on_all_policies<0>{device_only}(test_find_if<T>(), in.begin(), in.end(), pred, not_pred);
-            invoke_on_all_policies<1>{device_only}(test_find_if<T>(), in.cbegin(), in.cend(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<0>{find_test_max_host_size, n}(test_find_if<T>(), in.begin(),
+                                                                                in.end(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<1>{find_test_max_host_size, n}(test_find_if<T>(), in.cbegin(),
+                                                                                in.cend(), pred, not_pred);
 #endif
 #ifdef _PSTL_TEST_FIND_IF_NOT
-            invoke_on_all_policies<2>{device_only}(test_find_if_not<T>(), in.begin(), in.end(), pred, not_pred);
-            invoke_on_all_policies<3>{device_only}(test_find_if_not<T>(), in.cbegin(), in.cend(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<2>{find_test_max_host_size, n}(test_find_if_not<T>(), in.begin(),
+                                                                                in.end(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<3>{find_test_max_host_size, n}(test_find_if_not<T>(), in.cbegin(),
+                                                                                in.cend(), pred, not_pred);
 #endif
         }
     }
