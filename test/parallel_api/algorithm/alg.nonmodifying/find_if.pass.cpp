@@ -68,12 +68,10 @@ test(Predicate pred, Hit hit, Miss miss)
         {
             in[n - 1] = hit(n ^ (n - 1));
 #ifdef _PSTL_TEST_FIND_IF
-            invoke_on_all_policies_with_host_cap<4>{find_test_max_host_size, n}(test_find_if<T>(), in.begin(),
-                                                                                in.end(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<4>{n}(test_find_if<T>(), in.begin(), in.end(), pred, not_pred);
 #endif
 #ifdef _PSTL_TEST_FIND_IF_NOT
-            invoke_on_all_policies_with_host_cap<5>{find_test_max_host_size, n}(test_find_if_not<T>(), in.begin(),
-                                                                                in.end(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<5>{n}(test_find_if_not<T>(), in.begin(), in.end(), pred, not_pred);
 #endif
             in[n - 1] = miss(n ^ (n - 1));
         }
@@ -85,16 +83,12 @@ test(Predicate pred, Hit hit, Miss miss)
             if (m < n)
                 in[m] = hit(n ^ m);
 #ifdef _PSTL_TEST_FIND_IF
-            invoke_on_all_policies_with_host_cap<0>{find_test_max_host_size, n}(test_find_if<T>(), in.begin(),
-                                                                                in.end(), pred, not_pred);
-            invoke_on_all_policies_with_host_cap<1>{find_test_max_host_size, n}(test_find_if<T>(), in.cbegin(),
-                                                                                in.cend(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<0>{n}(test_find_if<T>(), in.begin(), in.end(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<1>{n}(test_find_if<T>(), in.cbegin(), in.cend(), pred, not_pred);
 #endif
 #ifdef _PSTL_TEST_FIND_IF_NOT
-            invoke_on_all_policies_with_host_cap<2>{find_test_max_host_size, n}(test_find_if_not<T>(), in.begin(),
-                                                                                in.end(), pred, not_pred);
-            invoke_on_all_policies_with_host_cap<3>{find_test_max_host_size, n}(test_find_if_not<T>(), in.cbegin(),
-                                                                                in.cend(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<2>{n}(test_find_if_not<T>(), in.begin(), in.end(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<3>{n}(test_find_if_not<T>(), in.cbegin(), in.cend(), pred, not_pred);
 #endif
         }
     }

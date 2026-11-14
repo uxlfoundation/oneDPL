@@ -149,19 +149,18 @@ test(size_t bits, Compare comp)
     for (size_t n : sizes)
     {
         const bool ex_res_true = true;
-        invoke_on_all_policies_with_host_cap<0>{find_test_max_host_size, n}(test_with_3_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), comp, ex_res_true);
-        invoke_on_all_policies_with_host_cap<1>{find_test_max_host_size, n}(test_with_3_iters<T>(), in.cbegin(),
-                                                                            in.cbegin() + n, inCopy.cbegin(),
-                                                                            ex_res_true);
-        invoke_on_all_policies_with_host_cap<2>{find_test_max_host_size, n}(test_with_4_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), inCopy.begin() + n, comp, ex_res_true);
+        invoke_on_all_policies_with_host_cap<0>{n}(test_with_3_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), comp, ex_res_true);
+        invoke_on_all_policies_with_host_cap<1>{n}(test_with_3_iters<T>(), in.cbegin(), in.cbegin() + n,
+                                                   inCopy.cbegin(), ex_res_true);
+        invoke_on_all_policies_with_host_cap<2>{n}(test_with_4_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), inCopy.begin() + n, comp, ex_res_true);
 
         // testing bool !equal()
         T original = inCopy[0];
         inCopy[0] = !original;
         const bool ex_res_false = false || n == 0; //In case of the both sequences are empty, result is true.
-        invoke_on_all_policies_with_host_cap<3>{find_test_max_host_size, n}(test_with_4_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), inCopy.begin() + n, ex_res_false);
-        invoke_on_all_policies_with_host_cap<4>{find_test_max_host_size, n}(test_with_4_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), inCopy.cbegin() + n, comp, ex_res_false);
-        invoke_on_all_policies_with_host_cap<5>{find_test_max_host_size, n}(test_with_3_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), ex_res_false);
+        invoke_on_all_policies_with_host_cap<3>{n}(test_with_4_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), inCopy.begin() + n, ex_res_false);
+        invoke_on_all_policies_with_host_cap<4>{n}(test_with_4_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), inCopy.cbegin() + n, comp, ex_res_false);
+        invoke_on_all_policies_with_host_cap<5>{n}(test_with_3_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), ex_res_false);
         inCopy[0] = original;
 
         // A single difference in the last element
@@ -169,9 +168,8 @@ test(size_t bits, Compare comp)
         {
             original = inCopy[n - 1];
             inCopy[n - 1] = !original;
-            invoke_on_all_policies_with_host_cap<8>{find_test_max_host_size, n}(test_with_4_iters<T>(), in.begin(),
-                                                                                in.begin() + n, inCopy.begin(),
-                                                                                inCopy.begin() + n, false);
+            invoke_on_all_policies_with_host_cap<8>{n}(test_with_4_iters<T>(), in.begin(), in.begin() + n,
+                                                       inCopy.begin(), inCopy.begin() + n, false);
             inCopy[n - 1] = original;
         }
     }
