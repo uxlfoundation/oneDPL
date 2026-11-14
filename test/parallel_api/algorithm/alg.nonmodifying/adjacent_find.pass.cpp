@@ -87,15 +87,13 @@ test_adjacent_find_by_type()
             auto i = ::std::adjacent_find(in.cbegin(), in.cend(), custom_pred);
             EXPECT_TRUE(i == in.cbegin() + e, "::std::adjacent_find returned wrong result");
 
-            invoke_on_all_policies_with_host_cap<0>{find_test_max_host_size, n}(test_adjacent_find<T>(), in.begin(),
-                                                                                in.end());
-            invoke_on_all_policies_with_host_cap<1>{find_test_max_host_size, n}(test_adjacent_find_predicate<T>(),
-                                                                                in.begin(), in.end(), custom_pred);
+            invoke_on_all_policies_with_host_cap<0>{n}(test_adjacent_find<T>(), in.begin(), in.end());
+            invoke_on_all_policies_with_host_cap<1>{n}(test_adjacent_find_predicate<T>(), in.begin(), in.end(),
+                                                       custom_pred);
 #if !ONEDPL_FPGA_DEVICE
-            invoke_on_all_policies_with_host_cap<2>{find_test_max_host_size, n}(test_adjacent_find<T>(), in.cbegin(),
-                                                                                in.cend());
-            invoke_on_all_policies_with_host_cap<3>{find_test_max_host_size, n}(test_adjacent_find_predicate<T>(),
-                                                                                in.cbegin(), in.cend(), custom_pred);
+            invoke_on_all_policies_with_host_cap<2>{n}(test_adjacent_find<T>(), in.cbegin(), in.cend());
+            invoke_on_all_policies_with_host_cap<3>{n}(test_adjacent_find_predicate<T>(), in.cbegin(), in.cend(),
+                                                       custom_pred);
 #endif
         }
     }

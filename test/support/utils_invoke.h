@@ -465,8 +465,8 @@ struct invoke_on_all_policies
 template <::std::size_t CallNumber = 0>
 struct invoke_on_all_policies_with_host_cap
 {
-    ::std::size_t max_host_size;
     ::std::size_t n;
+    ::std::size_t max_host_size = 100000;
 
     template <typename Op, typename... T>
     void
