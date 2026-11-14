@@ -77,10 +77,10 @@ struct __segmented_reduce_variable_brick
     }
 };
 
-// The longest length of the long segments: an atomic maximum of the pass of the short segments, read by the host.
-// It is host USM where the device supports atomics on it, read by the host directly; else device USM, zeroed by a fill
-// and read by a copy, which costs less on GPUs than the host accessors of a SYCL buffer; without USM, a SYCL buffer.
-struct __segmented_reduce_max_length : public __device_storage<std::uint32_t>
+// A single value updated by atomics of a kernel and read by the host, zero-initialized. It is host USM where the
+// device supports atomics on it, read by the host directly; else device USM, zeroed by a fill and read by a copy,
+// which costs less on GPUs than the host accessors of a SYCL buffer; without USM, a SYCL buffer.
+struct __atomic_result_storage : public __device_storage<std::uint32_t>
 {
     bool __is_host = false;  // whether the storage is host USM
     sycl::event __zero_done; // the completion of the initial zero on the device, if it is not written by the host
@@ -113,7 +113,7 @@ struct __segmented_reduce_max_length : public __device_storage<std::uint32_t>
         }
     };
 
-    explicit __segmented_reduce_max_length(sycl::queue& __q)
+    explicit __atomic_result_storage(sycl::queue& __q)
     {
         std::uint32_t* __ptr = nullptr;
         if (__q.get_device().has(sycl::aspect::usm_atomic_host_allocations))
@@ -400,7 +400,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     }
 
     // The short segments, one work-item each; the long ones only report the longest length
-    __segmented_reduce_max_length __max_long_segment_length{__q};
+    __atomic_result_storage __max_long_segment_length{__q};
     __parallel_for(
         _BackendTag{}, __exec, __max_long_segment_length.__zero_done,
         __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op}, __m,
