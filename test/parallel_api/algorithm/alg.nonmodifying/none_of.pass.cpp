@@ -51,7 +51,6 @@ test(size_t bits)
 {
     for (size_t n : get_find_test_sizes())
     {
-        const bool device_only = n > find_test_max_host_size;
         // Sequence of odd values
         Sequence<T> in(n, [n, bits](size_t) { return T(2 * HashBits(n, bits - 1) ^ 1); });
 
@@ -60,31 +59,35 @@ test(size_t bits)
         if constexpr (!std::is_same_v<T, bool>)
             spike = 2 * HashBits(n, bits - 1);
 
-        invoke_on_all_policies<0>{device_only}(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike), true);
-        invoke_on_all_policies<1>{device_only}(test_none_of<T>(), in.cbegin(), in.cend(), is_equal_to<T>(spike), true);
+        invoke_on_all_policies_with_host_cap<0>{find_test_max_host_size, n}(test_none_of<T>(), in.begin(), in.end(),
+                                                                            is_equal_to<T>(spike), true);
+        invoke_on_all_policies_with_host_cap<1>{find_test_max_host_size, n}(test_none_of<T>(), in.cbegin(), in.cend(),
+                                                                            is_equal_to<T>(spike), true);
         if (n > 0)
         {
             // A single hit in the last element
             const T last = in[n - 1];
             in[n - 1] = spike;
-            invoke_on_all_policies<6>{device_only}(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike),
-                                                   false);
+            invoke_on_all_policies_with_host_cap<6>{find_test_max_host_size, n}(test_none_of<T>(), in.begin(),
+                                                                                in.end(), is_equal_to<T>(spike), false);
             in[n - 1] = last;
 
             // Sprinkle in a hit
             in[2 * n / 3] = spike;
-            invoke_on_all_policies<2>{device_only}(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike),
-                                                   false);
-            invoke_on_all_policies<3>{device_only}(test_none_of<T>(), in.cbegin(), in.cend(), is_equal_to<T>(spike),
-                                                   false);
+            invoke_on_all_policies_with_host_cap<2>{find_test_max_host_size, n}(test_none_of<T>(), in.begin(),
+                                                                                in.end(), is_equal_to<T>(spike), false);
+            invoke_on_all_policies_with_host_cap<3>{find_test_max_host_size, n}(test_none_of<T>(), in.cbegin(),
+                                                                                in.cend(), is_equal_to<T>(spike),
+                                                                                false);
 
             // Sprinkle in a few more hits
             in[n / 3] = spike;
             in[n / 2] = spike;
-            invoke_on_all_policies<4>{device_only}(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike),
-                                                   false);
-            invoke_on_all_policies<5>{device_only}(test_none_of<T>(), in.cbegin(), in.cend(), is_equal_to<T>(spike),
-                                                   false);
+            invoke_on_all_policies_with_host_cap<4>{find_test_max_host_size, n}(test_none_of<T>(), in.begin(),
+                                                                                in.end(), is_equal_to<T>(spike), false);
+            invoke_on_all_policies_with_host_cap<5>{find_test_max_host_size, n}(test_none_of<T>(), in.cbegin(),
+                                                                                in.cend(), is_equal_to<T>(spike),
+                                                                                false);
         }
     }
 }

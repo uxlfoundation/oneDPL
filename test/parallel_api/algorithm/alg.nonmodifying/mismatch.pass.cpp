@@ -87,27 +87,32 @@ test_mismatch_by_type()
     using namespace std;
     for (size_t size : get_find_test_sizes())
     {
-        const bool device_only = size > find_test_max_host_size;
         const T val = T(-1);
         Sequence<T> in(size, [](size_t v) -> T { return T(v % 100); });
         {
             Sequence<T> in2(in);
-            invoke_on_all_policies<0>{device_only}(test_mismatch<T>(), in.begin(), in.end(), in2.begin(), in2.end());
+            invoke_on_all_policies_with_host_cap<0>{find_test_max_host_size, size}(test_mismatch<T>(), in.begin(),
+                                                                                   in.end(), in2.begin(), in2.end());
 #if !ONEDPL_FPGA_DEVICE
-            invoke_on_all_policies<1>{device_only}(test_mismatch<T>(), in.begin(), in.end(), in2.begin());
-            invoke_on_all_policies<2>{device_only}(test_mismatch_predicate<T>(), in.begin(), in.end(), in2.begin(),
-                                                   in2.end());
+            invoke_on_all_policies_with_host_cap<1>{find_test_max_host_size, size}(test_mismatch<T>(), in.begin(),
+                                                                                   in.end(), in2.begin());
+            invoke_on_all_policies_with_host_cap<2>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                   in.begin(), in.end(), in2.begin(),
+                                                                                   in2.end());
 #endif
-            invoke_on_all_policies<3>{device_only}(test_mismatch_predicate<T>(), in.begin(), in.end(), in2.begin());
+            invoke_on_all_policies_with_host_cap<3>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                   in.begin(), in.end(), in2.begin());
 
             // A single difference in the last element
             if (size > 0)
             {
                 in2[size - 1] = val;
-                invoke_on_all_policies<26>{device_only}(test_mismatch<T>(), in.begin(), in.end(), in2.begin(),
-                                                        in2.end());
-                invoke_on_all_policies<27>{device_only}(test_mismatch_predicate<T>(), in.begin(), in.end(),
-                                                        in2.begin());
+                invoke_on_all_policies_with_host_cap<26>{find_test_max_host_size, size}(test_mismatch<T>(),
+                                                                                        in.begin(), in.end(),
+                                                                                        in2.begin(), in2.end());
+                invoke_on_all_policies_with_host_cap<27>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                        in.begin(), in.end(),
+                                                                                        in2.begin());
                 in2[size - 1] = in[size - 1];
             }
 
@@ -116,74 +121,101 @@ test_mismatch_by_type()
             {
                 const size_t idx_for_1 = size / min_size;
                 in[idx_for_1] = val, in[idx_for_1 + 1] = val, in[idx_for_1 + 2] = val;
-                invoke_on_all_policies<4>{device_only}(test_mismatch<T>(), in.begin(), in.end(), in2.begin(),
-                                                       in2.end());
-                invoke_on_all_policies<5>{device_only}(test_mismatch<T>(), in.begin(), in.end(), in2.begin());
-                invoke_on_all_policies<6>{device_only}(test_mismatch_predicate<T>(), in.begin(), in.end(), in2.begin(),
-                                                       in2.end());
-                invoke_on_all_policies<7>{device_only}(test_mismatch_predicate<T>(), in.begin(), in.end(), in2.begin());
+                invoke_on_all_policies_with_host_cap<4>{find_test_max_host_size, size}(test_mismatch<T>(), in.begin(),
+                                                                                       in.end(), in2.begin(),
+                                                                                       in2.end());
+                invoke_on_all_policies_with_host_cap<5>{find_test_max_host_size, size}(test_mismatch<T>(), in.begin(),
+                                                                                       in.end(), in2.begin());
+                invoke_on_all_policies_with_host_cap<6>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                       in.begin(), in.end(),
+                                                                                       in2.begin(), in2.end());
+                invoke_on_all_policies_with_host_cap<7>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                       in.begin(), in.end(),
+                                                                                       in2.begin());
             }
 
             const size_t idx_for_2 = 500;
             if (size >= idx_for_2 - 1)
             {
                 in2[size / idx_for_2] = val;
-                invoke_on_all_policies<8>{device_only}(test_mismatch<T>(), in.cbegin(), in.cend(), in2.cbegin(),
-                                                       in2.cend());
+                invoke_on_all_policies_with_host_cap<8>{find_test_max_host_size, size}(test_mismatch<T>(),
+                                                                                       in.cbegin(), in.cend(),
+                                                                                       in2.cbegin(), in2.cend());
 #if !ONEDPL_FPGA_DEVICE
-                invoke_on_all_policies<9>{device_only}(test_mismatch<T>(), in.cbegin(), in.cend(), in2.cbegin());
-                invoke_on_all_policies<10>{device_only}(test_mismatch_predicate<T>(), in.cbegin(), in.cend(),
-                                                        in2.cbegin(), in2.cend());
+                invoke_on_all_policies_with_host_cap<9>{find_test_max_host_size, size}(test_mismatch<T>(),
+                                                                                       in.cbegin(), in.cend(),
+                                                                                       in2.cbegin());
+                invoke_on_all_policies_with_host_cap<10>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                        in.cbegin(), in.cend(),
+                                                                                        in2.cbegin(), in2.cend());
 #endif
-                invoke_on_all_policies<11>{device_only}(test_mismatch_predicate<T>(), in.cbegin(), in.cend(),
-                                                        in2.cbegin());
+                invoke_on_all_policies_with_host_cap<11>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                        in.cbegin(), in.cend(),
+                                                                                        in2.cbegin());
             }
         }
         {
             Sequence<T> in2(100, [](size_t v) -> T { return T(v); });
-            invoke_on_all_policies<12>{device_only}(test_mismatch<T>(), in2.begin(), in2.end(), in.begin(), in.end());
-            invoke_on_all_policies<13>{device_only}(test_mismatch_predicate<T>(), in2.begin(), in2.end(), in.begin(),
-                                                    in.end());
+            invoke_on_all_policies_with_host_cap<12>{find_test_max_host_size, size}(test_mismatch<T>(), in2.begin(),
+                                                                                    in2.end(), in.begin(), in.end());
+            invoke_on_all_policies_with_host_cap<13>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                    in2.begin(), in2.end(),
+                                                                                    in.begin(), in.end());
             //  We can't call ::std::mismatch with semantic below when size of second sequence less than size of first sequence
             if (in2.size() <= in.size())
             {
-                invoke_on_all_policies<14>{device_only}(test_mismatch<T>(), in2.begin(), in2.end(), in.begin());
-                invoke_on_all_policies<15>{device_only}(test_mismatch_predicate<T>(), in2.begin(), in2.end(),
-                                                        in.begin());
+                invoke_on_all_policies_with_host_cap<14>{find_test_max_host_size, size}(test_mismatch<T>(),
+                                                                                        in2.begin(), in2.end(),
+                                                                                        in.begin());
+                invoke_on_all_policies_with_host_cap<15>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                        in2.begin(), in2.end(),
+                                                                                        in.begin());
             }
 
             const size_t idx = 97;
             in2[idx] = val;
             in2[idx + 1] = val;
-            invoke_on_all_policies<16>{device_only}(test_mismatch<T>(), in.cbegin(), in.cend(), in2.cbegin(),
-                                                    in2.cend());
-            invoke_on_all_policies<17>{device_only}(test_mismatch_predicate<T>(), in.cbegin(), in.cend(), in2.cbegin(),
-                                                    in2.cend());
+            invoke_on_all_policies_with_host_cap<16>{find_test_max_host_size, size}(test_mismatch<T>(), in.cbegin(),
+                                                                                    in.cend(), in2.cbegin(),
+                                                                                    in2.cend());
+            invoke_on_all_policies_with_host_cap<17>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                    in.cbegin(), in.cend(),
+                                                                                    in2.cbegin(), in2.cend());
 
             if (in.size() <= in2.size())
             {
-                invoke_on_all_policies<18>{device_only}(test_mismatch<T>(), in.cbegin(), in.cend(), in2.cbegin());
-                invoke_on_all_policies<19>{device_only}(test_mismatch_predicate<T>(), in.cbegin(), in.cend(),
-                                                        in2.cbegin());
+                invoke_on_all_policies_with_host_cap<18>{find_test_max_host_size, size}(test_mismatch<T>(),
+                                                                                        in.cbegin(), in.cend(),
+                                                                                        in2.cbegin());
+                invoke_on_all_policies_with_host_cap<19>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                        in.cbegin(), in.cend(),
+                                                                                        in2.cbegin());
             }
         }
         {
             Sequence<T> in2({});
-            invoke_on_all_policies<20>{device_only}(test_mismatch<T>(), in2.begin(), in2.end(), in.begin(), in.end());
+            invoke_on_all_policies_with_host_cap<20>{find_test_max_host_size, size}(test_mismatch<T>(), in2.begin(),
+                                                                                    in2.end(), in.begin(), in.end());
 #if !ONEDPL_FPGA_DEVICE
-            invoke_on_all_policies<21>{device_only}(test_mismatch_predicate<T>(), in2.begin(), in2.end(), in.begin(),
-                                                    in.end());
-            invoke_on_all_policies<22>{device_only}(test_mismatch<T>(), in.cbegin(), in.cend(), in2.cbegin(),
-                                                    in2.cend());
+            invoke_on_all_policies_with_host_cap<21>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                    in2.begin(), in2.end(),
+                                                                                    in.begin(), in.end());
+            invoke_on_all_policies_with_host_cap<22>{find_test_max_host_size, size}(test_mismatch<T>(), in.cbegin(),
+                                                                                    in.cend(), in2.cbegin(),
+                                                                                    in2.cend());
 #endif
-            invoke_on_all_policies<23>{device_only}(test_mismatch_predicate<T>(), in.cbegin(), in.cend(), in2.cbegin(),
-                                                    in2.cend());
+            invoke_on_all_policies_with_host_cap<23>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                    in.cbegin(), in.cend(),
+                                                                                    in2.cbegin(), in2.cend());
 
             if (in.size() == 0)
             {
-                invoke_on_all_policies<24>{device_only}(test_mismatch<T>(), in.cbegin(), in.cend(), in2.cbegin());
-                invoke_on_all_policies<25>{device_only}(test_mismatch_predicate<T>(), in.cbegin(), in.cend(),
-                                                        in2.cbegin());
+                invoke_on_all_policies_with_host_cap<24>{find_test_max_host_size, size}(test_mismatch<T>(),
+                                                                                        in.cbegin(), in.cend(),
+                                                                                        in2.cbegin());
+                invoke_on_all_policies_with_host_cap<25>{find_test_max_host_size, size}(test_mismatch_predicate<T>(),
+                                                                                        in.cbegin(), in.cend(),
+                                                                                        in2.cbegin());
             }
         }
     }
