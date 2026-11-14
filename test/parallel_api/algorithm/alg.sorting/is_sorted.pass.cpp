@@ -120,6 +120,19 @@ test_is_sorted_by_type()
 #    endif
 #endif
 
+        // A single descent at the last element
+        if (n1 > 2)
+        {
+            in[n1 - 1] = T(0);
+#ifdef _PSTL_TEST_IS_SORTED
+            invoke_on_all_policies<40>()(test_is_sorted<T>(), in.begin(), in.end());
+#endif
+#ifdef _PSTL_TEST_IS_SORTED_UNTIL
+            invoke_on_all_policies<41>()(test_is_sorted_until<T>(), in.begin(), in.end());
+#endif
+            in[n1 - 1] = T(n1 - 1);
+        }
+
         in[in.size() / 2] = -1;
 #ifdef _PSTL_TEST_IS_SORTED
         invoke_on_all_policies<8>()(test_is_sorted<T>(), in.begin(), in.end());

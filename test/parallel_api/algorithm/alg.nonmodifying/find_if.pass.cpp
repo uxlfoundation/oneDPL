@@ -60,9 +60,21 @@ test(Predicate pred, Hit hit, Miss miss)
 {
     TestUtils::NotPred<T, Predicate> not_pred{pred};
     // Try sequences of various lengths.
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : get_find_test_sizes())
     {
         Sequence<T> in(n, [&](size_t k) -> T { return miss(n ^ k); });
+        // A single match in the last element
+        if (n > 0)
+        {
+            in[n - 1] = hit(n ^ (n - 1));
+#ifdef _PSTL_TEST_FIND_IF
+            invoke_on_all_policies_with_host_cap<4>{n}(test_find_if<T>(), in.begin(), in.end(), pred, not_pred);
+#endif
+#ifdef _PSTL_TEST_FIND_IF_NOT
+            invoke_on_all_policies_with_host_cap<5>{n}(test_find_if_not<T>(), in.begin(), in.end(), pred, not_pred);
+#endif
+            in[n - 1] = miss(n ^ (n - 1));
+        }
         // Try different find positions, including not found.
         // By going backwards, we can add extra matches that are *not* supposed to be found.
         // The decreasing exponential gives us O(n) total work for the loop since each find takes O(m) time.
@@ -71,12 +83,12 @@ test(Predicate pred, Hit hit, Miss miss)
             if (m < n)
                 in[m] = hit(n ^ m);
 #ifdef _PSTL_TEST_FIND_IF
-            invoke_on_all_policies<0>()(test_find_if<T>(), in.begin(), in.end(), pred, not_pred);
-            invoke_on_all_policies<1>()(test_find_if<T>(), in.cbegin(), in.cend(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<0>{n}(test_find_if<T>(), in.begin(), in.end(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<1>{n}(test_find_if<T>(), in.cbegin(), in.cend(), pred, not_pred);
 #endif
 #ifdef _PSTL_TEST_FIND_IF_NOT
-            invoke_on_all_policies<2>()(test_find_if_not<T>(), in.begin(), in.end(), pred, not_pred);
-            invoke_on_all_policies<3>()(test_find_if_not<T>(), in.cbegin(), in.cend(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<2>{n}(test_find_if_not<T>(), in.begin(), in.end(), pred, not_pred);
+            invoke_on_all_policies_with_host_cap<3>{n}(test_find_if_not<T>(), in.cbegin(), in.cend(), pred, not_pred);
 #endif
         }
     }

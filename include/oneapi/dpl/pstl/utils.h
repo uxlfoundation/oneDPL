@@ -1221,6 +1221,25 @@ struct __min_nested_type_size<oneapi::dpl::__internal::tuple<_Ts...>>
     constexpr static std::size_t value = std::min({__min_nested_type_size<_Ts>::value...});
 };
 
+// The largest type within a set of potentially nested template types, explored as for __min_nested_type_size.
+template <typename _T>
+struct __max_nested_type_size
+{
+    constexpr static std::size_t value = sizeof(_T);
+};
+
+template <typename... _Ts>
+struct __max_nested_type_size<std::tuple<_Ts...>>
+{
+    constexpr static std::size_t value = std::max({sizeof(std::tuple<>), __max_nested_type_size<_Ts>::value...});
+};
+
+template <typename... _Ts>
+struct __max_nested_type_size<oneapi::dpl::__internal::tuple<_Ts...>>
+{
+    constexpr static std::size_t value = std::max({sizeof(std::tuple<>), __max_nested_type_size<_Ts>::value...});
+};
+
 struct __swap_fn
 {
     template <typename _Type1, typename _Type2>

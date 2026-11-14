@@ -217,10 +217,12 @@ test_device_copyable()
         "__write_scan_by_seg is not device copyable with device copyable types");
 
     // __early_exit_find_or
-    static_assert(
-        sycl::is_device_copyable_v<
-            oneapi::dpl::__par_backend_hetero::__early_exit_find_or<noop_device_copyable>>,
-        "__early_exit_find_or is not device copyable with device copyable types");
+    static_assert(sycl::is_device_copyable_v<
+                      oneapi::dpl::__par_backend_hetero::__early_exit_find_or<noop_device_copyable, /*__width=*/1>>,
+                  "__early_exit_find_or is not device copyable with device copyable types");
+    static_assert(sycl::is_device_copyable_v<
+                      oneapi::dpl::__par_backend_hetero::__early_exit_find_or<noop_device_copyable, /*__width=*/4>>,
+                  "__early_exit_find_or is not device copyable with device copyable types");
 
     // __leaf_sorter
     // Note that the use of noop_device_copyable/noop_non_device_copyable is valid in this context because
@@ -533,7 +535,12 @@ test_non_device_copyable()
 
     // __early_exit_find_or
     static_assert(
-        !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__early_exit_find_or<noop_non_device_copyable>>,
+        !sycl::is_device_copyable_v<
+            oneapi::dpl::__par_backend_hetero::__early_exit_find_or<noop_non_device_copyable, /*__width=*/1>>,
+        "__early_exit_find_or is device copyable with non device copyable types");
+    static_assert(
+        !sycl::is_device_copyable_v<
+            oneapi::dpl::__par_backend_hetero::__early_exit_find_or<noop_non_device_copyable, /*__width=*/4>>,
         "__early_exit_find_or is device copyable with non device copyable types");
 
     // __leaf_sorter

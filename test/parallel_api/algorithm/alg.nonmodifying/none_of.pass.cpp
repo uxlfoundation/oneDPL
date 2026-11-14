@@ -49,7 +49,7 @@ template <typename T>
 void
 test(size_t bits)
 {
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : get_find_test_sizes())
     {
         // Sequence of odd values
         Sequence<T> in(n, [n, bits](size_t) { return T(2 * HashBits(n, bits - 1) ^ 1); });
@@ -59,20 +59,33 @@ test(size_t bits)
         if constexpr (!std::is_same_v<T, bool>)
             spike = 2 * HashBits(n, bits - 1);
 
-        invoke_on_all_policies<0>()(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike), true);
-        invoke_on_all_policies<1>()(test_none_of<T>(), in.cbegin(), in.cend(), is_equal_to<T>(spike), true);
+        invoke_on_all_policies_with_host_cap<0>{n}(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike),
+                                                   true);
+        invoke_on_all_policies_with_host_cap<1>{n}(test_none_of<T>(), in.cbegin(), in.cend(), is_equal_to<T>(spike),
+                                                   true);
         if (n > 0)
         {
+            // A single hit in the last element
+            const T last = in[n - 1];
+            in[n - 1] = spike;
+            invoke_on_all_policies_with_host_cap<6>{n}(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike),
+                                                       false);
+            in[n - 1] = last;
+
             // Sprinkle in a hit
             in[2 * n / 3] = spike;
-            invoke_on_all_policies<2>()(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike), false);
-            invoke_on_all_policies<3>()(test_none_of<T>(), in.cbegin(), in.cend(), is_equal_to<T>(spike), false);
+            invoke_on_all_policies_with_host_cap<2>{n}(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike),
+                                                       false);
+            invoke_on_all_policies_with_host_cap<3>{n}(test_none_of<T>(), in.cbegin(), in.cend(),
+                                                       is_equal_to<T>(spike), false);
 
             // Sprinkle in a few more hits
             in[n / 3] = spike;
             in[n / 2] = spike;
-            invoke_on_all_policies<4>()(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike), false);
-            invoke_on_all_policies<5>()(test_none_of<T>(), in.cbegin(), in.cend(), is_equal_to<T>(spike), false);
+            invoke_on_all_policies_with_host_cap<4>{n}(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike),
+                                                       false);
+            invoke_on_all_policies_with_host_cap<5>{n}(test_none_of<T>(), in.cbegin(), in.cend(),
+                                                       is_equal_to<T>(spike), false);
         }
     }
 }
