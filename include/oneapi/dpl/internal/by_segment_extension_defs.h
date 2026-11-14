@@ -20,7 +20,8 @@
 #define _ONEDPL_BY_SEGMENT_EXTENSION_DEFS_H
 
 #include "../pstl/onedpl_config.h"
-#include <utility> // std::pair
+#include <type_traits> // std::is_integral_v
+#include <utility>     // std::pair
 
 namespace oneapi
 {
@@ -68,21 +69,37 @@ inclusive_scan_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIterator1, OutputIterator2>>
+__internal::__returns<std::pair<OutputIterator1, OutputIterator2>, __internal::__enable_if_execution_policy<Policy>>
 reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                   OutputIterator1 result1, OutputIterator2 result2);
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIterator1, OutputIterator2>>
+__internal::__returns<std::pair<OutputIterator1, OutputIterator2>,
+    __internal::__enable_if_execution_policy<Policy>, std::enable_if_t<!std::is_integral_v<OutputIterator1>>>
 reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                   OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred);
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIterator1, OutputIterator2>>
+__internal::__returns<std::pair<OutputIterator1, OutputIterator2>,
+    __internal::__enable_if_execution_policy<Policy>, std::enable_if_t<!std::is_integral_v<OutputIterator1>>>
 reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                   OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred, BinaryOperator binary_op);
+
+template <typename Policy, typename InputIterator, typename OutputIterator, typename SegmentNumT,
+          typename OffsetIterator, typename T>
+__internal::__returns<OutputIterator, __internal::__enable_if_execution_policy<Policy>,
+                      std::enable_if_t<std::is_integral_v<SegmentNumT>>>
+reduce_by_segment(Policy&& policy, InputIterator first, InputIterator last, OutputIterator result,
+                  SegmentNumT num_segments, OffsetIterator offsets, T init);
+
+template <typename Policy, typename InputIterator, typename OutputIterator, typename SegmentNumT,
+          typename OffsetIterator, typename T, typename BinaryOperator>
+__internal::__returns<OutputIterator, __internal::__enable_if_execution_policy<Policy>,
+                      std::enable_if_t<std::is_integral_v<SegmentNumT>>>
+reduce_by_segment(Policy&& policy, InputIterator first, InputIterator last, OutputIterator result,
+                  SegmentNumT num_segments, OffsetIterator offsets, T init, BinaryOperator binary_op);
 
 } // end namespace dpl
 } // end namespace oneapi

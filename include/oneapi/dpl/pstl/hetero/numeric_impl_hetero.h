@@ -22,6 +22,7 @@
 #if _ONEDPL_BACKEND_SYCL
 #    include "dpcpp/execution_sycl_defs.h"
 #    include "algorithm_impl_hetero.h" // to use __pattern_walk2_brick
+#    include "dpcpp/parallel_backend_sycl_reduce_by_segment_offsets.h"
 #    include "dpcpp/parallel_backend_sycl_utils.h"
 #    include "dpcpp/unseq_backend_sycl.h"
 #endif
@@ -267,6 +268,52 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
     return oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __keys.all_view(), __values.all_view(),
         __out_keys.all_view(), __out_values.all_view(), __binary_pred, __binary_op);
+}
+
+//------------------------------------------------------------------------
+// reduce_by_segment with segments defined by offsets
+//------------------------------------------------------------------------
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _RandomAccessInputIt, typename _SegmentNum,
+          typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
+_RandomAccessOutputIt
+__pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _RandomAccessInputIt __first,
+                                    _RandomAccessInputIt __last, _RandomAccessOutputIt __result,
+                                    _SegmentNum __num_segments, _RandomAccessOffsetIt __offsets, _InitType __init,
+                                    _BinaryOperation __binary_op)
+{
+    if (__num_segments <= 0)
+        return __result;
+
+    using _Acc = __reduction_accumulator_t<_BinaryOperation, _RandomAccessInputIt, _InitType>;
+    // The type of the index arithmetic; signed, as a reversed segment has a negative length
+    using _Size = std::make_signed_t<decltype((__last - __first) + __num_segments)>;
+
+    // Converted once, on the host: every kernel starts from this accumulator
+    _Acc __init_acc = std::move(__init);
+
+    // Not no_init: the short and the long segments are written by different kernels
+    auto __keep_result = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write>();
+    auto __result_buf = __keep_result(__result, __result + __num_segments);
+
+    if (__first == __last)
+    {
+        __par_backend_hetero::__parallel_reduce_by_segment_offsets_fill(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __result_buf.all_view(), _Size(__num_segments),
+            __init_acc);
+        return __result + __num_segments;
+    }
+
+    auto __keep_input = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
+    auto __input_buf = __keep_input(__first, __last);
+    auto __keep_offsets = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
+    auto __offsets_buf = __keep_offsets(__offsets, __offsets + __num_segments + 1);
+
+    __par_backend_hetero::__parallel_reduce_by_segment_offsets(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __input_buf.all_view(), __offsets_buf.all_view(),
+        __result_buf.all_view(), _Size(__last - __first), _Size(__num_segments), std::move(__init_acc), __binary_op);
+
+    return __result + __num_segments;
 }
 
 template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,

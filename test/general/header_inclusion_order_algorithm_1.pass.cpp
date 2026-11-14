@@ -18,7 +18,8 @@
 #include _PSTL_TEST_HEADER(algorithm)
 #include _PSTL_TEST_HEADER(execution)
 
-#include <type_traits>
+#include <functional>  // std::plus, std::equal_to
+#include <type_traits> // std::is_same_v
 
 // Check that oneDPL-specific numeric algorithms are still available in 'algorithm'
 using pint = int*;
@@ -33,6 +34,15 @@ static_assert(std::is_same_v<std::pair<pint, pdouble>,
     decltype(oneapi::dpl::reduce_by_segment(oneapi::dpl::execution::par, pint{}, pint{}, pfloat{}, pint{}, pdouble{}))>);
 static_assert(std::is_same_v<pint,
     decltype(oneapi::dpl::histogram(oneapi::dpl::execution::par, pdouble{}, pdouble{}, pfloat{}, pfloat{}, pint{}))>);
+static_assert(std::is_same_v<pdouble,
+    decltype(oneapi::dpl::reduce_by_segment(oneapi::dpl::execution::par, pint{}, pint{}, pdouble{}, int{}, pint{},
+                                            double{}, std::plus<>{}))>);
+static_assert(std::is_same_v<pdouble,
+    decltype(oneapi::dpl::reduce_by_segment(oneapi::dpl::execution::par, pint{}, pint{}, pdouble{}, int{}, pint{},
+                                            double{}))>);
+static_assert(std::is_same_v<std::pair<pint, pdouble>,
+    decltype(oneapi::dpl::reduce_by_segment(oneapi::dpl::execution::par, pint{}, pint{}, pfloat{}, pint{}, pdouble{},
+                                            std::equal_to<>{}))>);
 
 #include "support/utils.h"
 
