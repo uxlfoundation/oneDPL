@@ -146,15 +146,13 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
 {
     template <typename _Fp, typename _Index, typename... _Ranges>
     __future<sycl::event>
-    operator()(sycl::queue& __q, const sycl::event* __dependency, _Fp __brick, _Index __count,
-               _Ranges&&... __rngs) const
+    operator()(sycl::queue& __q, const sycl::event& __e, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         _PRINT_INFO_IN_DEBUG_MODE(__q);
-        auto __event = __q.submit([__rngs..., __brick, __count, __dependency](sycl::handler& __cgh) {
+        auto __event = __q.submit([__rngs..., __brick, __count, &__e](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
-            if (__dependency)
-                __cgh.depends_on(*__dependency);
+            __cgh.depends_on(__e);
 
             __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__count), [=](sycl::item</*dim=*/1> __item) {
                 // Simple loop and no vectorization within the brick, to evenly spread work across compute units.
@@ -283,18 +281,16 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
 
     template <typename _Fp, typename _Index, typename... _Ranges>
     __future<sycl::event>
-    operator()(sycl::queue& __q, const sycl::event* __dependency, _Fp __brick, _Index __count,
-               _Ranges&&... __rngs) const
+    operator()(sycl::queue& __q, const sycl::event& __e, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         using __params_t = __pfor_params<_Ranges...>;
         const std::uint16_t __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__q, __work_group_size_limit);
         _PRINT_INFO_IN_DEBUG_MODE(__q);
-        auto __event = __q.submit([__rngs..., __brick, __work_group_size, __count, __dependency](sycl::handler& __cgh) {
+        auto __event = __q.submit([__rngs..., __brick, __work_group_size, __count, &__e](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
-            if (__dependency)
-                __cgh.depends_on(*__dependency);
+            __cgh.depends_on(__e);
             constexpr std::uint8_t __iters_per_work_item = __iterations_per_item_v<_Fp, _Ranges...>;
             constexpr std::uint8_t __vector_size = __vector_size_per_item_v<_Fp, _Ranges...>;
             const std::size_t __data_per_work_item = __iters_per_work_item * __vector_size;
@@ -322,10 +318,10 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
 
 //General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
 //for some algorithms happens that size of processing range is n, but amount of iterations is n/2.
-// __dependency, if not null, is an event the kernel waits for on the device before it starts
+// __e is an event the kernel waits for on the device before it starts
 template <typename _CustomName, typename _Fp, typename _Index, typename... _Ranges>
 __future<sycl::event>
-__parallel_for_impl(sycl::queue& __q, const sycl::event* __dependency, _Fp __brick, _Index __count, _Ranges&&... __rngs)
+__parallel_for_impl(sycl::queue& __q, const sycl::event& __e, _Fp __brick, _Index __count, _Ranges&&... __rngs)
 {
     assert(oneapi::dpl::__ranges::__min_size_calc{}(__rngs...) > 0);
     assert(__count > 0);
@@ -345,18 +341,17 @@ __parallel_for_impl(sycl::queue& __q, const sycl::event* __dependency, _Fp __bri
     {
         if (__count >= __large_submitter::__minimal_useful_size(__q, __iters_per_work_item))
         {
-            return __large_submitter{}(__q, __dependency, __brick, __count, std::forward<_Ranges>(__rngs)...);
+            return __large_submitter{}(__q, __e, __brick, __count, std::forward<_Ranges>(__rngs)...);
         }
     }
-    return __small_submitter{}(__q, __dependency, __brick, __count, std::forward<_Ranges>(__rngs)...);
+    return __small_submitter{}(__q, __e, __brick, __count, std::forward<_Ranges>(__rngs)...);
 }
 
 template <typename _CustomName, typename _Fp, typename _Index, typename... _Ranges>
 __future<sycl::event>
 __parallel_for_impl(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs)
 {
-    return __parallel_for_impl<_CustomName>(__q, static_cast<const sycl::event*>(nullptr), __brick, __count,
-                                            std::forward<_Ranges>(__rngs)...);
+    return __parallel_for_impl<_CustomName>(__q, sycl::event{}, __brick, __count, std::forward<_Ranges>(__rngs)...);
 }
 
 //General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
@@ -372,16 +367,16 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
                                                                                std::forward<_Ranges>(__rngs)...);
 }
 
-// As above, started on the device only after __dependency
+// As above, started on the device only after __e
 template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
 __future<sycl::event>
-__parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
-               const sycl::event& __dependency, _Fp __brick, _Index __count, _Ranges&&... __rngs)
+__parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, const sycl::event& __e,
+               _Fp __brick, _Index __count, _Ranges&&... __rngs)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     sycl::queue __q_local = __exec.queue();
-    return oneapi::dpl::__par_backend_hetero::__parallel_for_impl<_CustomName>(
-        __q_local, &__dependency, __brick, __count, std::forward<_Ranges>(__rngs)...);
+    return oneapi::dpl::__par_backend_hetero::__parallel_for_impl<_CustomName>(__q_local, __e, __brick, __count,
+                                                                               std::forward<_Ranges>(__rngs)...);
 }
 
 } // namespace __par_backend_hetero
