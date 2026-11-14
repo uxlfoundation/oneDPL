@@ -337,7 +337,8 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                                      _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n, const _Size __m,
                                      _Acc __init, _BinaryOperation __binary_op)
 {
-    const sycl::device __device = __exec.queue().get_device();
+    sycl::queue __q = __exec.queue();
+    const sycl::device __device = __q.get_device();
     const bool __is_gpu = __device.is_gpu();
     const _Size __threshold =
         __is_gpu ? __segmented_reduce_gpu_short_segment_max : __segmented_reduce_cpu_short_segment_max;
@@ -350,7 +351,6 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         // the adjacent offsets. Its future keeps the temporary data of the scan until the partial results are
         // combined, which waits for all three steps: each one starts on the device after the previous one. The
         // temporary data are device USM or, without it, SYCL buffers.
-        sycl::queue __q = __exec.queue();
         __block_storage<_Size, 0> __chunk_ends{__q, static_cast<std::size_t>(__m)};
         auto __scan = __parallel_transform_scan(
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
@@ -400,7 +400,6 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     }
 
     // The short segments, one work-item each; the long ones only report the longest length
-    sycl::queue __q = __exec.queue();
     __segmented_reduce_max_length __max_long_segment_length{__q};
     __parallel_for(
         _BackendTag{}, __exec, __max_long_segment_length.__zero_done,
