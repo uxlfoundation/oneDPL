@@ -73,6 +73,7 @@ test_adjacent_find_by_type()
 #endif
     for (size_t n : counts)
     {
+        const bool device_only = n > find_test_max_host_size;
         std::vector<size_t> positions;
         if (n > 500)
             positions = {0, n / 2, n - 3, n - 2};
@@ -87,11 +88,13 @@ test_adjacent_find_by_type()
             auto i = ::std::adjacent_find(in.cbegin(), in.cend(), custom_pred);
             EXPECT_TRUE(i == in.cbegin() + e, "::std::adjacent_find returned wrong result");
 
-            invoke_on_all_policies<0>()(test_adjacent_find<T>(), in.begin(), in.end());
-            invoke_on_all_policies<1>()(test_adjacent_find_predicate<T>(), in.begin(), in.end(), custom_pred);
+            invoke_on_all_policies<0>{device_only}(test_adjacent_find<T>(), in.begin(), in.end());
+            invoke_on_all_policies<1>{device_only}(test_adjacent_find_predicate<T>(), in.begin(), in.end(),
+                                                   custom_pred);
 #if !ONEDPL_FPGA_DEVICE
-            invoke_on_all_policies<2>()(test_adjacent_find<T>(), in.cbegin(), in.cend());
-            invoke_on_all_policies<3>()(test_adjacent_find_predicate<T>(), in.cbegin(), in.cend(), custom_pred);
+            invoke_on_all_policies<2>{device_only}(test_adjacent_find<T>(), in.cbegin(), in.cend());
+            invoke_on_all_policies<3>{device_only}(test_adjacent_find_predicate<T>(), in.cbegin(), in.cend(),
+                                                   custom_pred);
 #endif
         }
     }
@@ -104,10 +107,12 @@ test_adjacent_find_by_type()
         EXPECT_TRUE(i == in.cbegin() + expect, "::std::adjacent_find returned wrong result");
 
         invoke_on_all_policies<4>()(test_adjacent_find<T>(), in.begin(), in.end());
-        invoke_on_all_policies<5>()(test_adjacent_find_predicate<T>(), in.begin(), in.end(), custom_pred);
+        invoke_on_all_policies<5>()(test_adjacent_find_predicate<T>(), in.begin(), in.end(),
+                                                   custom_pred);
 #if !ONEDPL_FPGA_DEVICE
         invoke_on_all_policies<6>()(test_adjacent_find<T>(), in.cbegin(), in.cend());
-        invoke_on_all_policies<7>()(test_adjacent_find_predicate<T>(), in.cbegin(), in.cend(), custom_pred);
+        invoke_on_all_policies<7>()(test_adjacent_find_predicate<T>(), in.cbegin(), in.cend(),
+                                                   custom_pred);
 #endif
     }
 

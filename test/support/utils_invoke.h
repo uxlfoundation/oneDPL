@@ -444,19 +444,24 @@ struct invoke_on_all_pstl_offload_policies {
 template <::std::size_t CallNumber = 0>
 struct invoke_on_all_policies
 {
+    // Skip host policies, e.g. for input sizes that only matter for device code paths
+    bool device_only = false;
+
     template <typename Op, typename... T>
     void
     operator()(Op op, T&&... rest)
     {
 #if TEST_DPCPP_BACKEND_PRESENT
 
-        invoke_on_all_host_policies()(op, rest...);
+        if (!device_only)
+            invoke_on_all_host_policies()(op, rest...);
 #if __SYCL_PSTL_OFFLOAD__
         invoke_on_all_pstl_offload_policies()(op, rest...);
 #endif
         invoke_on_all_hetero_policies<CallNumber>()(op, ::std::forward<T>(rest)...);
 #else
-        invoke_on_all_host_policies()(op, ::std::forward<T>(rest)...);
+        if (!device_only)
+            invoke_on_all_host_policies()(op, ::std::forward<T>(rest)...);
 #endif // TEST_DPCPP_BACKEND_PRESENT
     }
 };
