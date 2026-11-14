@@ -80,7 +80,8 @@ struct __segmented_reduce_variable_brick
 // A single value updated by atomics of a kernel and read by the host, zero-initialized. It is host USM where the
 // device supports atomics on it, read by the host directly; else device USM, zeroed by a fill and read by a copy,
 // which costs less on GPUs than the host accessors of a SYCL buffer; without USM, a SYCL buffer.
-struct __atomic_result_storage : public __device_storage<std::uint32_t>
+template <typename _ValueType>
+struct __atomic_result_storage : public __device_storage<_ValueType>
 {
     bool __is_host = false;  // whether the storage is host USM
     sycl::event __zero_done; // the completion of the initial zero on the device, if it is not written by the host
@@ -88,12 +89,12 @@ struct __atomic_result_storage : public __device_storage<std::uint32_t>
     // The view a brick of __parallel_for takes as a range
     struct __view
     {
-        using value_type = std::uint32_t;
-        using __acc_t = sycl::accessor<std::uint32_t, 1, sycl::access_mode::read_write, __dpl_sycl::__target_device>;
-        std::uint32_t* __data = nullptr;
+        using value_type = _ValueType;
+        using __acc_t = sycl::accessor<_ValueType, 1, sycl::access_mode::read_write, __dpl_sycl::__target_device>;
+        _ValueType* __data = nullptr;
         __acc_t __acc;
 
-        std::uint32_t&
+        _ValueType&
         operator[](std::size_t __idx) const
         {
             return __data ? __data[__idx] : __acc[__idx];
@@ -115,23 +116,23 @@ struct __atomic_result_storage : public __device_storage<std::uint32_t>
 
     explicit __atomic_result_storage(sycl::queue& __q)
     {
-        std::uint32_t* __ptr = nullptr;
+        _ValueType* __ptr = nullptr;
         if (__q.get_device().has(sycl::aspect::usm_atomic_host_allocations))
-            __ptr = __internal::__allocate_usm<std::uint32_t, sycl::usm::alloc::host>(__q, 1);
+            __ptr = __internal::__allocate_usm<_ValueType, sycl::usm::alloc::host>(__q, 1);
         if (__ptr)
         {
             this->__usm_buf =
-                std::unique_ptr<std::uint32_t, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+                std::unique_ptr<_ValueType, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
             __is_host = true;
-            *__ptr = 0;
+            *__ptr = _ValueType{};
             return;
         }
 
         this->__initialize(__q, 1);
         if (this->__usm_buf)
-            __zero_done = __q.fill(this->__usm_buf.get(), std::uint32_t{0}, 1);
+            __zero_done = __q.fill(this->__usm_buf.get(), _ValueType{}, 1);
         else
-            this->__sycl_buf.get_host_access(sycl::write_only)[0] = 0;
+            this->__sycl_buf.get_host_access(sycl::write_only)[0] = _ValueType{};
     }
 
     __view
@@ -142,10 +143,10 @@ struct __atomic_result_storage : public __device_storage<std::uint32_t>
         return __view{this->__usm_buf.get(), {}};
     }
 
-    std::uint32_t
+    _ValueType
     __get()
     {
-        std::uint32_t __value = 0;
+        _ValueType __value = {};
         this->__copy_n(&__value, __is_host ? this->__usm_buf.get() : nullptr, 1, 0);
         return __value;
     }
@@ -400,7 +401,8 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     }
 
     // The short segments, one work-item each; the long ones only report the longest length
-    __atomic_result_storage __max_long_segment_length{__q};
+    // 32 bits: the atomics of every device, and the length is capped by the brick as only its order matters
+    __atomic_result_storage<std::uint32_t> __max_long_segment_length{__q};
     __parallel_for(
         _BackendTag{}, __exec, __max_long_segment_length.__zero_done,
         __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op}, __m,
