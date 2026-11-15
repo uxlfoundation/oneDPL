@@ -302,10 +302,9 @@ __parallel_reduce_by_segment_offsets_fill(_BackendTag, _ExecutionPolicy&& __exec
     using _Fill = oneapi::dpl::__internal::__brick_fill<oneapi::dpl::__internal::__hetero_tag<_BackendTag>, _Acc>;
 
     // A separate kernel name: the reduction kernel of the same call is instantiated too
-    __parallel_for(_BackendTag{},
-                   make_wrapped_policy<__segmented_reduce_fill_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-                   unseq_backend::walk_n_vectors_or_scalars<_Fill>{_Fill{__init}, static_cast<std::size_t>(__m)}, __m,
-                   std::forward<_Range>(__result))
+    __parallel_for(
+        _BackendTag{}, make_wrapped_policy<__segmented_reduce_fill_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
+        unseq_backend::walk_n_vectors_or_scalars<_Fill>(_Fill{__init}, __m), __m, std::forward<_Range>(__result))
         .event()
         .wait_and_throw();
 }
