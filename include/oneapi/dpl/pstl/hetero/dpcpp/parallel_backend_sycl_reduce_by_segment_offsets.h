@@ -376,7 +376,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
 
         // At most n / __chunk_size + 1 chunks per segment, unless the offsets are not ordered
         const _Size __num_partials = __n / __chunk_size + __max_segments + 1;
-        __block_storage<_Acc, 0> __partials{__q, static_cast<std::size_t>(__num_partials)};
+        __block_storage<_Acc, 0> __partials(__q, __num_partials);
 
         auto __chunks = __parallel_for(
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec), __scan.event(),
