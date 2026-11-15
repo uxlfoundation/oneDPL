@@ -58,7 +58,7 @@ template <typename Offset>
 std::vector<Offset>
 make_offsets(segments kind, std::size_t size, std::mt19937& gen)
 {
-    const Offset n = static_cast<Offset>(size);
+    const Offset n = size;
     std::vector<Offset> bounds{0};
     auto add = [&bounds](Offset length) { bounds.push_back(Offset(bounds.back() + length)); };
     switch (kind)
