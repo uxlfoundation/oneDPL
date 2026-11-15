@@ -68,7 +68,7 @@ class __pfor_params
     // Empirically determined 'bytes-in-flight' to maximize bandwidth utilization
     constexpr static std::uint8_t __bytes_per_item = 16;
     // Maximum size supported by compilers to generate vector instructions
-    constexpr static std::uint8_t __max_vector_size = 4;
+    constexpr static std::uint8_t __vector_size_cap = 4;
 
     constexpr static bool __is_vectorizable_type =
         (std::is_fundamental_v<oneapi::dpl::__internal::__value_t<_Ranges>> && ...) && __min_type_size < 4;
@@ -76,7 +76,7 @@ class __pfor_params
   public:
     // Vectorize for small types, so we generate 128-byte load / stores in a sub-group, up to the limit of the brick
     constexpr static std::uint8_t __vector_size = std::min<std::uint8_t>(
-        __is_vectorizable_type ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, __min_type_size) : 1,
+        __is_vectorizable_type ? oneapi::dpl::__internal::__dpl_ceiling_div(__vector_size_cap, __min_type_size) : 1,
         __brick_max_vector_size_v<_Brick>);
     // The brick takes its vectorized path only for vectors of more than one element
     constexpr static bool __can_vectorize = __vector_size > 1;
