@@ -60,7 +60,7 @@ make_offsets(segments kind, std::size_t size, std::mt19937& gen)
 {
     const Offset n = size;
     std::vector<Offset> bounds{0};
-    auto add = [&bounds](Offset length) { bounds.push_back(Offset(bounds.back() + length)); };
+    auto add = [&bounds](Offset length) { bounds.push_back(bounds.back() + length); };
     switch (kind)
     {
     case segments::one:
@@ -72,29 +72,29 @@ make_offsets(segments kind, std::size_t size, std::mt19937& gen)
         break;
     case segments::equal:
         while (bounds.back() < n)
-            add(Offset(1 + n / 10));
+            add(1 + n / 10);
         break;
     case segments::mixed:
     {
         // The long segment has three quarters of the input: every operation reduces a long segment
-        std::uniform_int_distribution<std::int64_t> length(0, 2 + std::int64_t(n) / 32);
+        std::uniform_int_distribution<std::int64_t> length(0, 2 + n / 32);
         auto add_random = [&](Offset end) {
             while (bounds.back() < end)
-                add(std::min<Offset>(Offset(length(gen)), end - bounds.back()));
+                add(std::min<Offset>(length(gen), end - bounds.back()));
         };
         add(Offset{0});
         add(std::min<Offset>(1, n));
-        add_random(Offset(n / 8));
+        add_random(n / 8);
         add(std::min<Offset>(n * 3 / 4, n - bounds.back()));
         add_random(n);
         add(Offset{0});
         break;
     }
     case segments::all_empty:
-        bounds.assign(5, Offset(n / 2));
+        bounds.assign(5, n / 2);
         break;
     case segments::inner:
-        bounds.assign(1, Offset(n / 4));
+        bounds.assign(1, n / 4);
         while (bounds.back() < n - n / 4)
             add(std::min<Offset>(1 + n / 8, n - n / 4 - bounds.back()));
         break;
@@ -301,7 +301,7 @@ test_segments(Init init, BinaryOp op, Generator generator, Out unwritten)
     {
         Sequence<T> in(n, generator);
         const std::vector<Offset> offsets = make_offsets<Offset>(segments::mixed, n, gen);
-        const SegmentNum num_segments = SegmentNum(offsets.size() - 1);
+        const SegmentNum num_segments = offsets.size() - 1;
         Sequence<Out> out(num_segments, [unwritten](std::size_t) { return unwritten; });
         invoke_on_all_policies<CallNumber * 2>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                                  out.end(), offsets.begin(), num_segments, init, op, unwritten);
@@ -321,7 +321,7 @@ test_segments(Init init, BinaryOp op, Generator generator, Out unwritten)
     const std::size_t n = 1000;
     Sequence<T> in(n, generator);
     const std::vector<Offset> offsets = make_offsets<Offset>(segments::mixed, n, gen);
-    const SegmentNum num_segments = SegmentNum(offsets.size() - 1);
+    const SegmentNum num_segments = offsets.size() - 1;
     Sequence<Out> out(num_segments, [unwritten](std::size_t) { return unwritten; });
     invoke_on_all_policies<CallNumber * 2 + 1>()(test_reduce_by_segment_offsets(), in.cbegin(), in.cend(),
                                                  out.begin(), out.end(), offsets.begin(), num_segments, init, op,
@@ -340,7 +340,7 @@ test_edge_segment_distributions()
         for (segments kind : {segments::one, segments::unit, segments::equal, segments::all_empty})
         {
             const std::vector<int> offsets = make_offsets<int>(kind, n, gen);
-            const int num_segments = int(offsets.size() - 1);
+            const int num_segments = offsets.size() - 1;
             Sequence<int> out(std::max(num_segments, 1), [](std::size_t) { return -1; });
             invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                                  out.end(), offsets.begin(), num_segments, 5, std::plus<int>{}, -1);
@@ -361,7 +361,7 @@ test_fixed_length_segments()
         {
             auto offsets = oneapi::dpl::make_transform_iterator(oneapi::dpl::counting_iterator<std::int64_t>(0),
                                                                 segment_begin{length});
-            const std::int64_t num_segments = std::int64_t(n / length + 2);
+            const std::int64_t num_segments = n / length + 2;
             Sequence<int> out(num_segments, [](std::size_t) { return -1; });
             invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                                  out.end(), offsets, num_segments, 5, std::plus<int>{}, -1);
@@ -415,7 +415,7 @@ test_boundaries()
             for (std::int64_t i = 0; i < short_ones; ++i)
                 offsets.push_back(offsets.back() + 1);
         }
-        const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+        const std::int64_t num_segments = offsets.size() - 1;
         Sequence<int> in(offsets.back(), [](std::size_t i) { return int(i % 101) - 50; });
         Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
         invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
@@ -434,7 +434,7 @@ void
 test_input_bounds()
 {
     std::mt19937 gen(42);
-    for (std::size_t n : {std::size_t(1), std::size_t(1000), std::size_t(50000)})
+    for (std::size_t n : {1, 1000, 50000})
     {
         Sequence<int> guarded(n + 2 * guard_length, [n](std::size_t i) {
             return i < guard_length || i >= guard_length + n ? poison : int(i % 101) - 50;
@@ -442,7 +442,7 @@ test_input_bounds()
         for (segments kind : {segments::mixed, segments::inner, segments::out_of_bounds})
         {
             const std::vector<std::int64_t> offsets = make_offsets<std::int64_t>(kind, n, gen);
-            const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+            const std::int64_t num_segments = offsets.size() - 1;
             Sequence<std::int64_t> out(std::max<std::size_t>(num_segments, 1), [](std::size_t) { return -1; });
             invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), guarded.begin() + guard_length,
                                                  guarded.begin() + guard_length + n, out.begin(), out.end(),
@@ -470,7 +470,7 @@ test_usm()
     for (segments kind : {segments::mixed, segments::all_empty})
     {
         std::vector<int> offsets = make_offsets<int>(kind, n, gen);
-        const int num_segments = int(offsets.size() - 1);
+        const int num_segments = offsets.size() - 1;
         std::vector<int> expected(num_segments), result(num_segments);
         reduce_by_segment_offsets_serial(in.begin() + guard_length, in.begin() + guard_length + n, offsets.begin(),
                                          num_segments, 5, std::plus<int>{}, expected.begin());
@@ -505,11 +505,11 @@ test_usm_vector_edges()
     for (int round = 0; round < 3; ++round)
         for (int length : lengths)
             offsets.push_back(offsets.back() + length + round);
-    const int num_segments = int(offsets.size() - 1);
+    const int num_segments = offsets.size() - 1;
     const std::size_t n = offsets.back() + 5;
-    std::vector<T> in(n + 2 * guard_length, T(poison));
+    std::vector<T> in(n + 2 * guard_length, poison);
     for (std::size_t i = 0; i < n; ++i)
-        in[guard_length + i] = T(int(i % 13) - 6);
+        in[guard_length + i] = int(i % 13) - 6;
     std::vector<T> expected(num_segments), result(num_segments);
     reduce_by_segment_offsets_serial(in.begin() + guard_length, in.begin() + guard_length + n, offsets.begin(),
                                      num_segments, T(5), std::plus<T>{}, expected.begin());
@@ -541,7 +541,7 @@ test_buffer()
     for (segments kind : {segments::mixed, segments::all_empty})
     {
         std::vector<int> offsets = make_offsets<int>(kind, n, gen);
-        const int num_segments = int(offsets.size() - 1);
+        const int num_segments = offsets.size() - 1;
         std::vector<int> expected(num_segments), result(num_segments, -1);
         reduce_by_segment_offsets_serial(in.begin() + guard_length, in.begin() + guard_length + n, offsets.begin(),
                                          num_segments, 5, std::plus<int>{}, expected.begin());
@@ -581,7 +581,7 @@ test_counting_input()
         for (int i = 0; i < 500; ++i)
             offsets.push_back(offsets.back() + 1 + i % 3);
     }
-    const int num_segments = int(offsets.size() - 1);
+    const int num_segments = offsets.size() - 1;
     const oneapi::dpl::counting_iterator<int> first(0);
     std::vector<std::int64_t> out(num_segments, -1);
     test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, first, first + offsets.back(), out.begin(),
@@ -633,7 +633,7 @@ test_small_types()
         offsets[i + 1] = offsets[i] + (i == num_segments / 2 + 1 ? 100000 : length(gen));
     std::vector<std::uint8_t> in(offsets.back());
     for (std::size_t i = 0; i < in.size(); ++i)
-        in[i] = std::uint8_t(i * 7919 % 251);
+        in[i] = i * 7919 % 251;
     std::vector<std::uint8_t> out(num_segments, 0xFF);
     // The number of segments of the signed difference type of the offsets, as a size_t one is converted to index them
     const std::int64_t m = num_segments;
@@ -667,7 +667,7 @@ main()
     // Sum of a user-defined type
     test_segments<2, MatrixPoint<float>, MatrixPoint<float>, std::uint32_t, std::int64_t>(
         MatrixPoint<float>(1, 2), std::plus<>{},
-        [](std::size_t i) { return MatrixPoint<float>(float(i % 7), float(i % 3)); }, MatrixPoint<float>(-1, -1));
+        [](std::size_t i) { return MatrixPoint<float>(i % 7, i % 3); }, MatrixPoint<float>(-1, -1));
 
     // Sum with an accumulator which is not default-constructible
     test_segments<3, int, int, int, std::int64_t>(
