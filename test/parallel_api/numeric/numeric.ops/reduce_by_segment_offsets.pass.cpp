@@ -28,7 +28,7 @@
 
 #include <algorithm>   // std::copy_n, std::fill, std::min, std::max
 #include <cstddef>     // std::size_t, std::nullptr_t
-#include <cstdint>     // std::int16_t, std::int64_t, std::uint8_t, std::uint32_t, std::uint64_t
+#include <cstdint>     // std::int16_t, std::int64_t, std::uint8_t, std::uint16_t, std::uint32_t, std::uint64_t
 #include <functional>  // std::plus, std::multiplies, std::bit_xor, std::logical_and
 #include <iterator>    // std::back_inserter, std::distance, std::iterator_traits, std::random_access_iterator_tag
 #include <limits>      // std::numeric_limits
@@ -58,7 +58,7 @@ template <typename Offset>
 std::vector<Offset>
 make_offsets(segments kind, std::size_t size, std::mt19937& gen)
 {
-    const Offset n = static_cast<Offset>(size);
+    const Offset n = size;
     std::vector<Offset> bounds{0};
     auto add = [&bounds](Offset length) { bounds.push_back(Offset(bounds.back() + length)); };
     switch (kind)
@@ -128,7 +128,7 @@ struct test_reduce_by_segment_offsets
         std::vector<typename std::iterator_traits<OffsetIt>::value_type> offsets_copy;
         if (num_segments > 0)
             std::copy_n(offsets, num_segments + 1, std::back_inserter(offsets_copy));
-        std::vector<Out> expected(static_cast<std::size_t>(std::distance(out_first, out_last)), unwritten);
+        std::vector<Out> expected(std::distance(out_first, out_last), unwritten);
         reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets_copy.begin(), num_segments, init, op,
                                          expected.begin());
 
@@ -469,6 +469,46 @@ test_usm()
     }
 }
 
+// USM pointers with segments of the lengths around small powers of two, 0..7, 31..33, 35..40, 63..65, 127..129 and
+// 250..257, from unaligned positions (the first offset is odd), for elements of 4 and of 8 bytes
+template <sycl::usm::alloc alloc_type, typename T, typename KernelName>
+void
+test_usm_vector_edges()
+{
+    using NewKernelName =
+        TestUtils::unique_kernel_name<KernelName, TestUtils::uniq_kernel_index<alloc_type>() + 2 * sizeof(T)>;
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    sycl::queue q = policy.queue();
+    const std::vector<int> lengths{0,  1,  2,  3,  4,   5,   6,   7,   31,  32,  33,  35,  36,  37,  38,  39, 40,
+                                   63, 64, 65, 127, 128, 129, 250, 251, 252, 253, 254, 255, 256, 257};
+    std::vector<int> offsets{3};
+    for (int round = 0; round < 3; ++round)
+        for (int length : lengths)
+            offsets.push_back(offsets.back() + length + round);
+    const int num_segments = int(offsets.size() - 1);
+    const std::size_t n = offsets.back() + 5;
+    std::vector<T> in(n + 2 * guard_length, T(poison));
+    for (std::size_t i = 0; i < n; ++i)
+        in[guard_length + i] = T(int(i % 13) - 6);
+    std::vector<T> expected(num_segments), result(num_segments);
+    reduce_by_segment_offsets_serial(in.begin() + guard_length, in.begin() + guard_length + n, offsets.begin(),
+                                     num_segments, T(5), std::plus<T>{}, expected.begin());
+
+    TestUtils::usm_data_transfer<alloc_type, T> in_usm(q, in.begin(), in.end());
+    TestUtils::usm_data_transfer<alloc_type, int> offsets_usm(q, offsets.begin(), offsets.end());
+    TestUtils::usm_data_transfer<alloc_type, T> out_usm(q, num_segments);
+    auto res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, NewKernelName),
+                                              in_usm.get_data() + guard_length, in_usm.get_data() + guard_length + n,
+                                              out_usm.get_data(), num_segments, offsets_usm.get_data(), T(5),
+                                              std::plus<T>{});
+    EXPECT_EQ(out_usm.get_data() + num_segments, res,
+              "wrong iterator returned by reduce_by_segment with USM at the edges of small powers of two");
+    out_usm.retrieve_data(result.begin());
+    EXPECT_EQ_N(expected.begin(), result.begin(), num_segments,
+                "wrong result from reduce_by_segment with USM at the edges of small powers of two");
+}
+
 template <typename KernelName>
 void
 test_buffer()
@@ -506,6 +546,7 @@ test_buffer()
 class KernelNameUSM;
 class KernelNameBuffer;
 class KernelNameCounting;
+class KernelNameUSMVectorEdges;
 class KernelNameNarrowCounting;
 class KernelNameSmallTypes;
 #endif // TEST_DPCPP_BACKEND_PRESENT
@@ -571,12 +612,12 @@ test_small_types()
     std::vector<std::int64_t> offsets(num_segments + 1, 0);
     for (std::size_t i = 0; i < num_segments; ++i)
         offsets[i + 1] = offsets[i] + (i == num_segments / 2 + 1 ? 100000 : length(gen));
-    std::vector<std::uint8_t> in(static_cast<std::size_t>(offsets.back()));
+    std::vector<std::uint8_t> in(offsets.back());
     for (std::size_t i = 0; i < in.size(); ++i)
         in[i] = std::uint8_t(i * 7919 % 251);
     std::vector<std::uint8_t> out(num_segments, 0xFF);
     // The number of segments of the signed difference type of the offsets, as a size_t one is converted to index them
-    const std::int64_t m = static_cast<std::int64_t>(num_segments);
+    const std::int64_t m = num_segments;
     test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, in.begin(), in.end(), out.begin(), out.end(),
                                      offsets.begin(), m, std::uint8_t{5}, std::bit_xor<std::uint8_t>{},
                                      std::uint8_t{0xFF});
@@ -611,7 +652,7 @@ main()
 
     // Sum with an accumulator which is not default-constructible
     test_segments<3, int, int, int, std::int64_t>(
-        NoDefaultCtorWrapper<int>{5}, std::plus<NoDefaultCtorWrapper<int>>{},
+        NoDefaultCtorWrapper<int>(5), std::plus<NoDefaultCtorWrapper<int>>{},
         [](std::size_t i) { return int(i % 101) - 50; }, -1);
 
     // Minimum; the initial value is the identity for the input (not the infinity, which EXPECT_EQ_N cannot compare)
@@ -651,6 +692,14 @@ main()
     test_segments<12, int, float, std::int64_t, int>(
         2.5f, int_sum_plus{}, [](std::size_t i) { return int(i % 101) - 50; }, -1.f);
 
+    // Results of 1 and 2 bytes, which the writes of the initial value for an empty input take in vectors
+    test_segments<13, std::uint8_t, std::uint8_t, int, int>(
+        std::uint8_t{3}, std::plus<std::uint8_t>{}, [](std::size_t i) { return std::uint8_t(i % 7); },
+        std::uint8_t{255});
+    test_segments<14, std::uint16_t, std::uint16_t, std::int64_t, int>(
+        std::uint16_t{3}, std::plus<std::uint16_t>{}, [](std::size_t i) { return std::uint16_t(i % 1000); },
+        std::uint16_t{65535});
+
     test_unordered<39>();
     test_boundaries<42>();
     test_input_bounds<43>();
@@ -663,6 +712,8 @@ main()
 #if TEST_DPCPP_BACKEND_PRESENT
     test_usm<sycl::usm::alloc::shared, KernelNameUSM>();
     test_usm<sycl::usm::alloc::device, KernelNameUSM>();
+    test_usm_vector_edges<sycl::usm::alloc::device, int, KernelNameUSMVectorEdges>();
+    test_usm_vector_edges<sycl::usm::alloc::device, std::int64_t, KernelNameUSMVectorEdges>();
     test_buffer<KernelNameBuffer>();
 #endif
 

@@ -16,7 +16,7 @@
 #include <cstdint>     // std::uint8_t, std::uint32_t
 #include <functional>  // std::invoke, std::less, std::plus
 #include <limits>      // std::numeric_limits
-#include <type_traits> // std::true_type
+#include <type_traits> // std::is_signed_v, std::true_type
 #include <utility>     // std::move, std::forward
 #include <vector>      // std::vector
 
@@ -164,27 +164,6 @@ __has_device_scope_atomics(sycl::device __device)
     return std::find(__scopes.begin(), __scopes.end(), sycl::memory_scope::device) != __scopes.end();
 }
 
-// A short segment is reduced by one work-item. A long segment is split into chunks, each reduced by one work-item, and
-// the partial results of the segment are combined by one work-item. The values below were measured on GPUs and CPUs
-// as SYCL devices:
-// - a segment up to this length is short;
-inline constexpr std::size_t __segmented_reduce_gpu_short_segment_max = 512;
-inline constexpr std::size_t __segmented_reduce_cpu_short_segment_max = 32768;
-// - on GPUs the best chunk length is close to the square root of the longest segment, which balances the serial work
-//   of the two levels; on CPUs the chunk length hardly matters above 1024.
-inline constexpr std::size_t __segmented_reduce_cpu_chunk_size = 4096;
-
-inline std::size_t
-__segmented_reduce_chunk_size(bool __is_gpu, std::size_t __max_length)
-{
-    if (__is_gpu)
-    {
-        const auto __root = static_cast<std::size_t>(std::sqrt(static_cast<double>(__max_length)));
-        return std::clamp<std::size_t>(oneapi::dpl::__internal::__dpl_bit_ceil(__root), 64, 16384);
-    }
-    return __segmented_reduce_cpu_chunk_size;
-}
-
 // The length of a segment within the input; a negatively sized segment is empty
 template <typename _Size>
 struct __segmented_reduce_length
@@ -321,14 +300,47 @@ __parallel_reduce_by_segment_offsets_fill(_BackendTag, _ExecutionPolicy&& __exec
                                           const _Acc& __init)
 {
     using _Fill = oneapi::dpl::__internal::__brick_fill<oneapi::dpl::__internal::__hetero_tag<_BackendTag>, _Acc>;
+
     // A separate kernel name: the reduction kernel of the same call is instantiated too
-    __parallel_for(_BackendTag{},
-                   make_wrapped_policy<__segmented_reduce_fill_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-                   unseq_backend::walk_n_vectors_or_scalars<_Fill>{_Fill{__init}, static_cast<std::size_t>(__m)}, __m,
-                   std::forward<_Range>(__result))
+    __parallel_for(
+        _BackendTag{}, make_wrapped_policy<__segmented_reduce_fill_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
+        unseq_backend::walk_n_vectors_or_scalars<_Fill>(_Fill{__init}, __m), __m, std::forward<_Range>(__result))
         .event()
         .wait_and_throw();
 }
+
+// A short segment is reduced by one work-item. A long segment is split into chunks, each reduced by one work-item, and
+// the partial results of the segment are combined by one work-item. The values below were measured on GPUs and CPUs
+// as SYCL devices.
+struct __segmented_reduce_chunk_tuning
+{
+    // A segment up to this length is short
+    static constexpr std::size_t __gpu_short_segment_max = 512;
+    static constexpr std::size_t __cpu_short_segment_max = 32768;
+
+    // On GPUs the best chunk length is close to the square root of the longest segment, which balances the serial work
+    // of the two levels, within these bounds; on CPUs the chunk length hardly matters above 1024
+    static constexpr std::size_t __gpu_min_chunk_size = 64;
+    static constexpr std::size_t __gpu_max_chunk_size = 16384;
+    static constexpr std::size_t __cpu_chunk_size = 4096;
+
+    static std::size_t
+    __short_segment_max(bool __is_gpu)
+    {
+        return __is_gpu ? __gpu_short_segment_max : __cpu_short_segment_max;
+    }
+
+    static std::size_t
+    __chunk_size(bool __is_gpu, std::size_t __max_length)
+    {
+        // The serial work for the longest segment of length L is chunk + L / chunk: one work-item reduces a chunk,
+        // another combines the L / chunk partial results; the chunk length sqrt(L) makes the sum the smallest
+        return __is_gpu ? std::clamp<std::size_t>(
+                              oneapi::dpl::__internal::__dpl_bit_ceil(std::size_t(std::sqrt(__max_length))),
+                              __gpu_min_chunk_size, __gpu_max_chunk_size)
+                        : __cpu_chunk_size;
+    }
+};
 
 // The segments of the input [0, __n) defined by the __m + 1 offsets, reduced into the __m results
 template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange, typename _OutRange,
@@ -338,21 +350,22 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                                      _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n, const _Size __m,
                                      _Acc __init, _BinaryOperation __binary_op)
 {
+    // Signed, so that a reversed segment (end < begin) is short and gets the initial value
+    static_assert(std::is_signed_v<_Size>, "The size type must be signed");
+
     sycl::queue __q = __exec.queue();
     const sycl::device __device = __q.get_device();
     const bool __is_gpu = __device.is_gpu();
-    const _Size __threshold =
-        __is_gpu ? __segmented_reduce_gpu_short_segment_max : __segmented_reduce_cpu_short_segment_max;
 
     // Reduces the segments longer than __min_length in chunks; __max_segments bounds the number of such segments
     auto __reduce_in_chunks = [&](_Size __min_length, bool __write_empty, _Size __max_length, _Size __max_segments) {
-        const _Size __chunk_size = __segmented_reduce_chunk_size(__is_gpu, __max_length);
+        const _Size __chunk_size = __segmented_reduce_chunk_tuning::__chunk_size(__is_gpu, __max_length);
 
         // The end of the chunks of every segment: an inclusive scan of their numbers, computed from the pairs of
         // the adjacent offsets. Its future keeps the temporary data of the scan until the partial results are
         // combined, which waits for all three steps: each one starts on the device after the previous one. The
         // temporary data are device USM or, without it, SYCL buffers.
-        __block_storage<_Size, 0> __chunk_ends{__q, static_cast<std::size_t>(__m)};
+        __block_storage<_Size, 0> __chunk_ends(__q, __m);
         auto __scan = __parallel_transform_scan(
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
             oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
@@ -362,7 +375,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
 
         // At most n / __chunk_size + 1 chunks per segment, unless the offsets are not ordered
         const _Size __num_partials = __n / __chunk_size + __max_segments + 1;
-        __block_storage<_Acc, 0> __partials{__q, static_cast<std::size_t>(__num_partials)};
+        __block_storage<_Acc, 0> __partials(__q, __num_partials);
 
         auto __chunks = __parallel_for(
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_chunk_wrapper>(__exec), __scan.event(),
@@ -376,8 +389,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             .wait_and_throw();
     };
 
-    // The average segment is long, or the device cannot report the longest length of the short segments' pass:
-    // all the segments in chunks, which needs no atomics. The longest one selects the chunk length on GPUs.
+    const _Size __threshold = __segmented_reduce_chunk_tuning::__short_segment_max(__is_gpu);
+
+    // Long segments on average, or no atomics for the short-segment pass: all the segments in chunks
     if (__n / __m > __threshold || !__has_device_scope_atomics(__device))
     {
         const _Size __max_length =
@@ -390,19 +404,19 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                       oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
                       oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1}))
                 : __n;
+
         if (__max_length == 0)
-        {
             __parallel_reduce_by_segment_offsets_fill(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
                                                       std::forward<_OutRange>(__result), __m, __init);
-            return;
-        }
-        __reduce_in_chunks(_Size{0}, /*__write_empty=*/true, __max_length, __m);
+        else
+            __reduce_in_chunks(_Size{0}, /*__write_empty=*/true, __max_length, __m);
+
         return;
     }
 
     // The short segments, one work-item each; the long ones only report the longest length
     // 32 bits: the atomics of every device, and the length is capped by the brick as only its order matters
-    __atomic_result_storage<std::uint32_t> __max_long_segment_length{__q};
+    __atomic_result_storage<std::uint32_t> __max_long_segment_length(__q);
     __parallel_for(
         _BackendTag{}, __exec, __max_long_segment_length.__zero_done,
         __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op}, __m,
@@ -411,7 +425,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         .wait_and_throw();
 
     // The long segments in chunks: at most n / __threshold of them
-    const _Size __max_length = static_cast<_Size>(__max_long_segment_length.__get());
+    const _Size __max_length = __max_long_segment_length.__get();
     if (__max_length > 0)
         __reduce_in_chunks(__threshold, /*__write_empty=*/false, __max_length, __n / __threshold);
 }
