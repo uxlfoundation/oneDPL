@@ -83,7 +83,6 @@ struct __segmented_reduce_variable_brick
 template <typename _ValueType>
 struct __atomic_result_storage : public __device_storage<_ValueType>
 {
-    // As in __result_storage: host USM, device USM or unknown for a SYCL buffer
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
     sycl::event __zero_done; // the completion of the initial zero on the device, if it is not written by the host
 
