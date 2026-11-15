@@ -83,7 +83,8 @@ struct __segmented_reduce_variable_brick
 template <typename _ValueType>
 struct __atomic_result_storage : public __device_storage<_ValueType>
 {
-    bool __is_host = false;  // whether the storage is host USM
+    // As in __result_storage: host USM, device USM or unknown for a SYCL buffer
+    sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
     sycl::event __zero_done; // the completion of the initial zero on the device, if it is not written by the host
 
     // The view a brick of __parallel_for takes as a range
@@ -123,13 +124,14 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
         {
             this->__usm_buf =
                 std::unique_ptr<_ValueType, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-            __is_host = true;
+            __kind = sycl::usm::alloc::host;
             *__ptr = _ValueType{};
             return;
         }
 
         this->__initialize(__q, 1);
-        if (this->__usm_buf)
+        __kind = this->__usm_buf ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
+        if (__kind == sycl::usm::alloc::device)
             __zero_done = __q.fill(this->__usm_buf.get(), _ValueType{}, 1);
         else
             this->__sycl_buf.get_host_access(sycl::write_only)[0] = _ValueType{};
@@ -143,12 +145,12 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
         return __view{this->__usm_buf.get(), {}};
     }
 
-    _ValueType
-    __get()
+    // As in __result_storage, assuming the kernel has completed: the value, if __n is not zero
+    void
+    __copy_result(_ValueType* __dst, std::size_t __n)
     {
-        _ValueType __value = {};
-        this->__copy_n(&__value, __is_host ? this->__usm_buf.get() : nullptr, 1, 0);
-        return __value;
+        this->__copy_n(__dst, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr,
+                       std::min<std::size_t>(__n, 1), /*offset*/ 0);
     }
 };
 
@@ -425,7 +427,8 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         .wait_and_throw();
 
     // The long segments in chunks: at most n / __threshold of them
-    const _Size __max_length = __max_long_segment_length.__get();
+    std::uint32_t __max_length = 0;
+    __max_long_segment_length.__copy_result(&__max_length, 1);
     if (__max_length > 0)
         __reduce_in_chunks(__threshold, /*__write_empty=*/false, __max_length, __n / __threshold);
 }
