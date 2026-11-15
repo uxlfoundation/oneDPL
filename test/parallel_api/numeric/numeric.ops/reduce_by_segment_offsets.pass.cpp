@@ -420,9 +420,9 @@ test_pieces()
     std::int64_t lane = 16, piece = 512; // the elements of a work-item and of a piece of a sub-group of 32 work-items
 #if TEST_DPCPP_BACKEND_PRESENT
     const auto geometry = oneapi::dpl::__par_backend_hetero::__segmented_reduce_flat_tuning::__geometry(
-        TestUtils::get_dpcpp_test_policy().queue(), std::size_t(n));
-    lane = std::int64_t(geometry.__inputs_per_item);
-    piece = lane * std::int64_t(oneapi::dpl::__par_backend_hetero::__segmented_reduce_flat_tuning::__sub_group_size);
+        TestUtils::get_dpcpp_test_policy().queue(), n);
+    lane = geometry.__inputs_per_item;
+    piece = lane * oneapi::dpl::__par_backend_hetero::__segmented_reduce_flat_tuning::__sub_group_size;
 #endif
 
     std::vector<std::int64_t> offsets{37};
