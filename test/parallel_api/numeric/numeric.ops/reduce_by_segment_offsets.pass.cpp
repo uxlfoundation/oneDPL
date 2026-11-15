@@ -28,7 +28,7 @@
 
 #include <algorithm>   // std::copy_n, std::fill, std::min, std::max
 #include <cstddef>     // std::size_t, std::nullptr_t
-#include <cstdint>     // std::int16_t, std::int64_t, std::uint8_t, std::uint32_t, std::uint64_t
+#include <cstdint>     // std::int16_t, std::int64_t, std::uint8_t, std::uint16_t, std::uint32_t, std::uint64_t
 #include <functional>  // std::plus, std::multiplies, std::bit_xor, std::logical_and
 #include <iterator>    // std::back_inserter, std::distance, std::iterator_traits, std::random_access_iterator_tag
 #include <limits>      // std::numeric_limits
@@ -650,6 +650,14 @@ main()
     // converted to the accumulator type (2), not the initial value itself (2.5)
     test_segments<12, int, float, std::int64_t, int>(
         2.5f, int_sum_plus{}, [](std::size_t i) { return int(i % 101) - 50; }, -1.f);
+
+    // Results of 1 and 2 bytes, which the writes of the initial value for an empty input take in vectors
+    test_segments<13, std::uint8_t, std::uint8_t, int, int>(
+        std::uint8_t{3}, std::plus<std::uint8_t>{}, [](std::size_t i) { return std::uint8_t(i % 7); },
+        std::uint8_t{255});
+    test_segments<14, std::uint16_t, std::uint16_t, std::int64_t, int>(
+        std::uint16_t{3}, std::plus<std::uint16_t>{}, [](std::size_t i) { return std::uint16_t(i % 1000); },
+        std::uint16_t{65535});
 
     test_unordered<39>();
     test_boundaries<42>();
