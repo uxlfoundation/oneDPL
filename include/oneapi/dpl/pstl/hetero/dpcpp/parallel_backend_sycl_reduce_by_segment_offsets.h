@@ -144,7 +144,6 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
         return __view{this->__usm_buf.get(), {}};
     }
 
-    // As in __result_storage, assuming the kernel has completed: the value, if __n is not zero
     void
     __copy_result(_ValueType* __dst, std::size_t __n)
     {
