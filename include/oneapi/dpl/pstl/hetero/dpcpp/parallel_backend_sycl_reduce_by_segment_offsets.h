@@ -333,6 +333,8 @@ struct __segmented_reduce_chunk_tuning
     static std::size_t
     __chunk_size(bool __is_gpu, std::size_t __max_length)
     {
+        // The serial work for the longest segment of length L is chunk + L / chunk: one work-item reduces a chunk,
+        // another combines the L / chunk partial results; the chunk length sqrt(L) makes the sum the smallest
         return __is_gpu ? std::clamp<std::size_t>(
                               oneapi::dpl::__internal::__dpl_bit_ceil(std::size_t(std::sqrt(__max_length))),
                               __gpu_min_chunk_size, __gpu_max_chunk_size)
