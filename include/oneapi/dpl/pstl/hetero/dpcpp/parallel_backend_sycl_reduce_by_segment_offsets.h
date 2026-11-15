@@ -333,13 +333,10 @@ struct __segmented_reduce_chunk_tuning
     static std::size_t
     __chunk_size(bool __is_gpu, std::size_t __max_length)
     {
-        if (__is_gpu)
-        {
-            const auto __root = static_cast<std::size_t>(std::sqrt(__max_length));
-            return std::clamp<std::size_t>(oneapi::dpl::__internal::__dpl_bit_ceil(__root), __gpu_min_chunk_size,
-                                           __gpu_max_chunk_size);
-        }
-        return __cpu_chunk_size;
+        return __is_gpu ? std::clamp<std::size_t>(
+                              oneapi::dpl::__internal::__dpl_bit_ceil(std::size_t(std::sqrt(__max_length))),
+                              __gpu_min_chunk_size, __gpu_max_chunk_size)
+                        : __cpu_chunk_size;
     }
 };
 
