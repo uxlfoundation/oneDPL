@@ -415,7 +415,7 @@ void
 test_input_bounds()
 {
     std::mt19937 gen(42);
-    for (std::size_t n : {std::size_t(1), std::size_t(1000), std::size_t(50000)})
+    for (std::size_t n : {1, 1000, 50000})
     {
         Sequence<int> guarded(n + 2 * guard_length, [n](std::size_t i) {
             return i < guard_length || i >= guard_length + n ? poison : int(i % 101) - 50;
