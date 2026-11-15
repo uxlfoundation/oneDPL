@@ -488,9 +488,9 @@ test_usm_vector_edges()
             offsets.push_back(offsets.back() + length + round);
     const int num_segments = offsets.size() - 1;
     const std::size_t n = offsets.back() + 5;
-    std::vector<T> in(n + 2 * guard_length, T(poison));
+    std::vector<T> in(n + 2 * guard_length, poison);
     for (std::size_t i = 0; i < n; ++i)
-        in[guard_length + i] = T(int(i % 13) - 6);
+        in[guard_length + i] = int(i % 13) - 6;
     std::vector<T> expected(num_segments), result(num_segments);
     reduce_by_segment_offsets_serial(in.begin() + guard_length, in.begin() + guard_length + n, offsets.begin(),
                                      num_segments, T(5), std::plus<T>{}, expected.begin());
