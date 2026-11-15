@@ -500,7 +500,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             oneapi::dpl::__internal::__dpl_ceiling_div(__num_units * sizeof(_Size), sizeof(_Unit));
         const std::size_t __partial_slots =
             oneapi::dpl::__internal::__dpl_ceiling_div(2 * __num_units * sizeof(_Acc), sizeof(_Unit));
-        __device_storage<_Unit> __units_storage{__q, __segment_slots + __partial_slots};
+        __device_storage<_Unit> __units_storage(__q, __segment_slots + __partial_slots);
 
         // First kernel, with or without in-group combining: separate so the latter sets up no local memory
         auto __pieces = [&](auto __in_group_tag) {
