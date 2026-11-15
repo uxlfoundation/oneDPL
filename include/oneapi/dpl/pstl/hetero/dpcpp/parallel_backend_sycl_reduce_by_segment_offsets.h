@@ -226,13 +226,13 @@ struct __segmented_reduce_chunk_brick
         const _Size __segment_idx = oneapi::dpl::__internal::__pstl_upper_bound(
             __chunk_ends, _Size{0}, __num_segments - 1, &__chunk, std::less<>{}, oneapi::dpl::identity{},
             oneapi::dpl::identity{});
-        const _Size __segment_first_chunk = __segment_idx == 0 ? _Size{0} : _Size(__chunk_ends[__segment_idx - 1]);
+        const _Size __segment_first_chunk = __segment_idx == 0 ? _Size{0} : __chunk_ends[__segment_idx - 1];
         const _Size __segment_begin =
             oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__segment_idx], __n);
         const _Size __segment_end =
             oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__segment_idx + 1], __n);
         const _Size __head_length = (__segment_end - __segment_begin) -
-                                    (_Size(__chunk_ends[__segment_idx]) - __segment_first_chunk - 1) * __chunk_size;
+                                    (__chunk_ends[__segment_idx] - __segment_first_chunk - 1) * __chunk_size;
 
         // One loop for every chunk, so that the work-items of a sub-group do not diverge into two long loops
         const _Size __chunk_idx_in_segment = __chunk - __segment_first_chunk;
@@ -268,7 +268,7 @@ struct __segmented_reduce_combine_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _ChunkEnds __chunk_ends, _Partials __partials,
                _Result __result) const
     {
-        const _Size __first = __idx == 0 ? _Size{0} : _Size(__chunk_ends[__idx - 1]);
+        const _Size __first = __idx == 0 ? _Size{0} : __chunk_ends[__idx - 1];
         // A segment without chunks is empty, or short and already reduced. Unordered offsets may give more chunks than
         // computed: their results are unspecified.
         const _Size __last = std::min<_Size>(__chunk_ends[__idx], __num_partials);
