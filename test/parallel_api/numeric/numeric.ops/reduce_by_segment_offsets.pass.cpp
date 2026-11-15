@@ -617,7 +617,7 @@ test_small_types()
         in[i] = std::uint8_t(i * 7919 % 251);
     std::vector<std::uint8_t> out(num_segments, 0xFF);
     // The number of segments of the signed difference type of the offsets, as a size_t one is converted to index them
-    const std::int64_t m = static_cast<std::int64_t>(num_segments);
+    const std::int64_t m = num_segments;
     test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, in.begin(), in.end(), out.begin(), out.end(),
                                      offsets.begin(), m, std::uint8_t{5}, std::bit_xor<std::uint8_t>{},
                                      std::uint8_t{0xFF});
