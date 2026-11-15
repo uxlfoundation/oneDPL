@@ -351,7 +351,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                                      _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n, const _Size __m,
                                      _Acc __init, _BinaryOperation __binary_op)
 {
-    // A reversed segment has a negative length in the short-segment brick, so it is short and gets the initial value
+    // Signed, so that a reversed segment (end < begin) is short and gets the initial value
     static_assert(std::is_signed_v<_Size>, "The size type must be signed");
 
     sycl::queue __q = __exec.queue();
