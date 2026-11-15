@@ -366,7 +366,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         // the adjacent offsets. Its future keeps the temporary data of the scan until the partial results are
         // combined, which waits for all three steps: each one starts on the device after the previous one. The
         // temporary data are device USM or, without it, SYCL buffers.
-        __block_storage<_Size, 0> __chunk_ends{__q, static_cast<std::size_t>(__m)};
+        __block_storage<_Size, 0> __chunk_ends(__q, __m);
         auto __scan = __parallel_transform_scan(
             _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
             oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
