@@ -652,7 +652,7 @@ main()
 
     // Sum with an accumulator which is not default-constructible
     test_segments<3, int, int, int, std::int64_t>(
-        NoDefaultCtorWrapper<int>{5}, std::plus<NoDefaultCtorWrapper<int>>{},
+        NoDefaultCtorWrapper<int>(5), std::plus<NoDefaultCtorWrapper<int>>{},
         [](std::size_t i) { return int(i % 101) - 50; }, -1);
 
     // Minimum; the initial value is the identity for the input (not the infinity, which EXPECT_EQ_N cannot compare)
