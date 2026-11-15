@@ -94,18 +94,21 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
         _ValueType* __data = nullptr;
         __acc_t __acc;
 
+        // Element access is only valid in device code
         _ValueType&
         operator[](std::size_t __idx) const
         {
             return __data ? __data[__idx] : __acc[__idx];
         }
 
+        // The elements addressable through the view: __parallel_for checks its ranges are not empty in debug builds
         std::size_t
         size() const
         {
             return 1;
         }
 
+        // ADL-discoverable call used by __ranges::__require_access in utils_ranges_sycl.h
         friend void
         __require_access_range(sycl::handler& __cgh, __view& __v)
         {
@@ -139,9 +142,12 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
     __view
     __all_view()
     {
+        // checking the buffer size is the simplest way to cover both "no device USM"
+        // and _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
         if (this->__sycl_buf.size() != 0)
             return __view{this->__usm_buf.get(), {this->__sycl_buf}};
-        return __view{this->__usm_buf.get(), {}};
+        else
+            return __view{this->__usm_buf.get(), {}};
     }
 
     void
