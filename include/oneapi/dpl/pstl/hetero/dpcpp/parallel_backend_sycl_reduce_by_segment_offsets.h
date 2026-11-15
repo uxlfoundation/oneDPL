@@ -480,7 +480,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // A reversed segment has a negative length, so it is tiny
         static_assert(std::is_signed_v<_Size>, "The size type must be signed");
         constexpr std::size_t __sub_group_size = _Tuning::__sub_group_size;
-        const __segmented_reduce_flat_geometry __geometry = _Tuning::__geometry(__q, std::size_t(__n));
+        const __segmented_reduce_flat_geometry __geometry = _Tuning::__geometry(__q, __n);
         const std::size_t __work_group_size = __geometry.__work_group_size;
         // Kernel values in 32 bits (counted in pieces and work-groups) so kernel arguments stay in registers
         const std::uint32_t __sub_groups = __work_group_size / __sub_group_size;
@@ -1029,7 +1029,7 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                const _Size __m) const
     {
         constexpr std::uint32_t __sub_group_size = _Tuning::__sub_group_size;
-        const std::uint32_t __work_group_size = _Tuning::__work_group_size(__q, std::size_t(__n), std::size_t(__m));
+        const std::uint32_t __work_group_size = _Tuning::__work_group_size(__q, __n, __m);
         const std::uint32_t __sub_groups = __work_group_size / __sub_group_size;
 
         sycl::event __event = __q.submit([&](sycl::handler& __cgh) {
@@ -1156,7 +1156,7 @@ struct __parallel_reduce_by_segment_offsets
             {
                 using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-                if (_GroupTuning::__applies(__q, std::size_t(__n), std::size_t(__m)))
+                if (_GroupTuning::__applies(__q, __n, __m))
                 {
                     // Small input: a work-group per segment
                     using _GroupKernel =
