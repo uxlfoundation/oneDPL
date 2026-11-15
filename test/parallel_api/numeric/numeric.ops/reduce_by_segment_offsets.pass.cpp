@@ -612,7 +612,7 @@ test_small_types()
     std::vector<std::int64_t> offsets(num_segments + 1, 0);
     for (std::size_t i = 0; i < num_segments; ++i)
         offsets[i + 1] = offsets[i] + (i == num_segments / 2 + 1 ? 100000 : length(gen));
-    std::vector<std::uint8_t> in(static_cast<std::size_t>(offsets.back()));
+    std::vector<std::uint8_t> in(offsets.back());
     for (std::size_t i = 0; i < in.size(); ++i)
         in[i] = std::uint8_t(i * 7919 % 251);
     std::vector<std::uint8_t> out(num_segments, 0xFF);
