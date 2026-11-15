@@ -648,7 +648,7 @@ main()
     // Sum of a user-defined type
     test_segments<2, MatrixPoint<float>, MatrixPoint<float>, std::uint32_t, std::int64_t>(
         MatrixPoint<float>(1, 2), std::plus<>{},
-        [](std::size_t i) { return MatrixPoint<float>(float(i % 7), float(i % 3)); }, MatrixPoint<float>(-1, -1));
+        [](std::size_t i) { return MatrixPoint<float>(i % 7, i % 3); }, MatrixPoint<float>(-1, -1));
 
     // Sum with an accumulator which is not default-constructible
     test_segments<3, int, int, int, std::int64_t>(
