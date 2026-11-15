@@ -380,7 +380,7 @@ test_large_input()
     for (segments kind : {segments::mixed, segments::unit})
     {
         const std::vector<std::int64_t> offsets = make_offsets<std::int64_t>(kind, n, gen);
-        const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+        const std::int64_t num_segments = offsets.size() - 1;
         Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
         invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                              out.end(), offsets.begin(), num_segments, std::int64_t{5},
