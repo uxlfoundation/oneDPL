@@ -87,7 +87,7 @@ struct __segmented_reduce_variable_brick
 template <typename _ValueType>
 struct __atomic_result_storage : public __device_storage<_ValueType>
 {
-    bool __is_host = false;  // whether the storage is host USM
+    sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
     sycl::event __zero_done; // the completion of the initial zero on the device, if it is not written by the host
 
     // The view a brick of __parallel_for takes as a range
@@ -127,13 +127,14 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
         {
             this->__usm_buf =
                 std::unique_ptr<_ValueType, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-            __is_host = true;
+            __kind = sycl::usm::alloc::host;
             *__ptr = _ValueType{};
             return;
         }
 
         this->__initialize(__q, 1);
-        if (this->__usm_buf)
+        __kind = this->__usm_buf ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
+        if (__kind == sycl::usm::alloc::device)
             __zero_done = __q.fill(this->__usm_buf.get(), _ValueType{}, 1);
         else
             this->__sycl_buf.get_host_access(sycl::write_only)[0] = _ValueType{};
@@ -147,12 +148,11 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
         return __view{this->__usm_buf.get(), {}};
     }
 
-    _ValueType
-    __get()
+    void
+    __copy_result(_ValueType* __dst, std::size_t __n)
     {
-        _ValueType __value = {};
-        this->__copy_n(&__value, __is_host ? this->__usm_buf.get() : nullptr, 1, 0);
-        return __value;
+        this->__copy_n(__dst, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr,
+                       std::min<std::size_t>(__n, 1), /*offset*/ 0);
     }
 };
 
@@ -1221,7 +1221,9 @@ struct __parallel_reduce_by_segment_offsets
             .event()
             .wait_and_throw();
 
-        return __max_long_segment_length.__get();
+        std::uint32_t __max_length = 0;
+        __max_long_segment_length.__copy_result(&__max_length, 1);
+        return __max_length;
     }
 
     // Reduces segments longer than __min_length in chunks; __max_segments bounds their number
