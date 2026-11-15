@@ -59,13 +59,16 @@ class __pfor_params
     static std::integral_constant<std::uint8_t, __max_vector_size>
     __brick_max_vector_size(...);
 
-  public:
-    constexpr static bool __can_vectorize =
+    constexpr static bool __is_vectorizable_type =
         (std::is_fundamental_v<oneapi::dpl::__internal::__value_t<_Ranges>> && ...) && __min_type_size < 4;
+
+  public:
     // Vectorize for small types, so we generate 128-byte load / stores in a sub-group, up to the limit of the brick
     constexpr static std::uint8_t __vector_size = std::min<std::uint8_t>(
-        __can_vectorize ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, __min_type_size) : 1,
+        __is_vectorizable_type ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, __min_type_size) : 1,
         decltype(__brick_max_vector_size<_Brick>(0))::value);
+    // The brick takes its vectorized path only for vectors of more than one element
+    constexpr static bool __can_vectorize = __vector_size > 1;
     constexpr static std::uint8_t __iters_per_item =
         std::max<std::uint8_t>(1, __bytes_per_item / (__min_type_size * __vector_size));
 };
