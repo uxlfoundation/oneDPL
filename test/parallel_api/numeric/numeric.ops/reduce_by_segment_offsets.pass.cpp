@@ -60,7 +60,7 @@ make_offsets(segments kind, std::size_t size, std::mt19937& gen)
 {
     const Offset n = size;
     std::vector<Offset> bounds{0};
-    auto add = [&bounds](Offset length) { bounds.push_back(Offset(bounds.back() + length)); };
+    auto add = [&bounds](Offset length) { bounds.push_back(bounds.back() + length); };
     switch (kind)
     {
     case segments::one:
@@ -72,29 +72,29 @@ make_offsets(segments kind, std::size_t size, std::mt19937& gen)
         break;
     case segments::equal:
         while (bounds.back() < n)
-            add(Offset(1 + n / 10));
+            add(1 + n / 10);
         break;
     case segments::mixed:
     {
         // The long segment has three quarters of the input: every operation reduces a long segment
-        std::uniform_int_distribution<std::int64_t> length(0, 2 + std::int64_t(n) / 32);
+        std::uniform_int_distribution<std::int64_t> length(0, 2 + n / 32);
         auto add_random = [&](Offset end) {
             while (bounds.back() < end)
-                add(std::min<Offset>(Offset(length(gen)), end - bounds.back()));
+                add(std::min<Offset>(length(gen), end - bounds.back()));
         };
         add(Offset{0});
         add(std::min<Offset>(1, n));
-        add_random(Offset(n / 8));
+        add_random(n / 8);
         add(std::min<Offset>(n * 3 / 4, n - bounds.back()));
         add_random(n);
         add(Offset{0});
         break;
     }
     case segments::all_empty:
-        bounds.assign(5, Offset(n / 2));
+        bounds.assign(5, n / 2);
         break;
     case segments::inner:
-        bounds.assign(1, Offset(n / 4));
+        bounds.assign(1, n / 4);
         while (bounds.back() < n - n / 4)
             add(std::min<Offset>(1 + n / 8, n - n / 4 - bounds.back()));
         break;
