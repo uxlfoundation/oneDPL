@@ -301,7 +301,7 @@ test_segments(Init init, BinaryOp op, Generator generator, Out unwritten)
     {
         Sequence<T> in(n, generator);
         const std::vector<Offset> offsets = make_offsets<Offset>(segments::mixed, n, gen);
-        const SegmentNum num_segments = SegmentNum(offsets.size() - 1);
+        const SegmentNum num_segments = offsets.size() - 1;
         Sequence<Out> out(num_segments, [unwritten](std::size_t) { return unwritten; });
         invoke_on_all_policies<CallNumber * 2>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                                  out.end(), offsets.begin(), num_segments, init, op, unwritten);
@@ -321,7 +321,7 @@ test_segments(Init init, BinaryOp op, Generator generator, Out unwritten)
     const std::size_t n = 1000;
     Sequence<T> in(n, generator);
     const std::vector<Offset> offsets = make_offsets<Offset>(segments::mixed, n, gen);
-    const SegmentNum num_segments = SegmentNum(offsets.size() - 1);
+    const SegmentNum num_segments = offsets.size() - 1;
     Sequence<Out> out(num_segments, [unwritten](std::size_t) { return unwritten; });
     invoke_on_all_policies<CallNumber * 2 + 1>()(test_reduce_by_segment_offsets(), in.cbegin(), in.cend(),
                                                  out.begin(), out.end(), offsets.begin(), num_segments, init, op,
@@ -340,7 +340,7 @@ test_edge_segment_distributions()
         for (segments kind : {segments::one, segments::unit, segments::equal, segments::all_empty})
         {
             const std::vector<int> offsets = make_offsets<int>(kind, n, gen);
-            const int num_segments = int(offsets.size() - 1);
+            const int num_segments = offsets.size() - 1;
             Sequence<int> out(std::max(num_segments, 1), [](std::size_t) { return -1; });
             invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                                  out.end(), offsets.begin(), num_segments, 5, std::plus<int>{}, -1);
@@ -361,7 +361,7 @@ test_fixed_length_segments()
         {
             auto offsets = oneapi::dpl::make_transform_iterator(oneapi::dpl::counting_iterator<std::int64_t>(0),
                                                                 segment_begin{length});
-            const std::int64_t num_segments = std::int64_t(n / length + 2);
+            const std::int64_t num_segments = n / length + 2;
             Sequence<int> out(num_segments, [](std::size_t) { return -1; });
             invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                                  out.end(), offsets, num_segments, 5, std::plus<int>{}, -1);
@@ -396,7 +396,7 @@ test_boundaries()
             for (std::int64_t i = 0; i < short_ones; ++i)
                 offsets.push_back(offsets.back() + 1);
         }
-        const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+        const std::int64_t num_segments = offsets.size() - 1;
         Sequence<int> in(offsets.back(), [](std::size_t i) { return int(i % 101) - 50; });
         Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
         invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
@@ -423,7 +423,7 @@ test_input_bounds()
         for (segments kind : {segments::mixed, segments::inner, segments::out_of_bounds})
         {
             const std::vector<std::int64_t> offsets = make_offsets<std::int64_t>(kind, n, gen);
-            const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+            const std::int64_t num_segments = offsets.size() - 1;
             Sequence<std::int64_t> out(std::max<std::size_t>(num_segments, 1), [](std::size_t) { return -1; });
             invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), guarded.begin() + guard_length,
                                                  guarded.begin() + guard_length + n, out.begin(), out.end(),
@@ -451,7 +451,7 @@ test_usm()
     for (segments kind : {segments::mixed, segments::all_empty})
     {
         std::vector<int> offsets = make_offsets<int>(kind, n, gen);
-        const int num_segments = int(offsets.size() - 1);
+        const int num_segments = offsets.size() - 1;
         std::vector<int> expected(num_segments), result(num_segments);
         reduce_by_segment_offsets_serial(in.begin() + guard_length, in.begin() + guard_length + n, offsets.begin(),
                                          num_segments, 5, std::plus<int>{}, expected.begin());
@@ -486,7 +486,7 @@ test_usm_vector_edges()
     for (int round = 0; round < 3; ++round)
         for (int length : lengths)
             offsets.push_back(offsets.back() + length + round);
-    const int num_segments = int(offsets.size() - 1);
+    const int num_segments = offsets.size() - 1;
     const std::size_t n = offsets.back() + 5;
     std::vector<T> in(n + 2 * guard_length, T(poison));
     for (std::size_t i = 0; i < n; ++i)
@@ -522,7 +522,7 @@ test_buffer()
     for (segments kind : {segments::mixed, segments::all_empty})
     {
         std::vector<int> offsets = make_offsets<int>(kind, n, gen);
-        const int num_segments = int(offsets.size() - 1);
+        const int num_segments = offsets.size() - 1;
         std::vector<int> expected(num_segments), result(num_segments, -1);
         reduce_by_segment_offsets_serial(in.begin() + guard_length, in.begin() + guard_length + n, offsets.begin(),
                                          num_segments, 5, std::plus<int>{}, expected.begin());
@@ -562,7 +562,7 @@ test_counting_input()
         for (int i = 0; i < 500; ++i)
             offsets.push_back(offsets.back() + 1 + i % 3);
     }
-    const int num_segments = int(offsets.size() - 1);
+    const int num_segments = offsets.size() - 1;
     const oneapi::dpl::counting_iterator<int> first(0);
     std::vector<std::int64_t> out(num_segments, -1);
     test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, first, first + offsets.back(), out.begin(),
