@@ -614,7 +614,7 @@ test_small_types()
         offsets[i + 1] = offsets[i] + (i == num_segments / 2 + 1 ? 100000 : length(gen));
     std::vector<std::uint8_t> in(offsets.back());
     for (std::size_t i = 0; i < in.size(); ++i)
-        in[i] = std::uint8_t(i * 7919 % 251);
+        in[i] = i * 7919 % 251;
     std::vector<std::uint8_t> out(num_segments, 0xFF);
     // The number of segments of the signed difference type of the offsets, as a size_t one is converted to index them
     const std::int64_t m = num_segments;
