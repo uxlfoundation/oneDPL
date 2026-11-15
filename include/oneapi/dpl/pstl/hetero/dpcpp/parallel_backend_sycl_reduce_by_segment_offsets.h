@@ -279,7 +279,7 @@ struct __segmented_reduce_combine_brick
             return;
         }
         __result[__idx] = oneapi::dpl::__internal::__serial_accumulate<_Acc>(__partials, __first + 1, __last,
-                                                                             _Acc(__partials[__first]), __binary_op);
+                                                                             __partials[__first], __binary_op);
     }
 };
 
