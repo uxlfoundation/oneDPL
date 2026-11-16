@@ -423,16 +423,16 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
 
     // The short segments, one work-item each; the long ones only report the longest length
     // 32 bits: the atomics of every device, and the length is capped by the brick as only its order matters
-    __atomic_result_storage<std::uint32_t> __max_long_segment_length(__q);
+    __atomic_result_storage<std::uint32_t> __max_length_storage(__q);
     __parallel_for(
-        _BackendTag{}, __exec, __max_long_segment_length.__zero_done,
+        _BackendTag{}, __exec, __max_length_storage.__zero_done,
         __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op}, __m,
-        __offsets, __result, __input, __max_long_segment_length.__all_view())
+        __offsets, __result, __input, __max_length_storage.__all_view())
         .event()
         .wait_and_throw();
 
     // The long segments in chunks: at most n / __threshold of them
-    const _Size __max_length = __max_long_segment_length.__load_result();
+    const _Size __max_length = __max_length_storage.__load_result();
     if (__max_length > 0)
         __reduce_in_chunks(__threshold, /*__write_empty=*/false, __max_length, __n / __threshold);
 }
