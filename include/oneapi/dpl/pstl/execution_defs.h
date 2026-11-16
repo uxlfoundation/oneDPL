@@ -124,7 +124,7 @@ template <typename _T, typename...>
 using __returns = _T;
 
 template <typename... _Conditions>
-using __enable_if_all_true = std::void_t<std::enable_if_t<_Conditions::value>...>;
+using __constrained = std::void_t<std::enable_if_t<_Conditions::value>...>;
 
 // TODO: check if __ref_or_copy should really be here
 template <typename _ExecPolicy, typename _T>

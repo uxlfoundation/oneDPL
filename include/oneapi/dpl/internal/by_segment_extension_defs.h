@@ -76,32 +76,30 @@ reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred>
 __internal::__returns<std::pair<OutputIterator1, OutputIterator2>,
-    __internal::__enable_if_all_true<oneapi::dpl::is_execution_policy<std::decay_t<Policy>>,
-                                     std::negation<std::is_integral<OutputIterator1>>>>
+    __internal::__constrained<oneapi::dpl::is_execution_policy<std::decay_t<Policy>>,
+                              std::negation<std::is_integral<OutputIterator1>>>>
 reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                   OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred);
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
 __internal::__returns<std::pair<OutputIterator1, OutputIterator2>,
-    __internal::__enable_if_all_true<oneapi::dpl::is_execution_policy<std::decay_t<Policy>>,
-                                     std::negation<std::is_integral<OutputIterator1>>>>
+    __internal::__constrained<oneapi::dpl::is_execution_policy<std::decay_t<Policy>>,
+                              std::negation<std::is_integral<OutputIterator1>>>>
 reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                   OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred, BinaryOperator binary_op);
 
 template <typename Policy, typename InputIterator, typename OutputIterator, typename SegmentNumT,
           typename OffsetIterator, typename T>
 __internal::__returns<OutputIterator,
-    __internal::__enable_if_all_true<oneapi::dpl::is_execution_policy<std::decay_t<Policy>>,
-                                     std::is_integral<SegmentNumT>>>
+    __internal::__constrained<oneapi::dpl::is_execution_policy<std::decay_t<Policy>>, std::is_integral<SegmentNumT>>>
 reduce_by_segment(Policy&& policy, InputIterator first, InputIterator last, OutputIterator result,
                   SegmentNumT num_segments, OffsetIterator offsets, T init);
 
 template <typename Policy, typename InputIterator, typename OutputIterator, typename SegmentNumT,
           typename OffsetIterator, typename T, typename BinaryOperator>
 __internal::__returns<OutputIterator,
-    __internal::__enable_if_all_true<oneapi::dpl::is_execution_policy<std::decay_t<Policy>>,
-                                     std::is_integral<SegmentNumT>>>
+    __internal::__constrained<oneapi::dpl::is_execution_policy<std::decay_t<Policy>>, std::is_integral<SegmentNumT>>>
 reduce_by_segment(Policy&& policy, InputIterator first, InputIterator last, OutputIterator result,
                   SegmentNumT num_segments, OffsetIterator offsets, T init, BinaryOperator binary_op);
 
