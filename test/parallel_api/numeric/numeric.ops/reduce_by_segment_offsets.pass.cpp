@@ -568,13 +568,13 @@ test_counting_input()
     test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, first, first + offsets.back(), out.begin(),
                                      out.end(), offsets.begin(), num_segments, std::int64_t{5},
                                      std::plus<std::int64_t>{}, std::int64_t{-1});
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
     std::fill(out.begin(), out.end(), -1);
     auto policy = TestUtils::get_dpcpp_test_policy();
     test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameCounting),
                                      first, first + offsets.back(), out.begin(), out.end(), offsets.begin(),
                                      num_segments, std::int64_t{5}, std::plus<std::int64_t>{}, std::int64_t{-1});
-#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
 
 // More segments than a 16-bit difference type can count
@@ -589,13 +589,13 @@ test_narrow_counting_input()
     test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, first, first + n, out.begin(), out.end(),
                                      offsets.begin(), num_segments, std::int64_t{5}, std::plus<std::int64_t>{},
                                      std::int64_t{-1});
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
     std::fill(out.begin(), out.end(), -1);
     auto policy = TestUtils::get_dpcpp_test_policy();
     test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameNarrowCounting), first, first + n,
                                      out.begin(), out.end(), offsets.begin(), num_segments, std::int64_t{5},
                                      std::plus<std::int64_t>{}, std::int64_t{-1});
-#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
 
 // 8-bit values, accumulator and results, and enough segments for the kernels of __parallel_for which would vectorize
@@ -621,17 +621,21 @@ test_small_types()
     test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, in.begin(), in.end(), out.begin(), out.end(),
                                      offsets.begin(), m, std::uint8_t{5}, std::bit_xor<std::uint8_t>{},
                                      std::uint8_t{0xFF});
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
     auto policy = TestUtils::get_dpcpp_test_policy();
     test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameSmallTypes), in.begin(), in.end(),
                                      out.begin(), out.end(), offsets.begin(), m, std::uint8_t{5},
                                      std::bit_xor<std::uint8_t>{}, std::uint8_t{0xFF});
-#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
 
 int
 main()
 {
+#if ONEDPL_FPGA_DEVICE
+    // reduce_by_segment with offsets does not support FPGA policies
+    return done(0);
+#else
     // The operations: the ones of the RFC (sum, min, max, product, logical), the accumulator types of its
     // examples, and the ones of the other reduction tests (a user-defined type, an accumulator which is not
     // default-constructible, bitwise operations)
@@ -718,4 +722,5 @@ main()
 #endif
 
     return done();
+#endif // ONEDPL_FPGA_DEVICE
 }
