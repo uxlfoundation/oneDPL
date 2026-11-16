@@ -275,6 +275,8 @@ reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 fir
     return reduce_by_segment(std::forward<Policy>(policy), first1, last1, first2, result1, result2, std::equal_to<T>());
 }
 
+namespace experimental
+{
 template <typename Policy, typename InputIterator, typename OutputIterator, typename SegmentNumT,
           typename OffsetIterator, typename T, typename BinaryOperator>
 __internal::__returns<OutputIterator,
@@ -291,8 +293,8 @@ reduce_by_segment(Policy&& policy, InputIterator first, InputIterator last, Outp
 
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first, offsets, result);
 
-    return internal::reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first, last, result,
-                                                    num_segments, offsets, init, binary_op);
+    return oneapi::dpl::internal::reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first,
+                                                                 last, result, num_segments, offsets, init, binary_op);
 }
 
 template <typename Policy, typename InputIterator, typename OutputIterator, typename SegmentNumT,
@@ -305,6 +307,8 @@ reduce_by_segment(Policy&& policy, InputIterator first, InputIterator last, Outp
     return reduce_by_segment(std::forward<Policy>(policy), first, last, result, num_segments, offsets, init,
                              std::plus<>());
 }
+
+} // namespace experimental
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred, typename BinaryOperator>

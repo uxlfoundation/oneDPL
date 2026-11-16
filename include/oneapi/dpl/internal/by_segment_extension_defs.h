@@ -89,6 +89,8 @@ __internal::__returns<std::pair<OutputIterator1, OutputIterator2>,
 reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                   OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred, BinaryOperator binary_op);
 
+namespace experimental
+{
 template <typename Policy, typename InputIterator, typename OutputIterator, typename SegmentNumT,
           typename OffsetIterator, typename T>
 __internal::__returns<OutputIterator,
@@ -103,6 +105,7 @@ __internal::__returns<OutputIterator,
 reduce_by_segment(Policy&& policy, InputIterator first, InputIterator last, OutputIterator result,
                   SegmentNumT num_segments, OffsetIterator offsets, T init, BinaryOperator binary_op);
 
+} // namespace experimental
 } // end namespace dpl
 } // end namespace oneapi
 
