@@ -77,9 +77,9 @@ struct __segmented_reduce_variable_brick
     }
 };
 
-// A single value updated by atomics of a kernel and read by the host, zero-initialized. It is host USM where the
-// device supports atomics on it, read by the host directly; else device USM, zeroed by a fill and read by a copy,
-// which costs less on GPUs than the host accessors of a SYCL buffer; without USM, a SYCL buffer.
+// Stores a single zero-initialized value, updated by atomics in a kernel and loaded by the host afterwards.
+// Uses host USM if the device supports atomics on it; otherwise device USM, zeroed by a fill and loaded by a copy,
+// which costs less on GPUs than the host accessors of a SYCL buffer; without USM, falls back to a SYCL buffer.
 template <typename _ValueType>
 struct __atomic_result_storage : public __device_storage<_ValueType>
 {
