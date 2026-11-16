@@ -37,38 +37,38 @@ namespace __par_backend_hetero
 
 // reduce_by_segment with segments defined by offsets
 
-// One work-item per short segment. A longer segment is left to the reduction in chunks and only reports its length,
-// capped as only its square root matters, through an atomic maximum of the device scope.
+// One work-item per short segment. A longer segment is left to the reduction in chunks and only reports its length
+// through an atomic maximum of the device scope; a capped length still selects the same chunk size.
 template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_variable_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
     static constexpr std::uint8_t __vector_size = 1; // one segment or chunk per work-item, in a loop of its length
 
-    _Size __n = {};         // the size of the input
-    _Size __threshold = {}; // the length of the longest short segment
-    _Acc __init;            // the initial value converted to the accumulator type
+    _Size __n = {};                 // the size of the input
+    _Size __short_segment_max = {}; // the length of the longest short segment
+    _Acc __init;                    // the initial value converted to the accumulator type
     mutable _BinaryOperation __binary_op;
 
     template <typename _IsFull, typename _Params, typename _Offsets, typename _Result, typename _Input,
-              typename _MaxLongSegmentLengthBuf>
+              typename _MaxLengthView>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input,
-               _MaxLongSegmentLengthBuf __max_long_segment_length_buf) const
+               _MaxLengthView __max_length_view) const
     {
-        using _MaxLongSegmentLength = oneapi::dpl::__internal::__value_t<_MaxLongSegmentLengthBuf>;
-        using __atomic_ref_t = sycl::atomic_ref<_MaxLongSegmentLength, sycl::memory_order::relaxed,
-                                                sycl::memory_scope::device, sycl::access::address_space::global_space>;
+        using _MaxLength = oneapi::dpl::__internal::__value_t<_MaxLengthView>;
+        using __atomic_ref_t = sycl::atomic_ref<_MaxLength, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                                sycl::access::address_space::global_space>;
 
         const _Size __begin = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__idx], __n);
         const _Size __end = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__idx + 1], __n);
 
-        if (__end - __begin > __threshold)
+        if (__end - __begin > __short_segment_max)
         {
-            __atomic_ref_t __ref(__max_long_segment_length_buf[0]);
+            __atomic_ref_t __ref(__max_length_view[0]);
 
-            __ref.fetch_max(oneapi::dpl::__internal::__clamp_to_size_and_cast<_MaxLongSegmentLength>(
-                __end - __begin, std::numeric_limits<_MaxLongSegmentLength>::max()));
+            __ref.fetch_max(oneapi::dpl::__internal::__clamp_to_size_and_cast<_MaxLength>(
+                __end - __begin, std::numeric_limits<_MaxLength>::max()));
             return;
         }
 
@@ -77,9 +77,9 @@ struct __segmented_reduce_variable_brick
     }
 };
 
-// A single value updated by atomics of a kernel and read by the host, zero-initialized. It is host USM where the
-// device supports atomics on it, read by the host directly; else device USM, zeroed by a fill and read by a copy,
-// which costs less on GPUs than the host accessors of a SYCL buffer; without USM, a SYCL buffer.
+// Stores a single zero-initialized value, updated by atomics in a kernel and loaded by the host afterwards.
+// Uses host USM if the device supports atomics on it; otherwise device USM, zeroed by a fill and loaded by a copy,
+// which costs less on GPUs than the host accessors of a SYCL buffer; without USM, falls back to a SYCL buffer.
 template <typename _ValueType>
 struct __atomic_result_storage : public __device_storage<_ValueType>
 {
@@ -150,11 +150,12 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
             return __view{this->__usm_buf.get(), {}};
     }
 
-    void
-    __copy_result(_ValueType* __dst, std::size_t __n)
+    _ValueType
+    __load_result()
     {
-        this->__copy_n(__dst, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr,
-                       std::min<std::size_t>(__n, 1), /*offset*/ 0);
+        _ValueType __result = {};
+        this->__copy_n(&__result, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr, 1, /*offset*/ 0);
+        return __result;
     }
 };
 
@@ -224,13 +225,13 @@ struct __segmented_reduce_chunk_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _ChunkEnds __chunk_ends, _Offsets __offsets,
                _Partials __partials, _Input __input) const
     {
-        const _Size __chunk = __idx;
-        if (__chunk >= __chunk_ends[__num_segments - 1])
+        const _Size __chunk_idx = __idx;
+        if (__chunk_idx >= __chunk_ends[__num_segments - 1])
             return;
 
         // The segment of the chunk: the first one whose chunks end after it, the last one if no other does
         const _Size __segment_idx = oneapi::dpl::__internal::__pstl_upper_bound(
-            __chunk_ends, _Size{0}, __num_segments - 1, &__chunk, std::less<>{}, oneapi::dpl::identity{},
+            __chunk_ends, _Size{0}, __num_segments - 1, &__chunk_idx, std::less<>{}, oneapi::dpl::identity{},
             oneapi::dpl::identity{});
         const _Size __segment_first_chunk = __segment_idx == 0 ? _Size{0} : __chunk_ends[__segment_idx - 1];
         const _Size __segment_begin =
@@ -241,7 +242,7 @@ struct __segmented_reduce_chunk_brick
                                     (__chunk_ends[__segment_idx] - __segment_first_chunk - 1) * __chunk_size;
 
         // One loop for every chunk, so that the work-items of a sub-group do not diverge into two long loops
-        const _Size __chunk_idx_in_segment = __chunk - __segment_first_chunk;
+        const _Size __chunk_idx_in_segment = __chunk_idx - __segment_first_chunk;
         const bool __is_head = __chunk_idx_in_segment == 0;
         const _Size __chunk_begin =
             __is_head ? __segment_begin : __segment_begin + __head_length + (__chunk_idx_in_segment - 1) * __chunk_size;
@@ -395,10 +396,10 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             .wait_and_throw();
     };
 
-    const _Size __threshold = __segmented_reduce_chunk_tuning::__short_segment_max(__is_gpu);
+    const _Size __short_segment_max = __segmented_reduce_chunk_tuning::__short_segment_max(__is_gpu);
 
     // Long segments on average, or no atomics for the short-segment pass: all the segments in chunks
-    if (__n / __m > __threshold || !__has_device_scope_atomics(__device))
+    if (__n / __m > __short_segment_max || !__has_device_scope_atomics(__device))
     {
         const _Size __max_length =
             __is_gpu
@@ -421,20 +422,19 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     }
 
     // The short segments, one work-item each; the long ones only report the longest length
-    // 32 bits: the atomics of every device, and the length is capped by the brick as only its order matters
-    __atomic_result_storage<std::uint32_t> __max_long_segment_length(__q);
+    // 32 bits: the atomics of every device; the cap of the length by the brick does not change the chunk size
+    __atomic_result_storage<std::uint32_t> __max_length_storage(__q);
     __parallel_for(
-        _BackendTag{}, __exec, __max_long_segment_length.__zero_done,
-        __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op}, __m,
-        __offsets, __result, __input, __max_long_segment_length.__all_view())
+        _BackendTag{}, __exec, __max_length_storage.__zero_done,
+        __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __short_segment_max, __init, __binary_op},
+        __m, __offsets, __result, __input, __max_length_storage.__all_view())
         .event()
         .wait_and_throw();
 
-    // The long segments in chunks: at most n / __threshold of them
-    std::uint32_t __max_length = 0;
-    __max_long_segment_length.__copy_result(&__max_length, 1);
+    // The long segments in chunks: at most n / __short_segment_max of them
+    const _Size __max_length = __max_length_storage.__load_result();
     if (__max_length > 0)
-        __reduce_in_chunks(__threshold, /*__write_empty=*/false, __max_length, __n / __threshold);
+        __reduce_in_chunks(__short_segment_max, /*__write_empty=*/false, __max_length, __n / __short_segment_max);
 }
 
 } // namespace __par_backend_hetero
