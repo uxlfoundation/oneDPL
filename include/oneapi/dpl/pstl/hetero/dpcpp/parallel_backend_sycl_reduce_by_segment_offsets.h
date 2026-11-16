@@ -77,16 +77,15 @@ struct __segmented_reduce_short_brick
     }
 };
 
-// Stores a single zero-initialized value, updated by atomics in a kernel and loaded by the host afterwards.
-// Uses host USM if the device supports atomics on it; otherwise device USM, zeroed by a fill and loaded by a copy,
-// which costs less on GPUs than the host accessors of a SYCL buffer; without USM, falls back to a SYCL buffer.
+// A single zero-initialized value, raised by atomics of a kernel in the scratch, in device memory, and moved into the
+// result on the device, which is host USM where the device has it, as loading device memory on the host costs much on
+// some GPUs; without USM, a SYCL buffer holds both.
 template <typename _ValueType>
-struct __atomic_result_storage : public __device_storage<_ValueType>
+struct __atomic_result_storage : public __combined_storage<_ValueType>
 {
-    sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
     sycl::event __zero_done; // the completion of the initial zero on the device, if it is not written by the host
 
-    // The view a brick of __parallel_for takes as a range
+    // The view of the scratch a brick of __parallel_for takes as a range
     struct __view
     {
         using value_type = _ValueType;
@@ -117,23 +116,10 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
         }
     };
 
-    explicit __atomic_result_storage(sycl::queue& __q)
+    // The scratch comes first in device USM and in the SYCL buffer
+    explicit __atomic_result_storage(sycl::queue& __q) : __combined_storage<_ValueType>(__q, 1, 1)
     {
-        _ValueType* __ptr = nullptr;
-        if (__q.get_device().has(sycl::aspect::usm_atomic_host_allocations))
-            __ptr = __internal::__allocate_usm<_ValueType, sycl::usm::alloc::host>(__q, 1);
-        if (__ptr)
-        {
-            this->__usm_buf =
-                std::unique_ptr<_ValueType, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-            __kind = sycl::usm::alloc::host;
-            *__ptr = _ValueType{};
-            return;
-        }
-
-        this->__initialize(__q, 1);
-        __kind = this->__usm_buf ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
-        if (__kind == sycl::usm::alloc::device)
+        if (this->__usm_buf)
             __zero_done = __q.fill(this->__usm_buf.get(), _ValueType{}, 1);
         else
             this->__sycl_buf.get_host_access(sycl::write_only)[0] = _ValueType{};
@@ -150,12 +136,36 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
             return __view{this->__usm_buf.get(), {}};
     }
 
+    // Valid once the value is moved into the result
     _ValueType
     __load_result()
     {
         _ValueType __result = {};
-        this->__copy_n(&__result, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr, 1, /*offset*/ 0);
+        this->__copy_result(&__result, 1);
         return __result;
+    }
+};
+
+template <typename... _Name>
+class __segmented_reduce_publish_kernel;
+
+// Moves the value of an __atomic_result_storage from its scratch into its result, by one work-item after an event
+template <typename _KernelName>
+struct __segmented_reduce_publish_submitter;
+
+template <typename... _Name>
+struct __segmented_reduce_publish_submitter<__internal::__optional_kernel_name<_Name...>>
+{
+    template <typename _ValueType>
+    sycl::event
+    operator()(sycl::queue& __q, const sycl::event& __e, __atomic_result_storage<_ValueType>& __storage) const
+    {
+        return __q.submit([&](sycl::handler& __cgh) {
+            __cgh.depends_on(__e);
+            auto __scratch_acc = __get_accessor(sycl::read_only, __storage, __cgh);
+            auto __result_acc = __get_result_accessor(sycl::write_only, __storage, __cgh, __dpl_sycl::__no_init{});
+            __cgh.single_task<_Name...>([=]() { __result_acc.__data()[0] = __scratch_acc.__data()[0]; });
+        });
     }
 };
 
@@ -424,12 +434,14 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     // The short segments, one work-item each; the long ones only report the longest length
     // 32 bits: the atomics of every device; the cap of the length by the brick does not change the chunk size
     __atomic_result_storage<std::uint32_t> __max_length_storage(__q);
-    __parallel_for(
-        _BackendTag{}, __exec, __max_length_storage.__zero_done,
-        __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{__n, __short_segment_max, __init, __binary_op},
-        __m, __offsets, __result, __input, __max_length_storage.__all_view())
-        .event()
-        .wait_and_throw();
+    sycl::event __short_done = __parallel_for(_BackendTag{}, __exec, __max_length_storage.__zero_done,
+                                              __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{
+                                                  __n, __short_segment_max, __init, __binary_op},
+                                              __m, __offsets, __result, __input, __max_length_storage.__all_view())
+                                   .event();
+    using _PublishKernel = __internal::__kernel_name_provider<
+        __segmented_reduce_publish_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+    __segmented_reduce_publish_submitter<_PublishKernel>{}(__q, __short_done, __max_length_storage).wait_and_throw();
 
     // The long segments in chunks: at most n / __short_segment_max of them
     const _Size __max_length = __max_length_storage.__load_result();
