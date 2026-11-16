@@ -45,9 +45,9 @@ struct __segmented_reduce_variable_brick
     static constexpr std::uint8_t __iters_per_item = 1;
     static constexpr std::uint8_t __vector_size = 1; // one segment or chunk per work-item, in a loop of its length
 
-    _Size __n = {};         // the size of the input
-    _Size __threshold = {}; // the length of the longest short segment
-    _Acc __init;            // the initial value converted to the accumulator type
+    _Size __n = {};                 // the size of the input
+    _Size __short_segment_max = {}; // the length of the longest short segment
+    _Acc __init;                    // the initial value converted to the accumulator type
     mutable _BinaryOperation __binary_op;
 
     template <typename _IsFull, typename _Params, typename _Offsets, typename _Result, typename _Input,
@@ -63,7 +63,7 @@ struct __segmented_reduce_variable_brick
         const _Size __begin = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__idx], __n);
         const _Size __end = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__idx + 1], __n);
 
-        if (__end - __begin > __threshold)
+        if (__end - __begin > __short_segment_max)
         {
             __atomic_ref_t __ref(__max_length_view[0]);
 
@@ -396,10 +396,10 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
             .wait_and_throw();
     };
 
-    const _Size __threshold = __segmented_reduce_chunk_tuning::__short_segment_max(__is_gpu);
+    const _Size __short_segment_max = __segmented_reduce_chunk_tuning::__short_segment_max(__is_gpu);
 
     // Long segments on average, or no atomics for the short-segment pass: all the segments in chunks
-    if (__n / __m > __threshold || !__has_device_scope_atomics(__device))
+    if (__n / __m > __short_segment_max || !__has_device_scope_atomics(__device))
     {
         const _Size __max_length =
             __is_gpu
@@ -426,15 +426,15 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     __atomic_result_storage<std::uint32_t> __max_length_storage(__q);
     __parallel_for(
         _BackendTag{}, __exec, __max_length_storage.__zero_done,
-        __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op}, __m,
-        __offsets, __result, __input, __max_length_storage.__all_view())
+        __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __short_segment_max, __init, __binary_op},
+        __m, __offsets, __result, __input, __max_length_storage.__all_view())
         .event()
         .wait_and_throw();
 
-    // The long segments in chunks: at most n / __threshold of them
+    // The long segments in chunks: at most n / __short_segment_max of them
     const _Size __max_length = __max_length_storage.__load_result();
     if (__max_length > 0)
-        __reduce_in_chunks(__threshold, /*__write_empty=*/false, __max_length, __n / __threshold);
+        __reduce_in_chunks(__short_segment_max, /*__write_empty=*/false, __max_length, __n / __short_segment_max);
 }
 
 } // namespace __par_backend_hetero
