@@ -56,9 +56,9 @@ struct __segmented_reduce_variable_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input,
                _MaxLengthView __max_length_view) const
     {
-        using _MaxLongSegmentLength = oneapi::dpl::__internal::__value_t<_MaxLengthView>;
-        using __atomic_ref_t = sycl::atomic_ref<_MaxLongSegmentLength, sycl::memory_order::relaxed,
-                                                sycl::memory_scope::device, sycl::access::address_space::global_space>;
+        using _MaxLength = oneapi::dpl::__internal::__value_t<_MaxLengthView>;
+        using __atomic_ref_t = sycl::atomic_ref<_MaxLength, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                                sycl::access::address_space::global_space>;
 
         const _Size __begin = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__idx], __n);
         const _Size __end = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__idx + 1], __n);
@@ -67,8 +67,8 @@ struct __segmented_reduce_variable_brick
         {
             __atomic_ref_t __ref(__max_length_view[0]);
 
-            __ref.fetch_max(oneapi::dpl::__internal::__clamp_to_size_and_cast<_MaxLongSegmentLength>(
-                __end - __begin, std::numeric_limits<_MaxLongSegmentLength>::max()));
+            __ref.fetch_max(oneapi::dpl::__internal::__clamp_to_size_and_cast<_MaxLength>(
+                __end - __begin, std::numeric_limits<_MaxLength>::max()));
             return;
         }
 
