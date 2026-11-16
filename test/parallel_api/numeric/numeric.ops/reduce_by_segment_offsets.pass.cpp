@@ -454,6 +454,68 @@ test_pieces()
                                          std::plus<std::int64_t>{}, std::int64_t{-1});
 }
 
+// Long runs of empty segments, which the flat path on GPUs skips by a search once a sub-group of them begins at one
+// element: runs about the sub-group size and far longer, at the start of the input, at the start of a piece, inside a
+// piece and at the end of the input, after a long segment or after tiny ones, and before a short segment
+template <std::size_t CallNumber>
+void
+test_empty_runs()
+{
+#if PSTL_USE_DEBUG
+    // A smaller input and the run lengths at the sub-group size only, for the time of the test in debug builds
+    const std::int64_t n = 300000; // above the path of a work-group per segment
+    const std::vector<std::int64_t> runs{32, 65};
+#else
+    const std::int64_t n = 1016000;
+    const std::vector<std::int64_t> runs{31, 32, 33, 64, 65, 1000, 100000};
+#endif
+    std::int64_t piece = 512; // the elements of a piece of a sub-group of 32 work-items
+#if TEST_DPCPP_BACKEND_PRESENT
+    const auto geometry = oneapi::dpl::__par_backend_hetero::__segmented_reduce_flat_tuning::__geometry(
+        TestUtils::get_dpcpp_test_policy().queue(), n);
+    piece = geometry.__inputs_per_item * oneapi::dpl::__par_backend_hetero::__segmented_reduce_flat_tuning::__sub_group_size;
+    EXPECT_TRUE(!oneapi::dpl::__par_backend_hetero::__segmented_reduce_group_tuning::__applies(
+                    TestUtils::get_dpcpp_test_policy().queue(), n, n),
+                "test_empty_runs takes the path of a work-group per segment instead of the flat one");
+#endif
+
+    Sequence<int> in(n, [](std::size_t i) { return int(i % 101) - 50; });
+    for (std::int64_t run : runs)
+    {
+        for (std::int64_t at : {std::int64_t{0}, piece * 7, piece * 7 + 5, n})
+        {
+            for (bool tiny_before : {false, true})
+            {
+                if (tiny_before && at < 3)
+                    continue;
+
+                std::vector<std::int64_t> offsets{0};
+                auto add = [&offsets](std::int64_t length) { offsets.push_back(offsets.back() + length); };
+                add(at - (tiny_before ? 3 : 0));
+                if (tiny_before)
+                {
+                    add(1);
+                    add(2);
+                }
+                for (std::int64_t i = 0; i < run; ++i)
+                    add(0);
+                if (at < n)
+                {
+                    add(3);
+                    add(n - offsets.back());
+                }
+                EXPECT_EQ(n, offsets.back(), "the last offset of test_empty_runs is not the end of the input");
+
+                const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+                Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+                invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                                     out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                                     std::plus<std::int64_t>{}, std::int64_t{-1});
+            }
+        }
+    }
+}
+
 // The input is the middle of a larger sequence, whose other elements are poison: a read out of the bounds of the input
 // changes a result
 constexpr std::size_t guard_length = 1000;
@@ -762,6 +824,7 @@ main()
     test_counting_input();
     test_narrow_counting_input();
     test_pieces<47>();
+    test_empty_runs<48>();
     test_small_types();
 
 #if TEST_DPCPP_BACKEND_PRESENT
