@@ -61,24 +61,23 @@ __parallel_for(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _
         return;
     }
 
-    // Conservative empirical estimate:
-    // the number of elements per thread up to which dynamic scheduling costs more
-    // than the imbalance it removes.
-    constexpr std::size_t __static_schedule_max_elements_per_thread = 8192;
+    // Empirical estimate:
+    // dynamic scheduling pays off once __chunk_partitioner can form the nominal number of chunks per thread.
+    // TODO: move this decision to __chunk_partitioner if it is beneficial in other patterns.
     const std::size_t __num_threads = omp_get_max_threads();
-
-    if (__n <= __num_threads * __static_schedule_max_elements_per_thread)
+    if (__n <= __num_threads * oneapi::dpl::__omp_backend::__nominal_chunks_per_thread * __grainsize)
     {
         // Static scheduling has almost no cost per chunk, so finer-grained chunks can be used:
-        // they can use more threads in case small number of elements
-        constexpr std::size_t __static_schedule_min_chunk_size = 64;
-        const auto __static_policy = oneapi::dpl::__omp_backend::__chunk_partitioner(
-            __first, __last, __num_threads, std::min(__static_schedule_min_chunk_size, __grainsize));
+        // they let a small input use more threads.
+        // 64 is chosen for vectorization even with vectors as wide as 512-bit and types as narrow as 8-bits.
+        constexpr std::size_t __static_chunk_size = 64;
+        const auto __shape = oneapi::dpl::__omp_backend::__chunk_partitioner(
+            __first, __last, __num_threads, std::min(__static_chunk_size, __grainsize));
 
         _ONEDPL_PRAGMA(omp parallel for schedule(static, 1))
-        for (std::size_t __chunk = 0; __chunk < __static_policy.__n_chunks; ++__chunk)
+        for (std::size_t __chunk = 0; __chunk < __shape.__n_chunks; ++__chunk)
         {
-            oneapi::dpl::__omp_backend::__process_chunk(__static_policy, __first, __chunk, __f);
+            oneapi::dpl::__omp_backend::__process_chunk(__shape, __first, __chunk, __f);
         }
     }
     else
@@ -99,7 +98,7 @@ __parallel_for(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _
         // In libiomp, monotonic scheduling empirically shows better results
         // even on CPUs with hybrid cores with uneven workload.
         // In libgomp, there is no observable difference between monotonic and nonmonotonic modifiers.
-        // Generally, nonmonotonic (default dynamic) scheduling should be more performant,
+        // Generally, nonmonotonic scheduling should be more performant,
         // thus enabling it by default with other implementations.
 #if defined(KMP_VERSION_MAJOR)
         _ONEDPL_PRAGMA(omp parallel for schedule(monotonic : dynamic, __chunks_per_dispatch))
