@@ -225,13 +225,13 @@ struct __segmented_reduce_chunk_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _ChunkEnds __chunk_ends, _Offsets __offsets,
                _Partials __partials, _Input __input) const
     {
-        const _Size __chunk = __idx;
-        if (__chunk >= __chunk_ends[__num_segments - 1])
+        const _Size __chunk_idx = __idx;
+        if (__chunk_idx >= __chunk_ends[__num_segments - 1])
             return;
 
         // The segment of the chunk: the first one whose chunks end after it, the last one if no other does
         const _Size __segment_idx = oneapi::dpl::__internal::__pstl_upper_bound(
-            __chunk_ends, _Size{0}, __num_segments - 1, &__chunk, std::less<>{}, oneapi::dpl::identity{},
+            __chunk_ends, _Size{0}, __num_segments - 1, &__chunk_idx, std::less<>{}, oneapi::dpl::identity{},
             oneapi::dpl::identity{});
         const _Size __segment_first_chunk = __segment_idx == 0 ? _Size{0} : __chunk_ends[__segment_idx - 1];
         const _Size __segment_begin =
@@ -242,7 +242,7 @@ struct __segmented_reduce_chunk_brick
                                     (__chunk_ends[__segment_idx] - __segment_first_chunk - 1) * __chunk_size;
 
         // One loop for every chunk, so that the work-items of a sub-group do not diverge into two long loops
-        const _Size __chunk_idx_in_segment = __chunk - __segment_first_chunk;
+        const _Size __chunk_idx_in_segment = __chunk_idx - __segment_first_chunk;
         const bool __is_head = __chunk_idx_in_segment == 0;
         const _Size __chunk_begin =
             __is_head ? __segment_begin : __segment_begin + __head_length + (__chunk_idx_in_segment - 1) * __chunk_size;
