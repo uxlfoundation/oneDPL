@@ -150,11 +150,12 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
             return __view{this->__usm_buf.get(), {}};
     }
 
-    void
-    __copy_result(_ValueType* __dst, std::size_t __n)
+    _ValueType
+    __load_result()
     {
-        this->__copy_n(__dst, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr,
-                       std::min<std::size_t>(__n, 1), /*offset*/ 0);
+        _ValueType __result = {};
+        this->__copy_n(&__result, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr, 1, /*offset*/ 0);
+        return __result;
     }
 };
 
@@ -431,8 +432,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
         .wait_and_throw();
 
     // The long segments in chunks: at most n / __threshold of them
-    std::uint32_t __max_length = 0;
-    __max_long_segment_length.__copy_result(&__max_length, 1);
+    const _Size __max_length = __max_long_segment_length.__load_result();
     if (__max_length > 0)
         __reduce_in_chunks(__threshold, /*__write_empty=*/false, __max_length, __n / __threshold);
 }
