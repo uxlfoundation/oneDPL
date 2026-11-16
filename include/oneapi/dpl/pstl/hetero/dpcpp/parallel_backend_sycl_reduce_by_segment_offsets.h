@@ -37,8 +37,8 @@ namespace __par_backend_hetero
 
 // reduce_by_segment with segments defined by offsets
 
-// One work-item per short segment. A longer segment is left to the reduction in chunks and only reports its length,
-// capped as only its square root matters, through an atomic maximum of the device scope.
+// One work-item per short segment. A longer segment is left to the reduction in chunks and only reports its length
+// through an atomic maximum of the device scope; a capped length still selects the same chunk size.
 template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_variable_brick
 {
@@ -422,7 +422,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     }
 
     // The short segments, one work-item each; the long ones only report the longest length
-    // 32 bits: the atomics of every device, and the length is capped by the brick as only its order matters
+    // 32 bits: the atomics of every device; the cap of the length by the brick does not change the chunk size
     __atomic_result_storage<std::uint32_t> __max_length_storage(__q);
     __parallel_for(
         _BackendTag{}, __exec, __max_length_storage.__zero_done,
