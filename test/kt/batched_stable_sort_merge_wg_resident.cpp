@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- batched_stable_sort_merge_wg_resident.cpp -------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Copyright (C) UXL Foundation Contributors
 //
