@@ -74,6 +74,10 @@ __parallel_for(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _
         const auto __shape = oneapi::dpl::__omp_backend::__chunk_partitioner(
             __first, __last, __num_threads, std::min(__static_chunk_size, __grainsize));
 
+        // schedule(static, 1) is chosen over schedule(static) because it distributes chunks round-robin among threads.
+        // It improves performance with workloads that concentrate the work in some parts of the iteration space
+        // and with early-exit algorithms with first-match semantics.
+        // The overhead is minimal when the work is evenly distributed.
         _ONEDPL_PRAGMA(omp parallel for schedule(static, 1))
         for (std::size_t __chunk = 0; __chunk < __shape.__n_chunks; ++__chunk)
         {
