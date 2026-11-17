@@ -346,7 +346,7 @@ __parallel_reduce_by_segment_offsets_fill(_BackendTag, _ExecutionPolicy&& __exec
 // A short segment is reduced by one work-item. A long segment is split into chunks, each reduced by one work-item, and
 // the partial results of the segment are combined by one work-item. The values below were measured on GPUs and CPUs
 // as SYCL devices.
-struct __segmented_reduce_chunk_tuning
+class __segmented_reduce_chunk_tuning
 {
     // A segment up to this length is short
     static constexpr std::size_t __gpu_short_segment_max = 512;
@@ -358,6 +358,7 @@ struct __segmented_reduce_chunk_tuning
     static constexpr std::size_t __gpu_max_chunk_size = 16384;
     static constexpr std::size_t __cpu_chunk_size = 4096;
 
+  public:
     static std::size_t
     __short_segment_max(bool __is_gpu)
     {
