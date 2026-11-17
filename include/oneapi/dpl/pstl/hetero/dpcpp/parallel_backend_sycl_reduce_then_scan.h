@@ -237,7 +237,7 @@ struct __write_to_id_if
         using _RepackedTp = oneapi::dpl::__internal::__repacked_tuple_t<decltype(__out_rng[0])>;
 
         if (std::get<1>(__v))
-            __assign(std::get<2>(__v), _RepackedTp{__out_rng[std::get<0>(__v) - 1 + __offset]});
+            __assign(std::get<2>(__v), /*_RepackedTp{*/__out_rng[std::get<0>(__v) - 1 + __offset]);//});
     }
 
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _OnOOBReached>
@@ -250,7 +250,7 @@ struct __write_to_id_if
             const std::size_t __out_idx = std::get<0>(__v) - 1 + __offset;
 
             if (__out_idx < __out_size)
-                __assign(std::get<2>(__v), _RepackedTp{__out_rng[__out_idx]});
+                __assign(std::get<2>(__v), /*_RepackedTp{*/__out_rng[__out_idx]);//});
             if (__out_idx == __out_size)
                 __on_oob_reached(__id, __id);
         }

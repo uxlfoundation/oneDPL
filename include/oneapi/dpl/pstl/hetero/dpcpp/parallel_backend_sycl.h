@@ -487,7 +487,8 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
                 __gather_output(__lm_ptr, __item_id, std::uint16_t(__n), __wg_size, __n_uniform,
                                 [=](std::uint16_t __idx, std::uint16_t __out_idx) { // writing a single element
                                     if (__out_idx < __n_out)
-                                        __assign(__in_rng[__idx], __repacked_out_type{__out_rng[__out_idx]});
+//                                        __assign(__in_rng[__idx], __repacked_out_type{__out_rng[__out_idx]});
+                                        __assign(__in_rng[__idx], __out_rng[__out_idx]);
                                     // record input stop position if output capacity is reached
                                     if (__out_idx == __n_out)
                                         __lm_ptr[2 * __n_uniform] = __idx;
