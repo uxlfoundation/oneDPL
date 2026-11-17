@@ -12,15 +12,17 @@ Both in-place and out-of-place overloads are provided. Out-of-place overloads do
 
 The algorithm is selected at compile time with a sort configuration type:
 
-- ``merge_single_group_tag<Compare>``: a work-group merge path sort, ordering keys with the comparator ``Compare``.
-  Each segment is sorted by a single work-group, and multiple segments may be packed into one work-group.
-- ``radix_single_group_tag<IsAscending, RadixBits>``: a one work-group radix sort. Each segment is sorted by a single
-  work-group, and multiple segments may be packed into one work-group.
-- ``radix_many_groups_tag<IsAscending, RadixBits>``: a segmented Onesweep* [#fnote1]_ radix sort. Each segment may be
+- ``merge_wg_resident_tag<Compare>``: a work-group resident merge path sort, ordering keys with the comparator
+  ``Compare``.
+- ``radix_wg_resident_tag<IsAscending, RadixBits>``: a work-group resident radix sort.
+- ``radix_multi_wg_tag<IsAscending, RadixBits>``: a segmented Onesweep* [#fnote1]_ radix sort, where each segment may be
   sorted by multiple work-groups.
 
+With the work-group resident configurations, each segment is sorted entirely within a single work-group, and multiple
+segments may be packed into one work-group. A call may still use many work-groups to cover all segments.
+
 The sort configuration also selects the sort order: ``IsAscending`` for the radix configurations, and the comparator for
-``merge_single_group_tag``, where ``std::less<>`` (the default) sorts in ascending order and ``std::greater<>`` in
+``merge_wg_resident_tag``, where ``std::less<>`` (the default) sorts in ascending order and ``std::greater<>`` in
 descending order. For inputs without NaNs, every configuration with the same order produces the same output, so the
 configuration may be chosen for performance alone (see :ref:`Selecting a Sort Configuration
 <batched-sort-selecting-config>`).
@@ -28,10 +30,10 @@ configuration may be chosen for performance alone (see :ref:`Selecting a Sort Co
 .. note::
    The requirements of ``batched_stable_sort`` depend on the sort configuration:
 
-   - ``merge_single_group_tag`` has no additional requirements.
-   - ``radix_single_group_tag`` requires a compiler with ``SYCL_EXT_ONEAPI_SUB_GROUP_MASK`` support, and a device
+   - ``merge_wg_resident_tag`` has no additional requirements.
+   - ``radix_wg_resident_tag`` requires a compiler with ``SYCL_EXT_ONEAPI_SUB_GROUP_MASK`` support, and a device
      which supports a sub-group size of `32`.
-   - ``radix_many_groups_tag`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max Series.
+   - ``radix_multi_wg_tag`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max Series.
      The Intel® oneAPI DPC++/C++ Compiler 2025.1.0 or greater is required, and the Unified Runtime adapter over
      Level Zero must be used (which is the default adapter for Intel GPUs). For more information, please refer to
      |dpcpp_device_selection|_.
@@ -48,13 +50,13 @@ A synopsis of the ``batched_stable_sort`` function is provided below:
 
    // Sort configurations
    template <typename Compare = std::less<>>
-   struct merge_single_group_tag;
+   struct merge_wg_resident_tag;
 
    template <bool IsAscending = true, std::uint8_t RadixBits = 8>
-   struct radix_single_group_tag;
+   struct radix_wg_resident_tag;
 
    template <bool IsAscending = true, std::uint8_t RadixBits = 8>
-   struct radix_many_groups_tag;
+   struct radix_multi_wg_tag;
 
    // Sort in-place
    template <typename SortConfig,
@@ -109,18 +111,18 @@ Template Parameters
 +-----------------------------+---------------------------------------------------------------------------------------+
 | Name                        | Description                                                                           |
 +=============================+=======================================================================================+
-| ``typename SortConfig``     | The sort configuration: ``merge_single_group_tag``, ``radix_single_group_tag``, or    |
-|                             | ``radix_many_groups_tag``. It has no default value and must always be specified.      |
+| ``typename SortConfig``     | The sort configuration: ``merge_wg_resident_tag``, ``radix_wg_resident_tag``, or      |
+|                             | ``radix_multi_wg_tag``. It has no default value and must always be specified.         |
 +-----------------------------+---------------------------------------------------------------------------------------+
-| ``typename Compare``        | The comparator of keys of ``merge_single_group_tag``, which also determines the sort  |
+| ``typename Compare``        | The comparator of keys of ``merge_wg_resident_tag``, which also determines the sort   |
 |                             | order. Ascending: ``std::less<>`` (default); Descending: ``std::greater<>``. See the  |
 |                             | type requirements below.                                                              |
 +-----------------------------+---------------------------------------------------------------------------------------+
-| ``bool IsAscending``        | The sort order of ``radix_single_group_tag`` and ``radix_many_groups_tag``.           |
+| ``bool IsAscending``        | The sort order of ``radix_wg_resident_tag`` and ``radix_multi_wg_tag``.               |
 |                             | Ascending: ``true`` (default); Descending: ``false``.                                 |
 +-----------------------------+---------------------------------------------------------------------------------------+
 | ``std::uint8_t RadixBits``  | The number of bits to sort for each radix sort algorithm pass                         |
-|                             | (``radix_single_group_tag`` and ``radix_many_groups_tag`` only).                      |
+|                             | (``radix_wg_resident_tag`` and ``radix_multi_wg_tag`` only).                          |
 +-----------------------------+---------------------------------------------------------------------------------------+
 | ``typename KeyT``           | The element type of the sort to query the temporary storage requirements of (5).      |
 +-----------------------------+---------------------------------------------------------------------------------------+
@@ -164,35 +166,35 @@ Parameters
 
 **Type Requirements**:
 
-- For ``radix_single_group_tag`` and ``radix_many_groups_tag``, the element type of the sequence(s) to sort must be one
+- For ``radix_wg_resident_tag`` and ``radix_multi_wg_tag``, the element type of the sequence(s) to sort must be one
   of the following:
 
    - A C++ integral or floating-point type other than ``bool`` with a width of up to 64 bits.
    - ``sycl::half``.
    - ``sycl::ext::oneapi::bfloat16`` (requires Intel® oneAPI DPC++/C++ Compiler 2026.0 or greater).
 
-- For ``merge_single_group_tag``, the element type of the sequence(s) to sort may be any type which is default
+- For ``merge_wg_resident_tag``, the element type of the sequence(s) to sort may be any type which is default
   constructible, copy assignable, and device copyable. ``Compare`` must be default constructible and device copyable,
   and callable in device code with two elements, returning a value convertible to ``bool``. It is default constructed in
   the kernel, so it cannot carry state set on the host.
 
 **Ordering**:
 
-- ``radix_single_group_tag`` and ``radix_many_groups_tag`` order elements as by :doc:`radix_sort <radix_sort>`. For
+- ``radix_wg_resident_tag`` and ``radix_multi_wg_tag`` order elements as by :doc:`radix_sort <radix_sort>`. For
   floating-point elements, ``-0.0`` and ``+0.0`` are equal, so their relative order is preserved, and NaNs are ordered
   by their sign and payload, after ``+infinity`` for positive NaNs and before ``-infinity`` for negative NaNs in
   ascending order.
-- ``merge_single_group_tag`` sorts each segment as ``std::stable_sort`` would with ``Compare``. ``std::less<>`` and
+- ``merge_wg_resident_tag`` sorts each segment as ``std::stable_sort`` would with ``Compare``. ``std::less<>`` and
   ``std::greater<>`` order elements other than NaN as the radix configurations do, including ``-0.0`` and ``+0.0``
   being equal.
 
-**Preconditions**: the behavior is undefined if any of the following are violated. In debug builds, the violations
-are reported with an assertion.
+**Preconditions**: the behavior is undefined if any of the following are violated. In debug builds, violations of
+the requirements on ``segment_size`` and ``n`` are reported with an assertion.
 
 - ``segment_size > 0``, and ``n`` is a multiple of ``segment_size``. If ``n`` is `0`, the call has no effect.
-- For ``merge_single_group_tag`` and ``radix_single_group_tag``,
+- For ``merge_wg_resident_tag`` and ``radix_wg_resident_tag``,
   ``segment_size <= param.data_per_workitem * param.workgroup_size``.
-- For ``merge_single_group_tag``, ``Compare`` induces a strict weak ordering on the input elements.
+- For ``merge_wg_resident_tag``, ``Compare`` induces a strict weak ordering on the input elements.
   In particular, NaN elements are not supported with ``std::less<>`` (the default) or ``std::greater<>``.
 - The output sequence holds at least ``n`` elements.
 - The input and output sequences of the out-of-place overloads do not overlap.
@@ -204,9 +206,9 @@ are reported with an assertion.
    - Number of elements to sort must not exceed 2\ :sup:`30`.
    - ``RadixBits`` can only be `8`.
    - ``param.data_per_workitem * param.workgroup_size`` must not exceed `65535`
-     for ``radix_single_group_tag`` and ``radix_many_groups_tag``.
-   - ``param.workgroup_size`` can be `512` or `1024` for ``radix_many_groups_tag``,
-     and a multiple of `32` no greater than `1024` for ``radix_single_group_tag``.
+     for ``radix_wg_resident_tag`` and ``radix_multi_wg_tag``.
+   - ``param.workgroup_size`` can be `512` or `1024` for ``radix_multi_wg_tag``,
+     and a multiple of `32` no greater than `1024` for ``radix_wg_resident_tag``.
 
 Return Value
 ------------
@@ -214,7 +216,7 @@ Return Value
 (1)-(4): a ``sycl::event`` object representing the status of the algorithm execution.
 
 (5): the number of bytes of temporary storage required for ``total_size`` elements in segments of
-``segment_size`` elements. It is `0` for ``merge_single_group_tag`` and ``radix_single_group_tag``.
+``segment_size`` elements. It is `0` for ``merge_wg_resident_tag`` and ``radix_wg_resident_tag``.
 
 --------------
 Usage Examples
@@ -244,7 +246,7 @@ In-Place Example with Temporary Storage
       sycl::queue q{sycl::gpu_selector_v};
       std::uint32_t* keys = sycl::malloc_shared<std::uint32_t>(n, q);
 
-      using config_t = kt::gpu::radix_many_groups_tag</*IsAscending=*/true, 8>;
+      using config_t = kt::gpu::radix_multi_wg_tag</*IsAscending=*/true, 8>;
       using param_t = kt::kernel_param<8, 512>;
 
       // allocate temporary storage once; it may be reused by sorts with the same requirements
@@ -304,7 +306,7 @@ Out-of-Place Example
       keys[0] = 1, keys[1] = 3, keys[2] = 2, keys[3] = 3, keys[4] = 5, keys[5] = 3;
 
       // sort each segment in descending order
-      using config_t = kt::gpu::merge_single_group_tag<std::greater<>>;
+      using config_t = kt::gpu::merge_wg_resident_tag<std::greater<>>;
       auto e = kt::gpu::batched_stable_sort<config_t>(q, keys, keys + n, keys_out, segment_size,
                                                       kt::kernel_param<4, 64>{}); // (3)
       e.wait();
@@ -343,9 +345,9 @@ a ``std::bad_alloc`` exception is thrown. The behavior is undefined if there is 
 Global Memory Requirements
 --------------------------
 
-``merge_single_group_tag`` and ``radix_single_group_tag`` use no temporary global memory.
+``merge_wg_resident_tag`` and ``radix_wg_resident_tag`` use no temporary global memory.
 
-``radix_many_groups_tag`` uses global memory for copying the input sequence and for radix value counters,
+``radix_multi_wg_tag`` uses global memory for copying the input sequence and for radix value counters,
 which are kept for each segment and for each work-group tile of a segment:
 
    N\ :sub:`keys` + 4 * 2\ :sup:`RadixBits` * S * (G + T)
@@ -359,9 +361,9 @@ For example, with ``std::uint32_t`` keys and ``RadixBits`` set to `8`, each segm
 
 .. warning::
 
-   ``radix_many_groups_tag`` is not recommended for small segments. The counters are kept for every segment
+   ``radix_multi_wg_tag`` is not recommended for small segments. The counters are kept for every segment
    regardless of its length, so as segments get shorter, they take more memory and time than the keys.
-   Use ``merge_single_group_tag`` or ``radix_single_group_tag`` for segments which fit into a work-group.
+   Use ``merge_wg_resident_tag`` or ``radix_wg_resident_tag`` for segments which fit into a work-group.
 
 Local Memory Requirements
 -------------------------
@@ -372,13 +374,13 @@ All configurations use local memory to hold a work-group tile of keys:
 
 where N\ :sub:`keys_per_workgroup` is equal to ``sizeof(key_type) * param.data_per_workitem * param.workgroup_size``.
 
-- For ``merge_single_group_tag``, `C` is `0`. Only the segments which are packed into a work-group are held,
+- For ``merge_wg_resident_tag``, `C` is `0`. Only the segments which are packed into a work-group are held,
   so the requirement is lower when ``param.data_per_workitem * param.workgroup_size`` is not a multiple of
   ``segment_size``.
-- For ``radix_single_group_tag``, `C` is `0`. The radix value counters reuse the memory of the tile,
+- For ``radix_wg_resident_tag``, `C` is `0`. The radix value counters reuse the memory of the tile,
   so the requirement is the larger of the tile and the counters, ``(param.workgroup_size / 32) * 2^RadixBits * 2``
   bytes (`16KB` for ``param.workgroup_size`` set to `1024` and ``RadixBits`` set to `8`).
-- For ``radix_many_groups_tag``, `C` does not exceed `4KB`, as for :doc:`radix_sort <radix_sort>`.
+- For ``radix_multi_wg_tag``, `C` does not exceed `4KB`, as for :doc:`radix_sort <radix_sort>`.
 
 For example, at `64KB` of local memory, a tile is limited to 16K ``std::uint32_t`` keys or 8K ``std::uint64_t`` keys.
 
@@ -411,9 +413,9 @@ Selecting a Sort Configuration
 
 The best configuration depends mainly on the segment size:
 
-- ``merge_single_group_tag`` is usually fastest for short segments (e.g., up to ~256-1K elements).
-- ``radix_single_group_tag`` is usually fastest for longer segments which fit into a work-group tile.
-- ``radix_many_groups_tag`` is required for segments which do not fit into a work-group tile.
+- ``merge_wg_resident_tag`` is usually fastest for short segments (e.g., up to ~256-1K elements).
+- ``radix_wg_resident_tag`` is usually fastest for longer segments which fit into a work-group tile.
+- ``radix_multi_wg_tag`` is required for segments which do not fit into a work-group tile.
   It should not be used for short segments, see :ref:`Global Memory Requirements <batched-sort-memory-requirements>`.
 
 Each call runs a single configuration. A small wrapper may dispatch between them by segment size,
@@ -430,12 +432,12 @@ with ``kernel_param`` tuned independently for each:
       // Thresholds and kernel_params are illustrative; tune them for the target device and types.
       using compare_t = std::conditional_t<IsAscending, std::less<>, std::greater<>>;
       if (segment_size <= 256)
-         return kt::gpu::batched_stable_sort<kt::gpu::merge_single_group_tag<compare_t>>(
+         return kt::gpu::batched_stable_sort<kt::gpu::merge_wg_resident_tag<compare_t>>(
             q, keys, keys + n, keys_out, segment_size, kt::kernel_param<4, 64>{});
       if (segment_size <= 4096)
-         return kt::gpu::batched_stable_sort<kt::gpu::radix_single_group_tag<IsAscending, 8>>(
+         return kt::gpu::batched_stable_sort<kt::gpu::radix_wg_resident_tag<IsAscending, 8>>(
             q, keys, keys + n, keys_out, segment_size, kt::kernel_param<8, 512>{});
-      return kt::gpu::batched_stable_sort<kt::gpu::radix_many_groups_tag<IsAscending, 8>>(
+      return kt::gpu::batched_stable_sort<kt::gpu::radix_multi_wg_tag<IsAscending, 8>>(
          q, keys, keys + n, keys_out, segment_size, kt::kernel_param<8, 512>{});
    }
 
@@ -445,10 +447,10 @@ Selecting Kernel Parameters
 The general advice is to choose kernel parameters based on performance measurements and profiling information.
 The initial configuration may be selected according to these high-level guidelines:
 
-- For ``merge_single_group_tag`` and ``radix_single_group_tag``, the tile,
+- For ``merge_wg_resident_tag`` and ``radix_wg_resident_tag``, the tile,
   ``param.data_per_workitem * param.workgroup_size``, must hold a segment. A larger tile packs more segments
   into a work-group, at the cost of local memory.
-- For ``radix_many_groups_tag``, follow the guidelines for :doc:`radix_sort <radix_sort>`,
+- For ``radix_multi_wg_tag``, follow the guidelines for :doc:`radix_sort <radix_sort>`,
   applied to the segment size rather than to the total number of elements.
 
 .. tip::
