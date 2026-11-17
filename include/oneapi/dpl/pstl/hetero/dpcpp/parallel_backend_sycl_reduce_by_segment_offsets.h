@@ -78,14 +78,14 @@ struct __segmented_reduce_short_brick
 };
 
 template <typename... _Name>
-class __segmented_reduce_load_scratch_data_kernel;
+class __copy_scratch_to_result_kernel;
 
-// Moves the value of a __combined_storage from its scratch into its result, by one work-item after an event
+// Copies the value of a __combined_storage from its scratch into its result, by one work-item after an event
 template <typename _KernelName>
-struct __segmented_reduce_load_scratch_data_submitter;
+struct __copy_scratch_to_result_submitter;
 
 template <typename... _Name>
-struct __segmented_reduce_load_scratch_data_submitter<__internal::__optional_kernel_name<_Name...>>
+struct __copy_scratch_to_result_submitter<__internal::__optional_kernel_name<_Name...>>
 {
     template <typename _ValueType>
     sycl::event
@@ -170,11 +170,10 @@ struct __atomic_result_storage : public __combined_storage<_ValueType>
         // A result in host USM gets the value moved into it; otherwise the host loads the scratch itself
         if (this->__kind == sycl::usm::alloc::host)
         {
-            using _LoadScratchDataKernel =
-                __internal::__kernel_name_provider<__segmented_reduce_load_scratch_data_kernel<
-                    oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+            using _CopyScratchToResultKernel = __internal::__kernel_name_provider<
+                __copy_scratch_to_result_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
             sycl::queue __q = __exec.queue();
-            __segmented_reduce_load_scratch_data_submitter<_LoadScratchDataKernel>{}(__q, __e, *this).wait_and_throw();
+            __copy_scratch_to_result_submitter<_CopyScratchToResultKernel>{}(__q, __e, *this).wait_and_throw();
             this->__copy_result(&__result, 1);
         }
         else
