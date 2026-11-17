@@ -51,21 +51,17 @@ struct radix_multi_wg_tag
 namespace __impl
 {
 
-// Whether _SortConfig is _Tag<__is_ascending, __radix_bits> for some __is_ascending and __radix_bits
-template <template <bool, std::uint8_t> class _Tag, typename _SortConfig>
-struct __is_radix_tag : std::false_type
-{
-};
-template <template <bool, std::uint8_t> class _Tag, bool __is_ascending, std::uint8_t __radix_bits>
-struct __is_radix_tag<_Tag, _Tag<__is_ascending, __radix_bits>> : std::true_type
-{
-};
+template <typename _SortConfig>
+inline constexpr bool __is_radix_wg_resident_tag_v = false;
+
+template <bool __is_ascending, std::uint8_t __radix_bits>
+inline constexpr bool __is_radix_wg_resident_tag_v<radix_wg_resident_tag<__is_ascending, __radix_bits>> = true;
 
 template <typename _SortConfig>
-inline constexpr bool __is_radix_wg_resident_tag_v = __is_radix_tag<radix_wg_resident_tag, _SortConfig>::value;
+inline constexpr bool __is_radix_multi_wg_tag_v = false;
 
-template <typename _SortConfig>
-inline constexpr bool __is_radix_multi_wg_tag_v = __is_radix_tag<radix_multi_wg_tag, _SortConfig>::value;
+template <bool __is_ascending, std::uint8_t __radix_bits>
+inline constexpr bool __is_radix_multi_wg_tag_v<radix_multi_wg_tag<__is_ascending, __radix_bits>> = true;
 
 // Rejects unsupported combinations of _SortConfig and kernel_param at compile time
 template <typename _SortConfig, typename _KernelParam>
