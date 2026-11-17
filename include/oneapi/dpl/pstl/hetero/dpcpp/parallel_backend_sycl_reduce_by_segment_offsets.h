@@ -16,6 +16,7 @@
 #include <cstdint>     // std::uint8_t, std::uint32_t
 #include <functional>  // std::invoke, std::less, std::plus
 #include <limits>      // std::numeric_limits
+#include <tuple>       // std::get
 #include <type_traits> // std::is_signed_v, std::true_type
 #include <utility>     // std::move, std::forward
 #include <vector>      // std::vector
