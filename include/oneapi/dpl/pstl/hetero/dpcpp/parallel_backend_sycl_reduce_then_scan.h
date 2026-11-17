@@ -198,7 +198,8 @@ struct __simple_write_to_id
         // __repacked_tuple_t is required to resolve conversion issues when assigning from our internal tuple
         // to std::tuple. If the underlying type is not a tuple, then the type will just be passed through.
         using _RepackedTp = oneapi::dpl::__internal::__repacked_tuple_t<decltype(__out_rng[0])>;
-        _RepackedTp{__out_rng[__id]} = __v;
+//        _RepackedTp{__out_rng[__id]} = __v;
+        __out_rng[__id] = __v;
     }
 };
 
