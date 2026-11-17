@@ -101,7 +101,7 @@ struct __copy_scratch_to_result_submitter<__internal::__optional_kernel_name<_Na
 };
 
 // A single zero-initialized value, raised by atomics of a kernel in the scratch, in device memory.
-// Where the result is host USM, the value is moved into it on the device, as loading device memory on the host costs
+// Where the result is host USM, the value is copied into it on the device, as loading device memory on the host costs
 // much on some GPUs; otherwise the host loads the scratch itself.
 // Without USM, a SYCL buffer holds both.
 template <typename _ValueType>
@@ -160,14 +160,14 @@ struct __atomic_result_storage : public __combined_storage<_ValueType>
             return __view{this->__usm_buf.get(), {}};
     }
 
-    // Waits for the kernel that raised the value, the event __e, moves the value into a result in host USM, and loads it
+    // Waits for the kernel that raised the value, the event __e, copies it into a result in host USM, and loads it
     template <typename _ExecutionPolicy>
     _ValueType
     __load_result(_ExecutionPolicy&& __exec, sycl::event __e)
     {
         _ValueType __result = {};
 
-        // A result in host USM gets the value moved into it; otherwise the host loads the scratch itself
+        // A result in host USM gets the value copied into it; otherwise the host loads the scratch itself
         if (this->__kind == sycl::usm::alloc::host)
         {
             using _CopyScratchToResultKernel = __internal::__kernel_name_provider<
