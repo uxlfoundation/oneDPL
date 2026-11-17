@@ -130,8 +130,8 @@ test_mismatch_by_type()
             if (size >= idx_for_2 - 1)
             {
                 in2[size / idx_for_2] = val;
-                invoke_on_all_policies_with_host_cap<8>{size}(test_mismatch<T>(), in.cbegin(), in.cend(),
-                                                              in2.cbegin(), in2.cend());
+                invoke_on_all_policies_with_host_cap<8>{size}(test_mismatch<T>(), in.cbegin(), in.cend(), in2.cbegin(),
+                                                              in2.cend());
 #if !ONEDPL_FPGA_DEVICE
                 invoke_on_all_policies_with_host_cap<9>{size}(test_mismatch<T>(), in.cbegin(), in.cend(), in2.cbegin());
                 invoke_on_all_policies_with_host_cap<10>{size}(test_mismatch_predicate<T>(), in.cbegin(), in.cend(),
@@ -147,7 +147,7 @@ test_mismatch_by_type()
                                                            in.end());
             invoke_on_all_policies_with_host_cap<13>{size}(test_mismatch_predicate<T>(), in2.begin(), in2.end(),
                                                            in.begin(), in.end());
-            //  We can't call ::std::mismatch with semantic below when size of second sequence less than size of first sequence
+            // We can't call std::mismatch with semantic below when size of second sequence less than size of first sequence
             if (in2.size() <= in.size())
             {
                 invoke_on_all_policies_with_host_cap<14>{size}(test_mismatch<T>(), in2.begin(), in2.end(), in.begin());

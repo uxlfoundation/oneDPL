@@ -49,6 +49,12 @@ constexpr std::size_t scan_test_max_n_cpu = 32000;
 constexpr std::size_t scan_test_set_max_n_cpu = 24000;
 constexpr std::size_t scan_test_unique_max_n_cpu = 32000;
 
+// Sizes used by find / any_of style tests. Host policies are run up to find_test_max_host_n; device policies also
+// run find_test_device_n, which exceeds the SYCL backend's single work-group path and is not a multiple of the
+// wide-scan width.
+constexpr std::size_t find_test_max_host_n = 100000;
+constexpr std::size_t find_test_device_n = (std::size_t{1} << 18) + 37;
+
 inline std::size_t
 get_scan_test_max_n()
 {

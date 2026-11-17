@@ -76,16 +76,16 @@ test(size_t bits)
             in[2 * n / 3] = spike;
             invoke_on_all_policies_with_host_cap<2>{n}(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike),
                                                        false);
-            invoke_on_all_policies_with_host_cap<3>{n}(test_none_of<T>(), in.cbegin(), in.cend(),
-                                                       is_equal_to<T>(spike), false);
+            invoke_on_all_policies_with_host_cap<3>{n}(test_none_of<T>(), in.cbegin(), in.cend(), is_equal_to<T>(spike),
+                                                       false);
 
             // Sprinkle in a few more hits
             in[n / 3] = spike;
             in[n / 2] = spike;
             invoke_on_all_policies_with_host_cap<4>{n}(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike),
                                                        false);
-            invoke_on_all_policies_with_host_cap<5>{n}(test_none_of<T>(), in.cbegin(), in.cend(),
-                                                       is_equal_to<T>(spike), false);
+            invoke_on_all_policies_with_host_cap<5>{n}(test_none_of<T>(), in.cbegin(), in.cend(), is_equal_to<T>(spike),
+                                                       false);
         }
     }
 }

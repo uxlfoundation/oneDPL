@@ -1080,6 +1080,8 @@ struct __early_exit_find_or
     _Pred __pred;
 
     static constexpr bool __wide = __width > 1;
+    // Each iteration's matches are collected in a std::uint32_t bit mask.
+    static_assert(__width <= std::numeric_limits<std::uint32_t>::digits);
 
     // One range's elements for an iteration, in registers. Indexing yields the range's own reference type, as a
     // view does, so the brick sees the same argument types as on the scalar path.
@@ -1209,11 +1211,10 @@ struct __early_exit_find_or
             // This includes detecting when a predicate compares adjacent elements of the same underlying range, and
             // consolidating the loads to a single set of width + 1 loads, rather than 2 sets of width loads.
             constexpr bool __backward = __is_backward_tag(__brick_tag);
-            const std::size_t __iters =
-                oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item, __width);
-            constexpr bool __may_fuse = __may_be_offset_pair<_Ranges...>();
+            const std::size_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item, __width);
+            constexpr bool __may_be_offset_pair = __may_be_offset_pair<_Ranges...>();
             bool __offset_pair = false;
-            if constexpr (__may_fuse)
+            if constexpr (__may_be_offset_pair)
                 __offset_pair = __source_data_size > 1 && __is_offset_pair(__rngs...);
             const std::size_t __stride = __iteration_data_size * __width;
 
@@ -1233,7 +1234,8 @@ struct __early_exit_find_or
                     _BrickTag::__save_state_to(__found_local, __base);
                     return true;
                 }
-                const std::size_t __j = __backward ? 31 - sycl::clz(__hits) : sycl::ctz(__hits);
+                constexpr std::size_t __hits_bits = std::numeric_limits<std::uint32_t>::digits;
+                const std::size_t __j = __backward ? __hits_bits - 1 - sycl::clz(__hits) : sycl::ctz(__hits);
                 _BrickTag::__save_state_to(__found_local, __base + __j);
                 return true;
             };
@@ -1276,7 +1278,7 @@ struct __early_exit_find_or
                     __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
                 }
             };
-            if constexpr (__may_fuse)
+            if constexpr (__may_be_offset_pair)
             {
                 if (__offset_pair)
                     __scan(std::true_type{});
@@ -1306,7 +1308,7 @@ struct __brick_reads_at_scanned_index<oneapi::dpl::unseq_backend::single_match_p
 {
 };
 
-// Whether the wide scan may copy a range's elements into registers
+// Whether the wide scan may copy a range's elements into registers.
 template <typename _Range>
 constexpr bool
 __find_or_elems_copyable()
@@ -1358,12 +1360,12 @@ struct __parallel_find_or_nd_range_tuner
         // TODO: find a way to generalize getting of reliable work-group size
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-        const std::size_t __wgroup_size_limit = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
+        const std::size_t __wgroup_size_limit = oneapi::dpl::__internal::__max_work_group_size(__q, 4096);
         // If no more than 32 data elements per work item, a single work group will be used
         if (__rng_n <= __wgroup_size_limit * 32)
             return {/*__n_groups=*/1, __wgroup_size_limit};
 
-        // For wide kernels, we must limit the workgroup size to 512, to avoid excessive register usage on GPUs.
+        // For wide kernels, we must limit the work-group size to 512, to avoid excessive register usage on GPUs.
         const std::size_t __wgroup_size =
             __wide_scan ? std::min<std::size_t>(__wgroup_size_limit, 512) : __wgroup_size_limit;
         const std::size_t __group_count_scale =

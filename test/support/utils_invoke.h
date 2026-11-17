@@ -26,6 +26,7 @@
 #include "oneapi/dpl/execution"
 #include "compile_only_checks.h"
 #include "utils_sycl_defs.h"
+#include "utils_const.h"
 
 #ifdef ONEDPL_USE_PREDEFINED_POLICIES
 #  define TEST_USE_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES
@@ -462,11 +463,11 @@ struct invoke_on_all_policies
 };
 
 // Invokes op on all policies, skipping host policies when n > max_host_size
-template <::std::size_t CallNumber = 0>
+template <std::size_t CallNumber = 0>
 struct invoke_on_all_policies_with_host_cap
 {
-    ::std::size_t n;
-    ::std::size_t max_host_size = 100000;
+    std::size_t n;
+    std::size_t max_host_size = find_test_max_host_n;
 
     template <typename Op, typename... T>
     void
@@ -474,14 +475,14 @@ struct invoke_on_all_policies_with_host_cap
     {
         if (n <= max_host_size)
         {
-            invoke_on_all_policies<CallNumber>()(op, ::std::forward<T>(rest)...);
+            invoke_on_all_policies<CallNumber>()(op, std::forward<T>(rest)...);
             return;
         }
 #if TEST_DPCPP_BACKEND_PRESENT
 #if __SYCL_PSTL_OFFLOAD__
         invoke_on_all_pstl_offload_policies()(op, rest...);
 #endif
-        invoke_on_all_hetero_policies<CallNumber>()(op, ::std::forward<T>(rest)...);
+        invoke_on_all_hetero_policies<CallNumber>()(op, std::forward<T>(rest)...);
 #endif // TEST_DPCPP_BACKEND_PRESENT
     }
 };
