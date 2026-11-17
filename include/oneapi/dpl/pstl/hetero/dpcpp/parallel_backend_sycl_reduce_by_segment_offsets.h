@@ -16,6 +16,7 @@
 #include <cstdint>     // std::uint8_t, std::uint32_t
 #include <functional>  // std::invoke, std::less, std::plus
 #include <limits>      // std::numeric_limits
+#include <tuple>       // std::get
 #include <type_traits> // std::is_signed_v, std::true_type
 #include <utility>     // std::move, std::forward
 #include <vector>      // std::vector
@@ -78,14 +79,14 @@ struct __segmented_reduce_short_brick
 };
 
 template <typename... _Name>
-class __segmented_reduce_load_scratch_data_kernel;
+class __copy_scratch_to_result_kernel;
 
-// Moves the value of a __combined_storage from its scratch into its result, by one work-item after an event
+// Copies the value of a __combined_storage from its scratch into its result, by one work-item after an event
 template <typename _KernelName>
-struct __segmented_reduce_load_scratch_data_submitter;
+struct __copy_scratch_to_result_submitter;
 
 template <typename... _Name>
-struct __segmented_reduce_load_scratch_data_submitter<__internal::__optional_kernel_name<_Name...>>
+struct __copy_scratch_to_result_submitter<__internal::__optional_kernel_name<_Name...>>
 {
     template <typename _ValueType>
     sycl::event
@@ -101,7 +102,7 @@ struct __segmented_reduce_load_scratch_data_submitter<__internal::__optional_ker
 };
 
 // A single zero-initialized value, raised by atomics of a kernel in the scratch, in device memory.
-// Where the result is host USM, the value is moved into it on the device, as loading device memory on the host costs
+// Where the result is host USM, the value is copied into it on the device, as loading device memory on the host costs
 // much on some GPUs; otherwise the host loads the scratch itself.
 // Without USM, a SYCL buffer holds both.
 template <typename _ValueType>
@@ -160,21 +161,20 @@ struct __atomic_result_storage : public __combined_storage<_ValueType>
             return __view{this->__usm_buf.get(), {}};
     }
 
-    // Waits for the kernel that raised the value, the event __e, moves the value into a result in host USM, and loads it
+    // Waits for the kernel that raised the value, the event __e, copies it into a result in host USM, and loads it
     template <typename _ExecutionPolicy>
     _ValueType
     __load_result(_ExecutionPolicy&& __exec, sycl::event __e)
     {
         _ValueType __result = {};
 
-        // A result in host USM gets the value moved into it; otherwise the host loads the scratch itself
+        // A result in host USM gets the value copied into it; otherwise the host loads the scratch itself
         if (this->__kind == sycl::usm::alloc::host)
         {
-            using _LoadScratchDataKernel =
-                __internal::__kernel_name_provider<__segmented_reduce_load_scratch_data_kernel<
-                    oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+            using _CopyScratchToResultKernel = __internal::__kernel_name_provider<
+                __copy_scratch_to_result_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
             sycl::queue __q = __exec.queue();
-            __segmented_reduce_load_scratch_data_submitter<_LoadScratchDataKernel>{}(__q, __e, *this).wait_and_throw();
+            __copy_scratch_to_result_submitter<_CopyScratchToResultKernel>{}(__q, __e, *this).wait_and_throw();
             this->__copy_result(&__result, 1);
         }
         else
@@ -347,7 +347,7 @@ __parallel_reduce_by_segment_offsets_fill(_BackendTag, _ExecutionPolicy&& __exec
 // A short segment is reduced by one work-item. A long segment is split into chunks, each reduced by one work-item, and
 // the partial results of the segment are combined by one work-item. The values below were measured on GPUs and CPUs
 // as SYCL devices.
-struct __segmented_reduce_chunk_tuning
+class __segmented_reduce_chunk_tuning
 {
     // A segment up to this length is short
     static constexpr std::size_t __gpu_short_segment_max = 512;
@@ -359,6 +359,7 @@ struct __segmented_reduce_chunk_tuning
     static constexpr std::size_t __gpu_max_chunk_size = 16384;
     static constexpr std::size_t __cpu_chunk_size = 4096;
 
+  public:
     static std::size_t
     __short_segment_max(bool __is_gpu)
     {
