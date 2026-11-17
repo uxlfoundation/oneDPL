@@ -77,9 +77,33 @@ struct __segmented_reduce_short_brick
     }
 };
 
-// A single zero-initialized value, raised by atomics of a kernel in the scratch, in device memory, and moved into the
-// result on the device, which is host USM where the device has it, as loading device memory on the host costs much on
-// some GPUs; without USM, a SYCL buffer holds both.
+template <typename... _Name>
+class __segmented_reduce_load_scratch_data_kernel;
+
+// Moves the value of a __combined_storage from its scratch into its result, by one work-item after an event
+template <typename _KernelName>
+struct __segmented_reduce_load_scratch_data_submitter;
+
+template <typename... _Name>
+struct __segmented_reduce_load_scratch_data_submitter<__internal::__optional_kernel_name<_Name...>>
+{
+    template <typename _ValueType>
+    sycl::event
+    operator()(sycl::queue& __q, const sycl::event& __e, __combined_storage<_ValueType>& __storage) const
+    {
+        return __q.submit([&](sycl::handler& __cgh) {
+            __cgh.depends_on(__e);
+            auto __scratch_acc = __get_accessor(sycl::read_only, __storage, __cgh);
+            auto __result_acc = __get_result_accessor(sycl::write_only, __storage, __cgh, __dpl_sycl::__no_init{});
+            __cgh.single_task<_Name...>([=]() { __result_acc.__data()[0] = __scratch_acc.__data()[0]; });
+        });
+    }
+};
+
+// A single zero-initialized value, raised by atomics of a kernel in the scratch, in device memory.
+// Where the result is host USM, the value is moved into it on the device, as loading device memory on the host costs
+// much on some GPUs; otherwise the host loads the scratch itself.
+// Without USM, a SYCL buffer holds both.
 template <typename _ValueType>
 struct __atomic_result_storage : public __combined_storage<_ValueType>
 {
@@ -136,36 +160,30 @@ struct __atomic_result_storage : public __combined_storage<_ValueType>
             return __view{this->__usm_buf.get(), {}};
     }
 
-    // Valid once the value is moved into the result
+    // Waits for the kernel that raised the value, the event __e, moves the value into a result in host USM, and loads it
+    template <typename _ExecutionPolicy>
     _ValueType
-    __load_result()
+    __load_result(_ExecutionPolicy&& __exec, sycl::event __e)
     {
         _ValueType __result = {};
-        this->__copy_result(&__result, 1);
+
+        // A result in host USM gets the value moved into it; otherwise the host loads the scratch itself
+        if (this->__kind == sycl::usm::alloc::host)
+        {
+            using _LoadScratchDataKernel =
+                __internal::__kernel_name_provider<__segmented_reduce_load_scratch_data_kernel<
+                    oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+            sycl::queue __q = __exec.queue();
+            __segmented_reduce_load_scratch_data_submitter<_LoadScratchDataKernel>{}(__q, __e, *this).wait_and_throw();
+            this->__copy_result(&__result, 1);
+        }
+        else
+        {
+            __e.wait_and_throw();
+            this->__copy_n(&__result, nullptr, 1, /*offset*/ 0); // the scratch, first in device USM and in the buffer
+        }
+
         return __result;
-    }
-};
-
-template <typename... _Name>
-class __segmented_reduce_publish_kernel;
-
-// Moves the value of an __atomic_result_storage from its scratch into its result, by one work-item after an event
-template <typename _KernelName>
-struct __segmented_reduce_publish_submitter;
-
-template <typename... _Name>
-struct __segmented_reduce_publish_submitter<__internal::__optional_kernel_name<_Name...>>
-{
-    template <typename _ValueType>
-    sycl::event
-    operator()(sycl::queue& __q, const sycl::event& __e, __atomic_result_storage<_ValueType>& __storage) const
-    {
-        return __q.submit([&](sycl::handler& __cgh) {
-            __cgh.depends_on(__e);
-            auto __scratch_acc = __get_accessor(sycl::read_only, __storage, __cgh);
-            auto __result_acc = __get_result_accessor(sycl::write_only, __storage, __cgh, __dpl_sycl::__no_init{});
-            __cgh.single_task<_Name...>([=]() { __result_acc.__data()[0] = __scratch_acc.__data()[0]; });
-        });
     }
 };
 
@@ -439,12 +457,9 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
                                                   __n, __short_segment_max, __init, __binary_op},
                                               __m, __offsets, __result, __input, __max_length_storage.__all_view())
                                    .event();
-    using _PublishKernel = __internal::__kernel_name_provider<
-        __segmented_reduce_publish_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
-    __segmented_reduce_publish_submitter<_PublishKernel>{}(__q, __short_done, __max_length_storage).wait_and_throw();
 
     // The long segments in chunks: at most n / __short_segment_max of them
-    const _Size __max_length = __max_length_storage.__load_result();
+    const _Size __max_length = __max_length_storage.__load_result(__exec, __short_done);
     if (__max_length > 0)
         __reduce_in_chunks(__short_segment_max, /*__write_empty=*/false, __max_length, __n / __short_segment_max);
 }
