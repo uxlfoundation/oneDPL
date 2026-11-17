@@ -41,37 +41,37 @@ namespace __par_backend_hetero
 // One work-item per short segment; a long one only reports its length via a device-scope atomic max, capped to 32 bits:
 // the chunk length takes only its square root and clamps it far below
 template <typename _Acc, typename _Size, typename _BinaryOperation>
-struct __segmented_reduce_variable_brick
+struct __segmented_reduce_short_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
     static constexpr std::uint8_t __vector_size = 1; // one segment or chunk per work-item, in a loop of its length
 
-    _Size __n = {};         // input size
-    _Size __threshold = {}; // longest short segment length
-    _Acc __init;            // init converted to _Acc
+    _Size __n = {};                 // input size
+    _Size __short_segment_max = {}; // longest short segment length
+    _Acc __init;                    // init converted to _Acc
     mutable _BinaryOperation __binary_op;
 
     template <typename _IsFull, typename _Params, typename _Offsets, typename _Result, typename _Input,
-              typename _MaxLongSegmentLengthBuf>
+              typename _MaxLengthView>
     void
     operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input,
-               _MaxLongSegmentLengthBuf __max_long_segment_length_buf) const
+               _MaxLengthView __max_length_view) const
     {
-        using _MaxLongSegmentLength = oneapi::dpl::__internal::__value_t<_MaxLongSegmentLengthBuf>;
-        using __atomic_ref_t = sycl::atomic_ref<_MaxLongSegmentLength, sycl::memory_order::relaxed,
-                                                sycl::memory_scope::device, sycl::access::address_space::global_space>;
+        using _MaxLength = oneapi::dpl::__internal::__value_t<_MaxLengthView>;
+        using __atomic_ref_t = sycl::atomic_ref<_MaxLength, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                                sycl::access::address_space::global_space>;
 
         const _Size __begin = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__idx], __n);
         const _Size __end = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__idx + 1], __n);
 
         // A reversed segment has a negative length, so it is short and its serial reduce gives the init
         static_assert(std::is_signed_v<_Size>, "The size type must be signed");
-        if (__end - __begin > __threshold)
+        if (__end - __begin > __short_segment_max)
         {
-            __atomic_ref_t __ref(__max_long_segment_length_buf[0]);
+            __atomic_ref_t __ref(__max_length_view[0]);
 
-            __ref.fetch_max(oneapi::dpl::__internal::__clamp_to_size_and_cast<_MaxLongSegmentLength>(
-                __end - __begin, std::numeric_limits<_MaxLongSegmentLength>::max()));
+            __ref.fetch_max(oneapi::dpl::__internal::__clamp_to_size_and_cast<_MaxLength>(
+                __end - __begin, std::numeric_limits<_MaxLength>::max()));
         }
         else
         {
@@ -81,16 +81,39 @@ struct __segmented_reduce_variable_brick
     }
 };
 
-// A single value updated by atomics of a kernel and read by the host, zero-initialized. It is host USM where the
-// device supports atomics on it, read by the host directly; else device USM, zeroed by a fill and read by a copy,
-// which costs less on GPUs than the host accessors of a SYCL buffer; without USM, a SYCL buffer.
-template <typename _ValueType>
-struct __atomic_result_storage : public __device_storage<_ValueType>
+template <typename... _Name>
+class __segmented_reduce_load_scratch_data_kernel;
+
+// Moves the value of a __combined_storage from its scratch into its result, by one work-item after an event
+template <typename _KernelName>
+struct __segmented_reduce_load_scratch_data_submitter;
+
+template <typename... _Name>
+struct __segmented_reduce_load_scratch_data_submitter<__internal::__optional_kernel_name<_Name...>>
 {
-    sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
+    template <typename _ValueType>
+    sycl::event
+    operator()(sycl::queue& __q, const sycl::event& __e, __combined_storage<_ValueType>& __storage) const
+    {
+        return __q.submit([&](sycl::handler& __cgh) {
+            __cgh.depends_on(__e);
+            auto __scratch_acc = __get_accessor(sycl::read_only, __storage, __cgh);
+            auto __result_acc = __get_result_accessor(sycl::write_only, __storage, __cgh, __dpl_sycl::__no_init{});
+            __cgh.single_task<_Name...>([=]() { __result_acc.__data()[0] = __scratch_acc.__data()[0]; });
+        });
+    }
+};
+
+// A single zero-initialized value, raised by atomics of a kernel in the scratch, in device memory.
+// Where the result is host USM, the value is moved into it on the device, as loading device memory on the host costs
+// much on some GPUs; otherwise the host loads the scratch itself.
+// Without USM, a SYCL buffer holds both.
+template <typename _ValueType>
+struct __atomic_result_storage : public __combined_storage<_ValueType>
+{
     sycl::event __zero_done; // the completion of the initial zero on the device, if it is not written by the host
 
-    // The view a brick of __parallel_for takes as a range
+    // The view of the scratch a brick of __parallel_for takes as a range
     struct __view
     {
         using value_type = _ValueType;
@@ -121,23 +144,10 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
         }
     };
 
-    explicit __atomic_result_storage(sycl::queue& __q)
+    // The scratch comes first in device USM and in the SYCL buffer
+    explicit __atomic_result_storage(sycl::queue& __q) : __combined_storage<_ValueType>(__q, 1, 1)
     {
-        _ValueType* __ptr = nullptr;
-        if (__q.get_device().has(sycl::aspect::usm_atomic_host_allocations))
-            __ptr = __internal::__allocate_usm<_ValueType, sycl::usm::alloc::host>(__q, 1);
-        if (__ptr)
-        {
-            this->__usm_buf =
-                std::unique_ptr<_ValueType, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-            __kind = sycl::usm::alloc::host;
-            *__ptr = _ValueType{};
-            return;
-        }
-
-        this->__initialize(__q, 1);
-        __kind = this->__usm_buf ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
-        if (__kind == sycl::usm::alloc::device)
+        if (this->__usm_buf)
             __zero_done = __q.fill(this->__usm_buf.get(), _ValueType{}, 1);
         else
             this->__sycl_buf.get_host_access(sycl::write_only)[0] = _ValueType{};
@@ -154,11 +164,30 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
             return __view{this->__usm_buf.get(), {}};
     }
 
-    void
-    __copy_result(_ValueType* __dst, std::size_t __n)
+    // Waits for the kernel that raised the value, the event __e, moves the value into a result in host USM, and loads it
+    template <typename _ExecutionPolicy>
+    _ValueType
+    __load_result(_ExecutionPolicy&& __exec, sycl::event __e)
     {
-        this->__copy_n(__dst, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr,
-                       std::min<std::size_t>(__n, 1), /*offset*/ 0);
+        _ValueType __result = {};
+
+        // A result in host USM gets the value moved into it; otherwise the host loads the scratch itself
+        if (this->__kind == sycl::usm::alloc::host)
+        {
+            using _LoadScratchDataKernel =
+                __internal::__kernel_name_provider<__segmented_reduce_load_scratch_data_kernel<
+                    oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+            sycl::queue __q = __exec.queue();
+            __segmented_reduce_load_scratch_data_submitter<_LoadScratchDataKernel>{}(__q, __e, *this).wait_and_throw();
+            this->__copy_result(&__result, 1);
+        }
+        else
+        {
+            __e.wait_and_throw();
+            this->__copy_n(&__result, nullptr, 1, /*offset*/ 0); // the scratch, first in device USM and in the buffer
+        }
+
+        return __result;
     }
 };
 
@@ -247,13 +276,13 @@ struct __segmented_reduce_chunk_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _ChunkEnds __chunk_ends, _Offsets __offsets,
                _Partials __partials, _Input __input) const
     {
-        const _Size __chunk = __idx;
-        if (__chunk >= __chunk_ends[__num_segments - 1])
+        const _Size __chunk_idx = __idx;
+        if (__chunk_idx >= __chunk_ends[__num_segments - 1])
             return;
 
         // The segment of the chunk: the first one whose chunks end after it, the last one if no other does
         const _Size __segment_idx = oneapi::dpl::__internal::__pstl_upper_bound(
-            __chunk_ends, _Size{0}, __num_segments - 1, &__chunk, std::less<>{}, oneapi::dpl::identity{},
+            __chunk_ends, _Size{0}, __num_segments - 1, &__chunk_idx, std::less<>{}, oneapi::dpl::identity{},
             oneapi::dpl::identity{});
         const _Size __segment_first_chunk = __segment_idx == 0 ? _Size{0} : __chunk_ends[__segment_idx - 1];
         const _Size __segment_begin =
@@ -266,7 +295,7 @@ struct __segmented_reduce_chunk_brick
                                     (__chunk_ends[__segment_idx] - __segment_first_chunk - 1) * __chunk_size;
 
         // One loop for every chunk, so sub-group work-items do not diverge into two long loops
-        const _Size __chunk_idx_in_segment = __chunk - __segment_first_chunk;
+        const _Size __chunk_idx_in_segment = __chunk_idx - __segment_first_chunk;
         const bool __is_head = __chunk_idx_in_segment == 0;
         const _Size __chunk_begin =
             __is_head ? __segment_begin : __segment_begin + __head_length + (__chunk_idx_in_segment - 1) * __chunk_size;
@@ -1199,13 +1228,13 @@ struct __parallel_reduce_by_segment_offsets
         }
 
         // Short segments by a work-item each, which also writes the empty ones; the longer ones in chunks
-        const _Size __threshold = _ChunkTuning::__short_segment_max(__is_gpu);
+        const _Size __short_segment_max = _ChunkTuning::__short_segment_max(__is_gpu);
         const _Size __max_length = __reduce_short_segments(_BackendTag{}, __exec, __input, __offsets, __result, __n,
-                                                           __m, __threshold, __init, __binary_op);
-        // At most __n / __threshold segments are longer than __threshold
+                                                           __m, __short_segment_max, __init, __binary_op);
+        // At most __n / __short_segment_max segments are longer than __short_segment_max
         if (__max_length > 0)
             __reduce_in_chunks(_BackendTag{}, __exec, __is_gpu, __input, __offsets, __result, __n, __m, __init,
-                               __binary_op, __threshold, __max_length, __n / __threshold);
+                               __binary_op, __short_segment_max, __max_length, __n / __short_segment_max);
     }
 
   private:
@@ -1214,22 +1243,19 @@ struct __parallel_reduce_by_segment_offsets
               typename _OutRange, typename _Size, typename _BinaryOperation>
     static _Size
     __reduce_short_segments(_BackendTag, _ExecutionPolicy& __exec, _InRange& __input, _OffsetRange& __offsets,
-                            _OutRange& __result, const _Size __n, const _Size __m, const _Size __threshold,
+                            _OutRange& __result, const _Size __n, const _Size __m, const _Size __short_segment_max,
                             const _Acc& __init, const _BinaryOperation& __binary_op)
     {
-        // 32 bits: the atomics of every device, and the length is capped by the brick as only its order matters
+        // 32 bits: the atomics of every device; the cap of the length by the brick does not change the chunk size
         sycl::queue __q = __exec.queue();
-        __atomic_result_storage<std::uint32_t> __max_long_segment_length(__q);
-        __parallel_for(
-            _BackendTag{}, __exec, __max_long_segment_length.__zero_done,
-            __segmented_reduce_variable_brick<_Acc, _Size, _BinaryOperation>{__n, __threshold, __init, __binary_op},
-            __m, __offsets, __result, __input, __max_long_segment_length.__all_view())
-            .event()
-            .wait_and_throw();
+        __atomic_result_storage<std::uint32_t> __max_length_storage(__q);
+        sycl::event __short_done = __parallel_for(_BackendTag{}, __exec, __max_length_storage.__zero_done,
+                                                  __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{
+                                                      __n, __short_segment_max, __init, __binary_op},
+                                                  __m, __offsets, __result, __input, __max_length_storage.__all_view())
+                                       .event();
 
-        std::uint32_t __max_length = 0;
-        __max_long_segment_length.__copy_result(&__max_length, 1);
-        return __max_length;
+        return __max_length_storage.__load_result(__exec, __short_done);
     }
 
     // Reduces segments longer than __min_length in chunks; __max_segments bounds their number

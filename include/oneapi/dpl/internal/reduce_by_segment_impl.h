@@ -240,7 +240,8 @@ reduce_by_segment_offsets_impl(_Tag, _Policy&&, _RandomAccessInputIt __first, _R
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
 __internal::__returns<std::pair<OutputIterator1, OutputIterator2>,
-    __internal::__enable_if_execution_policy<Policy>, std::enable_if_t<!std::is_integral_v<OutputIterator1>>>
+    __internal::__constrained<oneapi::dpl::is_execution_policy<std::decay_t<Policy>>,
+                              std::negation<std::is_integral<OutputIterator1>>>>
 reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                   OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred, BinaryOperator binary_op)
 {
@@ -253,7 +254,8 @@ reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, 
 template <typename Policy, typename InputIt1, typename InputIt2, typename OutputIt1, typename OutputIt2,
           typename BinaryPred>
 __internal::__returns<std::pair<OutputIt1, OutputIt2>,
-    __internal::__enable_if_execution_policy<Policy>, std::enable_if_t<!std::is_integral_v<OutputIt1>>>
+    __internal::__constrained<oneapi::dpl::is_execution_policy<std::decay_t<Policy>>,
+                              std::negation<std::is_integral<OutputIt1>>>>
 reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt1 result1,
                   OutputIt2 result2, BinaryPred binary_pred)
 {
@@ -273,10 +275,12 @@ reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 fir
     return reduce_by_segment(std::forward<Policy>(policy), first1, last1, first2, result1, result2, std::equal_to<T>());
 }
 
+namespace experimental
+{
 template <typename Policy, typename InputIterator, typename OutputIterator, typename SegmentNumT,
           typename OffsetIterator, typename T, typename BinaryOperator>
-__internal::__returns<OutputIterator, __internal::__enable_if_execution_policy<Policy>,
-                      std::enable_if_t<std::is_integral_v<SegmentNumT>>>
+__internal::__returns<OutputIterator,
+    __internal::__constrained<oneapi::dpl::is_execution_policy<std::decay_t<Policy>>, std::is_integral<SegmentNumT>>>
 reduce_by_segment(Policy&& policy, InputIterator first, InputIterator last, OutputIterator result,
                   SegmentNumT num_segments, OffsetIterator offsets, T init, BinaryOperator binary_op)
 {
@@ -289,20 +293,22 @@ reduce_by_segment(Policy&& policy, InputIterator first, InputIterator last, Outp
 
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first, offsets, result);
 
-    return internal::reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first, last, result,
-                                                    num_segments, offsets, init, binary_op);
+    return oneapi::dpl::internal::reduce_by_segment_offsets_impl(__dispatch_tag, std::forward<Policy>(policy), first,
+                                                                 last, result, num_segments, offsets, init, binary_op);
 }
 
 template <typename Policy, typename InputIterator, typename OutputIterator, typename SegmentNumT,
           typename OffsetIterator, typename T>
-__internal::__returns<OutputIterator, __internal::__enable_if_execution_policy<Policy>,
-                      std::enable_if_t<std::is_integral_v<SegmentNumT>>>
+__internal::__returns<OutputIterator,
+    __internal::__constrained<oneapi::dpl::is_execution_policy<std::decay_t<Policy>>, std::is_integral<SegmentNumT>>>
 reduce_by_segment(Policy&& policy, InputIterator first, InputIterator last, OutputIterator result,
                   SegmentNumT num_segments, OffsetIterator offsets, T init)
 {
     return reduce_by_segment(std::forward<Policy>(policy), first, last, result, num_segments, offsets, init,
                              std::plus<>());
 }
+
+} // namespace experimental
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred, typename BinaryOperator>

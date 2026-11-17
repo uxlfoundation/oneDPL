@@ -316,6 +316,19 @@ __pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&
     return __result + __num_segments;
 }
 
+#if _ONEDPL_FPGA_DEVICE
+template <typename _ExecutionPolicy, typename _RandomAccessInputIt, typename _SegmentNum,
+          typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
+_RandomAccessOutputIt
+__pattern_reduce_by_segment_offsets(__hetero_tag<__fpga_backend_tag>, _ExecutionPolicy&&, _RandomAccessInputIt,
+                                    _RandomAccessInputIt, _RandomAccessOutputIt __result, _SegmentNum,
+                                    _RandomAccessOffsetIt, _InitType, _BinaryOperation)
+{
+    static_assert(__always_false_v<_ExecutionPolicy>, "reduce_by_segment with offsets does not support FPGA policies");
+    return __result;
+}
+#endif // _ONEDPL_FPGA_DEVICE
+
 template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
           typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive,
           typename _InitType>
