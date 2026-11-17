@@ -124,6 +124,24 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
 #endif // _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
 };
 
+template <typename _KernelName>
+struct __radix_sort_onesweep_zero_hist_submitter;
+
+template <typename... _Name>
+struct __radix_sort_onesweep_zero_hist_submitter<
+    oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
+{
+    // Pure SYCL kernel for both the SYCL and ESIMD onesweep paths
+    sycl::event
+    operator()(sycl::queue& __q, __onesweep_hist_t* __p_hists, std::size_t __count) const
+    {
+        return __q.submit([&](sycl::handler& __cgh) {
+            __cgh.parallel_for<_Name...>(sycl::range<1>{__count},
+                                         [=](sycl::item<1> __item) { __p_hists[__item.get_linear_id()] = 0; });
+        });
+    }
+};
+
 template <std::uint32_t __stage_count, std::uint16_t __bin_count, typename _KernelName>
 struct __radix_sort_onesweep_scan_submitter;
 

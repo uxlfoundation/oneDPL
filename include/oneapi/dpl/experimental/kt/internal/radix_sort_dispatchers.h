@@ -29,6 +29,9 @@ template <typename _KtTag, typename... _Name>
 class __radix_sort_one_wg;
 
 template <typename _KtTag, typename... _Name>
+class __radix_sort_onesweep_zero_hist;
+
+template <typename _KtTag, typename... _Name>
 class __radix_sort_onesweep_histogram;
 
 template <typename _KtTag, typename... _Name>
@@ -270,6 +273,8 @@ sycl::event
 __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pack1,
                 _RngPack3&& __virt_pack2, const _MemHolder& __mem_holder, std::size_t __n, const _Layout& __layout)
 {
+    using _RadixSortZeroHist = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __radix_sort_onesweep_zero_hist<_KtTag, _KernelName>>;
     using _RadixSortHistogram = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __radix_sort_onesweep_histogram<_KtTag, _KernelName>>;
     using _RadixSortScan = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -285,11 +290,12 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     const __onesweep_segments& __segments = __layout.__segments;
     const std::uint32_t __sweep_tile_count = __layout.__sweep_tile_count();
 
-    // TODO: check if it is more performant to fill it inside the histogram kernel
-    // This line assumes that global and group histograms are stored sequentially
-    sycl::event __event_chain =
-        __q.memset(__mem_holder.__global_hist_ptr(), 0,
-                   (__layout.__global_hist_item_count + __layout.__group_hist_item_count) * sizeof(__onesweep_hist_t));
+    // Zero the global and group histograms, which are stored sequentially. A kernel is used rather than
+    // sycl::queue::memset: on Lunar Lake with NEO 25.18 and the 2026.x SYCL runtime (Level Zero V2 adapter), the memset
+    // was observed to complete after the dependent histogram kernel had started, wiping part of the global histogram.
+    __onesweep_hist_t* __p_hists = __mem_holder.__global_hist_ptr();
+    sycl::event __event_chain = __radix_sort_onesweep_zero_hist_submitter<_RadixSortZeroHist>()(
+        __q, __p_hists, __layout.__global_hist_item_count + __layout.__group_hist_item_count);
 
     // TODO: consider adding a more versatile API, e.g. passing special kernel_config parameters for histogram computation
     constexpr std::uint32_t __hist_work_group_count = __radix_sort_histogram_params<_KtTag>::__work_group_count;
