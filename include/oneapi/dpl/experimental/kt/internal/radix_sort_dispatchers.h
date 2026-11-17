@@ -290,9 +290,9 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     const __onesweep_segments& __segments = __layout.__segments;
     const std::uint32_t __sweep_tile_count = __layout.__sweep_tile_count();
 
-    // Zero the global and group histograms, which are stored sequentially. A kernel is used rather than
-    // sycl::queue::memset: on Lunar Lake with NEO 25.18 and the 2026.x SYCL runtime (Level Zero V2 adapter), the memset
-    // was observed to complete after the dependent histogram kernel had started, wiping part of the global histogram.
+    // Zero the global and group histograms, which are stored sequentially. As a workaround, a kernel is used rather
+    // than sycl::queue::memset because with some driver and runtime combinations the memset was observed to complete
+    // after the dependent histogram kernel had started, wiping part of the global histogram.
     __onesweep_hist_t* __p_hists = __mem_holder.__global_hist_ptr();
     sycl::event __event_chain = __radix_sort_onesweep_zero_hist_submitter<_RadixSortZeroHist>()(
         __q, __p_hists, __layout.__global_hist_item_count + __layout.__group_hist_item_count);
