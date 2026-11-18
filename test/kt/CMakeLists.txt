@@ -210,6 +210,9 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     _generate_batched_stable_sort_tests("batched_stable_sort_radix_multi_wg" "${_kt_sycl_work_group_size_all}")
     _generate_batched_stable_sort_tests("batched_stable_sort_radix_wg_resident" "64;128;192;256;512;1024")
     _generate_batched_stable_sort_tests("batched_stable_sort_merge_wg_resident" "64;128;192;256;512;1024")
+    _generate_test("kt_sycl_batched_stable_sort_non_arithmetic.pass" "batched_stable_sort_non_arithmetic.cpp")
+    add_dependencies(build-kt_sycl-sort-tests kt_sycl_batched_stable_sort_non_arithmetic.pass)
+    add_dependencies(run-kt_sycl-sort-tests kt_sycl_batched_stable_sort_non_arithmetic.pass)
 
     # Pin some cases to track them
     _generate_sort_test("kt_sycl" "batched_stable_sort_radix_multi_wg" "8" "512" "uint32_t" "" 1000)
