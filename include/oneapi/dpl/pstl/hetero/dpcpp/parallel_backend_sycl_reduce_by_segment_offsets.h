@@ -522,8 +522,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // Kernel values in 32 bits (counted in pieces and work-groups) so kernel arguments stay in registers
         const std::uint32_t __sub_groups = __work_group_size / __sub_group_size;
         const std::size_t __num_groups = __geometry.__num_groups;
-        const std::size_t __ipi = __geometry.__inputs_per_item;
-        const std::uint32_t __piece_size = __ipi * __sub_group_size;
+        const std::size_t __inputs_per_item = __geometry.__inputs_per_item;
+        const std::uint32_t __piece_size = __inputs_per_item * __sub_group_size;
 
         // Second-kernel units: work-groups when pieces are combined in local memory, else pieces
         const bool __in_group = std::size_t(__n) > _Tuning::__group_combine_input;
@@ -532,12 +532,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
         // Unit tail segments, then head and tail partials, in one storage (one call fewer, measured faster), typed by
         // the more aligned type so both arrays start aligned
-        using _Unit = std::conditional_t<(alignof(_Acc) > alignof(_Size)), _Acc, _Size>;
+        using _StorageUnit = std::conditional_t<(alignof(_Acc) > alignof(_Size)), _Acc, _Size>;
         const std::uint32_t __segment_slots =
-            oneapi::dpl::__internal::__dpl_ceiling_div(__num_units * sizeof(_Size), sizeof(_Unit));
+            oneapi::dpl::__internal::__dpl_ceiling_div(__num_units * sizeof(_Size), sizeof(_StorageUnit));
         const std::size_t __partial_slots =
-            oneapi::dpl::__internal::__dpl_ceiling_div(2 * __num_units * sizeof(_Acc), sizeof(_Unit));
-        __device_storage<_Unit> __units_storage(__q, __segment_slots + __partial_slots);
+            oneapi::dpl::__internal::__dpl_ceiling_div(2 * __num_units * sizeof(_Acc), sizeof(_StorageUnit));
+        __device_storage<_StorageUnit> __units_storage(__q, __segment_slots + __partial_slots);
 
         // First kernel, with or without in-group combining: separate so the latter sets up no local memory
         auto __pieces = [&](auto __in_group_tag) {
@@ -701,38 +701,41 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             {
                 const _T* const __p = __input.begin() + __base;
                 // Four elements a vector, two for 8-byte types, to stay within 16 bytes and be aligned as often
-                constexpr std::uint32_t __w = std::min<std::uint32_t>(4, 16 / sizeof(_T));
-                using _V = sycl::vec<_T, __w>;
-                constexpr std::uint32_t __vb = sizeof(_V);
-                const std::uint32_t __mis = std::uint32_t(reinterpret_cast<std::uintptr_t>(__p + __first) % __vb);
+                constexpr std::uint32_t __vector_width = std::min<std::uint32_t>(4, 16 / sizeof(_T));
+                using _V = sycl::vec<_T, __vector_width>;
+                constexpr std::uint32_t __vector_bytes = sizeof(_V);
+                const std::uint32_t __misalignment =
+                    std::uint32_t(reinterpret_cast<std::uintptr_t>(__p + __first) % __vector_bytes);
                 // First vector-aligned index, at most __last
-                const std::uint32_t __a = std::min<std::uint32_t>(__last, __first + (__vb - __mis) % __vb / sizeof(_T));
-                const std::uint32_t __nv = (__last - __a) / __w;
-                if (__nv >= _Tuning::__min_vectors)
+                const std::uint32_t __aligned_first = std::min<std::uint32_t>(
+                    __last, __first + (__vector_bytes - __misalignment) % __vector_bytes / sizeof(_T));
+                const std::uint32_t __num_vectors = (__last - __aligned_first) / __vector_width;
+                if (__num_vectors >= _Tuning::__min_vectors)
                 {
                     __by_vectors = true;
-                    __active = std::min<std::uint32_t>(__sub_group_size, __nv);
-                    auto __load4 = [&](std::uint32_t __k) -> _Acc {
+                    __active = std::min<std::uint32_t>(__sub_group_size, __num_vectors);
+                    auto __load_vector = [&](std::uint32_t __k) -> _Acc {
                         _V __v;
                         __v.load(0, sycl::address_space_cast<sycl::access::address_space::generic_space,
-                                                             sycl::access::decorated::no>(__p + __a + __w * __k));
-                        if constexpr (__w == 2)
+                                                             sycl::access::decorated::no>(__p + __aligned_first +
+                                                                                          __vector_width * __k));
+                        if constexpr (__vector_width == 2)
                             return _Acc(std::invoke(__binary_op, _T(__v[0]), _T(__v[1])));
                         else
                             return __reduce_four(_T(__v[0]), _T(__v[1]), _T(__v[2]), _T(__v[3]));
                     };
                     if (__lane < __active)
                     {
-                        __acc.__setup(__load4(__lane));
-                        __fold_strided(__acc.__v, __lane + __active, __nv, __active, __load4);
+                        __acc.__setup(__load_vector(__lane));
+                        __fold_strided(__acc.__v, __lane + __active, __num_vectors, __active, __load_vector);
                     }
 
                     // Unaligned head and tail, at most three elements each (one for 8 bytes), to lane 0
                     if (__lane == 0)
                     {
-                        for (std::uint32_t __i = __first; __i < __a; ++__i)
+                        for (std::uint32_t __i = __first; __i < __aligned_first; ++__i)
                             __acc.__v = std::invoke(__binary_op, __acc.__v, __p[__i]);
-                        for (std::uint32_t __i = __a + __w * __nv; __i < __last; ++__i)
+                        for (std::uint32_t __i = __aligned_first + __vector_width * __num_vectors; __i < __last; ++__i)
                             __acc.__v = std::invoke(__binary_op, __acc.__v, __p[__i]);
                     }
                 }
@@ -767,35 +770,35 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                       const _Size __piece_begin, const _Size __piece_end, const _Acc __init_acc) const
     {
         const std::uint32_t __lane = __sg.get_local_linear_id();
-        const _Size __mine = __s + _Size(__lane);
-        _Size __mb = __b, __me = __b;
+        const _Size __lane_segment = __s + _Size(__lane);
+        _Size __lane_begin = __b, __lane_end = __b;
         bool __run = false;
-        if (__mine < __m)
+        if (__lane_segment < __m)
         {
             using oneapi::dpl::__internal::__clamp_to_size_and_cast;
 
-            __mb = __clamp_to_size_and_cast<_Size>(__offsets[__mine], __n);
-            __me = __clamp_to_size_and_cast<_Size>(__offsets[__mine + 1], __n);
-            __run = __is_tiny(__mb, __me, __piece_begin, __piece_end);
+            __lane_begin = __clamp_to_size_and_cast<_Size>(__offsets[__lane_segment], __n);
+            __lane_end = __clamp_to_size_and_cast<_Size>(__offsets[__lane_segment + 1], __n);
+            __run = __is_tiny(__lane_begin, __lane_end, __piece_begin, __piece_end);
         }
         // Run length: the first lane not in the run, or the sub-group size if all are
         const std::uint32_t __count = __dpl_sycl::__reduce_over_group(
             __sg, __run ? std::uint32_t(_Tuning::__sub_group_size) : __lane, sycl::minimum<std::uint32_t>());
 
-        if (__lane < __count && __mb >= __me)
-            __result[__mine] = __init_acc;
-        if (__lane < __count && __mb < __me)
+        if (__lane < __count && __lane_begin >= __lane_end)
+            __result[__lane_segment] = __init_acc;
+        if (__lane < __count && __lane_begin < __lane_end)
         {
             // Within the piece, whose size fits in 32 bits
-            const std::uint32_t __lo = std::uint32_t(__mb - __piece_begin);
-            const std::uint32_t __hi = std::uint32_t(__me - __piece_begin);
+            const std::uint32_t __lo = std::uint32_t(__lane_begin - __piece_begin);
+            const std::uint32_t __hi = std::uint32_t(__lane_end - __piece_begin);
             _Acc __acc = std::invoke(__binary_op, __init, __element(__input, __piece_begin, __lo));
             __fold_strided(__acc, __lo + 1, __hi, 1,
                            [&](std::uint32_t __j) { return __element(__input, __piece_begin, __j); });
-            __result[__mine] = __acc;
+            __result[__lane_segment] = __acc;
         }
 
-        return {__count, sycl::select_from_group(__sg, __me, __count - 1)};
+        return {__count, sycl::select_from_group(__sg, __lane_end, __count - 1)};
     }
 
     // Part [__b, __e) of segment __s in the piece, by the sub-group: empty or whole segments are written; a part begun
@@ -807,21 +810,22 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                           const _Acc __init_acc, __piece_parts<_Size>& __parts) const
     {
         const std::uint32_t __lane = __sg.get_local_linear_id();
-        const std::uint32_t __lo = __b > __piece_begin ? std::uint32_t(__b - __piece_begin) : 0;
-        const std::uint32_t __hi =
+        const std::uint32_t __part_first = __b > __piece_begin ? std::uint32_t(__b - __piece_begin) : 0;
+        const std::uint32_t __part_last =
             std::uint32_t(std::max<_Size>(__piece_begin, std::min<_Size>(__e, __piece_end)) - __piece_begin);
 
         if (__b == __e && __b >= __piece_begin && __lane == 0)
             __result[__s] = __init_acc;
 
-        if (__lo < __hi)
+        if (__part_first < __part_last)
         {
-            const bool __first = __b >= __piece_begin;
-            const _Acc __acc = __reduce_by_sub_group(__sg, __piece_begin, __lo, __hi, __first, __input);
+            const bool __is_first = __b >= __piece_begin;
+            const _Acc __acc =
+                __reduce_by_sub_group(__sg, __piece_begin, __part_first, __part_last, __is_first, __input);
 
             const bool __ends_in_piece = __e <= __piece_end;
 
-            if (__first)
+            if (__is_first)
             {
                 if (__ends_in_piece && __lane == 0)
                     __result[__s] = __acc;
