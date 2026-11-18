@@ -186,6 +186,8 @@ Parameters
   constructible, copy assignable, and device copyable. ``Compare`` must be default constructible and device copyable,
   and callable in device code with two keys, returning a value convertible to ``bool``. It is default constructed in the
   kernel, so it cannot carry state set on the host.
+- For all configurations, the element type of the values sequence(s) may be any type which is default constructible,
+  copy assignable, and device copyable.
 
 **Ordering**:
 
