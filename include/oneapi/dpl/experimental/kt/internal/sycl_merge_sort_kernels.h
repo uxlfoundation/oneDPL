@@ -222,10 +222,10 @@ struct __batched_wg_resident_merge_sort_kernel
         using _CountIt = oneapi::dpl::counting_iterator<std::uint32_t>;
         const _CountIt __first(__diag > __len_b ? __diag - __len_b : 0);
         const _CountIt __last(std::min(__diag, __len_a));
-        auto __a_precedes = [&](std::uint32_t __i) {
+        auto __a_precedes = [&](std::uint32_t __i, bool) {
             return !__comp(__m_slm_keys[__b_slm + (__diag - __i - 1)], __m_slm_keys[__a_slm + __i]);
         };
-        const std::uint32_t __starting_point = *std::partition_point(__first, __last, __a_precedes);
+        const std::uint32_t __starting_point = *std::lower_bound(__first, __last, true, __a_precedes);
 
         // SLM positions of the heads of A and B, and one past their last elements
         std::uint32_t __index_a = __a_slm + __starting_point;
