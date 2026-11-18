@@ -362,7 +362,9 @@ Following the [Kernel Templates testing guidance][kt-testing]:
   same comparator: e.g. a comparator on part of the key (to exercise stability among equivalent
   keys), and a key type the radix sorts do not support.
 * A value type (and, for `merge_wg_resident_tag`, a key type) which is a device copyable class
-  that is not default constructible, for every `_SortConfig`.
+  that is neither default constructible nor of implicit-lifetime type (e.g. with a user-provided
+  destructor which has no effect), for every `_SortConfig`, which the sorts must construct in local
+  memory rather than assign.
 * All supported key types, including floating point edge cases (-0.0, +0.0, infinities, and NaNs
   for the radix sorts only), and key and value types of different widths.
 * Ascending and descending; key only and by key; out-of-place and in-place; iterators and ranges;

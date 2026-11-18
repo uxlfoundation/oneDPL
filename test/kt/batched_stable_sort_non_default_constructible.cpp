@@ -7,8 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-// Keys (for merge_wg_resident_tag) and values (for every sort configuration) which are device copyable but not default
-// constructible. Segment sizes leave partial sub-group blocks and tiles, whose padding slots must not need a value.
+// Keys (for merge_wg_resident_tag) and values (for every sort configuration) which are device copyable but neither
+// default constructible nor of implicit-lifetime type, so the sorts must construct them, in registers and in local
+// memory, rather than default construct or assign them. Segment sizes leave partial sub-group blocks and tiles, whose
+// padding slots must not need a value.
 
 #include "../support/test_config.h"
 
@@ -33,35 +35,46 @@
 
 namespace kt = oneapi::dpl::experimental::kt;
 
-struct Key
+// The user-provided destructor makes the type neither trivially copyable nor of implicit lifetime. It has no effect and
+// copies are bitwise, so the type may be declared device copyable.
+template <int Tag>
+struct Elem
 {
     std::uint32_t v;
-    Key() = delete;
-    explicit Key(std::uint32_t x) : v(x) {}
+    Elem() = delete;
+    explicit Elem(std::uint32_t x) : v(x) {}
+    Elem(const Elem&) = default;
+    Elem&
+    operator=(const Elem&) = default;
+    ~Elem() {}
 };
 
-struct Value
+template <int Tag>
+struct sycl::is_device_copyable<Elem<Tag>> : std::true_type
 {
-    std::uint32_t idx;
-    Value() = delete;
-    explicit Value(std::uint32_t x) : idx(x) {}
 };
+
+using Key = Elem<0>;
+using Value = Elem<1>;
 
 static_assert(!std::is_default_constructible_v<Key> && !std::is_default_constructible_v<Value>);
+static_assert(!std::is_trivially_destructible_v<Key> && !std::is_trivially_destructible_v<Value>);
 static_assert(sycl::is_device_copyable_v<Key> && sycl::is_device_copyable_v<Value>);
 
 // Orders keys by their value modulo 7 only, so many distinct keys are equivalent and stability is visible in the keys
 struct KeyMod7Less
 {
+    template <typename KeyT>
     bool
-    operator()(const Key& lhs, const Key& rhs) const
+    operator()(const KeyT& lhs, const KeyT& rhs) const
     {
         return lhs.v % 7 < rhs.v % 7;
     }
 };
 
-inline std::uint32_t
-key_id(const Key& k)
+template <typename KeyT>
+std::enable_if_t<std::is_class_v<KeyT>, std::uint32_t>
+key_id(const KeyT& k)
 {
     return k.v;
 }
@@ -84,10 +97,11 @@ make_keys(std::size_t n)
     return keys;
 }
 
-inline std::vector<Value>
+template <typename ValueT>
+std::vector<ValueT>
 make_indices(std::size_t n)
 {
-    std::vector<Value> vals;
+    std::vector<ValueT> vals;
     vals.reserve(n);
     for (std::size_t i = 0; i < n; ++i)
         vals.emplace_back(std::uint32_t(i));
@@ -115,23 +129,23 @@ copy_to_device(sycl::queue q, const std::vector<T>& v)
 
 // Sorts n / segment_size segments of keys (and indices as values) and checks them against a per-segment
 // std::stable_sort with HostLess
-template <typename SortConfig, typename KernelParam, typename KeyT, bool ByKey, typename HostLess>
+template <typename SortConfig, typename KernelParam, typename KeyT, typename ValueT, bool ByKey, typename HostLess>
 void
 test_case(sycl::queue q, std::size_t segment_size, std::size_t segment_count, HostLess less)
 {
     const std::size_t n = segment_size * segment_count;
     const std::vector<KeyT> keys_in = make_keys<KeyT>(n);
-    const std::vector<Value> vals_in = make_indices(n);
+    const std::vector<ValueT> vals_in = make_indices<ValueT>(n);
 
     KeyT* d_keys = copy_to_device(q, keys_in);
-    Value* d_vals = copy_to_device(q, vals_in);
+    ValueT* d_vals = copy_to_device(q, vals_in);
     if constexpr (ByKey)
         kt::gpu::batched_stable_sort_by_key<SortConfig>(q, d_keys, d_keys + n, d_vals, segment_size, KernelParam{})
             .wait();
     else
         kt::gpu::batched_stable_sort<SortConfig>(q, d_keys, d_keys + n, segment_size, KernelParam{}).wait();
     const std::vector<KeyT> keys_out = copy_to_host(q, d_keys, n);
-    const std::vector<Value> vals_out = copy_to_host(q, d_vals, n);
+    const std::vector<ValueT> vals_out = copy_to_host(q, d_vals, n);
     sycl::free(d_keys, q);
     sycl::free(d_vals, q);
 
@@ -148,7 +162,7 @@ test_case(sycl::queue q, std::size_t segment_size, std::size_t segment_count, Ho
     {
         ok = key_id(keys_out[i]) == key_id(keys_in[order[i]]);
         if constexpr (ByKey)
-            ok = ok && vals_out[i].idx == order[i];
+            ok = ok && vals_out[i].v == order[i];
     }
     const std::string what = std::string(ByKey ? "by key" : "keys only") +
                              ", segment size: " + std::to_string(segment_size) +
@@ -156,13 +170,22 @@ test_case(sycl::queue q, std::size_t segment_size, std::size_t segment_count, Ho
     EXPECT_TRUE(ok, what.c_str());
 }
 
-template <typename SortConfig, typename KernelParam, typename KeyT, bool ByKey, typename HostLess>
+template <typename SortConfig, typename KernelParam, typename KeyT, typename ValueT, bool ByKey, typename HostLess>
 void
 test_sizes(sycl::queue q, const std::vector<std::size_t>& segment_sizes, HostLess less)
 {
     for (std::size_t segment_size : segment_sizes)
         for (std::size_t segment_count : {std::size_t(1), std::size_t(3), std::size_t(64)})
-            test_case<SortConfig, KernelParam, KeyT, ByKey>(q, segment_size, segment_count, less);
+            test_case<SortConfig, KernelParam, KeyT, ValueT, ByKey>(q, segment_size, segment_count, less);
+}
+
+// Radix sorts: arithmetic keys
+template <typename SortConfig, typename KernelParam>
+void
+test_radix(sycl::queue q, const std::vector<std::size_t>& segment_sizes)
+{
+    auto less = [](std::uint32_t a, std::uint32_t b) { return a < b; };
+    test_sizes<SortConfig, KernelParam, std::uint32_t, Value, /*ByKey=*/true>(q, segment_sizes, less);
 }
 
 int
@@ -178,21 +201,16 @@ main()
         using MultiWgParam = kt::kernel_param<4, 512>;
         const std::vector<std::size_t> multi_wg_sizes = {1, 7, 1000, 2048, 5000};
 
-        auto key_less = [](const Key& a, const Key& b) { return KeyMod7Less{}(a, b); };
-        auto bits_less = [](std::uint32_t a, std::uint32_t b) { return a < b; };
-
         using MergeConfig = kt::gpu::merge_wg_resident_tag<KeyMod7Less>;
-        test_sizes<MergeConfig, WgResidentParam, Key, /*ByKey=*/false>(q, wg_resident_sizes, key_less);
-        test_sizes<MergeConfig, WgResidentParam, Key, /*ByKey=*/true>(q, wg_resident_sizes, key_less);
+        const KeyMod7Less less{};
+        test_sizes<MergeConfig, WgResidentParam, Key, Value, /*ByKey=*/false>(q, wg_resident_sizes, less);
+        test_sizes<MergeConfig, WgResidentParam, Key, Value, /*ByKey=*/true>(q, wg_resident_sizes, less);
 
 #if _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
-        test_sizes<kt::gpu::radix_wg_resident_tag<>, WgResidentParam, std::uint32_t, /*ByKey=*/true>(
-            q, wg_resident_sizes, bits_less);
+        test_radix<kt::gpu::radix_wg_resident_tag<>, WgResidentParam>(q, wg_resident_sizes);
 #endif
-
 #if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
-        test_sizes<kt::gpu::radix_multi_wg_tag<>, MultiWgParam, std::uint32_t, /*ByKey=*/true>(q, multi_wg_sizes,
-                                                                                               bits_less);
+        test_radix<kt::gpu::radix_multi_wg_tag<>, MultiWgParam>(q, multi_wg_sizes);
 #endif
     }
     catch (const std::exception& exc)

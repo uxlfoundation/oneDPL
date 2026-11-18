@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <limits>
 #include <type_traits>
+#include <new>
 
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "../../../pstl/utils.h"
@@ -398,7 +399,9 @@ __propagate_ranks_across_sub_groups(_LocOffsetT (&__ranks)[__data_per_work_item]
 }
 
 // Writes the keys (and values) of __pack to SLM at their ranks. Values are only written from the slots for which
-// __is_loaded(__i) holds, the only ones in which a value was constructed; the other slots hold padding keys.
+// __is_loaded(__i) holds, the only ones in which a value was constructed; the other slots hold padding keys. Values
+// are constructed in SLM, which is raw storage reused between stages, rather than assigned: assignment is only valid
+// for implicit-lifetime types. The destructors of device copyable types have no effect, so they are not called.
 template <std::uint16_t __data_per_work_item, typename _KVPack, typename _LocOffsetT, typename _KeyT, typename _ValT,
           typename _IsLoaded>
 inline void
@@ -412,27 +415,7 @@ __scatter_to_slm(const _KVPack& __pack, const _LocOffsetT (&__ranks)[__data_per_
         if constexpr (!std::is_void_v<_ValT>)
         {
             if (__is_loaded(__i))
-                __slm_vals[__ranks[__i]] = __pack.__vals[__i].__v;
-        }
-    }
-}
-
-// Destroys the values constructed in the slots of __pack for which __is_loaded(__i) holds
-template <std::uint16_t __data_per_work_item, typename _KVPack, typename _IsLoaded>
-inline void
-__destroy_values(_KVPack& __pack, _IsLoaded __is_loaded)
-{
-    if constexpr (_KVPack::__has_values)
-    {
-        using _ValT = typename _KVPack::_ValT;
-        if constexpr (!std::is_trivially_destructible_v<_ValT>)
-        {
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
-            {
-                if (__is_loaded(__i))
-                    __pack.__vals[__i].__destroy();
-            }
+                ::new (static_cast<void*>(__slm_vals + __ranks[__i])) _ValT(__pack.__vals[__i].__v);
         }
     }
 }
@@ -957,7 +940,6 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
             __reorder_slm_to_glob(__idx, __values_pack, __sg_id, __sg_local_id, __slm_global_incoming, __slm_keys,
                                   __slm_vals, __loc.__segment_end);
-            __destroy_values<__data_per_work_item>(__values_pack, __is_loaded);
 
             sycl::group_barrier(__group);
             // Make sure our atomic updates are pushed to other groups
@@ -1138,10 +1120,7 @@ struct __batched_wg_resident_radix_sort_kernel
         }
 
         if (__is_active)
-        {
             __store(__pack, __segment_begin, __lane_offset);
-            __destroy_values<__data_per_work_item>(__pack, __is_loaded);
-        }
     }
 
   private:

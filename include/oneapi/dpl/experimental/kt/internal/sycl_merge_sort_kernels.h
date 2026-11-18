@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <utility>
 #include <type_traits>
+#include <new>
 
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
@@ -144,15 +145,20 @@ struct __batched_wg_resident_merge_sort_kernel
         const auto& __keys_out = __m_out_pack.__keys_rng();
         const _Compare __comp{};
 
+        // Local memory only holds objects of implicit-lifetime types without construction, so the objects are
+        // constructed here; later stores assign to them. Their destructors have no effect, as the types are device
+        // copyable, so they are not called.
         for (std::uint32_t __i = __lid; __i < __group_size; __i += __work_group_size)
         {
-            __m_slm_keys[__i] = __keys_in[__group_offset + __i];
+            ::new (static_cast<void*>(&__m_slm_keys[__i])) _KeyT(__keys_in[__group_offset + __i]);
             if constexpr (__has_values)
-                __m_slm_vals[__i] = __m_in_pack.__vals_rng()[__group_offset + __i];
+                ::new (static_cast<void*>(&__m_slm_vals[__i]))
+                    _ValStorageT(__m_in_pack.__vals_rng()[__group_offset + __i]);
         }
         sycl::group_barrier(__group);
 
-        // Only the slots before __count are constructed: the others are never compared, moved or stored
+        // Only the slots before __count are constructed: the others are never compared, moved or stored. The
+        // constructed objects are not destroyed, as the destructors of device copyable types have no effect.
         _KeyStorage __keys[__data_per_work_item];
         _ValStorage __vals[__data_per_work_item];
         _ONEDPL_PRAGMA_UNROLL
@@ -190,8 +196,6 @@ struct __batched_wg_resident_merge_sort_kernel
             if constexpr (__has_values)
                 __m_out_pack.__vals_rng()[__group_offset + __i] = __m_slm_vals[__i];
         }
-
-        __destroy(__keys, __vals, __count);
     }
 
   private:
@@ -207,25 +211,6 @@ struct __batched_wg_resident_merge_sort_kernel
                 __m_slm_keys[__offset + __s] = __keys[__s].__v;
                 if constexpr (__has_values)
                     __m_slm_vals[__offset + __s] = __vals[__s].__v;
-            }
-        }
-    }
-
-    static void
-    __destroy(_KeyStorage (&__keys)[__data_per_work_item], _ValStorage (&__vals)[__data_per_work_item],
-              std::uint32_t __count)
-    {
-        if constexpr (!std::is_trivially_destructible_v<_KeyT> || !std::is_trivially_destructible_v<_ValStorageT>)
-        {
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint16_t __s = 0; __s < __data_per_work_item; ++__s)
-            {
-                if (__s < __count)
-                {
-                    __keys[__s].__destroy();
-                    if constexpr (__has_values)
-                        __vals[__s].__destroy();
-                }
             }
         }
     }
