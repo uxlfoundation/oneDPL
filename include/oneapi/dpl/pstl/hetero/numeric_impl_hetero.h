@@ -18,7 +18,6 @@
 
 #include <iterator>
 #include "../parallel_backend.h"
-#include "../segmented_reduce_utils.h"
 #include "../utils.h"
 #if _ONEDPL_BACKEND_SYCL
 #    include "dpcpp/execution_sycl_defs.h"
@@ -286,11 +285,9 @@ __pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&
     if (__num_segments <= 0)
         return __result;
 
-    using _Acc = __segmented_reduce_acc_t<_InitType, _RandomAccessInputIt, _BinaryOperation>;
-    using _Diff = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
-    // Promoted, so that the index arithmetic keeps the type, and covering the number of segments, which may exceed
-    // the size of the input
-    using _Size = std::make_signed_t<std::common_type_t<decltype(+_Diff{}), decltype(+__num_segments)>>;
+    using _Acc = __reduction_accumulator_t<_BinaryOperation, _RandomAccessInputIt, _InitType>;
+    // The type of the index arithmetic; signed, as a reversed segment has a negative length
+    using _Size = std::make_signed_t<decltype((__last - __first) + __num_segments)>;
 
     // Converted once, on the host: every kernel starts from this accumulator
     _Acc __init_acc = std::move(__init);
@@ -318,6 +315,19 @@ __pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&
 
     return __result + __num_segments;
 }
+
+#if _ONEDPL_FPGA_DEVICE
+template <typename _ExecutionPolicy, typename _RandomAccessInputIt, typename _SegmentNum,
+          typename _RandomAccessOffsetIt, typename _RandomAccessOutputIt, typename _InitType, typename _BinaryOperation>
+_RandomAccessOutputIt
+__pattern_reduce_by_segment_offsets(__hetero_tag<__fpga_backend_tag>, _ExecutionPolicy&&, _RandomAccessInputIt,
+                                    _RandomAccessInputIt, _RandomAccessOutputIt __result, _SegmentNum,
+                                    _RandomAccessOffsetIt, _InitType, _BinaryOperation)
+{
+    static_assert(__always_false_v<_ExecutionPolicy>, "reduce_by_segment with offsets does not support FPGA policies");
+    return __result;
+}
+#endif // _ONEDPL_FPGA_DEVICE
 
 template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
           typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive,

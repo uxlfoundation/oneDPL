@@ -35,11 +35,11 @@ static_assert(std::is_same_v<std::pair<pint, pdouble>,
 static_assert(std::is_same_v<pint,
     decltype(oneapi::dpl::histogram(oneapi::dpl::execution::par, pdouble{}, pdouble{}, pfloat{}, pfloat{}, pint{}))>);
 static_assert(std::is_same_v<pdouble,
-    decltype(oneapi::dpl::reduce_by_segment(oneapi::dpl::execution::par, pint{}, pint{}, pdouble{}, int{}, pint{},
-                                            double{}, std::plus<>{}))>);
+    decltype(oneapi::dpl::experimental::reduce_by_segment(oneapi::dpl::execution::par, pint{}, pint{}, pdouble{}, int{},
+                                                          pint{}, double{}, std::plus<>{}))>);
 static_assert(std::is_same_v<pdouble,
-    decltype(oneapi::dpl::reduce_by_segment(oneapi::dpl::execution::par, pint{}, pint{}, pdouble{}, int{}, pint{},
-                                            double{}))>);
+    decltype(oneapi::dpl::experimental::reduce_by_segment(oneapi::dpl::execution::par, pint{}, pint{}, pdouble{}, int{},
+                                                          pint{}, double{}))>);
 static_assert(std::is_same_v<std::pair<pint, pdouble>,
     decltype(oneapi::dpl::reduce_by_segment(oneapi::dpl::execution::par, pint{}, pint{}, pfloat{}, pint{}, pdouble{},
                                             std::equal_to<>{}))>);

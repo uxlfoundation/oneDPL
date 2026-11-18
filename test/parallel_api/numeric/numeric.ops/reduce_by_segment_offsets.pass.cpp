@@ -28,7 +28,7 @@
 
 #include <algorithm>   // std::copy_n, std::fill, std::min, std::max
 #include <cstddef>     // std::size_t, std::nullptr_t
-#include <cstdint>     // std::int16_t, std::int64_t, std::uint32_t, std::uint64_t
+#include <cstdint>     // std::int16_t, std::int64_t, std::uint8_t, std::uint16_t, std::uint32_t, std::uint64_t
 #include <functional>  // std::plus, std::multiplies, std::bit_xor, std::logical_and
 #include <iterator>    // std::back_inserter, std::distance, std::iterator_traits, std::random_access_iterator_tag
 #include <limits>      // std::numeric_limits
@@ -56,18 +56,19 @@ enum class segments
 // Returns the num_segments + 1 non-decreasing offsets of the segments
 template <typename Offset>
 std::vector<Offset>
-make_offsets(segments kind, std::int64_t n, std::mt19937& gen)
+make_offsets(segments kind, std::size_t size, std::mt19937& gen)
 {
-    std::vector<std::int64_t> bounds{0};
-    auto add = [&bounds](std::int64_t length) { bounds.push_back(bounds.back() + length); };
+    const Offset n = size;
+    std::vector<Offset> bounds{0};
+    auto add = [&bounds](Offset length) { bounds.push_back(bounds.back() + length); };
     switch (kind)
     {
     case segments::one:
         add(n);
         break;
     case segments::unit:
-        for (std::int64_t i = 0; i < n; ++i)
-            add(1);
+        for (Offset i = 0; i < n; ++i)
+            add(Offset{1});
         break;
     case segments::equal:
         while (bounds.back() < n)
@@ -77,16 +78,16 @@ make_offsets(segments kind, std::int64_t n, std::mt19937& gen)
     {
         // The long segment has three quarters of the input: every operation reduces a long segment
         std::uniform_int_distribution<std::int64_t> length(0, 2 + n / 32);
-        auto add_random = [&](std::int64_t end) {
+        auto add_random = [&](Offset end) {
             while (bounds.back() < end)
-                add(std::min(length(gen), end - bounds.back()));
+                add(std::min<Offset>(length(gen), end - bounds.back()));
         };
-        add(0);
-        add(std::min<std::int64_t>(1, n));
+        add(Offset{0});
+        add(std::min<Offset>(1, n));
         add_random(n / 8);
-        add(std::min(n * 3 / 4, n - bounds.back()));
+        add(std::min<Offset>(n * 3 / 4, n - bounds.back()));
         add_random(n);
-        add(0);
+        add(Offset{0});
         break;
     }
     case segments::all_empty:
@@ -95,17 +96,15 @@ make_offsets(segments kind, std::int64_t n, std::mt19937& gen)
     case segments::inner:
         bounds.assign(1, n / 4);
         while (bounds.back() < n - n / 4)
-            add(std::min(1 + n / 8, n - n / 4 - bounds.back()));
+            add(std::min<Offset>(1 + n / 8, n - n / 4 - bounds.back()));
         break;
     case segments::out_of_bounds:
         // A negative first offset, if representable; the last offset is the largest representable one
-        bounds = {std::is_signed_v<Offset> ? -3 : n / 4, n / 3, n / 2, n + 2, n + 5};
+        bounds = {std::is_signed_v<Offset> ? Offset(-3) : Offset(n / 4), Offset(n / 3), Offset(n / 2), Offset(n + 2),
+                  Offset(n + 5), std::numeric_limits<Offset>::max()};
         break;
     }
-    std::vector<Offset> offsets(bounds.begin(), bounds.end());
-    if (kind == segments::out_of_bounds)
-        offsets.push_back(std::numeric_limits<Offset>::max());
-    return offsets;
+    return bounds;
 }
 
 // The algorithm requires random access iterators, as the RFC does: the forward and bidirectional iterators that the
@@ -133,8 +132,8 @@ struct test_reduce_by_segment_offsets
         reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets_copy.begin(), num_segments, init, op,
                                          expected.begin());
 
-        auto res = oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
-                                                  offsets, init, op);
+        auto res = oneapi::dpl::experimental::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
+                                                                offsets, init, op);
         EXPECT_EQ_N(expected.begin(), out_first, expected.size(), "wrong result from reduce_by_segment with offsets");
         // The end of the results, which a non-positive number of segments leaves at the start
         EXPECT_EQ(num_segments > 0 ? out_first + num_segments : out_first, res,
@@ -160,8 +159,8 @@ struct test_unordered_offsets
     operator()(Policy&& exec, InputIt first, InputIt last, OutputIt out_first, OutputIt /*out_last*/,
                OffsetIt offsets, SegmentNum num_segments, Init init, BinaryOp op)
     {
-        auto res = oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
-                                                  offsets, init, op);
+        auto res = oneapi::dpl::experimental::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
+                                                                offsets, init, op);
         EXPECT_EQ(num_segments > 0 ? out_first + num_segments : out_first, res,
                   "wrong iterator returned by reduce_by_segment with unordered offsets");
     }
@@ -302,7 +301,7 @@ test_segments(Init init, BinaryOp op, Generator generator, Out unwritten)
     {
         Sequence<T> in(n, generator);
         const std::vector<Offset> offsets = make_offsets<Offset>(segments::mixed, n, gen);
-        const SegmentNum num_segments = SegmentNum(offsets.size() - 1);
+        const SegmentNum num_segments = offsets.size() - 1;
         Sequence<Out> out(num_segments, [unwritten](std::size_t) { return unwritten; });
         invoke_on_all_policies<CallNumber * 2>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                                  out.end(), offsets.begin(), num_segments, init, op, unwritten);
@@ -322,7 +321,7 @@ test_segments(Init init, BinaryOp op, Generator generator, Out unwritten)
     const std::size_t n = 1000;
     Sequence<T> in(n, generator);
     const std::vector<Offset> offsets = make_offsets<Offset>(segments::mixed, n, gen);
-    const SegmentNum num_segments = SegmentNum(offsets.size() - 1);
+    const SegmentNum num_segments = offsets.size() - 1;
     Sequence<Out> out(num_segments, [unwritten](std::size_t) { return unwritten; });
     invoke_on_all_policies<CallNumber * 2 + 1>()(test_reduce_by_segment_offsets(), in.cbegin(), in.cend(),
                                                  out.begin(), out.end(), offsets.begin(), num_segments, init, op,
@@ -341,7 +340,7 @@ test_edge_segment_distributions()
         for (segments kind : {segments::one, segments::unit, segments::equal, segments::all_empty})
         {
             const std::vector<int> offsets = make_offsets<int>(kind, n, gen);
-            const int num_segments = int(offsets.size() - 1);
+            const int num_segments = offsets.size() - 1;
             Sequence<int> out(std::max(num_segments, 1), [](std::size_t) { return -1; });
             invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                                  out.end(), offsets.begin(), num_segments, 5, std::plus<int>{}, -1);
@@ -362,7 +361,7 @@ test_fixed_length_segments()
         {
             auto offsets = oneapi::dpl::make_transform_iterator(oneapi::dpl::counting_iterator<std::int64_t>(0),
                                                                 segment_begin{length});
-            const std::int64_t num_segments = std::int64_t(n / length + 2);
+            const std::int64_t num_segments = n / length + 2;
             Sequence<int> out(num_segments, [](std::size_t) { return -1; });
             invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
                                                  out.end(), offsets, num_segments, 5, std::plus<int>{}, -1);
@@ -397,7 +396,7 @@ test_boundaries()
             for (std::int64_t i = 0; i < short_ones; ++i)
                 offsets.push_back(offsets.back() + 1);
         }
-        const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+        const std::int64_t num_segments = offsets.size() - 1;
         Sequence<int> in(offsets.back(), [](std::size_t i) { return int(i % 101) - 50; });
         Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
         invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
@@ -416,7 +415,7 @@ void
 test_input_bounds()
 {
     std::mt19937 gen(42);
-    for (std::size_t n : {std::size_t(1), std::size_t(1000), std::size_t(50000)})
+    for (std::size_t n : {1, 1000, 50000})
     {
         Sequence<int> guarded(n + 2 * guard_length, [n](std::size_t i) {
             return i < guard_length || i >= guard_length + n ? poison : int(i % 101) - 50;
@@ -424,7 +423,7 @@ test_input_bounds()
         for (segments kind : {segments::mixed, segments::inner, segments::out_of_bounds})
         {
             const std::vector<std::int64_t> offsets = make_offsets<std::int64_t>(kind, n, gen);
-            const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+            const std::int64_t num_segments = offsets.size() - 1;
             Sequence<std::int64_t> out(std::max<std::size_t>(num_segments, 1), [](std::size_t) { return -1; });
             invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), guarded.begin() + guard_length,
                                                  guarded.begin() + guard_length + n, out.begin(), out.end(),
@@ -452,7 +451,7 @@ test_usm()
     for (segments kind : {segments::mixed, segments::all_empty})
     {
         std::vector<int> offsets = make_offsets<int>(kind, n, gen);
-        const int num_segments = int(offsets.size() - 1);
+        const int num_segments = offsets.size() - 1;
         std::vector<int> expected(num_segments), result(num_segments);
         reduce_by_segment_offsets_serial(in.begin() + guard_length, in.begin() + guard_length + n, offsets.begin(),
                                          num_segments, 5, std::plus<int>{}, expected.begin());
@@ -460,14 +459,54 @@ test_usm()
         TestUtils::usm_data_transfer<alloc_type, int> in_usm(q, in.begin(), in.end());
         TestUtils::usm_data_transfer<alloc_type, int> offsets_usm(q, offsets.begin(), offsets.end());
         TestUtils::usm_data_transfer<alloc_type, int> out_usm(q, num_segments);
-        auto res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, NewKernelName),
-                                                  in_usm.get_data() + guard_length,
-                                                  in_usm.get_data() + guard_length + n, out_usm.get_data(),
-                                                  num_segments, offsets_usm.get_data(), 5, std::plus<int>{});
+        auto res = oneapi::dpl::experimental::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, NewKernelName),
+                                                                in_usm.get_data() + guard_length,
+                                                                in_usm.get_data() + guard_length + n, out_usm.get_data(),
+                                                                num_segments, offsets_usm.get_data(), 5, std::plus<int>{});
         EXPECT_EQ(out_usm.get_data() + num_segments, res, "wrong iterator returned by reduce_by_segment with USM");
         out_usm.retrieve_data(result.begin());
         EXPECT_EQ_N(expected.begin(), result.begin(), num_segments, "wrong result from reduce_by_segment with USM");
     }
+}
+
+// USM pointers with segments of the lengths around small powers of two, 0..7, 31..33, 35..40, 63..65, 127..129 and
+// 250..257, from unaligned positions (the first offset is odd), for elements of 4 and of 8 bytes
+template <sycl::usm::alloc alloc_type, typename T, typename KernelName>
+void
+test_usm_vector_edges()
+{
+    using NewKernelName =
+        TestUtils::unique_kernel_name<KernelName, TestUtils::uniq_kernel_index<alloc_type>() + 2 * sizeof(T)>;
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    sycl::queue q = policy.queue();
+    const std::vector<int> lengths{0,  1,  2,  3,  4,   5,   6,   7,   31,  32,  33,  35,  36,  37,  38,  39, 40,
+                                   63, 64, 65, 127, 128, 129, 250, 251, 252, 253, 254, 255, 256, 257};
+    std::vector<int> offsets{3};
+    for (int round = 0; round < 3; ++round)
+        for (int length : lengths)
+            offsets.push_back(offsets.back() + length + round);
+    const int num_segments = offsets.size() - 1;
+    const std::size_t n = offsets.back() + 5;
+    std::vector<T> in(n + 2 * guard_length, poison);
+    for (std::size_t i = 0; i < n; ++i)
+        in[guard_length + i] = int(i % 13) - 6;
+    std::vector<T> expected(num_segments), result(num_segments);
+    reduce_by_segment_offsets_serial(in.begin() + guard_length, in.begin() + guard_length + n, offsets.begin(),
+                                     num_segments, T(5), std::plus<T>{}, expected.begin());
+
+    TestUtils::usm_data_transfer<alloc_type, T> in_usm(q, in.begin(), in.end());
+    TestUtils::usm_data_transfer<alloc_type, int> offsets_usm(q, offsets.begin(), offsets.end());
+    TestUtils::usm_data_transfer<alloc_type, T> out_usm(q, num_segments);
+    auto res = oneapi::dpl::experimental::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, NewKernelName),
+                                                            in_usm.get_data() + guard_length, in_usm.get_data() + guard_length + n,
+                                                            out_usm.get_data(), num_segments, offsets_usm.get_data(), T(5),
+                                                            std::plus<T>{});
+    EXPECT_EQ(out_usm.get_data() + num_segments, res,
+              "wrong iterator returned by reduce_by_segment with USM at the edges of small powers of two");
+    out_usm.retrieve_data(result.begin());
+    EXPECT_EQ_N(expected.begin(), result.begin(), num_segments,
+                "wrong result from reduce_by_segment with USM at the edges of small powers of two");
 }
 
 template <typename KernelName>
@@ -483,7 +522,7 @@ test_buffer()
     for (segments kind : {segments::mixed, segments::all_empty})
     {
         std::vector<int> offsets = make_offsets<int>(kind, n, gen);
-        const int num_segments = int(offsets.size() - 1);
+        const int num_segments = offsets.size() - 1;
         std::vector<int> expected(num_segments), result(num_segments, -1);
         reduce_by_segment_offsets_serial(in.begin() + guard_length, in.begin() + guard_length + n, offsets.begin(),
                                          num_segments, 5, std::plus<int>{}, expected.begin());
@@ -491,11 +530,11 @@ test_buffer()
             sycl::buffer<int> in_buf(in.data(), in.size());
             sycl::buffer<int> offsets_buf(offsets.data(), offsets.size());
             sycl::buffer<int> out_buf(result.data(), result.size());
-            auto res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, KernelName),
-                                                      oneapi::dpl::begin(in_buf) + guard_length,
-                                                      oneapi::dpl::begin(in_buf) + guard_length + n,
-                                                      oneapi::dpl::begin(out_buf), num_segments,
-                                                      oneapi::dpl::begin(offsets_buf), 5, std::plus<int>{});
+            auto res = oneapi::dpl::experimental::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, KernelName),
+                                                                    oneapi::dpl::begin(in_buf) + guard_length,
+                                                                    oneapi::dpl::begin(in_buf) + guard_length + n,
+                                                                    oneapi::dpl::begin(out_buf), num_segments,
+                                                                    oneapi::dpl::begin(offsets_buf), 5, std::plus<int>{});
             EXPECT_EQ(oneapi::dpl::begin(out_buf) + num_segments, res,
                       "wrong iterator returned by reduce_by_segment with sycl::buffer");
         }
@@ -507,7 +546,9 @@ test_buffer()
 class KernelNameUSM;
 class KernelNameBuffer;
 class KernelNameCounting;
+class KernelNameUSMVectorEdges;
 class KernelNameNarrowCounting;
+class KernelNameSmallTypes;
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 // Counting iterators help cover input with specific difference types.
@@ -521,19 +562,19 @@ test_counting_input()
         for (int i = 0; i < 500; ++i)
             offsets.push_back(offsets.back() + 1 + i % 3);
     }
-    const int num_segments = int(offsets.size() - 1);
+    const int num_segments = offsets.size() - 1;
     const oneapi::dpl::counting_iterator<int> first(0);
     std::vector<std::int64_t> out(num_segments, -1);
     test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, first, first + offsets.back(), out.begin(),
                                      out.end(), offsets.begin(), num_segments, std::int64_t{5},
                                      std::plus<std::int64_t>{}, std::int64_t{-1});
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
     std::fill(out.begin(), out.end(), -1);
     auto policy = TestUtils::get_dpcpp_test_policy();
     test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameCounting),
                                      first, first + offsets.back(), out.begin(), out.end(), offsets.begin(),
                                      num_segments, std::int64_t{5}, std::plus<std::int64_t>{}, std::int64_t{-1});
-#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
 
 // More segments than a 16-bit difference type can count
@@ -548,18 +589,53 @@ test_narrow_counting_input()
     test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, first, first + n, out.begin(), out.end(),
                                      offsets.begin(), num_segments, std::int64_t{5}, std::plus<std::int64_t>{},
                                      std::int64_t{-1});
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
     std::fill(out.begin(), out.end(), -1);
     auto policy = TestUtils::get_dpcpp_test_policy();
     test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameNarrowCounting), first, first + n,
                                      out.begin(), out.end(), offsets.begin(), num_segments, std::int64_t{5},
                                      std::plus<std::int64_t>{}, std::int64_t{-1});
-#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
+}
+
+// 8-bit values, accumulator and results, and enough segments for the kernels of __parallel_for which would vectorize
+// over 8-bit values: the bricks of a device reduce whole segments or chunks and must not be vectorized
+void
+test_small_types()
+{
+    // Short segments, so that they are reduced one per work-item, and one long segment, so that the partial results of
+    // its chunks are combined, one work-item per segment again; it is at an odd index, which a vectorized combination
+    // would skip
+    const std::size_t num_segments = 1 << 19;
+    std::mt19937 gen(42);
+    std::uniform_int_distribution<std::int64_t> length(0, 16);
+    std::vector<std::int64_t> offsets(num_segments + 1, 0);
+    for (std::size_t i = 0; i < num_segments; ++i)
+        offsets[i + 1] = offsets[i] + (i == num_segments / 2 + 1 ? 100000 : length(gen));
+    std::vector<std::uint8_t> in(offsets.back());
+    for (std::size_t i = 0; i < in.size(); ++i)
+        in[i] = i * 7919 % 251;
+    std::vector<std::uint8_t> out(num_segments, 0xFF);
+    // The number of segments of the signed difference type of the offsets, as a size_t one is converted to index them
+    const std::int64_t m = num_segments;
+    test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, in.begin(), in.end(), out.begin(), out.end(),
+                                     offsets.begin(), m, std::uint8_t{5}, std::bit_xor<std::uint8_t>{},
+                                     std::uint8_t{0xFF});
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameSmallTypes), in.begin(), in.end(),
+                                     out.begin(), out.end(), offsets.begin(), m, std::uint8_t{5},
+                                     std::bit_xor<std::uint8_t>{}, std::uint8_t{0xFF});
+#endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
 
 int
 main()
 {
+#if ONEDPL_FPGA_DEVICE
+    // reduce_by_segment with offsets does not support FPGA policies
+    return done(0);
+#else
     // The operations: the ones of the RFC (sum, min, max, product, logical), the accumulator types of its
     // examples, and the ones of the other reduction tests (a user-defined type, an accumulator which is not
     // default-constructible, bitwise operations)
@@ -576,11 +652,11 @@ main()
     // Sum of a user-defined type
     test_segments<2, MatrixPoint<float>, MatrixPoint<float>, std::uint32_t, std::int64_t>(
         MatrixPoint<float>(1, 2), std::plus<>{},
-        [](std::size_t i) { return MatrixPoint<float>(float(i % 7), float(i % 3)); }, MatrixPoint<float>(-1, -1));
+        [](std::size_t i) { return MatrixPoint<float>(i % 7, i % 3); }, MatrixPoint<float>(-1, -1));
 
     // Sum with an accumulator which is not default-constructible
     test_segments<3, int, int, int, std::int64_t>(
-        NoDefaultCtorWrapper<int>{5}, std::plus<NoDefaultCtorWrapper<int>>{},
+        NoDefaultCtorWrapper<int>(5), std::plus<NoDefaultCtorWrapper<int>>{},
         [](std::size_t i) { return int(i % 101) - 50; }, -1);
 
     // Minimum; the initial value is the identity for the input (not the infinity, which EXPECT_EQ_N cannot compare)
@@ -620,6 +696,14 @@ main()
     test_segments<12, int, float, std::int64_t, int>(
         2.5f, int_sum_plus{}, [](std::size_t i) { return int(i % 101) - 50; }, -1.f);
 
+    // Results of 1 and 2 bytes, which the writes of the initial value for an empty input take in vectors
+    test_segments<13, std::uint8_t, std::uint8_t, int, int>(
+        std::uint8_t{3}, std::plus<std::uint8_t>{}, [](std::size_t i) { return std::uint8_t(i % 7); },
+        std::uint8_t{255});
+    test_segments<14, std::uint16_t, std::uint16_t, std::int64_t, int>(
+        std::uint16_t{3}, std::plus<std::uint16_t>{}, [](std::size_t i) { return std::uint16_t(i % 1000); },
+        std::uint16_t{65535});
+
     test_unordered<39>();
     test_boundaries<42>();
     test_input_bounds<43>();
@@ -627,12 +711,16 @@ main()
     test_fixed_length_segments<45>();
     test_counting_input();
     test_narrow_counting_input();
+    test_small_types();
 
 #if TEST_DPCPP_BACKEND_PRESENT
     test_usm<sycl::usm::alloc::shared, KernelNameUSM>();
     test_usm<sycl::usm::alloc::device, KernelNameUSM>();
+    test_usm_vector_edges<sycl::usm::alloc::device, int, KernelNameUSMVectorEdges>();
+    test_usm_vector_edges<sycl::usm::alloc::device, std::int64_t, KernelNameUSMVectorEdges>();
     test_buffer<KernelNameBuffer>();
 #endif
 
     return done();
+#endif // ONEDPL_FPGA_DEVICE
 }

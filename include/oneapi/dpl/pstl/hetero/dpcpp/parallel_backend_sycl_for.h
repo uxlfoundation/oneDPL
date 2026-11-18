@@ -106,6 +106,25 @@ class __iterations_per_item
 template <typename _Brick, typename... _Ranges>
 inline constexpr std::uint8_t __iterations_per_item_v = __iterations_per_item<_Brick, _Ranges...>::value;
 
+// The vector size of a brick: its own __vector_size if it defines one, otherwise the one suggested for its ranges.
+// A brick which defines it processes that many adjacent indices per call.
+template <typename _Brick, typename... _Ranges>
+class __vector_size_per_item
+{
+    template <typename _F>
+    static std::integral_constant<std::uint8_t, _F::__vector_size>
+    test(int);
+
+    template <typename>
+    static std::integral_constant<std::uint8_t, __pfor_params<_Ranges...>::__vector_size>
+    test(...);
+
+  public:
+    constexpr static std::uint8_t value = decltype(test<_Brick>(0))::value;
+};
+template <typename _Brick, typename... _Ranges>
+inline constexpr std::uint8_t __vector_size_per_item_v = __vector_size_per_item<_Brick, _Ranges...>::value;
+
 template <typename... Name>
 class __parallel_for_small_kernel;
 
@@ -127,13 +146,13 @@ struct __parallel_for_small_submitter<__internal::__optional_kernel_name<_Name..
 {
     template <typename _Fp, typename _Index, typename... _Ranges>
     __future<sycl::event>
-    operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
+    operator()(sycl::queue& __q, const sycl::event& __e, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         _PRINT_INFO_IN_DEBUG_MODE(__q);
-        auto __event = __q.submit([__rngs..., __brick, __count](sycl::handler& __cgh) {
-
+        auto __event = __q.submit([__rngs..., __brick, __count, &__e](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
+            __cgh.depends_on(__e);
 
             __cgh.parallel_for<_Name...>(sycl::range</*dim=*/1>(__count), [=](sycl::item</*dim=*/1> __item) {
                 // Simple loop and no vectorization within the brick, to evenly spread work across compute units.
@@ -262,17 +281,18 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
 
     template <typename _Fp, typename _Index, typename... _Ranges>
     __future<sycl::event>
-    operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
+    operator()(sycl::queue& __q, const sycl::event& __e, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
         using __params_t = __pfor_params<_Ranges...>;
         const std::uint16_t __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__q, __work_group_size_limit);
         _PRINT_INFO_IN_DEBUG_MODE(__q);
-        auto __event = __q.submit([__rngs..., __brick, __work_group_size, __count](sycl::handler& __cgh) {
+        auto __event = __q.submit([__rngs..., __brick, __work_group_size, __count, &__e](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
+            __cgh.depends_on(__e);
             constexpr std::uint8_t __iters_per_work_item = __iterations_per_item_v<_Fp, _Ranges...>;
-            constexpr std::uint8_t __vector_size = __params_t::__vector_size;
+            constexpr std::uint8_t __vector_size = __vector_size_per_item_v<_Fp, _Ranges...>;
             const std::size_t __data_per_work_item = __iters_per_work_item * __vector_size;
             const std::size_t __num_groups =
                 __number_of_groups(__count, __work_group_size * __data_per_work_item, __brick);
@@ -298,9 +318,10 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
 
 //General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
 //for some algorithms happens that size of processing range is n, but amount of iterations is n/2.
+// __e is an event the kernel waits for on the device before it starts
 template <typename _CustomName, typename _Fp, typename _Index, typename... _Ranges>
 __future<sycl::event>
-__parallel_for_impl(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs)
+__parallel_for_impl(sycl::queue& __q, const sycl::event& __e, _Fp __brick, _Index __count, _Ranges&&... __rngs)
 {
     assert(oneapi::dpl::__ranges::__min_size_calc{}(__rngs...) > 0);
     assert(__count > 0);
@@ -316,14 +337,21 @@ __parallel_for_impl(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... 
     // Compile two kernels: one for small-to-medium inputs and a second for large. This avoids runtime checks within a
     // single kernel that worsen performance for small cases. If the number of iterations of the large submitter is 1,
     // then only compile the basic kernel as the two versions are effectively the same.
-    if constexpr (__iters_per_work_item > 1 || __pfor_params<_Ranges...>::__vector_size > 1)
+    if constexpr (__iters_per_work_item > 1 || __vector_size_per_item_v<_Fp, _Ranges...> > 1)
     {
         if (__count >= __large_submitter::__minimal_useful_size(__q, __iters_per_work_item))
         {
-            return __large_submitter{}(__q, __brick, __count, std::forward<_Ranges>(__rngs)...);
+            return __large_submitter{}(__q, __e, __brick, __count, std::forward<_Ranges>(__rngs)...);
         }
     }
-    return __small_submitter{}(__q, __brick, __count, std::forward<_Ranges>(__rngs)...);
+    return __small_submitter{}(__q, __e, __brick, __count, std::forward<_Ranges>(__rngs)...);
+}
+
+template <typename _CustomName, typename _Fp, typename _Index, typename... _Ranges>
+__future<sycl::event>
+__parallel_for_impl(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs)
+{
+    return __parallel_for_impl<_CustomName>(__q, sycl::event{}, __brick, __count, std::forward<_Ranges>(__rngs)...);
 }
 
 //General version of parallel_for, one additional parameter - __count of iterations of loop __cgh.parallel_for,
@@ -336,6 +364,18 @@ __parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&&
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     sycl::queue __q_local = __exec.queue();
     return oneapi::dpl::__par_backend_hetero::__parallel_for_impl<_CustomName>(__q_local, __brick, __count,
+                                                                               std::forward<_Ranges>(__rngs)...);
+}
+
+// As above, started on the device only after __e
+template <typename _ExecutionPolicy, typename _Fp, typename _Index, typename... _Ranges>
+__future<sycl::event>
+__parallel_for(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, const sycl::event& __e,
+               _Fp __brick, _Index __count, _Ranges&&... __rngs)
+{
+    using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    sycl::queue __q_local = __exec.queue();
+    return oneapi::dpl::__par_backend_hetero::__parallel_for_impl<_CustomName>(__q_local, __e, __brick, __count,
                                                                                std::forward<_Ranges>(__rngs)...);
 }
 

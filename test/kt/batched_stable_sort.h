@@ -1,11 +1,14 @@
 // -*- C++ -*-
-//===-- batched_stable_sort.cpp -------------------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Copyright (C) UXL Foundation Contributors
 //
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+
+#ifndef _BATCHED_STABLE_SORT_TEST_H
+#define _BATCHED_STABLE_SORT_TEST_H
 
 #include "../support/test_config.h"
 
@@ -34,11 +37,10 @@ using ValueT = TEST_VALUE_TYPE;
 #endif
 using KeyT = TEST_KEY_TYPE;
 
-using SortConfig = kt::gpu::radix_many_groups_tag<TestRadixBits>;
-
 #include "batched_sort_test_utils.h"
 
-template <bool UsesTempStorage>
+// SortConfig<IsAscending> is the sort configuration tag under test
+template <template <bool> class SortConfig, bool UsesTempStorage>
 struct BatchedStableSort
 {
     static constexpr bool uses_temp_storage = UsesTempStorage;
@@ -47,59 +49,70 @@ struct BatchedStableSort
     static sycl::event
     sort(sycl::queue q, Args&&... args)
     {
-        return kt::gpu::batched_stable_sort<SortConfig, IsAscending>(q, std::forward<Args>(args)...);
+        return kt::gpu::batched_stable_sort<SortConfig<IsAscending>>(q, std::forward<Args>(args)...);
     }
     template <bool IsAscending, typename... Args>
     static sycl::event
     sort_by_key(sycl::queue q, Args&&... args)
     {
-        return kt::gpu::batched_stable_sort_by_key<SortConfig, IsAscending>(q, std::forward<Args>(args)...);
+        return kt::gpu::batched_stable_sort_by_key<SortConfig<IsAscending>>(q, std::forward<Args>(args)...);
     }
     template <typename KernelParam>
     static constexpr std::size_t
     bytes_req(std::size_t segment_size, std::size_t n)
     {
 #if TEST_KEYS_ONLY
-        return kt::gpu::batched_stable_sort_bytes_req<SortConfig, KeyT>(segment_size, n, KernelParam{});
+        return kt::gpu::batched_stable_sort_bytes_req<SortConfig<Ascending>, KeyT>(segment_size, n, KernelParam{});
 #else
-        return kt::gpu::batched_stable_sort_by_key_bytes_req<SortConfig, KeyT, ValueT>(segment_size, n, KernelParam{});
+        return kt::gpu::batched_stable_sort_by_key_bytes_req<SortConfig<Ascending>, KeyT, ValueT>(segment_size, n,
+                                                                                                  KernelParam{});
 #endif
     }
 };
 
 // Segment sizes around the tile size (data_per_workitem * workgroup_size) and the global histogram chunk (4096), plus
-// segments smaller than a tile, multi-tile segments and segments that are not multiples of the sub-group size
+// segments smaller than a tile, multi-tile segments and segments that are not multiples of the sub-group size.
+// Segments that fit in a tile are owned by whole sub-groups of 32 * data_per_workitem elements, several per
+// work-group, so sizes around multiples of a sub-group's elements are covered too.
 std::vector<std::size_t>
-segment_sizes(std::size_t tile)
+segment_sizes(std::size_t tile, std::size_t sub_group_tile, bool wg_resident_only)
 {
     std::vector<std::size_t> sizes = {
         1,        2,      7,        100,      317,          1000,           4095,         4097,
         tile - 1, tile,   tile + 1, 2 * tile, 2 * tile + 1, 3 * tile + 333, 7 * tile - 5, 50'000,
-        1 << 17,  300'007};
+        1 << 17,  300'007,
+        sub_group_tile - 1, sub_group_tile, sub_group_tile + 1, 2 * sub_group_tile + 3, tile / 2 + 1, tile / 3};
     sizes.erase(std::remove(sizes.begin(), sizes.end(), std::size_t(0)), sizes.end());
+    if (wg_resident_only)
+        sizes.erase(std::remove_if(sizes.begin(), sizes.end(), [tile](std::size_t s) { return s > tile; }),
+                    sizes.end());
     std::sort(sizes.begin(), sizes.end());
     sizes.erase(std::unique(sizes.begin(), sizes.end()), sizes.end());
     return sizes;
 }
 
+// WgResidentOnly: the sort configuration supports only segments which fit in a work-group tile
+template <template <bool> class SortConfig, bool WgResidentOnly>
 int
-main()
+test()
 {
-    bool run_test = false;
-#if TEST_SYCL_RADIX_SORT_KT_AVAILABLE
     using Param = kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE>;
-    using Sorter = BatchedStableSort</*UsesTempStorage=*/false>;
-    using SorterTempStorage = BatchedStableSort</*UsesTempStorage=*/true>;
+    using Sorter = BatchedStableSort<SortConfig, /*UsesTempStorage=*/false>;
+    using SorterTempStorage = BatchedStableSort<SortConfig, /*UsesTempStorage=*/true>;
     constexpr Param params;
-    // The memory requirement can be known at compile time
-    static_assert(SorterTempStorage::bytes_req<Param>(4096, 1 << 20) > 0);
-    static_assert(SorterTempStorage::bytes_req<Param>(4096, 0) == 0);
+    // The memory requirement can be known at compile time. The work-group resident sort needs no temporary storage,
+    // onesweep does unless the input is empty.
+    constexpr std::size_t temp_bytes = SorterTempStorage::template bytes_req<Param>(4096, 1 << 20);
+    static_assert(WgResidentOnly ? temp_bytes == 0 : temp_bytes > 0);
+    static_assert(SorterTempStorage::template bytes_req<Param>(4096, 0) == 0);
     auto q = TestUtils::get_test_queue();
-#    if TEST_KEYS_ONLY
-    run_test = can_run_test<Param, KeyT>(q, params);
-#    else
-    run_test = can_run_test<Param, KeyT, ValueT>(q, params);
-#    endif
+#if TEST_KEYS_ONLY
+    using SlmValueT = void;
+#else
+    using SlmValueT = ValueT;
+#endif
+    const bool run_test =
+        can_run_test<Param, KeyT, SlmValueT, WgResidentOnly, SortConfig<Ascending>::radix_bits>(q, params);
 
     if (run_test)
     {
@@ -109,7 +122,8 @@ main()
             const DataMode modes[] = {DataMode::usm_iterators, DataMode::usm_ranges, DataMode::buffer_iterators,
                                       DataMode::buffer_ranges};
             std::size_t mode_idx = 0;
-            for (std::size_t segment_size : segment_sizes(tile))
+            const std::size_t sub_group_tile = std::size_t(Param::data_per_workitem) * 32;
+            for (std::size_t segment_size : segment_sizes(tile, sub_group_tile, WgResidentOnly))
             {
                 // A single segment (segment_size == n), a few segments, and many segments. The count of the
                 // smallest segments is capped: global scratch memory grows with the number of tiles and segments.
@@ -136,7 +150,8 @@ main()
 
             // More histogram chunks than histogram work-groups, with segments of 3 chunks: work-groups own several
             // chunks and switch segments in the middle of their range
-            test_case<Sorter, Ascending, false>(q, DataMode::usm_iterators, 9000, 600, params);
+            if (!WgResidentOnly || 9000 <= tile)
+                test_case<Sorter, Ascending, false>(q, DataMode::usm_iterators, 9000, 600, params);
 
             test_empty_input<Sorter>(q, params);
             test_empty_input<SorterTempStorage>(q, params, static_cast<void*>(nullptr), std::size_t{0});
@@ -145,8 +160,8 @@ main()
             using ParamA = decltype(TestUtils::create_new_kernel_param_idx<32>(params));
             using ParamB = decltype(TestUtils::create_new_kernel_param_idx<33>(params));
             KeyT* no_keys = nullptr;
-            kt::gpu::batched_stable_sort<SortConfig, Ascending, ParamA>(q, no_keys, no_keys, 4).wait();
-            kt::gpu::batched_stable_sort<SortConfig, Ascending, ParamB>(q, no_keys, no_keys, 4, nullptr, 0).wait();
+            kt::gpu::batched_stable_sort<SortConfig<Ascending>, ParamA>(q, no_keys, no_keys, 4).wait();
+            kt::gpu::batched_stable_sort<SortConfig<Ascending>, ParamB>(q, no_keys, no_keys, 4, nullptr, 0).wait();
         }
         catch (const std::exception& exc)
         {
@@ -154,7 +169,8 @@ main()
             return EXIT_FAILURE;
         }
     }
-#endif // TEST_SYCL_RADIX_SORT_KT_AVAILABLE
 
     return TestUtils::done(run_test);
 }
+
+#endif // _BATCHED_STABLE_SORT_TEST_H
