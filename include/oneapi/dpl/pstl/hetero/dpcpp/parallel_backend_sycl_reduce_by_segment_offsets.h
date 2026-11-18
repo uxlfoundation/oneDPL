@@ -566,7 +566,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         const _Size __piece_begin = std::min<_Size>(__n, _Size(std::size_t(__piece) * __piece_size));
                         const _Size __piece_end = std::min<_Size>(__n, __piece_begin + _Size(__piece_size));
 
-                        __piece_parts<_Size> __parts{__m};
+                        __piece_parts<_Size> __parts(__m);
 
                         if (__piece_begin < __piece_end)
                             __reduce_piece(__sg, __input, __offsets, __result, __n, __m, __piece_begin, __piece_end,
@@ -651,6 +651,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         _Size __tail_segment = {};
         std::uint8_t __head_state = 0;
         oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __head, __tail;
+
+        explicit __piece_parts(const _Size __m) : __tail_segment(__m) {}
     };
 
     // A very short segment held whole by the piece
