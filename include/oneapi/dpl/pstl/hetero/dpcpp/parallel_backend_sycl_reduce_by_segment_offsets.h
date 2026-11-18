@@ -67,12 +67,13 @@ struct __segmented_reduce_short_brick
 
         // A reversed segment has a negative length, so it is short and its serial reduce gives the init
         static_assert(std::is_signed_v<_Size>, "The size type must be signed");
-        if (__end - __begin > __short_segment_max)
+        const _Size __length = __end - __begin;
+        if (__length > __short_segment_max)
         {
             __atomic_ref_t __ref(__max_length_view[0]);
 
             __ref.fetch_max(oneapi::dpl::__internal::__clamp_to_size_and_cast<_MaxLength>(
-                __end - __begin, std::numeric_limits<_MaxLength>::max()));
+                __length, std::numeric_limits<_MaxLength>::max()));
         }
         else
         {
