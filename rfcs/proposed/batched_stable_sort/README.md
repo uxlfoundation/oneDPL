@@ -117,7 +117,9 @@ is default constructed in the kernel, so it cannot carry state set on the host. 
 accept no comparator, as they order keys by their bits.
 
 Unsupported combinations of `_SortConfig` and `kernel_param` are rejected at compile time, e.g.
-`radix_multi_wg_tag` currently requires 8 radix bits and 512 or 1024 work-items. Unsupported
+`radix_multi_wg_tag` currently requires 8 radix bits and 512 or 1024 work-items, and
+`merge_wg_resident_tag` and `radix_wg_resident_tag` require a `workgroup_size` which is a positive
+multiple of 32 and at most 1024. Unsupported
 runtime arguments for specific sort configurations assert at runtime.
 
 Dispatching between algorithms by segment size is left to the user. The documentation will include

@@ -34,10 +34,7 @@ namespace oneapi::dpl::experimental::kt::gpu
 // Sort configurations: each selects one algorithm and carries its specific parameters
 //-----------------------------------------------------------------------------
 
-// Work-group resident merge path sort; requires __segment_size <= data_per_workitem * workgroup_size. Keys are
-// ordered by _Compare, which must be a strict weak ordering of the input keys and also dictates the direction of the
-// sort: std::less<> sorts ascending, std::greater<> descending. NaN keys are therefore not supported with either.
-// _Compare is default constructed in the kernel.
+// Work-group resident merge path sort; requires __segment_size <= data_per_workitem * workgroup_size.
 template <typename _Compare = std::less<>>
 struct merge_wg_resident_tag
 {
@@ -90,6 +87,17 @@ __check_batched_sort_config()
                       __is_radix_multi_wg_tag_v<_SortConfig>,
                   "Unsupported _SortConfig: only merge_wg_resident_tag, radix_wg_resident_tag and "
                   "radix_multi_wg_tag are currently implemented");
+    if constexpr (__is_merge_wg_resident_tag_v<_SortConfig>)
+    {
+        // The kernel itself works with any work-group size, but sizes which are not a multiple of the sub-group size
+        // leave partial sub-groups and are not expected to perform well, so they are not supported.
+        static_assert(_KernelParam::workgroup_size > 0 && _KernelParam::workgroup_size % 32 == 0 &&
+                          _KernelParam::workgroup_size <= 1024,
+                      "merge_wg_resident_tag requires a positive multiple of 32 and at most 1024 work-items in a "
+                      "work-group");
+        static_assert(_KernelParam::data_per_workitem > 0,
+                      "merge_wg_resident_tag requires a positive number of elements per work-item");
+    }
     if constexpr (__is_radix_wg_resident_tag_v<_SortConfig>)
     {
         // There is no fundamental limitation here, 4 bits works but is rarely beneficial, so we enforce 8 bits for now,

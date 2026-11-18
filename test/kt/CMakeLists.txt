@@ -189,7 +189,7 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     add_dependencies(run-kt_sycl-sort-tests kt_sycl_cooperative_groups_estimate.pass)
 endif()
 
-# merge_wg_resident_tag accepts any work-group size, radix_wg_resident_tag any multiple of 32, and
+# merge_wg_resident_tag and radix_wg_resident_tag accept any multiple of 32 work-items up to 1024, and
 # radix_multi_wg_tag only 512 or 1024
 function(_generate_batched_stable_sort_tests _test_name _work_group_size_all)
     foreach (_data_per_work_item ${_kt_sycl_data_per_work_item_all})
