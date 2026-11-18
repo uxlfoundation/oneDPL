@@ -1212,9 +1212,9 @@ struct __early_exit_find_or
             // consolidating the loads to a single set of width + 1 loads, rather than 2 sets of width loads.
             constexpr bool __backward = __is_backward_tag(__brick_tag);
             const std::size_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item, __width);
-            constexpr bool __may_be_offset_pair = __may_be_offset_pair<_Ranges...>();
+            constexpr bool __check_offset_pair = __may_be_offset_pair<_Ranges...>();
             bool __offset_pair = false;
-            if constexpr (__may_be_offset_pair)
+            if constexpr (__check_offset_pair)
                 __offset_pair = __source_data_size > 1 && __is_offset_pair(__rngs...);
             const std::size_t __stride = __iteration_data_size * __width;
 
@@ -1278,7 +1278,7 @@ struct __early_exit_find_or
                     __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
                 }
             };
-            if constexpr (__may_be_offset_pair)
+            if constexpr (__check_offset_pair)
             {
                 if (__offset_pair)
                     __scan(std::true_type{});
