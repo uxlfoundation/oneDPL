@@ -862,9 +862,10 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                    return __clamp_to_size_and_cast<_Size>(__offsets[__i], __n) < __piece_begin;
                                }) - 1);
 
+        // The beginning of a segment is the end of the previous one, so each offset is loaded once
+        _Size __b = __clamp_to_size_and_cast<_Size>(__offsets[__s], __n);
         for (; __s < __m; ++__s)
         {
-            const _Size __b = __clamp_to_size_and_cast<_Size>(__offsets[__s], __n);
             if (__b >= __piece_end && !__last_piece)
                 break;
 
@@ -877,6 +878,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                 __s += _Size(__count) - 1;
                 if (__run_end >= __piece_end && !__last_piece)
                     break;
+                __b = __run_end;
                 continue;
             }
 
@@ -885,6 +887,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             // A later segment begins at or after the end of this one
             if (__e >= __piece_end && !__last_piece)
                 break;
+            __b = __e;
         }
     }
 
