@@ -525,6 +525,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         const std::size_t __num_groups = __geometry.__num_groups;
         const std::size_t __inputs_per_item = __geometry.__inputs_per_item;
         const std::uint32_t __piece_size = __inputs_per_item * __sub_group_size;
+        const std::uint32_t __num_pieces = __num_groups * __sub_groups;
 
         // Second-kernel units: work-groups when pieces are combined in local memory, else pieces
         const bool __combine_in_group = std::size_t(__n) > _Tuning::__piece_store_input_max;
@@ -569,6 +570,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
                         __piece_parts<_Size> __parts(__m);
 
+                        __write_empty_segments(__sg, __offsets, __result, __n, __m, __piece, __num_pieces);
                         if (__piece_begin < __piece_end)
                             __reduce_piece(__sg, __input, __offsets, __result, __n, __m, __piece_begin, __piece_end,
                                            __parts);
@@ -766,14 +768,13 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     }
 
     // Run of very short segments from __first_segment, a lane each, up to the first longer one: reduced from
-    // op(init, first), empty and reversed ones get the init. Returns the run's segment count and the end of its last
-    // segment.
+    // op(init, first); empty and reversed ones are left to __write_empty_segments. Returns the run's segment count and
+    // the end of its last segment.
     template <typename _SubGroup, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size>
     std::pair<std::uint32_t, _Size>
     __reduce_tiny_run(const _SubGroup __sg, const _InRange __input, const _OffsetRange __offsets,
                       const _OutRange __result, const _Size __n, const _Size __m, const _Size __first_segment,
-                      const _Size __first_begin, const _Size __piece_begin, const _Size __piece_end,
-                      const _Acc __init_acc) const
+                      const _Size __first_begin, const _Size __piece_begin, const _Size __piece_end) const
     {
         const std::uint32_t __lane = __sg.get_local_linear_id();
         const _Size __lane_segment = __first_segment + _Size(__lane);
@@ -791,8 +792,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         const std::uint32_t __count = __dpl_sycl::__reduce_over_group(
             __sg, __run ? std::uint32_t(_Tuning::__sub_group_size) : __lane, sycl::minimum<std::uint32_t>());
 
-        if (__lane < __count && __lane_begin >= __lane_end)
-            __result[__lane_segment] = __init_acc;
         if (__lane < __count && __lane_begin < __lane_end)
         {
             // Within the piece, whose size fits in 32 bits
@@ -807,12 +806,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         return {__count, sycl::select_from_group(__sg, __lane_end, __count - 1)};
     }
 
-    // The empty segments from __first_segment on, all beginning at __begin: the first offset after __begin, found by a
-    // search, ends their run, and the lanes write the init into them by stride, without loads. Returns the last of them.
-    template <typename _SubGroup, typename _OffsetRange, typename _OutRange, typename _Size>
-    _Size
-    __write_empty_run(const _SubGroup __sg, const _OffsetRange __offsets, const _OutRange __result, const _Size __n,
-                      const _Size __m, const _Size __first_segment, const _Size __begin) const
+    // The empty segments from __first_segment on, all beginning at __begin, written by __write_empty_segments: the
+    // first offset after __begin, found by a search, ends their run. Returns the last of them.
+    template <typename _OffsetRange, typename _Size>
+    static _Size
+    __skip_empty_run(const _OffsetRange __offsets, const _Size __n, const _Size __m, const _Size __first_segment,
+                     const _Size __begin)
     {
         using oneapi::dpl::__internal::__clamp_to_size_and_cast;
 
@@ -823,68 +822,43 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                 return __clamp_to_size_and_cast<_Size>(__offsets[__i], __n) <= __begin;
             });
         // Unsorted offsets (results unspecified) may end the search before __first_segment
-        const _Size __last = std::max<_Size>(__first_segment, __after_run - 1);
-        const _Size __lane = _Size(__sg.get_local_linear_id());
-
-        // With a pointer output, each lane stores aligned vectors of four; the unaligned head and tail, at most three
-        // elements each, take a lane per element
-        bool __by_vectors = false;
-        if constexpr (__has_pointer_begin<_OutRange>::value)
-        {
-            using _T = std::remove_cv_t<std::remove_pointer_t<decltype(__result.begin())>>;
-            if constexpr (std::is_arithmetic_v<_T> && !std::is_same_v<_T, bool> &&
-                          (sizeof(_T) == 1 || sizeof(_T) == 2 || sizeof(_T) == 4 || sizeof(_T) == 8))
-            {
-                _T* const __p = __result.begin();
-                // Four elements a vector, two for 8-byte types, to stay within 16 bytes and be aligned as often
-                constexpr std::uint32_t __vector_width = std::min<std::uint32_t>(4, 16 / sizeof(_T));
-                using _V = sycl::vec<_T, __vector_width>;
-                constexpr std::size_t __vector_bytes = sizeof(_V);
-                const std::size_t __misalignment =
-                    reinterpret_cast<std::uintptr_t>(__p + __first_segment) % __vector_bytes;
-                // First vector-aligned index, at most __last
-                const _Size __aligned_first = std::min<_Size>(
-                    __last, __first_segment + _Size((__vector_bytes - __misalignment) % __vector_bytes / sizeof(_T)));
-                const _Size __num_vectors = (__last - __aligned_first) / _Size(__vector_width);
-                const _Size __aligned_last = __aligned_first + _Size(__vector_width) * __num_vectors;
-
-                __by_vectors = true;
-                const _T __value = __init;
-                const _V __vector(__value);
-                for (_Size __k = __lane; __k < __num_vectors; __k += _Size(_Tuning::__sub_group_size))
-                    __vector.store(0, sycl::address_space_cast<sycl::access::address_space::generic_space,
-                                                               sycl::access::decorated::no>(
-                                          __p + __aligned_first + _Size(__vector_width) * __k));
-                if (__first_segment + __lane < __aligned_first)
-                    __p[__first_segment + __lane] = __value;
-                if (__aligned_last + __lane < __last)
-                    __p[__aligned_last + __lane] = __value;
-            }
-        }
-
-        if (!__by_vectors)
-            for (_Size __segment = __first_segment + __lane; __segment < __last;
-                 __segment += _Size(_Tuning::__sub_group_size))
-                __result[__segment] = __init;
-
-        return __last - 1;
+        return std::max<_Size>(__first_segment - 1, __after_run - 2);
     }
 
-    // Part [__begin, __end) of __segment in the piece, by the sub-group: empty or whole segments are written; a part
-    // begun before the piece is its head, one going on past its end its tail
+    // The empty and reversed segments get the init from the piece of their index, each piece a slice of the segments;
+    // the walks over the pieces' elements write the others. A long run of empty segments at one offset, all in one
+    // piece of elements, is so spread over all the sub-groups
+    template <typename _SubGroup, typename _OffsetRange, typename _OutRange, typename _Size>
+    void
+    __write_empty_segments(const _SubGroup __sg, const _OffsetRange __offsets, const _OutRange __result,
+                           const _Size __n, const _Size __m, const std::uint32_t __piece,
+                           const std::uint32_t __num_pieces) const
+    {
+        using oneapi::dpl::__internal::__clamp_to_size_and_cast;
+
+        const _Size __slice = oneapi::dpl::__internal::__dpl_ceiling_div(__m, _Size(__num_pieces));
+        // At most __m + __num_pieces: no overflow
+        const _Size __first = std::min<_Size>(__m, _Size(__piece) * __slice);
+        const _Size __last = std::min<_Size>(__m, __first + __slice);
+        for (_Size __segment = __first + _Size(__sg.get_local_linear_id()); __segment < __last;
+             __segment += _Size(_Tuning::__sub_group_size))
+            if (__clamp_to_size_and_cast<_Size>(__offsets[__segment], __n) >=
+                __clamp_to_size_and_cast<_Size>(__offsets[__segment + 1], __n))
+                __result[__segment] = __init;
+    }
+
+    // Part [__begin, __end) of __segment in the piece, by the sub-group: whole segments are written, empty ones are left
+    // to __write_empty_segments; a part begun before the piece is its head, one going on past its end its tail
     template <typename _SubGroup, typename _InRange, typename _OutRange, typename _Size>
     void
     __reduce_segment_part(const _SubGroup __sg, const _InRange __input, const _OutRange __result, const _Size __segment,
                           const _Size __begin, const _Size __end, const _Size __piece_begin, const _Size __piece_end,
-                          const _Acc __init_acc, __piece_parts<_Size>& __parts) const
+                          __piece_parts<_Size>& __parts) const
     {
         const std::uint32_t __lane = __sg.get_local_linear_id();
         const std::uint32_t __part_first = __begin > __piece_begin ? std::uint32_t(__begin - __piece_begin) : 0;
         const std::uint32_t __part_last =
             std::uint32_t(std::max<_Size>(__piece_begin, std::min<_Size>(__end, __piece_end)) - __piece_begin);
-
-        if (__begin == __end && __begin >= __piece_begin && __lane == 0)
-            __result[__segment] = __init_acc;
 
         if (__part_first < __part_last)
         {
@@ -913,15 +887,14 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         }
     }
 
-    // Walk the piece's segments, uniform across lanes, from the last beginning before it so leading empty ones are met;
-    // the last piece also takes those at n
+    // Walk the piece's segments, uniform across lanes, from the last beginning before it, whose part in the piece is
+    // its head
     template <typename _SubGroup, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size>
     void
     __reduce_piece(const _SubGroup __sg, const _InRange __input, const _OffsetRange __offsets, const _OutRange __result,
                    const _Size __n, const _Size __m, const _Size __piece_begin, const _Size __piece_end,
                    __piece_parts<_Size>& __parts) const
     {
-        const bool __last_piece = __piece_end == __n;
         using oneapi::dpl::__internal::__clamp_to_size_and_cast;
 
         // The last segment beginning before the piece, 0 for the first piece
@@ -934,31 +907,30 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         _Size __begin = __clamp_to_size_and_cast<_Size>(__offsets[__segment], __n);
         for (; __segment < __m; ++__segment)
         {
-            if (__begin >= __piece_end && !__last_piece)
+            if (__begin >= __piece_end)
                 break;
 
             const _Size __end = __clamp_to_size_and_cast<_Size>(__offsets[__segment + 1], __n);
             if (__is_tiny(__begin, __end, __piece_begin, __piece_end))
             {
-                const auto [__count, __run_end] =
-                    __reduce_tiny_run(__sg, __input, __offsets, __result, __n, __m, __segment, __begin, __piece_begin,
-                                      __piece_end, __init);
+                const auto [__count, __run_end] = __reduce_tiny_run(__sg, __input, __offsets, __result, __n, __m,
+                                                                    __segment, __begin, __piece_begin, __piece_end);
                 // Continue after the run; its last segment may end the piece. __count >= 1, as __segment is tiny
                 __segment += _Size(__count) - 1;
-                if (__run_end >= __piece_end && !__last_piece)
+                if (__run_end >= __piece_end)
                     break;
                 // A sub-group of empty segments at __begin: their run may go on far, so the rest of it is skipped
                 if (__count == _Tuning::__sub_group_size && __run_end == __begin)
-                    __segment = __write_empty_run(__sg, __offsets, __result, __n, __m, __segment + 1, __begin);
+                    __segment = __skip_empty_run(__offsets, __n, __m, __segment + 1, __begin);
                 __begin = __run_end;
                 continue;
             }
 
             __reduce_segment_part(__sg, __input, __result, __segment, __begin, __end, __piece_begin, __piece_end,
-                                  __init, __parts);
+                                  __parts);
 
             // A later segment begins at or after the end of this one
-            if (__end >= __piece_end && !__last_piece)
+            if (__end >= __piece_end)
                 break;
             __begin = __end;
         }
