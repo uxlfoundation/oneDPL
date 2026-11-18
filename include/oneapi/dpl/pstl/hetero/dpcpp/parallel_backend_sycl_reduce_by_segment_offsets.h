@@ -561,8 +561,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         const auto __sg = __item.get_sub_group();
                         const std::uint32_t __lane = __sg.get_local_linear_id();
                         const std::uint32_t __sg_id = __sg.get_group_linear_id();
-                        const std::uint32_t __group = __item.get_group(0);
-                        const std::uint32_t __piece = __group * std::uint32_t(__sub_groups) + __sg_id;
+                        const std::uint32_t __group_id = __item.get_group(0);
+                        const std::uint32_t __piece = __group_id * std::uint32_t(__sub_groups) + __sg_id;
                         // In 64 bits: the product may exceed 32 bits before clamping to __n
                         const _Size __piece_begin = std::min<_Size>(__n, _Size(std::size_t(__piece) * __piece_size));
                         const _Size __piece_end = std::min<_Size>(__n, __piece_begin + _Size(__piece_size));
@@ -574,7 +574,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                            __parts);
 
                         if constexpr (__in_group_v)
-                            __combine_pieces_in_group(__item, __sg_id, __lane, __group, __sub_groups, __m, __parts,
+                            __combine_pieces_in_group(__item, __sg_id, __lane, __group_id, __sub_groups, __m, __parts,
                                                       __local, __result, __heads, __tails, __tail_segment_of);
                         else
                             __store_piece_parts(__lane, __piece, __m, __parts, __heads, __tails, __tail_segment_of);
@@ -917,7 +917,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     template <typename _Size, typename _Local, typename _OutRange>
     void
     __combine_pieces_in_group(const sycl::nd_item<1> __item, const std::uint32_t __sg_id, const std::uint32_t __lane,
-                              const std::uint32_t __group, const std::size_t __sub_groups, const _Size __m,
+                              const std::uint32_t __group_id, const std::size_t __sub_groups, const _Size __m,
                               const __piece_parts<_Size>& __parts, const _Local __local, const _OutRange __result,
                               _Acc* const __heads, _Acc* const __tails, _Size* const __tail_segment_of) const
     {
@@ -933,7 +933,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
         // No tail unless found below; the barrier orders this before the writes after it
         if (__sg_id == 0 && __lane == 0)
-            __tail_segment_of[__group] = __m;
+            __tail_segment_of[__group_id] = __m;
 
         sycl::group_barrier(__item.get_group());
         if (__sg_id != 0 || __lane >= __sub_groups)
@@ -960,8 +960,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                 __result[__tail_segment] = __acc;
             if (__state != 1)
             {
-                __tails[__group] = __acc;
-                __tail_segment_of[__group] = __tail_segment;
+                __tails[__group_id] = __acc;
+                __tail_segment_of[__group_id] = __tail_segment;
             }
         }
 
@@ -969,7 +969,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         {
             _Acc __acc = __local.__loc_heads_tails_acc[0];
             __chain(__acc, __local.__loc_head_states_acc[0], 1);
-            __heads[__group] = __acc;
+            __heads[__group_id] = __acc;
         }
     }
 
