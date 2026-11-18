@@ -132,8 +132,8 @@ struct test_reduce_by_segment_offsets
         reduce_by_segment_offsets_serial(input.begin(), input.end(), offsets_copy.begin(), num_segments, init, op,
                                          expected.begin());
 
-        auto res = oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
-                                                  offsets, init, op);
+        auto res = oneapi::dpl::experimental::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
+                                                                offsets, init, op);
         EXPECT_EQ_N(expected.begin(), out_first, expected.size(), "wrong result from reduce_by_segment with offsets");
         // The end of the results, which a non-positive number of segments leaves at the start
         EXPECT_EQ(num_segments > 0 ? out_first + num_segments : out_first, res,
@@ -159,8 +159,8 @@ struct test_unordered_offsets
     operator()(Policy&& exec, InputIt first, InputIt last, OutputIt out_first, OutputIt /*out_last*/,
                OffsetIt offsets, SegmentNum num_segments, Init init, BinaryOp op)
     {
-        auto res = oneapi::dpl::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
-                                                  offsets, init, op);
+        auto res = oneapi::dpl::experimental::reduce_by_segment(std::forward<Policy>(exec), first, last, out_first, num_segments,
+                                                                offsets, init, op);
         EXPECT_EQ(num_segments > 0 ? out_first + num_segments : out_first, res,
                   "wrong iterator returned by reduce_by_segment with unordered offsets");
     }
@@ -459,10 +459,10 @@ test_usm()
         TestUtils::usm_data_transfer<alloc_type, int> in_usm(q, in.begin(), in.end());
         TestUtils::usm_data_transfer<alloc_type, int> offsets_usm(q, offsets.begin(), offsets.end());
         TestUtils::usm_data_transfer<alloc_type, int> out_usm(q, num_segments);
-        auto res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, NewKernelName),
-                                                  in_usm.get_data() + guard_length,
-                                                  in_usm.get_data() + guard_length + n, out_usm.get_data(),
-                                                  num_segments, offsets_usm.get_data(), 5, std::plus<int>{});
+        auto res = oneapi::dpl::experimental::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, NewKernelName),
+                                                                in_usm.get_data() + guard_length,
+                                                                in_usm.get_data() + guard_length + n, out_usm.get_data(),
+                                                                num_segments, offsets_usm.get_data(), 5, std::plus<int>{});
         EXPECT_EQ(out_usm.get_data() + num_segments, res, "wrong iterator returned by reduce_by_segment with USM");
         out_usm.retrieve_data(result.begin());
         EXPECT_EQ_N(expected.begin(), result.begin(), num_segments, "wrong result from reduce_by_segment with USM");
@@ -498,10 +498,10 @@ test_usm_vector_edges()
     TestUtils::usm_data_transfer<alloc_type, T> in_usm(q, in.begin(), in.end());
     TestUtils::usm_data_transfer<alloc_type, int> offsets_usm(q, offsets.begin(), offsets.end());
     TestUtils::usm_data_transfer<alloc_type, T> out_usm(q, num_segments);
-    auto res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, NewKernelName),
-                                              in_usm.get_data() + guard_length, in_usm.get_data() + guard_length + n,
-                                              out_usm.get_data(), num_segments, offsets_usm.get_data(), T(5),
-                                              std::plus<T>{});
+    auto res = oneapi::dpl::experimental::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, NewKernelName),
+                                                            in_usm.get_data() + guard_length, in_usm.get_data() + guard_length + n,
+                                                            out_usm.get_data(), num_segments, offsets_usm.get_data(), T(5),
+                                                            std::plus<T>{});
     EXPECT_EQ(out_usm.get_data() + num_segments, res,
               "wrong iterator returned by reduce_by_segment with USM at the edges of small powers of two");
     out_usm.retrieve_data(result.begin());
@@ -530,11 +530,11 @@ test_buffer()
             sycl::buffer<int> in_buf(in.data(), in.size());
             sycl::buffer<int> offsets_buf(offsets.data(), offsets.size());
             sycl::buffer<int> out_buf(result.data(), result.size());
-            auto res = oneapi::dpl::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, KernelName),
-                                                      oneapi::dpl::begin(in_buf) + guard_length,
-                                                      oneapi::dpl::begin(in_buf) + guard_length + n,
-                                                      oneapi::dpl::begin(out_buf), num_segments,
-                                                      oneapi::dpl::begin(offsets_buf), 5, std::plus<int>{});
+            auto res = oneapi::dpl::experimental::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, KernelName),
+                                                                    oneapi::dpl::begin(in_buf) + guard_length,
+                                                                    oneapi::dpl::begin(in_buf) + guard_length + n,
+                                                                    oneapi::dpl::begin(out_buf), num_segments,
+                                                                    oneapi::dpl::begin(offsets_buf), 5, std::plus<int>{});
             EXPECT_EQ(oneapi::dpl::begin(out_buf) + num_segments, res,
                       "wrong iterator returned by reduce_by_segment with sycl::buffer");
         }
@@ -568,13 +568,13 @@ test_counting_input()
     test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, first, first + offsets.back(), out.begin(),
                                      out.end(), offsets.begin(), num_segments, std::int64_t{5},
                                      std::plus<std::int64_t>{}, std::int64_t{-1});
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
     std::fill(out.begin(), out.end(), -1);
     auto policy = TestUtils::get_dpcpp_test_policy();
     test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameCounting),
                                      first, first + offsets.back(), out.begin(), out.end(), offsets.begin(),
                                      num_segments, std::int64_t{5}, std::plus<std::int64_t>{}, std::int64_t{-1});
-#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
 
 // More segments than a 16-bit difference type can count
@@ -589,13 +589,13 @@ test_narrow_counting_input()
     test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, first, first + n, out.begin(), out.end(),
                                      offsets.begin(), num_segments, std::int64_t{5}, std::plus<std::int64_t>{},
                                      std::int64_t{-1});
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
     std::fill(out.begin(), out.end(), -1);
     auto policy = TestUtils::get_dpcpp_test_policy();
     test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameNarrowCounting), first, first + n,
                                      out.begin(), out.end(), offsets.begin(), num_segments, std::int64_t{5},
                                      std::plus<std::int64_t>{}, std::int64_t{-1});
-#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
 
 // 8-bit values, accumulator and results, and enough segments for the kernels of __parallel_for which would vectorize
@@ -621,17 +621,21 @@ test_small_types()
     test_reduce_by_segment_offsets()(oneapi::dpl::execution::par_unseq, in.begin(), in.end(), out.begin(), out.end(),
                                      offsets.begin(), m, std::uint8_t{5}, std::bit_xor<std::uint8_t>{},
                                      std::uint8_t{0xFF});
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
     auto policy = TestUtils::get_dpcpp_test_policy();
     test_reduce_by_segment_offsets()(CLONE_TEST_POLICY_NAME(policy, KernelNameSmallTypes), in.begin(), in.end(),
                                      out.begin(), out.end(), offsets.begin(), m, std::uint8_t{5},
                                      std::bit_xor<std::uint8_t>{}, std::uint8_t{0xFF});
-#endif
+#endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
 
 int
 main()
 {
+#if ONEDPL_FPGA_DEVICE
+    // reduce_by_segment with offsets does not support FPGA policies
+    return done(0);
+#else
     // The operations: the ones of the RFC (sum, min, max, product, logical), the accumulator types of its
     // examples, and the ones of the other reduction tests (a user-defined type, an accumulator which is not
     // default-constructible, bitwise operations)
@@ -718,4 +722,5 @@ main()
 #endif
 
     return done();
+#endif // ONEDPL_FPGA_DEVICE
 }

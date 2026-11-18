@@ -16,6 +16,7 @@
 #include <cstdint>     // std::uint8_t, std::uint32_t
 #include <functional>  // std::invoke, std::less, std::plus
 #include <limits>      // std::numeric_limits
+#include <tuple>       // std::get
 #include <type_traits> // std::is_signed_v, std::true_type
 #include <utility>     // std::move, std::forward
 #include <vector>      // std::vector
@@ -77,16 +78,39 @@ struct __segmented_reduce_short_brick
     }
 };
 
-// Stores a single zero-initialized value, updated by atomics in a kernel and loaded by the host afterwards.
-// Uses host USM if the device supports atomics on it; otherwise device USM, zeroed by a fill and loaded by a copy,
-// which costs less on GPUs than the host accessors of a SYCL buffer; without USM, falls back to a SYCL buffer.
-template <typename _ValueType>
-struct __atomic_result_storage : public __device_storage<_ValueType>
+template <typename... _Name>
+class __copy_scratch_to_result_kernel;
+
+// Copies the value of a __combined_storage from its scratch into its result, by one work-item after an event
+template <typename _KernelName>
+struct __copy_scratch_to_result_submitter;
+
+template <typename... _Name>
+struct __copy_scratch_to_result_submitter<__internal::__optional_kernel_name<_Name...>>
 {
-    sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
+    template <typename _ValueType>
+    sycl::event
+    operator()(sycl::queue& __q, const sycl::event& __e, __combined_storage<_ValueType>& __storage) const
+    {
+        return __q.submit([&](sycl::handler& __cgh) {
+            __cgh.depends_on(__e);
+            auto __scratch_acc = __get_accessor(sycl::read_only, __storage, __cgh);
+            auto __result_acc = __get_result_accessor(sycl::write_only, __storage, __cgh, __dpl_sycl::__no_init{});
+            __cgh.single_task<_Name...>([=]() { __result_acc.__data()[0] = __scratch_acc.__data()[0]; });
+        });
+    }
+};
+
+// A single zero-initialized value, raised by atomics of a kernel in the scratch, in device memory.
+// Where the result is host USM, the value is copied into it on the device, as loading device memory on the host costs
+// much on some GPUs; otherwise the host loads the scratch itself.
+// Without USM, a SYCL buffer holds both.
+template <typename _ValueType>
+struct __atomic_result_storage : public __combined_storage<_ValueType>
+{
     sycl::event __zero_done; // the completion of the initial zero on the device, if it is not written by the host
 
-    // The view a brick of __parallel_for takes as a range
+    // The view of the scratch a brick of __parallel_for takes as a range
     struct __view
     {
         using value_type = _ValueType;
@@ -117,23 +141,10 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
         }
     };
 
-    explicit __atomic_result_storage(sycl::queue& __q)
+    // The scratch comes first in device USM and in the SYCL buffer
+    explicit __atomic_result_storage(sycl::queue& __q) : __combined_storage<_ValueType>(__q, 1, 1)
     {
-        _ValueType* __ptr = nullptr;
-        if (__q.get_device().has(sycl::aspect::usm_atomic_host_allocations))
-            __ptr = __internal::__allocate_usm<_ValueType, sycl::usm::alloc::host>(__q, 1);
-        if (__ptr)
-        {
-            this->__usm_buf =
-                std::unique_ptr<_ValueType, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-            __kind = sycl::usm::alloc::host;
-            *__ptr = _ValueType{};
-            return;
-        }
-
-        this->__initialize(__q, 1);
-        __kind = this->__usm_buf ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
-        if (__kind == sycl::usm::alloc::device)
+        if (this->__usm_buf)
             __zero_done = __q.fill(this->__usm_buf.get(), _ValueType{}, 1);
         else
             this->__sycl_buf.get_host_access(sycl::write_only)[0] = _ValueType{};
@@ -150,11 +161,28 @@ struct __atomic_result_storage : public __device_storage<_ValueType>
             return __view{this->__usm_buf.get(), {}};
     }
 
+    // Waits for the kernel that raised the value, the event __e, copies it into a result in host USM, and loads it
+    template <typename _ExecutionPolicy>
     _ValueType
-    __load_result()
+    __load_result(_ExecutionPolicy&& __exec, sycl::event __e)
     {
         _ValueType __result = {};
-        this->__copy_n(&__result, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr, 1, /*offset*/ 0);
+
+        // A result in host USM gets the value copied into it; otherwise the host loads the scratch itself
+        if (this->__kind == sycl::usm::alloc::host)
+        {
+            using _CopyScratchToResultKernel = __internal::__kernel_name_provider<
+                __copy_scratch_to_result_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+            sycl::queue __q = __exec.queue();
+            __copy_scratch_to_result_submitter<_CopyScratchToResultKernel>{}(__q, __e, *this).wait_and_throw();
+            this->__copy_result(&__result, 1);
+        }
+        else
+        {
+            __e.wait_and_throw();
+            this->__copy_n(&__result, nullptr, 1, /*offset*/ 0); // the scratch, first in device USM and in the buffer
+        }
+
         return __result;
     }
 };
@@ -319,7 +347,7 @@ __parallel_reduce_by_segment_offsets_fill(_BackendTag, _ExecutionPolicy&& __exec
 // A short segment is reduced by one work-item. A long segment is split into chunks, each reduced by one work-item, and
 // the partial results of the segment are combined by one work-item. The values below were measured on GPUs and CPUs
 // as SYCL devices.
-struct __segmented_reduce_chunk_tuning
+class __segmented_reduce_chunk_tuning
 {
     // A segment up to this length is short
     static constexpr std::size_t __gpu_short_segment_max = 512;
@@ -331,6 +359,7 @@ struct __segmented_reduce_chunk_tuning
     static constexpr std::size_t __gpu_max_chunk_size = 16384;
     static constexpr std::size_t __cpu_chunk_size = 4096;
 
+  public:
     static std::size_t
     __short_segment_max(bool __is_gpu)
     {
@@ -424,15 +453,14 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     // The short segments, one work-item each; the long ones only report the longest length
     // 32 bits: the atomics of every device; the cap of the length by the brick does not change the chunk size
     __atomic_result_storage<std::uint32_t> __max_length_storage(__q);
-    __parallel_for(
-        _BackendTag{}, __exec, __max_length_storage.__zero_done,
-        __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{__n, __short_segment_max, __init, __binary_op},
-        __m, __offsets, __result, __input, __max_length_storage.__all_view())
-        .event()
-        .wait_and_throw();
+    sycl::event __short_done = __parallel_for(_BackendTag{}, __exec, __max_length_storage.__zero_done,
+                                              __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{
+                                                  __n, __short_segment_max, __init, __binary_op},
+                                              __m, __offsets, __result, __input, __max_length_storage.__all_view())
+                                   .event();
 
     // The long segments in chunks: at most n / __short_segment_max of them
-    const _Size __max_length = __max_length_storage.__load_result();
+    const _Size __max_length = __max_length_storage.__load_result(__exec, __short_done);
     if (__max_length > 0)
         __reduce_in_chunks(__short_segment_max, /*__write_empty=*/false, __max_length, __n / __short_segment_max);
 }
