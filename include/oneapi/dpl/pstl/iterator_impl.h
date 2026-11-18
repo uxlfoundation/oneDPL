@@ -452,6 +452,13 @@ class zip_iterator
         return !(*this < __it);
     }
 
+    template <typename... _Tp>
+    static oneapi::dpl::__internal::tuple<_Tp&...>
+    tie(_Tp&... __args)
+    {
+        return {__args...};
+    }
+
     friend auto
     is_onedpl_indirectly_device_accessible(zip_iterator)
         -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<_Types>...>

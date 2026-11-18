@@ -178,14 +178,14 @@ DEFINE_TEST(test_counting_zip_transform)
 {
     DEFINE_TEST_CONSTRUCTOR(test_counting_zip_transform, 1.0f, 1.0f)
 
-    template <typename ValueType>
+    template <typename ValueType, typename ZipIterator>
     struct ForwardAsTuple
     {
         auto operator()(ValueType& x1) const
         {
             // It's required to use forward_as_tuple instead of make_tuple
             // as the latter do not propagate references.
-            return std::forward_as_tuple(x1, std::ignore);
+            return std::decay_t<ZipIterator>::tie(x1, std::ignore);
         }
     };
 
@@ -220,7 +220,7 @@ DEFINE_TEST(test_counting_zip_transform)
         // see test_counting_zip_discard
         auto res =
             std::copy_if(CLONE_TEST_POLICY_IDX(exec, 0), start, start + n,
-                         oneapi::dpl::make_transform_iterator(first2, ForwardAsTuple<ValueType>{}),
+                         oneapi::dpl::make_transform_iterator(first2, ForwardAsTuple<ValueType, decltype(start)>{}),
                          Assigner{});
 #if _PSTL_SYCL_TEST_USM
         exec.queue().wait_and_throw();
