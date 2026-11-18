@@ -1,7 +1,8 @@
 Additional Algorithms
 #####################
 
-All algorithms are implemented in the ``oneapi::dpl`` namespace. They are available through either
+All algorithms are implemented in the ``oneapi::dpl`` namespace, except ``reduce_by_segment`` with segments defined
+by offsets, which is in the ``oneapi::dpl::experimental`` namespace. They are available through either
 ``<oneapi/dpl/algorithm>`` or ``<oneapi/dpl/numeric>`` headers.
 
 Algorithms in <oneapi/dpl/numeric>
@@ -21,7 +22,8 @@ Algorithms in <oneapi/dpl/numeric>
     output_keys:   [0,1]
     output_values: [1+2+3=6,4+5+6=15]
 
-* ``reduce_by_segment`` with segments defined by offsets: reduces every segment of a sequence independently.
+* ``oneapi::dpl::experimental::reduce_by_segment`` with segments defined by offsets: reduces every segment of a
+  sequence independently.
   ``num_segments + 1`` offsets define ``num_segments`` consecutive segments: the segment ``s`` is
   ``[first + offsets[s], first + offsets[s + 1])``, and its reduction, which starts from the initial value,
   is written to ``out_first[s]``. The algorithm returns ``out_first + num_segments``, the end of the results, or
@@ -51,14 +53,15 @@ Algorithms in <oneapi/dpl/numeric>
   partially, and a segment that is empty or lies beyond the input gets the initial value converted to the
   accumulator type. The input is never accessed out of its bounds. If ``num_segments`` is not positive, nothing is
   read or written. The offsets should be sorted in ascending order; otherwise the results are unspecified.
+  The FPGA device policies are not supported.
 
   The accumulator type is the type of the result of the operation,
   ``std::decay_t<std::invoke_result_t<BinaryOp&, InitT, typename std::iterator_traits<InputIt>::reference>>``, and
-  the accumulator is converted to the output type when written. As in ``std::ranges::fold_left``, the initial value
-  itself is an operand of the operation; it is converted to the accumulator type only for an empty segment.
+  the accumulator is converted to the output type when written. The initial value is converted to the accumulator
+  type, and the reduction of every segment starts from that accumulator.
   The reduction operation should be associative and commutative: unlike ``reduce_by_segment`` with segments defined
-  by keys, this overload does not support non-commutative operations. It must accept the accumulator, the initial value
-  and the input elements in any combination, and its results must be convertible to the accumulator type and
+  by keys, this overload does not support non-commutative operations. It must accept the accumulator and the input
+  elements in any combination, and its results must be convertible to the accumulator type and
   assignable to an accumulator. The accumulator type must be writable to the output, and the initial value type must
   be convertible to the accumulator type. As in ``std::reduce``, a partial result may start from the
   operation on two input elements: for example, ``std::uint32_t`` elements with a ``std::uint64_t`` initial value
