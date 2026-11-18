@@ -822,12 +822,52 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             oneapi::dpl::__internal::__pstl_lower_bound_impl(__first_segment, __m + 1, [&](const _Size __i) {
                 return __clamp_to_size_and_cast<_Size>(__offsets[__i], __n) <= __begin;
             });
-        for (_Size __segment = __first_segment + _Size(__sg.get_local_linear_id()); __segment < __after_run - 1;
-             __segment += _Size(_Tuning::__sub_group_size))
-            __result[__segment] = __init;
-
         // Unsorted offsets (results unspecified) may end the search before __first_segment
-        return std::max<_Size>(__first_segment - 1, __after_run - 2);
+        const _Size __last = std::max<_Size>(__first_segment, __after_run - 1);
+        const _Size __lane = _Size(__sg.get_local_linear_id());
+
+        // With a pointer output, each lane stores aligned vectors of four; the unaligned head and tail, at most three
+        // elements each, take a lane per element
+        bool __by_vectors = false;
+        if constexpr (__has_pointer_begin<_OutRange>::value)
+        {
+            using _T = std::remove_cv_t<std::remove_pointer_t<decltype(__result.begin())>>;
+            if constexpr (std::is_arithmetic_v<_T> && !std::is_same_v<_T, bool> &&
+                          (sizeof(_T) == 1 || sizeof(_T) == 2 || sizeof(_T) == 4 || sizeof(_T) == 8))
+            {
+                _T* const __p = __result.begin();
+                // Four elements a vector, two for 8-byte types, to stay within 16 bytes and be aligned as often
+                constexpr std::uint32_t __vector_width = std::min<std::uint32_t>(4, 16 / sizeof(_T));
+                using _V = sycl::vec<_T, __vector_width>;
+                constexpr std::size_t __vector_bytes = sizeof(_V);
+                const std::size_t __misalignment =
+                    reinterpret_cast<std::uintptr_t>(__p + __first_segment) % __vector_bytes;
+                // First vector-aligned index, at most __last
+                const _Size __aligned_first = std::min<_Size>(
+                    __last, __first_segment + _Size((__vector_bytes - __misalignment) % __vector_bytes / sizeof(_T)));
+                const _Size __num_vectors = (__last - __aligned_first) / _Size(__vector_width);
+                const _Size __aligned_last = __aligned_first + _Size(__vector_width) * __num_vectors;
+
+                __by_vectors = true;
+                const _T __value = __init;
+                const _V __vector(__value);
+                for (_Size __k = __lane; __k < __num_vectors; __k += _Size(_Tuning::__sub_group_size))
+                    __vector.store(0, sycl::address_space_cast<sycl::access::address_space::generic_space,
+                                                               sycl::access::decorated::no>(
+                                          __p + __aligned_first + _Size(__vector_width) * __k));
+                if (__first_segment + __lane < __aligned_first)
+                    __p[__first_segment + __lane] = __value;
+                if (__aligned_last + __lane < __last)
+                    __p[__aligned_last + __lane] = __value;
+            }
+        }
+
+        if (!__by_vectors)
+            for (_Size __segment = __first_segment + __lane; __segment < __last;
+                 __segment += _Size(_Tuning::__sub_group_size))
+                __result[__segment] = __init;
+
+        return __last - 1;
     }
 
     // Part [__begin, __end) of __segment in the piece, by the sub-group: empty or whole segments are written; a part
