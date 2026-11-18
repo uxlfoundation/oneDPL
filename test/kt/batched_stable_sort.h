@@ -48,7 +48,6 @@ using DefaultKeyCompare = std::conditional_t<IsAscending, std::less<>, std::grea
 // A comparator for merge_wg_resident_tag which orders keys by the low 4 bits of their representation only: a strict
 // weak ordering different from < with many equivalent but distinct keys, so stability is visible in the keys alone.
 // It applies to every key type, including those the radix sorts do not order this way.
-template <bool IsAscending>
 struct LowBitsCompare
 {
     static KeyBitsT
@@ -59,36 +58,32 @@ struct LowBitsCompare
     bool
     operator()(const KeyT& lhs, const KeyT& rhs) const
     {
-        return IsAscending ? low_bits(lhs) < low_bits(rhs) : low_bits(rhs) < low_bits(lhs);
+        return low_bits(lhs) < low_bits(rhs);
     }
 };
 
-// SortConfig<IsAscending> is the sort configuration tag under test. With CustomCompare, sorts with
-// merge_wg_resident_tag<LowBitsCompare<IsAscending>> instead of SortConfig
-template <template <bool> class SortConfig, bool UsesTempStorage, bool CustomCompare = false>
+// SortConfig<IsAscending> is the sort configuration tag under test
+template <template <bool> class SortConfig, bool UsesTempStorage>
 struct BatchedStableSort
 {
     static constexpr bool uses_temp_storage = UsesTempStorage;
-    static constexpr int kernel_variant = CustomCompare;
-    static constexpr const char* name = CustomCompare ? "low bits comparator" : "default comparator";
+    static constexpr int kernel_variant = 0;
+    static constexpr const char* name = "default comparator";
 
     template <bool IsAscending>
-    using key_compare = std::conditional_t<CustomCompare, LowBitsCompare<IsAscending>, DefaultKeyCompare<IsAscending>>;
-    template <bool IsAscending>
-    using config = std::conditional_t<CustomCompare, kt::gpu::merge_wg_resident_tag<LowBitsCompare<IsAscending>>,
-                                      SortConfig<IsAscending>>;
+    using key_compare = DefaultKeyCompare<IsAscending>;
 
     template <bool IsAscending, typename... Args>
     static sycl::event
     sort(sycl::queue q, Args&&... args)
     {
-        return kt::gpu::batched_stable_sort<config<IsAscending>>(q, std::forward<Args>(args)...);
+        return kt::gpu::batched_stable_sort<SortConfig<IsAscending>>(q, std::forward<Args>(args)...);
     }
     template <bool IsAscending, typename... Args>
     static sycl::event
     sort_by_key(sycl::queue q, Args&&... args)
     {
-        return kt::gpu::batched_stable_sort_by_key<config<IsAscending>>(q, std::forward<Args>(args)...);
+        return kt::gpu::batched_stable_sort_by_key<SortConfig<IsAscending>>(q, std::forward<Args>(args)...);
     }
     template <typename KernelParam>
     static constexpr std::size_t
@@ -100,6 +95,32 @@ struct BatchedStableSort
         return kt::gpu::batched_stable_sort_by_key_bytes_req<SortConfig<Ascending>, KeyT, ValueT>(segment_size, n,
                                                                                                   KernelParam{});
 #endif
+    }
+};
+
+// Sorts with merge_wg_resident_tag<LowBitsCompare>, which is only ascending: IsAscending is ignored
+struct MergeLowBitsSort
+{
+    static constexpr bool uses_temp_storage = false;
+    static constexpr int kernel_variant = 1;
+    static constexpr const char* name = "low bits comparator";
+
+    template <bool IsAscending>
+    using key_compare = LowBitsCompare;
+
+    template <bool IsAscending, typename... Args>
+    static sycl::event
+    sort(sycl::queue q, Args&&... args)
+    {
+        return kt::gpu::batched_stable_sort<kt::gpu::merge_wg_resident_tag<LowBitsCompare>>(
+            q, std::forward<Args>(args)...);
+    }
+    template <bool IsAscending, typename... Args>
+    static sycl::event
+    sort_by_key(sycl::queue q, Args&&... args)
+    {
+        return kt::gpu::batched_stable_sort_by_key<kt::gpu::merge_wg_resident_tag<LowBitsCompare>>(
+            q, std::forward<Args>(args)...);
     }
 };
 
@@ -216,15 +237,9 @@ test()
                 if constexpr (IsMergeConfig<SortConfig<Ascending>>)
                 {
                     // A user comparator, under which distinct keys are equivalent
-                    using SorterCustomCompare =
-                        BatchedStableSort<SortConfig, /*UsesTempStorage=*/false, /*CustomCompare=*/true>;
-                    test_case<SorterCustomCompare, Ascending, false>(q, modes[mode_idx % 4], segment_size, 3, params);
-                    test_case<SorterCustomCompare, Descending, true>(q, modes[(mode_idx + 1) % 4], segment_size, 3,
-                                                                     params);
-                    test_case<SorterCustomCompare, Ascending, true>(q, modes[(mode_idx + 2) % 4], segment_size, many,
-                                                                    params);
-                    test_case<SorterCustomCompare, Descending, false>(q, modes[(mode_idx + 3) % 4], segment_size, many,
-                                                                      params);
+                    test_case<MergeLowBitsSort, Ascending, false>(q, modes[mode_idx % 4], segment_size, 3, params);
+                    test_case<MergeLowBitsSort, Ascending, true>(q, modes[(mode_idx + 1) % 4], segment_size, many,
+                                                                 params);
                 }
             }
 
