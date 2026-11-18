@@ -390,8 +390,9 @@ struct __segmented_reduce_flat_tuning
                                               __sub_group_size * __sub_group_size);
     }
 
-    // Whole segments up to this length are reduced one per lane: cheaper than sub-group combining and serial walking
-    static constexpr std::size_t __tiny_segment_max = 32;
+    // Whole segments up to this length are reduced one per lane, a sub-group of them at a step: cheaper than the work
+    // of the whole sub-group on each longer segment while a lane's serial loads stay short
+    static constexpr std::size_t __tiny_segment_max = 128;
 
     // Min whole vectors for sub-group vector loads; shorter ranges go faster per element (alignment/head/tail cost)
     static constexpr std::size_t __min_vectors = 8;
