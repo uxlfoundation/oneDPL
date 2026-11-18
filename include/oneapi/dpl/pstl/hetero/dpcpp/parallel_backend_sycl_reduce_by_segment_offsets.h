@@ -374,8 +374,8 @@ struct __segmented_reduce_flat_tuning
 
     // An input is small, or tiny, up to this many elements per hardware thread of the device; small and tiny inputs
     // take fewer elements per work-item, so that more sub-groups share them
-    static constexpr std::size_t __small_inputs_per_thread = 1024;
-    static constexpr std::size_t __tiny_inputs_per_thread = 256;
+    static constexpr std::size_t __small_input_max_per_thread = 1024;
+    static constexpr std::size_t __tiny_input_max_per_thread = 256;
     static constexpr std::size_t __small_min_inputs_per_item = 8;
     static constexpr std::size_t __tiny_min_inputs_per_item = 4;
 
@@ -391,14 +391,15 @@ struct __segmented_reduce_flat_tuning
     }
 
     // Whole segments up to this length are reduced one per lane: cheaper than sub-group combining and serial walking
-    static constexpr std::size_t __tiny_segment = 32;
+    static constexpr std::size_t __tiny_segment_max = 32;
 
     // Min whole vectors for sub-group vector loads; shorter ranges go faster per element (alignment/head/tail cost)
     static constexpr std::size_t __min_vectors = 8;
 
-    // Above this input, combine pieces in local memory first: per-piece stores and the second kernel cost more than
-    // waiting for the slowest sub-group, which many work-groups hide
-    static constexpr std::size_t __group_combine_input = std::size_t(1) << 24;
+    // Up to this input, pieces go to the second kernel one by one; above it, a work-group combines its pieces in local
+    // memory first: per-piece stores and the second kernel cost more than waiting for the slowest sub-group, which many
+    // work-groups hide
+    static constexpr std::size_t __piece_store_input_max = std::size_t(1) << 24;
 
     // Launch for __n elements: a piece per HW thread, elements per work-item within the bounds, and work-groups halved
     // (down to one sub-group) until there are at least two per GPU core
@@ -410,9 +411,9 @@ struct __segmented_reduce_flat_tuning
         const std::size_t __min_groups = 2 * __compute_units.__num_xe_cores;
 
         const std::size_t __min_inputs =
-            __n <= __tiny_inputs_per_thread * __compute_units.__hw_threads    ? __tiny_min_inputs_per_item
-            : __n <= __small_inputs_per_thread * __compute_units.__hw_threads ? __small_min_inputs_per_item
-                                                                              : __min_inputs_per_item;
+            __n <= __tiny_input_max_per_thread * __compute_units.__hw_threads    ? __tiny_min_inputs_per_item
+            : __n <= __small_input_max_per_thread * __compute_units.__hw_threads ? __small_min_inputs_per_item
+                                                                                 : __min_inputs_per_item;
         const std::size_t __inputs_per_item = std::clamp<std::size_t>(
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __compute_units.__hw_threads * __sub_group_size),
             __min_inputs, __max_inputs_per_item);
@@ -526,9 +527,9 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         const std::uint32_t __piece_size = __inputs_per_item * __sub_group_size;
 
         // Second-kernel units: work-groups when pieces are combined in local memory, else pieces
-        const bool __in_group = std::size_t(__n) > _Tuning::__group_combine_input;
-        const std::uint32_t __num_units = __in_group ? __num_groups : __num_groups * __sub_groups;
-        const std::uint32_t __unit_size = __in_group ? __piece_size * __sub_groups : __piece_size;
+        const bool __combine_in_group = std::size_t(__n) > _Tuning::__piece_store_input_max;
+        const std::uint32_t __num_units = __combine_in_group ? __num_groups : __num_groups * __sub_groups;
+        const std::uint32_t __unit_size = __combine_in_group ? __piece_size * __sub_groups : __piece_size;
 
         // Unit tail segments, then head and tail partials, in one storage (one call fewer, measured faster), typed by
         // the more aligned type so both arrays start aligned
@@ -581,8 +582,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             });
         };
 
-        sycl::event __event = __in_group ? __pieces(/*__in_group_tag = */ std::true_type{})
-                                         : __pieces(/*__in_group_tag = */ std::false_type{});
+        sycl::event __event = __combine_in_group ? __pieces(/*__in_group_tag = */ std::true_type{})
+                                                 : __pieces(/*__in_group_tag = */ std::false_type{});
 
         // Each unit's tail with the following heads its segment covers, a sub-group per unit; none for a single unit
         if (__num_units > 1)
@@ -661,7 +662,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     __is_tiny(const _Size __b, const _Size __e, const _Size __piece_begin, const _Size __piece_end)
     {
         // A reversed segment in the piece has a negative length, so it is tiny
-        return __b >= __piece_begin && __e <= __piece_end && __e - __b <= _Size(_Tuning::__tiny_segment);
+        return __b >= __piece_begin && __e <= __piece_end && __e - __b <= _Size(_Tuning::__tiny_segment_max);
     }
 
     // Element at an offset from the piece start, via a pointer where the input has one
