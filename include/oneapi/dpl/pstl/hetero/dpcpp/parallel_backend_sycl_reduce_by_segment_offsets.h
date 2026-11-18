@@ -630,18 +630,19 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                            _Acc(std::invoke(__binary_op, __c, __d)));
     }
 
-    // Folds __get(__i) into __acc for __i from __i below __end by __stride: four values an op while they last
-    template <typename _Get>
+    // Folds __load(__index) into __acc for __index from its value below __end by __stride: four values an op while
+    // they last
+    template <typename _Load>
     void
-    __fold_strided(_Acc& __acc, std::uint32_t __i, const std::uint32_t __end, const std::uint32_t __stride,
-                   _Get __get) const
+    __fold_strided(_Acc& __acc, std::uint32_t __index, const std::uint32_t __end, const std::uint32_t __stride,
+                   _Load __load) const
     {
-        for (; __i + 3 * __stride < __end; __i += 4 * __stride)
-            __acc = std::invoke(
-                __binary_op, __acc,
-                __reduce_four(__get(__i), __get(__i + __stride), __get(__i + 2 * __stride), __get(__i + 3 * __stride)));
-        for (; __i < __end; __i += __stride)
-            __acc = std::invoke(__binary_op, __acc, __get(__i));
+        for (; __index + 3 * __stride < __end; __index += 4 * __stride)
+            __acc = std::invoke(__binary_op, __acc,
+                                __reduce_four(__load(__index), __load(__index + __stride),
+                                              __load(__index + 2 * __stride), __load(__index + 3 * __stride)));
+        for (; __index < __end; __index += __stride)
+            __acc = std::invoke(__binary_op, __acc, __load(__index));
     }
 
     // A piece's output on lane 0: head partial (state 0 none, 1 ends in the piece, 2 goes on past it) and tail partial
@@ -669,12 +670,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     // Element at an offset from the piece start, via a pointer where the input has one
     template <typename _InRange, typename _Size>
     static decltype(auto)
-    __element(const _InRange __input, const _Size __piece_begin, const std::uint32_t __i)
+    __element(const _InRange __input, const _Size __piece_begin, const std::uint32_t __index_in_piece)
     {
         if constexpr (__has_pointer_begin<_InRange>::value)
-            return (__input.begin() + __piece_begin)[__i];
+            return (__input.begin() + __piece_begin)[__index_in_piece];
         else
-            return __input[__piece_begin + _Size(__i)];
+            return __input[__piece_begin + _Size(__index_in_piece)];
     }
 
     // Sub-group reduces [__piece_begin + __first, __piece_begin + __last) (non-empty) onto lane 0; lanes interleave for
