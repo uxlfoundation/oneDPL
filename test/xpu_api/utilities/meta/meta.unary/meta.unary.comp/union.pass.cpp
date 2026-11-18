@@ -72,5 +72,5 @@ main()
 
     EXPECT_TRUE(ret, "Wrong result of union check");
 
-    return 0;
+    return TestUtils::done();
 }

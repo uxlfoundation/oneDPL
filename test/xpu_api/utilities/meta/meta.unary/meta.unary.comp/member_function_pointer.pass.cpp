@@ -73,5 +73,5 @@ main()
 
     EXPECT_TRUE(ret, "Wrong result of member pointer check");
 
-    return 0;
+    return TestUtils::done();
 }
