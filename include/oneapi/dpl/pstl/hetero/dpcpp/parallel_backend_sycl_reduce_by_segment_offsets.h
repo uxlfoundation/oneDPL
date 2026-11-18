@@ -342,12 +342,12 @@ struct __segmented_reduce_combine_brick
 
 // Whether a range is pointer-based, so consecutive elements can be loaded as one vector
 template <typename _Range, typename = void>
-struct __segmented_reduce_pointer_input : std::false_type
+struct __has_pointer_begin : std::false_type
 {
 };
 template <typename _Range>
-struct __segmented_reduce_pointer_input<
-    _Range, std::enable_if_t<std::is_pointer_v<decltype(std::declval<const _Range&>().begin())>>> : std::true_type
+struct __has_pointer_begin<_Range, std::enable_if_t<std::is_pointer_v<decltype(std::declval<const _Range&>().begin())>>>
+    : std::true_type
 {
 };
 
@@ -463,7 +463,7 @@ struct __segmented_reduce_flat_local<true, _Acc, _Size>
 // Every lane passes a constructed value; those of the other lanes are not used
 template <typename _Acc, typename _SubGroup, typename _BinaryOperation>
 _Acc
-__segmented_reduce_lanes(const _SubGroup __sg, _Acc __acc, const std::uint32_t __active, _BinaryOperation __binary_op)
+__reduce_active_lanes(const _SubGroup __sg, _Acc __acc, const std::uint32_t __active, _BinaryOperation __binary_op)
 {
     const std::uint32_t __lane = __sg.get_local_linear_id();
 
@@ -669,7 +669,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     static decltype(auto)
     __element(const _InRange __input, const _Size __piece_begin, const std::uint32_t __i)
     {
-        if constexpr (__segmented_reduce_pointer_input<_InRange>::value)
+        if constexpr (__has_pointer_begin<_InRange>::value)
             return (__input.begin() + __piece_begin)[__i];
         else
             return __input[__piece_begin + _Size(__i)];
@@ -693,7 +693,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // With a pointer input, each lane loads aligned vectors of four; the unaligned head and tail go to lane 0.
         // Pairs within a vector keep the accumulator from a lone element.
         bool __by_vectors = false;
-        if constexpr (__segmented_reduce_pointer_input<_Input>::value)
+        if constexpr (__has_pointer_begin<_Input>::value)
         {
             using _T = std::remove_cv_t<std::remove_pointer_t<decltype(__input.begin())>>;
             if constexpr (std::is_arithmetic_v<_T> && !std::is_same_v<_T, bool> &&
@@ -751,7 +751,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             __acc.__setup(__init);
 
         if (__active > 0)
-            __acc.__v = __segmented_reduce_lanes<_Acc>(__sg, __acc.__v, __active, __binary_op);
+            __acc.__v = __reduce_active_lanes<_Acc>(__sg, __acc.__v, __active, __binary_op);
 
         // A range of one element (no active lane) is that element; a segment start adds the init
         const _Acc __total = __active > 0 ? __acc.__v : _Acc(__element(__input, __base, __first));
@@ -995,8 +995,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             __acc.__setup(__tail);
         __fold_strided(__acc.__v, __lane + __sub_group_size, __heads_count, __sub_group_size,
                        [&](std::uint32_t __k) { return __first_head[__k]; });
-        __acc.__v = __segmented_reduce_lanes<_Acc>(
-            __sg, __acc.__v, std::min<std::uint32_t>(__heads_count, __sub_group_size), __binary_op);
+        __acc.__v = __reduce_active_lanes<_Acc>(__sg, __acc.__v,
+                                                std::min<std::uint32_t>(__heads_count, __sub_group_size), __binary_op);
         if (__lane == 0)
             __result[__s] = _Acc(std::invoke(__binary_op, __tail, __acc.__v));
     }
@@ -1109,7 +1109,7 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                     const std::uint32_t __sg_first = __sg_id * __sub_group_size;
                     const std::uint32_t __active =
                         __items > __sg_first ? std::min(__sub_group_size, __items - __sg_first) : 0;
-                    __acc = __segmented_reduce_lanes<_Acc>(__sg, __acc, __active, __binary_op);
+                    __acc = __reduce_active_lanes<_Acc>(__sg, __acc, __active, __binary_op);
 
                     // Uniform across the work-group, as the barrier needs
                     const std::uint32_t __active_sub_groups =
@@ -1125,7 +1125,7 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                         {
                             const std::uint32_t __lane = __sg.get_local_linear_id();
                             // Inactive lanes read slot 0 to stay in bounds; their values are not used
-                            __acc = __segmented_reduce_lanes<_Acc>(
+                            __acc = __reduce_active_lanes<_Acc>(
                                 __sg, __loc_partials_acc[__lane < __active_sub_groups ? __lane : 0],
                                 __active_sub_groups, __binary_op);
                         }
