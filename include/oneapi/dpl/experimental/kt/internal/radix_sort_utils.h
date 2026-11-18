@@ -177,14 +177,19 @@ __sort_identity()
 template <std::uint16_t _N, typename _KeyT>
 struct __keys_pack
 {
+    static constexpr bool __has_values = false;
     _KeyT __keys[_N];
 };
 
-template <std::uint16_t _N, typename _KeyT, typename _ValT>
+// Values need not be default constructible, so a value is only constructed in the slots holding an element: slots
+// past the end of the input or segment hold padding keys, and their values are never constructed or accessed.
+template <std::uint16_t _N, typename _KeyT, typename _ValueT>
 struct __pairs_pack
 {
+    static constexpr bool __has_values = true;
+    using _ValT = _ValueT;
     _KeyT __keys[_N];
-    _ValT __vals[_N];
+    oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __vals[_N];
 };
 
 template <std::uint16_t _N, typename _T1, typename _T2 = void>

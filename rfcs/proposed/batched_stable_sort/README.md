@@ -154,9 +154,19 @@ Runtime Parameters:
 * The radix sorts order keys by the same total order as `kt::gpu::radix_sort`, the order of their
   order-preserving bit transform: for floating point, `-0.0` and `+0.0` compare equal (so, by
   stability, keep their input order), and NaNs are ordered by sign and payload.
-* `merge_wg_resident_tag` sorts each segment as `std::stable_sort` with its comparator would. Its
-  key types are not limited to those supported by the radix sorts: any device copyable key type the
-  comparator accepts may be used.
+* `merge_wg_resident_tag` sorts each segment as `std::stable_sort` with its comparator would.
+* Key type requirements depend on the algorithm:
+  * `radix_wg_resident_tag` and `radix_multi_wg_tag` support the same key types as the existing
+    `kt::gpu::radix_sort[_by_key]`: C++ integral or floating-point types other than `bool`, with a
+    width of up to 64 bits.
+  * `merge_wg_resident_tag` keys are not limited to those types: any device copyable type which is
+    sortable by the comparator may be used, i.e. which the comparator accepts and on which it
+    induces a strict weak ordering. As for `std::stable_sort`, keys must also be move
+    constructible and move assignable.
+* Values may be of any device copyable type which is copy constructible and copy assignable, for
+  every `_SortConfig`.
+* Keys and values need not be default constructible: no algorithm default constructs a key or a
+  value.
 * `merge_wg_resident_tag` requires its comparator to induce a strict weak ordering on the input
   keys; otherwise the behavior is undefined. NaN keys are not supported with the default
   comparator `std::less<>` (or with `std::greater<>`), as it is not a strict weak ordering when NaNs
@@ -165,9 +175,9 @@ Runtime Parameters:
   (`-0.0` and `+0.0` are equivalent under both). Since every algorithm is also stable, for such
   input the output does not depend on the `_SortConfig` of a given direction, so it can be chosen
   for performance alone.
-* Supported key types, data passing mechanisms (USM pointers, `oneapi::dpl::begin` / `end`,
-  `sycl::buffer`, `views::all` / `views::subrange`), and the returned `sycl::event` match the
-  existing `kt::gpu::radix_sort[_by_key]`.
+* Data passing mechanisms (USM pointers, `oneapi::dpl::begin` / `end`, `sycl::buffer`,
+  `views::all` / `views::subrange`) and the returned `sycl::event` match the existing
+  `kt::gpu::radix_sort[_by_key]`.
 * Failure to allocate internal global memory throws `std::bad_alloc`, as for other kernel
   templates (subject to the [temporary allocation](#open-questions) question).
 
@@ -228,6 +238,7 @@ Implement two kernels, and optionally a third:
    * Per stage: sub-groups rank their keys with ballots into SLM histograms, the histograms of a
      segment are scanned to give its bin offsets, and keys are reordered through SLM.
    * Slots past the end of a segment are padded with the sort identity, which stays in the last bin.
+     No value is constructed for them: their values are never loaded, moved through SLM or stored.
    * Local memory holds a full tile of keys (and values) while they are reordered,
      `data_per_workitem * workgroup_size * (sizeof(key) + sizeof(value))` bytes, whatever the
      segment size. The histograms reuse the same local memory and are never in it at the same time
@@ -241,7 +252,7 @@ Implement two kernels, and optionally a third:
    * Sweep tiles are aligned to segments, with one decoupled lookback chain per segment; tile 0 of
      each segment seeds from that segment's offsets.
    * The last tile of each segment is partial: pad keys in registers and mask writes at the
-     segment end.
+     segment end. As for the work-group resident radix sort, no value is constructed for padding.
    * Shares implementation with the existing `kt::gpu::radix_sort` where possible, which may
      require refactoring its kernels to be segment-aware.
 3) (Optional, or secondary priority) Work-group resident merge path sort (`merge_wg_resident_tag`),
@@ -350,6 +361,8 @@ Following the [Kernel Templates testing guidance][kt-testing]:
 * `merge_wg_resident_tag` with user comparators against a per-segment `std::stable_sort` with the
   same comparator: e.g. a comparator on part of the key (to exercise stability among equivalent
   keys), and a key type the radix sorts do not support.
+* A value type (and, for `merge_wg_resident_tag`, a key type) which is a device copyable class
+  that is not default constructible, for every `_SortConfig`.
 * All supported key types, including floating point edge cases (-0.0, +0.0, infinities, and NaNs
   for the radix sorts only), and key and value types of different widths.
 * Ascending and descending; key only and by key; out-of-place and in-place; iterators and ranges;
