@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <utility>
 #include <type_traits>
+#include <new>
 
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
@@ -41,10 +42,13 @@ struct __no_values
 // network, but each is cheaper than a bitonic one with the index tie-break required for stability, and it has no
 // index array adding register pressure. It was measured to be as fast or faster for data_per_workitem 4 to 16.
 // Only the first __count elements are sorted: the remaining slots are unused, and are never compared or moved, as no
-// key can be assumed to order after every other under an arbitrary comparator.
+// key can be assumed to order after every other under an arbitrary comparator. The slots are lazily constructed
+// storage, as keys and values need not be default constructible; only the first __count are constructed.
 template <bool __has_values, std::uint16_t _N, typename _KeyT, typename _ValT, typename _Compare>
 inline void
-__work_item_stable_sort(_KeyT (&__keys)[_N], _ValT (&__vals)[_N], std::uint32_t __count, _Compare __comp)
+__work_item_stable_sort(oneapi::dpl::__internal::__lazy_ctor_storage<_KeyT> (&__keys)[_N],
+                        oneapi::dpl::__internal::__lazy_ctor_storage<_ValT> (&__vals)[_N], std::uint32_t __count,
+                        _Compare __comp)
 {
     _ONEDPL_PRAGMA_UNROLL
     for (std::uint16_t __round = 0; __round < _N; ++__round)
@@ -52,11 +56,12 @@ __work_item_stable_sort(_KeyT (&__keys)[_N], _ValT (&__vals)[_N], std::uint32_t 
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __i = __round % 2; __i + 1 < _N; __i += 2)
         {
-            if (__i + 1 < __count && __comp(__keys[__i + 1], __keys[__i]))
+            if (__i + 1 < __count && __comp(__keys[__i + 1].__v, __keys[__i].__v))
             {
-                std::swap(__keys[__i], __keys[__i + 1]);
+                using std::swap;
+                swap(__keys[__i].__v, __keys[__i + 1].__v);
                 if constexpr (__has_values)
-                    std::swap(__vals[__i], __vals[__i + 1]);
+                    swap(__vals[__i].__v, __vals[__i + 1].__v);
             }
         }
     }
@@ -93,6 +98,8 @@ struct __batched_wg_resident_merge_sort_kernel
     using _ValStorageT = std::conditional_t<__has_values, _ValT, __no_values>;
     using _KeysSlmAcc = sycl::local_accessor<_KeyT, 1>;
     using _ValsSlmAcc = std::conditional_t<__has_values, sycl::local_accessor<_ValStorageT, 1>, __no_values>;
+    using _KeyStorage = oneapi::dpl::__internal::__lazy_ctor_storage<_KeyT>;
+    using _ValStorage = oneapi::dpl::__internal::__lazy_ctor_storage<_ValStorageT>;
 
     std::size_t __m_segment_count;
     std::uint32_t __m_segment_size;
@@ -138,25 +145,30 @@ struct __batched_wg_resident_merge_sort_kernel
         const auto& __keys_out = __m_out_pack.__keys_rng();
         const _Compare __comp{};
 
+        // Local memory only holds objects of implicit-lifetime types without construction, so the objects are
+        // constructed here; later stores assign to them. Their destructors have no effect, as the types are device
+        // copyable, so they are not called.
         for (std::uint32_t __i = __lid; __i < __group_size; __i += __work_group_size)
         {
-            __m_slm_keys[__i] = __keys_in[__group_offset + __i];
+            ::new (static_cast<void*>(&__m_slm_keys[__i])) _KeyT(__keys_in[__group_offset + __i]);
             if constexpr (__has_values)
-                __m_slm_vals[__i] = __m_in_pack.__vals_rng()[__group_offset + __i];
+                ::new (static_cast<void*>(&__m_slm_vals[__i]))
+                    _ValStorageT(__m_in_pack.__vals_rng()[__group_offset + __i]);
         }
         sycl::group_barrier(__group);
 
-        // Slots at and past __count are unused: they are never compared, moved or stored
-        _KeyT __keys[__data_per_work_item];
-        _ValStorageT __vals[__data_per_work_item];
+        // Only the slots before __count are constructed: the others are never compared, moved or stored. The
+        // constructed objects are not destroyed, as the destructors of device copyable types have no effect.
+        _KeyStorage __keys[__data_per_work_item];
+        _ValStorage __vals[__data_per_work_item];
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __s = 0; __s < __data_per_work_item; ++__s)
         {
             if (__s < __count)
             {
-                __keys[__s] = __m_slm_keys[__slm_segment_offset + __start + __s];
+                __keys[__s].__setup(__m_slm_keys[__slm_segment_offset + __start + __s]);
                 if constexpr (__has_values)
-                    __vals[__s] = __m_slm_vals[__slm_segment_offset + __start + __s];
+                    __vals[__s].__setup(__m_slm_vals[__slm_segment_offset + __start + __s]);
             }
         }
 
@@ -188,7 +200,7 @@ struct __batched_wg_resident_merge_sort_kernel
 
   private:
     void
-    __store_to_slm(const _KeyT (&__keys)[__data_per_work_item], const _ValStorageT (&__vals)[__data_per_work_item],
+    __store_to_slm(const _KeyStorage (&__keys)[__data_per_work_item], const _ValStorage (&__vals)[__data_per_work_item],
                    std::uint32_t __offset, std::uint32_t __count) const
     {
         _ONEDPL_PRAGMA_UNROLL
@@ -196,9 +208,9 @@ struct __batched_wg_resident_merge_sort_kernel
         {
             if (__s < __count)
             {
-                __m_slm_keys[__offset + __s] = __keys[__s];
+                __m_slm_keys[__offset + __s] = __keys[__s].__v;
                 if constexpr (__has_values)
-                    __m_slm_vals[__offset + __s] = __vals[__s];
+                    __m_slm_vals[__offset + __s] = __vals[__s].__v;
             }
         }
     }
@@ -206,7 +218,7 @@ struct __batched_wg_resident_merge_sort_kernel
     // Merges __count elements, starting at output position __start of the segment, from the pair of sorted runs of
     // length __run which contains that position.
     void
-    __merge_from_slm(_KeyT (&__keys)[__data_per_work_item], _ValStorageT (&__vals)[__data_per_work_item],
+    __merge_from_slm(_KeyStorage (&__keys)[__data_per_work_item], _ValStorage (&__vals)[__data_per_work_item],
                      std::uint32_t __slm_segment_offset, std::uint32_t __start, std::uint32_t __count,
                      std::uint32_t __run, const _Compare& __comp) const
     {
@@ -250,9 +262,10 @@ struct __batched_wg_resident_merge_sort_kernel
             {
                 // Ties are taken from A, which keeps the merge stable
                 const bool __take_a = __index_a < __a_last && (__index_b >= __b_last || !__comp(__b, __a));
-                __keys[__s] = __take_a ? __a : __b;
+                // The slot was constructed when loaded, as __count does not change between rounds
+                __keys[__s].__v = __take_a ? __a : __b;
                 if constexpr (__has_values)
-                    __vals[__s] = __m_slm_vals[__take_a ? __index_a : __index_b];
+                    __vals[__s].__v = __m_slm_vals[__take_a ? __index_a : __index_b];
                 __index_a += __take_a;
                 __index_b += !__take_a;
                 if (__s + 1 < __data_per_work_item)

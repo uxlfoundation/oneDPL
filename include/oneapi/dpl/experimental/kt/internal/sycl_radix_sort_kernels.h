@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <limits>
 #include <type_traits>
+#include <new>
 
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "../../../pstl/utils.h"
@@ -237,9 +238,25 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
 // Building blocks shared by the onesweep and the work-group resident kernels
 //-----------------------------------------------------------------------------
 
+// Stores __src into a register slot: assigns a plain slot, and constructs a lazily constructed one
+template <typename _T, typename _U>
+inline void
+__set_slot(_T& __dst, _U&& __src)
+{
+    __dst = std::forward<_U>(__src);
+}
+
+template <typename _T, typename _U>
+inline void
+__set_slot(oneapi::dpl::__internal::__lazy_ctor_storage<_T>& __dst, _U&& __src)
+{
+    __dst.__setup(std::forward<_U>(__src));
+}
+
 // Loads a block of __sub_group_size * __data_per_work_item elements starting at __block_begin into the registers of a
 // sub-group; lane l holds the elements __block_begin + i * __sub_group_size + l. Elements at or beyond __end are not
-// loaded; with __sort_identity_residual their slots are set to the sort identity instead.
+// loaded; with __sort_identity_residual their slots are set to the sort identity instead. Lazily constructed slots
+// (values) are constructed only for the loaded elements.
 template <bool __is_ascending, bool __sort_identity_residual, std::uint32_t __sub_group_size,
           std::uint16_t __data_per_work_item, typename _T, typename _InSeq, typename _GlobOffsetT>
 inline void
@@ -253,7 +270,7 @@ __load_sub_group_block(_T (&__elements)[__data_per_work_item], const _InSeq& __i
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
         {
-            __elements[__i] = __in_seq[__offset + __i * __sub_group_size];
+            __set_slot(__elements[__i], __in_seq[__offset + __i * __sub_group_size]);
         }
     }
     else
@@ -270,7 +287,7 @@ __load_sub_group_block(_T (&__elements)[__data_per_work_item], const _InSeq& __i
             {
                 if (__idx < __end)
                 {
-                    __elements[__i] = __in_seq[__idx];
+                    __set_slot(__elements[__i], __in_seq[__idx]);
                 }
             }
         }
@@ -381,11 +398,15 @@ __propagate_ranks_across_sub_groups(_LocOffsetT (&__ranks)[__data_per_work_item]
     }
 }
 
-// Writes the keys (and values) of __pack to SLM at their ranks
-template <std::uint16_t __data_per_work_item, typename _KVPack, typename _LocOffsetT, typename _KeyT, typename _ValT>
+// Writes the keys (and values) of __pack to SLM at their ranks. Values are only written from the slots for which
+// __is_loaded(__i) holds, the only ones in which a value was constructed; the other slots hold padding keys. Values
+// are constructed in SLM, which is raw storage reused between stages, rather than assigned: assignment is only valid
+// for implicit-lifetime types. The destructors of device copyable types have no effect, so they are not called.
+template <std::uint16_t __data_per_work_item, typename _KVPack, typename _LocOffsetT, typename _KeyT, typename _ValT,
+          typename _IsLoaded>
 inline void
 __scatter_to_slm(const _KVPack& __pack, const _LocOffsetT (&__ranks)[__data_per_work_item], _KeyT* __slm_keys,
-                 _ValT* __slm_vals)
+                 _ValT* __slm_vals, _IsLoaded __is_loaded)
 {
     _ONEDPL_PRAGMA_UNROLL
     for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
@@ -393,7 +414,8 @@ __scatter_to_slm(const _KVPack& __pack, const _LocOffsetT (&__ranks)[__data_per_
         __slm_keys[__ranks[__i]] = __pack.__keys[__i];
         if constexpr (!std::is_void_v<_ValT>)
         {
-            __slm_vals[__ranks[__i]] = __pack.__vals[__i];
+            if (__is_loaded(__i))
+                ::new (static_cast<void*>(__slm_vals + __ranks[__i])) _ValT(__pack.__vals[__i].__v);
         }
     }
 }
@@ -800,13 +822,13 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         sycl::group_barrier(__idx.get_group());
     }
 
-    template <typename _KVPack>
+    template <typename _KVPack, typename _IsLoaded>
     void inline __reorder_reg_to_slm(const sycl::nd_item<1>& __idx, const _KVPack& __pack,
                                      _LocOffsetT (&__ranks)[__data_per_work_item],
                                      const _LocOffsetT (&__bins)[__data_per_work_item], std::uint32_t __sub_group_id,
                                      _LocOffsetT* __slm_subgroup_hists, _LocOffsetT* __slm_group_hist,
                                      _GlobOffsetT* __slm_global_incoming, _KeyT* __slm_keys, _ValT* __slm_vals,
-                                     _GlobOffsetT __segment_begin) const
+                                     _GlobOffsetT __segment_begin, _IsLoaded __is_loaded) const
     {
         // 1. update ranks to reflect sub-group offsets in and across bins
         __propagate_ranks_across_sub_groups(
@@ -817,7 +839,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         __global_fix_to_slm(__idx, __slm_global_incoming, __slm_group_hist, __segment_begin);
 
         // 3. Write keys (and values) to SLM at computed ranks
-        __scatter_to_slm(__pack, __ranks, __slm_keys, __slm_vals);
+        __scatter_to_slm(__pack, __ranks, __slm_keys, __slm_vals, __is_loaded);
         sycl::group_barrier(__idx.get_group());
     }
 
@@ -843,13 +865,12 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             // Padding keys of a partial tile sort after the real keys of the last bin, so their output indices start
             // exactly at the segment end, which is the start of the next segment.
             bool __output_mask = __out_idx < __segment_end;
+            // Only the slots of real keys hold a value in SLM
             if (__output_mask)
-                __out_pack.__keys_rng()[__out_idx] = __key;
-            if constexpr (__has_values)
             {
-                _ValT __val = __slm_vals[__slm_idx];
-                if (__output_mask)
-                    __out_pack.__vals_rng()[__out_idx] = __val;
+                __out_pack.__keys_rng()[__out_idx] = __key;
+                if constexpr (__has_values)
+                    __out_pack.__vals_rng()[__out_idx] = __slm_vals[__slm_idx];
             }
         }
     }
@@ -883,6 +904,12 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
             const __tile_location __loc = __locate_tile(__tile_id);
             __load_pack(__values_pack, __loc, __sg_id, __sg_local_id);
+            // The register slots which were loaded, the only ones holding a value
+            const _GlobOffsetT __lane_begin = __loc.__tile_begin + __data_per_sub_group * __sg_id + __sg_local_id;
+            const _GlobOffsetT __segment_end = __loc.__segment_end;
+            auto __is_loaded = [__lane_begin, __segment_end](std::uint32_t __i) {
+                return __lane_begin + __i * __sub_group_size < __segment_end;
+            };
 
             __extract_bins<__is_ascending, __radix_bits>(__values_pack.__keys, __bins, __stage * __radix_bits);
 
@@ -909,7 +936,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             }
 
             __reorder_reg_to_slm(__idx, __values_pack, __ranks, __bins, __sg_id, __slm_subgroup_hists, __slm_group_hist,
-                                 __slm_global_incoming, __slm_keys, __slm_vals, __loc.__segment_begin);
+                                 __slm_global_incoming, __slm_keys, __slm_vals, __loc.__segment_begin, __is_loaded);
 
             __reorder_slm_to_glob(__idx, __values_pack, __sg_id, __sg_local_id, __slm_global_incoming, __slm_keys,
                                   __slm_vals, __loc.__segment_end);
@@ -1025,6 +1052,13 @@ struct __batched_wg_resident_radix_sort_kernel
         if constexpr (__has_values)
             __slm_vals = reinterpret_cast<_ValT*>(__slm_raw + __tile_size * sizeof(_KeyT));
 
+        // A slot holds an element of the segment, rather than padding, at every stage, as padding stays at the end of
+        // the segment. Only these slots hold a value.
+        const _GlobOffsetT __segment_size = __m_segment_size;
+        auto __is_loaded = [__lane_offset, __segment_size](std::uint32_t __i) {
+            return __lane_offset + __i * __sub_group_size < __segment_size;
+        };
+
         auto __pack = __make_key_value_pack<__data_per_work_item, _KeyT, _ValT>();
         if (__is_active)
             __load(__pack, __segment_begin, __sg_in_segment, __sg_local_id);
@@ -1064,7 +1098,7 @@ struct __batched_wg_resident_radix_sort_kernel
 
             // 3. Reorder through SLM
             if (__is_active)
-                __scatter_to_slm(__pack, __ranks, __slm_keys, __slm_vals);
+                __scatter_to_slm(__pack, __ranks, __slm_keys, __slm_vals, __is_loaded);
             sycl::group_barrier(__group);
             if (__is_active)
             {
@@ -1074,7 +1108,10 @@ struct __batched_wg_resident_radix_sort_kernel
                     const std::uint32_t __slm_idx = __slm_segment_offset + __lane_offset + __i * __sub_group_size;
                     __pack.__keys[__i] = __slm_keys[__slm_idx];
                     if constexpr (__has_values)
-                        __pack.__vals[__i] = __slm_vals[__slm_idx];
+                    {
+                        if (__is_loaded(__i))
+                            __pack.__vals[__i].__v = __slm_vals[__slm_idx];
+                    }
                 }
             }
             // The next stage's histograms overlap the reorder buffer. After the last stage, SLM is not used again.
@@ -1116,7 +1153,7 @@ struct __batched_wg_resident_radix_sort_kernel
             {
                 __keys_out[__segment_begin + __idx] = __pack.__keys[__i];
                 if constexpr (__has_values)
-                    __m_out_pack.__vals_rng()[__segment_begin + __idx] = __pack.__vals[__i];
+                    __m_out_pack.__vals_rng()[__segment_begin + __idx] = __pack.__vals[__i].__v;
             }
         }
     }

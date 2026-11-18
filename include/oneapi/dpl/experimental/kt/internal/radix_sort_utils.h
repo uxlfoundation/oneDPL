@@ -180,11 +180,14 @@ struct __keys_pack
     _KeyT __keys[_N];
 };
 
+// Values need not be default constructible, so a value is only constructed in the slots holding an element: slots
+// past the end of the input or segment hold padding keys, and their values are never constructed or accessed. The
+// constructed values are not destroyed, as the destructors of device copyable types have no effect.
 template <std::uint16_t _N, typename _KeyT, typename _ValT>
 struct __pairs_pack
 {
     _KeyT __keys[_N];
-    _ValT __vals[_N];
+    oneapi::dpl::__internal::__lazy_ctor_storage<_ValT> __vals[_N];
 };
 
 template <std::uint16_t _N, typename _T1, typename _T2 = void>
