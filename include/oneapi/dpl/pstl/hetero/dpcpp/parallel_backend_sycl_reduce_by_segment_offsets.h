@@ -677,11 +677,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             return __input[__piece_begin + _Size(__i)];
     }
 
-    // Sub-group reduces [__base + __first, __base + __last) (non-empty) onto lane 0; lanes interleave for coalescing,
-    // reordering as commutativity allows. A segment start adds the init to the result. Arithmetic types; 32-bit offsets
+    // Sub-group reduces [__piece_begin + __first, __piece_begin + __last) (non-empty) onto lane 0; lanes interleave for
+    // coalescing, reordering as commutativity allows. A segment start adds the init to the result. Arithmetic types;
+    // 32-bit offsets
     template <typename _SubGroup, typename _Size, typename _Input>
     _Acc
-    __reduce_by_sub_group(const _SubGroup __sg, const _Size __base, const std::uint32_t __first,
+    __reduce_by_sub_group(const _SubGroup __sg, const _Size __piece_begin, const std::uint32_t __first,
                           const std::uint32_t __last, const bool __is_first, const _Input __input) const
     {
         const std::uint32_t __lane = __sg.get_local_linear_id();
@@ -701,7 +702,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             if constexpr (std::is_arithmetic_v<_T> && !std::is_same_v<_T, bool> &&
                           (sizeof(_T) == 1 || sizeof(_T) == 2 || sizeof(_T) == 4 || sizeof(_T) == 8))
             {
-                const _T* const __p = __input.begin() + __base;
+                const _T* const __p = __input.begin() + __piece_begin;
                 // Four elements a vector, two for 8-byte types, to stay within 16 bytes and be aligned as often
                 constexpr std::uint32_t __vector_width = std::min<std::uint32_t>(4, 16 / sizeof(_T));
                 using _V = sycl::vec<_T, __vector_width>;
@@ -747,10 +748,10 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         if (!__by_vectors && __lane < __active)
         {
             const std::uint32_t __i = __first + __lane;
-            __acc.__setup(
-                std::invoke(__binary_op, __element(__input, __base, __i), __element(__input, __base, __i + __active)));
+            __acc.__setup(std::invoke(__binary_op, __element(__input, __piece_begin, __i),
+                                      __element(__input, __piece_begin, __i + __active)));
             __fold_strided(__acc.__v, __i + 2 * __active, __last, __active,
-                           [&](std::uint32_t __j) { return __element(__input, __base, __j); });
+                           [&](std::uint32_t __j) { return __element(__input, __piece_begin, __j); });
         }
         if (__lane >= __active)
             __acc.__setup(__init);
@@ -759,7 +760,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             __acc.__v = __reduce_active_lanes<_Acc>(__sg, __acc.__v, __active, __binary_op);
 
         // A range of one element (no active lane) is that element; a segment start adds the init
-        const _Acc __total = __active > 0 ? __acc.__v : _Acc(__element(__input, __base, __first));
+        const _Acc __total = __active > 0 ? __acc.__v : _Acc(__element(__input, __piece_begin, __first));
         return __is_first ? _Acc(std::invoke(__binary_op, __init, __total)) : __total;
     }
 
