@@ -890,36 +890,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         }
     }
 
-    // The first of the __m segments not beginning before __bound, by the sub-group: each step loads an offset a lane at
-    // evenly spaced positions and keeps the range between the last one before __bound and the next, so the dependent
-    // loads are about log(__m) / log(sub-group size) instead of log2(__m) of a binary search
-    template <typename _SubGroup, typename _OffsetRange, typename _Size>
-    static _Size
-    __sub_group_lower_bound(const _SubGroup __sg, const _OffsetRange __offsets, const _Size __n, const _Size __m,
-                            const _Size __bound)
-    {
-        using oneapi::dpl::__internal::__clamp_to_size_and_cast;
-
-        const _Size __lane = _Size(__sg.get_local_linear_id());
-        // The result is in [__lo, __hi]: the offsets before __lo begin before __bound, the one at __hi (< __m) does not
-        _Size __lo = 0, __hi = __m;
-        while (__lo < __hi)
-        {
-            // The probes, at most one a lane, end at __hi - 1 or before
-            const _Size __step =
-                oneapi::dpl::__internal::__dpl_ceiling_div(__hi - __lo, _Size(_Tuning::__sub_group_size));
-            const _Size __probe = __lo + (__lane + 1) * __step - 1;
-            const bool __before = __probe < __hi && __clamp_to_size_and_cast<_Size>(__offsets[__probe], __n) < __bound;
-            // Sorted offsets: the probes before __bound are those of the first lanes. Unsorted: any count, still within
-            // [__lo, __hi] (results unspecified)
-            const std::uint32_t __count =
-                __dpl_sycl::__reduce_over_group(__sg, std::uint32_t(__before ? 1 : 0), sycl::plus<std::uint32_t>());
-            __lo += _Size(__count) * __step;
-            __hi = std::min<_Size>(__hi, __lo + __step - 1);
-        }
-        return __lo;
-    }
-
     // Walk the piece's segments, uniform across lanes, from the last beginning before it, whose part in the piece is
     // its head
     template <typename _SubGroup, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size>
@@ -931,7 +901,10 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         using oneapi::dpl::__internal::__clamp_to_size_and_cast;
 
         // The last segment beginning before the piece, 0 for the first piece
-        _Size __segment = std::max<_Size>(0, __sub_group_lower_bound(__sg, __offsets, __n, __m, __piece_begin) - 1);
+        _Size __segment =
+            std::max<_Size>(0, __group_lower_bound(__sg, _Size{0}, __m, [&](const _Size __i) {
+                                   return __clamp_to_size_and_cast<_Size>(__offsets[__i], __n) < __piece_begin;
+                               }) - 1);
 
         // The beginning of a segment is the end of the previous one, so each offset is loaded once
         _Size __begin = __clamp_to_size_and_cast<_Size>(__offsets[__segment], __n);
