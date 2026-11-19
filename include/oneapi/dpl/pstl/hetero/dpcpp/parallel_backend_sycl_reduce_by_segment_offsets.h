@@ -777,14 +777,15 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                       const _OutRange __result, const _Size __n, const _Size __m, const _Size __first_segment,
                       const _Size __first_begin, const _Size __piece_begin, const _Size __piece_end) const
     {
+        using oneapi::dpl::__internal::__clamp_to_size_and_cast;
+
         const std::uint32_t __lane = __sg.get_local_linear_id();
         const _Size __lane_segment = __first_segment + _Size(__lane);
         _Size __lane_begin = __first_begin, __lane_end = __first_begin;
         bool __run = false;
+
         if (__lane_segment < __m)
         {
-            using oneapi::dpl::__internal::__clamp_to_size_and_cast;
-
             __lane_begin = __clamp_to_size_and_cast<_Size>(__offsets[__lane_segment], __n);
             __lane_end = __clamp_to_size_and_cast<_Size>(__offsets[__lane_segment + 1], __n);
             __run = __is_tiny(__lane_begin, __lane_end, __piece_begin, __piece_end);
@@ -1125,6 +1126,8 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
     operator()(sycl::queue& __q, _InRange&& __input, _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n,
                const _Size __m) const
     {
+        using oneapi::dpl::__internal::__clamp_to_size_and_cast;
+
         constexpr std::uint32_t __sub_group_size = _Tuning::__sub_group_size;
         const std::uint32_t __work_group_size = _Tuning::__work_group_size(__q, __n, __m);
         const std::uint32_t __sub_groups = __work_group_size / __sub_group_size;
@@ -1139,7 +1142,6 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                 [=, *this](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(__sub_group_size)]] {
                     const std::uint32_t __segment = __item.get_group(0);
                     const std::uint32_t __lid = __item.get_local_id(0);
-                    using oneapi::dpl::__internal::__clamp_to_size_and_cast;
 
                     const _Size __begin = __clamp_to_size_and_cast<_Size>(__offsets[__segment], __n);
                     const _Size __end = __clamp_to_size_and_cast<_Size>(__offsets[__segment + 1], __n);
