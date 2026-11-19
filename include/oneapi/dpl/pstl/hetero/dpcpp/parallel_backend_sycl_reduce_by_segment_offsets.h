@@ -800,7 +800,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             __result[__lane_segment] = __acc;
         }
 
-        return {__count, sycl::select_from_group(__sg, __lane_end, __count - 1)};
+        return {__count, __dpl_sycl::__select_from_group(__sg, __lane_end, __count - 1)};
     }
 
     // The empty segments from __first_segment on, all beginning at __begin, written by __write_empty_segments: the
