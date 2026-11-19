@@ -1209,16 +1209,19 @@ struct __min_nested_type_size
     constexpr static std::size_t value = sizeof(_T);
 };
 
-template <typename... _Ts>
-struct __min_nested_type_size<std::tuple<_Ts...>>
+// The specializations below only handle non-empty tuples, tuple<> handled above.
+template <typename _T, typename... _Ts>
+struct __min_nested_type_size<std::tuple<_T, _Ts...>>
 {
-    constexpr static std::size_t value = std::min({__min_nested_type_size<_Ts>::value...});
+    constexpr static std::size_t value =
+        std::min({__min_nested_type_size<_T>::value, __min_nested_type_size<_Ts>::value...});
 };
 
-template <typename... _Ts>
-struct __min_nested_type_size<oneapi::dpl::__internal::tuple<_Ts...>>
+template <typename _T, typename... _Ts>
+struct __min_nested_type_size<oneapi::dpl::__internal::tuple<_T, _Ts...>>
 {
-    constexpr static std::size_t value = std::min({__min_nested_type_size<_Ts>::value...});
+    constexpr static std::size_t value =
+        std::min({__min_nested_type_size<_T>::value, __min_nested_type_size<_Ts>::value...});
 };
 
 // The largest type within a set of potentially nested template types, explored as for __min_nested_type_size.
@@ -1228,16 +1231,19 @@ struct __max_nested_type_size
     constexpr static std::size_t value = sizeof(_T);
 };
 
-template <typename... _Ts>
-struct __max_nested_type_size<std::tuple<_Ts...>>
+// The specializations below only handle non-empty tuples, tuple<> handled above.
+template <typename _T, typename... _Ts>
+struct __max_nested_type_size<std::tuple<_T, _Ts...>>
 {
-    constexpr static std::size_t value = std::max({sizeof(std::tuple<>), __max_nested_type_size<_Ts>::value...});
+    constexpr static std::size_t value =
+        std::max({__max_nested_type_size<_T>::value, __max_nested_type_size<_Ts>::value...});
 };
 
-template <typename... _Ts>
-struct __max_nested_type_size<oneapi::dpl::__internal::tuple<_Ts...>>
+template <typename _T, typename... _Ts>
+struct __max_nested_type_size<oneapi::dpl::__internal::tuple<_T, _Ts...>>
 {
-    constexpr static std::size_t value = std::max({sizeof(std::tuple<>), __max_nested_type_size<_Ts>::value...});
+    constexpr static std::size_t value =
+        std::max({__max_nested_type_size<_T>::value, __max_nested_type_size<_Ts>::value...});
 };
 
 struct __swap_fn
