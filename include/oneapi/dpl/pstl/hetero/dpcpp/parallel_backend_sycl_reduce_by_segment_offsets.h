@@ -633,18 +633,35 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                            _Acc(std::invoke(__binary_op, __c, __d)));
     }
 
-    // Folds __load(__index) into __acc for __index from its value below __end by __stride: four values an op while
-    // they last
+    // Folds __load(__index) into __acc for __index from its value below __end by __stride: eight values an op while
+    // they last, then four, then the at most three left together, so that the loads of a step are all in flight
     template <typename _Load>
     void
     __fold_strided(_Acc& __acc, std::uint32_t __index, const std::uint32_t __end, const std::uint32_t __stride,
                    _Load __load) const
     {
-        for (; __index + 3 * __stride < __end; __index += 4 * __stride)
+        auto __four = [&](std::uint32_t __i) {
+            return __reduce_four(__load(__i), __load(__i + __stride), __load(__i + 2 * __stride),
+                                 __load(__i + 3 * __stride));
+        };
+        for (; __index + 7 * __stride < __end; __index += 8 * __stride)
             __acc = std::invoke(__binary_op, __acc,
-                                __reduce_four(__load(__index), __load(__index + __stride),
-                                              __load(__index + 2 * __stride), __load(__index + 3 * __stride)));
-        for (; __index < __end; __index += __stride)
+                                _Acc(std::invoke(__binary_op, __four(__index), __four(__index + 4 * __stride))));
+        if (__index + 3 * __stride < __end)
+        {
+            __acc = std::invoke(__binary_op, __acc, __four(__index));
+            __index += 4 * __stride;
+        }
+        if (__index + 2 * __stride < __end)
+            __acc = std::invoke(
+                __binary_op, __acc,
+                _Acc(std::invoke(__binary_op,
+                                 _Acc(std::invoke(__binary_op, __load(__index), __load(__index + __stride))),
+                                 __load(__index + 2 * __stride))));
+        else if (__index + __stride < __end)
+            __acc = std::invoke(__binary_op, __acc,
+                                _Acc(std::invoke(__binary_op, __load(__index), __load(__index + __stride))));
+        else if (__index < __end)
             __acc = std::invoke(__binary_op, __acc, __load(__index));
     }
 
