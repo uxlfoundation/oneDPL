@@ -61,12 +61,13 @@ Macro                                 Macro values and the functionality
                                       * ``202605L`` - see :ref:`available algorithms <range-algorithms-202605L>`.
                                       * ``202608L`` - see :ref:`available algorithms <range-algorithms-202608L>`.
 ------------------------------------- -----------------------------------------------
-``ONEDPL_HAS_SEGMENTED_ALGORITHMS``   Algorithms that process the segments of a sequence independently.
+``ONEDPL_HAS_SEGMENTED_ALGORITHMS``   Algorithms that process input sequences in separate segments.
 
-                                      * ``202611L`` - the macro is introduced: added
-                                        ``oneapi::dpl::experimental::reduce_by_segment`` with variable-length segments
-                                        defined by offsets. The algorithms with segments defined by keys are available
-                                        regardless of the macro.
+                                      The reduce and scan algorithms with segments defined by keys are available
+                                      regardless of the macro.
+
+                                      * ``202611L`` - added ``oneapi::dpl::experimental::reduce_by_segment``
+                                      with segment boundaries defined by the sequence of offset indexes.
 ===================================== ===============================================
 
 Additional Macros

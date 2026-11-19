@@ -22,50 +22,33 @@ Algorithms in <oneapi/dpl/numeric>
     output_keys:   [0,1]
     output_values: [1+2+3=6,4+5+6=15]
 
-* ``oneapi::dpl::experimental::reduce_by_segment`` with segments defined by offsets: reduces every segment of a
-  sequence independently.
-  ``num_segments + 1`` offsets define ``num_segments`` consecutive segments: the segment ``s`` is
-  ``[first + offsets[s], first + offsets[s + 1])``, and its reduction, which starts from the initial value,
-  is written to ``out_first[s]``. The algorithm returns ``out_first + num_segments``, the end of the results, or
-  ``out_first`` if ``num_segments`` is not positive. It is present if ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` is
-  ``202611L`` or higher, see :ref:`Feature Macros <feature-macros>`::
+* ``experimental::reduce_by_segment`` with segments defined by offsets: performs partial reductions on
+  contiguous subsequences of the input determined by their boundary indexes, or offsets. It is present
+  if ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` is ``202611L`` or higher, see :ref:`Feature Macros <feature-macros>`.
+  The FPGA device policies are not supported.
+
+  .. code:: cpp
 
     template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT,
-              typename OffsetIt, typename InitT, typename BinaryOp>
+              typename OffsetIt, typename InitT, typename BinaryOp = std::plus<>>
     OutputIt
     reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first,
                       SegmentNumT num_segments, OffsetIt offsets, InitT init_value,
-                      BinaryOp binary_op);
+                      BinaryOp binary_op = {});
 
-    template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT,
-              typename OffsetIt, typename InitT>
-    OutputIt
-    reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first,
-                      SegmentNumT num_segments, OffsetIt offsets, InitT init_value);
-
-  The overload without ``binary_op`` uses ``std::plus<>`` as the operation, as ``std::reduce`` does. The initial
-  value is required by both overloads.
+  The algorithm returns the iterator past the last written reduction ``out_first + num_segments``
+  if ``num_segments`` is positive; otherwise, it returns ``out_first``, and nothing is read or written.
 
   ``SegmentNumT`` must be an integral type other than ``bool``. ``InputIt``, ``OutputIt`` and ``OffsetIt`` must
   be random access iterators, and the value type of ``OffsetIt`` must be an integral type other than ``bool``.
+  The reduction operation ``binary_op`` must be associative and commutative, otherwise, the results are undetermined.
 
-  Every segment is clamped to the input ``[first, last)``: a segment crossing a bound of the input is reduced
-  partially, and a segment that is empty or lies beyond the input gets the initial value converted to the
-  accumulator type. The input is never accessed out of its bounds. If ``num_segments`` is not positive, nothing is
-  read or written. The offsets should be sorted in ascending order; otherwise the results are unspecified.
-  The FPGA device policies are not supported.
+  The sequence of ``offsets`` defines ``num_segments`` consecutive segments for reduction: the segment ``s`` is
+  ``[first + offsets[s], first + offsets[s + 1])``. The corresponding reduction is written to ``out_first[s]``.
+  The offsets must be sorted in non-descending order; otherwise, the behavior is undefined. 
 
-  The accumulator type is the type of the result of the operation,
-  ``std::decay_t<std::invoke_result_t<BinaryOp&, InitT, typename std::iterator_traits<InputIt>::reference>>``, and
-  the accumulator is converted to the output type when written. The initial value is converted to the accumulator
-  type, and the reduction of every segment starts from that accumulator.
-  The reduction operation should be associative and commutative: unlike ``reduce_by_segment`` with segments defined
-  by keys, this overload does not support non-commutative operations. It must accept the accumulator and the input
-  elements in any combination, and its results must be convertible to the accumulator type and
-  assignable to an accumulator. The accumulator type must be writable to the output, and the initial value type must
-  be convertible to the accumulator type. As in ``std::reduce``, a partial result may start from the
-  operation on two input elements: for example, ``std::uint32_t`` elements with a ``std::uint64_t`` initial value
-  and ``std::plus<>`` may be added in 32 bits, while ``std::plus<std::uint64_t>`` adds them in 64 bits.
+  Every segment is clamped to the input range ``[first, last)``. Every reduction includes ``init_value``;
+  for segments that are empty or lie fully outside the input range, it is the value written to the output.
   For example::
 
     values:        [10,20,5,7,4]
