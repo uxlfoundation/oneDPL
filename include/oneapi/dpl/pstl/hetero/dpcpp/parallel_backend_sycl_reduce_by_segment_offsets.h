@@ -195,15 +195,6 @@ struct __atomic_result_storage : public __combined_storage<_ValueType>
 template <typename _Name>
 class __segmented_reduce_fill_wrapper;
 
-// Whether a device supports the atomics of the device scope, which SYCL does not require
-inline bool
-__has_device_scope_atomics(sycl::device __device)
-{
-    const std::vector<sycl::memory_scope> __scopes =
-        __device.get_info<sycl::info::device::atomic_memory_scope_capabilities>();
-    return std::find(__scopes.begin(), __scopes.end(), sycl::memory_scope::device) != __scopes.end();
-}
-
 // Short segment: one work-item; long: chunks per work-item, then combined by one work-item. Tuned on GPUs and CPUs
 class __segmented_reduce_chunk_tuning
 {
@@ -1307,6 +1298,15 @@ struct __parallel_reduce_by_segment_offsets
     }
 
   private:
+    // Whether a device supports the atomics of the device scope, which SYCL does not require
+    static bool
+    __has_device_scope_atomics(sycl::device __device)
+    {
+        const std::vector<sycl::memory_scope> __scopes =
+            __device.get_info<sycl::info::device::atomic_memory_scope_capabilities>();
+        return std::find(__scopes.begin(), __scopes.end(), sycl::memory_scope::device) != __scopes.end();
+    }
+
     // Short segments, a work-item each; returns the longest long-segment length, 0 if none
     template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
               typename _OutRange, typename _Size, typename _BinaryOperation>
