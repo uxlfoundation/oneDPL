@@ -14,7 +14,7 @@
 #include <cassert>     // assert
 #include <cmath>       // std::sqrt
 #include <cstddef>     // std::size_t
-#include <cstdint>     // std::uint8_t, std::uint32_t, std::uintptr_t
+#include <cstdint>     // std::int32_t, std::uint8_t, std::uint32_t, std::uintptr_t
 #include <functional>  // std::invoke, std::less, std::plus
 #include <limits>      // std::numeric_limits
 #include <tuple>       // std::get
@@ -1208,8 +1208,6 @@ template <typename _Name>
 class __segmented_reduce_combine_wrapper;
 template <typename _Name>
 class __segmented_reduce_init_wrapper;
-template <typename _Name>
-class __segmented_reduce_index32_wrapper;
 
 // Writes the init into every result: the input is empty, or the offsets give no element to any segment
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Size, typename _Acc>
@@ -1246,22 +1244,6 @@ struct __parallel_reduce_by_segment_offsets
         // below need both sizes positive
         assert(__m > 0 && __n > 0);
 
-        // Index arithmetic in 32 bits when the sizes allow it, with room for the sums past __n and __m on the way (a
-        // piece end, the probes of a search, a slice end): GPUs emulate the 64-bit compares and additions of the offsets
-        // and positions. Own kernel names, as they do not name _Size
-        if constexpr (sizeof(_Size) > sizeof(std::int32_t))
-        {
-            constexpr _Size __index32_max = std::numeric_limits<std::int32_t>::max() / 2;
-            if (__n <= __index32_max && __m <= __index32_max)
-            {
-                (*this)(_BackendTag{},
-                        make_wrapped_policy<__segmented_reduce_index32_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-                        std::forward<_InRange>(__input), std::forward<_OffsetRange>(__offsets),
-                        std::forward<_OutRange>(__result), std::int32_t(__n), std::int32_t(__m), __init, __binary_op);
-                return;
-            }
-        }
-
         sycl::queue __q = __exec.queue();
         const bool __is_gpu = __q.get_device().is_gpu();
 
@@ -1272,26 +1254,22 @@ struct __parallel_reduce_by_segment_offsets
             {
                 using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
-                if (_GroupTuning::__applies(__q, __n, __m))
+                // Index arithmetic in 32 bits when the sizes allow it, with room for the sums past __n and __m on the
+                // way (a piece end, the probes of a search, a slice end): GPUs emulate the 64-bit compares and
+                // additions of the offsets and positions
+                using _Index32 = std::int32_t;
+                if constexpr (sizeof(_Size) > sizeof(_Index32))
                 {
-                    // Small input: a work-group per segment
-                    using _GroupKernel =
-                        __internal::__kernel_name_provider<__segmented_reduce_group_kernel<_CustomName>>;
-                    __segmented_reduce_group_submitter<_Acc, _GroupKernel, _BinaryOperation, _GroupTuning>{
-                        __init, __binary_op}(__q, __input, __offsets, __result, __n, __m);
+                    constexpr _Size __index32_max = std::numeric_limits<_Index32>::max() / 2;
+                    if (__n <= __index32_max && __m <= __index32_max)
+                    {
+                        __reduce_on_gpu<_CustomName>(__q, __input, __offsets, __result, _Index32(__n), _Index32(__m),
+                                                     __init, __binary_op);
+                        return;
+                    }
                 }
-                else
-                {
-                    // Pieces of the input independent of the segments
-                    using _FlatKernel = __internal::__kernel_name_provider<__segmented_reduce_flat_kernel<_CustomName>>;
-                    using _FlatGroupKernel =
-                        __internal::__kernel_name_provider<__segmented_reduce_flat_group_kernel<_CustomName>>;
-                    using _FlatTailKernel =
-                        __internal::__kernel_name_provider<__segmented_reduce_flat_tail_kernel<_CustomName>>;
-                    __segmented_reduce_flat_submitter<_Acc, _FlatKernel, _FlatGroupKernel, _FlatTailKernel,
-                                                      _BinaryOperation, _FlatTuning>{__init, __binary_op}(
-                        __q, __input, __offsets, __result, __n, __m);
-                }
+
+                __reduce_on_gpu<_CustomName>(__q, __input, __offsets, __result, __n, __m, __init, __binary_op);
                 return;
             }
         }
@@ -1319,6 +1297,34 @@ struct __parallel_reduce_by_segment_offsets
     }
 
   private:
+    // GPU, arithmetic types: a work-group per segment for a small input, else pieces of the input independent of the
+    // segments. The kernel names include the index type, which the caller chooses by the sizes
+    template <typename _CustomName, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Index,
+              typename _BinaryOperation>
+    static void
+    __reduce_on_gpu(sycl::queue& __q, _InRange& __input, _OffsetRange& __offsets, _OutRange& __result, const _Index __n,
+                    const _Index __m, const _Acc& __init, const _BinaryOperation& __binary_op)
+    {
+        if (_GroupTuning::__applies(__q, __n, __m))
+        {
+            using _GroupKernel =
+                __internal::__kernel_name_provider<__segmented_reduce_group_kernel<_CustomName, _Index>>;
+            __segmented_reduce_group_submitter<_Acc, _GroupKernel, _BinaryOperation, _GroupTuning>{__init, __binary_op}(
+                __q, __input, __offsets, __result, __n, __m);
+        }
+        else
+        {
+            using _FlatKernel = __internal::__kernel_name_provider<__segmented_reduce_flat_kernel<_CustomName, _Index>>;
+            using _FlatGroupKernel =
+                __internal::__kernel_name_provider<__segmented_reduce_flat_group_kernel<_CustomName, _Index>>;
+            using _FlatTailKernel =
+                __internal::__kernel_name_provider<__segmented_reduce_flat_tail_kernel<_CustomName, _Index>>;
+            __segmented_reduce_flat_submitter<_Acc, _FlatKernel, _FlatGroupKernel, _FlatTailKernel, _BinaryOperation,
+                                              _FlatTuning>{__init, __binary_op}(__q, __input, __offsets, __result, __n,
+                                                                                __m);
+        }
+    }
+
     // Whether a device supports the atomics of the device scope, which SYCL does not require
     static bool
     __has_device_scope_atomics(sycl::device __device)
