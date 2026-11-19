@@ -367,10 +367,10 @@ struct __segmented_reduce_flat_tuning
 {
     static constexpr std::size_t __sub_group_size = 32;
 
-    // Min elements per work-item for small inputs to amortize the search and combination; the max (4x), which large
-    // inputs take, so that they spread over more work-groups than the device runs at once
+    // Min elements per work-item for small inputs to amortize the search and combination; the max (8x), which large
+    // inputs take, so that they spread over more work-groups than the device runs at once with fewer pieces to combine
     static constexpr std::size_t __min_inputs_per_item = 16;
-    static constexpr std::size_t __max_inputs_per_item = 4 * __min_inputs_per_item;
+    static constexpr std::size_t __max_inputs_per_item = 8 * __min_inputs_per_item;
 
     // An input is small, or tiny, up to this many elements per hardware thread of the device; small and tiny inputs
     // take fewer elements per work-item, so that more sub-groups share them
