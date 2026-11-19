@@ -1236,6 +1236,8 @@ template <typename _Name>
 class __segmented_reduce_combine_wrapper;
 template <typename _Name>
 class __segmented_reduce_init_wrapper;
+template <typename _Name>
+class __segmented_reduce_index32_wrapper;
 
 // Writes the init into every result: the input is empty, or the offsets give no element to any segment
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Size, typename _Acc>
@@ -1271,6 +1273,22 @@ struct __parallel_reduce_by_segment_offsets
         // No segments and an empty input are handled by the caller, __pattern_reduce_by_segment_offsets; the divisions
         // below need both sizes positive
         assert(__m > 0 && __n > 0);
+
+        // Index arithmetic in 32 bits when the sizes allow it, with room for the sums past __n and __m on the way (a
+        // piece end, the probes of a search, a slice end): GPUs emulate the 64-bit compares and additions of the offsets
+        // and positions. Own kernel names, as they do not name _Size
+        if constexpr (sizeof(_Size) > sizeof(std::int32_t))
+        {
+            constexpr _Size __index32_max = std::numeric_limits<std::int32_t>::max() / 2;
+            if (__n <= __index32_max && __m <= __index32_max)
+            {
+                (*this)(_BackendTag{},
+                        make_wrapped_policy<__segmented_reduce_index32_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
+                        std::forward<_InRange>(__input), std::forward<_OffsetRange>(__offsets),
+                        std::forward<_OutRange>(__result), std::int32_t(__n), std::int32_t(__m), __init, __binary_op);
+                return;
+            }
+        }
 
         sycl::queue __q = __exec.queue();
         const bool __is_gpu = __q.get_device().is_gpu();
