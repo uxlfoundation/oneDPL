@@ -235,6 +235,17 @@ __reduce_over_group(_Args... __args)
 
 template <typename... _Args>
 constexpr auto
+__select_from_group(_Args&&... __args)
+{
+#if _ONEDPL_SYCL2020_COLLECTIVES_PRESENT
+    return sycl::select_from_group(std::forward<_Args>(__args)...);
+#else
+#    error "sycl::select_from_group is not supported, and no alternative is available"
+#endif
+}
+
+template <typename... _Args>
+constexpr auto
 __any_of_group(_Args&&... __args)
 {
 #if _ONEDPL_SYCL2020_COLLECTIVES_PRESENT
