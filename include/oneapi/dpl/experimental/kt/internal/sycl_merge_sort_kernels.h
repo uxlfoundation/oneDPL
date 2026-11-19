@@ -250,7 +250,11 @@ struct __batched_wg_resident_merge_sort_kernel
             {
                 // Ties are taken from A, which keeps the merge stable
                 const bool __take_a = __index_a < __a_last && (__index_b >= __b_last || !__comp(__b, __a));
-                __keys[__s] = __take_a ? __a : __b;
+                // Workaround for +/-0.0 errors in device code generation.
+                // Instead of directly using __a or __b, we select the index and re-load from SLM to avoid an
+                // incorrect optimization which replaces ((b < a) ? a : b) with a intrinsic minimum between a and b,
+                // which changes semantics when comparing -0.0 with +0.0.
+                __keys[__s] = __m_slm_keys[__take_a ? __index_a : __index_b];
                 if constexpr (__has_values)
                     __vals[__s] = __m_slm_vals[__take_a ? __index_a : __index_b];
                 __index_a += __take_a;
