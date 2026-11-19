@@ -1079,11 +1079,12 @@ struct __segmented_reduce_group_tuning
     static constexpr std::size_t __min_segments_beyond = 16;
     static constexpr std::size_t __max_inputs_per_thread = 4;
 
-    // A few segments per GPU core on a mid-size input: a work-group per segment still keeps the cores busy and saves
-    // the flat path's search and second kernel, up to this many segments per core and elements per hardware thread
-    static constexpr std::size_t __min_segments_per_core = 4;
+    // A few segments per GPU core on a mid-size input: a work-group per segment saves the flat path's search and second
+    // kernel, up to this many segments per core and elements per hardware thread, while the segments are short enough
+    // on average for the work-groups to finish together
     static constexpr std::size_t __max_segments_per_core = 40;
     static constexpr std::size_t __max_mid_inputs_per_thread = 512;
+    static constexpr std::size_t __max_mid_average_length = 4096;
 
     static bool
     __applies(const sycl::queue& __q, const std::size_t __n, const std::size_t __m)
@@ -1101,7 +1102,7 @@ struct __segmented_reduce_group_tuning
 
         const std::size_t __max_mid_input = std::min<std::size_t>(
             std::numeric_limits<std::uint32_t>::max(), __max_mid_inputs_per_thread * __compute_units.__hw_threads);
-        return __n <= __max_mid_input && __m >= __min_segments_per_core * __compute_units.__num_xe_cores &&
+        return __n <= __max_mid_input && __n <= __max_mid_average_length * __m &&
                __m <= __max_segments_per_core * __compute_units.__num_xe_cores;
     }
 
