@@ -23,7 +23,7 @@
 #include <functional>
 #include <utility>
 #include <cstddef>
-#include <cstdint> // std::uint8_t
+#include <cstdint> // std::uint8_t, std::uint32_t
 #include <cassert>
 
 #include "sycl_defs.h"
@@ -896,13 +896,14 @@ struct __strided_loop
 // __comp once a work-item at evenly spaced indices and keeps the range between the last true one and the next, so the
 // dependent steps are about log(__last - __first) / log(group size + 1) instead of log2. All the work-items of the
 // group call it with the same arguments and get the result; a __comp not partitioning the range gives an unspecified
-// index in [__first, __last].
-template <typename _Group, typename _Size, typename _Compare>
+// index in [__first, __last]. A non-zero _GroupSize gives the group size at compile time, which turns the division of
+// each step into a shift for a power of two.
+template <std::uint32_t _GroupSize = 0, typename _Group, typename _Size, typename _Compare>
 _Size
 __group_lower_bound(const _Group __group, _Size __first, _Size __last, _Compare __comp)
 {
     const _Size __item = _Size(__group.get_local_linear_id());
-    const _Size __items = _Size(__group.get_local_linear_range());
+    const _Size __items = _GroupSize > 0 ? _Size(_GroupSize) : _Size(__group.get_local_linear_range());
     while (__first < __last)
     {
         // At most one index a work-item, the last at __last - 1 or before

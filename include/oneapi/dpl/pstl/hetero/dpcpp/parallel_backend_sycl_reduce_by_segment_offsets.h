@@ -819,9 +819,10 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
         // The segment before the offset after the run begins at __begin and is not empty, or the run reaches the last
         // segment
-        const _Size __after_run = __group_lower_bound(__sg, __first_segment, __m + 1, [&](const _Size __i) {
-            return __clamp_to_size_and_cast<_Size>(__offsets[__i], __n) <= __begin;
-        });
+        const _Size __after_run =
+            __group_lower_bound<_Tuning::__sub_group_size>(__sg, __first_segment, __m + 1, [&](const _Size __i) {
+                return __clamp_to_size_and_cast<_Size>(__offsets[__i], __n) <= __begin;
+            });
         // Unsorted offsets (results unspecified) may end the search before __first_segment
         return std::max<_Size>(__first_segment - 1, __after_run - 2);
     }
@@ -900,10 +901,10 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         using oneapi::dpl::__internal::__clamp_to_size_and_cast;
 
         // The last segment beginning before the piece, 0 for the first piece
-        _Size __segment =
-            std::max<_Size>(0, __group_lower_bound(__sg, _Size{0}, __m, [&](const _Size __i) {
-                                   return __clamp_to_size_and_cast<_Size>(__offsets[__i], __n) < __piece_begin;
-                               }) - 1);
+        _Size __segment = std::max<_Size>(
+            0, __group_lower_bound<_Tuning::__sub_group_size>(__sg, _Size{0}, __m, [&](const _Size __i) {
+                   return __clamp_to_size_and_cast<_Size>(__offsets[__i], __n) < __piece_begin;
+               }) - 1);
 
         // The beginning of a segment is the end of the previous one, so each offset is loaded once
         _Size __begin = __clamp_to_size_and_cast<_Size>(__offsets[__segment], __n);
