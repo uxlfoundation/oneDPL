@@ -1340,7 +1340,7 @@ __find_or_scan_width()
 #endif
 }
 
-template <typename Tag, bool __wide_scan>
+template <bool __wide_scan>
 struct __parallel_find_or_nd_range_tuner
 {
     // Tune the amount of work-groups and work-group size
@@ -1361,26 +1361,12 @@ struct __parallel_find_or_nd_range_tuner
         const std::size_t __group_count_scale =
             oneapi::dpl::__internal::__dpl_ceiling_div(__wgroup_size_limit, __wgroup_size);
         // Compute the number of groups and limit by the work capacity of the compute units
-        const std::size_t __n_groups =
+        std::size_t __n_groups =
             std::min<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size),
                                   oneapi::dpl::__internal::__max_compute_units(__q) * __group_count_scale);
 
-        return {__n_groups, __wgroup_size};
-    }
-};
-
-// No tuning for FPGA_EMU because we are not going to tune here the performance for FPGA emulation.
+        // No tuning for FPGA_EMU because we are not going to tune here the performance for FPGA emulation.
 #if !_ONEDPL_FPGA_EMU
-template <bool __wide_scan>
-struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag, __wide_scan>
-{
-    // Tune the amount of work-groups and work-group size
-    std::tuple<std::size_t, std::size_t>
-    operator()(const sycl::queue& __q, const std::size_t __rng_n) const
-    {
-        // Call common tuning function to get the work-group size
-        auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<int, __wide_scan>{}(__q, __rng_n);
-
         if (__n_groups > 1)
         {
             auto __iters_per_work_item =
@@ -1408,11 +1394,11 @@ struct __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backe
                 }
             }
         }
+#endif // !_ONEDPL_FPGA_EMU
 
         return {__n_groups, __wgroup_size};
     }
 };
-#endif // !_ONEDPL_FPGA_EMU
 
 template <bool __or_tag_check, typename KernelName>
 struct __parallel_find_or_impl_one_wg;
@@ -1604,7 +1590,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     constexpr bool __wide_scan = __width > 1;
 
     // Evaluate the amount of work-groups and work-group size
-    using _Tuner = __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag, __wide_scan>;
+    using _Tuner = __parallel_find_or_nd_range_tuner<__wide_scan>;
     const auto [__n_groups, __wgroup_size] = _Tuner{}(__q_local, __rng_n);
 
     _PRINT_INFO_IN_DEBUG_MODE(__q_local, __wgroup_size);
