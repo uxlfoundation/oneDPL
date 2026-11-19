@@ -331,16 +331,13 @@ struct __segmented_reduce_combine_brick
     }
 };
 
-// Whether a range is pointer-based, so consecutive elements can be loaded as one vector
+// Whether a range is pointer-based, so consecutive elements can be loaded as one vector; false for a range without
+// begin(), as most views are
 template <typename _Range, typename = void>
-struct __has_pointer_begin : std::false_type
-{
-};
+inline constexpr bool __has_pointer_begin_v = false;
 template <typename _Range>
-struct __has_pointer_begin<_Range, std::enable_if_t<std::is_pointer_v<decltype(std::declval<const _Range&>().begin())>>>
-    : std::true_type
-{
-};
+inline constexpr bool __has_pointer_begin_v<
+    _Range, std::enable_if_t<std::is_pointer_v<decltype(std::declval<const _Range&>().begin())>>> = true;
 
 // The launch of the flat path
 struct __segmented_reduce_flat_geometry
@@ -674,7 +671,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     static decltype(auto)
     __element(const _InRange __input, const _Size __piece_begin, const std::uint32_t __index_in_piece)
     {
-        if constexpr (__has_pointer_begin<_InRange>::value)
+        if constexpr (__has_pointer_begin_v<_InRange>)
             return (__input.begin() + __piece_begin)[__index_in_piece];
         else
             return __input[__piece_begin + _Size(__index_in_piece)];
@@ -699,7 +696,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // With a pointer input, each lane loads aligned vectors of four; the unaligned head and tail go to lane 0.
         // Pairs within a vector keep the accumulator from a lone element.
         bool __by_vectors = false;
-        if constexpr (__has_pointer_begin<_Input>::value)
+        if constexpr (__has_pointer_begin_v<_Input>)
         {
             using _T = std::remove_cv_t<std::remove_pointer_t<decltype(__input.begin())>>;
             if constexpr (std::is_arithmetic_v<_T> && !std::is_same_v<_T, bool> &&
