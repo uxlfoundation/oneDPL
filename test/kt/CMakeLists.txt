@@ -189,7 +189,8 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     add_dependencies(run-kt_sycl-sort-tests kt_sycl_cooperative_groups_estimate.pass)
 endif()
 
-# radix_wg_resident_tag accepts any work-group size which is a multiple of 32, radix_multi_wg_tag only 512 or 1024
+# merge_wg_resident_tag and radix_wg_resident_tag accept any multiple of 32 work-items up to 1024, and
+# radix_multi_wg_tag only 512 or 1024
 function(_generate_batched_stable_sort_tests _test_name _work_group_size_all)
     foreach (_data_per_work_item ${_kt_sycl_data_per_work_item_all})
         foreach (_work_group_size ${_work_group_size_all})
@@ -208,6 +209,10 @@ endfunction()
 if (ONEDPL_TEST_ENABLE_KT_SYCL)
     _generate_batched_stable_sort_tests("batched_stable_sort_radix_multi_wg" "${_kt_sycl_work_group_size_all}")
     _generate_batched_stable_sort_tests("batched_stable_sort_radix_wg_resident" "64;128;192;256;512;1024")
+    _generate_batched_stable_sort_tests("batched_stable_sort_merge_wg_resident" "64;128;192;256;512;1024")
+    _generate_test("kt_sycl_batched_stable_sort_non_arithmetic.pass" "batched_stable_sort_non_arithmetic.cpp")
+    add_dependencies(build-kt_sycl-sort-tests kt_sycl_batched_stable_sort_non_arithmetic.pass)
+    add_dependencies(run-kt_sycl-sort-tests kt_sycl_batched_stable_sort_non_arithmetic.pass)
 
     # Pin some cases to track them
     _generate_sort_test("kt_sycl" "batched_stable_sort_radix_multi_wg" "8" "512" "uint32_t" "" 1000)
@@ -224,6 +229,12 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     _generate_sort_test("kt_sycl" "batched_stable_sort_radix_wg_resident" "6" "192" "uint64_t" "uint32_t" 1000)
     if (_bfloat16_key_type_supported)
         _generate_sort_test("kt_sycl" "batched_stable_sort_radix_wg_resident" "7" "512" "sycl::ext::oneapi::bfloat16" "uint32_t" 1000)
+    endif()
+    _generate_sort_test("kt_sycl" "batched_stable_sort_merge_wg_resident" "4" "256" "sycl::half" "" 1000)
+    _generate_sort_test("kt_sycl" "batched_stable_sort_merge_wg_resident" "3" "128" "uint32_t" "uint32_t" 1000)
+    _generate_sort_test("kt_sycl" "batched_stable_sort_merge_wg_resident" "16" "256" "int32_t" "uint32_t" 1000)
+    if (_bfloat16_key_type_supported)
+        _generate_sort_test("kt_sycl" "batched_stable_sort_merge_wg_resident" "3" "512" "sycl::ext::oneapi::bfloat16" "uint32_t" 1000)
     endif()
 endif()
 

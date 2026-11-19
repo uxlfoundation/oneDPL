@@ -13,6 +13,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstddef>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <type_traits>
@@ -24,6 +25,7 @@
 #include "internal/kt_utils.h"
 #include "internal/radix_sort_utils.h"
 #include "internal/radix_sort_dispatchers.h"
+#include "internal/sycl_merge_sort_kernels.h"
 
 namespace oneapi::dpl::experimental::kt::gpu
 {
@@ -31,6 +33,13 @@ namespace oneapi::dpl::experimental::kt::gpu
 //-----------------------------------------------------------------------------
 // Sort configurations: each selects one algorithm and carries its specific parameters
 //-----------------------------------------------------------------------------
+
+// Work-group resident merge path sort; requires __segment_size <= data_per_workitem * workgroup_size.
+template <typename _Compare = std::less<>>
+struct merge_wg_resident_tag
+{
+    using compare_type = _Compare;
+};
 
 // Work-group resident radix sort, requires __segment_size <= data_per_workitem * workgroup_size
 template <bool __is_ascending = true, std::uint8_t __radix_bits = 8>
@@ -52,6 +61,12 @@ namespace __impl
 {
 
 template <typename _SortConfig>
+inline constexpr bool __is_merge_wg_resident_tag_v = false;
+
+template <typename _Compare>
+inline constexpr bool __is_merge_wg_resident_tag_v<merge_wg_resident_tag<_Compare>> = true;
+
+template <typename _SortConfig>
 inline constexpr bool __is_radix_wg_resident_tag_v = false;
 
 template <bool __is_ascending, std::uint8_t __radix_bits>
@@ -68,9 +83,21 @@ template <typename _SortConfig, typename _KernelParam>
 constexpr void
 __check_batched_sort_config()
 {
-    static_assert(__is_radix_wg_resident_tag_v<_SortConfig> || __is_radix_multi_wg_tag_v<_SortConfig>,
-                  "Unsupported _SortConfig: only radix_wg_resident_tag and radix_multi_wg_tag are currently "
-                  "implemented");
+    static_assert(__is_merge_wg_resident_tag_v<_SortConfig> || __is_radix_wg_resident_tag_v<_SortConfig> ||
+                      __is_radix_multi_wg_tag_v<_SortConfig>,
+                  "Unsupported _SortConfig: only merge_wg_resident_tag, radix_wg_resident_tag and "
+                  "radix_multi_wg_tag are currently implemented");
+    if constexpr (__is_merge_wg_resident_tag_v<_SortConfig>)
+    {
+        // The kernel itself works with any work-group size, but sizes which are not a multiple of the sub-group size
+        // leave partial sub-groups and are not expected to perform well, so they are not supported.
+        static_assert(_KernelParam::workgroup_size > 0 && _KernelParam::workgroup_size % 32 == 0 &&
+                          _KernelParam::workgroup_size <= 1024,
+                      "merge_wg_resident_tag requires a positive multiple of 32 and at most 1024 work-items in a "
+                      "work-group");
+        static_assert(_KernelParam::data_per_workitem > 0,
+                      "merge_wg_resident_tag requires a positive number of elements per work-item");
+    }
     if constexpr (__is_radix_wg_resident_tag_v<_SortConfig>)
     {
         // There is no fundamental limitation here, 4 bits works but is rarely beneficial, so we enforce 8 bits for now,
@@ -105,21 +132,31 @@ __batched_stable_sort_bytes_req(std::size_t __segment_size, std::size_t __total_
     __check_batched_sort_config<_SortConfig, _KernelParam>();
     assert(__segment_size > 0 && "The segment size must be greater than zero");
     assert(__total_size % __segment_size == 0 && "The number of elements must be a multiple of the segment size");
-    // The work-group resident radix sort needs no temporary global memory
-    if (__total_size == 0 || __is_radix_wg_resident_tag_v<_SortConfig>)
+    // The work-group resident sorts need no temporary global memory
+    if constexpr (__is_merge_wg_resident_tag_v<_SortConfig> || __is_radix_wg_resident_tag_v<_SortConfig>)
         return 0;
-    return __onesweep_temp_bytes<_KeyT, _ValT, _SortConfig::radix_bits, _KernelParam::data_per_workitem,
-                                 _KernelParam::workgroup_size>(__total_size, __segment_size);
+    else
+    {
+        if (__total_size == 0)
+            return 0;
+        return __onesweep_temp_bytes<_KeyT, _ValT, _SortConfig::radix_bits, _KernelParam::data_per_workitem,
+                                     _KernelParam::workgroup_size>(__total_size, __segment_size);
+    }
 }
 
 template <typename _SortConfig, bool __in_place, typename _RngPack1, typename _RngPack2, typename _KernelParam,
           typename _TempStorage>
 sycl::event
 __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __segment_size,
-                      _KernelParam __param, _TempStorage __temp_storage)
+                      _KernelParam __param, [[maybe_unused]] _TempStorage __temp_storage)
 {
     __check_batched_sort_config<_SortConfig, _KernelParam>();
-    if constexpr (__is_radix_wg_resident_tag_v<_SortConfig>)
+    if constexpr (__is_merge_wg_resident_tag_v<_SortConfig>)
+    {
+        return __batched_wg_resident_merge_sort<typename _SortConfig::compare_type>(
+            __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __segment_size, __param);
+    }
+    else if constexpr (__is_radix_wg_resident_tag_v<_SortConfig>)
     {
 #if _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
         return __batched_wg_resident<_SortConfig::is_ascending, _SortConfig::radix_bits>(

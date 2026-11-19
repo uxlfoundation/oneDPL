@@ -117,7 +117,9 @@ is default constructed in the kernel, so it cannot carry state set on the host. 
 accept no comparator, as they order keys by their bits.
 
 Unsupported combinations of `_SortConfig` and `kernel_param` are rejected at compile time, e.g.
-`radix_multi_wg_tag` currently requires 8 radix bits and 512 or 1024 work-items. Unsupported
+`radix_multi_wg_tag` currently requires 8 radix bits and 512 or 1024 work-items, and
+`merge_wg_resident_tag` and `radix_wg_resident_tag` require a `workgroup_size` which is a positive
+multiple of 32 and at most 1024. Unsupported
 runtime arguments for specific sort configurations assert at runtime.
 
 Dispatching between algorithms by segment size is left to the user. The documentation will include
@@ -250,7 +252,8 @@ Implement two kernels, and optionally a third:
    * Keys are compared with `_Compare` directly.
    * Load into registers and stable sort each work-item's `data_per_workitem` keys (leaf sort).
      The last work-item of a segment may hold fewer than `data_per_workitem` keys; its unused
-     slots are padded and excluded from the merges and the final write.
+     slots are never compared, as no padding key is known to order last under an arbitrary
+     comparator, and are excluded from the merges and the final write.
    * `ceil(log2(ceil(__segment_size / data_per_workitem)))` merge rounds (zero when the segment
      fits in one work-item): registers → SLM, barrier, each work-item binary-searches its diagonal
      (co-rank) for its merge path start, then merges `data_per_workitem` keys from SLM back into
