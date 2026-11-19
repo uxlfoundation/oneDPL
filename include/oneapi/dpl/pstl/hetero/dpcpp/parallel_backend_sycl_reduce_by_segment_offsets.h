@@ -58,12 +58,14 @@ struct __segmented_reduce_short_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Result __result, _Input __input,
                _MaxLengthView __max_length_view) const
     {
+        using oneapi::dpl::__internal::__clamp_to_size_and_cast;
+        using oneapi::dpl::__internal::__serial_accumulate;
         using _MaxLength = oneapi::dpl::__internal::__value_t<_MaxLengthView>;
         using __atomic_ref_t = sycl::atomic_ref<_MaxLength, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                                 sycl::access::address_space::global_space>;
 
-        const _Size __begin = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__idx], __n);
-        const _Size __end = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__idx + 1], __n);
+        const _Size __begin = __clamp_to_size_and_cast<_Size>(__offsets[__idx], __n);
+        const _Size __end = __clamp_to_size_and_cast<_Size>(__offsets[__idx + 1], __n);
 
         // A reversed segment has a negative length, so it is short and its serial reduce gives the init
         static_assert(std::is_signed_v<_Size>, "The size type must be signed");
@@ -72,13 +74,11 @@ struct __segmented_reduce_short_brick
         {
             __atomic_ref_t __ref(__max_length_view[0]);
 
-            __ref.fetch_max(oneapi::dpl::__internal::__clamp_to_size_and_cast<_MaxLength>(
-                __length, std::numeric_limits<_MaxLength>::max()));
+            __ref.fetch_max(__clamp_to_size_and_cast<_MaxLength>(__length, std::numeric_limits<_MaxLength>::max()));
         }
         else
         {
-            __result[__idx] =
-                oneapi::dpl::__internal::__serial_accumulate<_Acc>(__input, __begin, __end, __init, __binary_op);
+            __result[__idx] = __serial_accumulate<_Acc>(__input, __begin, __end, __init, __binary_op);
         }
     }
 };
@@ -238,8 +238,9 @@ struct __segmented_reduce_chunk_count
     _Size
     operator()(const _Bounds& __bounds) const
     {
-        const _Size __begin = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(std::get<0>(__bounds), __n);
-        const _Size __end = oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(std::get<1>(__bounds), __n);
+        using oneapi::dpl::__internal::__clamp_to_size_and_cast;
+        const _Size __begin = __clamp_to_size_and_cast<_Size>(std::get<0>(__bounds), __n);
+        const _Size __end = __clamp_to_size_and_cast<_Size>(std::get<1>(__bounds), __n);
 
         // A reversed segment has a negative length, so it is not longer than __min_length and has no chunks
         static_assert(std::is_signed_v<_Size>, "The size type must be signed");
@@ -269,6 +270,9 @@ struct __segmented_reduce_chunk_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _ChunkEnds __chunk_ends, _Offsets __offsets,
                _Partials __partials, _Input __input) const
     {
+        using oneapi::dpl::__internal::__clamp_to_size_and_cast;
+        using oneapi::dpl::__internal::__serial_accumulate;
+
         const _Size __chunk_idx = __idx;
         if (__chunk_idx >= __chunk_ends[__num_segments - 1])
             return;
@@ -278,10 +282,8 @@ struct __segmented_reduce_chunk_brick
             __chunk_ends, _Size{0}, __num_segments - 1, &__chunk_idx, std::less<>{}, oneapi::dpl::identity{},
             oneapi::dpl::identity{});
         const _Size __segment_first_chunk = __segment_idx == 0 ? _Size{0} : __chunk_ends[__segment_idx - 1];
-        const _Size __segment_begin =
-            oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__segment_idx], __n);
-        const _Size __segment_end =
-            oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__segment_idx + 1], __n);
+        const _Size __segment_begin = __clamp_to_size_and_cast<_Size>(__offsets[__segment_idx], __n);
+        const _Size __segment_end = __clamp_to_size_and_cast<_Size>(__offsets[__segment_idx + 1], __n);
 
         // Head length: the remainder after the full chunks, in [1, __chunk_size]
         const _Size __head_length = (__segment_end - __segment_begin) -
@@ -301,8 +303,8 @@ struct __segmented_reduce_chunk_brick
         if (!__is_head)
             __start = std::invoke(__binary_op, __input[__chunk_begin], __input[__chunk_begin + 1]);
 
-        __partials[__idx] = oneapi::dpl::__internal::__serial_accumulate<_Acc>(
-            __input, __chunk_begin + (__is_head ? 0 : 2), __chunk_end, std::move(__start), __binary_op);
+        __partials[__idx] = __serial_accumulate<_Acc>(__input, __chunk_begin + (__is_head ? 0 : 2), __chunk_end,
+                                                      std::move(__start), __binary_op);
     }
 };
 
@@ -321,13 +323,15 @@ struct __segmented_reduce_combine_brick
     operator()(_IsFull, const std::size_t __idx, _Params, _ChunkEnds __chunk_ends, _Partials __partials,
                _Result __result) const
     {
+        using oneapi::dpl::__internal::__serial_accumulate;
+
         const _Size __first = __idx == 0 ? _Size{0} : __chunk_ends[__idx - 1];
 
         // No chunks: short and already reduced. Unordered offsets may exceed the computed chunks: results unspecified
         const _Size __last = std::min<_Size>(__chunk_ends[__idx], __num_partials);
         if (__first < __last)
-            __result[__idx] = oneapi::dpl::__internal::__serial_accumulate<_Acc>(
-                __partials, std::size_t(__first) + 1, std::size_t(__last), __partials[__first], __binary_op);
+            __result[__idx] = __serial_accumulate<_Acc>(__partials, std::size_t(__first) + 1, std::size_t(__last),
+                                                        __partials[__first], __binary_op);
     }
 };
 
@@ -1019,6 +1023,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                               const std::size_t __num_units, const std::size_t __unit_size,
                               const _Size* const __tail_segment_of, const _Acc* const __heads) const
     {
+        using oneapi::dpl::__internal::__clamp_to_size_and_cast;
+
         constexpr std::uint32_t __sub_group_size = _Tuning::__sub_group_size;
         const std::uint32_t __lane = __sg.get_local_linear_id();
 
@@ -1029,8 +1035,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // Tail loaded with its segment end so neither waits for the other
         // Tails follow the heads in the storage
         const _Acc __tail = (__heads + __num_units)[__unit];
-        const _Size __segment_end =
-            oneapi::dpl::__internal::__clamp_to_size_and_cast<_Size>(__offsets[__tail_segment + 1], __n);
+        const _Size __segment_end = __clamp_to_size_and_cast<_Size>(__offsets[__tail_segment + 1], __n);
         // Units after this one up to the one holding the segment's last element
         const std::uint32_t __heads_count = std::uint32_t(std::size_t(__segment_end - 1) / __unit_size) - __unit;
         if (__heads_count == 0 && __lane == 0)
