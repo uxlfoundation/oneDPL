@@ -1078,7 +1078,6 @@ struct __early_exit_find_or
 {
     _Pred __pred;
 
-    static constexpr bool __wide = __width > 1;
     // Each iteration's matches are collected in a std::uint32_t bit mask.
     static_assert(__width <= std::numeric_limits<std::uint32_t>::digits);
 
@@ -1168,7 +1167,7 @@ struct __early_exit_find_or
         // Return the index of this item in the kernel's execution range
         const auto __global_id = __item.get_global_linear_id();
 
-        if constexpr (!__wide)
+        if constexpr (__width == 1)
         {
             bool __something_was_found = false;
             for (_SrcDataSize __i = 0; !__something_was_found && __i < __iters_per_work_item; ++__i)
