@@ -809,20 +809,19 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     }
 
     // The empty segments from __first_segment on, all beginning at __begin, written by __write_empty_segments: the
-    // first offset after __begin, found by a search, ends their run. Returns the last of them.
-    template <typename _OffsetRange, typename _Size>
+    // first offset after __begin, found by a search of the sub-group, ends their run. Returns the last of them.
+    template <typename _SubGroup, typename _OffsetRange, typename _Size>
     static _Size
-    __skip_empty_run(const _OffsetRange __offsets, const _Size __n, const _Size __m, const _Size __first_segment,
-                     const _Size __begin)
+    __skip_empty_run(const _SubGroup __sg, const _OffsetRange __offsets, const _Size __n, const _Size __m,
+                     const _Size __first_segment, const _Size __begin)
     {
         using oneapi::dpl::__internal::__clamp_to_size_and_cast;
 
         // The segment before the offset after the run begins at __begin and is not empty, or the run reaches the last
         // segment
-        const _Size __after_run =
-            oneapi::dpl::__internal::__pstl_lower_bound_impl(__first_segment, __m + 1, [&](const _Size __i) {
-                return __clamp_to_size_and_cast<_Size>(__offsets[__i], __n) <= __begin;
-            });
+        const _Size __after_run = __group_lower_bound(__sg, __first_segment, __m + 1, [&](const _Size __i) {
+            return __clamp_to_size_and_cast<_Size>(__offsets[__i], __n) <= __begin;
+        });
         // Unsorted offsets (results unspecified) may end the search before __first_segment
         return std::max<_Size>(__first_segment - 1, __after_run - 2);
     }
@@ -924,7 +923,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                     break;
                 // A sub-group of empty segments at __begin: their run may go on far, so the rest of it is skipped
                 if (__count == _Tuning::__sub_group_size && __run_end == __begin)
-                    __segment = __skip_empty_run(__offsets, __n, __m, __segment + 1, __begin);
+                    __segment = __skip_empty_run(__sg, __offsets, __n, __m, __segment + 1, __begin);
                 __begin = __run_end;
                 continue;
             }
