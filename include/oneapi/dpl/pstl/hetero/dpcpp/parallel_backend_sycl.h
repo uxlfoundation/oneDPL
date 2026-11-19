@@ -1321,32 +1321,24 @@ __find_or_elems_copyable()
 }
 
 template <typename _Brick, typename... _Ranges>
-constexpr bool
-__find_or_wide_scan_profitable()
+constexpr std::size_t
+__find_or_scan_width()
 {
 #if _ONEDPL_FPGA_DEVICE || _ONEDPL_FPGA_EMU
-    return false;
+    return 1;
 #else
-    using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
-    // Widest element type the wide scan accepts
-    constexpr std::size_t __max_elem_size_bytes = 8;
+    if constexpr (!__brick_reads_at_scanned_index<_Brick>::value || !(__find_or_elems_copyable<_Ranges>() && ...))
+        return 1;
+    else
+    {
+        using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
+        constexpr std::size_t __max_elem_size = oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value;
+        constexpr std::size_t __max_elements = 4;
+        constexpr std::size_t __max_bytes = 16;
 
-    return __brick_reads_at_scanned_index<_Brick>::value && (__find_or_elems_copyable<_Ranges>() && ...) &&
-           oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value <= __max_elem_size_bytes;
+        return std::max<std::size_t>(1, std::min(__max_elements, __max_bytes / __max_elem_size));
+    }
 #endif
-}
-
-// Elements a work item reads per wide-scan iteration.
-template <typename... _Ranges>
-constexpr std::size_t
-__find_or_wide_scan_width()
-{
-    using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
-    constexpr std::size_t __max_elem_size = oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value;
-    constexpr std::size_t __max_elements = 4;
-    constexpr std::size_t __max_bytes = 16;
-
-    return std::max<std::size_t>(1, std::min(__max_elements, __max_bytes / __max_elem_size));
 }
 
 template <typename Tag, bool __wide_scan>
@@ -1609,8 +1601,8 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
 
-    // Whether the multiple work-group path scans wide here.
-    constexpr bool __wide_scan = __find_or_wide_scan_profitable<_Brick, _Ranges...>();
+    constexpr std::size_t __width = __find_or_scan_width<_Brick, _Ranges...>();
+    constexpr bool __wide_scan = __width > 1;
 
     // Evaluate the amount of work-groups and work-group size
     using _Tuner = __parallel_find_or_nd_range_tuner<oneapi::dpl::__internal::__device_backend_tag, __wide_scan>;
@@ -1644,7 +1636,6 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using __find_or_kernel_name =
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel<_CustomName>>;
 
-        constexpr std::size_t __width = __wide_scan ? __find_or_wide_scan_width<_Ranges...>() : 1;
         const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, __width>{__f};
 
         // Multiple WG implementation
