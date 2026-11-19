@@ -221,7 +221,7 @@ the requirements on ``segment_size`` and ``n`` are reported with an assertion.
    - ``param.data_per_workitem * param.workgroup_size`` must not exceed `65535`
      for ``radix_wg_resident_tag`` and ``radix_multi_wg_tag``.
    - ``param.workgroup_size`` can be `512` or `1024` for ``radix_multi_wg_tag``,
-     and a multiple of `32` no greater than `1024` for ``radix_wg_resident_tag``.
+     and a multiple of `32` no greater than `1024` for ``merge_wg_resident_tag`` and ``radix_wg_resident_tag``.
 
 Return Value
 ------------
