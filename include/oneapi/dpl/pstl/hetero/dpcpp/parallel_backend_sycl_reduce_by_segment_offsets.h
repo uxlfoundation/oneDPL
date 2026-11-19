@@ -445,12 +445,20 @@ struct __segmented_reduce_flat_local
     __segmented_reduce_flat_local(sycl::handler&, std::size_t) {}
 };
 
+// The head of a piece of the flat path: the part of the segment begun before the piece
+enum class __segmented_reduce_head_state : std::uint8_t
+{
+    __none = 0,      // the piece begins with a segment of its own
+    __ends_in_piece, // the segment ends in the piece
+    __goes_on        // the segment goes on past the piece
+};
+
 template <typename _Acc, typename _Size>
 struct __segmented_reduce_flat_local<true, _Acc, _Size>
 {
     __dpl_sycl::__local_accessor<_Acc> __loc_heads_tails_acc;
     __dpl_sycl::__local_accessor<_Size> __loc_tail_segments_acc;
-    __dpl_sycl::__local_accessor<std::uint8_t> __loc_head_states_acc;
+    __dpl_sycl::__local_accessor<__segmented_reduce_head_state> __loc_head_states_acc;
 
     __segmented_reduce_flat_local(sycl::handler& __cgh, std::size_t __sub_groups)
         : __loc_heads_tails_acc(sycl::range<1>(2 * __sub_groups), __cgh),
@@ -648,13 +656,13 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             __acc = std::invoke(__binary_op, __acc, __load(__index));
     }
 
-    // A piece's output on lane 0: head partial (state 0 none, 1 ends in the piece, 2 goes on past it) and tail partial
-    // (segment begun in it going on past its end) with the tail's segment, __m for none
+    // A piece's output on lane 0: head partial with its state and tail partial (segment begun in it going on past its
+    // end) with the tail's segment, __m for none
     template <typename _Size>
     struct __piece_parts
     {
         _Size __tail_segment = {};
-        std::uint8_t __head_state = 0;
+        __segmented_reduce_head_state __head_state = __segmented_reduce_head_state::__none;
         oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __head, __tail;
 
         explicit __piece_parts(const _Size __m) : __tail_segment(__m) {}
@@ -883,7 +891,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             else
             {
                 __parts.__head.__setup(__acc);
-                __parts.__head_state = __ends_in_piece ? 1 : 2;
+                __parts.__head_state = __ends_in_piece ? __segmented_reduce_head_state::__ends_in_piece
+                                                       : __segmented_reduce_head_state::__goes_on;
             }
         }
     }
@@ -944,7 +953,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         const __piece_parts<_Size>& __parts, _Acc* const __heads, _Acc* const __tails,
                         _Size* const __tail_segment_of)
     {
-        if (__lane == 0 && __parts.__head_state != 0)
+        if (__lane == 0 && __parts.__head_state != __segmented_reduce_head_state::__none)
             __heads[__piece] = __parts.__head.__v;
         if (__lane == 0 && __parts.__tail_segment < __m)
             __tails[__piece] = __parts.__tail.__v;
@@ -963,7 +972,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
     {
         if (__lane == 0)
         {
-            if (__parts.__head_state != 0)
+            if (__parts.__head_state != __segmented_reduce_head_state::__none)
                 __local.__loc_heads_tails_acc[__sg_id] = __parts.__head.__v;
             if (__parts.__tail_segment < __m)
                 __local.__loc_heads_tails_acc[__sub_groups + __sg_id] = __parts.__tail.__v;
@@ -979,13 +988,13 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         if (__sg_id != 0 || __lane >= __sub_groups)
             return;
 
-        // Folds the heads of the pieces from __k on into __acc while the segment goes on (state 2); returns the state
-        // it stops at, 1 if the segment ends in the work-group
-        auto __chain = [&](_Acc& __acc, std::uint8_t __state, std::size_t __k) {
-            for (; __state == 2 && __k < __sub_groups; ++__k)
+        // Folds the heads of the pieces from __k on into __acc while the segment goes on; returns the state it stops
+        // at, __ends_in_piece if the segment ends in the work-group
+        auto __chain = [&](_Acc& __acc, __segmented_reduce_head_state __state, std::size_t __k) {
+            for (; __state == __segmented_reduce_head_state::__goes_on && __k < __sub_groups; ++__k)
             {
                 __state = __local.__loc_head_states_acc[__k];
-                if (__state != 0)
+                if (__state != __segmented_reduce_head_state::__none)
                     __acc = std::invoke(__binary_op, __acc, __local.__loc_heads_tails_acc[__k]);
             }
             return __state;
@@ -995,17 +1004,18 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         if (__tail_segment < __m)
         {
             _Acc __acc = __local.__loc_heads_tails_acc[__sub_groups + __lane];
-            const std::uint8_t __state = __chain(__acc, 2, __lane + 1);
-            if (__state == 1)
+            const __segmented_reduce_head_state __state =
+                __chain(__acc, __segmented_reduce_head_state::__goes_on, __lane + 1);
+            if (__state == __segmented_reduce_head_state::__ends_in_piece)
                 __result[__tail_segment] = __acc;
-            if (__state != 1)
+            if (__state != __segmented_reduce_head_state::__ends_in_piece)
             {
                 __tails[__group_id] = __acc;
                 __tail_segment_of[__group_id] = __tail_segment;
             }
         }
 
-        if (__lane == 0 && __local.__loc_head_states_acc[0] != 0)
+        if (__lane == 0 && __local.__loc_head_states_acc[0] != __segmented_reduce_head_state::__none)
         {
             _Acc __acc = __local.__loc_heads_tails_acc[0];
             __chain(__acc, __local.__loc_head_states_acc[0], 1);
