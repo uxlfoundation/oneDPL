@@ -374,9 +374,8 @@ All configurations use local memory to hold a work-group tile of keys:
 
 where N\ :sub:`keys_per_workgroup` is equal to ``sizeof(key_type) * param.data_per_workitem * param.workgroup_size``.
 
-- For ``merge_wg_resident_tag``, `C` is `0`. Only the segments which are packed into a work-group are held,
-  so the requirement is lower when ``param.data_per_workitem * param.workgroup_size`` is not a multiple of
-  ``segment_size``.
+- For ``merge_wg_resident_tag``, `C` is `0`. This is an upper bound: only the segments which are packed into a
+  work-group are held, so less memory may be used when they do not fill the tile.
 - For ``radix_wg_resident_tag``, `C` is `0`. The radix value counters reuse the memory of the tile,
   so the requirement is the larger of the tile and the counters, ``(param.workgroup_size / 32) * 2^RadixBits * 2``
   bytes (`16KB` for ``param.workgroup_size`` set to `1024` and ``RadixBits`` set to `8`).
