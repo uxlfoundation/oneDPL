@@ -933,13 +933,11 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                    return __clamp_to_size_and_cast<_Size>(__offsets[__i], __n) < __piece_begin;
                }) - 1);
 
-        // The beginning of a segment is the end of the previous one, so each offset is loaded once
+        // The beginning of a segment is the end of the previous one, so each offset is loaded once; the walk ends at
+        // the first segment beginning at or after the piece end
         _Size __begin = __clamp_to_size_and_cast<_Size>(__offsets[__segment], __n);
-        for (; __segment < __m; ++__segment)
+        for (; __segment < __m && __begin < __piece_end; ++__segment)
         {
-            if (__begin >= __piece_end)
-                break;
-
             const _Size __end = __clamp_to_size_and_cast<_Size>(__offsets[__segment + 1], __n);
             if (__is_tiny(__begin, __end, __piece_begin, __piece_end))
             {
@@ -947,8 +945,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                                                     __segment, __begin, __piece_begin, __piece_end);
                 // Continue after the run; its last segment may end the piece. __count >= 1, as __segment is tiny
                 __segment += _Size(__count) - 1;
-                if (__run_end >= __piece_end)
-                    break;
                 // A sub-group of empty segments at __begin: their run may go on far, so the rest of it is skipped
                 if (__count == _Tuning::__sub_group_size && __run_end == __begin)
                     __segment = __skip_empty_run(__sg, __offsets, __n, __m, __segment + 1, __begin);
@@ -958,10 +954,6 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
             __reduce_segment_part(__sg, __input, __result, __segment, __begin, __end, __piece_begin, __piece_end,
                                   __parts);
-
-            // A later segment begins at or after the end of this one
-            if (__end >= __piece_end)
-                break;
             __begin = __end;
         }
     }
