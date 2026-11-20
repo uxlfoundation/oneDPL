@@ -1107,6 +1107,10 @@ struct __segmented_reduce_group_tuning
     static constexpr std::size_t __max_input = std::size_t(1) << 12;
     static_assert(__max_input <= std::numeric_limits<std::uint32_t>::max());
 
+    // With fewer segments than __min_segments_beyond, a work-group per segment up to this many elements: the segments
+    // are long on average, so the work-groups take the largest size and a single long segment does not meet a small one
+    static constexpr std::size_t __max_few_segments_input = std::size_t(1) << 14;
+
     // With at least this many segments, a work-group per segment still wins up to this many elements and segments per
     // hardware thread of the device: the segments keep enough work-groups busy
     static constexpr std::size_t __min_segments_beyond = 16;
@@ -1135,7 +1139,7 @@ struct __segmented_reduce_group_tuning
         if (__n <= __max_input && __m <= __max_input)
             return true;
         if (__m < __min_segments_beyond)
-            return false;
+            return __n <= __max_few_segments_input;
 
         const std::size_t __min_average =
             __m <= __max_short_bound_segments ? __min_long_average_length : 2 * __min_long_average_length;
