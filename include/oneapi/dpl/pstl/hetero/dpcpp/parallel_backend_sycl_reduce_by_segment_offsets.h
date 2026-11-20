@@ -1127,7 +1127,7 @@ struct __segmented_reduce_group_tuning
     static constexpr std::size_t __min_long_average_length = 1024;
     static constexpr std::size_t __max_long_average_length = 16384;
     static constexpr std::size_t __max_short_bound_segments = 4096;
-    static constexpr std::size_t __max_long_average_inputs_per_thread = 4096;
+    static constexpr std::size_t __max_long_average_inputs_per_thread = 16384;
 
     static bool
     __applies(const sycl::queue& __q, const std::size_t __n, const std::size_t __m)
