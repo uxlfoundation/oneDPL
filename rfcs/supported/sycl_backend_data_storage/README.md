@@ -283,6 +283,11 @@ __parallel_pattern_impl(sycl::queue& __q,
 }
 ```
 
+This example assumes that only one of these functions is launched by a caller
+that dispatches between these two paths. The caller either itself takes a holder
+by reference or creates an instance of it (see [Algorithm Integration](#algorithm-integration)),
+and then passes that instance to the implementation function it chooses to launch.
+
 Note that `_NScratch` is set to 1; the small-size path stores no scratch, while
 the other path may store a scratch region from the `__combined_storage`.
 
@@ -297,8 +302,9 @@ USM memory that has not subsequently been transferred out via `__extract()`
 (see [Asynchronous Algorithm](#asynchronous-algorithm)).
 
 Care must be taken when a kernel is in flight and holds a reference to storage
-memory: destroying a storage object or the holder does not synchronize with kernels
-and may cause premature deallocation of USM is the kernel is still running.
+memory: unlike SYCL buffers, destroying a storage object or the holder does not
+generally guarantee synchronization with kernels using the storage and may cause
+premature deallocation of USM if the kernel is still running.
 The backend pattern is responsible for ensuring that all in-flight kernels
 have completed or that ownership has been transferred to the holder
 before any storage object goes out of scope in normal execution flow
