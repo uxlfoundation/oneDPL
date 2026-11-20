@@ -1086,10 +1086,10 @@ struct __early_exit_find_or
     template <typename _Ref, std::size_t __n>
     struct __staged_block
     {
-        mutable std::array<std::remove_cv_t<std::remove_reference_t<_Ref>>, __n> __elems;
+        std::array<std::remove_cv_t<std::remove_reference_t<_Ref>>, __n> __elems;
 
         _Ref
-        operator[](std::size_t __j) const
+        operator[](std::size_t __j)
         {
             return static_cast<_Ref>(__elems[__j]);
         }
@@ -1139,7 +1139,7 @@ struct __early_exit_find_or
     __load_offset_pair(const _Range1& __rng1, const _Range2& __rng2, std::size_t __base, std::index_sequence<__j...>)
     {
         constexpr std::size_t __n = sizeof...(__j);
-        const auto __lo = __load_elems(__rng1, __base, std::index_sequence<__j...>{});
+        auto __lo = __load_elems(__rng1, __base, std::index_sequence<__j...>{});
         const auto __last = __rng2[__base + __n - 1];
         auto __at = [&](std::size_t __k) { return __k < __n ? __lo[__k] : __last; };
         return std::make_tuple(__lo, std::decay_t<decltype(__lo)>{{__at(__j + 1)...}});
@@ -1243,9 +1243,9 @@ struct __early_exit_find_or
                 std::uint32_t __hits = 0;
                 // Each range is read before any predicate runs: interleaved reads of several ranges do not merge.
                 // The brick then reads its elements from the registers, at local index __j.
-                const auto __vals = __load_blocks<decltype(__offset_pair_c)::value>(__base, __rngs...);
+                auto __vals = __load_blocks<decltype(__offset_pair_c)::value>(__base, __rngs...);
                 std::apply(
-                    [&](const auto&... __v) {
+                    [&](auto&... __v) {
                         _ONEDPL_PRAGMA_UNROLL
                         for (std::size_t __j = 0; __j < __vector_size; ++__j)
                             __hits |= std::uint32_t{__pred(__j, __v...)} << __j;
