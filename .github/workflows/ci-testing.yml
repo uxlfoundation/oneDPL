@@ -23,8 +23,8 @@ env:
   BUILD_CONCURRENCY: 4
   MACOS_BUILD_CONCURRENCY: 3
   TEST_TIMEOUT: 360
-  WINDOWS_TBB_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/e45876b2-24fc-48cb-9d42-a1431747dd03/intel-onetbb-2023.0.0.718_offline.exe
-  WINDOWS_ICPX_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/baec913e-84a0-439d-becc-6fb62f2d0c83/intel-dpcpp-cpp-compiler-2026.0.0.560_offline.exe
+  WINDOWS_TBB_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/a959bdae-ec39-4e2a-9273-35ec51bcd8a0/intel-onetbb-2023.2.0.494_offline.exe
+  WINDOWS_ICPX_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/a8533fc0-229c-40a1-9bd2-7e37c06a024f/intel-dpcpp-cpp-compiler-2026.2.0.608_offline.exe
   WINDOWS_ONEAPI_PATH: C:\Program Files (x86)\Intel\oneAPI
   LINUX_ONEAPI_PATH: /opt/intel/oneapi
   VS2022_PATH: C:\Program Files\Microsoft Visual Studio\2022\Enterprise
