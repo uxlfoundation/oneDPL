@@ -178,6 +178,76 @@ test_small_sizes(sycl::queue q, KernelParam param)
     EXPECT_EQ_RANGES(ref, input, "sort modified input data when size == 1");
 }
 
+template <typename T>
+constexpr bool is_floating_key_v = std::is_floating_point_v<T> || std::is_same_v<T, sycl::half>
+#if defined(SYCL_EXT_ONEAPI_BFLOAT16)
+                                   || std::is_same_v<T, sycl::ext::oneapi::bfloat16>
+#endif
+    ;
+
+template <std::size_t Size>
+using uint_of_size_t =
+    std::conditional_t<Size == 2, std::uint16_t, std::conditional_t<Size == 4, std::uint32_t, std::uint64_t>>;
+
+// Order of floating-point keys from their bits alone: -0.0 and +0.0 are equal, and subnormals are ordered by value.
+// A floating-point comparison on the host cannot serve as the reference: with denormals-are-zero, which the host
+// may enable, it treats subnormals as zero.
+template <bool IsAscending, typename UInt>
+UInt
+ordered_bits(UInt u)
+{
+    constexpr UInt sign = UInt(UInt(1) << (std::numeric_limits<UInt>::digits - 1));
+    constexpr UInt magnitude = UInt(sign - 1);
+    if ((u & magnitude) == 0)
+        return sign;
+    const bool negative = (u & sign) != 0;
+    if constexpr (IsAscending)
+        return negative ? UInt(~u) : UInt(u ^ sign);
+    else
+        return negative ? u : UInt(u ^ magnitude);
+}
+
+// Subnormal keys must be sorted by value, not flushed to zero
+template <typename T, bool IsAscending, std::uint8_t RadixBits, typename KernelParam>
+void
+test_subnormals(sycl::queue q, KernelParam param)
+{
+    using UInt = uint_of_size_t<sizeof(T)>;
+    constexpr UInt sign = UInt(UInt(1) << (std::numeric_limits<UInt>::digits - 1));
+    // Built from bits: arithmetic on subnormals would be flushed to zero with flush-to-zero enabled.
+    // 1, 2, 3 and 0x11 are subnormals of every floating-point format.
+    const UInt magnitudes[] = {0, 1, 2, 3, 0x11, sycl::bit_cast<UInt>(T(1))};
+    std::vector<UInt> patterns;
+    for (UInt m : magnitudes)
+    {
+        patterns.push_back(m);
+        patterns.push_back(UInt(m | sign));
+    }
+    constexpr std::size_t size = 3000;
+    std::vector<UInt> bits(size);
+    for (std::size_t i = 0; i < size; ++i)
+        bits[i] = patterns[i % patterns.size()];
+    std::shuffle(bits.begin(), bits.end(), std::mt19937{42});
+
+    std::vector<T> input(size);
+    for (std::size_t i = 0; i < size; ++i)
+        input[i] = sycl::bit_cast<T>(bits[i]);
+
+    std::vector<UInt> expected(bits);
+    std::stable_sort(expected.begin(), expected.end(),
+                     [](UInt a, UInt b) { return ordered_bits<IsAscending>(a) < ordered_bits<IsAscending>(b); });
+    {
+        sycl::buffer<T> buf(input.data(), input.size());
+        kt_ns::radix_sort<IsAscending, RadixBits>(q, buf, param).wait();
+    }
+    std::vector<UInt> actual(size);
+    for (std::size_t i = 0; i < size; ++i)
+        actual[i] = sycl::bit_cast<UInt>(input[i]);
+
+    std::string msg = std::string("wrong results with subnormal keys, ") + (IsAscending ? "ascending" : "descending");
+    EXPECT_EQ_N(expected.begin(), actual.begin(), size, msg.c_str());
+}
+
 template <typename T, bool IsAscending, std::uint8_t RadixBits, typename KernelParam>
 void
 test_general_cases(sycl::queue q, std::size_t size, KernelParam param)
@@ -213,6 +283,13 @@ main()
             }
             test_small_sizes<TEST_KEY_TYPE, Ascending, TestRadixBits>(
                 q, TestUtils::create_new_kernel_param_idx<3>(params));
+            if constexpr (is_floating_key_v<TEST_KEY_TYPE>)
+            {
+                test_subnormals<TEST_KEY_TYPE, Ascending, TestRadixBits>(
+                    q, TestUtils::create_new_kernel_param_idx<4>(params));
+                test_subnormals<TEST_KEY_TYPE, Descending, TestRadixBits>(
+                    q, TestUtils::create_new_kernel_param_idx<5>(params));
+            }
         }
         catch (const ::std::exception& exc)
         {
