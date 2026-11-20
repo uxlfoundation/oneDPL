@@ -405,6 +405,117 @@ test_boundaries()
     }
 }
 
+// Segments at the boundaries of the pieces of the input that a sub-group takes on GPUs: many tiny and empty ones per
+// work-item, ones ending exactly at the end of a work-item and of a piece, a segment of a million elements, empty
+// segments between, one crossing several pieces up to the end of a piece, the first offset above zero and the last one
+// below the end of the input. The size of the input and the number of segments are fixed first, so that the elements
+// of a work-item and of a piece are those the device implementation picks for them on the device of the test policy
+template <std::size_t CallNumber>
+void
+test_pieces()
+{
+    const std::int64_t n = 1016000;     // above the last offset for any piece of up to 2048 elements, below 2^20
+    const std::int64_t num_segments = 3108; // 3000 + 7 + 1 + 100 below
+
+    std::int64_t lane = 16, piece = 512; // the elements of a work-item and of a piece of a sub-group of 32 work-items
+#if TEST_DPCPP_BACKEND_PRESENT
+    const auto geometry = oneapi::dpl::__par_backend_hetero::__segmented_reduce_flat_tuning::__geometry(
+        TestUtils::get_dpcpp_test_policy().queue(), n);
+    lane = geometry.__inputs_per_item;
+    piece = lane * oneapi::dpl::__par_backend_hetero::__segmented_reduce_flat_tuning::__sub_group_size;
+#endif
+
+    std::vector<std::int64_t> offsets{37};
+    auto add = [&offsets](std::int64_t length) { offsets.push_back(offsets.back() + length); };
+    // The length up to the next multiple of unit, never zero: a whole unit when the last offset is one already, so the
+    // segment is not empty and still ends exactly at a boundary
+    auto to_boundary = [&offsets](std::int64_t unit) { return unit - offsets.back() % unit; };
+    auto add_tiny = [&add](std::int64_t count) {
+        for (std::int64_t i = 0; i < count; ++i)
+            add(i % 4);
+    };
+    add_tiny(3000);
+    add(to_boundary(lane));
+    add(to_boundary(piece));
+    add(1000000);
+    add(0);
+    add(0);
+    add(0);
+    add(7);
+    add(3 * piece + to_boundary(piece));
+    add_tiny(100);
+    EXPECT_EQ(num_segments, std::int64_t(offsets.size() - 1), "wrong number of segments in test_pieces");
+    EXPECT_TRUE(offsets.back() < n, "the last offset of test_pieces is not below the end of the input");
+
+    Sequence<int> in(n, [](std::size_t i) { return int(i % 101) - 50; });
+    Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                         out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                         std::plus<std::int64_t>{}, std::int64_t{-1});
+}
+
+// Long runs of empty segments, which the flat path on GPUs skips by a search once a sub-group of them begins at one
+// element: runs about the sub-group size and far longer, at the start of the input, at the start of a piece, inside a
+// piece and at the end of the input, after a long segment or after tiny ones, and before a short segment
+template <std::size_t CallNumber>
+void
+test_empty_runs()
+{
+#if PSTL_USE_DEBUG
+    // A smaller input and the run lengths at the sub-group size only, for the time of the test in debug builds
+    const std::int64_t n = 300000; // above the path of a work-group per segment
+    const std::vector<std::int64_t> runs{32, 65};
+#else
+    const std::int64_t n = 1016000;
+    const std::vector<std::int64_t> runs{31, 32, 33, 64, 65, 1000, 100000};
+#endif
+    std::int64_t piece = 512; // the elements of a piece of a sub-group of 32 work-items
+#if TEST_DPCPP_BACKEND_PRESENT
+    const auto geometry = oneapi::dpl::__par_backend_hetero::__segmented_reduce_flat_tuning::__geometry(
+        TestUtils::get_dpcpp_test_policy().queue(), n);
+    piece = geometry.__inputs_per_item * oneapi::dpl::__par_backend_hetero::__segmented_reduce_flat_tuning::__sub_group_size;
+    EXPECT_TRUE(!oneapi::dpl::__par_backend_hetero::__segmented_reduce_group_tuning::__applies(
+                    TestUtils::get_dpcpp_test_policy().queue(), n, n),
+                "test_empty_runs takes the path of a work-group per segment instead of the flat one");
+#endif
+
+    Sequence<int> in(n, [](std::size_t i) { return int(i % 101) - 50; });
+    for (std::int64_t run : runs)
+    {
+        for (std::int64_t at : {std::int64_t{0}, piece * 7, piece * 7 + 5, n})
+        {
+            for (bool tiny_before : {false, true})
+            {
+                if (tiny_before && at < 3)
+                    continue;
+
+                std::vector<std::int64_t> offsets{0};
+                auto add = [&offsets](std::int64_t length) { offsets.push_back(offsets.back() + length); };
+                add(at - (tiny_before ? 3 : 0));
+                if (tiny_before)
+                {
+                    add(1);
+                    add(2);
+                }
+                for (std::int64_t i = 0; i < run; ++i)
+                    add(0);
+                if (at < n)
+                {
+                    add(3);
+                    add(n - offsets.back());
+                }
+                EXPECT_EQ(n, offsets.back(), "the last offset of test_empty_runs is not the end of the input");
+
+                const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+                Sequence<std::int64_t> out(num_segments, [](std::size_t) { return -1; });
+                invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                                     out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                                     std::plus<std::int64_t>{}, std::int64_t{-1});
+            }
+        }
+    }
+}
+
 // The input is the middle of a larger sequence, whose other elements are poison: a read out of the bounds of the input
 // changes a result
 constexpr std::size_t guard_length = 1000;
@@ -469,8 +580,9 @@ test_usm()
     }
 }
 
-// USM pointers with segments of the lengths around small powers of two, 0..7, 31..33, 35..40, 63..65, 127..129 and
-// 250..257, from unaligned positions (the first offset is odd), for elements of 4 and of 8 bytes
+// USM pointers with segments of the lengths around those that the vector loads of the device implementation take,
+// from unaligned positions, so that the head and the tail of the vectors are reached: lengths 0..7, 31..33, 35..40,
+// 63..65, 127..129 and 250..257, the first offset odd; for elements of 4 and of 8 bytes, whose vectors differ
 template <sycl::usm::alloc alloc_type, typename T, typename KernelName>
 void
 test_usm_vector_edges()
@@ -503,10 +615,10 @@ test_usm_vector_edges()
                                                             out_usm.get_data(), num_segments, offsets_usm.get_data(), T(5),
                                                             std::plus<T>{});
     EXPECT_EQ(out_usm.get_data() + num_segments, res,
-              "wrong iterator returned by reduce_by_segment with USM at the edges of small powers of two");
+              "wrong iterator returned by reduce_by_segment with USM at the vector edges");
     out_usm.retrieve_data(result.begin());
     EXPECT_EQ_N(expected.begin(), result.begin(), num_segments,
-                "wrong result from reduce_by_segment with USM at the edges of small powers of two");
+                "wrong result from reduce_by_segment with USM at the vector edges");
 }
 
 template <typename KernelName>
@@ -546,8 +658,8 @@ test_buffer()
 class KernelNameUSM;
 class KernelNameBuffer;
 class KernelNameCounting;
-class KernelNameUSMVectorEdges;
 class KernelNameNarrowCounting;
+class KernelNameUSMVectorEdges;
 class KernelNameSmallTypes;
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
@@ -711,6 +823,8 @@ main()
     test_fixed_length_segments<45>();
     test_counting_input();
     test_narrow_counting_input();
+    test_pieces<47>();
+    test_empty_runs<48>();
     test_small_types();
 
 #if TEST_DPCPP_BACKEND_PRESENT

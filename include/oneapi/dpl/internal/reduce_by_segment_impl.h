@@ -218,6 +218,9 @@ reduce_by_segment_offsets_impl(_Tag, _Policy&&, _RandomAccessInputIt __first, _R
 {
     static_assert(__internal::__is_host_dispatch_tag_v<_Tag>);
 
+    using oneapi::dpl::__internal::__clamp_to_size_and_cast;
+    using oneapi::dpl::__internal::__serial_accumulate;
+
     using _Acc = __internal::__reduction_accumulator_t<_BinaryOperation, _RandomAccessInputIt, _InitType>;
     using _Size = typename std::iterator_traits<_RandomAccessInputIt>::difference_type;
 
@@ -226,9 +229,9 @@ reduce_by_segment_offsets_impl(_Tag, _Policy&&, _RandomAccessInputIt __first, _R
     _RandomAccessOutputIt __this_segment = __result;
     for (_SegmentNum __segment = 0; __segment < __num_segments; ++__segment)
     {
-        *__this_segment = __internal::__serial_accumulate<_Acc>(
-            __first, __internal::__clamp_to_size_and_cast<_Size>(__offsets[__segment], __n),
-            __internal::__clamp_to_size_and_cast<_Size>(__offsets[__segment + 1], __n), __init, __binary_op);
+        *__this_segment = __serial_accumulate<_Acc>(__first, __clamp_to_size_and_cast<_Size>(__offsets[__segment], __n),
+                                                    __clamp_to_size_and_cast<_Size>(__offsets[__segment + 1], __n),
+                                                    __init, __binary_op);
         ++__this_segment;
     }
 
