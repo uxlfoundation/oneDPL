@@ -552,7 +552,7 @@ struct single_match_pred_by_idx
 
     template <typename _Idx, typename... _Acc>
     bool
-    operator()(const _Idx __shifted_idx, const _Acc&... __acc) const
+    operator()(const _Idx __shifted_idx, _Acc&&... __acc) const
     {
         return __pred(__shifted_idx, __acc...);
     }
