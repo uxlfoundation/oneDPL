@@ -170,7 +170,7 @@ struct __atomic_result_storage : public __combined_storage<_ValueType>
     // Waits for the kernel that raised the value, the event __e, copies it into a result in host USM, and loads it
     template <typename _ExecutionPolicy>
     _ValueType
-    __load_result(_ExecutionPolicy&& __exec, sycl::event __e)
+    __load_result(_ExecutionPolicy&&, sycl::queue& __q, sycl::event __e)
     {
         _ValueType __result = {};
 
@@ -180,7 +180,6 @@ struct __atomic_result_storage : public __combined_storage<_ValueType>
             using _CopyScratchToResultKernel = __internal::__kernel_name_provider<
                 __copy_scratch_to_result_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
 
-            sycl::queue __q = __exec.queue();
             __copy_scratch_to_result_submitter<_CopyScratchToResultKernel>{}(__q, __e, *this).wait_and_throw();
 
             this->__copy_result(&__result, 1);
@@ -1289,15 +1288,20 @@ struct __parallel_reduce_by_segment_offsets
         // below need both sizes positive
         assert(__m > 0 && __n > 0);
 
-        if (__try_reduce_on_gpu(_BackendTag{}, __exec, __input, __offsets, __result, __n, __m, __init, __binary_op))
+        sycl::queue __q = __exec.queue();
+        const sycl::device __device = __q.get_device();
+        const bool __is_gpu = __device.is_gpu();
+
+        if (__try_reduce_on_gpu(_BackendTag{}, __exec, __q, __is_gpu, __input, __offsets, __result, __n, __m, __init,
+                                __binary_op))
             return;
 
-        if (__try_reduce_without_device_scope_atomics(_BackendTag{}, __exec, __input, __offsets, __result, __n, __m,
-                                                      __init, __binary_op))
+        if (__try_reduce_without_device_scope_atomics(_BackendTag{}, __exec, __q, __device, __is_gpu, __input,
+                                                      __offsets, __result, __n, __m, __init, __binary_op))
             return;
 
-        __reduce_short_and_long_segments(_BackendTag{}, __exec, __input, __offsets, __result, __n, __m, __init,
-                                         __binary_op);
+        __reduce_short_and_long_segments(_BackendTag{}, __exec, __q, __is_gpu, __input, __offsets, __result, __n, __m,
+                                         __init, __binary_op);
     }
 
   private:
@@ -1305,17 +1309,14 @@ struct __parallel_reduce_by_segment_offsets
     template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
               typename _OutRange, typename _Size, typename _BinaryOperation>
     static bool
-    __try_reduce_on_gpu(_BackendTag, _ExecutionPolicy&& __exec, _InRange& __input, _OffsetRange& __offsets,
-                        _OutRange& __result, const _Size __n, const _Size __m, const _Acc& __init,
-                        _BinaryOperation __binary_op)
+    __try_reduce_on_gpu(_BackendTag, _ExecutionPolicy&&, sycl::queue& __q, const bool __is_gpu, _InRange& __input,
+                        _OffsetRange& __offsets, _OutRange& __result, const _Size __n, const _Size __m,
+                        const _Acc& __init, _BinaryOperation __binary_op)
     {
         if constexpr (std::is_arithmetic_v<_Acc> &&
                       std::is_arithmetic_v<oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>>)
         {
-            sycl::queue __q = __exec.queue();
-
-            if (__q.get_device().is_gpu() &&
-                oneapi::dpl::__internal::__supports_sub_group_size(__q, _FlatTuning::__sub_group_size))
+            if (__is_gpu && oneapi::dpl::__internal::__supports_sub_group_size(__q, _FlatTuning::__sub_group_size))
             {
                 using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -1346,14 +1347,11 @@ struct __parallel_reduce_by_segment_offsets
     template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
               typename _OutRange, typename _Size, typename _BinaryOperation>
     static bool
-    __try_reduce_without_device_scope_atomics(_BackendTag, _ExecutionPolicy&& __exec, _InRange& __input,
+    __try_reduce_without_device_scope_atomics(_BackendTag, _ExecutionPolicy&& __exec, sycl::queue& __q,
+                                              const sycl::device& __device, const bool __is_gpu, _InRange& __input,
                                               _OffsetRange& __offsets, _OutRange& __result, const _Size __n,
                                               const _Size __m, const _Acc& __init, _BinaryOperation __binary_op)
     {
-        sycl::queue __q = __exec.queue();
-        const sycl::device __device = __q.get_device();
-        const bool __is_gpu = __device.is_gpu();
-
         if (__has_device_scope_atomics(__device))
             return false;
 
@@ -1362,8 +1360,8 @@ struct __parallel_reduce_by_segment_offsets
         __parallel_reduce_by_segment_offsets_fill(_BackendTag{},
                                                   make_wrapped_policy<__segmented_reduce_init_wrapper>(__exec),
                                                   __result, std::size_t(__m), __init);
-        __reduce_in_chunks(_BackendTag{}, __exec, __is_gpu, __input, __offsets, __result, __n, __m, __init, __binary_op,
-                           _Size{0}, __n, __m);
+        __reduce_in_chunks(_BackendTag{}, __exec, __q, __is_gpu, __input, __offsets, __result, __n, __m, __init,
+                           __binary_op, _Size{0}, __n, __m);
 
         return true;
     }
@@ -1372,20 +1370,17 @@ struct __parallel_reduce_by_segment_offsets
     template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
               typename _OutRange, typename _Size, typename _BinaryOperation>
     static void
-    __reduce_short_and_long_segments(_BackendTag, _ExecutionPolicy&& __exec, _InRange& __input, _OffsetRange& __offsets,
-                                     _OutRange& __result, const _Size __n, const _Size __m, const _Acc& __init,
-                                     _BinaryOperation __binary_op)
+    __reduce_short_and_long_segments(_BackendTag, _ExecutionPolicy&& __exec, sycl::queue& __q, const bool __is_gpu,
+                                     _InRange& __input, _OffsetRange& __offsets, _OutRange& __result, const _Size __n,
+                                     const _Size __m, const _Acc& __init, _BinaryOperation __binary_op)
     {
-        sycl::queue __q = __exec.queue();
-        const bool __is_gpu = __q.get_device().is_gpu();
-
         // Short segments by a work-item each, which also writes the empty ones; the longer ones in chunks
         const _Size __short_segment_max = _ChunkTuning::__short_segment_max(__is_gpu);
-        const _Size __max_length = __reduce_short_segments(_BackendTag{}, __exec, __input, __offsets, __result, __n,
-                                                           __m, __short_segment_max, __init, __binary_op);
+        const _Size __max_length = __reduce_short_segments(_BackendTag{}, __exec, __q, __input, __offsets, __result,
+                                                           __n, __m, __short_segment_max, __init, __binary_op);
         // At most __n / __short_segment_max segments are longer than __short_segment_max
         if (__max_length > 0)
-            __reduce_in_chunks(_BackendTag{}, __exec, __is_gpu, __input, __offsets, __result, __n, __m, __init,
+            __reduce_in_chunks(_BackendTag{}, __exec, __q, __is_gpu, __input, __offsets, __result, __n, __m, __init,
                                __binary_op, __short_segment_max, __max_length, __n / __short_segment_max);
     }
 
@@ -1419,7 +1414,7 @@ struct __parallel_reduce_by_segment_offsets
 
     // Whether a device supports the atomics of the device scope, which SYCL does not require
     static bool
-    __has_device_scope_atomics(sycl::device __device)
+    __has_device_scope_atomics(const sycl::device& __device)
     {
         const std::vector<sycl::memory_scope> __scopes =
             __device.get_info<sycl::info::device::atomic_memory_scope_capabilities>();
@@ -1430,12 +1425,10 @@ struct __parallel_reduce_by_segment_offsets
     template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
               typename _OutRange, typename _Size, typename _BinaryOperation>
     static _Size
-    __reduce_short_segments(_BackendTag, _ExecutionPolicy&& __exec, _InRange& __input, _OffsetRange& __offsets,
-                            _OutRange& __result, const _Size __n, const _Size __m, const _Size __short_segment_max,
-                            const _Acc& __init, _BinaryOperation __binary_op)
+    __reduce_short_segments(_BackendTag, _ExecutionPolicy&& __exec, sycl::queue& __q, _InRange& __input,
+                            _OffsetRange& __offsets, _OutRange& __result, const _Size __n, const _Size __m,
+                            const _Size __short_segment_max, const _Acc& __init, _BinaryOperation __binary_op)
     {
-        sycl::queue __q = __exec.queue();
-
         // 32 bits: the atomics of every device; the cap of the length by the brick does not change the chunk size
         __atomic_result_storage<std::uint32_t> __max_length_storage(__q);
         sycl::event __short_done = __parallel_for(_BackendTag{}, __exec, __max_length_storage.__zero_done,
@@ -1444,20 +1437,18 @@ struct __parallel_reduce_by_segment_offsets
                                                   __m, __offsets, __result, __input, __max_length_storage.__all_view())
                                        .event();
 
-        return __max_length_storage.__load_result(__exec, __short_done);
+        return __max_length_storage.__load_result(__exec, __q, __short_done);
     }
 
     // Reduces segments longer than __min_length in chunks; __max_segments bounds their number
     template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
               typename _OutRange, typename _Size, typename _BinaryOperation>
     static void
-    __reduce_in_chunks(_BackendTag, _ExecutionPolicy&& __exec, const bool __is_gpu, _InRange& __input,
+    __reduce_in_chunks(_BackendTag, _ExecutionPolicy&& __exec, sycl::queue& __q, const bool __is_gpu, _InRange& __input,
                        _OffsetRange& __offsets, _OutRange& __result, const _Size __n, const _Size __m,
                        const _Acc& __init, _BinaryOperation __binary_op, const _Size __min_length,
                        const _Size __max_length, const _Size __max_segments)
     {
-        sycl::queue __q = __exec.queue();
-
         const _Size __chunk_size = _ChunkTuning::__chunk_size(__is_gpu, __max_length);
 
         // Chunk ends per segment: inclusive scan of chunk counts from adjacent offsets. Its future keeps the scan's
