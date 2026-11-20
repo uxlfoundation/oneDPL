@@ -507,7 +507,7 @@ __reduce_four(_T __a, _T __b, _T __c, _T __d, _BinaryOperation __binary_op)
 }
 
 // Folds __load(__index) into __acc for __index from its value below __end by __stride: eight values an op while they
-// last, then four, then the at most three left together, so that the loads of a step are all in flight
+// last, then four, then a pair and the last one, so that the loads of a step are all in flight
 template <typename _Acc, typename _Load, typename _BinaryOperation>
 void
 __fold_strided(_Acc& __acc, std::uint32_t __index, const std::uint32_t __end, const std::uint32_t __stride,
@@ -525,15 +525,13 @@ __fold_strided(_Acc& __acc, std::uint32_t __index, const std::uint32_t __end, co
         __acc = std::invoke(__binary_op, __acc, __four(__index));
         __index += 4 * __stride;
     }
-    if (__index + 2 * __stride < __end)
-        __acc = std::invoke(
-            __binary_op, __acc,
-            _Acc(std::invoke(__binary_op, _Acc(std::invoke(__binary_op, __load(__index), __load(__index + __stride))),
-                             __load(__index + 2 * __stride))));
-    else if (__index + __stride < __end)
+    if (__index + __stride < __end)
+    {
         __acc = std::invoke(__binary_op, __acc,
                             _Acc(std::invoke(__binary_op, __load(__index), __load(__index + __stride))));
-    else if (__index < __end)
+        __index += 2 * __stride;
+    }
+    if (__index < __end)
         __acc = std::invoke(__binary_op, __acc, __load(__index));
 }
 
