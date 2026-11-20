@@ -409,7 +409,7 @@ class __future : private std::tuple<_Args...>
             return *__st.__usm_buf;
         else
         {
-            assert(__raw_st.__kind == sycl::usm::alloc::device);
+            assert(__st.__kind == sycl::usm::alloc::device);
             auto __q_proxy = std::get_deleter<__internal::__usm_deleter>(__st.__usm_buf);
             assert(__q_proxy != nullptr && __q_proxy->__q.has_value());
             // Avoid default constructor for _T. Since _T is device copyable, copy construction
