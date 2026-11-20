@@ -79,5 +79,5 @@ main()
 
     EXPECT_TRUE(ret, "Wrong result of integral types check");
 
-    return 0;
+    return TestUtils::done();
 }

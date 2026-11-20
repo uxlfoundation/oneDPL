@@ -58,5 +58,5 @@ main()
 
     EXPECT_TRUE(ret, "Wrong result of lvalue ref check");
 
-    return 0;
+    return TestUtils::done();
 }

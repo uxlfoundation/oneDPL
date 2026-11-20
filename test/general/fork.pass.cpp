@@ -29,7 +29,7 @@ int main()
     if (pid2 != pid) // error
         return errno;
     if (WIFEXITED(status))
-        return WEXITSTATUS(status);
+        return WEXITSTATUS(status) == 0 ? TestUtils::done() : WEXITSTATUS(status);
     return -1;
 #else
     return TestUtils::done(0); // skipped
