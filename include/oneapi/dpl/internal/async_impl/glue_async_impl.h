@@ -158,9 +158,9 @@ template <class _ExecutionPolicy, class _ForwardIt, class... _Events,
 auto
 reduce_async(_ExecutionPolicy&& __exec, _ForwardIt __first, _ForwardIt __last, _Events&&... __dependencies)
 {
-    using _ValueType = typename ::std::iterator_traits<_ForwardIt>::value_type;
-    return reduce_async(::std::forward<_ExecutionPolicy>(__exec), __first, __last, _ValueType(0),
-                        ::std::plus<_ValueType>(), ::std::forward<_Events>(__dependencies)...);
+    using _ValueType = typename std::iterator_traits<_ForwardIt>::value_type;
+    return reduce_async(std::forward<_ExecutionPolicy>(__exec), __first, __last, _ValueType(0), std::plus<>(),
+                        std::forward<_Events>(__dependencies)...);
 }
 
 template <class _ExecutionPolicy, class _ForwardIt, class _T, class... _Events,
@@ -169,8 +169,8 @@ template <class _ExecutionPolicy, class _ForwardIt, class _T, class... _Events,
 auto
 reduce_async(_ExecutionPolicy&& __exec, _ForwardIt __first, _ForwardIt __last, _T __init, _Events&&... __dependencies)
 {
-    return reduce_async(::std::forward<_ExecutionPolicy>(__exec), __first, __last, std::move(__init), ::std::plus<_T>(),
-                        ::std::forward<_Events>(__dependencies)...);
+    return reduce_async(std::forward<_ExecutionPolicy>(__exec), __first, __last, std::move(__init), std::plus<>(),
+                        std::forward<_Events>(__dependencies)...);
 }
 
 // [async.fill]
@@ -227,10 +227,9 @@ auto
 transform_reduce_async(_ExecutionPolicy&& __exec, _ForwardIt1 __first1, _ForwardIt1 __last1, _ForwardIt2 __first2,
                        _T __init, _Events&&... __dependencies)
 {
-    using _ValueType = typename ::std::iterator_traits<_ForwardIt1>::value_type;
-    return transform_reduce_async(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
-                                  std::move(__init), ::std::plus<_T>(), ::std::multiplies<_ValueType>(),
-                                  ::std::forward<_Events>(__dependencies)...);
+    return transform_reduce_async(std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+                                  std::move(__init), std::plus<>(), std::multiplies<>(),
+                                  std::forward<_Events>(__dependencies)...);
 }
 
 // [async.scan]

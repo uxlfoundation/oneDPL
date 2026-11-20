@@ -470,7 +470,9 @@ __simd_transform_reduce(_Size __n, _Tp __init, _BinaryOperation __binary_op, _Un
         _ONEDPL_PRAGMA_SIMD
         for (_Size __i = 0; __i < __block_size; ++__i)
         {
-            ::new (__lane + __i) _Tp(__binary_op(__f(__i), __f(__block_size + __i)));
+            // Convert the first element to _Tp before combining, so that the accumulation happens in _Tp
+            ::new (__lane + __i) _Tp(__f(__i));
+            __lane[__i] = __binary_op(std::move(__lane[__i]), __f(__block_size + __i));
         }
         // main loop
         _Size __i = 2 * __block_size;
