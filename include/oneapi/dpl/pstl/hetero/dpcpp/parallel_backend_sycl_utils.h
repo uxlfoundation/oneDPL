@@ -379,8 +379,8 @@ struct __deferrable_mode
 {
 };
 
-//A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __usm_host_or_buffer_storage>
-//Impl details: inheritance (private) instead of aggregation for enabling the empty base optimization.
+// A contract for future class: <sycl::event, a result value, keep-alive storages...>
+// Uses inheritance instead of aggregation for enabling the empty base optimization.
 template <typename _Event, typename... _Args>
 class __future : private std::tuple<_Args...>
 {
@@ -390,7 +390,7 @@ class __future : private std::tuple<_Args...>
     _T
     __wait_and_get_value(const sycl::buffer<_T>& __buf)
     {
-        //according to a contract, returned value is one-element sycl::buffer
+        // according to the contract, returned value is one-element sycl::buffer
         return __buf.get_host_access(sycl::read_only)[0];
     }
 
@@ -413,7 +413,7 @@ class __future : private std::tuple<_Args...>
             auto __q_proxy = std::get_deleter<__internal::__usm_deleter>(__st.__usm_buf);
             assert(__q_proxy != nullptr && __q_proxy->__q.has_value());
             // Avoid default constructor for _T. Since _T is device copyable, copy construction
-            // is equivalent to a bitwise copy and we may treat __space.__v as constructed after the memcpy.
+            // is equivalent to a bitwise copy and we may treat __space.__v as constructed by memcpy.
             // There is no need to destroy it afterwards, as the destructor must have no effect.
             oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
             __q_proxy->__q->memcpy(&__space.__v, __st.__usm_buf.get() + __st.__offset, sizeof(_T)).wait();
@@ -433,17 +433,15 @@ class __future : private std::tuple<_Args...>
     __future(_Event __e, _Args... __args) : std::tuple<_Args...>(__args...), __my_event(__e) {}
     __future(_Event __e, std::tuple<_Args...> __t) : std::tuple<_Args...>(std::move(__t)), __my_event(__e) {}
 
-    auto
-    event() const
-    {
-        return __my_event;
-    }
+    auto event() const { return __my_event; }
     operator _Event() const { return event(); }
+
     void
     wait()
     {
         __my_event.wait_and_throw();
     }
+
     template <typename _WaitModeTag>
     void
     wait(_WaitModeTag)
@@ -462,7 +460,7 @@ class __future : private std::tuple<_Args...>
 #else
         if constexpr (sizeof...(_Args) > 0)
         {
-            // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
+            // Ensure that the temporary data is not destroyed before the kernel code finishes
             wait();
         }
 #endif
@@ -480,8 +478,7 @@ class __future : private std::tuple<_Args...>
             wait();
     }
 
-    //The internal API. There are cases where the implementation specifies return value  "higher" than SYCL backend,
-    //where a future is created.
+    // Internal API for cases where the return value is set higher up the stack after the future is created.
     template <typename _T>
     __future<_Event, _T, _Args...>
     __make_future(_T __t) const
