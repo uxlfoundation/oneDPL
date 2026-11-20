@@ -120,6 +120,7 @@ struct __atomic_result_storage : public __combined_storage<_ValueType>
     {
         using value_type = _ValueType;
         using __acc_t = sycl::accessor<_ValueType, 1, sycl::access_mode::read_write, __dpl_sycl::__target_device>;
+
         _ValueType* __data = nullptr;
         __acc_t __acc;
 
@@ -178,8 +179,10 @@ struct __atomic_result_storage : public __combined_storage<_ValueType>
         {
             using _CopyScratchToResultKernel = __internal::__kernel_name_provider<
                 __copy_scratch_to_result_kernel<oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>>>;
+
             sycl::queue __q = __exec.queue();
             __copy_scratch_to_result_submitter<_CopyScratchToResultKernel>{}(__q, __e, *this).wait_and_throw();
+
             this->__copy_result(&__result, 1);
         }
         else
@@ -1384,8 +1387,9 @@ struct __parallel_reduce_by_segment_offsets
                             _OutRange& __result, const _Size __n, const _Size __m, const _Size __short_segment_max,
                             const _Acc& __init, const _BinaryOperation& __binary_op)
     {
-        // 32 bits: the atomics of every device; the cap of the length by the brick does not change the chunk size
         sycl::queue __q = __exec.queue();
+
+        // 32 bits: the atomics of every device; the cap of the length by the brick does not change the chunk size
         __atomic_result_storage<std::uint32_t> __max_length_storage(__q);
         sycl::event __short_done = __parallel_for(_BackendTag{}, __exec, __max_length_storage.__zero_done,
                                                   __segmented_reduce_short_brick<_Acc, _Size, _BinaryOperation>{
@@ -1405,8 +1409,9 @@ struct __parallel_reduce_by_segment_offsets
                        const _Acc& __init, const _BinaryOperation& __binary_op, const _Size __min_length,
                        const _Size __max_length, const _Size __max_segments)
     {
-        const _Size __chunk_size = _ChunkTuning::__chunk_size(__is_gpu, __max_length);
         sycl::queue __q = __exec.queue();
+
+        const _Size __chunk_size = _ChunkTuning::__chunk_size(__is_gpu, __max_length);
 
         // Chunk ends per segment: inclusive scan of chunk counts from adjacent offsets. Its future keeps the scan's
         // temporaries alive until combining ends, which waits for all three steps: each starts on the device after
