@@ -416,7 +416,7 @@ class __future : private std::tuple<_Args...>
             // is equivalent to a bitwise copy and we may treat __space.__v as constructed after the memcpy.
             // There is no need to destroy it afterwards, as the destructor must have no effect.
             oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
-            __q_proxy->__q.memcpy(&__space.__v, __st.__usm_buf.get() + __st.__offset, sizeof(_T)).wait();
+            __q_proxy->__q->memcpy(&__space.__v, __st.__usm_buf.get() + __st.__offset, sizeof(_T)).wait();
             return __space.__v;
         }
     }
