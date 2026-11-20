@@ -751,6 +751,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                     if (__lane < __active)
                     {
                         __acc.__setup(__load_vector(__lane));
+
+                        // Each lane folds its remaining vectors, stepping by the number of active lanes.
                         __fold_strided(__acc.__v, __lane + __active, __num_vectors, __active, __load_vector);
                     }
 
@@ -769,8 +771,11 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         if (!__by_vectors && __lane < __active)
         {
             const std::uint32_t __i = __first + __lane;
+
             __acc.__setup(std::invoke(__binary_op, __element(__input, __piece_begin, __i),
                                       __element(__input, __piece_begin, __i + __active)));
+
+            // Each lane folds its remaining interleaved elements, stepping by the number of active lanes.
             __fold_strided(__acc.__v, __i + 2 * __active, __last, __active,
                            [&](std::uint32_t __j) { return __element(__input, __piece_begin, __j); });
         }
@@ -816,7 +821,10 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             // Within the piece, whose size fits in 32 bits
             const std::uint32_t __lo = std::uint32_t(__lane_begin - __piece_begin);
             const std::uint32_t __hi = std::uint32_t(__lane_end - __piece_begin);
+
             _Acc __acc = std::invoke(__binary_op, __init, __element(__input, __piece_begin, __lo));
+
+            // A tiny segment is reduced by one lane over contiguous elements, hence stride 1.
             __fold_strided(__acc, __lo + 1, __hi, 1,
                            [&](std::uint32_t __j) { return __element(__input, __piece_begin, __j); });
             __result[__lane_segment] = __acc;
@@ -1065,10 +1073,13 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // so a lane may start from one alone; an idle lane holds the tail, which is passed but never used
         const _Acc* const __first_head = __heads + (__unit + 1);
         oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __acc;
+
         if (__lane < __heads_count)
             __acc.__setup(__first_head[__lane]);
         if (__lane >= __heads_count)
             __acc.__setup(__tail);
+
+        // Each lane folds additional heads spaced by the subgroup width.
         __fold_strided(__acc.__v, __lane + __sub_group_size, __heads_count, __sub_group_size,
                        [&](std::uint32_t __k) { return __first_head[__k]; });
         __acc.__v = __reduce_active_lanes<_Acc>(__sg, __acc.__v,
