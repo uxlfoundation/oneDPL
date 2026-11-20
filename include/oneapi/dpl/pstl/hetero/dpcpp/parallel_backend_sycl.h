@@ -1317,9 +1317,11 @@ __find_or_elems_copyable()
     // [algorithms.parallel.exec] permits copies of a sequence's elements only for these types
     if constexpr (std::is_reference_v<_Ref>)
         return std::is_trivially_copy_constructible_v<_Elem> && std::is_trivially_destructible_v<_Elem>;
-    // __staged_block::operator[] returns a prvalue by copying it out of the staged array
     else
+    {
+        // __staged_block::operator[] returns a prvalue by copying it out of the staged array
         return std::is_copy_constructible_v<_Elem>;
+    }
 }
 
 template <typename _Brick, typename... _Ranges>
