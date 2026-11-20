@@ -516,14 +516,14 @@ class transform_iterator
     {
         __my_it_ = __input.__my_it_;
 
-        // If copy assignment is available, copy the functor, otherwise skip it.
-        // For non-copy assignable functors, this copy assignment operator departs from the sycl 2020 specification
-        // requirement of device copyable types for copy assignment to be the same as a bitwise copy of the object.
-        // TODO: Explore (ABI breaking) change to use std::optional or similar and using copy constructor to implement
-        //       copy assignment to better comply with SYCL 2020 specification.
-        if constexpr (std::is_copy_assignable_v<_UnaryFunc>)
+        // Implement functor copy assignment via destroy + copy-construct rather than _UnaryFunc::operator=.
+        // This supports copy assignment of functors which are not copy assignable (like c++17 lambdas).
+        // For a unary functor who's copy assignment operator differs from its copy constructor, the semantics of this
+        // copy assignment will follow that of its copy constructor.
+        if (this != std::addressof(__input))
         {
-            __my_unary_func_ = __input.__my_unary_func_;
+            __my_unary_func_.~_UnaryFunc();
+            ::new (std::addressof(__my_unary_func_)) _UnaryFunc(__input.__my_unary_func_);
         }
         return *this;
     }
