@@ -1072,15 +1072,15 @@ __is_backward_tag(_TagType)
 // early_exit (find_or)
 //------------------------------------------------------------------------
 
-// With __width > 1, each work item reads __width contiguous elements per iteration and votes less often: fewer,
-// wider loads per element, at the cost of more registers and of scanning a little past a match.
-template <typename _Pred, std::size_t __width>
+// With __vector_size > 1, each work item reads __vector_size contiguous elements per iteration and votes less often:
+// fewer, wider loads per element, at the cost of more registers and of reading a little past a match.
+template <typename _Pred, std::size_t __vector_size>
 struct __early_exit_find_or
 {
     _Pred __pred;
 
     // Each iteration's matches are collected in a std::uint32_t bit mask.
-    static_assert(__width <= std::numeric_limits<std::uint32_t>::digits);
+    static_assert(__vector_size <= std::numeric_limits<std::uint32_t>::digits);
 
     // One range's elements for an iteration, in registers. Indexing yields the range's own reference type, as a
     // view does, so the brick sees the same argument types as on the scalar path.
@@ -1151,7 +1151,7 @@ struct __early_exit_find_or
     static auto
     __load_blocks(std::size_t __base, const _Ranges&... __rngs)
     {
-        constexpr auto __seq = std::make_index_sequence<__width>{};
+        constexpr auto __seq = std::make_index_sequence<__vector_size>{};
         if constexpr (__offset_pair)
             return __load_offset_pair(__rngs..., __base, __seq);
         else
@@ -1168,7 +1168,7 @@ struct __early_exit_find_or
         // Return the index of this item in the kernel's execution range
         const auto __global_id = __item.get_global_linear_id();
 
-        if constexpr (__width == 1)
+        if constexpr (__vector_size == 1)
         {
             bool __something_was_found = false;
             for (_SrcDataSize __i = 0; !__something_was_found && __i < __iters_per_work_item; ++__i)
@@ -1206,24 +1206,25 @@ struct __early_exit_find_or
         }
         else
         {
-            // Wide kernel implementation: vector loads into registers per iteration to maximize memory throughput.
+            // Vectorized implementation: vector loads into registers per iteration to maximize memory throughput.
             // This includes detecting when a predicate compares adjacent elements of the same underlying range, and
-            // consolidating the loads to a single set of width + 1 loads, rather than 2 sets of width loads.
+            // consolidating the loads to a single set of __vector_size + 1 loads, rather than 2 sets.
             constexpr bool __backward = __is_backward_tag(__brick_tag);
-            const std::size_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item, __width);
+            const std::size_t __iters =
+                oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item, __vector_size);
             constexpr bool __check_offset_pair = __may_be_offset_pair<_Ranges...>();
             bool __offset_pair = false;
             if constexpr (__check_offset_pair)
                 __offset_pair = __source_data_size > 1 && __is_offset_pair(__rngs...);
-            const std::size_t __stride = __iteration_data_size * __width;
+            const std::size_t __stride = __iteration_data_size * __vector_size;
 
-            // Lowest source index of the __width consecutive elements this item scans on
+            // Lowest source index of the __vector_size consecutive elements this item checks on
             // iteration __i, descending for a backward tag.
             auto __iter_base = [=](std::size_t __i) {
                 const std::size_t __band = __backward ? __iters - 1 - __i : __i;
-                return __global_id * __width + __band * __stride;
+                return __global_id * __vector_size + __band * __stride;
             };
-            // Records the match nearest the scan's start among an iteration's hits, bit __j being __base + __j.
+            // Records the match nearest the search's start among an iteration's hits, bit __j being __base + __j.
             // Recording only after every predicate has run keeps the iteration's loads adjacent, so they merge.
             auto __record = [&](std::size_t __base, std::uint32_t __hits) {
                 if (__hits == 0)
@@ -1238,7 +1239,7 @@ struct __early_exit_find_or
                 _BrickTag::__save_state_to(__found_local, __base + __j);
                 return true;
             };
-            auto __scan_iter = [&](auto __offset_pair_c, std::size_t __i) {
+            auto __check_vector = [&](auto __offset_pair_c, std::size_t __i) {
                 const std::size_t __base = __iter_base(__i);
                 std::uint32_t __hits = 0;
                 // Each range is read before any predicate runs: interleaved reads of several ranges do not merge.
@@ -1247,16 +1248,16 @@ struct __early_exit_find_or
                 std::apply(
                     [&](const auto&... __v) {
                         _ONEDPL_PRAGMA_UNROLL
-                        for (std::size_t __j = 0; __j < __width; ++__j)
+                        for (std::size_t __j = 0; __j < __vector_size; ++__j)
                             __hits |= std::uint32_t{__pred(__j, __v...)} << __j;
                     },
                     __vals);
                 return __record(__base, __hits);
             };
-            auto __scan_iter_guarded = [&](std::size_t __i) {
+            auto __check_vector_guarded = [&](std::size_t __i) {
                 const std::size_t __base = __iter_base(__i);
                 std::uint32_t __hits = 0;
-                for (std::size_t __j = 0; __j < __width; ++__j)
+                for (std::size_t __j = 0; __j < __vector_size; ++__j)
                 {
                     const std::size_t __idx = __base + __j;
                     __hits |= std::uint32_t{__idx < __source_data_size && __pred(__idx, __rngs...)} << __j;
@@ -1266,26 +1267,26 @@ struct __early_exit_find_or
 
             // Bands are visited in the tag's direction, so exiting on the shared vote can only skip indices past
             // the match.
-            auto __scan = [&](auto __offset_pair_c) {
+            auto __search = [&](auto __offset_pair_c) {
                 bool __something_was_found = false;
                 for (std::size_t __i = 0; !__something_was_found && __i < __iters; ++__i)
                 {
-                    if (__iter_base(__i) + __width - 1 < __source_data_size)
-                        __something_was_found = __scan_iter(__offset_pair_c, __i);
+                    if (__iter_base(__i) + __vector_size - 1 < __source_data_size)
+                        __something_was_found = __check_vector(__offset_pair_c, __i);
                     else
-                        __something_was_found = __scan_iter_guarded(__i);
+                        __something_was_found = __check_vector_guarded(__i);
                     __something_was_found = __dpl_sycl::__any_of_group(__item.get_sub_group(), __something_was_found);
                 }
             };
             if constexpr (__check_offset_pair)
             {
                 if (__offset_pair)
-                    __scan(std::true_type{});
+                    __search(std::true_type{});
                 else
-                    __scan(std::false_type{});
+                    __search(std::false_type{});
             }
             else
-                __scan(std::false_type{});
+                __search(std::false_type{});
         }
     }
 };
@@ -1294,20 +1295,20 @@ struct __early_exit_find_or
 // parallel_find_or - sync pattern
 //------------------------------------------------------------------------
 
-// Whether the brick reads only the element at the scanned index of each range, which the wide scan reads in
-// contiguous blocks. A gather, or a loop over a second sequence, gains nothing from being unrolled.
+// Whether the brick reads only element __idx of each range, so the vectorized search can stage contiguous blocks
+// in registers. A gather, or a loop over a second sequence, gains nothing from being unrolled.
 template <typename _Brick>
-struct __brick_reads_at_scanned_index : std::false_type
+struct __find_or_brick_vectorizable : std::false_type
 {
 };
 
 // single_match_pred applies its predicate through walk_n, i.e. to element __idx of each range.
 template <typename _Pred>
-struct __brick_reads_at_scanned_index<oneapi::dpl::unseq_backend::single_match_pred<_Pred>> : std::true_type
+struct __find_or_brick_vectorizable<oneapi::dpl::unseq_backend::single_match_pred<_Pred>> : std::true_type
 {
 };
 
-// Whether the wide scan may copy a range's elements into registers.
+// Whether the vectorized search may copy a range's elements into registers.
 template <typename _Range>
 constexpr bool
 __find_or_elems_copyable()
@@ -1324,26 +1325,21 @@ __find_or_elems_copyable()
 
 template <typename _Brick, typename... _Ranges>
 constexpr std::size_t
-__find_or_scan_width()
+__find_or_vector_size()
 {
-#if _ONEDPL_FPGA_DEVICE || _ONEDPL_FPGA_EMU
-    return 1;
-#else
-    if constexpr (!__brick_reads_at_scanned_index<_Brick>::value || !(__find_or_elems_copyable<_Ranges>() && ...))
-        return 1;
-    else
+#if !(_ONEDPL_FPGA_DEVICE || _ONEDPL_FPGA_EMU)
+    if constexpr (__find_or_brick_vectorizable<_Brick>::value && (__find_or_elems_copyable<_Ranges>() && ...))
     {
         using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<std::decay_t<_Ranges>>...>;
         constexpr std::size_t __max_elem_size = oneapi::dpl::__internal::__max_nested_type_size<_ValueTypes>::value;
-        constexpr std::size_t __max_elements = 4;
         constexpr std::size_t __max_bytes = 16;
-
-        return std::max<std::size_t>(1, std::min(__max_elements, __max_bytes / __max_elem_size));
+        return std::clamp<std::size_t>(__max_bytes / __max_elem_size, 1, 4);
     }
 #endif
+    return 1;
 }
 
-template <bool __wide_scan>
+template <bool __vectorized>
 struct __parallel_find_or_nd_range_tuner
 {
     // Tune the amount of work-groups and work-group size
@@ -1358,9 +1354,9 @@ struct __parallel_find_or_nd_range_tuner
         if (__rng_n <= __wgroup_size_limit * 32)
             return {/*__n_groups=*/1, __wgroup_size_limit};
 
-        // For wide kernels, we must limit the work-group size to 512, to avoid excessive register usage on GPUs.
+        // For vectorized kernels, we must limit the work-group size to 512, to avoid excessive register usage on GPUs.
         const std::size_t __wgroup_size =
-            __wide_scan ? std::min<std::size_t>(__wgroup_size_limit, 512) : __wgroup_size_limit;
+            __vectorized ? std::min<std::size_t>(__wgroup_size_limit, 512) : __wgroup_size_limit;
         const std::size_t __group_count_scale =
             oneapi::dpl::__internal::__dpl_ceiling_div(__wgroup_size_limit, __wgroup_size);
         // Compute the number of groups and limit by the work capacity of the compute units
@@ -1376,9 +1372,9 @@ struct __parallel_find_or_nd_range_tuner
                 oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __n_groups * __wgroup_size);
 
             // If our work capacity is not enough to process all data in one iteration, tune the number of
-            // work-groups. The wide scan reads several elements per iteration, so at one iteration per item
+            // work-groups. The vectorized search reads several elements per iteration, so at one iteration per item
             // most items would fall past the end of the input.
-            if (__wide_scan || __iters_per_work_item > 1)
+            if (__vectorized || __iters_per_work_item > 1)
             {
                 // Empirically found formula for GPU devices.
                 // TODO : need to re-evaluate this formula.
@@ -1589,12 +1585,11 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     constexpr bool __or_tag_check = std::is_same_v<_BrickTag, __parallel_or_tag>;
 
-    constexpr std::size_t __width = __find_or_scan_width<_Brick, _Ranges...>();
-    constexpr bool __wide_scan = __width > 1;
+    constexpr std::size_t __vector_size = __find_or_vector_size<_Brick, _Ranges...>();
+    constexpr bool __vectorized = __vector_size > 1;
 
     // Evaluate the amount of work-groups and work-group size
-    using _Tuner = __parallel_find_or_nd_range_tuner<__wide_scan>;
-    const auto [__n_groups, __wgroup_size] = _Tuner{}(__q_local, __rng_n);
+    const auto [__n_groups, __wgroup_size] = __parallel_find_or_nd_range_tuner<__vectorized>{}(__q_local, __rng_n);
 
     _PRINT_INFO_IN_DEBUG_MODE(__q_local, __wgroup_size);
 
@@ -1624,7 +1619,7 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using __find_or_kernel_name =
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel<_CustomName>>;
 
-        const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, __width>{__f};
+        const auto __pred = oneapi::dpl::__par_backend_hetero::__early_exit_find_or<_Brick, __vector_size>{__f};
 
         // Multiple WG implementation
         __result =
