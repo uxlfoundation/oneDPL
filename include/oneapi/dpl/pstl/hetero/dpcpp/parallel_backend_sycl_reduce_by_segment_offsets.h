@@ -1192,9 +1192,14 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                     const std::uint32_t __first = __lid < __length ? __lid : 0;
                     _Acc __acc = __lid == 0 ? _Acc(std::invoke(__binary_op, __init, __input[__begin]))
                                             : _Acc(__input[__begin + __first]);
-                    __fold_strided(
-                        __acc, __lid + __work_group_size, __length, __work_group_size,
-                        [&](std::uint32_t __i) { return __input[__begin + __i]; }, __binary_op);
+                    // Up to two work-groups long, a work-item takes at most one more element: a plain step is cheaper
+                    // than the fold's branches
+                    if (__length > 2 * __work_group_size)
+                        __fold_strided(
+                            __acc, __lid + __work_group_size, __length, __work_group_size,
+                            [&](std::uint32_t __i) { return __input[__begin + __i]; }, __binary_op);
+                    else if (__lid + __work_group_size < __length)
+                        __acc = std::invoke(__binary_op, __acc, __input[__begin + __lid + __work_group_size]);
 
                     const auto __sg = __item.get_sub_group();
                     const std::uint32_t __sg_id = __sg.get_group_linear_id();
