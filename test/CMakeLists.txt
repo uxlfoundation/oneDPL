@@ -182,7 +182,6 @@ macro(onedpl_add_test test_source_file switch_off_checked_iterators)
     string(REPLACE "\.cpp" "" _test_name ${_test_name})
 
     set(coal_tests "reduce.pass" "transform_reduce.pass" "count.pass" "sycl_iterator_reduce.pass" "minmax_element.pass")
-    set(workaround_for_igpu_64bit_reduction_tests "reduce_by_segment.pass")
     # mark those tests with pstloffload_smoke_tests label
     set (pstloffload_smoke_tests "adjacent_find.pass" "copy_move.pass" "merge.pass" "partial_sort.pass" "remove_copy.pass"
         "transform_reduce.pass" "transform_reduce.pass.coal" "transform_scan.pass" "algorithm.pass"
@@ -200,10 +199,6 @@ macro(onedpl_add_test test_source_file switch_off_checked_iterators)
     if (_test_name IN_LIST coal_tests)
         onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-D_ONEDPL_DETECT_SPIRV_COMPILATION=1" "${extra_test_label}")
         onedpl_construct_exec(${test_source_file} ${_test_name}.coal ${switch_off_checked_iterators} "-D_ONEDPL_DETECT_SPIRV_COMPILATION=0" "${extra_test_label}")
-    elseif (_test_name IN_LIST workaround_for_igpu_64bit_reduction_tests)
-        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "" "${extra_test_label}")
-        string(REPLACE "\.pass" "_workaround_64bit_reduction\.pass" _test_name ${_test_name})
-        onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "-D_ONEDPL_TEST_FORCE_WORKAROUND_FOR_IGPU_64BIT_REDUCTION=1" "${extra_test_label}")
     elseif(_test_name STREQUAL "free_after_unload.pass")
         onedpl_construct_exec(${test_source_file} ${_test_name} ${switch_off_checked_iterators} "" "${extra_test_label}")
         onedpl_construct_exec(${test_source_file} ${_test_name}.after_pstl_offload ${switch_off_checked_iterators} "" "${extra_test_label}")
