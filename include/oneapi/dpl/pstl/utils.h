@@ -1184,6 +1184,12 @@ struct __opt_lazy_ctor_storage
         return __storage.__v;
     }
 
+    _T&
+    __get_ref()
+    {
+        return __storage.__v;
+    }
+
   private:
     oneapi::dpl::__internal::__lazy_ctor_storage<_T> __storage;
     bool __constructed = false;
