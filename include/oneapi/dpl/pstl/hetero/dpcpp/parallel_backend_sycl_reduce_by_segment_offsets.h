@@ -1348,7 +1348,7 @@ struct __parallel_reduce_by_segment_offsets
               typename _BinaryOperation>
     static void
     __reduce_on_gpu(sycl::queue& __q, _InRange& __input, _OffsetRange& __offsets, _OutRange& __result, const _Index __n,
-                    const _Index __m, const _Acc& __init, const _BinaryOperation& __binary_op)
+                    const _Index __m, const _Acc& __init, _BinaryOperation __binary_op)
     {
         if (_GroupTuning::__applies(__q, __n, __m))
         {
@@ -1383,9 +1383,9 @@ struct __parallel_reduce_by_segment_offsets
     template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
               typename _OutRange, typename _Size, typename _BinaryOperation>
     static _Size
-    __reduce_short_segments(_BackendTag, _ExecutionPolicy& __exec, _InRange& __input, _OffsetRange& __offsets,
+    __reduce_short_segments(_BackendTag, _ExecutionPolicy&& __exec, _InRange& __input, _OffsetRange& __offsets,
                             _OutRange& __result, const _Size __n, const _Size __m, const _Size __short_segment_max,
-                            const _Acc& __init, const _BinaryOperation& __binary_op)
+                            const _Acc& __init, _BinaryOperation __binary_op)
     {
         sycl::queue __q = __exec.queue();
 
@@ -1404,9 +1404,9 @@ struct __parallel_reduce_by_segment_offsets
     template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
               typename _OutRange, typename _Size, typename _BinaryOperation>
     static void
-    __reduce_in_chunks(_BackendTag, _ExecutionPolicy& __exec, const bool __is_gpu, _InRange& __input,
+    __reduce_in_chunks(_BackendTag, _ExecutionPolicy&& __exec, const bool __is_gpu, _InRange& __input,
                        _OffsetRange& __offsets, _OutRange& __result, const _Size __n, const _Size __m,
-                       const _Acc& __init, const _BinaryOperation& __binary_op, const _Size __min_length,
+                       const _Acc& __init, _BinaryOperation __binary_op, const _Size __min_length,
                        const _Size __max_length, const _Size __max_segments)
     {
         sycl::queue __q = __exec.queue();
