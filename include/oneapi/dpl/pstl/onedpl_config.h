@@ -346,7 +346,7 @@
 
 // sycl::property::no_init on a ranged accessor (one covering only a sub-range of its buffer) discards the contents
 // of the whole buffer in the DPC++ runtime, rather than only the elements within the accessor's range as specified.
-#if __INTEL_LLVM_COMPILER
+#if __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER < 20260300
 #    define _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN 1
 #else
 #    define _ONEDPL_SYCL_RANGED_ACCESSOR_NO_INIT_BROKEN 0
