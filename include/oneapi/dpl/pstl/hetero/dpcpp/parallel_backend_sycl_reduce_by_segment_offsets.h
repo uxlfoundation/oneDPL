@@ -1121,11 +1121,13 @@ struct __segmented_reduce_group_tuning
 
     // With at least __min_segments_beyond segments of a few thousand elements on average, a work-group per segment,
     // which folds them by eight loads, beats the pieces of the flat path at any size: long enough to fill the
-    // work-group, short enough for the work-groups to finish together. Above a few thousand segments the lower bound
+    // work-group, short enough for the work-groups to finish together, up to this many elements per hardware thread of
+    // the device, above which the bandwidth of the flat path wins. Above a few thousand segments the lower bound
     // doubles, as the work-groups of shorter segments then wait on each other
     static constexpr std::size_t __min_long_average_length = 1024;
     static constexpr std::size_t __max_long_average_length = 16384;
     static constexpr std::size_t __max_short_bound_segments = 4096;
+    static constexpr std::size_t __max_long_average_inputs_per_thread = 4096;
 
     static bool
     __applies(const sycl::queue& __q, const std::size_t __n, const std::size_t __m)
@@ -1135,13 +1137,15 @@ struct __segmented_reduce_group_tuning
         if (__m < __min_segments_beyond)
             return false;
 
+        const oneapi::dpl::__internal::__device_compute_units __compute_units(__q);
+        const std::size_t __max_long_average_input =
+            std::min<std::size_t>(std::numeric_limits<std::uint32_t>::max(),
+                                  __max_long_average_inputs_per_thread * __compute_units.__hw_threads);
         const std::size_t __min_average =
             __m <= __max_short_bound_segments ? __min_long_average_length : 2 * __min_long_average_length;
-        if (__n >= __min_average * __m && __n <= __max_long_average_length * __m &&
-            __n <= std::numeric_limits<std::uint32_t>::max())
+        if (__n >= __min_average * __m && __n <= __max_long_average_length * __m && __n <= __max_long_average_input)
             return true;
 
-        const oneapi::dpl::__internal::__device_compute_units __compute_units(__q);
         const std::size_t __max_input_beyond = std::min<std::size_t>(
             std::numeric_limits<std::uint32_t>::max(), __max_inputs_per_thread * __compute_units.__hw_threads);
         if (__n <= __max_input_beyond && __m <= __max_input_beyond)
