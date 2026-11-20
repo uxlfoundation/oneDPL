@@ -1104,7 +1104,7 @@ struct __segmented_reduce_group_tuning
 
     // Up to this many elements and segments, a work-group per segment beats the flat path's second kernel for any
     // lengths; above, a few long segments leave the device idle. Positions within a segment fit in 32 bits.
-    static constexpr std::size_t __max_input = std::size_t(1) << 12;
+    static constexpr std::size_t __max_input = std::size_t(1) << 14;
     static_assert(__max_input <= std::numeric_limits<std::uint32_t>::max());
 
     // With at least this many segments, a work-group per segment still wins up to this many elements and segments per
