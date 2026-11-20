@@ -1289,13 +1289,33 @@ struct __parallel_reduce_by_segment_offsets
         // below need both sizes positive
         assert(__m > 0 && __n > 0);
 
-        sycl::queue __q = __exec.queue();
-        const bool __is_gpu = __q.get_device().is_gpu();
+        if (__try_reduce_on_gpu(_BackendTag{}, __exec, __input, __offsets, __result, __n, __m, __init, __binary_op))
+            return;
 
+        if (__try_reduce_without_device_scope_atomics(_BackendTag{}, __exec, __input, __offsets, __result, __n, __m,
+                                                      __init, __binary_op))
+            return;
+
+        __reduce_short_and_long_segments(_BackendTag{}, __exec, __input, __offsets, __result, __n, __m, __init,
+                                         __binary_op);
+    }
+
+  private:
+    // Arithmetic input and accumulator on a supported GPU use the group/flat path; use 32-bit indices when safe.
+    template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
+              typename _OutRange, typename _Size, typename _BinaryOperation>
+    static bool
+    __try_reduce_on_gpu(_BackendTag, _ExecutionPolicy&& __exec, _InRange& __input, _OffsetRange& __offsets,
+                        _OutRange& __result, const _Size __n, const _Size __m, const _Acc& __init,
+                        _BinaryOperation __binary_op)
+    {
         if constexpr (std::is_arithmetic_v<_Acc> &&
                       std::is_arithmetic_v<oneapi::dpl::__internal::__value_t<std::decay_t<_InRange>>>)
         {
-            if (__is_gpu && oneapi::dpl::__internal::__supports_sub_group_size(__q, _FlatTuning::__sub_group_size))
+            sycl::queue __q = __exec.queue();
+
+            if (__q.get_device().is_gpu() &&
+                oneapi::dpl::__internal::__supports_sub_group_size(__q, _FlatTuning::__sub_group_size))
             {
                 using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
@@ -1310,26 +1330,54 @@ struct __parallel_reduce_by_segment_offsets
                     {
                         __reduce_on_gpu<_CustomName>(__q, __input, __offsets, __result, _Index32(__n), _Index32(__m),
                                                      __init, __binary_op);
-                        return;
+                        return true;
                     }
                 }
 
                 __reduce_on_gpu<_CustomName>(__q, __input, __offsets, __result, __n, __m, __init, __binary_op);
-                return;
+                return true;
             }
         }
 
+        return false;
+    }
+
+    // Without device-scope atomics, initialize all outputs and reduce the input in chunks.
+    template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
+              typename _OutRange, typename _Size, typename _BinaryOperation>
+    static bool
+    __try_reduce_without_device_scope_atomics(_BackendTag, _ExecutionPolicy&& __exec, _InRange& __input,
+                                              _OffsetRange& __offsets, _OutRange& __result, const _Size __n,
+                                              const _Size __m, const _Acc& __init, _BinaryOperation __binary_op)
+    {
+        sycl::queue __q = __exec.queue();
+        const sycl::device __device = __q.get_device();
+        const bool __is_gpu = __device.is_gpu();
+
+        if (__has_device_scope_atomics(__device))
+            return false;
+
         // Without device-scope atomics the longest length is not reported: init for the empty segments, all the others
         // in chunks, sized for the whole input
-        if (!__has_device_scope_atomics(__q.get_device()))
-        {
-            __parallel_reduce_by_segment_offsets_fill(_BackendTag{},
-                                                      make_wrapped_policy<__segmented_reduce_init_wrapper>(__exec),
-                                                      __result, std::size_t(__m), __init);
-            __reduce_in_chunks(_BackendTag{}, __exec, __is_gpu, __input, __offsets, __result, __n, __m, __init,
-                               __binary_op, _Size{0}, __n, __m);
-            return;
-        }
+        __parallel_reduce_by_segment_offsets_fill(_BackendTag{},
+                                                  make_wrapped_policy<__segmented_reduce_init_wrapper>(__exec),
+                                                  __result, std::size_t(__m), __init);
+        __reduce_in_chunks(_BackendTag{}, __exec, __is_gpu, __input, __offsets, __result, __n, __m, __init, __binary_op,
+                           _Size{0}, __n, __m);
+
+        return true;
+    }
+
+    // Reduce short segments per work-item; split longer segments into chunks and combine their partial results.
+    template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
+              typename _OutRange, typename _Size, typename _BinaryOperation>
+    static void
+    __reduce_short_and_long_segments(_BackendTag, _ExecutionPolicy&& __exec, _InRange& __input, _OffsetRange& __offsets,
+                                     _OutRange& __result, const _Size __n, const _Size __m, const _Acc& __init,
+                                     _BinaryOperation __binary_op)
+    {
+        sycl::queue __q = __exec.queue();
+        const bool __is_gpu = __q.get_device().is_gpu();
 
         // Short segments by a work-item each, which also writes the empty ones; the longer ones in chunks
         const _Size __short_segment_max = _ChunkTuning::__short_segment_max(__is_gpu);
@@ -1341,7 +1389,6 @@ struct __parallel_reduce_by_segment_offsets
                                __binary_op, __short_segment_max, __max_length, __n / __short_segment_max);
     }
 
-  private:
     // GPU, arithmetic types: a work-group per segment for a small input, else pieces of the input independent of the
     // segments. The kernel names include the index type, which the caller chooses by the sizes
     template <typename _CustomName, typename _InRange, typename _OffsetRange, typename _OutRange, typename _Index,
