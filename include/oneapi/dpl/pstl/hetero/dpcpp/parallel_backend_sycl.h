@@ -968,9 +968,9 @@ struct __parallel_find_forward_tag
     // As far as we make search from begin to the end of data, we should save the first (minimal) found state
     // in the __save_state_to (local state) / __save_state_to_atomic (global state) methods.
 
-    template <sycl::access::address_space _Space>
+    template <typename _AtomicRef>
     static void
-    __save_state_to_atomic(__dpl_sycl::__atomic_ref<_AtomicType, _Space>& __atomic, _AtomicType __new_state)
+    __save_state_to_atomic(_AtomicRef& __atomic, _AtomicType __new_state)
     {
         __atomic.fetch_min(__new_state);
     }
@@ -1006,9 +1006,9 @@ struct __parallel_find_backward_tag
     // As far as we make search from end to the begin of data, we should save the last (maximal) found state
     // in the __save_state_to (local state) / __save_state_to_atomic (global state) methods.
 
-    template <sycl::access::address_space _Space>
+    template <typename _AtomicRef>
     static void
-    __save_state_to_atomic(__dpl_sycl::__atomic_ref<_AtomicType, _Space>& __atomic, _AtomicType __new_state)
+    __save_state_to_atomic(_AtomicRef& __atomic, _AtomicType __new_state)
     {
         __atomic.fetch_max(__new_state);
     }
@@ -1038,9 +1038,9 @@ struct __parallel_or_tag
     // in the __save_state_to (local state) / __save_state_to_atomic (global state) methods.
     static constexpr _AtomicType __found_state = 1;
 
-    template <sycl::access::address_space _Space>
+    template <typename _AtomicRef>
     static void
-    __save_state_to_atomic(__dpl_sycl::__atomic_ref<_AtomicType, _Space>& __atomic, _AtomicType /*__new_state*/)
+    __save_state_to_atomic(_AtomicRef& __atomic, _AtomicType /*__new_state*/)
     {
         __atomic.store(__found_state);
     }
@@ -1261,9 +1261,6 @@ template <bool __or_tag_check, typename... KernelNameInit, typename... KernelNam
 struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__optional_kernel_name<KernelNameInit...>,
                                             __internal::__optional_kernel_name<KernelName...>>
 {
-    template <typename _T>
-    using __atomic_ref_t = __dpl_sycl::__atomic_ref<_T, sycl::access::address_space::global_space>;
-
     template <typename _BrickTag, typename _AtomicType, typename _Predicate, typename... _Ranges>
     _AtomicType
     operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __n_groups,
@@ -1337,18 +1334,26 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         // Set local found state value to global atomic if we found something in the current work-group
                         if (__found_local != __init_value)
                         {
-                            __atomic_ref_t<_AtomicType> __found(__scratch_ptr[0]);
+                            sycl::atomic_ref<_AtomicType, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                             sycl::access::address_space::global_space>
+                                __found(__scratch_ptr[0]);
                             // Update global (for all groups) atomic state with the found index
                             _BrickTag::__save_state_to_atomic(__found, __found_local);
+                            sycl::atomic_fence(sycl::memory_order::release, sycl::memory_scope::device);
                         }
 
-                        __atomic_ref_t<_AtomicType> __group_counter(__scratch_ptr[1]);
-                        // Copy data back from scratch part to result part when we are in the last work-group
+                        // Copy data back from scratch part to result part when we are in the last work-group.
+                        sycl::atomic_ref<_AtomicType, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                         sycl::access::address_space::global_space>
+                            __group_counter(__scratch_ptr[1]);
                         const _AtomicType __current_group_count = __group_counter.fetch_add(1) + 1;
                         if (__current_group_count == __n_groups)
                         {
+                            // found state (__scratch_ptr[0]) update by other work-groups happens-before its load by
+                            // the last work-group below due to the combination of the release and acquire fences.
+                            sycl::atomic_fence(sycl::memory_order::acquire, sycl::memory_scope::device);
                             _AtomicType* __res_ptr = __res_acc_w.__data();
-                            *__res_ptr = *__scratch_ptr;
+                            *__res_ptr = __scratch_ptr[0];
                         }
                     }
                 });
