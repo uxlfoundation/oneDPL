@@ -1339,19 +1339,18 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                                 __found(__scratch_ptr[0]);
                             // Update global (for all groups) atomic state with the found index
                             _BrickTag::__save_state_to_atomic(__found, __found_local);
+                            sycl::atomic_fence(sycl::memory_order::release, sycl::memory_scope::device);
                         }
 
                         // Copy data back from scratch part to result part when we are in the last work-group.
                         sycl::atomic_ref<_AtomicType, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                          sycl::access::address_space::global_space>
                             __group_counter(__scratch_ptr[1]);
-                        const _AtomicType __current_group_count =
-                            __group_counter.fetch_add(1, sycl::memory_order::release) + 1;
+                        const _AtomicType __current_group_count = __group_counter.fetch_add(1) + 1;
                         if (__current_group_count == __n_groups)
                         {
-                            // found state (__scratch_ptr[0]) update by other work-groups happens-before
-                            // its load by the last work-group below
-                            // due to the combination of the release fetch_add and the acquire fence.
+                            // found state (__scratch_ptr[0]) update by other work-groups happens-before its load by
+                            // the last work-group below due to the combination of the release and acquire fences.
                             sycl::atomic_fence(sycl::memory_order::acquire, sycl::memory_scope::device);
                             _AtomicType* __res_ptr = __res_acc_w.__data();
                             *__res_ptr = __scratch_ptr[0];
