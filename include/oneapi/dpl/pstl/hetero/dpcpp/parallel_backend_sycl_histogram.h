@@ -189,8 +189,7 @@ __accum_local_atomics_iter(const _ValueType& __x, const _HistAccessor& __wg_loca
     if (__c >= 0)
     {
         // The addressed histogram is private to the work-group, so work-group scope is sufficient
-        sycl::atomic_ref<_histo_value_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group,
-                         _AddressSpace>
+        sycl::atomic_ref<_histo_value_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group, _AddressSpace>
             __local_bin(__wg_local_histogram[__c * __stride + __offset]);
         ++__local_bin;
     }
