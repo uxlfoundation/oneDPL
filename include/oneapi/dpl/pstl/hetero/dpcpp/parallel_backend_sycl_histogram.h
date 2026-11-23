@@ -17,6 +17,7 @@
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_HISTOGRAM_H
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <type_traits>
 
@@ -493,6 +494,9 @@ __parallel_histogram(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
+
+    assert(oneapi::dpl::__internal::__has_device_scope_atomics(__q_local.get_device()) &&
+           "This device does not support sycl::memory_scope::device");
 
     if (oneapi::dpl::__ranges::__size(__input) < 1048576) // 2^20
     {

@@ -1406,6 +1406,8 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     }
     else
     {
+        assert(oneapi::dpl::__internal::__has_device_scope_atomics(__q_local.get_device()) &&
+               "This device does not support sycl::memory_scope::device");
         assert("This device does not support 64-bit atomics" &&
                (sizeof(_AtomicType) < 8 || __q_local.get_device().has(sycl::aspect::atomic64)));
 
