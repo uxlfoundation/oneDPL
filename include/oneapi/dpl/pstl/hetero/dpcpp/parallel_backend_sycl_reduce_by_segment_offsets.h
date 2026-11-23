@@ -192,11 +192,16 @@ class __segmented_reduce_fill_wrapper;
 
 // Whether a device supports the atomics of the device scope, which SYCL does not require
 inline bool
-__has_device_scope_atomics(sycl::device __device)
+__has_device_scope_atomics([[maybe_unused]] sycl::device __device)
 {
+#if _ONEDPL_SYCL2020_ATOMIC_MEMORY_SCOPE_CAPABILITIES_BROKEN
+    // The capabilities cannot be queried, so conservatively assume no support
+    return false;
+#else
     const std::vector<sycl::memory_scope> __scopes =
         __device.get_info<sycl::info::device::atomic_memory_scope_capabilities>();
     return std::find(__scopes.begin(), __scopes.end(), sycl::memory_scope::device) != __scopes.end();
+#endif
 }
 
 // The length of a segment within the input; a negatively sized segment is empty
