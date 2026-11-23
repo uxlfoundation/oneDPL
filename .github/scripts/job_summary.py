@@ -12,7 +12,7 @@ NA_VALUE = "N/A"
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Analyze build logs and ctest output, and generate a summary.")
     parser.add_argument("--build-log", required=True, help="Path to the build log file.")
-    parser.add_argument("--ctest-log", required=True, help="Path to the ctest log file.")
+    parser.add_argument("--ctest-log", help="Path to the ctest log file.")
     parser.add_argument("--output-file", required=True, help="Path to the output file.")
     parser.add_argument("--compiler", help="Name of the C++ compiler executable, queried for its version.")
     return parser.parse_args()
@@ -122,25 +122,31 @@ def extract_ctest_summary(ctest_log_content):
         return match.group(0)
 
 
-def combine_tables(environment_table, warning_table, ctest_table, ctest_summary):
-    # Make the CTest summary collapsible since it can be long
-    title = f"<summary><b>CTest: {ctest_summary} (expand for details)</b></summary>"
-    collapsible_ctest_table = f"<details>\n{title}\n\n{ctest_table}\n\n</details>"
+def combine_tables(environment_table, warning_table, ctest_table=None, ctest_summary=None):
+    sections = [environment_table, warning_table]
+    if ctest_table is not None:
+        # Make the CTest summary collapsible since it can be long
+        title = f"<summary><b>CTest: {ctest_summary} (expand for details)</b></summary>"
+        sections.append(f"<details>\n{title}\n\n{ctest_table}\n\n</details>")
     # Additional empty line to separate the tables
-    return "\n\n".join([environment_table, warning_table, collapsible_ctest_table])
+    return "\n\n".join(sections)
 
 
 if __name__ == "__main__":
     args = parse_arguments()
     build_log_content = read_file(args.build_log)
-    ctest_log_content = read_file(args.ctest_log)
 
     compiler_version = first_output_line([args.compiler, "--version"]) if args.compiler else NA_VALUE
     environment_table = generate_environment_table(detect_os(), compiler_version,
                                                    first_output_line(["cmake", "--version"]), detect_cpu_model())
     warning_table = generate_warning_table(build_log_content)
-    ctest_table = generate_ctest_table(ctest_log_content)
-    ctest_summary = extract_ctest_summary(ctest_log_content)
+    if args.ctest_log:
+        ctest_log_content = read_file(args.ctest_log)
+        ctest_table = generate_ctest_table(ctest_log_content)
+        ctest_summary = extract_ctest_summary(ctest_log_content)
+    else:
+        ctest_table = None
+        ctest_summary = None
     summary = combine_tables(environment_table, warning_table, ctest_table, ctest_summary)
 
     with open(args.output_file, 'w', encoding="utf-8") as f:
