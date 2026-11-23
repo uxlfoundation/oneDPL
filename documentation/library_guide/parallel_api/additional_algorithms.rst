@@ -53,8 +53,8 @@ Algorithms in <oneapi/dpl/numeric>
 
     values:        [10,20,5,7,4]
     offsets:       [0,2,2,4,5]
-    initial value: 0
-    result:        [10+20=30,0,5+7=12,4]
+    initial value: 1
+    result:        [1+10+20=31,1,1+5+7=13,1+4=5]
 
 * ``inclusive_scan_by_segment``: performs partial prefix scans on a sequence's values. Each
   scan applies to a contiguous subsequence of values, which are determined by the keys associated with the
