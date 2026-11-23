@@ -891,13 +891,10 @@ struct __strided_loop
     }
 };
 
-// oneapi::dpl::__internal::__pstl_lower_bound_impl by a whole group, a sub-group or a work-group: the first index of
-// [__first, __last) where __comp(index), true on a prefix of the range, is false, __last if none. Each step evaluates
-// __comp once a work-item at evenly spaced indices and keeps the range between the last true one and the next, so the
-// dependent steps are about log(__last - __first) / log(group size + 1) instead of log2. All the work-items of the
-// group call it with the same arguments and get the result; a __comp not partitioning the range gives an unspecified
-// index in [__first, __last]. A non-zero _GroupSize gives the group size at compile time, which turns the division of
-// each step into a shift for a power of two.
+// oneapi::dpl::__internal::__pstl_lower_bound_impl by a whole group: the first index of [__first, __last) where
+// __comp(index), true on a prefix, is false. Each step tests an index a work-item, so the dependent steps are about
+// log(__last - __first) / log(group size + 1); all work-items pass the same arguments. A non-zero _GroupSize
+// gives the group size at compile time, turning the division of each step into a shift
 template <std::uint32_t _GroupSize = 0, typename _Group, typename _Size, typename _Compare>
 _Size
 __group_lower_bound(const _Group __group, _Size __first, _Size __last, _Compare __comp)
@@ -911,8 +908,7 @@ __group_lower_bound(const _Group __group, _Size __first, _Size __last, _Compare 
         const _Size __idx = __first + (__item + 1) * __step - 1;
         const bool __is_true = __idx < __last && std::invoke(__comp, __idx);
 
-        // A partitioning __comp is true at the indices of the first work-items; the count, at most the group size,
-        // fits in 32 bits, which keeps the reduction narrow for a work-group too
+        // The count of true indices fits in 32 bits, which keeps the reduction narrow for a work-group too
         const std::uint32_t __count =
             __dpl_sycl::__reduce_over_group(__group, std::uint32_t(__is_true ? 1 : 0), sycl::plus<std::uint32_t>());
         __first += _Size(__count) * __step;
