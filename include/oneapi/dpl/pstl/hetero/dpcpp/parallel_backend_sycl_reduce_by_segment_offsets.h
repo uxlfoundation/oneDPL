@@ -505,9 +505,9 @@ __reduce_four(_T __a, _T __b, _T __c, _T __d, _BinaryOperation __binary_op)
 
 // Folds __load(__index) for __index below __end by __stride: by eight, four, two and one, the loads of a step at once
 template <typename _Acc, typename _Load, typename _BinaryOperation>
-void
-__fold_strided(_Acc& __acc, std::uint32_t __index, const std::uint32_t __end, const std::uint32_t __stride,
-               _Load __load, _BinaryOperation __binary_op)
+_Acc
+__fold_strided(_Acc __acc, std::uint32_t __index, const std::uint32_t __end, const std::uint32_t __stride, _Load __load,
+               _BinaryOperation __binary_op)
 {
     auto __four = [&](std::uint32_t __i) {
         return __reduce_four<_Acc>(__load(__i), __load(__i + __stride), __load(__i + 2 * __stride),
@@ -529,6 +529,7 @@ __fold_strided(_Acc& __acc, std::uint32_t __index, const std::uint32_t __end, co
     }
     if (__index < __end)
         __acc = __reduce_pair<_Acc>(__acc, __load(__index), __binary_op);
+    return __acc;
 }
 
 template <typename _Acc, typename _KernelName, typename _GroupKernelName, typename _TailKernelName,
@@ -740,10 +741,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                     };
                     if (__lane < __active)
                     {
-                        __acc.__setup(__load_vector(__lane));
-
-                        __fold_strided(__acc.__v, __lane + __active, __num_vectors, __active, __load_vector,
-                                       __binary_op);
+                        __acc.__setup(__fold_strided(__load_vector(__lane), __lane + __active, __num_vectors, __active,
+                                                     __load_vector, __binary_op));
                     }
 
                     // Unaligned head and tail, at most three elements each (one for 8 bytes), to lane 0
@@ -762,12 +761,11 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         {
             const std::uint32_t __i = __first + __lane;
 
-            __acc.__setup(__reduce_pair<_Acc>(__element(__input, __piece_begin, __i),
-                                              __element(__input, __piece_begin, __i + __active), __binary_op));
-
-            __fold_strided(
-                __acc.__v, __i + 2 * __active, __last, __active,
-                [&](std::uint32_t __j) { return __element(__input, __piece_begin, __j); }, __binary_op);
+            __acc.__setup(__fold_strided(
+                __reduce_pair<_Acc>(__element(__input, __piece_begin, __i),
+                                    __element(__input, __piece_begin, __i + __active), __binary_op),
+                __i + 2 * __active, __last, __active,
+                [&](std::uint32_t __j) { return __element(__input, __piece_begin, __j); }, __binary_op));
         }
         if (__lane >= __active)
             __acc.__setup(__init);
@@ -811,13 +809,11 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             const std::uint32_t __begin_in_piece = std::uint32_t(__lane_begin - __piece_begin);
             const std::uint32_t __end_in_piece = std::uint32_t(__lane_end - __piece_begin);
 
-            _Acc __acc = __reduce_pair<_Acc>(__init, __element(__input, __piece_begin, __begin_in_piece), __binary_op);
-
             // One lane per tiny segment, hence stride 1
-            __fold_strided(
-                __acc, __begin_in_piece + 1, __end_in_piece, 1,
+            __result[__lane_segment] = __fold_strided(
+                __reduce_pair<_Acc>(__init, __element(__input, __piece_begin, __begin_in_piece), __binary_op),
+                __begin_in_piece + 1, __end_in_piece, 1,
                 [&](std::uint32_t __j) { return __element(__input, __piece_begin, __j); }, __binary_op);
-            __result[__lane_segment] = __acc;
         }
 
         return {__count, __dpl_sycl::__select_from_group(__sg, __lane_end, __count - 1)};
@@ -1055,7 +1051,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         if (__lane >= __heads_count)
             __acc.__setup(__tail);
 
-        __fold_strided(
+        __acc.__v = __fold_strided(
             __acc.__v, __lane + __sub_group_size, __heads_count, __sub_group_size,
             [&](std::uint32_t __head_index) { return __first_head[__head_index]; }, __binary_op);
         __acc.__v =
@@ -1192,7 +1188,7 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                     // Up to two work-groups long, at most one more element a work-item: a plain step is
                     // cheaper than the fold
                     if (__length > 2 * __work_group_size)
-                        __fold_strided(
+                        __acc = __fold_strided(
                             __acc, __local_id + __work_group_size, __length, __work_group_size,
                             [&](std::uint32_t __i) { return __input[__begin + __i]; }, __binary_op);
                     else if (__local_id + __work_group_size < __length)
