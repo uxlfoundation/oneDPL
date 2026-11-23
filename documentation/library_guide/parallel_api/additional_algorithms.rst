@@ -1,8 +1,9 @@
 Additional Algorithms
 #####################
 
-All algorithms are implemented in the ``oneapi::dpl`` namespace, and are available through either
-``<oneapi/dpl/algorithm>`` or ``<oneapi/dpl/numeric>`` headers.  
+All algorithms are implemented in the ``oneapi::dpl`` namespace, except ``reduce_by_segment`` with segments defined
+by offsets, which is in the ``oneapi::dpl::experimental`` namespace. They are available through either
+``<oneapi/dpl/algorithm>`` or ``<oneapi/dpl/numeric>`` headers.
 
 Algorithms in <oneapi/dpl/numeric>
 ==================================
@@ -20,6 +21,40 @@ Algorithms in <oneapi/dpl/numeric>
     values: [1,2,3,4,5,6]
     output_keys:   [0,1]
     output_values: [1+2+3=6,4+5+6=15]
+
+* ``experimental::reduce_by_segment`` with segments defined by offsets: performs partial reductions on
+  contiguous subsequences of the input determined by their boundary indexes, or offsets. It is present
+  if ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` is ``202611L`` or higher, see :ref:`Feature Macros <feature-macros>`.
+  The FPGA device policies are not supported.
+
+  .. code:: cpp
+
+    template <typename Policy, typename InputIt, typename OutputIt, typename SegmentNumT,
+              typename OffsetIt, typename InitT, typename BinaryOp = std::plus<>>
+    OutputIt
+    reduce_by_segment(Policy&& policy, InputIt first, InputIt last, OutputIt out_first,
+                      SegmentNumT num_segments, OffsetIt offsets, InitT init_value,
+                      BinaryOp binary_op = {});
+
+  The algorithm returns the iterator past the last written reduction ``out_first + num_segments``
+  if ``num_segments`` is positive; otherwise, it returns ``out_first``, and nothing is read or written.
+
+  ``SegmentNumT`` must be an integral type other than ``bool``. ``InputIt``, ``OutputIt`` and ``OffsetIt`` must
+  be random access iterators, and the value type of ``OffsetIt`` must be an integral type other than ``bool``.
+  The reduction operation ``binary_op`` must be associative and commutative, otherwise, the results are undetermined.
+
+  The sequence of ``offsets`` defines ``num_segments`` consecutive segments for reduction: the segment ``s`` is
+  ``[first + offsets[s], first + offsets[s + 1])``. The corresponding reduction is written to ``out_first[s]``.
+  The offsets must be sorted in non-descending order; otherwise, the behavior is undefined. 
+
+  Every segment is clamped to the input range ``[first, last)``. Every reduction includes ``init_value``;
+  for segments that are empty or lie fully outside the input range, it is the value written to the output.
+  For example::
+
+    values:        [10,20,5,7,4]
+    offsets:       [0,2,2,4,5]
+    initial value: 1
+    result:        [1+10+20=31,1,1+5+7=13,1+4=5]
 
 * ``inclusive_scan_by_segment``: performs partial prefix scans on a sequence's values. Each
   scan applies to a contiguous subsequence of values, which are determined by the keys associated with the
