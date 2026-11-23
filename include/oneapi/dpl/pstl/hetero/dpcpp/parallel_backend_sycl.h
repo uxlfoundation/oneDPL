@@ -1346,8 +1346,9 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                         const _AtomicType __current_group_count = __group_counter.fetch_add(1) + 1;
                         if (__current_group_count == __n_groups)
                         {
-                            // found state (__scratch_ptr[0]) update by other work-groups happens-before its load by
-                            // the last work-group below due to the combination of the release and acquire fences.
+                            // Updates to the found state (__scratch_ptr[0]) by other work-groups happen before
+                            // the last work-group loads it. The earlier release fences synchronize with the
+                            // acquire fence below through the atomic work-group counter (__group_counter).
                             sycl::atomic_fence(sycl::memory_order::acquire, sycl::memory_scope::device);
                             _AtomicType* __res_ptr = __res_acc_w.__data();
                             *__res_ptr = __scratch_ptr[0];
