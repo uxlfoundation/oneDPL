@@ -8,6 +8,42 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
+New in 2022.15.0
+================
+New Features
+------------
+
+Fixed Issues
+------------
+
+Known Issues and Limitations
+----------------------------
+Existing Issues
+^^^^^^^^^^^^^^^
+See oneDPL Guide for other `restrictions and known limitations`_.
+
+- ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
+  when used with a device policy on hardware that does not support 64-bit atomic operations.
+- For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
+  it is required that the provided input and destination iterators are equality comparable.
+  Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
+  If these conditions are not met, the result of these algorithm calls is undefined.
+- ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
+  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
+  to the device compiler.
+- Some algorithms in ``oneapi::dpl::ranges`` require more than their ``requires`` clauses specify:
+
+  * ``min``, ``max``, ``minmax``, ``min_element``, ``max_element``, ``minmax_element`` with host policies
+    require a default-initializable value type and an addressable comparator; ``min_element``,
+    ``max_element``, ``minmax_element`` also require a copyable value type, and
+    ``minmax_element`` also requires it to be constructible from and assignable from
+    the type obtained by dereferencing the range's iterator.
+  * ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union`` with both host
+    and device policies require an output value type constructible from input reference types and
+    a non-proxy output iterator.
+
+
 New in 2022.14.0
 ================
 New Features
