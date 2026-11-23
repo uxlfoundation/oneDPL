@@ -330,7 +330,7 @@ struct __segmented_reduce_combine_brick
         const _Size __first = __idx == 0 ? _Size{0} : __chunk_ends[__idx - 1];
 
         // No chunks: short and already reduced. Unordered offsets may exceed the computed chunks: results unspecified
-        const _Size __last = std::min<_Size>(__chunk_ends[__idx], __num_partials);
+        const _Size __last = std::min(__chunk_ends[__idx], __num_partials);
         if (__first < __last)
             __result[__idx] = __serial_accumulate<_Acc>(__partials, std::size_t(__first) + 1, std::size_t(__last),
                                                         __partials[__first], __binary_op);
@@ -605,8 +605,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                         const std::uint32_t __group_id = __item.get_group(0);
                         const std::uint32_t __piece = __group_id * std::uint32_t(__sub_groups) + __sg_id;
                         // In 64 bits: the product may exceed 32 bits before clamping to __n
-                        const _Size __piece_begin = std::min<_Size>(__n, _Size(std::size_t(__piece) * __piece_size));
-                        const _Size __piece_end = std::min<_Size>(__n, __piece_begin + _Size(__piece_size));
+                        const _Size __piece_begin = std::min(__n, _Size(std::size_t(__piece) * __piece_size));
+                        const _Size __piece_end = std::min(__n, __piece_begin + _Size(__piece_size));
 
                         __piece_parts<_Size> __parts(__m);
 
@@ -709,7 +709,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
         // Accumulators start from their first values, at least two for each active lane: an accumulator never comes
         // from a lone element (may differ to the op); an idle lane holds the init, which is passed but never used
-        std::uint32_t __active = std::min<std::uint32_t>(__sub_group_size, (__last - __first) / 2);
+        std::uint32_t __active = std::min(__sub_group_size, (__last - __first) / 2);
         oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __acc;
 
         // With a pointer input, each lane loads aligned vectors of four; the unaligned head and tail go to lane 0.
@@ -735,7 +735,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                 if (__num_vectors >= _Tuning::__min_vectors)
                 {
                     __by_vectors = true;
-                    __active = std::min<std::uint32_t>(__sub_group_size, __num_vectors);
+                    __active = std::min(__sub_group_size, __num_vectors);
                     auto __load_vector = [&](std::uint32_t __vector_index) -> _Acc {
                         _V __values;
                         __values.load(0, sycl::address_space_cast<sycl::access::address_space::generic_space,
@@ -851,7 +851,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                 return __clamp_to_size_and_cast<_Size>(__offsets[__i], __n) <= __begin;
             });
         // Unsorted offsets (results unspecified) may end the search before __first_segment
-        return std::max<_Size>(__first_segment - 1, __after_run - 2);
+        return std::max(__first_segment - 1, __after_run - 2);
     }
 
     // The empty and reversed segments get the init from the piece of their index, each piece a slice of the segments;
@@ -867,8 +867,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
         const _Size __slice = oneapi::dpl::__internal::__dpl_ceiling_div(__m, _Size(__num_pieces));
         // At most __m + __num_pieces: no overflow
-        const _Size __first = std::min<_Size>(__m, _Size(__piece) * __slice);
-        const _Size __last = std::min<_Size>(__m, __first + __slice);
+        const _Size __first = std::min(__m, _Size(__piece) * __slice);
+        const _Size __last = std::min(__m, __first + __slice);
         for (_Size __segment = __first + _Size(__sg.get_local_linear_id()); __segment < __last;
              __segment += _Size(_Tuning::__sub_group_size))
             if (__clamp_to_size_and_cast<_Size>(__offsets[__segment], __n) >=
@@ -887,7 +887,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         const std::uint32_t __lane = __sg.get_local_linear_id();
         const std::uint32_t __part_first = __begin > __piece_begin ? std::uint32_t(__begin - __piece_begin) : 0;
         const std::uint32_t __part_last =
-            std::uint32_t(std::max<_Size>(__piece_begin, std::min<_Size>(__end, __piece_end)) - __piece_begin);
+            std::uint32_t(std::max(__piece_begin, std::min(__end, __piece_end)) - __piece_begin);
 
         if (__part_first < __part_last)
         {
@@ -1077,8 +1077,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         __fold_strided(
             __acc.__v, __lane + __sub_group_size, __heads_count, __sub_group_size,
             [&](std::uint32_t __head_index) { return __first_head[__head_index]; }, __binary_op);
-        __acc.__v = __reduce_active_lanes<_Acc>(__sg, __acc.__v,
-                                                std::min<std::uint32_t>(__heads_count, __sub_group_size), __binary_op);
+        __acc.__v =
+            __reduce_active_lanes<_Acc>(__sg, __acc.__v, std::min(__heads_count, __sub_group_size), __binary_op);
         if (__lane == 0)
             __result[__tail_segment] = _Acc(std::invoke(__binary_op, __tail, __acc.__v));
     }
