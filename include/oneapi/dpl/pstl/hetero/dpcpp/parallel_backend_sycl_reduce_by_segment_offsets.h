@@ -1044,20 +1044,12 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         // Following heads, one per lane, then by four; heads are accumulators, so a lane may start from one alone; idle
         // lanes hold the tail, unused
         const _Acc* const __first_head = __heads + (__unit + 1);
-        oneapi::dpl::__internal::__lazy_ctor_storage<_Acc> __acc;
-
-        if (__lane < __heads_count)
-            __acc.__setup(__first_head[__lane]);
-        if (__lane >= __heads_count)
-            __acc.__setup(__tail);
-
-        __acc.__v = __fold_strided(
-            __acc.__v, __lane + __sub_group_size, __heads_count, __sub_group_size,
-            [&](std::uint32_t __head_index) { return __first_head[__head_index]; }, __binary_op);
-        __acc.__v =
-            __reduce_active_lanes<_Acc>(__sg, __acc.__v, std::min(__heads_count, __sub_group_size), __binary_op);
+        _Acc __acc = __fold_strided(
+            __lane < __heads_count ? __first_head[__lane] : __tail, __lane + __sub_group_size, __heads_count,
+            __sub_group_size, [&](std::uint32_t __head_index) { return __first_head[__head_index]; }, __binary_op);
+        __acc = __reduce_active_lanes<_Acc>(__sg, __acc, std::min(__heads_count, __sub_group_size), __binary_op);
         if (__lane == 0)
-            __result[__tail_segment] = __reduce_pair<_Acc>(__tail, __acc.__v, __binary_op);
+            __result[__tail_segment] = __reduce_pair<_Acc>(__tail, __acc, __binary_op);
     }
 };
 
