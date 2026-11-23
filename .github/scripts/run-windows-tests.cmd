@@ -39,11 +39,14 @@ if "%BACKEND%" == "dpcpp" (
 cd %BASE_DIR%
 mkdir build && cd build
 
+:: Warnings are treated as errors via CMAKE_COMPILE_WARNING_AS_ERROR rather than -Werror / /WX in CMAKE_CXX_FLAGS:
+:: CMAKE_CXX_FLAGS is also passed to compiler-driven link steps (CMake 4.5+ for IntelLLVM on Windows) and to
+:: try_compile feature checks, where unused compile-only options (e.g. /Ob2) would otherwise become errors.
 :: TODO: fix or justify the excluded warnings
 if "%CXX_COMPILER%" == "cl" (
-  set warning_flags=/W4 /WX /wd4018 /wd4100 /wd4146 /wd4244 /wd4245 /wd4267 /wd4310 /wd4389 /wd4805 /wd4996
+  set warning_flags=/W4 /wd4018 /wd4100 /wd4146 /wd4244 /wd4245 /wd4267 /wd4310 /wd4389 /wd4805 /wd4996
 ) else (
-  set warning_flags=-Wall -Werror -Wno-error=sign-compare -Wno-error=pass-failed
+  set warning_flags=-Wall -Wno-error=sign-compare -Wno-error=pass-failed
 )
 
 :: Reduce std_ranges view-type permutations in per-commit CI to keep
@@ -53,7 +56,7 @@ if "%BACKEND%" == "dpcpp" (
   set warning_flags=!warning_flags! -DONEDPL_STD_RANGES_TEST_ALL_PERMUTATIONS=0
 )
 
-cmake -G "Ninja" -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DCMAKE_CXX_STANDARD=%STD% -DCMAKE_CXX_COMPILER=%CXX_COMPILER% -DONEDPL_BACKEND=%BACKEND% -DCMAKE_CXX_FLAGS="%warning_flags%" ..
+cmake -G "Ninja" -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DCMAKE_CXX_STANDARD=%STD% -DCMAKE_CXX_COMPILER=%CXX_COMPILER% -DONEDPL_BACKEND=%BACKEND% -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DCMAKE_CXX_FLAGS="%warning_flags%" ..
 if !errorlevel! neq 0 set exit_code=!errorlevel!
 for %%t in (%ninja_targets%) do (
   ninja -j %BUILD_CONCURRENCY% -v "%%t" >> build.log 2>&1
